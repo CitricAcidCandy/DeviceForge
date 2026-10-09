@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 pub mod cooperative;
+pub mod devices;
+pub mod packages;
 pub const PROTOCOL_VERSION: u32 = 1;
 pub const ARTIFACT_PROTOCOL_VERSION: u32 = 2;
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -90,6 +92,8 @@ pub struct Manifest {
     pub artifacts: Option<ArtifactAccess>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub performance: Option<PerformanceAccess>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub devices: Option<devices::DeviceProviderAccess>,
 }
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]

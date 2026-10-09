@@ -11,8 +11,10 @@ use tokio_util::{sync::CancellationToken, task::TaskTracker};
 use tracing::Instrument;
 mod blocking;
 pub mod plugin_lifecycle;
+pub mod plugin_packages;
 pub mod registration;
 mod registry;
+pub mod devices;
 struct Active {
     accepting: bool,
     tokens: BTreeMap<String, CancellationToken>,
@@ -25,6 +27,8 @@ pub struct Application {
     workers: Arc<Semaphore>,
     capacity: usize,
     tracker: TaskTracker,
+    device_locks: devices::locks::Locks,
+    device_refreshes: Arc<Semaphore>,
 }
 
 impl Application {
@@ -50,6 +54,8 @@ impl Application {
             workers: Arc::new(Semaphore::new(concurrency)),
             capacity,
             tracker: TaskTracker::new(),
+            device_locks: Default::default(),
+            device_refreshes: Arc::new(Semaphore::new(2)),
         }))
     }
     pub fn operations(&self) -> Vec<Operation> {
@@ -79,6 +85,9 @@ impl Application {
 
     pub fn submit(self: &Arc<Self>, operation: &str, input: Value) -> Result<Job> {
         let registered = self.registry.find(operation)?;
+        self.submit_registered(operation,input,registered,None)
+    }
+    pub(crate) fn submit_registered(self:&Arc<Self>,operation:&str,input:Value,registered:Arc<registry::Registered>,external:Option<CancellationToken>)->Result<Job> {
         registered
             .validator
             .validate(&input)
@@ -93,6 +102,12 @@ impl Application {
         if !self.registry.current(operation, &registered)? {
             return Err(Error::Conflict("插件贡献已撤销或重载，请重新提交".into()));
         }
+        if registered.owner.as_ref().is_some_and(|owner|owner.info().cleanup_failed) {
+            return Err(Error::Conflict("插件资源清理未确认，拒绝新任务".into()));
+        }
+        if external.as_ref().is_some_and(CancellationToken::is_cancelled) { return Err(Error::Cancelled); }
+        let selection = self.registry.device_admission(&registered,&input)?.map(|(provider,device,cap)|self.device_locks.selection(&provider,device.as_deref(),&cap.scope,&cap.access)).transpose()?;
+        let deadline=selection.as_ref().map(|_|tokio::time::Instant::now()+std::time::Duration::from_secs(30));
         if active.tokens.len() >= self.capacity {
             return Err(Error::Conflict("任务队列已满".into()));
         }
@@ -114,6 +129,7 @@ impl Application {
         active.tokens.insert(job.id.clone(), token.clone());
         let app = self.clone();
         let executor = registered.executor.clone();
+        let owner = registered.owner.clone();
         let queued = job.clone();
         let context = LogContext::current().unwrap_or_default();
         let span =
@@ -123,7 +139,11 @@ impl Application {
             context
                 .scope(
                     async move {
-                        let result = app.run(&queued, executor, token).await;
+                        let execution = app.run(&queued, executor, token.clone(),selection,owner,deadline);
+                        tokio::pin!(execution);
+                        let result = if let Some(external)=external {
+                            tokio::select! {biased; _=external.cancelled()=>{token.cancel(); execution.await}, result=&mut execution=>result}
+                        }else{execution.await};
                         if let Err(error) = result {
                             tracing::error!(code = error.code(), "任务生命周期处理失败");
                             let _ = app
@@ -155,15 +175,31 @@ impl Application {
         job: &Job,
         executor: Arc<dyn Executor>,
         token: CancellationToken,
+        selection: Option<devices::locks::Selection>,
+        owner: Option<Arc<registry::Owner>>,
+        deadline: Option<tokio::time::Instant>,
     ) -> Result<()> {
+        let _device_guard = match selection {
+            Some(selection)=>match selection.acquire_until(&token,deadline.expect("设备任务已设置期限")).await {
+                Ok(guard)=>Some(guard),
+                Err(Error::Cancelled)=>{self.transition_async(job.id.clone(),JobStatus::Cancelled,None,None).await?;return Ok(())},
+                Err(error)=>return Err(error),
+            },
+            None=>None,
+        };
         let _permit = tokio::select! {
             biased;
             _ = token.cancelled() => {
                 self.transition_async(job.id.clone(), JobStatus::Cancelled, None, None).await?;
                 return Ok(());
             },
+            _=devices::locks::deadline(deadline)=>return Err(Error::Timeout),
             permit = self.workers.acquire() => permit.map_err(|e| Error::Dependency(e.to_string()))?,
         };
+        // 排队期间另一任务可能留下未确认资源；不能在取得共享锁后继续执行。
+        if owner.as_ref().is_some_and(|owner|owner.info().cleanup_failed) {
+            return Err(Error::Conflict("插件资源清理未确认，排队任务被拒绝".into()));
+        }
         let running = self
             .transition_async(job.id.clone(), JobStatus::Running, None, None)
             .await?;
@@ -176,11 +212,9 @@ impl Application {
             return Ok(());
         }
         tracing::info!("任务开始执行");
-        let execution = std::panic::AssertUnwindSafe(async {
-            executor
-                .execute(&job.operation, job.input.clone(), token.clone())
-                .await
-        })
+        let execution = std::panic::AssertUnwindSafe(devices::rules::execute(
+            executor.as_ref(),&job.operation,job.input.clone(),token.clone(),owner.as_deref(),deadline,
+        ))
         .catch_unwind();
         tokio::pin!(execution);
         let result = tokio::select! {
@@ -189,6 +223,11 @@ impl Application {
                 // 给予异步执行器有限清理时间，超时后释放 Future；取消后不接受晚到成功。
                 let _ = tokio::time::timeout(std::time::Duration::from_secs(2), &mut execution).await;
                 Err(Error::Cancelled)
+            },
+            _=devices::locks::deadline(deadline)=>{
+                token.cancel();
+                let _=tokio::time::timeout(std::time::Duration::from_secs(2),&mut execution).await;
+                Err(Error::Timeout)
             },
             result = &mut execution => result.unwrap_or_else(|_| Err(Error::Dependency("执行器发生内部异常".into()))),
         };

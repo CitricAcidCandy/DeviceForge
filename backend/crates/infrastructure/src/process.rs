@@ -49,6 +49,7 @@ async fn capture(
     plugin: bool,
     directory: Option<&std::path::Path>,
 ) -> Result<(Vec<u8>, Vec<u8>)> {
+    if cancel.is_cancelled() {return Err(Error::Cancelled);}
     let mut command = command(executable, args, plugin);
     if let Some(directory) = directory {
         command.current_dir(directory);
@@ -166,6 +167,7 @@ pub async fn run_to_file(
     timeout: Duration,
     cancel: CancellationToken,
 ) -> Result<()> {
+    if cancel.is_cancelled() {return Err(Error::Cancelled);}
     let mut child = command(executable, args, false)
         .spawn()
         .map_err(|e| Error::Dependency(e.to_string()))?;

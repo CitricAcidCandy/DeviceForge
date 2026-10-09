@@ -11,6 +11,10 @@ test('功能、SDK、展示层与宿主的反向依赖被拒绝', () => {
   for (const [from, to] of [['features/devices/a.ts','features/tasks/b.ts'],['plugin-sdk/index.ts','shared/api/generated.ts'],['shared/ui/a.ts','shared/api/client.ts'],['plugins/a.ts','app/main.ts']]) assert.equal(allowedDependency(from, to), false);
   assert.equal(allowedDependency('features/devices/a.ts','shared/api/client.ts'), true);
   assert.equal(allowedDependency('plugins/a.ts','plugin-sdk/index.ts'), true);
+  assert.equal(allowedDependency('features/plugin-packages/index.ts','features/server-plugins/index.ts'), false);
+  assert.equal(allowedDependency('features/tasks/index.ts','plugins/extensions/registry.ts'), false);
+  assert.equal(allowedDependency('plugins/extensions/registry.ts','shared/api/client.ts'), false);
+  assert.equal(allowedDependency('app/runtime.ts','features/tasks/index.ts'), true);
 });
 test('解析器识别重导出、动态导入和类型引用，并忽略注释与字符串', () => {
   const result = inspectSource('export * from "../app/a"; const value = import("../shared/a"); type T = import("../features/b").T; // fetch() any\nconst text = "fetch() any";', 'sample.ts');

@@ -58,11 +58,11 @@ export function nativePluginReadme(plan, cliVersion, sourceReadme) {
 \`\`\`powershell
 npx --yes --package .\\deviceforge-cli-${cliVersion}.tgz deviceforge plugin install .\\${archive}
 npx --yes --package .\\deviceforge-cli-${cliVersion}.tgz deviceforge plugin list
-# 配置 APK_API_TOKEN 后启动，或重启已运行的服务加载插件。
+# 默认免鉴权；启动时加载已部署插件，运行中安装则通过 HTTP/MCP 显式加载。
 npx --yes --package .\\deviceforge-cli-${cliVersion}.tgz deviceforge start
 \`\`\`
 
-插件由管理员安装，相同 ID 拒绝覆盖；安装不执行 npm 生命周期脚本。数据默认位于用户目录 .deviceforge，可通过 --data-dir 修改；安装与启动须使用同一数据位置。局域网启动要求配置 APK_API_TOKEN，CLI 不打印令牌。
+插件按可信代码运行，相同 ID 拒绝覆盖；安装不执行 npm 生命周期脚本。数据默认位于用户目录 .deviceforge，可通过 --data-dir 修改；安装与启动须使用同一数据位置。本地和局域网默认免鉴权，APK_API_TOKEN 可选，配置后客户端显式提供令牌，CLI 不打印令牌。
 
 公开操作：${plan.portableManifest.operations.map((operation) => `plugin.${plan.id}.${operation.name}`).join('、')}。
 

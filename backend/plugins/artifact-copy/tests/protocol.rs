@@ -13,6 +13,7 @@ fn manifest(outputs: bool) -> Manifest {
         executable: env!("CARGO_BIN_EXE_deviceforge-artifact-copy-plugin").into(),
         args: vec![],
         performance: None,
+        devices: None,
         artifacts: Some(ArtifactAccess {
             input_fields: vec!["artifact_id".into()],
             outputs,

@@ -3,7 +3,7 @@ use apk_domain::{Error, Job, JobEvent, Operation};
 use axum::{
     Json, Router,
     extract::{
-        DefaultBodyLimit, Path, Query, Request, State,
+        DefaultBodyLimit, MatchedPath, Path, Query, Request, State,
         rejection::{JsonRejection, QueryRejection},
     },
     http::StatusCode,
@@ -21,9 +21,11 @@ use std::{
 #[derive(Clone)]
 struct ApiState {
     app: Arc<Application>,
+    devices: Arc<apk_application::devices::DeviceService>,
     gate: Arc<Gate>,
     artifacts: Option<Arc<dyn apk_domain::artifacts::ArtifactStore>>,
     runtime: Option<runtime::RuntimeServices>,
+    packages: Option<Arc<apk_application::plugin_packages::PackageService>>,
 }
 struct Gate {
     token: String,
@@ -31,6 +33,8 @@ struct Gate {
     limit: u32,
     inflight: Arc<tokio::sync::Semaphore>,
 }
+const BROWSER_ASSET_ROUTE: &str = "/api/v2/browser-plugins/{id}/assets/{*path}";
+const BROWSER_RUN_ASSET_ROUTE: &str = "/api/v2/browser-plugins/{id}/runs/{run_id}/assets/{*path}";
 #[derive(Serialize, schemars::JsonSchema)]
 pub struct Failure {
     code: String,
@@ -105,7 +109,7 @@ pub fn router_with_mcp(
     requests_per_second: u32,
     config: mcp::StreamableHttpServerConfig,
 ) -> apk_domain::Result<Router> {
-    build_router(app, token, requests_per_second, config, None, None)
+    build_router(app, token, requests_per_second, config, None, None, None)
 }
 pub fn router_with_artifacts(
     app: Arc<Application>,
@@ -120,6 +124,7 @@ pub fn router_with_artifacts(
         requests_per_second,
         config,
         Some(artifacts),
+        None,
         None,
     )
 }
@@ -138,6 +143,26 @@ pub fn router_with_runtime(
         config,
         Some(artifacts),
         Some(runtime),
+        None,
+    )
+}
+pub fn router_with_packages(
+    app: Arc<Application>,
+    token: String,
+    requests_per_second: u32,
+    config: mcp::StreamableHttpServerConfig,
+    artifacts: Arc<dyn apk_domain::artifacts::ArtifactStore>,
+    runtime: runtime::RuntimeServices,
+    packages: Arc<apk_application::plugin_packages::PackageService>,
+) -> apk_domain::Result<Router> {
+    build_router(
+        app,
+        token,
+        requests_per_second,
+        config,
+        Some(artifacts),
+        Some(runtime),
+        Some(packages),
     )
 }
 fn build_router(
@@ -147,21 +172,24 @@ fn build_router(
     config: mcp::StreamableHttpServerConfig,
     artifacts: Option<Arc<dyn apk_domain::artifacts::ArtifactStore>>,
     runtime: Option<runtime::RuntimeServices>,
+    packages: Option<Arc<apk_application::plugin_packages::PackageService>>,
 ) -> apk_domain::Result<Router> {
     let plugin_service = runtime
         .as_ref()
         .and_then(|services| services.plugins.clone());
-    let mcp_service = mcp::service_with_plugins(app.clone(), plugin_service, config);
-    if token.trim().is_empty() || token.chars().any(char::is_whitespace) || requests_per_second == 0
-    {
+    let devices=apk_application::devices::DeviceService::new(app.clone());
+    let mcp_service = mcp::service_with_devices(app.clone(), plugin_service,devices.clone(), config);
+    if token.chars().any(char::is_whitespace) || requests_per_second == 0 {
         return Err(Error::Invalid(
-            "API 令牌不得为空或含空白，限流值必须大于零".into(),
+            "可选 API 令牌不得含空白，限流值必须大于零".into(),
         ));
     }
     let state = ApiState {
+        devices,
         app,
         artifacts,
         runtime,
+        packages,
         gate: Arc::new(Gate {
             token,
             window: Mutex::new((Instant::now(), 0)),
@@ -190,8 +218,27 @@ fn build_router(
         .route("/api/v2/diagnostics/logging", get(runtime::logging))
         .route("/api/v2/system/shutdown", post(runtime::shutdown))
         .route("/api/v2/plugins", get(plugin_routes::list))
+        .route("/api/v2/device-providers",get(device_routes::providers))
+        .route("/api/v2/devices",get(device_routes::directories))
+        .route("/api/v2/device-providers/{id}/refresh",post(device_routes::refresh))
+        .route("/api/v2/device-actions",post(device_routes::invoke))
         .route("/api/v2/plugins/{id}/load", post(plugin_routes::load))
         .route("/api/v2/plugins/{id}/unload", post(plugin_routes::unload))
+        .route(
+            "/api/v2/plugin-packages/{kind}",
+            get(plugin_package_routes::list)
+                .post(plugin_package_routes::install)
+                .layer(DefaultBodyLimit::disable()),
+        )
+        .route(
+            "/api/v2/plugin-packages/{kind}/{id}",
+            axum::routing::delete(plugin_package_routes::delete),
+        )
+        .route(BROWSER_ASSET_ROUTE, get(plugin_package_routes::asset))
+        .route(
+            BROWSER_RUN_ASSET_ROUTE,
+            get(plugin_package_routes::run_asset),
+        )
         .route_service("/mcp", mcp_service)
         .fallback(|| async { ApiError::new(StatusCode::NOT_FOUND, "not_found", "接口不存在") })
         .method_not_allowed_fallback(|| async {
@@ -212,7 +259,17 @@ async fn guard(State(state): State<ApiState>, request: Request, next: Next) -> R
         .get("authorization")
         .and_then(|h| h.to_str().ok())
         .and_then(|h| h.strip_prefix("Bearer "));
-    if supplied != Some(state.gate.token.as_str()) {
+    // 已发布的模块和相对静态资源不携带令牌，便于浏览器原生模块加载。
+    let public_asset = (request.method() == axum::http::Method::GET
+        || request.method() == axum::http::Method::HEAD)
+        && request
+            .extensions()
+            .get::<MatchedPath>()
+            .is_some_and(|path| {
+                [BROWSER_ASSET_ROUTE, BROWSER_RUN_ASSET_ROUTE].contains(&path.as_str())
+            });
+    if !state.gate.token.is_empty() && !public_asset && supplied != Some(state.gate.token.as_str())
+    {
         return ApiError::new(
             StatusCode::UNAUTHORIZED,
             "unauthorized",
@@ -357,7 +414,10 @@ mod correlation;
 mod mcp_observability;
 mod mcp_tools;
 mod mcp_wire;
+mod plugin_package_routes;
 mod plugin_routes;
+mod device_routes;
+mod device_mcp;
 mod response_stream;
 mod responses;
 pub mod runtime;

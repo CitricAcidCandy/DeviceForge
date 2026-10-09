@@ -25,7 +25,8 @@ async fn run(
     data: PathBuf,
     metrics: deviceforge_observability::LogMetrics,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let token = std::env::var("APK_API_TOKEN").map_err(|_| "必须配置 APK_API_TOKEN")?;
+    let token = std::env::var("APK_API_TOKEN").unwrap_or_default();
+    tracing::info!(authentication_enabled = !token.is_empty(), "访问模式已配置");
     let rate = limits::requests_per_second(std::env::var("DEVICEFORGE_HTTP_RATE").ok().as_deref())?;
     std::fs::create_dir_all(&data)?;
     let store = Arc::new(SqliteStore::open(data.join("jobs.db"))?);
@@ -195,7 +196,21 @@ async fn run(
     }
     let mcp_shutdown = mcp_config.cancellation_token.clone();
     let shutdown = tokio_util::sync::CancellationToken::new();
-    let router = apk_server::router_with_runtime(
+    let browser_directory = std::env::var_os("APK_BROWSER_PLUGIN_DIR")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| data.join("browser-plugins"));
+    let packages = apk_application::plugin_packages::PackageService::new(
+        Arc::new(
+            apk_infrastructure::plugin_packages::FilePluginPackages::open(
+                &plugin_directory,
+                &browser_directory,
+                std::env::var_os("DEVICEFORGE_NODE").map(PathBuf::from),
+            )
+            .await?,
+        ),
+        plugin_service.clone(),
+    );
+    let router = apk_server::router_with_packages(
         app.clone(),
         token,
         rate,
@@ -206,6 +221,7 @@ async fn run(
             shutdown: shutdown.clone(),
             plugins: Some(plugin_service.clone()),
         },
+        packages,
     )?;
     let bind = std::env::var("APK_BIND").unwrap_or_else(|_| "127.0.0.1:7031".into());
     let listener = tokio::net::TcpListener::bind(&bind).await?;

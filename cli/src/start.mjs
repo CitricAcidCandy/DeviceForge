@@ -1,12 +1,12 @@
 import { createServer } from 'node:net';
 import { mkdir } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
-import { randomBytes } from 'node:crypto';
 import { setTimeout as delay } from 'node:timers/promises';
 import { loadRuntime } from './runtime.mjs';
 import { spawnManaged, stopManaged } from './processes.mjs';
 import { startWebServer } from './web-server.mjs';
 import { networkConfig } from './network.mjs';
+import { readApiToken } from './options.mjs';
 
 async function freePort() {
   const server = createServer();
@@ -15,13 +15,13 @@ async function freePort() {
   await new Promise((resolve) => server.close(resolve));
   return port;
 }
-async function ready(process, port, token, signal) {
+async function ready(process, port, headers, signal) {
   const deadline = Date.now() + 15000;
   while (Date.now() < deadline) {
     signal?.throwIfAborted();
     if (process.failure || process.child.exitCode !== null || process.child.signalCode) throw new Error('后端在就绪前退出，请检查部署配置');
     try {
-      const response = await fetch(`http://127.0.0.1:${port}/api/v1/health`, { headers: { authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(500) });
+      const response = await fetch(`http://127.0.0.1:${port}/api/v1/health`, { headers, signal: AbortSignal.timeout(500) });
       if (response.ok) return;
     } catch {}
     await delay(50, undefined, { signal });
@@ -31,16 +31,17 @@ async function ready(process, port, token, signal) {
 
 // 生命周期与 HTTP 代理分开；启动任一步失败都只清理本次创建的进程和监听。
 export async function start(options, { signal, environment = process.env, runtime, onReady = console.log } = {}) {
-  const resources = runtime || await loadRuntime();
   signal?.throwIfAborted();
+  const token = readApiToken(environment);
+  const headers = token ? { authorization: `Bearer ${token}` } : {};
+  const resources = runtime || await loadRuntime();
   const network = networkConfig(options.ip, options.port, options.mcpPort);
-  if (network.external && !environment.APK_API_TOKEN) throw new Error('局域网启动请先配置 APK_API_TOKEN');
-  const token = environment.APK_API_TOKEN || randomBytes(32).toString('hex');
-  if (!token || /\s/.test(token)) throw new Error('APK_API_TOKEN 不得为空或包含空白');
   await mkdir(options.dataDirectory, { recursive: true });
   // 相对部署路径始终按启动器工作目录解析，不能随 Rust 的数据目录工作目录改变。
   const pluginDirectory = resolve(environment.APK_PLUGIN_DIR || join(options.dataDirectory, 'plugins'));
   await mkdir(pluginDirectory, { recursive: true });
+  const browserPluginDirectory = resolve(environment.APK_BROWSER_PLUGIN_DIR || join(options.dataDirectory, 'browser-plugins'));
+  await mkdir(browserPluginDirectory, { recursive: true });
   const backendPort = await freePort();
   const logDirectory = resolve(environment.DEVICEFORGE_LOG_DIR || join(options.dataDirectory, 'logs'));
   let web; let mcp; let backend;
@@ -51,9 +52,10 @@ export async function start(options, { signal, environment = process.env, runtim
     backend = spawnManaged(resources.binary, [], {
       cwd: options.dataDirectory, stdio: 'ignore',
       env: { ...environment, APK_API_TOKEN: token, APK_BIND: `127.0.0.1:${backendPort}`, APK_DATA_DIR: options.dataDirectory, APK_PLUGIN_DIR: pluginDirectory,
+        APK_BROWSER_PLUGIN_DIR: browserPluginDirectory, DEVICEFORGE_NODE: environment.DEVICEFORGE_NODE ? resolve(environment.DEVICEFORGE_NODE) : process.execPath,
         APK_MCP_HOSTS: `127.0.0.1:${backendPort}`, APK_MCP_ORIGINS: network.origins.join(','), DEVICEFORGE_LOG_DIR: logDirectory },
     });
-    await ready(backend, backendPort, token, signal);
+    await ready(backend, backendPort, headers, signal);
     onReady(`DeviceForge 已启动，监听 ${options.ip}，前端/API ${options.port}，MCP ${options.mcpPort}；按 Ctrl+C 退出\n${network.urls.map((url) => `前端：${url.web}；MCP：${url.mcp}`).join('\n')}\n日志：${logDirectory}`);
     const result = await Promise.race([stopped.then(() => null), backend.closed]);
     if (result && (result.failure || result.code !== 0)) throw new Error('后端异常退出，前端监听已停止');
@@ -61,7 +63,7 @@ export async function start(options, { signal, environment = process.env, runtim
     if (backend && backend.child.exitCode === null && !backend.child.signalCode) {
       try {
         await fetch(`http://127.0.0.1:${backendPort}/api/v2/system/shutdown`, {
-          method: 'POST', headers: { authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(1500),
+          method: 'POST', headers, signal: AbortSignal.timeout(1500),
         });
         let timer;
         try { await Promise.race([backend.closed, new Promise((resolve) => { timer = setTimeout(resolve, 5000); })]); }

@@ -90,6 +90,10 @@ pub struct Operation {
 #[async_trait]
 pub trait Executor: Send + Sync {
     fn operations(&self) -> Vec<Operation>;
+    /// 默认没有设备贡献；声明与实际操作一起注册，不按平台字符串推断。
+    fn device_provider(&self) -> Option<devices::DeviceProviderDefinition> {
+        None
+    }
     /// 默认用于无外部会话的执行器；合作插件不可确定清理后必须持续返回 true。
     fn has_unresolved_resources(&self) -> bool {
         false
@@ -146,6 +150,7 @@ mod tests {
 }
 
 pub mod artifacts;
+pub mod devices;
 
 pub mod packages;
 
@@ -191,5 +196,6 @@ pub fn validate_local_schema(value: &Value) -> Result<()> {
 
 pub mod bundles;
 
+pub mod plugin_packages;
 pub mod plugins;
 pub mod splits;

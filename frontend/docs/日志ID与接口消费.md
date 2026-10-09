@@ -1,21 +1,21 @@
 # 日志 ID 与接口消费
 
-本端仍是 Svelte 骨架，只有生成 API 类型和公开插件契约；HTTP 适配器、错误展示与复制交互尚未实施。本文约束后续消费，不把生成类型视为已经完成客户端。
+本端已实现 v2 HTTP 适配器及公开 SDK 的 data/logId 与受控错误传播；具体错误展示和复制交互尚未实施。main.ts 未装配产品 runtime，页面仍是开发外壳。
 
 ## 类型与版本
 
-新客户端默认调用 `/api/v2`：业务成功响应为 `{log_id,data}`，失败为 `{log_id,error:{code,message}}`。`shared/api/generated.ts` 通过 `npm run generate:api` 获取两版接口，组件和插件不得手写重复 DTO。v1 兼容响应从 `x-deviceforge-log-id` 读取关联 ID。
+客户端默认调用 `/api/v2`：业务成功响应为 `{log_id,data}`，失败为 `{log_id,error:{code,message}}`。`shared/api/generated.ts` 由主代理通过 `npm run generate:api` 获取两版接口，业务类型直接索引 paths，组件和插件不得手写重复 DTO。v1 关联头约束保留在协议中，当前客户端未提供 v1 调用适配。
 
 产物内容下载保持原字节，包含 JSON 类型文件；不能把下载 JSON 当作业务响应拆包。OpenAPI 文档保持标准结构，在根部 `x-deviceforge-log-id` 扩展返回 ID。所有宿主响应都提供同名关联头。
 
 ## 适配与交互
 
-后续 `shared/api` 统一拆包，将日志 ID 保留在错误对象与调用结果中。页面只消费映射后的业务数据和日志 ID，不承担响应版本识别、不读取服务器日志路径。
+`shared/api` 已统一拆包，将日志 ID 保留在 ApiResult/ApiError 中，HostContext 映射为 HostResult/HostError。响应业务结构、包装和关联头不一致会受控拒绝。页面只消费映射后的业务数据和日志 ID，不承担响应版本识别、不读取服务器日志路径。
 
 任务提交 ID 与日志 ID 分别保存；后台执行沿用提交请求的日志 ID，查询和取消各产生新 ID。排查时展示当前失败请求 ID，并保留任务 ID 供查询。请求取消、组件销毁和设备切换仍须处理晚到结果。
 
-错误展示支持选择和复制日志 ID；禁止把部署令牌、请求原文或服务器私有路径作为错误详情展示。MCP 客户端成功从 `result._meta["deviceforge/log_id"]`、协议失败从 `error.data.log_id` 读取。
+后续错误展示应支持选择和复制日志 ID；禁止把部署令牌、请求原文或服务器私有路径作为错误详情展示。MCP 客户端成功从 `result._meta["deviceforge/log_id"]`、协议失败从 `error.data.log_id` 读取，当前前端 runtime 不包含 MCP 客户端。
 
-## 后续验收
+## 验收边界
 
-客户端实现后覆盖对象/数组拆包、v1 兼容、401/429、网络取消、原始 JSON 产物、日志 ID 复制和晚到结果。当前阶段只验证类型生成、架构、类型检查、既有骨架测试及构建，不宣称上述交互已完成。
+单元测试已覆盖对象/数组拆包、损坏包装、日志头不一致、401/429、忽略信号的网络取消、原始 JSON 产物及晚到结果；管理变更不自动重试。主代理 debug/release 真实浏览器已验证在线包、命令/任务调用保留日志 ID，见根 artifacts/browser-plugin-smoke-debug.json 与 browser-plugin-smoke-release.json。日志复制 UI、v1 客户端和设备交互未实施，不以这些证据宣称完成。

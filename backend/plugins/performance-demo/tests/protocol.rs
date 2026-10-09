@@ -22,6 +22,7 @@ fn manifest(mode: &str, fps: bool) -> Manifest {
             vec![mode.into()]
         },
         artifacts: None,
+        devices: None,
         performance: Some(PerformanceAccess {
             sample_operation: "sample".into(),
             fps,

@@ -2,6 +2,7 @@
 use crate::{Application, registry::Prepared};
 use apk_domain::{Error, Result, plugins::*};
 use deviceforge_observability::LogContext;
+use std::future::Future;
 use std::{collections::HashSet, sync::Arc, time::Duration};
 use tokio::sync::{Mutex, Semaphore};
 use tokio_util::{sync::CancellationToken, task::TaskTracker};
@@ -35,6 +36,7 @@ impl PluginService {
     }
     /// 只在监听启动前装配初始贡献；运行中管理统一使用 load/unload。
     pub async fn seed(&self, plugin: PluginContribution) -> Result<PluginInfo> {
+        let _change = self.changes.lock().await;
         let mut info = self.app.install_plugin(plugin).await?;
         info.protected = self.protected.contains(&info.id);
         Ok(info)
@@ -58,6 +60,41 @@ impl PluginService {
     }
     async fn change(self: &Arc<Self>, id: String, loading: bool) -> Result<PluginInfo> {
         plugin_id(&id)?;
+        self.serialized(move |service| async move {
+            tracing::info!(plugin_id = %id, loading, "插件生命周期变更开始");
+            let result = async {
+                if loading {
+                    let plugin = service.catalog.load(&id).await?;
+                    if plugin.id != id {
+                        return Err(Error::Invalid("部署插件 ID 与请求不符".into()));
+                    }
+                    service.app.install_plugin(plugin).await
+                } else if service.protected.contains(&id) {
+                    Err(Error::Conflict(
+                        "插件被启动配置中的长期性能探针引用，不能运行中卸载".into(),
+                    ))
+                } else {
+                    service.app.uninstall_plugin(id.clone()).await
+                }
+            }
+            .await;
+            let code = result.as_ref().err().map(Error::code).unwrap_or("ok");
+            tracing::info!(plugin_id = %id, loading, code, "插件生命周期变更结束");
+            result.map(|mut info| {
+                info.protected = service.protected.contains(&id);
+                info
+            })
+        })
+        .await
+    }
+
+    /// 部署删除复用管理队列；调用方取消等待不会释放进行中的串行门禁。
+    pub(crate) async fn serialized<T, F, Fut>(self: &Arc<Self>, work: F) -> Result<T>
+    where
+        T: Send + 'static,
+        F: FnOnce(Arc<Self>) -> Fut + Send + 'static,
+        Fut: Future<Output = Result<T>> + Send + 'static,
+    {
         let task = {
             let _admission = self
                 .admission
@@ -78,29 +115,7 @@ impl PluginService {
                 if service.closed.is_cancelled() {
                     return Err(Error::Conflict("插件管理服务正在停止".into()));
                 }
-                tracing::info!(plugin_id = %id, loading, "插件生命周期变更开始");
-                let result = async {
-                    if loading {
-                        let plugin = service.catalog.load(&id).await?;
-                        if plugin.id != id {
-                            return Err(Error::Invalid("部署插件 ID 与请求不符".into()));
-                        }
-                        service.app.install_plugin(plugin).await
-                    } else if service.protected.contains(&id) {
-                        Err(Error::Conflict(
-                            "插件被启动配置中的长期性能探针引用，不能运行中卸载".into(),
-                        ))
-                    } else {
-                        service.app.uninstall_plugin(id.clone()).await
-                    }
-                }
-                .await;
-                let code = result.as_ref().err().map(Error::code).unwrap_or("ok");
-                tracing::info!(plugin_id = %id, loading, code, "插件生命周期变更结束");
-                result.map(|mut info| {
-                    info.protected = service.protected.contains(&id);
-                    info
-                })
+                work(service.clone()).await
             }))
         };
         task.await

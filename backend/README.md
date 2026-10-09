@@ -4,13 +4,13 @@
 将设备调试、应用分析和插件扩展作为浏览器与 MCP 客户端可调用的服务器能力。设备和工具位于服务器主机，浏览器不直接操作本机文件或进程。
 
 ## 快速开始
-在本目录配置 `APK_API_TOKEN`，执行 `cargo run -p apk-server`，默认监听 `127.0.0.1:7031`。调用 HTTP 或 MCP 时提供 Bearer 请求头，未配置令牌拒绝启动。
+在本目录执行 `cargo run -p apk-server`，默认监听 `127.0.0.1:7031`，未配置令牌时免鉴权。如需鉴权，设置 `APK_API_TOKEN`，HTTP/MCP 调用相应提供 Bearer 请求头。
 
 统一分发使用根目录 CLI：本地 npx 包默认监听 `0.0.0.0`，提供前端/API 7030 和独立 MCP 7032，并支持 `--ip`、`--port`、`--mcp-port`。Rust 内部监听回环，由 CLI 固定代理；部署与插件便携包格式见 [命令行部署与插件安装](docs/命令行部署与插件安装.md)。
 
 部署者可配置 `APK_ADB`、`APK_HDC`、`APK_DATA_DIR`、`APK_PLUGIN_DIR`、`APK_BIND`、`APK_MCP_HOSTS` 和 `APK_MCP_ORIGINS`。安装包分析另支持 APK_APKANALYZER、APK_APKSIGNER、APK_APKSIGNER_JAR、APK_JAVA 和 APK_BUNDLETOOL_JAR；当前不使用 APK_AAPT。
 
-示例插件：执行 `cargo build -p deviceforge-echo-plugin`，按 plugins/echo/README.md 部署并填写绝对入口路径。服务启动时加载贡献，运行中可通过鉴权 HTTP/MCP 按插件 ID 加载、卸载和重载，无需修改通用路由；契约及边界见 [运行中插件生命周期](docs/运行中插件生命周期.md)。
+示例插件：执行 `cargo build -p deviceforge-echo-plugin`，按 plugins/echo/README.md 部署并填写绝对入口路径。服务启动时加载贡献，运行中可通过 HTTP/MCP 按插件 ID 加载、卸载和重载；配置令牌时携带鉴权。无需修改通用路由，契约及边界见 [运行中插件生命周期](docs/运行中插件生命周期.md)。
 
 ## API 与验证
 HTTP 推荐 `/api/v2`，业务 JSON 返回日志 ID；v1 保持兼容，MCP 在 `/mcp`。以 openapi.json 的运行时模式和 operations 列表为准。后端类型生成模式，不复制 DTO；导出命令：`cargo run -p apk-server --bin export-openapi`。
@@ -29,8 +29,11 @@ HTTP 推荐 `/api/v2`，业务 JSON 返回日志 ID；v1 保持兼容，MCP 在 
 - docs/MCP服务.md：MCP 工具及客户端接入。
 - docs/命令行部署与插件安装.md：npx 本地分发、网络参数、部署路径及安装门禁。
 - docs/原生插件分发.md：从 Cargo/公开清单派生平台包，release tgz 构建与实际安装验收。
+- docs/合作取消插件协议.md：协议 3 控制帧、公开异步运行库与清理未确认状态。
+- docs/在线插件安装架构.md：在线包、开放部署、安装/运行分离和当前实施边界。
+- docs/在线插件接口.md：包上传/目录/删除、原生浏览器模块资源与调用方收敛规则。
 
-前端只交付基础骨架，其文档独立放置在 frontend/docs。当前尚未完成全业务重写，详细缺口见迁移清单。
+前端实现通信、基础用例与可热装卸插件框架，具体界面待设计稿；其文档独立放置在 frontend/docs。当前尚未完成全业务重写，详细缺口见迁移清单。
 
 真实运行验证：构建后执行 node scripts/runtime-smoke.mjs，验证实际 HTTP 监听、管理员插件目录、进程插件和持久化事件。
 
@@ -56,4 +59,6 @@ APKS 分包操作已接入：android.package.extract_splits 接收四个常见�
 
 本端独立开发要求见 AGENTS.md；新增自动依赖门禁 `node scripts/check-architecture.mjs`，不以文档约定代替实际检查。
 
-标准 MessagePack 进程插件已接入 encode/decode/query，JSON/MessagePack 产物共同遵守受限编解码门禁，见 docs/MessagePack插件接口.md。旧 DLL 私有格式尚未证明兼容；通用 npx 安装入口和四个内置插件的 Windows x64 release tgz 已交付，registry 发布及其他平台仍待完成。
+标准 MessagePack 进程插件已接入 encode/decode/query，JSON/MessagePack 产物共同遵守受限编解码门禁，见 docs/MessagePack插件接口.md。旧 DLL 私有格式尚未证明兼容；通用 npx 安装入口和五个内置插件（含 cooperative_demo）的 Windows x64 release tgz 已交付，registry 发布及其他平台仍待完成。
+
+在线 ZIP/npm TGZ 上传、部署目录/删除与浏览器模块资源已接入，包须自包含依赖，安装后由调用方显式启用。默认免鉴权，按可信插件运行；非空 APK_API_TOKEN 可选。当前后端最终门禁与 168 项 Rust 测试通过，debug/release 在线、日志、生命周期和合作取消真实服务通过；生产前端宿主与真实 npx 已完成对应集成验证。具体接口和重启/跨浏览器边界见在线插件文档，设备提供者与常驻会话仍待实施。

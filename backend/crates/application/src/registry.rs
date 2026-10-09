@@ -22,6 +22,7 @@ pub(crate) struct Owner {
     draining: AtomicBool,
     pub cancel: CancellationToken,
     pub tracker: TaskTracker,
+    pub provider: Option<apk_domain::devices::DeviceProviderDefinition>,
 }
 impl Owner {
     pub fn info(&self) -> PluginInfo {
@@ -33,12 +34,13 @@ impl Owner {
         info
     }
 }
-struct Snapshot {
+pub(crate) struct Snapshot {
     revision: u64,
-    entries: BTreeMap<String, Arc<Registered>>,
-    owners: BTreeMap<String, Arc<Owner>>,
+    pub entries: BTreeMap<String, Arc<Registered>>,
+    pub owners: BTreeMap<String, Arc<Owner>>,
+    pub directories: BTreeMap<String,apk_domain::devices::DeviceDirectory>,
 }
-pub(crate) struct Registry(RwLock<Snapshot>);
+pub(crate) struct Registry(pub(crate) RwLock<Snapshot>);
 
 fn prepare(
     executor: Arc<dyn Executor>,
@@ -79,6 +81,7 @@ impl Registry {
             revision: 0,
             entries: BTreeMap::new(),
             owners: BTreeMap::new(),
+            directories: BTreeMap::new(),
         };
         for executor in executors {
             let operations = executor.operations();
@@ -147,6 +150,10 @@ impl Prepared {
         if operations.is_empty() {
             return Err(Error::Invalid("插件没有贡献操作".into()));
         }
+        let provider = plugin.executor.device_provider();
+        if let Some(definition) = &provider {
+            crate::devices::rules::definition(definition,&operations,&plugin.id)?;
+        }
         let owner = Arc::new(Owner {
             info: PluginInfo {
                 id: plugin.id,
@@ -164,6 +171,7 @@ impl Prepared {
             draining: AtomicBool::new(false),
             cancel: CancellationToken::new(),
             tracker: TaskTracker::new(),
+            provider,
         });
         let entries = prepare(plugin.executor, Some(owner.clone()), operations)?;
         Ok(Self { owner, entries })
@@ -222,6 +230,7 @@ impl Registry {
             owner.draining.store(true, Ordering::Release);
             owner.tracker.close();
             owner.cancel.cancel();
+            snapshot.directories.remove(id);
             snapshot.revision = revision;
         }
         Ok(owner)

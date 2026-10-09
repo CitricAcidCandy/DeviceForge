@@ -1,0 +1,114 @@
+import { createFrontendRuntime, createNamedSlotAdapter } from '/__production_host__';
+
+function check(value, message) { if (!value) throw new Error(message); }
+function target(id) {
+  const root = document.createElement('section'); root.id = id; document.body.append(root); return root;
+}
+async function eventually(read, predicate) {
+  const deadline = Date.now() + 10000;
+  while (Date.now() < deadline) {
+    const value = await read(); if (predicate(value)) return value;
+    await new Promise(resolve => setTimeout(resolve, 25));
+  }
+  throw new Error('真实浏览器任务等待超时');
+}
+
+// 该页面只负责运行验收，不是产品界面，也不登记夹具模块对象。
+export async function verifyInstalledPlugin() {
+  const signal = AbortSignal.timeout(45000);
+  const panel = target('panel'); const toolbar = target('toolbar'); const module = target('module');
+  const slot = await createNamedSlotAdapter([{ id: 'toolbar', target: toolbar, renderDefault(root) {
+    root.textContent = '宿主默认工具栏'; return () => { root.textContent = ''; };
+  } }]);
+  const runtime = createFrontendRuntime({
+    baseUrl: location.origin, transport: fetch.bind(globalThis), panelTarget: () => panel,
+    moduleTarget: () => module, slotAdapter: slot,
+    esmImporter: async (url, current) => { current.throwIfAborted(); return import(/* @vite-ignore */ url); },
+    packageEntryResolver: (info, runId) => `/api/v2/browser-plugins/${encodeURIComponent(info.id)}/runs/${runId}/assets/${info.entryPath}`,
+  });
+  try {
+    const archive = async kind => {
+      const response = await fetch(`/__fixture__/${kind}.tgz`, { signal });
+      check(response.ok, '验收归档读取失败'); return response.blob();
+    };
+    const serverPackage = await runtime.pluginPackages.upload('server', await archive('server'), 'application/gzip', signal);
+    const devicePackage = await runtime.pluginPackages.upload('server', await archive('device'), 'application/gzip', signal);
+    const installed = await runtime.pluginPackages.upload('browser', await archive('browser'), 'application/gzip', signal);
+    const descriptor = installed.data;
+    await runtime.pluginPackages.enable('server', serverPackage.data.id, signal);
+    await runtime.pluginPackages.enable('server', devicePackage.data.id, signal);
+    const first = await runtime.pluginPackages.enable('browser', descriptor.id, signal);
+    await runtime.webPlugins.mount(descriptor.id, `${descriptor.id}.panel`);
+    await runtime.extensions.mountComponent(`${descriptor.id}.component`);
+    await runtime.extensions.mountModule(`${descriptor.id}.module`);
+    check(panel.textContent === '在线面板已挂载', '上传包的面板未挂载');
+    check(toolbar.textContent === '在线组件替换宿主', '上传包未替换宿主渲染');
+    check(module.textContent === '在线模块已挂载', '上传包的模块未挂载');
+    const command = await runtime.extensions.executeCommand(`${descriptor.id}.command`, {}, signal);
+    check(command.data.count > 0 && command.logId, '命令未取得真实服务器操作与日志 ID');
+    const service = await runtime.extensions.callService(`${descriptor.id}.service`, '1', {}, signal);
+    check(service.data.dependencyRun === command.data.dependencyRun, '服务未转调当前代次命令');
+    const dynamic = await runtime.extensions.executeCommand(`${descriptor.id}.dynamic`, {}, signal);
+    check(dynamic.data.ready === true, '动态注册命令未读取插件状态');
+    const deviceCall = await runtime.extensions.executeCommand(`${descriptor.id}.devices`, {}, signal);
+    const deviceResult = await eventually(() => runtime.tasks.get(deviceCall.data.jobId, signal), reply => ['succeeded', 'failed', 'cancelled'].includes(reply.data.status));
+    check(deviceResult.data.status === 'succeeded' && deviceResult.data.result.synthetic_demo === true, '公开设备任务没有取得模拟提供者的真实进程结果');
+    check(deviceResult.data.result.value.source === 'browser-plugin' && deviceCall.logId, '上传浏览器插件未通过公开设备上下文对接服务器');
+    const oldReference = deviceCall.data.reference;
+    await runtime.pluginPackages.disable('server', devicePackage.data.id, signal);
+    check(!(await runtime.host.devices.refreshProviders(signal)).data.some(item => item.id === devicePackage.data.id), '提供者卸载后目录未撤销');
+    check(!(await runtime.host.devices.refreshDirectories(signal)).data.some(item => item.provider.id === devicePackage.data.id), '提供者卸载后设备目录仍有旧代');
+    await runtime.pluginPackages.enable('server', devicePackage.data.id, signal);
+    const nextDeviceCall = await runtime.extensions.executeCommand(`${descriptor.id}.devices`, {}, signal);
+    check(nextDeviceCall.data.reference.generation !== oldReference.generation, '设备提供者重载没有产生新代');
+    const nextDeviceResult = await eventually(() => runtime.tasks.get(nextDeviceCall.data.jobId, signal), reply => ['succeeded', 'failed', 'cancelled'].includes(reply.data.status));
+    check(nextDeviceResult.data.status === 'succeeded', '新代设备能力任务未成功');
+    check((await runtime.tasks.get(deviceCall.data.jobId, signal)).data.status === 'succeeded', '设备提供者重载丢失历史任务');
+    let oldDeviceRejected = false;
+    try {
+      await runtime.host.devices.invoke({ providerId: oldReference.providerId, generation: oldReference.generation,
+        deviceId: oldReference.localId, capability: 'device.echo', version: 1, input: {} }, signal);
+    } catch (error) { oldDeviceRejected = error.code === 'conflict' && error.status === 409; }
+    check(oldDeviceRejected, '公开宿主未拒绝重载后的旧设备引用');
+    // 本地规则拒绝尚未发起 HTTP；另验公开服务边界及真实服务器日志关联。
+    const oldResponse = await fetch('/api/v2/device-actions', { method: 'POST', signal,
+      headers: { 'content-type': 'application/json' }, body: JSON.stringify({
+        provider_id: oldReference.providerId, generation: oldReference.generation,
+        device_id: oldReference.localId, capability: 'device.echo', version: 1, input: {},
+      }) });
+    const oldError = await oldResponse.json();
+    check(oldResponse.status === 409 && oldError.error?.code === 'conflict', '服务器未精确拒绝旧设备引用');
+    check(oldError.log_id && oldError.log_id === oldResponse.headers.get('x-deviceforge-log-id'), '旧引用错误缺少服务器日志 ID');
+    async function submit(value) {
+      const submitted = await runtime.tasks.submit({ operation: 'plugin.online_echo_v2.echo', input: { message: '浏览器插件验收', value } }, signal);
+      const completed = await eventually(() => runtime.tasks.get(submitted.data.id, signal), reply => ['succeeded', 'failed', 'cancelled'].includes(reply.data.status));
+      check(completed.data.status === 'succeeded', '服务器回显任务未成功');
+      return { value: completed.data.result.result.value, logId: completed.logId };
+    }
+    const transformed = await submit(4); check(transformed.value === 5, '插件钩子未修改真实提交参数');
+    await runtime.pluginPackages.disable('browser', descriptor.id, signal);
+    check(panel.childElementCount === 0 && module.childElementCount === 0, '插件停用后仍有 DOM');
+    check(toolbar.textContent === '宿主默认工具栏', '插件停用后未恢复宿主渲染');
+    check(Object.values(runtime.extensions.catalog()).every(items => items.length === 0), '插件停用后贡献仍可发现');
+    let revoked = false;
+    try { await runtime.extensions.executeCommand(`${descriptor.id}.command`, {}, signal); } catch { revoked = true; }
+    check(revoked, '插件停用后命令仍可调用');
+    const original = await submit(4); check(original.value === 4, '停用后任务钩子仍然生效');
+    const second = await runtime.pluginPackages.enable('browser', descriptor.id, signal);
+    const reloaded = await runtime.extensions.executeCommand(`${descriptor.id}.command`, {}, signal);
+    check(second.data.generation > first.data.generation, '重载没有推进运行代次');
+    check(reloaded.data.dependencyRun !== command.data.dependencyRun, '相对依赖命中了旧运行代次缓存');
+    await runtime.pluginPackages.remove('browser', descriptor.id, signal);
+    await runtime.pluginPackages.remove('server', serverPackage.data.id, signal);
+    await runtime.pluginPackages.remove('server', devicePackage.data.id, signal);
+    check(runtime.webPlugins.snapshot().length === 0, '取消登记后仍有运行插件');
+    check((await runtime.pluginPackages.refresh('browser', signal)).data.length === 0, '浏览器部署删除后目录不为空');
+    check((await runtime.pluginPackages.refresh('server', signal)).data.length === 0, '服务器部署删除后目录不为空');
+    return { passed: true, uploadedFromBrowser: ['server', 'browser'], installed: descriptor,
+      firstGeneration: first.data.generation, nextGeneration: second.data.generation,
+      dependencyGraphRefreshed: true, domMountedAndReleased: true, defaultRendererRestored: true,
+      dynamicCommandAndState: true, commandAndService: true, beforeSubmit: [transformed.value, original.value],
+      publicDeviceCapability: true, deviceProviderGenerationChanged: true, oldDeviceReferenceRejected: true,
+      logIds: [command.logId, service.logId, dynamic.logId, transformed.logId, original.logId, deviceCall.logId, deviceResult.logId, oldError.log_id] };
+  } finally { await runtime.dispose(); await slot.dispose(); }
+}

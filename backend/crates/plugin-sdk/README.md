@@ -6,6 +6,8 @@
 
 API：Manifest 声明入口、操作与可选产物能力；Request / Response 经标准输入 / 输出传输。PROTOCOL_VERSION 保留 1，ARTIFACT_PROTOCOL_VERSION 为 2。Response.result 区分缺失与显式 null。协议 1 序列化省略未使用的产物字段，宿主保持原成功结果。
 
+cooperative 模块定义协议 3 控制帧、取消原因与清理确认，COOPERATIVE_PROTOCOL_VERSION 为 3；请求仍使用 Request，响应包装为 CooperativeResponse。公开异步运行库位于 ../plugin-runtime，样例位于 plugins/cooperative-demo。协议 3 仍是每任务一个进程，完整契约见 ../../docs/合作取消插件协议.md。
+
 协议 2 的 ArtifactAccess 声明 input_fields / outputs；ArtifactContext 提供宿主准备的输入副本与输出目录，ArtifactOutput 声明已生成文件的 filename。宿主负责验证和发布，不把任务调用凭据交给插件。所有路径只对本次插件进程有效，不应作为公开任务结果返回。
 
 验证：cargo test -p apk-plugin-sdk，覆盖 JSON 空值、版本 1 字段省略、版本 2 输出结构和未知能力字段拒绝。

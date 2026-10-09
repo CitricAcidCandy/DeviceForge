@@ -1,5 +1,11 @@
 # 浏览器贡献注册边界
 
-作用：校验插件与面板贡献的版本、命名空间和唯一性。适用于宿主启动前的扩展检查。
+contracts/contributions 校验 SDK v2、命名空间、冲突和模块路由；scope 持有专属取消信号、逆序释放栈及清理错误；manager 串行运行装卸、激活和挂载；extensions 注册开放贡献、调用钩子与管理事件/状态；package-loader 以本代运行路径加载已安装模块。
 
-快速开始：`validateContributions(plugins)`；无效或冲突贡献抛出中文错误。API 参数为只读 `WebPlugin[]`。当前不执行插件、不获取远程脚本。插件加载、故障隔离和生命周期管理在后续前端阶段实现。
+`createPluginManager({host,panelTarget,componentTarget?,moduleTarget?})` 后登记可信 plugin 或 loader；load 激活、mount 挂载面板，mountComponent/mountModule 使用宿主分配位置。挂载失败回滚整代；卸载立即撤销信号/入口/专属 DOM，串行等待异步清理，错误聚合不阻止其他资源释放。独立 unmount 只撤销面板子生命周期。
+
+可注入 slotAdapter 支持受控 replace，createNamedSlotAdapter 登记宿主默认 renderer。直接 componentTarget 只支持 append，replace 未注入适配器会拒绝；卸载恢复默认渲染由适配器完成，不 monkeypatch 宿主节点。
+
+registerInstalledPackage 通过 app 工厂接入；每次实际 load 创建运行 UUID，依赖资源路径继承此代次。没有内置来源审批或隔离，默认本地可信代码运行；不接受安装目录以外的隐式 URL 输入。宿主注入 importer，在线包网络用例待生成契约。永不完成的激活/挂载可能阻塞串行队列，插件必须响应取消。
+
+unload 保留已登记源供重载；unregister 先清理运行代次再撤销源，更新或删除安装包用例可重新登记同 ID。清理失败时源保留并向调用者报告，不假定资源已安全消失。

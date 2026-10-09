@@ -7,6 +7,7 @@ pub(crate) fn catalog(app: &Application, management: bool) -> (u64, Vec<Tool>) {
     let (revision, operations) = app.operations_snapshot();
     let mut tools: Vec<_> = operations.into_iter().map(operation_tool).collect();
     tools.extend(management_tools(management));
+    tools.extend(crate::device_mcp::tools());
     (revision, tools)
 }
 pub(crate) fn operation_tool(operation: apk_domain::Operation) -> Tool {

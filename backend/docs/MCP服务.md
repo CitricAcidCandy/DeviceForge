@@ -1,7 +1,7 @@
 # MCP 服务
 
 ## 接入
-服务器在 `/mcp` 提供 Streamable HTTP，使用官方 Rust SDK `rmcp`，与 HTTP API 共用应用实例、任务库和鉴权。客户端配置服务地址及 `Authorization` 请求头；不把访问令牌放入 URL。当前面向已配置令牌的可信客户端，不实现 OAuth 授权发现。
+服务器在 `/mcp` 提供 Streamable HTTP，使用官方 Rust SDK `rmcp`，与 HTTP API 共用应用实例、任务库和可选鉴权。默认只需配置服务地址；设置 APK_API_TOKEN 后客户端提供 `Authorization` 请求头，不把访问令牌放入 URL。不实现 OAuth 授权发现。
 
 默认使用无会话 JSON 响应，协议协商、请求解析和格式检查由 SDK 负责。测试覆盖 2026-07-28 协议工具请求。SDK 也支持旧协议初始化兼容，后续需增加具体客户端的互操作测试。
 
@@ -21,7 +21,7 @@ MCP 请求取消和业务任务取消是不同生命周期；中止设备操作�
 ## 部署参数
 默认 Host 只允许本机。公网反向代理需要 `APK_MCP_HOSTS` 配置允许的域名，逗号分隔。带 Origin 的请求默认拒绝；浏览器 MCP 客户端需要部署者通过 `APK_MCP_ORIGINS` 设置带协议及明确端口的来源白名单。没有 Origin 的本机客户端可以调用。
 
-请求体上限 256 KiB。所有 MCP 请求在 SDK 前经过鉴权与全局限流；退出时取消 MCP 服务再停止应用任务。当前不提供独立 stdio 服务，也不提供 MCP 原生长期任务协议；长期动作采用应用层任务 ID。
+请求体上限 256 KiB。MCP 请求在 SDK 前经过全局资源门禁；配置令牌后增加鉴权。退出时取消 MCP 服务再停止应用任务。当前不提供独立 stdio 服务，也不提供 MCP 原生长期任务协议；长期动作采用应用层任务 ID。
 
 验证命令：`cargo test -p apk-server --test mcp`。覆盖无令牌、非法 Origin、工具发现、插件操作提交、共享任务读取和模式错误。
 

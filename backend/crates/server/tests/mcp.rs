@@ -145,3 +145,39 @@ async fn mcp_discovers_and_submits_same_application_jobs() {
     assert!(invalid.get("error").is_some() || invalid["result"]["isError"] == true);
     app.shutdown().await.unwrap();
 }
+
+#[tokio::test]
+async fn optional_token_allows_mcp_discovery_and_task_submission_without_credentials() {
+    let app = Application::new(
+        Arc::new(SqliteStore::open(":memory:").unwrap()),
+        vec![Arc::new(Echo)],
+        1,
+        8,
+    )
+    .unwrap();
+    let router = apk_server::router(app.clone(), String::new(), 100).unwrap();
+    let (status, discovered) = rpc(&router, "tools/list", json!({}), false, None).await;
+    assert_eq!(status, StatusCode::OK, "{discovered}");
+    assert!(
+        discovered["result"]["tools"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|tool| tool["name"] == "plugin.test.echo")
+    );
+    let (status, submitted) = rpc(
+        &router,
+        "tools/call",
+        json!({"name":"plugin.test.echo","arguments":{"value":9}}),
+        false,
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{submitted}");
+    assert_eq!(submitted["result"]["isError"], false);
+    let id = submitted["result"]["structuredContent"]["id"]
+        .as_str()
+        .unwrap();
+    assert_eq!(app.get(id).unwrap().input, json!({"value":9}));
+    app.shutdown().await.unwrap();
+}

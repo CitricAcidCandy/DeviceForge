@@ -2,6 +2,7 @@ mod artifact_files;
 pub mod artifacts;
 pub mod device_artifacts;
 pub mod devices;
+pub mod device_providers;
 pub mod package_tools;
 pub mod plugins;
 pub mod process;
@@ -19,4 +20,5 @@ pub mod performance_plugin;
 pub mod bundles;
 
 pub mod plugin_catalog;
+pub mod plugin_packages;
 pub mod splits;

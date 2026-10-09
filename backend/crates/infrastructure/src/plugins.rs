@@ -21,6 +21,7 @@ pub struct ProcessPlugin {
     manifest: Manifest,
     artifacts: Option<Arc<dyn ArtifactStore>>,
     unresolved: Arc<AtomicBool>,
+    devices: Option<apk_domain::devices::DeviceProviderDefinition>,
 }
 fn valid_name(name: &str) -> bool {
     !name.is_empty()
@@ -81,10 +82,13 @@ impl ProcessPlugin {
                 return Err(Error::Invalid("性能采样插件不能声明产物读写能力".into()));
             }
         }
+        let operations = manifest.operations.iter().map(|c| Operation { id: format!("plugin.{}.{}",manifest.id,c.name),title:c.title.clone(),input_schema:c.input_schema.clone() }).collect::<Vec<_>>();
+        let devices = manifest.devices.as_ref().map(|access| crate::device_providers::definition(&manifest.id,access,&operations)).transpose()?;
         Ok(Self {
             manifest,
             artifacts: None,
             unresolved: Arc::new(AtomicBool::new(false)),
+            devices,
         })
     }
     pub fn manifest(&self) -> &Manifest {
@@ -150,6 +154,9 @@ fn load_inner(
 }
 #[async_trait]
 impl Executor for ProcessPlugin {
+    fn device_provider(&self) -> Option<apk_domain::devices::DeviceProviderDefinition> {
+        self.devices.clone()
+    }
     fn has_unresolved_resources(&self) -> bool {
         self.unresolved.load(Ordering::Acquire)
     }
@@ -272,6 +279,9 @@ impl ProcessPlugin {
         }
         match (response.result, response.error) {
             (Some(result), None) => {
+                let result = if self.devices.as_ref().is_some_and(|definition| definition.discover_operation == operation) {
+                    crate::device_providers::discovery(self.devices.as_ref().expect("已确认设备声明"),result)?
+                } else { result };
                 if let Some(files) = files {
                     let published = tokio::select! {
                         biased;
@@ -313,6 +323,7 @@ mod tests {
                 .into_owned(),
             args: vec![],
             performance: None,
+            devices: None,
             artifacts: None,
             operations: vec![],
         };

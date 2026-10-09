@@ -1,0 +1,42 @@
+{
+  "id": "device_node_example",
+  "version": "0.1.0",
+  "protocol_version": 1,
+  "args": [],
+  "operations": [
+    {
+      "name": "discover",
+      "title": "发现明确标注的模拟设备",
+      "input_schema": { "type": "object", "additionalProperties": false }
+    },
+    {
+      "name": "describe",
+      "title": "读取示例提供者信息",
+      "input_schema": {
+        "type": "object",
+        "properties": { "device_id": { "type": "null" }, "input": { "type": "object" } },
+        "required": ["device_id", "input"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "echo",
+      "title": "调用模拟设备回显能力",
+      "input_schema": {
+        "type": "object",
+        "properties": { "device_id": { "type": "string", "minLength": 1 }, "input": { "type": "object" } },
+        "required": ["device_id", "input"],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "devices": {
+    "api_version": 1,
+    "platform": "synthetic_demo",
+    "discover_operation": "discover",
+    "capabilities": [
+      { "id": "provider.describe", "version": 1, "operation": "describe", "scope": "provider", "access": "read" },
+      { "id": "device.echo", "version": 1, "operation": "echo", "scope": "device", "access": "read" }
+    ]
+  }
+}

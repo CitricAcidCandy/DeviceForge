@@ -88,8 +88,11 @@ async fn unbounded_or_incomplete_initial_frames_never_invoke_handler() {
 #[tokio::test]
 async fn response_limit_and_explicit_failed_cleanup_are_preserved() {
     for failed in [false, true] {
+        let (mut host, plugin) = tokio::io::duplex(8192);
+        host.write_all(&request()).await.unwrap();
+        // 保持宿主写端打开，避免输入 EOF 抢先触发取消而掩盖响应上限。
         let mut output = Vec::new();
-        serve_io(request().as_slice(), &mut output, move |_, _| async move {
+        serve_io(plugin, &mut output, move |_, _| async move {
             Execution {
                 outcome: Ok(json!({"large":"x".repeat(RESPONSE_LIMIT)}).into()),
                 cleanup: if failed {

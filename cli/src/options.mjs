@@ -9,11 +9,18 @@ export const help = `DeviceForge · 设备工坊
       deviceforge --help
 
 start 默认监听所有 IPv4 网卡，提供局域网前端/API 和独立 MCP 端口。
-局域网启动须配置 APK_API_TOKEN；令牌不打印、也不写入前端资源。
-仅 --ip 127.0.0.1 或 ::1 可未配置令牌，生成本次运行随机令牌。
+本地和局域网默认免鉴权；可选 APK_API_TOKEN 配置后不得包含空白。
+不自动生成随机令牌；配置的令牌不打印、也不写入前端资源。
 数据默认保存在用户目录 .deviceforge，可用 DEVICEFORGE_DATA_DIR 配置。
-插件由管理员安装，安装后重启服务加载；同 ID 不覆盖已有插件。
+插件安装后须显式加载；同 ID 不覆盖已有插件。
 `;
+
+// 空字符串代表免鉴权；参数检查和直接启动共用同一可选令牌规则。
+export function readApiToken(environment = process.env) {
+  const token = environment.APK_API_TOKEN ?? '';
+  if (typeof token !== 'string' || /\s/.test(token)) throw new Error('APK_API_TOKEN 配置后不得包含空白');
+  return token;
+}
 
 export function parseOptions(args, environment = process.env) {
   if (!args.length || ['--help', '-h', 'help'].includes(args[0])) return { command: 'help' };
@@ -39,6 +46,7 @@ export function parseOptions(args, environment = process.env) {
     } else options.dataDirectory = resolve(value);
   }
   if (command === 'start') {
+    readApiToken(environment);
     if (!isIP(options.ip)) throw new Error('--ip 必须为 IPv4 或 IPv6 地址');
     if (options.port === options.mcpPort) throw new Error('前端/API 与 MCP 端口必须不同');
   }

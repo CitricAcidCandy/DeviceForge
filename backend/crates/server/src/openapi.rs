@@ -71,7 +71,7 @@ pub fn document() -> Value {
     }});
     let mut document = json!({
         "openapi":"3.1.0", "info":{"title":"DeviceForge 公开服务接口","version":env!("CARGO_PKG_VERSION")},
-        "security":[{"bearerAuth":[]}],
+        "security":[{}, {"bearerAuth":[]}],
         "components":{
             "securitySchemes":{"bearerAuth":{"type":"http","scheme":"bearer"}},
             "schemas":{
@@ -183,7 +183,83 @@ pub fn document() -> Value {
             "post":v2_endpoint(operation)
         });
     }
+    plugin_package_paths(&mut document);
+    device_paths(&mut document);
     document
+}
+
+fn device_paths(document:&mut Value) {
+    use apk_domain::devices::*;
+    document["paths"]["/api/v2/device-providers"]=json!({"get":v2_endpoint(endpoint("列出当前设备提供者","200",schema::<Vec<DeviceProviderInfo>>()))});
+    document["paths"]["/api/v2/devices"]=json!({"get":v2_endpoint(endpoint("列出当前代明确观测目录","200",schema::<Vec<DeviceDirectory>>()))});
+    let mut refresh=endpoint("显式刷新设备，失败撤销当前观测","200",schema::<DeviceDirectory>());
+    refresh["parameters"]=json!([{"name":"id","in":"path","required":true,"schema":{"type":"string","maxLength":99}}]);
+    refresh["requestBody"]=json!({"required":true,"content":{"application/json":{"schema":schema::<crate::device_routes::RefreshRequest>()}}});
+    refresh["responses"]["502"]=response("提供者发现消息无效",schema::<crate::Failure>());
+    refresh["responses"]["504"]=response("刷新等待超时",schema::<crate::Failure>());
+    document["paths"]["/api/v2/device-providers/{id}/refresh"]=json!({"post":v2_endpoint(refresh)});
+    let mut invoke=endpoint("按能力精确版本提交共享任务","202",schema::<apk_domain::Job>());
+    invoke["requestBody"]=json!({"required":true,"content":{"application/json":{"schema":schema::<DeviceActionRequest>()}}});
+    document["paths"]["/api/v2/device-actions"]=json!({"post":v2_endpoint(invoke)});
+    for (name,value) in [("DeviceProviderInfo",schema::<DeviceProviderInfo>()),("DeviceDirectory",schema::<DeviceDirectory>()),("DeviceActionRequest",schema::<DeviceActionRequest>()),("ProviderInput",schema::<ProviderInput>())] {
+        document["components"]["schemas"][name]=value;
+    }
+}
+
+fn plugin_package_paths(document: &mut Value) {
+    use apk_domain::plugin_packages::*;
+    let kind = json!({"name":"kind","in":"path","required":true,"schema":schema::<PackageKind>()});
+    let id =
+        json!({"name":"id","in":"path","required":true,"schema":{"type":"string","maxLength":99}});
+    let mut list = v2_endpoint(endpoint(
+        "列出已安装便携插件包",
+        "200",
+        schema::<Vec<PackageInfo>>(),
+    ));
+    list["parameters"] = json!([kind.clone()]);
+    let mut install = v2_endpoint(endpoint(
+        "上传自包含 ZIP/npm TGZ，验证后原子安装，不执行脚本或自动加载",
+        "201",
+        schema::<PackageInfo>(),
+    ));
+    install["parameters"] = json!([kind.clone(),{"name":"format","in":"query","required":true,"schema":schema::<PackageFormat>()}]);
+    install["requestBody"] = json!({"required":true,"content":{"application/zip":{"schema":{"type":"string","format":"binary"}},"application/gzip":{"schema":{"type":"string","format":"binary"}}}});
+    install["responses"]["413"] = response(
+        "包上传或结构超过上限",
+        schema::<crate::responses::ErrorResponse>(),
+    );
+    install["responses"]["415"] = response(
+        "归档媒体类型与 format 不匹配",
+        schema::<crate::responses::ErrorResponse>(),
+    );
+    document["paths"]["/api/v2/plugin-packages/{kind}"] = json!({"get":list,"post":install});
+    let mut remove = v2_endpoint(endpoint(
+        "删除已卸载部署，清理未确认时拒绝",
+        "200",
+        schema::<PackageInfo>(),
+    ));
+    remove["parameters"] = json!([kind, id.clone()]);
+    document["paths"]["/api/v2/plugin-packages/{kind}/{id}"] = json!({"delete":remove});
+    for path in [
+        "/api/v2/browser-plugins/{id}/assets/{path}",
+        "/api/v2/browser-plugins/{id}/runs/{run_id}/assets/{path}",
+    ] {
+        let mut parameters = vec![
+            id.clone(),
+            json!({"name":"path","in":"path","required":true,"schema":{"type":"string","maxLength":512},"description":"包内相对资源路径"}),
+        ];
+        if path.contains("/runs/") {
+            parameters.push(json!({"name":"run_id","in":"path","required":true,"schema":{"type":"string","minLength":1,"maxLength":100,"pattern":"^[A-Za-z0-9_-]+$"},"description":"客户端启用代次，仅改变模块 URL，不保存会话"}));
+        }
+        let operation = json!({"summary":"读取公开可信浏览器代码和相对资源，不含 secret","security":[],"parameters":parameters,"responses":{
+            "200":{"description":"原字节内容；JSON 静态资源也不包装","headers":{"x-deviceforge-log-id":{"schema":{"type":"string","format":"uuid"}}},"content":{"text/javascript":{"schema":{"type":"string","format":"binary"}},"application/json":{"schema":{"type":"string","format":"binary"}},"application/octet-stream":{"schema":{"type":"string","format":"binary"}}}},
+            "400":response("资源路径无效",schema::<crate::responses::ErrorResponse>()),"404":response("包或资源不存在",schema::<crate::responses::ErrorResponse>()),"409":response("资源读取工作池已满",schema::<crate::responses::ErrorResponse>())
+        }});
+        document["paths"][path] = json!({"get":operation.clone(),"head":operation});
+    }
+    document["components"]["schemas"]["PluginPackageInfo"] = schema::<PackageInfo>();
+    document["components"]["schemas"]["PluginPackageKind"] = schema::<PackageKind>();
+    document["components"]["schemas"]["PluginPackageFormat"] = schema::<PackageFormat>();
 }
 
 fn v2_endpoint(mut operation: Value) -> Value {

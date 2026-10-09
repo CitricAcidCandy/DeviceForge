@@ -25,7 +25,7 @@ pub(crate) async fn logging(State(state): State<ApiState>) -> Result<Json<LogSta
     Ok(Json(runtime(&state)?.logging.snapshot()))
 }
 pub(crate) async fn shutdown(State(state): State<ApiState>) -> Result<Json<Value>, ApiError> {
-    tracing::info!("收到经过鉴权的服务停止请求");
+    tracing::info!("收到服务停止请求");
     runtime(&state)?.shutdown.cancel();
     Ok(Json(json!({"stopping":true})))
 }

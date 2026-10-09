@@ -116,6 +116,49 @@ async fn authentication_errors_and_request_limits() {
     app.shutdown().await.unwrap();
 }
 #[tokio::test]
+async fn optional_token_allows_http_without_credentials_and_keeps_request_guards() {
+    let (app, _) = setup(100);
+    let router = apk_server::router(app.clone(), String::new(), 100).unwrap();
+    for path in [
+        "/api/v1/health",
+        "/api/v1/operations",
+        "/api/v1/openapi.json",
+    ] {
+        assert_eq!(
+            request(&router, "GET", path, String::new(), false).await.0,
+            StatusCode::OK
+        );
+    }
+    let (status, response) = request(
+        &router,
+        "POST",
+        "/api/v2/jobs",
+        json!({"operation":"plugin.test.echo","input":{"value":8}}).to_string(),
+        false,
+    )
+    .await;
+    assert_eq!(status, StatusCode::ACCEPTED);
+    assert!(response["log_id"].as_str().is_some_and(|id| !id.is_empty()));
+    assert_eq!(response["data"]["operation"], "plugin.test.echo");
+    let limited = apk_server::router(app.clone(), String::new(), 1).unwrap();
+    assert_eq!(
+        request(&limited, "GET", "/api/v1/health", String::new(), false)
+            .await
+            .0,
+        StatusCode::OK
+    );
+    assert_eq!(
+        request(&limited, "GET", "/api/v1/health", String::new(), false)
+            .await
+            .0,
+        StatusCode::TOO_MANY_REQUESTS
+    );
+    for invalid in [" ", "has whitespace"] {
+        assert!(apk_server::router(app.clone(), invalid.into(), 100).is_err());
+    }
+    app.shutdown().await.unwrap();
+}
+#[tokio::test]
 async fn contributions_jobs_events_and_generated_schema() {
     let (app, router) = setup(100);
     let (_, operations) = request(&router, "GET", "/api/v1/operations", String::new(), true).await;

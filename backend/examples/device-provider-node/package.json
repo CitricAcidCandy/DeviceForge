@@ -1,0 +1,14 @@
+{
+  "name": "@deviceforge/example-device-provider",
+  "version": "0.1.0",
+  "description": "DeviceForge 公开设备提供者的独立 Node 示例",
+  "type": "module",
+  "license": "MIT",
+  "engines": { "node": ">=22.18.0" },
+  "files": ["index.mjs", "plugin.json", "README.md"],
+  "deviceforge": {
+    "kind": "server",
+    "manifest": "plugin.json",
+    "entrypoints": { "any": { "runtime": "node", "path": "index.mjs" } }
+  }
+}

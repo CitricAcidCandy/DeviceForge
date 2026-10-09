@@ -18,6 +18,7 @@ tracing.workspace = true
 deviceforge-observability.workspace = true
 [dev-dependencies]
 apk-infrastructure.workspace = true
+tokio = { workspace = true, features = ["test-util"] }
 
 
 
