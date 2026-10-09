@@ -1,0 +1,24 @@
+[package]
+name = "apk-application"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+[dependencies]
+apk-domain.workspace = true
+serde_json.workspace = true
+serde.workspace = true
+tokio.workspace = true
+tokio-util.workspace = true
+uuid.workspace = true
+jsonschema = { version = "0.33", default-features = false }
+futures-util.workspace = true
+async-trait.workspace = true
+schemars = "1"
+tracing.workspace = true
+deviceforge-observability.workspace = true
+[dev-dependencies]
+apk-infrastructure.workspace = true
+
+
+
+tempfile = "3"

@@ -1,0 +1,36 @@
+[workspace]
+members = ["crates/domain", "crates/plugin-sdk", "crates/infrastructure", "crates/application", "crates/server", "plugins/echo", "plugins/artifact-copy", "plugins/performance-demo", "crates/data-codec", "plugins/msgpack", "crates/observability", "crates/plugin-runtime", "plugins/cooperative-demo"]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+
+[workspace.dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+async-trait = "0.1"
+tokio = { version = "1", features = ["full"] }
+tokio-util = { version = "0.7", features = ["rt", "io"] }
+uuid = { version = "1", features = ["v4", "serde"] }
+axum = { version = "0.8", features = ["multipart"] }
+tower = { version = "0.5", features = ["util"] }
+tower-http = { version = "0.6", features = ["trace", "cors"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+tracing-appender = "0.2"
+deviceforge-observability = { path = "crates/observability" }
+rusqlite = { version = "0.37", features = ["bundled"] }
+futures-util = "0.3"
+apk-domain = { path = "crates/domain" }
+apk-plugin-sdk = { path = "crates/plugin-sdk" }
+deviceforge-plugin-runtime = { path = "crates/plugin-runtime" }
+apk-infrastructure = { path = "crates/infrastructure" }
+apk-application = { path = "crates/application" }
+
+
+
+
+deviceforge-data-codec = { path = "crates/data-codec" }

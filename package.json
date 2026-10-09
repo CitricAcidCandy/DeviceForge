@@ -1,0 +1,18 @@
+{
+  "name": "@deviceforge/cli",
+  "version": "0.1.0",
+  "description": "DeviceForge 设备工坊的前后端启动与服务器插件安装入口",
+  "type": "module",
+  "license": "MIT",
+  "engines": { "node": ">=22.18.0" },
+  "bin": { "deviceforge": "cli/bin/deviceforge.mjs" },
+  "files": ["cli/bin", "cli/src", "cli/README.md", "runtime", "README.md"],
+  "scripts": {
+    "test": "node --test cli/tests/*.test.mjs scripts/tests/*.test.mjs",
+    "prepare:runtime": "node scripts/prepare-runtime.mjs",
+    "prepack": "node scripts/verify-package.mjs",
+    "pack:cli": "npm run prepare:runtime && npm pack --pack-destination artifacts",
+    "pack:plugins": "node scripts/pack-native-plugins.mjs",
+    "smoke:cli": "node scripts/cli-smoke.mjs"
+  }
+}

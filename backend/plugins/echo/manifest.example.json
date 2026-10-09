@@ -1,0 +1,12 @@
+{
+  "id": "echo",
+  "version": "0.1.0",
+  "protocol_version": 1,
+  "executable": "替换为构建后的插件绝对路径",
+  "args": [],
+  "operations": [{
+    "name": "echo",
+    "title": "回显输入",
+    "input_schema": { "type": "object" }
+  }]
+}

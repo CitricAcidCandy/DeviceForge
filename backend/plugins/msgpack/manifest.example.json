@@ -1,0 +1,48 @@
+{
+  "id": "msgpack",
+  "version": "0.1.0",
+  "protocol_version": 2,
+  "executable": "请填写已构建插件的绝对路径",
+  "args": [],
+  "artifacts": { "input_fields": ["artifact_id"], "outputs": true },
+  "operations": [
+    {
+      "name": "encode",
+      "title": "JSON 转标准 MessagePack",
+      "input_schema": {
+        "type": "object", "properties": { "artifact_id": { "type": "string", "format": "uuid" } },
+        "required": ["artifact_id"], "additionalProperties": false
+      }
+    },
+    {
+      "name": "decode",
+      "title": "标准 MessagePack 转 JSON",
+      "input_schema": {
+        "type": "object", "properties": { "artifact_id": { "type": "string", "format": "uuid" } },
+        "required": ["artifact_id"], "additionalProperties": false
+      }
+    },
+    {
+      "name": "query",
+      "title": "分页筛选 MessagePack 记录",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "artifact_id": { "type": "string", "format": "uuid" },
+          "offset": { "type": "integer", "minimum": 0, "maximum": 100000, "default": 0 },
+          "limit": { "type": "integer", "minimum": 1, "maximum": 100, "default": 50 },
+          "filter": {
+            "type": "object",
+            "properties": {
+              "field": { "type": "string", "minLength": 1, "maxLength": 100 },
+              "operator": { "type": "string", "enum": ["equals", "contains", "greater", "less"] },
+              "value": {}
+            },
+            "required": ["field", "operator", "value"], "additionalProperties": false
+          }
+        },
+        "required": ["artifact_id"], "additionalProperties": false
+      }
+    }
+  ]
+}

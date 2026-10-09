@@ -1,0 +1,20 @@
+{
+  "id": "performance_demo",
+  "version": "0.1.0",
+  "protocol_version": 2,
+  "executable": "C:\\DeviceForge\\plugins\\performance_demo\\deviceforge-performance-demo-plugin.exe",
+  "args": [],
+  "performance": { "sample_operation": "sample", "fps": true },
+  "operations": [
+    {
+      "name": "sample",
+      "title": "合成性能协议示例",
+      "input_schema": {
+        "type": "object",
+        "properties": { "device_id": { "type": "string" }, "package": { "type": "string" } },
+        "required": ["device_id", "package"],
+        "additionalProperties": false
+      }
+    }
+  ]
+}

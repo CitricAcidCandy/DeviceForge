@@ -1,0 +1,10 @@
+[package]
+name = "deviceforge-data-codec"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+rmpv = "1.3"

@@ -1,0 +1,15 @@
+[package]
+name = "deviceforge-performance-demo-plugin"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+[dependencies]
+apk-plugin-sdk.workspace = true
+serde_json.workspace = true
+[dev-dependencies]
+apk-domain.workspace = true
+apk-application.workspace = true
+apk-infrastructure.workspace = true
+tokio.workspace = true
+tokio-util.workspace = true
+tempfile = "3"

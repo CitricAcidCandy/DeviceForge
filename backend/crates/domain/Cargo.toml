@@ -1,0 +1,16 @@
+[package]
+name = "apk-domain"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+async-trait.workspace = true
+tokio-util.workspace = true
+schemars = "1"
+futures-util.workspace = true
+bytes = "1"
+
+uuid.workspace = true

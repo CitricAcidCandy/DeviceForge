@@ -1,0 +1,28 @@
+[package]
+name = "apk-infrastructure"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+[dependencies]
+apk-domain.workspace = true
+apk-plugin-sdk.workspace = true
+serde_json.workspace = true
+async-trait.workspace = true
+tokio.workspace = true
+tokio-util.workspace = true
+uuid.workspace = true
+rusqlite.workspace = true
+serde.workspace = true
+futures-util.workspace = true
+sha2 = "0.10"
+zip = { version = "8.6", default-features = false, features = ["deflate"] }
+tempfile = "3"
+
+
+quick-xml = "0.42"
+
+jsonschema = { version = "0.33", default-features = false }
+
+deviceforge-data-codec.workspace = true
+tracing.workspace = true
+deviceforge-observability.workspace = true

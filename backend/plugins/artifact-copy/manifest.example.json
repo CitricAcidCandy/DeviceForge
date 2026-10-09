@@ -1,0 +1,18 @@
+{
+  "id": "artifact_copy",
+  "version": "0.1.0",
+  "protocol_version": 2,
+  "executable": "请填写已构建插件的绝对路径",
+  "args": [],
+  "artifacts": { "input_fields": ["artifact_id"], "outputs": true },
+  "operations": [{
+    "name": "copy",
+    "title": "复制产物",
+    "input_schema": {
+      "type": "object",
+      "properties": {"artifact_id": {"type": "string", "format": "uuid"}},
+      "required": ["artifact_id"],
+      "additionalProperties": false
+    }
+  }]
+}
