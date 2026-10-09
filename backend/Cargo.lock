@@ -84,6 +84,7 @@ dependencies = [
  "async-trait",
  "deviceforge-data-codec",
  "deviceforge-observability",
+ "deviceforge-tool-process",
  "flate2",
  "futures-util",
  "jsonschema",
@@ -523,6 +524,16 @@ version = "0.1.0"
 dependencies = [
  "apk-plugin-sdk",
  "serde_json",
+ "tokio",
+ "tokio-util",
+]
+
+[[package]]
+name = "deviceforge-tool-process"
+version = "0.1.0"
+dependencies = [
+ "tempfile",
+ "thiserror",
  "tokio",
  "tokio-util",
 ]

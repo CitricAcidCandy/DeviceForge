@@ -19,9 +19,21 @@ export function createClient(base, report) {
   const logIds = new Set();
   const call = async (path, options = {}) => {
     const before = performance.now();
-    const response = await fetch(`${base}${path}`, { headers: { 'content-type': 'application/json' },
-      signal: AbortSignal.timeout(20000), ...options });
-    const body = await response.json();
+    const pending = { path, method: options.method ?? 'GET', started_at: new Date().toISOString() };
+    report.last_request = pending;
+    let response;
+    let body;
+    try {
+      response = await fetch(`${base}${path}`, { headers: { 'content-type': 'application/json' },
+        signal: AbortSignal.timeout(20000), ...options });
+      body = await response.json();
+    } catch (error) {
+      // 不记录请求体、访问凭据或任意插件输出；关闭请求不能覆盖原始失败请求。
+      report.failed_request ??= { ...pending, status: response?.status,
+        log_id: response?.headers.get('x-deviceforge-log-id'), elapsed_ms: performance.now() - before,
+        error_name: error.name, error_code: error.code };
+      throw error;
+    }
     const logId = response.headers.get('x-deviceforge-log-id');
     report.last_request = { path, method: options.method ?? 'GET', status: response.status,
       code: body.error?.code, log_id: logId, elapsed_ms: performance.now() - before };

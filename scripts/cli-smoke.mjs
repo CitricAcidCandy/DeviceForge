@@ -14,6 +14,7 @@ import { packFixture } from './cli-smoke-fixture.mjs';
 import { installNativePlugins, verifyNativePlugins } from './cli-smoke-native.mjs';
 import { verifyLiveInstallation } from './cli-smoke-lifecycle.mjs';
 import { verifyNpxDeviceProvider } from './cli-smoke-devices.mjs';
+import { verifyNpxNestedArtifacts } from './cli-smoke-nested.mjs';
 
 const root = fileURLToPath(new URL('../',import.meta.url));
 const temporary = await mkdtemp(join(tmpdir(),'deviceforge-npx-'));
@@ -153,6 +154,8 @@ try {
     assert.ok(body.result.tools.some((item) => item.name === 'plugin.cooperative_demo.wait'));
   }
   await verifyNpxDeviceProvider({ root, temporary, runNpx, prefix, dataDirectory,
+    base: `http://127.0.0.1:${webPort}`, mcp: `http://127.0.0.1:${mcpPort}/mcp` });
+  await verifyNpxNestedArtifacts({ root, temporary, runNpx, prefix, dataDirectory, pluginDirectory,
     base: `http://127.0.0.1:${webPort}`, mcp: `http://127.0.0.1:${mcpPort}/mcp` });
   const anonymousShutdown = await assertJsonReply(await fetch(`http://127.0.0.1:${webPort}/api/v2/system/shutdown`,
     {method:'POST',headers:anonymousHeaders,signal:AbortSignal.timeout(3000)}));

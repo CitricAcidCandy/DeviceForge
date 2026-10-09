@@ -18,4 +18,6 @@
 
 ## 验收边界
 
-单元测试已覆盖对象/数组拆包、损坏包装、日志头不一致、401/429、忽略信号的网络取消、原始 JSON 产物及晚到结果；管理变更不自动重试。主代理 debug/release 真实浏览器已验证在线包、命令/任务调用保留日志 ID，见根 artifacts/browser-plugin-smoke-debug.json 与 browser-plugin-smoke-release.json。日志复制 UI、v1 客户端和设备交互未实施，不以这些证据宣称完成。
+单元测试已覆盖对象/数组拆包、损坏包装、日志头不一致、401/429、忽略信号的网络取消、原始 JSON 产物及晚到结果；管理变更不自动重试。主代理 debug/release 真实浏览器已验证在线包、命令/任务调用保留日志 ID，见根 artifacts/browser-plugin-smoke-debug.json 与 browser-plugin-smoke-release.json。
+
+设备第一阶段 HTTP/SDK 适配已实现，行为测试覆盖冻结错误码/状态、真实响应 logId 和本地取消/准入错误。服务刷新返回的 cancelled 属于带日志 ID 的 HTTP 错误；本地取消属于取消分类，本地准入错误 logId 为 null，不能伪造服务日志 ID。设备最终浏览器证据由主代理独立汇总；日志复制 UI、v1 客户端和产品设备页面仍未实施，真机与常驻会话不由此前在线插件证据替代。

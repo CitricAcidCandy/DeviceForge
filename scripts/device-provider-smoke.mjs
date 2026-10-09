@@ -65,12 +65,17 @@ try {
   assert.equal(Object.hasOwn(env, 'APK_API_TOKEN'), false);
   child = spawn(binary, [], { cwd: join(root, 'backend'), env, stdio: 'ignore', windowsHide: true });
   child.on('error', (error) => { spawnError = error; });
-  closed = new Promise((done) => child.once('close', (code, signal) => done({ code, signal })));
+  child.once('exit', (code, signal) => { report.server_exit = { code, signal, at: new Date().toISOString() }; });
+  closed = new Promise((done) => child.once('close', (code, signal) => {
+    report.server_close = { code, signal, at: new Date().toISOString() };
+    done({ code, signal });
+  }));
   await poll(async () => {
     if (spawnError) throw spawnError;
     if (child.exitCode !== null) throw new Error('设备提供者服务就绪前退出');
     try { await client.json('/api/v2/health'); return true; } catch { return false; }
   }, Boolean, '空部署目录默认免令牌启动');
+  delete report.failed_request;
   report.server_pid = child.pid; report.default_without_token = true;
   assert.deepEqual(await client.json('/api/v2/plugins'), []);
   assert.deepEqual(await client.json('/api/v2/plugin-packages/server'), []);
@@ -137,24 +142,39 @@ try {
   report.error_location = String(error.stack).split('\n').filter((line) => line.includes('device-provider')).slice(0, 5);
   process.exitCode = 1;
 } finally {
+  // 即使关闭超时，也必须保留响应写完、输入 EOF 与真正退出的独立证据。
+  const captureEvidence = async () => {
+    report.fixture_timing = [];
+    for (const item of fixtures) {
+      const all = await events(item);
+      for (const start of all.filter((event) => event.kind === 'started')) {
+        const related = all.filter((event) => event.request_id === start.request_id);
+        report.fixture_timing.push({ provider_id: item.id, request_id: start.request_id,
+          pid: start.pid, label: start.label, process_visible: !exited(start.pid),
+          events: related.map(({ kind, at }) => ({ kind, at, timestamp: new Date(at).toISOString() })) });
+      }
+    }
+    if (!report.passed && temporary) {
+      for (const item of fixtures) report[`failure_events_${item.id}`] = (await events(item)).slice(-20);
+      try {
+        report.failure_log_events = (await logs()).filter((record) => ['合作插件资源未确认清理',
+          '合作插件取消清理已确认', '插件生命周期变更结束', '插件调用开始', '插件调用结束',
+          '宿主运行已结束'].includes(record.fields?.message)).slice(-30)
+          .map((record) => ({ timestamp: record.timestamp, level: record.level, fields: record.fields }));
+      } catch {}
+    }
+  };
   try {
     // 只关闭本脚本直接启动的宿主；不对可复用 PID 发终止信号。
     if (child?.pid && child.exitCode === null && child.signalCode === null && !graceful) {
       try { await client.post('/api/v2/system/shutdown'); await Promise.race([closed, delay(10000)]); } catch {}
       if (child.exitCode === null && child.signalCode === null) child.kill();
       const stopped = await Promise.race([closed, delay(5000).then(() => ({ timeout: true }))]);
+      await captureEvidence();
       assert.ok(!stopped.timeout, '本次宿主未能退出，保留临时目录');
       report.failure_shutdown = stopped;
     }
-    if (!report.passed && temporary) {
-      for (const item of fixtures) report[`failure_events_${item.id}`] = (await events(item)).slice(-20);
-      try {
-        report.failure_log_events = (await logs()).filter((record) => ['合作插件资源未确认清理',
-          '合作插件取消清理已确认', '插件生命周期变更结束'].includes(record.fields?.message)).slice(-20)
-          .map((record) => ({ timestamp: record.timestamp, level: record.level,
-            message: record.fields.message, code: record.fields.code, cleanup: record.fields.cleanup }));
-      } catch {}
-    }
+    await captureEvidence();
     for (const item of fixtures) {
       const running = (await events(item)).filter((event) => event.kind === 'started' && !exited(event.pid));
       assert.deepEqual(running, [], '本次夹具 PID 仍可见，保留目录并交集成负责人检查；不强杀');

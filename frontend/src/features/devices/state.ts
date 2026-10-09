@@ -51,6 +51,12 @@ export function createDeviceState(onChange: (next: DeviceSnapshot, previous: Dev
       directories = Object.freeze(directories.filter((item) => item.provider.id !== id || item.provider.generation !== generation));
       revisions.set(id, (revisions.get(id) ?? 0) + 1); ++observationRevision; publish(previous);
     },
+    invalidateProvider(id: string) {
+      check(); const previous = snapshot();
+      providers = Object.freeze(providers.filter((item) => item.id !== id));
+      directories = Object.freeze(directories.filter((item) => item.provider.id !== id));
+      ++providerRevision; ++observationRevision; revisions.set(id, (revisions.get(id) ?? 0) + 1); publish(previous);
+    },
     select(reference: DeviceRef | null) {
       check();
       if (reference) { requireProvider(providers, reference.providerId, reference.generation); requireDevice(directories, reference); }

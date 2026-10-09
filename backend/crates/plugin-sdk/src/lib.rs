@@ -10,6 +10,9 @@ pub const ARTIFACT_PROTOCOL_VERSION: u32 = 2;
 pub struct ArtifactAccess {
     #[serde(default)]
     pub input_fields: Vec<String>,
+    /// 嵌套产物 ID 的 JSON Pointer；省略时保持旧顶层字段协议。
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub input_pointers: Vec<String>,
     #[serde(default)]
     pub outputs: bool,
 }
@@ -130,6 +133,21 @@ fn present_value<'de, D: serde::Deserializer<'de>>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn artifact_pointers_preserve_legacy_json_and_roundtrip_when_declared() {
+        let legacy = serde_json::json!({"input_fields":["artifact_id"],"outputs":true});
+        let access: ArtifactAccess = serde_json::from_value(legacy.clone()).unwrap();
+        assert!(access.input_pointers.is_empty());
+        assert_eq!(serde_json::to_value(access).unwrap(), legacy);
+        let nested = serde_json::json!({"input_fields":[],"input_pointers":["/input/artifact_id"],"outputs":false});
+        let access: ArtifactAccess = serde_json::from_value(nested.clone()).unwrap();
+        assert_eq!(access.input_pointers, ["/input/artifact_id"]);
+        assert_eq!(serde_json::to_value(access).unwrap(), nested);
+        assert!(
+            serde_json::from_value::<ArtifactAccess>(serde_json::json!({"input_pointers":[1]}))
+                .is_err()
+        );
+    }
     #[test]
     fn null_result_is_present_and_error_is_omitted() {
         let response = Response {

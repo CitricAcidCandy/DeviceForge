@@ -16,6 +16,7 @@ fn manifest(outputs: bool) -> Manifest {
         devices: None,
         artifacts: Some(ArtifactAccess {
             input_fields: vec!["artifact_id".into()],
+            input_pointers: vec![],
             outputs,
         }),
         operations: vec![Contribution {

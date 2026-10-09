@@ -26,6 +26,7 @@ HTTP 推荐 `/api/v2`，业务 JSON 返回日志 ID；v1 保持兼容，MCP 在 
 - docs/接口设计.md：HTTP、任务与错误契约。
 - docs/插件开发.md：跨语言协议与部署。
 - docs/设备适配器插件架构.md：基础宿主、平台提供者、能力与会话边界，以及当前耦合和迁移验收。
+- docs/设备提供者第一阶段实施.md：离散设备声明、目录、共享锁、任务生命周期和本阶段验收。
 - docs/MCP服务.md：MCP 工具及客户端接入。
 - docs/命令行部署与插件安装.md：npx 本地分发、网络参数、部署路径及安装门禁。
 - docs/原生插件分发.md：从 Cargo/公开清单派生平台包，release tgz 构建与实际安装验收。
@@ -61,4 +62,12 @@ APKS 分包操作已接入：android.package.extract_splits 接收四个常见�
 
 标准 MessagePack 进程插件已接入 encode/decode/query，JSON/MessagePack 产物共同遵守受限编解码门禁，见 docs/MessagePack插件接口.md。旧 DLL 私有格式尚未证明兼容；通用 npx 安装入口和五个内置插件（含 cooperative_demo）的 Windows x64 release tgz 已交付，registry 发布及其他平台仍待完成。
 
-在线 ZIP/npm TGZ 上传、部署目录/删除与浏览器模块资源已接入，包须自包含依赖，安装后由调用方显式启用。默认免鉴权，按可信插件运行；非空 APK_API_TOKEN 可选。当前后端最终门禁与 168 项 Rust 测试通过，debug/release 在线、日志、生命周期和合作取消真实服务通过；生产前端宿主与真实 npx 已完成对应集成验证。具体接口和重启/跨浏览器边界见在线插件文档，设备提供者与常驻会话仍待实施。
+在线 ZIP/npm TGZ 上传、部署目录/删除与浏览器模块资源已接入，包须自包含依赖，安装后由调用方显式启用。默认免鉴权，按可信插件运行；非空 APK_API_TOKEN 可选。上一阶段后端六门禁与 168 项 Rust 测试通过，debug/release 在线、日志、生命周期和合作取消真实服务通过；生产前端宿主与真实 npx 完成了该阶段集成验证。具体接口和重启/跨浏览器边界见在线插件文档，这些历史结果不代表新增设备范围的 release/npx 验收。
+
+## 离散设备第一阶段当前交付（2026-10-09）
+
+公开设备声明、当前代目录、精确版本能力调用、共享设备锁和热装卸已接入 HTTP/MCP，复用原插件贡献与任务生命周期。当前后端六门禁通过：13 模块架构、2 项架构规则测试、fmt、Clippy（-D warnings）、188 项 Rust 测试和工作区构建。
+
+已核对当前 debug 报告：[设备集成](../artifacts/device-provider-smoke-debug.json) 的 25 项检查全部通过，35 次真实 Node 夹具调用均确认清理和进程退出；[浏览器集成](../artifacts/browser-plugin-smoke-debug.json) 整体与浏览器结果通过，覆盖公开设备上下文、提供者重载和旧引用拒绝；[日志集成](../artifacts/logging-smoke-debug.json) 的 4000 请求检查通过，零日志丢弃/写入错误并正常退出。上述设备为第三方模拟设备；首轮设备请求超时根因仍未确证，复跑通过不表示间歇问题已根治。
+
+主代理已重建当前 release runtime 和五个原生插件包，release 设备 25 项、生产浏览器、日志 4000 请求、插件生命周期、合作取消和在线安装均通过。真实 npx 在同一包上验证显式令牌与默认免令牌两阶段，并实际安装公开设备示例、经 HTTP/MCP 发现/调用/拒绝旧引用，完整任务及事件历史保持一致。Android/Harmony 平台迁出、常驻会话、iOS、真机及嵌套输入产物选择仍未完成，详见 [实施与验收边界](docs/设备提供者第一阶段实施.md)。设备 smoke 在项目根执行 `node scripts/device-provider-smoke.mjs`，发布重建后加 `--release`；最终状态以根 todo.md 为准。

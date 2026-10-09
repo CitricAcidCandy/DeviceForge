@@ -1,29 +1,50 @@
 //! 有界刷新任务，取消守卫跨提交窗口生效，缓存发布复核当前 owner。
 use super::DeviceService;
-use apk_domain::{Error,JobStatus,Result,devices::*};
+use apk_domain::{Error, JobStatus, Result, devices::*};
 use serde::Deserialize;
-use std::{sync::Arc,time::Duration};
+use std::{sync::Arc, time::Duration};
 use tokio_util::sync::CancellationToken;
 
 struct CancelOnDrop(CancellationToken);
-impl Drop for CancelOnDrop {fn drop(&mut self){self.0.cancel();}}
+impl Drop for CancelOnDrop {
+    fn drop(&mut self) {
+        self.0.cancel();
+    }
+}
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
-struct Observed { id:String,state:DeviceState,model:Option<String>,capabilities:Vec<CapabilityAvailability> }
+struct Observed {
+    id: String,
+    state: DeviceState,
+    model: Option<String>,
+    capabilities: Vec<CapabilityAvailability>,
+}
 impl DeviceService {
-    pub async fn refresh(self:&Arc<Self>,request:ProviderInput)->Result<DeviceDirectory> {
+    pub async fn refresh(self: &Arc<Self>, request: ProviderInput) -> Result<DeviceDirectory> {
         apk_domain::plugins::plugin_id(&request.id)?;
-        if request.generation.is_empty() || request.generation.len()>100 {return Err(Error::Invalid("提供者 generation 无效".into()));}
-        let permit=self.refreshes.clone().try_acquire_owned().map_err(|_|Error::Conflict("设备刷新已达到两项在途上限".into()))?;
-        let serial=self.app.device_locks.refresh(&request.id)?;
-        let cancel=CancellationToken::new();
-        let _cancel=CancelOnDrop(cancel.clone());
-        let service=self.clone();
-        let deadline=tokio::time::Instant::now()+Duration::from_secs(30);
-        let task={
-        let active=self.app.active.lock().map_err(|_|Error::Storage("刷新准入状态异常".into()))?;
-        if !active.accepting {return Err(Error::Conflict("任务服务正在停止".into()));}
-        self.app.tracker.spawn(deviceforge_observability::LogContext::propagate(async move {
+        if request.generation.is_empty() || request.generation.len() > 100 {
+            return Err(Error::Invalid("提供者 generation 无效".into()));
+        }
+        let permit = self
+            .refreshes
+            .clone()
+            .try_acquire_owned()
+            .map_err(|_| Error::Conflict("设备刷新已达到两项在途上限".into()))?;
+        let serial = self.app.device_locks.refresh(&request.id)?;
+        let cancel = CancellationToken::new();
+        let _cancel = CancelOnDrop(cancel.clone());
+        let service = self.clone();
+        let deadline = tokio::time::Instant::now() + Duration::from_secs(30);
+        let task = {
+            let active = self
+                .app
+                .active
+                .lock()
+                .map_err(|_| Error::Storage("刷新准入状态异常".into()))?;
+            if !active.accepting {
+                return Err(Error::Conflict("任务服务正在停止".into()));
+            }
+            self.app.tracker.spawn(deviceforge_observability::LogContext::propagate(async move {
             let _permit=permit;
             let _serial=tokio::select!{biased;_ = cancel.cancelled()=>return Err(Error::Cancelled),guard=tokio::time::timeout_at(deadline,serial.lock_owned())=>guard.map_err(|_|Error::Timeout)?};
             let (provider,registered)=service.app.registry.provider_operation(&request.id,&request.generation,None)?;
@@ -75,18 +96,26 @@ impl DeviceService {
             service.app.registry.publish_directory(DeviceDirectory{provider,observed_at:apk_domain::now(),discovery_job_id:job.id,devices},&cancel)
         }))
         };
-        task.await.map_err(|_|Error::Dependency("设备刷新工作异常".into()))?
+        task.await
+            .map_err(|_| Error::Dependency("设备刷新工作异常".into()))?
     }
 }
 
-fn discovery_value(value:serde_json::Value)->Result<serde_json::Value> {
-    if value.is_array(){return Ok(value);}
+fn discovery_value(value: serde_json::Value) -> Result<serde_json::Value> {
+    if value.is_array() {
+        return Ok(value);
+    }
     // 仅接受完整的宿主产物包装，不把任意业务 result 字段当作包装。
-    let fields=value.as_object().ok_or_else(||Error::Dependency("发现结果必须为数组或宿主包装".into()))?;
-    if fields.len()!=2 || !fields.contains_key("result") || !fields.contains_key("artifacts") {
+    let fields = value
+        .as_object()
+        .ok_or_else(|| Error::Dependency("发现结果必须为数组或宿主包装".into()))?;
+    if fields.len() != 2 || !fields.contains_key("result") || !fields.contains_key("artifacts") {
         return Err(Error::Dependency("设备发现包装结构无效".into()));
     }
-    let wrapped:apk_domain::PluginArtifactResult=serde_json::from_value(value).map_err(|_|Error::Dependency("设备发现产物包装无效".into()))?;
-    if !wrapped.result.is_array() {return Err(Error::Dependency("设备发现包装必须包含数组".into()));}
+    let wrapped: apk_domain::PluginArtifactResult = serde_json::from_value(value)
+        .map_err(|_| Error::Dependency("设备发现产物包装无效".into()))?;
+    if !wrapped.result.is_array() {
+        return Err(Error::Dependency("设备发现包装必须包含数组".into()));
+    }
     Ok(wrapped.result)
 }

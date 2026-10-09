@@ -6,7 +6,7 @@ import type { DeviceAccess, DeviceAction } from '../src/plugin-sdk/index.ts';
 import { ApiError, createApiClient, deviceDirectoriesEndpoint, deviceProvidersEndpoint, refreshDeviceProviderEndpoint } from '../src/shared/api/index.ts';
 import type { DeviceDirectoryDto } from '../src/shared/api/index.ts';
 import { directory, provider } from './device-fixtures.ts';
-import { deferred, failure, job, requestUrl, signal, success } from './fixtures.ts';
+import { deferred, failure, job, plugin, requestUrl, signal, success } from './fixtures.ts';
 
 function action(overrides: Partial<DeviceAction> = {}): DeviceAction {
   return { providerId: 'example', generation: 'g1', deviceId: 'same', capability: 'read', version: 1, input: {}, ...overrides };
@@ -236,4 +236,46 @@ test('宿主设备订阅随 dispose 释放且回调失败互不污染，全部�
   for (const waiting of [host.refreshProviders(signal()), host.refreshDirectories(signal()), host.refreshProvider('example', 'g1', signal()), host.invoke(action(), signal())]) {
     await assert.rejects(waiting, (error: unknown) => error instanceof HostError && error.kind === 'cancelled');
   }
+});
+
+test('本实例服务器/在线包管理后同步设备目录，停用即撤销选择与旧引用', async () => {
+  let running = true; let generation = 'g1'; const seen: string[] = [];
+  const runtime = createFrontendRuntime({ baseUrl: 'http://localhost:7031', panelTarget: () => null, transport: async (input) => {
+    const path = requestUrl(input).pathname; seen.push(path);
+    if (path.endsWith('/load')) { running = true; generation = 'g2'; return success(plugin({ generation })); }
+    if (path.endsWith('/unload')) { running = false; return success(plugin({ state: 'unloaded', generation })); }
+    if (path === '/api/v2/plugins') return success(running ? [plugin({ generation })] : []);
+    if (path === '/api/v2/device-providers') return success(running ? [provider('example', generation)] : []);
+    if (path === '/api/v2/devices') return success(running ? [directory('example', generation)] : []);
+    return success([]);
+  } });
+  await runtime.devices.refreshDirectories(signal()); runtime.devices.select({ providerId: 'example', generation: 'g1', localId: 'same' });
+  await runtime.pluginPackages.disable('server', 'example', signal());
+  assert.deepEqual(runtime.devices.snapshot().providers, []); assert.deepEqual(runtime.devices.snapshot().directories, []);
+  assert.equal(runtime.devices.snapshot().selection, null);
+  await assert.rejects(runtime.devices.invoke(action(), signal()), (error: unknown) => error instanceof HostError && error.code === 'not_found');
+  await runtime.serverPlugins.load('example', signal());
+  assert.equal(runtime.devices.snapshot().providers[0]?.generation, 'g2');
+  assert.equal(runtime.devices.snapshot().directories[0]?.provider.generation, 'g2'); assert.equal(runtime.devices.snapshot().selection, null);
+  await assert.rejects(runtime.devices.invoke(action(), signal()), (error: unknown) => error instanceof HostError && error.code === 'conflict');
+  assert.ok(seen.includes('/api/v2/operations')); assert.ok(seen.includes('/api/v2/devices')); await runtime.dispose();
+});
+
+test('本地卸载后的设备重查失败仍清受影响快照与选择，取消/错误不假定后端回滚', async () => {
+  const started = deferred<void>(); const response = deferred<Response>(); let failQueries = false;
+  const runtime = createFrontendRuntime({ baseUrl: 'http://localhost:7031', panelTarget: () => null, transport: async (input) => {
+    const path = requestUrl(input).pathname;
+    if (path.endsWith('/unload')) { started.resolve(); return response.promise; }
+    if (path === '/api/v2/device-providers') return failQueries ? failure('dependency_failed', 502) : success([provider()]);
+    if (path === '/api/v2/devices') return success([directory()]);
+    return success([]);
+  } });
+  await runtime.devices.refreshDirectories(signal()); runtime.devices.select({ providerId: 'example', generation: 'g1', localId: 'same' });
+  const cancellation = new AbortController();
+  const waiting = runtime.serverPlugins.unload('example', cancellation.signal);
+  const rejected = assert.rejects(waiting, (error: unknown) => error instanceof ApiError && error.kind === 'cancelled');
+  await started.promise; failQueries = true; cancellation.abort(); await rejected;
+  assert.deepEqual(runtime.devices.snapshot().providers, []); assert.deepEqual(runtime.devices.snapshot().directories, []);
+  assert.equal(runtime.devices.snapshot().selection, null);
+  response.resolve(failure('cleanup_failed')); await runtime.dispose();
 });

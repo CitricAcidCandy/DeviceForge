@@ -105,6 +105,7 @@ async fn real_success_keeps_v2_result_wrapper_and_publishes_artifact() {
         if mode == "artifact" {
             manifest.artifacts = Some(ArtifactAccess {
                 input_fields: vec![],
+                input_pointers: vec![],
                 outputs: true,
             });
         }

@@ -2,7 +2,7 @@
 
 ## 范围与落点
 - 当前项目为 `G:\Rust\DeviceForge\frontend`，采用 Svelte 5 + TypeScript 严格模式。旧 renderer 仅作取证，不复制 Electron、preload 或本机全局状态。
-- 本阶段交付最佳实践骨架、生成 API 类型、真实后端通信、模块基础用例、公开宿主上下文与可热装卸插件框架。具体业务界面、视觉设计和新增 UI 框架等待用户设计稿。
+- 本阶段已交付生成 API 类型、真实后端通信、模块基础用例、公开宿主上下文、可热装卸插件框架及设备第一阶段目录/选择/离散动作。具体业务界面、视觉设计和新增 UI 框架等待用户设计稿。
 - 前端文档只放 `docs/`。注释、README 和文档使用中文与 UTF-8。开发前阅读架构与开发约束及插件开发文档。
 
 ## 依赖与文件职责
@@ -17,8 +17,8 @@
 ## 基础工作台与设备扩展
 - 开发设备相关界面前阅读 `docs/设备能力与插件面板.md`。通用工作台消费宿主设备目录和能力，平台特有交互通过公开插件面板扩展。
 - 设备使用公开宿主引用定位提供者；平台名称只用于展示和筛选，按能力版本、可用状态和权限决定入口，不增加按平台硬编码的连接/命令分支。
-- 设备提供者和浏览器面板可独立存在；面板只通过公开 HostContext 调用，不读取宿主私有状态、工具路径或服务令牌。设备上下文尚未实现前，不用手写 DTO 或私有导入绕过公开契约。
-- 提供者停止、断线、移除和插件面板失败须收敛入口与订阅；切换设备后晚到结果不得覆盖当前视图。热装卸、完整设备 UI 和真实运行仍需单独验收。
+- 设备提供者和浏览器面板可独立存在；面板通过 SDK v2 可选 HostContext.devices 调用 refreshProviders/refreshDirectories/refreshProvider/invoke、select/snapshot/subscribe，不读取宿主私有状态、工具路径或服务令牌。设备 HTTP 类型索引生成契约，独立 camelCase SDK 由 app 显式映射，不用手写 DTO 或私有导入绕过公开契约。
+- 提供者停止、断线、移除和插件面板失败须收敛入口与订阅；切换设备后晚到结果不得覆盖当前视图。刷新开始清本代旧观测与选择；本实例服务器管理后撤销目标缓存再重查，远端变化通过显式刷新获知。第一阶段公开设备调用与提供者重载已有本机 debug 浏览器证据，常驻热拔插、真机和完整设备 UI 继续独立验收。
 
 ## 类型与行为
 - 保持 strict、noUncheckedIndexedAccess、exactOptionalPropertyTypes，不得以 any、类型断言或关闭检查绕过接口边界。
@@ -41,6 +41,8 @@
 新增可见交互补行为测试；静态架构检查不能代替运行时插件信任或资源清理。
 
 涉及在线包或开放扩展时，在根目录执行 `node scripts/browser-plugin-smoke.mjs`；当前 release 宿主重建后另执行 `--release`。该独立浏览器验收覆盖真实上传两类包、动态模块、界面替换、逻辑钩子、服务器对接和停用恢复；不替代具体产品界面视觉验收。
+
+2026-10-09 当前源码门禁由主代理完成：generate:api/check 退出 0（49 源码，Svelte 0 错误/0 警告），test 退出 0（73/73），152 模块 production build 通过。当前 artifacts/browser-plugin-smoke-{debug,release}.json 整体通过，覆盖生产公开宿主 HostContext.devices、提供者代次变化与旧引用拒绝；release/runtime 和同一 tgz 的 npx 已重建并通过。嵌套产物由现有 JsonValue 输入消费，无新增手写 DTO；其真实 HTTP/MCP 和 npx 证据见 nested-device-artifacts-smoke 报告。main.ts 未装配产品 runtime，远端推送、常驻会话、真机、产品 UI 和生产容量不在此证据范围内。
 
 ## 协作与交付
 - 不自动提交、恢复或删除用户无关修改，不向旧工程写新实现；大型写入分批进行。

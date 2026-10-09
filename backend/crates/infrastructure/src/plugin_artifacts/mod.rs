@@ -7,28 +7,12 @@ use apk_plugin_sdk::{ArtifactAccess, ArtifactContext, ArtifactInput, ArtifactOut
 use futures_util::TryStreamExt;
 use std::{collections::HashSet, path::PathBuf, sync::Arc, time::Duration};
 use tokio_util::{io::ReaderStream, sync::CancellationToken};
-const MAX_FILES: usize = 8;
+mod selectors;
+use selectors::MAX_FILES;
 const TIMEOUT: Duration = Duration::from_secs(120);
 
 pub(crate) fn validate(access: &ArtifactAccess) -> Result<()> {
-    let mut fields = HashSet::new();
-    if access.input_fields.len() > MAX_FILES {
-        return Err(Error::Invalid("插件产物输入字段最多 8 个".into()));
-    }
-    for field in &access.input_fields {
-        if field.is_empty()
-            || field.len() > 80
-            || !field
-                .bytes()
-                .all(|c| c.is_ascii_alphanumeric() || c == b'_')
-            || !fields.insert(field)
-        {
-            return Err(Error::Invalid(
-                "插件产物字段必须为唯一的顶层字段名称".into(),
-            ));
-        }
-    }
-    Ok(())
+    selectors::validate(access)
 }
 pub(crate) struct InvocationFiles {
     pub directory: Arc<Temporary>,
@@ -43,60 +27,52 @@ impl InvocationFiles {
         input: &serde_json::Value,
         cancel: CancellationToken,
     ) -> Result<Self> {
+        // 全部选择器及值先完成纯校验，坏输入不能触发存储或临时目录副作用。
+        let selected = access
+            .map(|access| selectors::select(access, input))
+            .transpose()?
+            .unwrap_or_default();
+        if cancel.is_cancelled() {
+            return Err(Error::Cancelled);
+        }
+        if (!selected.is_empty() || access.is_some_and(|access| access.outputs)) && store.is_none()
+        {
+            return Err(Error::Dependency("插件产物存储未配置".into()));
+        }
         let directory = Arc::new(Temporary::new()?);
         let mut inputs = Vec::new();
         let mut references = Vec::new();
         let mut total = 0u64;
-        if let Some(access) = access {
-            for field in &access.input_fields {
-                let Some(value) = input.get(field) else {
-                    continue;
-                };
-                let ids: Vec<&str> = if let Some(id) = value.as_str() {
-                    vec![id]
-                } else if let Some(values) = value.as_array() {
-                    values
-                        .iter()
-                        .map(|value| {
-                            value
-                                .as_str()
-                                .ok_or_else(|| Error::Invalid("产物 ID 数组必须只含字符串".into()))
-                        })
-                        .collect::<Result<_>>()?
-                } else {
-                    return Err(Error::Invalid("产物字段必须为 ID 字符串或 ID 数组".into()));
-                };
-                if ids.len() + inputs.len() > MAX_FILES {
-                    return Err(Error::Invalid("单次插件最多读取 8 个产物".into()));
-                }
-                for id in ids {
-                    let store =
-                        store.ok_or_else(|| Error::Dependency("插件产物存储未配置".into()))?;
-                    let metadata = store.get(id).await?;
-                    total = total.checked_add(metadata.size).ok_or(Error::TooLarge)?;
-                    if total > LIMIT {
-                        return Err(Error::TooLarge);
-                    }
-                    let file = materialize(
-                        store,
-                        id,
-                        &[
-                            ".apk", ".apks", ".aab", ".hap", ".zip", ".png", ".json", ".msgpack",
-                        ],
-                        cancel.clone(),
-                    )
-                    .await?;
-                    references.push(ArtifactInput {
-                        field: field.clone(),
-                        artifact_id: file.artifact.id.clone(),
-                        filename: file.artifact.filename.clone(),
-                        size: file.artifact.size,
-                        sha256: file.artifact.sha256.clone(),
-                        path: file.path.to_string_lossy().into_owned(),
-                    });
-                    inputs.push(file);
-                }
+        for selected in selected {
+            let store = store.expect("已检查选中输入的存储依赖");
+            let id = selected.artifact_id;
+            let metadata = tokio::select! {
+                biased;
+                _ = cancel.cancelled() => return Err(Error::Cancelled),
+                metadata = store.get(id) => metadata?,
+            };
+            total = total.checked_add(metadata.size).ok_or(Error::TooLarge)?;
+            if total > LIMIT {
+                return Err(Error::TooLarge);
             }
+            let file = materialize(
+                store,
+                id,
+                &[
+                    ".apk", ".apks", ".aab", ".hap", ".zip", ".png", ".json", ".msgpack",
+                ],
+                cancel.clone(),
+            )
+            .await?;
+            references.push(ArtifactInput {
+                field: selected.field.into(),
+                artifact_id: file.artifact.id.clone(),
+                filename: file.artifact.filename.clone(),
+                size: file.artifact.size,
+                sha256: file.artifact.sha256.clone(),
+                path: file.path.to_string_lossy().into_owned(),
+            });
+            inputs.push(file);
         }
         let output = if access.is_some_and(|access| access.outputs) {
             if store.is_none() {

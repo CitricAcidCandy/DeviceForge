@@ -74,16 +74,28 @@ impl ProcessPlugin {
             if !names.contains(&access.sample_operation) {
                 return Err(Error::Invalid("性能采样操作必须存在于贡献列表".into()));
             }
-            if manifest
-                .artifacts
-                .as_ref()
-                .is_some_and(|access| !access.input_fields.is_empty() || access.outputs)
-            {
+            if manifest.artifacts.as_ref().is_some_and(|access| {
+                !access.input_fields.is_empty()
+                    || !access.input_pointers.is_empty()
+                    || access.outputs
+            }) {
                 return Err(Error::Invalid("性能采样插件不能声明产物读写能力".into()));
             }
         }
-        let operations = manifest.operations.iter().map(|c| Operation { id: format!("plugin.{}.{}",manifest.id,c.name),title:c.title.clone(),input_schema:c.input_schema.clone() }).collect::<Vec<_>>();
-        let devices = manifest.devices.as_ref().map(|access| crate::device_providers::definition(&manifest.id,access,&operations)).transpose()?;
+        let operations = manifest
+            .operations
+            .iter()
+            .map(|c| Operation {
+                id: format!("plugin.{}.{}", manifest.id, c.name),
+                title: c.title.clone(),
+                input_schema: c.input_schema.clone(),
+            })
+            .collect::<Vec<_>>();
+        let devices = manifest
+            .devices
+            .as_ref()
+            .map(|access| crate::device_providers::definition(&manifest.id, access, &operations))
+            .transpose()?;
         Ok(Self {
             manifest,
             artifacts: None,
@@ -279,9 +291,18 @@ impl ProcessPlugin {
         }
         match (response.result, response.error) {
             (Some(result), None) => {
-                let result = if self.devices.as_ref().is_some_and(|definition| definition.discover_operation == operation) {
-                    crate::device_providers::discovery(self.devices.as_ref().expect("已确认设备声明"),result)?
-                } else { result };
+                let result = if self
+                    .devices
+                    .as_ref()
+                    .is_some_and(|definition| definition.discover_operation == operation)
+                {
+                    crate::device_providers::discovery(
+                        self.devices.as_ref().expect("已确认设备声明"),
+                        result,
+                    )?
+                } else {
+                    result
+                };
                 if let Some(files) = files {
                     let published = tokio::select! {
                         biased;
@@ -350,5 +371,40 @@ mod tests {
         assert!(ProcessPlugin::new(serde_json::from_value(value.clone()).unwrap()).is_ok());
         value["artifacts"]["input_fields"] = serde_json::json!(["id", "id"]);
         assert!(ProcessPlugin::new(serde_json::from_value(value).unwrap()).is_err());
+    }
+
+    #[test]
+    fn nested_artifact_access_requires_v2_or_v3_and_cannot_bypass_performance_gate() {
+        let mut value = serde_json::json!({
+            "id":"probe","version":"1","protocol_version":2,
+            "executable":std::env::current_exe().unwrap(),
+            "operations":[{"name":"sample","title":"采样","input_schema":{"type":"object"}}],
+            "artifacts":{"input_pointers":["/input/artifact_id"],"outputs":false}
+        });
+        for version in [2, 3] {
+            value["protocol_version"] = serde_json::json!(version);
+            assert!(ProcessPlugin::new(serde_json::from_value(value.clone()).unwrap()).is_ok());
+        }
+        value["protocol_version"] = serde_json::json!(1);
+        assert!(matches!(
+            ProcessPlugin::new(serde_json::from_value(value.clone()).unwrap()),
+            Err(Error::Invalid(_))
+        ));
+        value["protocol_version"] = serde_json::json!(2);
+        value["performance"] = serde_json::json!({"sample_operation":"sample"});
+        for artifacts in [
+            serde_json::json!({"input_fields":[],"input_pointers":["/input/artifact_id"],"outputs":false}),
+            serde_json::json!({"input_fields":["artifact_id"],"input_pointers":[],"outputs":false}),
+            serde_json::json!({"input_fields":[],"input_pointers":[],"outputs":true}),
+        ] {
+            value["artifacts"] = artifacts;
+            assert!(matches!(
+                ProcessPlugin::new(serde_json::from_value(value.clone()).unwrap()),
+                Err(Error::Invalid(_))
+            ));
+        }
+        value["artifacts"] =
+            serde_json::json!({"input_fields":[],"input_pointers":[],"outputs":false});
+        assert!(ProcessPlugin::new(serde_json::from_value(value).unwrap()).is_ok());
     }
 }

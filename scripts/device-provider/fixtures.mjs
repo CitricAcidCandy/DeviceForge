@@ -17,7 +17,7 @@ export const capabilities = [
 ];
 
 // 本夹具只生成少量标准 TAR 条目，不引入 npm/Cargo 或生产归档解析。
-function archive(files) {
+export function archive(files) {
   assert.ok(files.length <= 8);
   const blocks = [];
   for (const [path, content] of Object.entries(Object.fromEntries(files))) {

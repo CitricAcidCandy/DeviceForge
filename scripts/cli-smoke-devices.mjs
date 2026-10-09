@@ -24,15 +24,16 @@ export async function verifyNpxDeviceProvider({ root, temporary, runNpx, prefix,
     if (code) assert.equal(body.error.code, code);
     return body.data;
   }
-  async function rpc(name, arguments_) {
+  async function rpc(name, arguments_, errorCode) {
     const response = await fetch(mcp, { method: 'POST', signal: AbortSignal.timeout(15000),
       headers: { ...headers, accept: 'application/json, text/event-stream', origin: base },
       body: JSON.stringify({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name, arguments: arguments_ } }) });
     assert.equal(response.status, 200);
     const body = await response.json();
-    assert.equal(body.result.isError, false);
+    assert.equal(body.result.isError, Boolean(errorCode));
     assert.match(body.result._meta['deviceforge/log_id'], /^[\da-f-]{36}$/);
     assert.equal(body.result._meta['deviceforge/log_id'], response.headers.get('x-deviceforge-log-id'));
+    if (errorCode) assert.equal(body.result.structuredContent.code, errorCode);
     return body.result.structuredContent;
   }
   async function finished(id) {
@@ -70,6 +71,9 @@ async function verify({ call, rpc, finished }) {
   const submitted = await call('/api/v2/device-actions', { method: 'POST', status: 202, body: JSON.stringify(action) });
   assert.deepEqual((await finished(submitted.id)).result,
     { synthetic_demo: true, device_id: reference.local_id, value: action.input });
+  const originalJob = await call(`/api/v2/jobs/${submitted.id}`);
+  const originalEvents = await call(`/api/v2/jobs/${submitted.id}/events`);
+  assert.deepEqual(originalEvents.map((event) => event.status), ['queued', 'running', 'succeeded']);
   const described = await rpc('deviceforge.invoke_device', { ...action, device_id: null,
     capability: 'provider.describe', input: {} });
   assert.deepEqual((await finished(described.id)).result,
@@ -80,11 +84,15 @@ async function verify({ call, rpc, finished }) {
   const reloaded = await rpc('deviceforge.load_plugin', { id });
   assert.notEqual(reloaded.generation, provider.generation);
   await call('/api/v2/device-actions', { method: 'POST', status: 409, code: 'conflict', body: JSON.stringify(action) });
+  await rpc('deviceforge.invoke_device', action, 'conflict');
   const fresh = await call(`/api/v2/device-providers/${id}/refresh`, { method: 'POST',
     body: JSON.stringify({ generation: reloaded.generation }) });
   assert.equal(fresh.provider.generation, reloaded.generation);
   const next = await rpc('deviceforge.invoke_device', { ...action, generation: reloaded.generation });
   assert.equal((await finished(next.id)).result.synthetic_demo, true);
-  assert.equal((await call(`/api/v2/jobs/${submitted.id}`)).status, 'succeeded');
+  assert.deepEqual(await call(`/api/v2/jobs/${submitted.id}`), originalJob);
+  assert.deepEqual(await rpc('deviceforge.get_job', { id: submitted.id }), originalJob);
+  assert.deepEqual(await call(`/api/v2/jobs/${submitted.id}/events`), originalEvents);
+  assert.deepEqual(await rpc('deviceforge.job_events', { id: submitted.id }), originalEvents);
   assert.equal((await rpc('deviceforge.unload_plugin', { id })).state, 'unloaded');
 }

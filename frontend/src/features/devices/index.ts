@@ -80,6 +80,7 @@ export function createDevices(gateway: DeviceGateway) {
   return {
     refreshProviders, refreshDirectories, refreshProvider, invoke,
     select: state.select, snapshot: state.snapshot, subscribe: state.subscribe,
+    invalidateProvider: state.invalidateProvider,
     dispose() {
       lifetime.abort(); providersRequest?.abort(); directoriesRequest?.abort();
       for (const entry of refreshes.values()) entry.controller.abort();

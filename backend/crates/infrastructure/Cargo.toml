@@ -28,3 +28,4 @@ jsonschema = { version = "0.33", default-features = false }
 deviceforge-data-codec.workspace = true
 tracing.workspace = true
 deviceforge-observability.workspace = true
+deviceforge-tool-process.workspace = true

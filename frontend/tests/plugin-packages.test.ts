@@ -138,6 +138,7 @@ test('服务器包用例按实际运行目录启停，删除先卸载且卸载�
     }
     if (path === '/api/v2/plugins') return success(running ? [plugin({ cleanup_failed: rejectUnload, state: rejectUnload ? 'draining' : 'loaded' })] : []);
     if (path === '/api/v2/operations') return success([]);
+    if (path === '/api/v2/device-providers' || path === '/api/v2/devices') return success([]);
     if (init?.method === 'DELETE') { assert.equal(running, false); deployed = false; return success(installedPackage('server')); }
     return success(deployed ? [installedPackage('server')] : []);
   } });

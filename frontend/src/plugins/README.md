@@ -6,6 +6,8 @@ contracts/contributions 校验 SDK v2、命名空间、冲突和模块路由；s
 
 可注入 slotAdapter 支持受控 replace，createNamedSlotAdapter 登记宿主默认 renderer。直接 componentTarget 只支持 append，replace 未注入适配器会拒绝；卸载恢复默认渲染由适配器完成，不 monkeypatch 宿主节点。
 
-registerInstalledPackage 通过 app 工厂接入；每次实际 load 创建运行 UUID，依赖资源路径继承此代次。没有内置来源审批或隔离，默认本地可信代码运行；不接受安装目录以外的隐式 URL 输入。宿主注入 importer，在线包网络用例待生成契约。永不完成的激活/挂载可能阻塞串行队列，插件必须响应取消。
+registerInstalledPackage 通过 app 工厂接入；每次实际 load 创建运行 UUID，依赖资源路径继承此代次。没有内置来源审批或隔离，默认本地可信代码运行；宿主注入 importer/resolver，默认 resolver 使用已安装包运行资源路径。在线包生成契约及 runtime.pluginPackages 上传/目录/启停/删除已实现。永不完成的激活/挂载可能阻塞串行队列，插件必须响应取消。
+
+device-access.ts 为可选 SDK v2 devices 包装所有入口；scope 将插件实例和面板/组件/模块子生命周期信号合并到设备调用，关闭后拒绝 select/snapshot/subscribe，卸载释放订阅并阻止晚通知及旧结果。设备用例和 HTTP 不属于本模块，设备本地准入错误不伪造服务日志 ID。
 
 unload 保留已登记源供重载；unregister 先清理运行代次再撤销源，更新或删除安装包用例可重新登记同 ID。清理失败时源保留并向调用者报告，不假定资源已安全消失。

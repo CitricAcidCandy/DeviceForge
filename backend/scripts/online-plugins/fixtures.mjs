@@ -100,6 +100,21 @@ export const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex'
 
 // 快照涵盖隐藏暂存与锁文件；安装失败后应与请求前完全相同。
 export async function deploymentSnapshot(root) {
+  const deadline = performance.now() + 5000;
+  while (true) {
+    try { return await readDeploymentSnapshot(root); }
+    catch (error) {
+      const location = typeof error.path === 'string' ? relative(root, error.path) : '';
+      const temporary = location && !location.startsWith('..') && location.split(/[\\/]/)
+        .some((part) => part.startsWith('.package-') || part.startsWith('.removed-'));
+      // Windows 删除中的目录可能短暂返回 EPERM；必须重读完整快照，不跳过该目录。
+      if (!(error.code === 'ENOENT' || (error.code === 'EPERM' && temporary)) || performance.now() >= deadline) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 25));
+    }
+  }
+}
+
+async function readDeploymentSnapshot(root) {
   const records = [];
   async function visit(directory) {
     let entries;

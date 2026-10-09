@@ -8,7 +8,9 @@ API：Manifest 声明入口、操作与可选产物能力；Request / Response �
 
 cooperative 模块定义协议 3 控制帧、取消原因与清理确认，COOPERATIVE_PROTOCOL_VERSION 为 3；请求仍使用 Request，响应包装为 CooperativeResponse。公开异步运行库位于 ../plugin-runtime，样例位于 plugins/cooperative-demo。协议 3 仍是每任务一个进程，完整契约见 ../../docs/合作取消插件协议.md。
 
-协议 2 的 ArtifactAccess 声明 input_fields / outputs；ArtifactContext 提供宿主准备的输入副本与输出目录，ArtifactOutput 声明已生成文件的 filename。宿主负责验证和发布，不把任务调用凭据交给插件。所有路径只对本次插件进程有效，不应作为公开任务结果返回。
+协议 2/3 的 ArtifactAccess 声明 input_fields / input_pointers / outputs；input_fields 保留顶层名称，新增 input_pointers 用 JSON Pointer 选择嵌套 ID，例如 /input/artifact_id。省略或空指针列表不改变旧清单 JSON；Rust 使用完整结构字面量时需增加该字段或采用 Default。ArtifactContext 提供宿主准备的输入副本与输出目录，嵌套输入的 field 保留原指针，ArtifactOutput 声明已生成文件的 filename。宿主负责验证和发布，不把任务调用凭据交给插件。所有路径只对本次插件进程有效，不应作为公开任务结果返回。
+
+Manifest.devices 为可选设备声明，支持发现、提供者/设备范围和读/写能力；具体公开契约见 ../../docs/设备提供者第一阶段实施.md。嵌套产物选择的限制和实施验证见 ../../docs/插件嵌套输入产物实施.md，常驻会话另行设计。
 
 验证：cargo test -p apk-plugin-sdk，覆盖 JSON 空值、版本 1 字段省略、版本 2 输出结构和未知能力字段拒绝。
 

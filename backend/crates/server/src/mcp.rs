@@ -43,8 +43,16 @@ fn decode<T: serde::de::DeserializeOwned>(value: Value) -> Result<T> {
     serde_json::from_value(value).map_err(|e| Error::Invalid(e.to_string()))
 }
 impl McpAdapter {
-    fn new(app: Arc<Application>, plugins: Option<Arc<PluginService>>,devices:Arc<apk_application::devices::DeviceService>) -> Self {
-        Self { app, plugins,devices }
+    fn new(
+        app: Arc<Application>,
+        plugins: Option<Arc<PluginService>>,
+        devices: Arc<apk_application::devices::DeviceService>,
+    ) -> Self {
+        Self {
+            app,
+            plugins,
+            devices,
+        }
     }
     fn plugin_service(&self) -> Result<&Arc<PluginService>> {
         self.plugins
@@ -53,7 +61,12 @@ impl McpAdapter {
     }
     async fn invoke(&self, name: &str, input: Value) -> Result<Value> {
         match name {
-            "deviceforge.list_device_providers"|"deviceforge.list_devices"|"deviceforge.refresh_devices"|"deviceforge.invoke_device" => crate::device_mcp::invoke(&self.devices,name,input).await,
+            "deviceforge.list_device_providers"
+            | "deviceforge.list_devices"
+            | "deviceforge.refresh_devices"
+            | "deviceforge.invoke_device" => {
+                crate::device_mcp::invoke(&self.devices, name, input).await
+            }
             "deviceforge.list_operations" => {
                 if input != json!({}) {
                     return Err(Error::Invalid("此工具不接收参数".into()));
@@ -175,11 +188,16 @@ pub(crate) fn service_with_plugins(
     plugins: Option<Arc<PluginService>>,
     config: StreamableHttpServerConfig,
 ) -> StreamableHttpService<impl ServerHandler, LocalSessionManager> {
-    let devices=apk_application::devices::DeviceService::new(app.clone());
-    service_with_devices(app,plugins,devices,config)
+    let devices = apk_application::devices::DeviceService::new(app.clone());
+    service_with_devices(app, plugins, devices, config)
 }
-pub(crate) fn service_with_devices(app:Arc<Application>,plugins:Option<Arc<PluginService>>,devices:Arc<apk_application::devices::DeviceService>,config:StreamableHttpServerConfig)->StreamableHttpService<impl ServerHandler,LocalSessionManager> {
-    let handler = crate::mcp_observability::Observed(McpAdapter::new(app, plugins,devices));
+pub(crate) fn service_with_devices(
+    app: Arc<Application>,
+    plugins: Option<Arc<PluginService>>,
+    devices: Arc<apk_application::devices::DeviceService>,
+    config: StreamableHttpServerConfig,
+) -> StreamableHttpService<impl ServerHandler, LocalSessionManager> {
+    let handler = crate::mcp_observability::Observed(McpAdapter::new(app, plugins, devices));
     StreamableHttpService::new(
         move || Ok(handler.clone()),
         Arc::new(LocalSessionManager::default()),

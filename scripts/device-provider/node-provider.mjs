@@ -61,6 +61,7 @@ async function execute() {
   replyStarted = true;
   await new Promise((done, reject) => process.stdout.write(`${JSON.stringify({ response, cleanup: 'complete' })}\n`,
     (error) => error ? reject(error) : done()));
+  record('response_written');
   // 故意等待宿主关闭输入再退出，覆盖取消响应后的 EOF 通知契约。
   if (stdinClosed) lines.close();
 }
@@ -85,4 +86,6 @@ lines.on('line', (line) => {
     process.exitCode = 1; cancel(); lines.close(); process.stdin.destroy();
   }
 });
-lines.on('close', () => { stdinClosed = true; cancel(); });
+process.stdin.on('end', () => { if (request) record('stdin_eof'); });
+process.on('exit', () => { if (request && label) record('process_exit'); });
+lines.on('close', () => { stdinClosed = true; if (request && label) record('readline_closed'); cancel(); });

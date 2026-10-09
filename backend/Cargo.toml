@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/domain", "crates/plugin-sdk", "crates/infrastructure", "crates/application", "crates/server", "plugins/echo", "plugins/artifact-copy", "plugins/performance-demo", "crates/data-codec", "plugins/msgpack", "crates/observability", "crates/plugin-runtime", "plugins/cooperative-demo"]
+members = ["crates/domain", "crates/plugin-sdk", "crates/infrastructure", "crates/application", "crates/server", "plugins/echo", "plugins/artifact-copy", "plugins/performance-demo", "crates/data-codec", "plugins/msgpack", "crates/observability", "crates/plugin-runtime", "plugins/cooperative-demo", "crates/tool-process"]
 resolver = "2"
 
 [workspace.package]
@@ -27,6 +27,7 @@ futures-util = "0.3"
 apk-domain = { path = "crates/domain" }
 apk-plugin-sdk = { path = "crates/plugin-sdk" }
 deviceforge-plugin-runtime = { path = "crates/plugin-runtime" }
+deviceforge-tool-process = { path = "crates/tool-process" }
 apk-infrastructure = { path = "crates/infrastructure" }
 apk-application = { path = "crates/application" }
 

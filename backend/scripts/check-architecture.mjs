@@ -5,12 +5,13 @@ import { fileURLToPath } from 'node:url';
 const boundaries = {
   'apk-domain': { internal: [], external: ['serde', 'serde_json', 'thiserror', 'async-trait', 'tokio-util', 'schemars', 'futures-util', 'bytes', 'uuid'] },
   'apk-application': { internal: ['apk-domain', 'deviceforge-observability'] },
-  'apk-infrastructure': { internal: ['apk-domain', 'apk-plugin-sdk', 'deviceforge-data-codec', 'deviceforge-observability'] },
+  'apk-infrastructure': { internal: ['apk-domain', 'apk-plugin-sdk', 'deviceforge-data-codec', 'deviceforge-observability', 'deviceforge-tool-process'] },
   'apk-server': { internal: ['apk-domain', 'apk-application', 'apk-infrastructure', 'apk-plugin-sdk', 'deviceforge-observability'] },
   'deviceforge-observability': { internal: [], external: ['tracing', 'tracing-subscriber', 'tracing-appender', 'tokio', 'uuid', 'serde', 'schemars', 'tempfile', 'thiserror'] },
   'apk-plugin-sdk': { internal: [], external: ['serde', 'serde_json'] },
   'deviceforge-plugin-runtime': { internal: ['apk-plugin-sdk'], external: ['serde_json', 'tokio', 'tokio-util'] },
   'deviceforge-data-codec': { internal: [], external: ['serde', 'serde_json', 'thiserror', 'rmpv'] },
+  'deviceforge-tool-process': { internal: [], external: ['tokio', 'tokio-util', 'thiserror'] },
 };
 
 // 检查 Cargo 已解析的依赖；开发依赖只用于测试，不进入生产依赖方向。
@@ -21,7 +22,7 @@ export function validatePackages(metadata, root) {
   const failures = [];
   for (const item of packages) {
     const location = relative(root, item.manifest_path).split(sep).join('/');
-    const rule = location.startsWith('plugins/') ? { internal: ['apk-plugin-sdk', 'deviceforge-data-codec', 'deviceforge-plugin-runtime'] } : boundaries[item.name];
+    const rule = location.startsWith('plugins/') ? { internal: ['apk-plugin-sdk', 'deviceforge-data-codec', 'deviceforge-plugin-runtime', 'deviceforge-tool-process'] } : boundaries[item.name];
     if (!rule) { failures.push(`${location}: 未定义模块职责和依赖规则`); continue; }
     for (const dependency of item.dependencies.filter((value) => value.kind !== 'dev')) {
       if (internal.has(dependency.name) && !rule.internal.includes(dependency.name)) {

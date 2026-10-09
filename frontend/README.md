@@ -1,12 +1,12 @@
 # DeviceForge 浏览器工程
 
 ## 作用与范围
-Svelte 5、TypeScript 和 Vite 的独立浏览器工程。已实现 v2 客户端、操作/任务/服务器插件基础用例、两类在线包部署及热装卸、公开宿主与开放扩展注册表；保留开发阶段外壳，具体业务页面等待设计稿。
+Svelte 5、TypeScript 和 Vite 的独立浏览器工程。已实现 v2 客户端、操作/任务/服务器插件与设备第一阶段基础用例、两类在线包部署及热装卸、公开宿主与开放扩展注册表；保留开发阶段外壳，具体业务页面等待设计稿。
 
 ## 快速开始
 使用 Node.js 22.18 或更高版本，执行 `npm ci`、`npm run dev`。开发代理将 `/api` 与 `/mcp` 转发至本机 7031。生产部署将静态产物和服务器配置为同源，避免在前端代码写死服务器地址。
 
-统一 npx 运行包已携带构建后的静态资源，对外默认前端/API 地址为 `http://服务器地址:7030`；可通过 CLI `--ip`、`--port` 修改。前端分发边界与验证见 [静态分发与访问](docs/静态分发与访问.md)。
+统一 npx 运行包携带构建后的静态资源，对外默认前端/API 地址为 `http://服务器地址:7030`；可通过 CLI `--ip`、`--port` 修改。前端分发边界见 [静态分发与访问](docs/静态分发与访问.md)。本轮设备版本已重建 release runtime，并通过真实浏览器及 npx 验收。
 
 验证：`npm run generate:api`、`npm run check`、`npm test`、`npm run build`。依赖锁文件提交到源码管理，CI 使用 npm ci。TypeScript 使用 5.9 兼容当前接口生成器和 Svelte 检查器，不通过忽略 peer 依赖强行升级。
 
@@ -15,7 +15,11 @@ Svelte 5、TypeScript 和 Vite 的独立浏览器工程。已实现 v2 客户端
 
 构建公开生产入口 `/assets/plugin-host.js`，以原生 ESM 导出 `createFrontendRuntime` 和 `createNamedSlotAdapter`。宿主可从该入口装配传输、挂载目标/默认 renderer 和 ESM importer；包加载默认使用已安装资源的运行 UUID 路径。此入口独立于产品外壳：`main.ts` 尚未装配产品 runtime，不会自动连接服务、安装插件或生成业务页面。
 
-SDK v2 在 `src/plugin-sdk/index.ts`，独立于生成 DTO。v1 插件须更新 apiVersion、显式信号与 HostResult。插件可贡献面板、具名组件槽（append/replace）、模块、命令、版本化服务及 beforeTaskSubmit 钩子；插件专属上下文提供事件/状态和动态贡献登记。当前 HostContext 的服务器调用仅包括 listOperations/submit/getJob/cancelJob，以及操作目录订阅；插件 SDK 没有服务器插件管理、在线包管理或产物上传下载适配。`runtime.serverPlugins/pluginPackages/artifacts` 是宿主 app 用例入口，不会自动授予插件。
+SDK v2 在 `src/plugin-sdk/index.ts`，独立于生成 DTO。v1 插件须更新 apiVersion、显式信号与 HostResult。插件可贡献面板、具名组件槽（append/replace）、模块、命令、版本化服务及 beforeTaskSubmit 钩子；插件专属上下文提供事件/状态和动态贡献登记。HostContext 提供 listOperations/submit/getJob/cancelJob、操作目录订阅及可选 devices；插件 SDK 没有服务器插件管理、在线包管理或产物上传下载适配。`runtime.serverPlugins/pluginPackages/artifacts` 是宿主 app 用例入口，不会自动授予插件。
+
+`runtime.devices` 已装配，`HostContext.devices` 以 apiVersion 2 的可选字段兼容旧宿主。公开方法为 refreshProviders/refreshDirectories/refreshProvider(id,generation,signal)/invoke(action,signal)、select/snapshot/subscribe；异步方法返回 HostResult。SDK DeviceRef 使用 providerId/generation/localId，DeviceAction 使用 providerId/generation/deviceId/capability/version/input，由 app 显式映射生成 HTTP 字段。刷新开始清本代旧观测与选择，失败保持空；切换设备、提供者代变或卸载拒绝旧结果。插件实例与面板/组件/模块的取消和订阅均随生命周期收敛。
+
+本实例服务器插件 load/unload（含在线服务器包启停）后先撤销目标设备缓存与选择，再重查操作和设备目录；取消或重查失败也不保留旧缓存。远端变化需显式刷新，没有后台推送或常驻设备会话。
 
 `runtime.pluginPackages` 提供 refresh/snapshot/subscribe/upload/enable/disable/remove。`upload(kind, Blob, mediaType, signal)` 中 kind 为 server/browser，mediaType 为 application/zip 或 application/gzip，对应必填 format=zip/tgz；上传只部署，enable 才执行。取消或失败后独立重查实际部署目录，不假定服务端回滚或自动重放。浏览器 remove 先停止本实例并撤销加载源，再删除部署；删除失败且目录仍存在时可重新 enable。
 
@@ -26,10 +30,12 @@ SDK v2 在 `src/plugin-sdk/index.ts`，独立于生成 DTO。v1 插件须更新 
 ## 文档
 当前实现与文件职责见 [前端运行架构](docs/前端运行架构.md)，在线扩展边界见 [在线插件与开放扩展](docs/在线插件与开放扩展.md)，签名与生命周期见 [插件开发](docs/插件开发.md)。后端文档独立存于 backend/docs。
 
-`docs/设备能力与插件面板.md` 的设备提供者与设备页面仍为候选/待实施范围，本次通用插件热装卸不能证明设备层热拔插完成。
+设备提供者第一阶段的目录、选择、能力准入与离散动作已实现，见 [前端实施](docs/设备提供者第一阶段实施.md)。[设备能力与插件面板](docs/设备能力与插件面板.md) 中的具体工作台交互仍待设计；本阶段不代表常驻设备热拔插、平台工具迁出或真机验收完成。
 
 客户端默认只消费 v2，生成类型保留 v1；日志复制 UI 尚未实施。关联 ID 与原字节约束见 `docs/日志ID与接口消费.md`。
 
 本端独立开发规则见 [AGENTS.md](AGENTS.md)，包含完整职责、严格类型、异步资源与检查要求。
 
-[服务器插件生命周期消费](docs/服务器插件生命周期消费.md) 约束运行目录、代际、保护依赖及取消后查询。基础用例保留 cleanup_failed/draining。主代理已完成 debug/release 真实浏览器验收：生产公开 ESM 入口、两类包经 runtime.pluginPackages 上传/启停/删除、相对依赖新代、面板/组件替换/模块、命令/服务/状态、任务 hook 4→5 及停用恢复 4、DOM 清理与默认 renderer 恢复。报告在根 artifacts/browser-plugin-smoke-debug.json 与 browser-plugin-smoke-release.json；独立 harness 验证运行行为，不代表产品界面视觉、设备或生产容量验收。
+[服务器插件生命周期消费](docs/服务器插件生命周期消费.md) 约束运行目录、代际、保护依赖及取消后查询。基础用例保留 cleanup_failed/draining。前阶段主代理已完成通用在线扩展的 debug/release 真实浏览器验收：生产公开 ESM 入口、两类包经 runtime.pluginPackages 上传/启停/删除、相对依赖新代、面板/组件替换/模块、命令/服务/状态、任务 hook 4→5 及停用恢复 4、DOM 清理与默认 renderer 恢复。历史 release 报告保留在根 artifacts/browser-plugin-smoke-release.json；debug 报告现已更新为下述设备阶段结果。历史在线扩展记录保留其当时范围，不扩为本轮设备 release/npx 验收。
+
+本轮设备当前源码由主代理完成 check，退出 0（架构 49 文件、Svelte 0 错误/0 警告、TypeScript 通过），test 退出 0（73/73），production build 通过。根 artifacts/browser-plugin-smoke-debug.json 和 browser-plugin-smoke-release.json 的整体及 browser.passed 均为 true，publicDeviceCapability/deviceProviderGenerationChanged/oldDeviceReferenceRejected 均为 true。分发宿主与浏览器验收生产 ESM 的 SHA-256 一致；真实 npx 也已完成公开设备示例安装、HTTP/MCP 调用与旧代拒绝。上述证据不包含远端推送、常驻会话、真机、产品 UI 或生产容量，main.ts 仍未装配产品 runtime。

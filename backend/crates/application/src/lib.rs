@@ -10,11 +10,12 @@ use tokio::sync::Semaphore;
 use tokio_util::{sync::CancellationToken, task::TaskTracker};
 use tracing::Instrument;
 mod blocking;
+pub mod devices;
+mod execution;
 pub mod plugin_lifecycle;
 pub mod plugin_packages;
 pub mod registration;
 mod registry;
-pub mod devices;
 struct Active {
     accepting: bool,
     tokens: BTreeMap<String, CancellationToken>,
@@ -85,9 +86,15 @@ impl Application {
 
     pub fn submit(self: &Arc<Self>, operation: &str, input: Value) -> Result<Job> {
         let registered = self.registry.find(operation)?;
-        self.submit_registered(operation,input,registered,None)
+        self.submit_registered(operation, input, registered, None)
     }
-    pub(crate) fn submit_registered(self:&Arc<Self>,operation:&str,input:Value,registered:Arc<registry::Registered>,external:Option<CancellationToken>)->Result<Job> {
+    pub(crate) fn submit_registered(
+        self: &Arc<Self>,
+        operation: &str,
+        input: Value,
+        registered: Arc<registry::Registered>,
+        external: Option<CancellationToken>,
+    ) -> Result<Job> {
         registered
             .validator
             .validate(&input)
@@ -102,12 +109,30 @@ impl Application {
         if !self.registry.current(operation, &registered)? {
             return Err(Error::Conflict("插件贡献已撤销或重载，请重新提交".into()));
         }
-        if registered.owner.as_ref().is_some_and(|owner|owner.info().cleanup_failed) {
+        if registered
+            .owner
+            .as_ref()
+            .is_some_and(|owner| owner.info().cleanup_failed)
+        {
             return Err(Error::Conflict("插件资源清理未确认，拒绝新任务".into()));
         }
-        if external.as_ref().is_some_and(CancellationToken::is_cancelled) { return Err(Error::Cancelled); }
-        let selection = self.registry.device_admission(&registered,&input)?.map(|(provider,device,cap)|self.device_locks.selection(&provider,device.as_deref(),&cap.scope,&cap.access)).transpose()?;
-        let deadline=selection.as_ref().map(|_|tokio::time::Instant::now()+std::time::Duration::from_secs(30));
+        if external
+            .as_ref()
+            .is_some_and(CancellationToken::is_cancelled)
+        {
+            return Err(Error::Cancelled);
+        }
+        let selection = self
+            .registry
+            .device_admission(&registered, &input)?
+            .map(|(provider, device, cap)| {
+                self.device_locks
+                    .selection(&provider, device.as_deref(), &cap.scope, &cap.access)
+            })
+            .transpose()?;
+        let deadline = selection
+            .as_ref()
+            .map(|_| tokio::time::Instant::now() + std::time::Duration::from_secs(30));
         if active.tokens.len() >= self.capacity {
             return Err(Error::Conflict("任务队列已满".into()));
         }
@@ -180,12 +205,19 @@ impl Application {
         deadline: Option<tokio::time::Instant>,
     ) -> Result<()> {
         let _device_guard = match selection {
-            Some(selection)=>match selection.acquire_until(&token,deadline.expect("设备任务已设置期限")).await {
-                Ok(guard)=>Some(guard),
-                Err(Error::Cancelled)=>{self.transition_async(job.id.clone(),JobStatus::Cancelled,None,None).await?;return Ok(())},
-                Err(error)=>return Err(error),
+            Some(selection) => match selection
+                .acquire_until(&token, deadline.expect("设备任务已设置期限"))
+                .await
+            {
+                Ok(guard) => Some(guard),
+                Err(Error::Cancelled) => {
+                    self.transition_async(job.id.clone(), JobStatus::Cancelled, None, None)
+                        .await?;
+                    return Ok(());
+                }
+                Err(error) => return Err(error),
             },
-            None=>None,
+            None => None,
         };
         let _permit = tokio::select! {
             biased;
@@ -197,7 +229,10 @@ impl Application {
             permit = self.workers.acquire() => permit.map_err(|e| Error::Dependency(e.to_string()))?,
         };
         // 排队期间另一任务可能留下未确认资源；不能在取得共享锁后继续执行。
-        if owner.as_ref().is_some_and(|owner|owner.info().cleanup_failed) {
+        if owner
+            .as_ref()
+            .is_some_and(|owner| owner.info().cleanup_failed)
+        {
             return Err(Error::Conflict("插件资源清理未确认，排队任务被拒绝".into()));
         }
         let running = self
@@ -212,8 +247,13 @@ impl Application {
             return Ok(());
         }
         tracing::info!("任务开始执行");
-        let execution = std::panic::AssertUnwindSafe(devices::rules::execute(
-            executor.as_ref(),&job.operation,job.input.clone(),token.clone(),owner.as_deref(),deadline,
+        let execution = std::panic::AssertUnwindSafe(execution::execute(
+            executor.as_ref(),
+            &job.operation,
+            job.input.clone(),
+            token.clone(),
+            owner.as_deref(),
+            deadline,
         ))
         .catch_unwind();
         tokio::pin!(execution);

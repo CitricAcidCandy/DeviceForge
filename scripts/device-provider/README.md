@@ -4,6 +4,12 @@
 
 报告写入 `artifacts/device-provider-smoke-{profile}.json`，包括阶段、精确错误码、检查项、共享任务 ID、真实夹具进程与清理标记、响应日志关联及失败位置。写好脚本或语法检查通过仅是静态证据；报告的 `passed` 和本轮命令退出码共同表示真实验收结果。
 
+## 已验证状态
+
+2026-10-09 的 Windows debug 独立运行退出码为 0，[设备报告](../../artifacts/device-provider-smoke-debug.json) 的 25 项检查全部通过。35 次真实 Node 调用均记录 `response_written`、`stdin_eof`、`process_exit`，终态检查均不可见；宿主正常退出码为 0。1267 条日志落盘，关联 279 个 HTTP/MCP 响应日志 ID。清理标记与实际退出分别记录，不能用 `cleaned` 代替 EOF 或进程退出。此次独立通过不表示首次并发失败的根因已确认或修复。
+
+[浏览器 debug 报告](../../artifacts/browser-plugin-smoke-debug.json) 的整体结果及浏览器子项也通过：独立验收页面将 `backend/examples/device-provider-node` 的原文件打包为在线 TGZ，真实安装并加载公开示例，通过生产宿主 ESM 的公开设备上下文完成发现、能力共享任务调用、重载换代与旧引用拒绝。当前 release 设备报告的 25 项检查和 35 次实际调用退出、release 浏览器整体以及重新打包后的真实 npx 均通过。公开示例平台为 `synthetic_demo`，使用协议 1；本脚本的协议 3 取消/清理证据来自独立夹具。两者均不证明常驻会话、真机或设备资源持久化。
+
 ## 文件职责
 
 - `client.mjs`：默认不带 Authorization 的公开 HTTP/MCP 调用、日志 ID、分页和共享任务终态。

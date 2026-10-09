@@ -150,9 +150,9 @@ pub fn validate(
                 performance: portable.performance,
                 devices: portable.devices,
             };
-            let plugin = ProcessPlugin::new(manifest.clone()).map_err(|error|match error {
-                Error::Conflict(_)=>Error::Invalid("包清单包含无效或重复贡献".into()),
-                other=>other,
+            let plugin = ProcessPlugin::new(manifest.clone()).map_err(|error| match error {
+                Error::Conflict(_) => Error::Invalid("包清单包含无效或重复贡献".into()),
+                other => other,
             })?;
             let operations = plugin.operations();
             // 检查暂存入口存在后才映射最终机器路径，生成 FilePluginCatalog 使用的清单。

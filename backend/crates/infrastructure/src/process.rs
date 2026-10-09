@@ -49,7 +49,9 @@ async fn capture(
     plugin: bool,
     directory: Option<&std::path::Path>,
 ) -> Result<(Vec<u8>, Vec<u8>)> {
-    if cancel.is_cancelled() {return Err(Error::Cancelled);}
+    if cancel.is_cancelled() {
+        return Err(Error::Cancelled);
+    }
     let mut command = command(executable, args, plugin);
     if let Some(directory) = directory {
         command.current_dir(directory);
@@ -167,7 +169,9 @@ pub async fn run_to_file(
     timeout: Duration,
     cancel: CancellationToken,
 ) -> Result<()> {
-    if cancel.is_cancelled() {return Err(Error::Cancelled);}
+    if cancel.is_cancelled() {
+        return Err(Error::Cancelled);
+    }
     let mut child = command(executable, args, false)
         .spawn()
         .map_err(|e| Error::Dependency(e.to_string()))?;
@@ -280,6 +284,23 @@ pub(crate) async fn isolated_text(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[tokio::test]
+    async fn cancelled_before_spawn_does_not_resolve_or_start_program() {
+        let token = CancellationToken::new();
+        token.cancel();
+        assert!(matches!(
+            run(
+                "missing-program-must-not-start",
+                &[],
+                None,
+                Duration::from_secs(1),
+                token,
+                false
+            )
+            .await,
+            Err(Error::Cancelled)
+        ));
+    }
     #[tokio::test]
     async fn cancellation_and_timeout_are_bounded() {
         let token = CancellationToken::new();

@@ -177,8 +177,9 @@ fn build_router(
     let plugin_service = runtime
         .as_ref()
         .and_then(|services| services.plugins.clone());
-    let devices=apk_application::devices::DeviceService::new(app.clone());
-    let mcp_service = mcp::service_with_devices(app.clone(), plugin_service,devices.clone(), config);
+    let devices = apk_application::devices::DeviceService::new(app.clone());
+    let mcp_service =
+        mcp::service_with_devices(app.clone(), plugin_service, devices.clone(), config);
     if token.chars().any(char::is_whitespace) || requests_per_second == 0 {
         return Err(Error::Invalid(
             "可选 API 令牌不得含空白，限流值必须大于零".into(),
@@ -218,10 +219,13 @@ fn build_router(
         .route("/api/v2/diagnostics/logging", get(runtime::logging))
         .route("/api/v2/system/shutdown", post(runtime::shutdown))
         .route("/api/v2/plugins", get(plugin_routes::list))
-        .route("/api/v2/device-providers",get(device_routes::providers))
-        .route("/api/v2/devices",get(device_routes::directories))
-        .route("/api/v2/device-providers/{id}/refresh",post(device_routes::refresh))
-        .route("/api/v2/device-actions",post(device_routes::invoke))
+        .route("/api/v2/device-providers", get(device_routes::providers))
+        .route("/api/v2/devices", get(device_routes::directories))
+        .route(
+            "/api/v2/device-providers/{id}/refresh",
+            post(device_routes::refresh),
+        )
+        .route("/api/v2/device-actions", post(device_routes::invoke))
         .route("/api/v2/plugins/{id}/load", post(plugin_routes::load))
         .route("/api/v2/plugins/{id}/unload", post(plugin_routes::unload))
         .route(
@@ -411,13 +415,13 @@ pub fn openapi_document() -> Value {
 
 mod artifacts;
 mod correlation;
+mod device_mcp;
+mod device_routes;
 mod mcp_observability;
 mod mcp_tools;
 mod mcp_wire;
 mod plugin_package_routes;
 mod plugin_routes;
-mod device_routes;
-mod device_mcp;
 mod response_stream;
 mod responses;
 pub mod runtime;

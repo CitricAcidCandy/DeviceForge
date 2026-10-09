@@ -10,6 +10,7 @@ import { createHostContext } from './host-context.ts';
 import { createPluginPackages } from '../features/plugin-packages/index.ts';
 import { createDevices } from '../features/devices/index.ts';
 import { createDeviceGateway } from './device-gateway.ts';
+import { createCatalogRefresh } from './catalog-refresh.ts';
 
 export interface RuntimeOptions extends ClientOptions {
   readonly panelTarget: ManagerOptions['panelTarget'];
@@ -28,7 +29,7 @@ export function createFrontendRuntime(options: RuntimeOptions) {
   const devices = createDevices(createDeviceGateway(client, lifetime.signal));
   const host = createHostContext(operations, tasks, lifetime, devices);
   const context = Object.freeze<HostContext>({ ...host.context, extensions: extensions.hostAccess(host.context) });
-  const serverPlugins = createServerPlugins(client, operations.refresh);
+  const serverPlugins = createServerPlugins(client, createCatalogRefresh(operations.refresh, devices));
   const webPlugins = createPluginManager({ host: context, panelTarget: options.panelTarget, extensionRegistry: extensions,
     ...(options.componentTarget ? { componentTarget: options.componentTarget } : {}),
     ...(options.moduleTarget ? { moduleTarget: options.moduleTarget } : {}),

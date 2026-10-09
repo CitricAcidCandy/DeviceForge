@@ -38,7 +38,7 @@ pub(crate) struct Snapshot {
     revision: u64,
     pub entries: BTreeMap<String, Arc<Registered>>,
     pub owners: BTreeMap<String, Arc<Owner>>,
-    pub directories: BTreeMap<String,apk_domain::devices::DeviceDirectory>,
+    pub directories: BTreeMap<String, apk_domain::devices::DeviceDirectory>,
 }
 pub(crate) struct Registry(pub(crate) RwLock<Snapshot>);
 
@@ -152,7 +152,7 @@ impl Prepared {
         }
         let provider = plugin.executor.device_provider();
         if let Some(definition) = &provider {
-            crate::devices::rules::definition(definition,&operations,&plugin.id)?;
+            crate::devices::rules::definition(definition, &operations, &plugin.id)?;
         }
         let owner = Arc::new(Owner {
             info: PluginInfo {

@@ -59,21 +59,139 @@ async fn store() -> (tempfile::TempDir, Arc<FilePluginPackages>) {
 }
 
 #[tokio::test]
-async fn portable_devices_are_preserved_and_bad_manifest_is_invalid_input(){
-    let (directory,store)=store().await;
-    let mut manifest:serde_json::Value=serde_json::from_slice(include_bytes!("../../../examples/device-provider-node/plugin.json")).unwrap();
-    let package=json!({"version":"0.1.0","deviceforge":{"kind":"server","manifest":"plugin.json","entrypoints":{"any":{"runtime":"node","path":"index.mjs"}}}});
-    let files=vec![("package.json".into(),serde_json::to_vec(&package).unwrap()),("plugin.json".into(),serde_json::to_vec(&manifest).unwrap()),("index.mjs".into(),include_bytes!("../../../examples/device-provider-node/index.mjs").to_vec())];
-    store.prepare(PackageKind::Server,PackageFormat::Tgz,body(tgz(&files))).await.unwrap().commit().await.unwrap();
-    let saved:apk_plugin_sdk::Manifest=serde_json::from_slice(&std::fs::read(directory.path().join("server/device_node_example/manifest.json")).unwrap()).unwrap();
-    assert_eq!(saved.devices.unwrap().capabilities.len(),2);
-    manifest["devices"]["api_version"]=json!(99);
-    let mut bad=files.clone();bad[1].1=serde_json::to_vec(&manifest).unwrap();
-    assert!(matches!(store.prepare(PackageKind::Server,PackageFormat::Tgz,body(tgz(&bad))).await,Err(Error::Invalid(_))));
-    manifest["devices"]["api_version"]=json!(1);
-    manifest["operations"][1]["name"]=json!("discover");
-    bad[1].1=serde_json::to_vec(&manifest).unwrap();
-    assert!(matches!(store.prepare(PackageKind::Server,PackageFormat::Tgz,body(tgz(&bad))).await,Err(Error::Invalid(_))));
+async fn portable_devices_are_preserved_and_bad_manifest_is_invalid_input() {
+    let (directory, store) = store().await;
+    let mut manifest: serde_json::Value = serde_json::from_slice(include_bytes!(
+        "../../../examples/device-provider-node/plugin.json"
+    ))
+    .unwrap();
+    let package = json!({"version":"0.1.0","deviceforge":{"kind":"server","manifest":"plugin.json","entrypoints":{"any":{"runtime":"node","path":"index.mjs"}}}});
+    let files = vec![
+        ("package.json".into(), serde_json::to_vec(&package).unwrap()),
+        ("plugin.json".into(), serde_json::to_vec(&manifest).unwrap()),
+        (
+            "index.mjs".into(),
+            include_bytes!("../../../examples/device-provider-node/index.mjs").to_vec(),
+        ),
+    ];
+    store
+        .prepare(PackageKind::Server, PackageFormat::Tgz, body(tgz(&files)))
+        .await
+        .unwrap()
+        .commit()
+        .await
+        .unwrap();
+    let saved: apk_plugin_sdk::Manifest = serde_json::from_slice(
+        &std::fs::read(
+            directory
+                .path()
+                .join("server/device_node_example/manifest.json"),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(saved.devices.unwrap().capabilities.len(), 2);
+    manifest["devices"]["api_version"] = json!(99);
+    let mut bad = files.clone();
+    bad[1].1 = serde_json::to_vec(&manifest).unwrap();
+    assert!(matches!(
+        store
+            .prepare(PackageKind::Server, PackageFormat::Tgz, body(tgz(&bad)))
+            .await,
+        Err(Error::Invalid(_))
+    ));
+    manifest["devices"]["api_version"] = json!(1);
+    manifest["operations"][1]["name"] = json!("discover");
+    bad[1].1 = serde_json::to_vec(&manifest).unwrap();
+    assert!(matches!(
+        store
+            .prepare(PackageKind::Server, PackageFormat::Tgz, body(tgz(&bad)))
+            .await,
+        Err(Error::Invalid(_))
+    ));
+}
+
+fn nested_server_files(version: u32, pointers: serde_json::Value) -> Vec<(String, Vec<u8>)> {
+    let mut manifest: serde_json::Value = serde_json::from_slice(include_bytes!(
+        "../../../examples/device-provider-node/plugin.json"
+    ))
+    .unwrap();
+    manifest["id"] = json!("nested_demo");
+    manifest["protocol_version"] = json!(version);
+    manifest["artifacts"] =
+        json!({"input_fields":["legacy_id"],"input_pointers":pointers,"outputs":true});
+    vec![
+        (
+            "package.json".into(),
+            serde_json::to_vec(&json!({
+                "version":manifest["version"],
+                "deviceforge":{"kind":"server","manifest":"plugin.json",
+                    "entrypoints":{"any":{"runtime":"native","path":"plugin.bin"}}}
+            }))
+            .unwrap(),
+        ),
+        ("plugin.json".into(), serde_json::to_vec(&manifest).unwrap()),
+        (
+            "plugin.bin".into(),
+            "仅验证便携声明，不执行入口".as_bytes().to_vec(),
+        ),
+    ]
+}
+
+#[tokio::test]
+async fn zip_and_tgz_preserve_nested_artifact_declarations_for_protocols_two_and_three() {
+    for version in [2, 3] {
+        for format in [PackageFormat::Zip, PackageFormat::Tgz] {
+            let (directory, store) = store().await;
+            let files = nested_server_files(version, json!(["/input/artifact_id"]));
+            let bytes = match format {
+                PackageFormat::Zip => zip(&files),
+                PackageFormat::Tgz => tgz(&files),
+            };
+            store
+                .prepare(PackageKind::Server, format, body(bytes))
+                .await
+                .unwrap()
+                .commit()
+                .await
+                .unwrap();
+            let saved: apk_plugin_sdk::Manifest = serde_json::from_slice(
+                &tokio::fs::read(directory.path().join("server/nested_demo/manifest.json"))
+                    .await
+                    .unwrap(),
+            )
+            .unwrap();
+            assert_eq!(saved.protocol_version, version);
+            assert!(saved.devices.is_some());
+            let access = saved.artifacts.unwrap();
+            assert_eq!(access.input_fields, ["legacy_id"]);
+            assert_eq!(access.input_pointers, ["/input/artifact_id"]);
+            assert!(access.outputs);
+        }
+    }
+}
+
+#[tokio::test]
+async fn invalid_nested_declarations_are_invalid_input_and_never_publish() {
+    let (directory, store) = store().await;
+    for (version, pointers) in [
+        (2, json!([""])),
+        (2, json!(["/input/~2bad"])),
+        (2, json!(["/input/id", "/input/id"])),
+        (2, json!(["/legacy_id"])),
+        (2, json!(["/a", "/b", "/c", "/d", "/e", "/f", "/g", "/h"])),
+        (1, json!(["/input/artifact_id"])),
+    ] {
+        let files = nested_server_files(version, pointers);
+        assert!(matches!(
+            store
+                .prepare(PackageKind::Server, PackageFormat::Zip, body(zip(&files)))
+                .await,
+            Err(Error::Invalid(_))
+        ));
+        assert!(store.list(PackageKind::Server).await.unwrap().is_empty());
+        assert!(!directory.path().join("server/nested_demo").exists());
+    }
 }
 
 #[tokio::test]

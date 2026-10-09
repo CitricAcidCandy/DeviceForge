@@ -188,21 +188,35 @@ pub fn document() -> Value {
     document
 }
 
-fn device_paths(document:&mut Value) {
+fn device_paths(document: &mut Value) {
     use apk_domain::devices::*;
-    document["paths"]["/api/v2/device-providers"]=json!({"get":v2_endpoint(endpoint("列出当前设备提供者","200",schema::<Vec<DeviceProviderInfo>>()))});
-    document["paths"]["/api/v2/devices"]=json!({"get":v2_endpoint(endpoint("列出当前代明确观测目录","200",schema::<Vec<DeviceDirectory>>()))});
-    let mut refresh=endpoint("显式刷新设备，失败撤销当前观测","200",schema::<DeviceDirectory>());
-    refresh["parameters"]=json!([{"name":"id","in":"path","required":true,"schema":{"type":"string","maxLength":99}}]);
-    refresh["requestBody"]=json!({"required":true,"content":{"application/json":{"schema":schema::<crate::device_routes::RefreshRequest>()}}});
-    refresh["responses"]["502"]=response("提供者发现消息无效",schema::<crate::Failure>());
-    refresh["responses"]["504"]=response("刷新等待超时",schema::<crate::Failure>());
-    document["paths"]["/api/v2/device-providers/{id}/refresh"]=json!({"post":v2_endpoint(refresh)});
-    let mut invoke=endpoint("按能力精确版本提交共享任务","202",schema::<apk_domain::Job>());
-    invoke["requestBody"]=json!({"required":true,"content":{"application/json":{"schema":schema::<DeviceActionRequest>()}}});
-    document["paths"]["/api/v2/device-actions"]=json!({"post":v2_endpoint(invoke)});
-    for (name,value) in [("DeviceProviderInfo",schema::<DeviceProviderInfo>()),("DeviceDirectory",schema::<DeviceDirectory>()),("DeviceActionRequest",schema::<DeviceActionRequest>()),("ProviderInput",schema::<ProviderInput>())] {
-        document["components"]["schemas"][name]=value;
+    document["paths"]["/api/v2/device-providers"] = json!({"get":v2_endpoint(endpoint("列出当前设备提供者","200",schema::<Vec<DeviceProviderInfo>>()))});
+    document["paths"]["/api/v2/devices"] = json!({"get":v2_endpoint(endpoint("列出当前代明确观测目录","200",schema::<Vec<DeviceDirectory>>()))});
+    let mut refresh = endpoint(
+        "显式刷新设备，失败撤销当前观测",
+        "200",
+        schema::<DeviceDirectory>(),
+    );
+    refresh["parameters"] = json!([{"name":"id","in":"path","required":true,"schema":{"type":"string","maxLength":99}}]);
+    refresh["requestBody"] = json!({"required":true,"content":{"application/json":{"schema":schema::<crate::device_routes::RefreshRequest>()}}});
+    refresh["responses"]["502"] = response("提供者发现消息无效", schema::<crate::Failure>());
+    refresh["responses"]["504"] = response("刷新等待超时", schema::<crate::Failure>());
+    document["paths"]["/api/v2/device-providers/{id}/refresh"] =
+        json!({"post":v2_endpoint(refresh)});
+    let mut invoke = endpoint(
+        "按能力精确版本提交共享任务",
+        "202",
+        schema::<apk_domain::Job>(),
+    );
+    invoke["requestBody"] = json!({"required":true,"content":{"application/json":{"schema":schema::<DeviceActionRequest>()}}});
+    document["paths"]["/api/v2/device-actions"] = json!({"post":v2_endpoint(invoke)});
+    for (name, value) in [
+        ("DeviceProviderInfo", schema::<DeviceProviderInfo>()),
+        ("DeviceDirectory", schema::<DeviceDirectory>()),
+        ("DeviceActionRequest", schema::<DeviceActionRequest>()),
+        ("ProviderInput", schema::<ProviderInput>()),
+    ] {
+        document["components"]["schemas"][name] = value;
     }
 }
 

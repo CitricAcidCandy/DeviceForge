@@ -21,6 +21,13 @@ const report = { timestamp: new Date().toISOString(), profile, platform: process
   host: 'frontend/dist/assets/plugin-host.js',
   scope: '本机真实 Rust 在线安装、生产宿主 ESM 与相对依赖、开放扩展、公开设备能力/提供者热装卸与旧代引用拒绝；独立验收页面，不含产品视觉、真机和生产容量', passed: false };
 let child; let closed; let vite; let graceful = false;
+async function closeProxy() {
+  if (!vite) return;
+  const current = vite; vite = undefined;
+  // 验收浏览器已关闭，撤销本次代理连接后再核对 Rust 的正常退出。
+  current.httpServer?.closeAllConnections();
+  await Promise.race([current.close(), delay(5000).then(() => { throw new Error('验收代理关闭超时'); })]);
+}
 async function reservePort() {
   const server = createNetServer();
   await new Promise((resolve, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', resolve); });
@@ -45,6 +52,7 @@ async function ready(base) {
 }
 
 try {
+  report.stage = '启动真实宿主';
   const port = await reservePort(); const base = `http://127.0.0.1:${port}`;
   child = spawn(binary, [], { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'], env: {
     ...process.env, APK_API_TOKEN: '', APK_BIND: `127.0.0.1:${port}`, APK_DATA_DIR: join(temporary, 'data'),
@@ -88,24 +96,32 @@ try {
     const harness=await import('/__harness__');
     return harness.verifyInstalledPlugin();
   })()`;
+  report.stage = '生产浏览器行为';
   report.browser = await runBrowser(page, expression, join(temporary, 'browser-profile'));
   assert.equal(report.browser.passed, true);
   for (const [kind, id] of [['server', server.id], ['browser', browser.id]]) {
     assert.deepEqual(await call(base, `/api/v2/plugin-packages/${kind}`), []);
   }
+  report.stage = '关闭验收代理';
+  await closeProxy();
+  report.stage = 'Rust 正常退出';
   await call(base, '/api/v2/system/shutdown', { method: 'POST' });
   const exit = await Promise.race([closed, delay(10000).then(() => { throw new Error('Rust 服务退出超时'); })]);
   assert.deepEqual(exit, { code: 0, signal: null }); graceful = true;
   report.passed = true;
 } catch (error) { report.error = error.message; process.exitCode = 1; }
 finally {
-  await vite?.close();
   if (child && !graceful && child.exitCode === null && child.signalCode === null) {
     child.kill(); await Promise.race([closed.catch(() => undefined), delay(5000)]);
   }
+  try { await closeProxy(); }
+  catch (error) { report.proxyCleanupError = error.message; report.passed = false; process.exitCode = 1; }
   const within = relative(tmpdir(), temporary);
   assert.ok(within && !isAbsolute(within) && !within.startsWith('..'), '临时清理必须位于本次临时根');
-  try { await rm(temporary, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 }); }
+  try {
+    if (report.passed) await rm(temporary, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
+    else report.temporaryRetained = temporary;
+  }
   catch (error) { report.cleanupError = error.code; report.passed = false; process.exitCode = 1; }
   await mkdir(resolve(root, 'artifacts'), { recursive: true });
   await writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`, 'utf8');

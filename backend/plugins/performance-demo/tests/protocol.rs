@@ -170,6 +170,7 @@ fn manifest_capability_and_schema_are_checked_before_execution() {
     let mut value = manifest("", true);
     value.artifacts = Some(apk_plugin_sdk::ArtifactAccess {
         input_fields: vec![],
+        input_pointers: vec![],
         outputs: true,
     });
     assert!(ProcessPlugin::new(value).is_err());
