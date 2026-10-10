@@ -10,4 +10,8 @@ registerInstalledPackage 通过 app 工厂接入；每次实际 load 创建运�
 
 device-access.ts 为可选 SDK v2 devices 包装所有入口；scope 将插件实例和面板/组件/模块子生命周期信号合并到设备调用，关闭后拒绝 select/snapshot/subscribe，卸载释放订阅并阻止晚通知及旧结果。设备用例和 HTTP 不属于本模块，设备本地准入错误不伪造服务日志 ID。
 
+artifact-access.ts 对可选 SDK v2 artifacts 的上传/下载做作用域代理，只调用现有 call/current 门禁；旧宿主缺省时不补实现。scope 同时约束实例和挂载子生命周期，预取消或关闭零调用、晚到成功拒绝；原 Blob 与日志不重包、不创建 URL。HTTP/DTO 校验属于宿主网关，上传 Abort 不承诺服务器回滚或删除产物。新增回归待主代理统一执行，真实浏览器证据另验。
+
+task-history-access.ts 对可选 SDK v2 taskHistory 的 list/get/events 做独立代理，现有 scope 的 call/current 合并实例及挂载子生命周期；复用 awaitActive 及时结束无视取消的旧宿主等待，并消费晚 resolve/reject。子作用域退出不关闭兄弟，重载不复活旧引用；宿主资格与元数据校验归 app 网关。代理不创建缓存、定时器或订阅，不删除历史或取消服务器 Job。独立回归待主代理统一执行，未借用旧浏览器报告宣称本批已验证。
+
 unload 保留已登记源供重载；unregister 先清理运行代次再撤销源，更新或删除安装包用例可重新登记同 ID。清理失败时源保留并向调用者报告，不假定资源已安全消失。

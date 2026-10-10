@@ -1,0 +1,9 @@
+//! 单任务别名集成按映射、共享锁、生命周期、注册与预算拆分。
+mod budget_port;
+mod budgets;
+mod config;
+mod lifecycle;
+mod locks;
+mod mapping;
+mod registration;
+mod support;

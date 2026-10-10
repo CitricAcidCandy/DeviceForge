@@ -29,12 +29,14 @@ impl Executor for PerformanceService {
         ]
         .into_iter()
         .map(|(name, title, input_schema)| Operation {
+            execution: None,
             id: format!("android.performance.{name}"),
             title: title.into(),
             input_schema,
         })
         .collect();
         operations.push(Operation {
+            execution: None,
             id: "android.performance.capabilities".into(),
             title: "查看性能采样能力".into(),
             input_schema: json!({"type":"object","additionalProperties":false}),

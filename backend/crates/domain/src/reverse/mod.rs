@@ -1,4 +1,4 @@
-use crate::{Result, artifacts::Artifact};
+use crate::{ExecutionContext, Result, artifacts::Artifact};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use tokio_util::sync::CancellationToken;
@@ -38,4 +38,29 @@ pub trait PackageReverse: Send + Sync {
         rules: Vec<SdkRule>,
         cancel: CancellationToken,
     ) -> Result<SdkScan>;
+
+    /// 默认兼容旧反编译端口，不自行补充或刷新预算。
+    async fn decode_with_context(
+        &self,
+        id: &str,
+        cancel: CancellationToken,
+        _: ExecutionContext,
+    ) -> Result<DecodedPackage> {
+        self.decode(id, cancel).await
+    }
+
+    /// 默认兼容旧检测端口；实际支持期限的适配器应覆盖本入口。
+    async fn scan_sdks_with_context(
+        &self,
+        id: &str,
+        rules: Vec<SdkRule>,
+        cancel: CancellationToken,
+        _: ExecutionContext,
+    ) -> Result<SdkScan> {
+        self.scan_sdks(id, rules, cancel).await
+    }
+
+    fn has_unresolved_resources(&self) -> bool {
+        false
+    }
 }

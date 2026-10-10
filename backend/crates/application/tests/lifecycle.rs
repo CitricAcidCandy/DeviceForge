@@ -19,6 +19,7 @@ struct Controlled {
 impl Executor for Controlled {
     fn operations(&self) -> Vec<Operation> {
         vec![Operation {
+            execution: None,
             id: "test.echo".into(),
             title: "测试操作".into(),
             input_schema: json!({"type":"object","properties":{"value":{"type":"integer"}},"required":["value"],"additionalProperties":false}),
@@ -154,6 +155,7 @@ struct PanicExecutor;
 impl Executor for PanicExecutor {
     fn operations(&self) -> Vec<Operation> {
         vec![Operation {
+            execution: None,
             id: "test.panic".into(),
             title: "异常执行器".into(),
             input_schema: json!({"type":"object"}),

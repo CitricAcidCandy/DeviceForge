@@ -13,6 +13,8 @@
     "prepack": "node scripts/verify-package.mjs",
     "pack:cli": "npm run prepare:runtime && npm pack --pack-destination artifacts",
     "pack:plugins": "node scripts/pack-native-plugins.mjs",
-    "smoke:cli": "node scripts/cli-smoke.mjs"
+    "smoke:cli": "node scripts/cli-smoke.mjs",
+    "smoke:discovery": "node scripts/unified-discovery-smoke.mjs",
+    "smoke:discovery:browser": "node scripts/unified-discovery-browser-smoke.mjs"
   }
 }

@@ -145,6 +145,7 @@ pub fn validate(
                 protocol_version: portable.protocol_version,
                 executable: executable.to_string_lossy().into_owned(),
                 args,
+                // 保留普通显式 execution；不要在安装时填充默认或剥离贡献字段。
                 operations: portable.operations,
                 artifacts: portable.artifacts,
                 performance: portable.performance,

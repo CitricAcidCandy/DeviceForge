@@ -80,6 +80,63 @@ test('浏览器删除失败前已停本实例并撤销源，安装目录仍在�
   assert.equal(stopped, 2); await runtime.dispose();
 });
 
+test('缺少 crypto.randomUUID 时在线包仍可启停重载，不复用运行路径或相对依赖', async () => {
+  const originalCrypto = Object.getOwnPropertyDescriptor(globalThis, 'crypto');
+  const runtimes: ReturnType<typeof createFrontendRuntime>[] = [];
+  const contexts: HostContext[] = []; const urls: string[] = []; let stopped = 0;
+  try {
+    // 仅模拟普通 LAN HTTP 缺少安全上下文方法，不作为真实浏览器验收证据。
+    Object.defineProperty(globalThis, 'crypto', { configurable: true, value: {} });
+    const createRuntime = () => {
+      const runtime = createFrontendRuntime({ baseUrl: 'http://192.168.50.5:7031', panelTarget: () => null,
+        esmImporter: async (url) => {
+          urls.push(url);
+          return { default: { id: 'example', version: '1.0', apiVersion: 2, panels: [], activate: async (host: HostContext) => {
+            contexts.push(host); host.onDispose(() => { ++stopped; });
+          } } };
+        },
+        transport: async () => success([installedPackage()]),
+      });
+      runtimes.push(runtime); return runtime;
+    };
+    const runtime = createRuntime();
+    const first = await runtime.pluginPackages.enable('browser', 'example', signal());
+    const repeated = await runtime.pluginPackages.enable('browser', 'example', signal());
+    assert.equal(repeated.data.generation, first.data.generation);
+    assert.equal(urls.length, 1); assert.equal(contexts.length, 1);
+    const oldContext = contexts[0]; assert.ok(oldContext); assert.equal(oldContext.signal.aborted, false);
+    await runtime.pluginPackages.disable('browser', 'example', signal());
+    assert.equal(oldContext.signal.aborted, true); assert.equal(stopped, 1);
+    assert.deepEqual(runtime.webPlugins.snapshot(), []);
+    const next = await runtime.pluginPackages.enable('browser', 'example', signal());
+    assert.notEqual(next.data.generation, first.data.generation);
+    const newContext = contexts[1]; assert.ok(newContext); assert.equal(newContext.signal.aborted, false);
+    // 同一模块内不同宿主实例也不得共享同 ID 包的运行路径。
+    const other = createRuntime(); await other.pluginPackages.enable('browser', 'example', signal());
+    assert.equal(urls.length, 3); assert.equal(contexts.length, 3);
+    assert.equal(new Set(urls).size, 3);
+    const dependencies = urls.map((url) => new URL('./dependency.js', url).href);
+    assert.equal(new Set(dependencies).size, 3);
+    for (const url of urls) {
+      assert.equal(new URL(url).origin, 'http://192.168.50.5:7031');
+      assert.match(new URL(url).pathname, /^\/api\/v2\/browser-plugins\/example\/runs\/[A-Za-z0-9_-]+\/assets\/dist\/index\.js$/);
+    }
+    for (const url of dependencies) {
+      assert.match(new URL(url).pathname, /^\/api\/v2\/browser-plugins\/example\/runs\/[A-Za-z0-9_-]+\/assets\/dist\/dependency\.js$/);
+    }
+  } finally {
+    try {
+      const releases = await Promise.allSettled(runtimes.map((runtime) => runtime.dispose()));
+      for (const release of releases) if (release.status === 'rejected') throw release.reason;
+    } finally {
+      if (originalCrypto) Object.defineProperty(globalThis, 'crypto', originalCrypto);
+      else Reflect.deleteProperty(globalThis, 'crypto');
+    }
+  }
+  assert.equal(stopped, 3); assert.ok(contexts.every((context) => context.signal.aborted));
+  assert.deepEqual(Object.getOwnPropertyDescriptor(globalThis, 'crypto'), originalCrypto);
+});
+
 test('浏览器资源释放失败阻止部署删除，报告错误并允许从保留部署重新启用', async () => {
   let releases = 0; let deletions = 0; let imports = 0;
   const contexts: HostContext[] = [];

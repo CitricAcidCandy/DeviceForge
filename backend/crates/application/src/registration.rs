@@ -4,6 +4,9 @@ use serde_json::Value;
 use std::collections::HashSet;
 
 pub(crate) fn compile(operation: &Operation) -> Result<jsonschema::Validator> {
+    if let Some(execution) = &operation.execution {
+        execution.validate()?;
+    }
     apk_domain::identifier(&operation.id)?;
     if operation.id.len() > 128
         || operation.id.starts_with("deviceforge.")

@@ -1,4 +1,4 @@
-use crate::{Error, Result, artifacts::Artifact};
+use crate::{Error, ExecutionContext, Result, artifacts::Artifact};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use tokio_util::sync::CancellationToken;
@@ -51,4 +51,19 @@ pub trait BundleBuilder: Send + Sync {
         request: BuildApksRequest,
         cancel: CancellationToken,
     ) -> Result<BuiltApks>;
+
+    /// 新适配器复用原绝对截止点；旧仅实现者默认保留原调用语义。
+    async fn build_with_context(
+        &self,
+        request: BuildApksRequest,
+        cancel: CancellationToken,
+        _: ExecutionContext,
+    ) -> Result<BuiltApks> {
+        self.build(request, cancel).await
+    }
+
+    /// 未确认的工具清理和仍在执行的后台工作由适配器观测。
+    fn has_unresolved_resources(&self) -> bool {
+        false
+    }
 }

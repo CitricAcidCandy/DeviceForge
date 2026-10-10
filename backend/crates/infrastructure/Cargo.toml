@@ -29,3 +29,7 @@ deviceforge-data-codec.workspace = true
 tracing.workspace = true
 deviceforge-observability.workspace = true
 deviceforge-tool-process.workspace = true
+deviceforge-android-package-core.workspace = true
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["test-util"] }

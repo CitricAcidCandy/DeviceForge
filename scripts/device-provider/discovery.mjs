@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { capabilities, control, localId, operation } from './fixtures.mjs';
+import { control, localId, operation } from './fixtures.mjs';
 
 export const actionInput = (provider, capability, deviceId, input = {}) => ({
   provider_id: provider.id, generation: provider.generation, device_id: deviceId,
@@ -38,10 +38,10 @@ export async function verifyDiscovery(context) {
     const definition = item.provider.definition;
     assert.equal(item.provider.version, '1.0.0');
     assert.ok(item.provider.generation);
-    assert.equal(definition.api_version, 1);
+    assert.equal(definition.api_version, item.manifest.devices.api_version);
     assert.equal(definition.platform, '第三方模拟设备');
     assert.equal(definition.discover_operation, operation(item, 'discover'));
-    assert.deepEqual(definition.capabilities, capabilities.map((capability) => ({ ...capability,
+    assert.deepEqual(definition.capabilities, item.manifest.devices.capabilities.map((capability) => ({ ...capability,
       operation: operation(item, capability.operation) })));
   }
   assert.deepEqual(await client.json('/api/v2/devices'), []);
@@ -67,7 +67,11 @@ export async function verifyDiscovery(context) {
   assert.notEqual(refreshed.discovery_job_id, first.directorySnapshot.discovery_job_id);
   first.directorySnapshot = refreshed;
   report.checks.push({ name: '在线加载后第三方发现、同名身份与 HTTP/MCP 目录', passed: true,
-    providers: providers.map(({ id, generation }) => ({ id, generation })), same_local_id: localId });
+    providers: providers.map(({ id, generation, definition }) => ({ id, generation,
+      devices_api_version: definition.api_version,
+      capabilities: definition.capabilities.map((capability) => ({ id: capability.id, version: capability.version,
+        execution_timeout_ms: capability.execution_timeout_ms ?? null,
+        execution_timeout_omitted: capability.execution_timeout_ms === undefined })) })), same_local_id: localId });
 
   for (const mode of ['bad-state', 'duplicate', 'undeclared-capability']) {
     for (const transport of ['http', 'mcp']) {

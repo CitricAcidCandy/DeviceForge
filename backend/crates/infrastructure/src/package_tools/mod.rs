@@ -1,55 +1,68 @@
+mod extract;
 mod manifest;
+pub(crate) mod monitored;
 mod signature;
-use crate::{
-    artifact_files::{LIMIT, materialize},
-    artifacts::validation,
-    process,
-};
+pub(crate) mod tool;
+pub(crate) mod tree_monitor;
+pub(crate) mod worker;
+use crate::{artifact_files::materialize_until, execution_deadline};
 use apk_domain::{
-    Error, Result,
+    Error, ExecutionContext, Result,
     artifacts::ArtifactStore,
     packages::{ExtractedApk, PackageAnalyzer, PackageFormat, PackageManifest, PackageSignature},
 };
 use async_trait::async_trait;
-use futures_util::TryStreamExt;
 use std::{sync::Arc, time::Duration};
-use tokio_util::{io::ReaderStream, sync::CancellationToken};
+use tokio_util::sync::CancellationToken;
+pub use tool::ToolCommand;
 const TIMEOUT: Duration = Duration::from_secs(120);
 
-/// 工具入口和固定前缀参数只由部署者提供。
-#[derive(Clone)]
-pub struct ToolCommand {
-    pub executable: String,
-    pub prefix: Vec<String>,
-}
-impl ToolCommand {
-    pub fn executable(executable: String) -> Self {
-        Self {
-            executable,
-            prefix: Vec::new(),
-        }
-    }
-    pub fn java_jar(java: String, jar: String) -> Self {
-        Self {
-            executable: java,
-            prefix: vec!["-Xmx256m".into(), "-jar".into(), jar],
-        }
-    }
-    pub(crate) async fn output(
-        &self,
-        args: Vec<String>,
-        cancel: CancellationToken,
-    ) -> Result<String> {
-        let args: Vec<_> = self.prefix.iter().cloned().chain(args).collect();
-        let output = process::run(&self.executable, &args, None, TIMEOUT, cancel, false).await?;
-        String::from_utf8(output).map_err(|_| Error::Dependency("工具标准输出不是 UTF-8".into()))
-    }
-}
 pub struct AndroidPackageTools {
     pub artifacts: Arc<dyn ArtifactStore>,
     pub apkanalyzer: ToolCommand,
     pub apksigner: ToolCommand,
     pub bundletool: Option<ToolCommand>,
+    workers: worker::Pool,
+    tools: tool::Tracker,
+}
+impl AndroidPackageTools {
+    pub fn new(
+        artifacts: Arc<dyn ArtifactStore>,
+        apkanalyzer: ToolCommand,
+        apksigner: ToolCommand,
+        bundletool: Option<ToolCommand>,
+    ) -> Self {
+        Self::with_capacity(
+            artifacts,
+            apkanalyzer,
+            apksigner,
+            bundletool,
+            crate::package_work::PackageCapacity::default(),
+        )
+    }
+    pub fn with_capacity(
+        artifacts: Arc<dyn ArtifactStore>,
+        apkanalyzer: ToolCommand,
+        apksigner: ToolCommand,
+        bundletool: Option<ToolCommand>,
+        capacity: crate::package_work::PackageCapacity,
+    ) -> Self {
+        Self {
+            artifacts,
+            apkanalyzer,
+            apksigner,
+            bundletool,
+            workers: worker::Pool::new(capacity),
+            tools: tool::Tracker::default(),
+        }
+    }
+}
+fn control_error(error: deviceforge_android_package_core::Error) -> Error {
+    match error {
+        deviceforge_android_package_core::Error::Timeout => Error::Timeout,
+        deviceforge_android_package_core::Error::Cancelled => Error::Cancelled,
+        _ => Error::Dependency("包工作控制异常".into()),
+    }
 }
 fn module_name(module: &str) -> Result<()> {
     if module.is_empty()
@@ -73,14 +86,27 @@ impl PackageAnalyzer for AndroidPackageTools {
         module: Option<&str>,
         cancel: CancellationToken,
     ) -> Result<PackageManifest> {
+        self.manifest_with_context(id, module, cancel, ExecutionContext::default())
+            .await
+    }
+    async fn manifest_with_context(
+        &self,
+        id: &str,
+        module: Option<&str>,
+        cancel: CancellationToken,
+        context: ExecutionContext,
+    ) -> Result<PackageManifest> {
+        let point = context.deadline.map(tokio::time::Instant::from_std);
+        execution_deadline::check(&cancel, point)?;
         if let Some(module) = module {
             module_name(module)?;
         }
-        let input = materialize(
+        let input = materialize_until(
             self.artifacts.as_ref(),
             id,
             &[".apk", ".aab"],
             cancel.clone(),
+            point,
         )
         .await?;
         let path = input.path.to_string_lossy().into_owned();
@@ -94,51 +120,108 @@ impl PackageAnalyzer for AndroidPackageTools {
                 return Err(Error::Invalid("APK 不接受 AAB 模块参数".into()));
             }
             let xml = self
-                .apkanalyzer
-                .output(vec!["manifest".into(), "print".into(), path], cancel)
+                .tools
+                .output_held(
+                    &self.apkanalyzer,
+                    vec!["manifest".into(), "print".into(), path],
+                    cancel.clone(),
+                    context.deadline,
+                    input.directory.clone(),
+                )
                 .await?;
-            manifest::parse(id, PackageFormat::Apk, None, xml)
+            let id = id.to_owned();
+            let deadline = context
+                .deadline
+                .or_else(|| Some((tokio::time::Instant::now() + TIMEOUT).into_std()));
+            self.workers
+                .run(cancel, deadline, move |control| {
+                    let _lease = input.directory;
+                    manifest::controlled(&id, PackageFormat::Apk, None, xml, control)
+                })
+                .await
         } else {
             let module = module.unwrap_or("base");
             let tool = self
                 .bundletool
                 .as_ref()
                 .ok_or_else(|| Error::Dependency("部署者尚未配置 APK_BUNDLETOOL_JAR".into()))?;
-            let xml = tool
-                .output(
+            let xml = self
+                .tools
+                .output_held(
+                    tool,
                     vec![
                         "dump".into(),
                         "manifest".into(),
                         format!("--bundle={path}"),
                         format!("--module={module}"),
                     ],
-                    cancel,
+                    cancel.clone(),
+                    context.deadline,
+                    input.directory.clone(),
                 )
                 .await?;
-            manifest::parse(id, PackageFormat::Aab, Some(module.into()), xml)
+            let id = id.to_owned();
+            let module = module.to_owned();
+            let deadline = context
+                .deadline
+                .or_else(|| Some((tokio::time::Instant::now() + TIMEOUT).into_std()));
+            self.workers
+                .run(cancel, deadline, move |control| {
+                    let _lease = input.directory;
+                    manifest::controlled(&id, PackageFormat::Aab, Some(module), xml, control)
+                })
+                .await
         }
     }
     async fn signature(&self, id: &str, cancel: CancellationToken) -> Result<PackageSignature> {
-        let input = materialize(self.artifacts.as_ref(), id, &[".apk"], cancel.clone()).await?;
+        self.signature_with_context(id, cancel, ExecutionContext::default())
+            .await
+    }
+    async fn signature_with_context(
+        &self,
+        id: &str,
+        cancel: CancellationToken,
+        context: ExecutionContext,
+    ) -> Result<PackageSignature> {
+        let point = context.deadline.map(tokio::time::Instant::from_std);
+        execution_deadline::check(&cancel, point)?;
+        let input = materialize_until(
+            self.artifacts.as_ref(),
+            id,
+            &[".apk"],
+            cancel.clone(),
+            point,
+        )
+        .await?;
         let report = self
-            .apksigner
-            .output(
+            .tools
+            .output_held(
+                &self.apksigner,
                 vec![
                     "verify".into(),
                     "--verbose".into(),
                     "--print-certs".into(),
                     input.path.to_string_lossy().into_owned(),
                 ],
-                cancel,
+                cancel.clone(),
+                context.deadline,
+                input.directory.clone(),
             )
             .await?;
-        signature::parse(
-            id,
-            report.replace(
-                input.path.to_string_lossy().as_ref(),
-                &input.artifact.filename,
-            ),
-        )
+        let report = report.replace(
+            input.path.to_string_lossy().as_ref(),
+            &input.artifact.filename,
+        );
+        let id = id.to_owned();
+        let deadline = context
+            .deadline
+            .or_else(|| Some((tokio::time::Instant::now() + TIMEOUT).into_std()));
+        self.workers
+            .run(cancel, deadline, move |control| {
+                let _lease = input.directory;
+                signature::controlled(&id, report, control)
+            })
+            .await
     }
     async fn extract_apk(
         &self,
@@ -146,86 +229,20 @@ impl PackageAnalyzer for AndroidPackageTools {
         entry: &str,
         cancel: CancellationToken,
     ) -> Result<ExtractedApk> {
-        if entry.len() > 500
-            || !entry.to_ascii_lowercase().ends_with(".apk")
-            || !validation::safe_entry(entry)
-        {
-            return Err(Error::Invalid(
-                "必须选择 APKS 内不含越界路径的 APK 条目".into(),
-            ));
-        }
-        let input = materialize(self.artifacts.as_ref(), id, &[".apks"], cancel.clone()).await?;
-        let _directory = input.directory.clone();
-        let destination = input.directory.path().join("extracted.apk");
-        let target = destination.clone();
-        let name = entry.to_owned();
-        let token = cancel.clone();
-        let worker = tokio::task::spawn_blocking(move || {
-            let _directory = input.directory;
-            validation::validate_archive(&input.path)?;
-            let mut archive = validation::archive(&input.path)?;
-            let matches = (0..archive.len())
-                .filter(|index| archive.name_for_index(*index) == Some(name.as_str()))
-                .count();
-            if matches == 0 {
-                return Err(Error::NotFound("APKS 内不存在指定 APK 条目".into()));
-            }
-            if matches != 1 {
-                return Err(Error::Invalid(
-                    "APKS 包含同名 APK 条目，无法确定选择".into(),
-                ));
-            }
-            let mut member = archive
-                .by_name(&name)
-                .map_err(|_| Error::Invalid("APK 条目无法读取".into()))?;
-            if member.is_dir() || member.size() > LIMIT {
-                return Err(Error::TooLarge);
-            }
-            let mut file = std::fs::OpenOptions::new()
-                .write(true)
-                .create_new(true)
-                .open(target)
-                .map_err(|e| Error::Storage(e.to_string()))?;
-            let mut buffer = [0; 64 * 1024];
-            let mut total = 0u64;
-            loop {
-                if token.is_cancelled() {
-                    return Err(Error::Cancelled);
-                }
-                let count = std::io::Read::read(&mut member, &mut buffer)
-                    .map_err(|_| Error::Invalid("APK 条目解压或 CRC 校验失败".into()))?;
-                if count == 0 {
-                    break;
-                }
-                total += count as u64;
-                if total > LIMIT {
-                    return Err(Error::TooLarge);
-                }
-                std::io::Write::write_all(&mut file, &buffer[..count])
-                    .map_err(|e| Error::Storage(e.to_string()))?;
-            }
-            file.sync_all().map_err(|e| Error::Storage(e.to_string()))?;
-            Ok(())
-        });
-        tokio::select! {
-            biased;
-            _ = cancel.cancelled() => return Err(Error::Cancelled),
-            result = tokio::time::timeout(TIMEOUT, worker) => result.map_err(|_| { cancel.cancel(); Error::Timeout })?.map_err(|e| Error::Dependency(e.to_string()))??,
-        }
-        let file = tokio::fs::File::open(destination)
+        self.extract_apk_with_context(id, entry, cancel, ExecutionContext::default())
             .await
-            .map_err(|e| Error::Storage(e.to_string()))?;
-        let stream = ReaderStream::new(file).map_err(|e| Error::Storage(e.to_string()));
-        let artifact = tokio::select! {
-            biased;
-            _ = cancel.cancelled() => return Err(Error::Cancelled),
-            value = tokio::time::timeout(TIMEOUT, self.artifacts.put("extracted.apk".into(), Box::pin(stream))) => value.unwrap_or(Err(Error::Timeout))?,
-        };
-        Ok(ExtractedApk {
-            source_artifact_id: id.into(),
-            entry: entry.into(),
-            artifact,
-        })
+    }
+    async fn extract_apk_with_context(
+        &self,
+        id: &str,
+        entry: &str,
+        cancel: CancellationToken,
+        context: ExecutionContext,
+    ) -> Result<ExtractedApk> {
+        extract::run(self, id, entry, cancel, context).await
+    }
+    fn has_unresolved_resources(&self) -> bool {
+        self.workers.unresolved() || self.tools.unresolved()
     }
 }
 #[cfg(test)]

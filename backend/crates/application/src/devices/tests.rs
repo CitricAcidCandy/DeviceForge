@@ -9,6 +9,7 @@ struct Invalid;
 impl Executor for Invalid {
     fn operations(&self) -> Vec<Operation> {
         vec![Operation {
+            execution: None,
             id: "plugin.invalid.discover".into(),
             title: "发现".into(),
             input_schema: json!({"type":"object"}),
@@ -174,6 +175,7 @@ fn late_directory_cannot_publish_after_owner_is_detached() {
     impl Executor for Empty {
         fn operations(&self) -> Vec<Operation> {
             vec![Operation {
+                execution: None,
                 id: "plugin.test.discover".into(),
                 title: "发现".into(),
                 input_schema: json!({"type":"object"}),
@@ -213,12 +215,20 @@ fn late_directory_cannot_publish_after_owner_is_detached() {
         devices: vec![],
     };
     registry
-        .publish_directory(directory.clone(), &CancellationToken::new())
+        .publish_directory(
+            directory.clone(),
+            &CancellationToken::new(),
+            tokio::time::Instant::now() + std::time::Duration::from_secs(30),
+        )
         .unwrap();
     let owner = registry.detach("test").unwrap();
     assert!(registry.directories().is_empty());
     assert!(matches!(
-        registry.publish_directory(directory, &CancellationToken::new()),
+        registry.publish_directory(
+            directory,
+            &CancellationToken::new(),
+            tokio::time::Instant::now() + std::time::Duration::from_secs(30)
+        ),
         Err(Error::Conflict(_))
     ));
     registry.finish(&owner).unwrap();
@@ -235,6 +245,7 @@ async fn first_poll_cancel_deadline_and_unresolved_owner_never_start_executor() 
     impl Executor for Controlled {
         fn operations(&self) -> Vec<Operation> {
             vec![Operation {
+                execution: None,
                 id: "plugin.guard.work".into(),
                 title: "首次执行卫兵".into(),
                 input_schema: json!({"type":"object"}),

@@ -1,4 +1,4 @@
-use crate::{Error, Result, artifacts::Artifact, identifier};
+use crate::{Error, ExecutionContext, Result, artifacts::Artifact, identifier};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use tokio_util::sync::CancellationToken;
@@ -116,4 +116,19 @@ pub trait SplitPackages: Send + Sync {
         request: InstallApksRequest,
         cancel: CancellationToken,
     ) -> Result<ApksInstalled>;
+
+    /// 提取端口的默认实现兼容旧适配器；安装仍使用原端口。
+    async fn extract_with_context(
+        &self,
+        request: ExtractSplitsRequest,
+        cancel: CancellationToken,
+        _: ExecutionContext,
+    ) -> Result<ExtractedSplits> {
+        self.extract(request, cancel).await
+    }
+
+    /// 同一适配器的提取和安装共同暴露其未确认资源风险。
+    fn has_unresolved_resources(&self) -> bool {
+        false
+    }
 }

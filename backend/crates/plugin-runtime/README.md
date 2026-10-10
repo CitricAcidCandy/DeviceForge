@@ -6,4 +6,10 @@ serve_once(handler) 从标准输入读协议 3 Request，将请求与 Cancellati
 
 framing.rs 先限制缓冲再读取换行帧，请求 512 KiB、控制 4 KiB；响应 1 MiB，超大结果转为固定错误。serve_io 支持注入异步读写用于测试。主机断开后输出可能失败，但处理器清理先于输出。
 
+协议 4 使用新增 serve_once_with_context / serve_io_with_context，处理器为 FnOnce(Request, InvocationContext) -> Future<Output=Execution>，旧入口与旧字段保持不变。解析请求后、发送 Ready 前固定本地单调点 C0；只接受一份严格 Start，将截止点固定为 C0 + remaining_timeout_ns。等待 Start 的耗时不会重新获得预算，0 表示到期；Start 前或到期准入时业务处理器零调用。Ready/Start 使用 SDK context 模型，两个握手帧分别不超过 4 KiB。
+
+InvocationContext 可 Clone，deadline() 返回同一个 std::time::Instant，cancellation() 返回共享 CancellationToken，check() 返回 ContextError::{Timeout,Cancelled}，同时到期与取消时到期优先。运行中到期会通知取消并等待处理器真实返回；显式取消、EOF、坏控制或重复 Start 同样先收口再响应，晚成功改为错误，处理器的 CleanupOutcome 原样保留。运行库不自行延长宿主合作窗口，不丢弃已启动处理器来制造 complete；若调用方丢弃运行入口 Future，则没有成功清理响应，宿主仍须保留未确认风险。
+
+context.rs 负责公开上下文与加法入口，context/transport.rs 负责有界握手和响应，context/execution.rs 负责首次调用预检与期限竞争。两进程没有共享单调时钟：C0 + 剩余预算允许保守提前到期，宿主仍以原 D 判定最终发布资格；不宣称精确同点、派生进程树排空或真机事务回滚。本批协议 4 代码与纯 SDK 回归已落盘，独立传输测试由测试角色提供，尚未执行格式化、编译、测试或真实进程验收。
+
 样例见 ../../plugins/cooperative-demo；`cargo test -p deviceforge-plugin-runtime` 覆盖正确取消、EOF、坏/错配/超大控制、初始帧限制、晚到成功拒绝、清理失败及响应上限。实际外部连接是否释放由业务插件和真机验收证明，运行库只传递信号与声明。

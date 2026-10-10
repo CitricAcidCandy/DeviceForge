@@ -24,6 +24,7 @@ struct ExecutorStub {
 impl Executor for ExecutorStub {
     fn operations(&self) -> Vec<Operation> {
         vec![Operation {
+            execution: None,
             id: "plugin.test.work".into(),
             title: "测试操作".into(),
             input_schema: json!({"type":"object"}),

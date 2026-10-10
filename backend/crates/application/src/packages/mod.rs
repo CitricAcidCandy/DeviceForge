@@ -1,4 +1,4 @@
-use apk_domain::{Error, Executor, Operation, Result, packages::PackageAnalyzer};
+use apk_domain::{Error, ExecutionContext, Executor, Operation, Result, packages::PackageAnalyzer};
 use async_trait::async_trait;
 use serde_json::{Value, json};
 use std::sync::Arc;
@@ -19,7 +19,7 @@ impl Executor for PackageOperations {
                     schema["properties"]["entry"] = json!({"type":"string","minLength":5,"maxLength":500,"description":"APKS 中 APK 条目的精确名称"});
                     schema["required"].as_array_mut().expect("必填数组").push(json!("entry"));
                 }
-                Operation { id:id.into(), title:title.into(), input_schema:schema }
+                Operation { execution: None, id:id.into(), title:title.into(), input_schema:schema }
             }).collect()
     }
     async fn execute(
@@ -28,9 +28,25 @@ impl Executor for PackageOperations {
         input: Value,
         cancel: CancellationToken,
     ) -> Result<Value> {
-        if cancel.is_cancelled() {
-            return Err(Error::Cancelled);
-        }
+        self.execute_with_context(operation, input, cancel, ExecutionContext::default())
+            .await
+    }
+
+    fn has_unresolved_resources(&self) -> bool {
+        self.0.has_unresolved_resources()
+    }
+
+    async fn execute_with_context(
+        &self,
+        operation: &str,
+        input: Value,
+        cancel: CancellationToken,
+        context: ExecutionContext,
+    ) -> Result<Value> {
+        crate::operation_budget::check(
+            context.deadline.map(tokio::time::Instant::from_std),
+            Some(&cancel),
+        )?;
         let id = input
             .get("artifact_id")
             .and_then(Value::as_str)
@@ -45,20 +61,31 @@ impl Executor for PackageOperations {
                             .ok_or_else(|| Error::Invalid("module 必须为字符串".into()))?,
                     ),
                 };
-                serde_json::to_value(self.0.manifest(id, module, cancel).await?)
+                serde_json::to_value(
+                    self.0
+                        .manifest_with_context(id, module, cancel, context)
+                        .await?,
+                )
             }
             "android.package.signature" => {
-                serde_json::to_value(self.0.signature(id, cancel).await?)
+                serde_json::to_value(self.0.signature_with_context(id, cancel, context).await?)
             }
             "android.package.extract_apk" => {
                 let entry = input
                     .get("entry")
                     .and_then(Value::as_str)
                     .ok_or_else(|| Error::Invalid("缺少 APK 条目名称".into()))?;
-                serde_json::to_value(self.0.extract_apk(id, entry, cancel).await?)
+                serde_json::to_value(
+                    self.0
+                        .extract_apk_with_context(id, entry, cancel, context)
+                        .await?,
+                )
             }
             _ => return Err(Error::NotFound(operation.into())),
         };
         result.map_err(|e| Error::Dependency(e.to_string()))
     }
 }
+
+#[cfg(test)]
+mod context_tests;

@@ -31,12 +31,12 @@
     }
   ],
   "devices": {
-    "api_version": 1,
+    "api_version": 2,
     "platform": "synthetic_demo",
     "discover_operation": "discover",
     "capabilities": [
       { "id": "provider.describe", "version": 1, "operation": "describe", "scope": "provider", "access": "read" },
-      { "id": "device.echo", "version": 1, "operation": "echo", "scope": "device", "access": "read" }
+      { "id": "device.echo", "version": 1, "operation": "echo", "scope": "device", "access": "read", "execution_timeout_ms": 120000 }
     ]
   }
 }

@@ -18,6 +18,7 @@ async fn independent_process_returns_correlated_response() {
             name: "echo".into(),
             title: "回显".into(),
             input_schema: json!({"type":"object"}),
+            execution: None,
         }],
     })
     .unwrap();

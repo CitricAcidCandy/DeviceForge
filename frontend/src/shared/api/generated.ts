@@ -1400,6 +1400,15 @@ export interface paths {
                     };
                     content: {
                         "application/json": {
+
+                            execution?: {
+
+                                api_version: number;
+
+                                source: "default" | "declared";
+
+                                total_timeout_ms: number;
+                            } | null;
                             id: string;
                             input_schema: unknown;
                             title: string;
@@ -2772,6 +2781,8 @@ export interface paths {
                                     capabilities: {
 
                                         access: "read" | "write";
+
+                                        execution_timeout_ms?: number | null;
                                         id: string;
                                         operation: string;
 
@@ -2955,6 +2966,8 @@ export interface paths {
                                         version: number;
                                     }[];
                                     model?: string | null;
+
+                                    raw_state?: string | null;
                                     reference: {
                                         generation: string;
                                         local_id: string;
@@ -2973,6 +2986,8 @@ export interface paths {
                                         capabilities: {
 
                                             access: "read" | "write";
+
+                                            execution_timeout_ms?: number | null;
                                             id: string;
                                             operation: string;
 
@@ -3181,6 +3196,8 @@ export interface paths {
                                         version: number;
                                     }[];
                                     model?: string | null;
+
+                                    raw_state?: string | null;
                                     reference: {
                                         generation: string;
                                         local_id: string;
@@ -3199,6 +3216,8 @@ export interface paths {
                                         capabilities: {
 
                                             access: "read" | "write";
+
+                                            execution_timeout_ms?: number | null;
                                             id: string;
                                             operation: string;
 
@@ -4712,6 +4731,15 @@ export interface paths {
                         "application/json": {
 
                             data: {
+
+                                execution?: {
+
+                                    api_version: number;
+
+                                    source: "default" | "declared";
+
+                                    total_timeout_ms: number;
+                                } | null;
                                 id: string;
                                 input_schema: unknown;
                                 title: string;
@@ -6134,6 +6162,8 @@ export interface components {
                     version: number;
                 }[];
                 model?: string | null;
+
+                raw_state?: string | null;
                 reference: {
                     generation: string;
                     local_id: string;
@@ -6152,6 +6182,8 @@ export interface components {
                     capabilities: {
 
                         access: "read" | "write";
+
+                        execution_timeout_ms?: number | null;
                         id: string;
                         operation: string;
 
@@ -6175,6 +6207,8 @@ export interface components {
                 capabilities: {
 
                     access: "read" | "write";
+
+                    execution_timeout_ms?: number | null;
                     id: string;
                     operation: string;
 

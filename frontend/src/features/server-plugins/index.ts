@@ -6,10 +6,11 @@ export function createServerPlugins(client: ApiClient, refreshPublished: (signal
   const resource = createLatestResource<PluginInfo[]>();
   const lifetime = new AbortController();
   let queue: Promise<unknown> = Promise.resolve();
-  const combined = (signal: AbortSignal) => AbortSignal.any([signal, lifetime.signal]);
+  let closed = false;
+  const combined = (signal: AbortSignal) => closed ? AbortSignal.abort() : AbortSignal.any([signal, lifetime.signal]);
   const refresh = (signal: AbortSignal) => resource.run((current) => client.call(pluginsEndpoint, undefined, combined(current)), signal);
   async function reconcile(id: string) {
-    if (lifetime.signal.aborted) return;
+    if (closed || lifetime.signal.aborted) return;
     // 使用独立生命周期信号：用户取消管理等待后仍须重查真实状态。
     const results = await Promise.allSettled([refresh(lifetime.signal), refreshPublished(lifetime.signal, id)]);
     const failures = results.filter((result) => result.status === 'rejected');
@@ -36,6 +37,6 @@ export function createServerPlugins(client: ApiClient, refreshPublished: (signal
     unload: (id: string, signal: AbortSignal) => mutate(id, 'unload', signal),
     snapshot: resource.snapshot,
     subscribe: resource.subscribe,
-    dispose() { lifetime.abort(); resource.dispose(); },
+    dispose() { closed = true; resource.dispose(); lifetime.abort(); },
   };
 }

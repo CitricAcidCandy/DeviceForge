@@ -7,6 +7,8 @@ export interface DeviceCapability {
   readonly operation: string;
   readonly scope: 'provider' | 'device';
   readonly access: 'read' | 'write';
+  // 设备声明 API 2/3 可提供；省略由宿主采用 30000 毫秒，浏览器不能覆盖。
+  readonly executionTimeoutMs?: number;
 }
 export interface DeviceProviderDefinition {
   readonly apiVersion: number;
@@ -34,6 +36,8 @@ export interface CapabilityAvailability {
 export interface ProvidedDevice {
   readonly reference: DeviceRef;
   readonly state: 'online' | 'offline' | 'unauthorized' | 'unknown';
+  // API 3 的原始观测仅用于说明，不覆盖规范状态或能力准入；None 时省略。
+  readonly rawState?: string;
   readonly model: string | null;
   readonly capabilities: readonly CapabilityAvailability[];
 }

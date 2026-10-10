@@ -1,0 +1,468 @@
+{
+  "format_version": 1,
+  "bindings": [
+    {
+      "operation": {
+        "id": "android.package.manifest",
+        "title": "分析 APK / AAB 清单",
+        "input_schema": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "artifact_id": {
+              "type": "string",
+              "format": "uuid",
+              "minLength": 36,
+              "maxLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+            },
+            "module": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80,
+              "pattern": "^[A-Za-z][A-Za-z0-9_]{0,79}$"
+            }
+          },
+          "required": [
+            "artifact_id"
+          ]
+        }
+      },
+      "target": {
+        "kind": "operation",
+        "plugin_id": "android-packages",
+        "operation": "plugin.android-packages.manifest"
+      },
+      "input": "identity",
+      "result": {
+        "kind": "value",
+        "wrapped": true
+      }
+    },
+    {
+      "operation": {
+        "id": "android.package.signature",
+        "title": "验证 APK 签名",
+        "input_schema": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "artifact_id": {
+              "type": "string",
+              "format": "uuid",
+              "minLength": 36,
+              "maxLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+            }
+          },
+          "required": [
+            "artifact_id"
+          ]
+        }
+      },
+      "target": {
+        "kind": "operation",
+        "plugin_id": "android-packages",
+        "operation": "plugin.android-packages.signature"
+      },
+      "input": "identity",
+      "result": {
+        "kind": "value",
+        "wrapped": true
+      }
+    },
+    {
+      "operation": {
+        "id": "android.package.extract_apk",
+        "title": "提取 APKS 内精确 APK 条目",
+        "input_schema": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "artifact_id": {
+              "type": "string",
+              "format": "uuid",
+              "minLength": 36,
+              "maxLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+            },
+            "entry": {
+              "type": "string",
+              "minLength": 5,
+              "maxLength": 500
+            }
+          },
+          "required": [
+            "artifact_id",
+            "entry"
+          ]
+        }
+      },
+      "target": {
+        "kind": "operation",
+        "plugin_id": "android-packages",
+        "operation": "plugin.android-packages.extract_apk"
+      },
+      "input": "identity",
+      "result": {
+        "kind": "object",
+        "wrapped": true,
+        "fields": [
+          {
+            "name": "source_artifact_id",
+            "source": {
+              "kind": "input",
+              "pointer": "/artifact_id"
+            },
+            "optional": false
+          },
+          {
+            "name": "entry",
+            "source": {
+              "kind": "value",
+              "pointer": "/entry"
+            },
+            "optional": false
+          },
+          {
+            "name": "artifact",
+            "source": {
+              "kind": "artifact",
+              "filename": "extracted.apk"
+            },
+            "optional": false
+          }
+        ]
+      }
+    },
+    {
+      "operation": {
+        "id": "android.package.build_apks",
+        "title": "将 AAB 构建为签名 APKS",
+        "input_schema": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "artifact_id": {
+              "type": "string",
+              "format": "uuid",
+              "minLength": 36,
+              "maxLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+            },
+            "mode": {
+              "type": "string",
+              "enum": [
+                "default",
+                "universal"
+              ]
+            }
+          },
+          "required": [
+            "artifact_id",
+            "mode"
+          ]
+        }
+      },
+      "target": {
+        "kind": "operation",
+        "plugin_id": "android-packages",
+        "operation": "plugin.android-packages.build_apks"
+      },
+      "input": "identity",
+      "result": {
+        "kind": "object",
+        "wrapped": true,
+        "fields": [
+          {
+            "name": "source_artifact_id",
+            "source": {
+              "kind": "input",
+              "pointer": "/artifact_id"
+            },
+            "optional": false
+          },
+          {
+            "name": "mode",
+            "source": {
+              "kind": "value",
+              "pointer": "/mode"
+            },
+            "optional": false
+          },
+          {
+            "name": "apk_count",
+            "source": {
+              "kind": "value",
+              "pointer": "/apk_count"
+            },
+            "optional": false
+          },
+          {
+            "name": "universal_entry",
+            "source": {
+              "kind": "value",
+              "pointer": "/universal_entry"
+            },
+            "optional": false
+          },
+          {
+            "name": "artifact",
+            "source": {
+              "kind": "artifact",
+              "filename": "built.apks"
+            },
+            "optional": false
+          }
+        ]
+      }
+    },
+    {
+      "operation": {
+        "id": "android.package.decode",
+        "title": "反编译 APK 为 ZIP",
+        "input_schema": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "artifact_id": {
+              "type": "string",
+              "format": "uuid",
+              "minLength": 36,
+              "maxLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+            }
+          },
+          "required": [
+            "artifact_id"
+          ]
+        }
+      },
+      "target": {
+        "kind": "operation",
+        "plugin_id": "android-packages",
+        "operation": "plugin.android-packages.decode"
+      },
+      "input": "identity",
+      "result": {
+        "kind": "object",
+        "wrapped": true,
+        "fields": [
+          {
+            "name": "source_artifact_id",
+            "source": {
+              "kind": "input",
+              "pointer": "/artifact_id"
+            },
+            "optional": false
+          },
+          {
+            "name": "files",
+            "source": {
+              "kind": "value",
+              "pointer": "/files"
+            },
+            "optional": false
+          },
+          {
+            "name": "unpacked_size",
+            "source": {
+              "kind": "value",
+              "pointer": "/unpacked_size"
+            },
+            "optional": false
+          },
+          {
+            "name": "artifact",
+            "source": {
+              "kind": "artifact",
+              "filename": "decoded.zip"
+            },
+            "optional": false
+          }
+        ]
+      }
+    },
+    {
+      "operation": {
+        "id": "android.package.scan_sdks",
+        "title": "检测反编译产物的 SDK 路径",
+        "input_schema": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "artifact_id": {
+              "type": "string",
+              "format": "uuid",
+              "minLength": 36,
+              "maxLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+            },
+            "rules": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 100,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100
+                  },
+                  "package_path": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200,
+                    "pattern": "^[A-Za-z_$][A-Za-z0-9_$]*([.][A-Za-z_$][A-Za-z0-9_$]*)*$"
+                  },
+                  "class_name": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "minLength": 1,
+                    "maxLength": 100,
+                    "pattern": "^[A-Za-z_$][A-Za-z0-9_$]*$"
+                  }
+                },
+                "required": [
+                  "name",
+                  "package_path"
+                ]
+              }
+            }
+          },
+          "required": [
+            "artifact_id",
+            "rules"
+          ]
+        }
+      },
+      "target": {
+        "kind": "operation",
+        "plugin_id": "android-packages",
+        "operation": "plugin.android-packages.scan_sdks"
+      },
+      "input": "identity",
+      "result": {
+        "kind": "value",
+        "wrapped": true
+      }
+    },
+    {
+      "operation": {
+        "id": "android.package.extract_splits",
+        "title": "按设备规格离线提取 APKS 分包",
+        "input_schema": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "artifact_id": {
+              "type": "string",
+              "format": "uuid",
+              "minLength": 36,
+              "maxLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+            },
+            "device_spec": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "supported_abis": {
+                  "type": "array",
+                  "minItems": 1,
+                  "maxItems": 16,
+                  "uniqueItems": true,
+                  "items": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80,
+                    "pattern": "^[A-Za-z0-9_-]+$"
+                  }
+                },
+                "supported_locales": {
+                  "type": "array",
+                  "minItems": 1,
+                  "maxItems": 100,
+                  "uniqueItems": true,
+                  "items": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80,
+                    "pattern": "^[A-Za-z0-9_-]+$"
+                  }
+                },
+                "screen_density": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 10000
+                },
+                "sdk_version": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 10000
+                }
+              },
+              "required": [
+                "supported_abis",
+                "supported_locales",
+                "screen_density",
+                "sdk_version"
+              ]
+            }
+          },
+          "required": [
+            "artifact_id",
+            "device_spec"
+          ]
+        }
+      },
+      "target": {
+        "kind": "operation",
+        "plugin_id": "android-packages",
+        "operation": "plugin.android-packages.extract_splits"
+      },
+      "input": "identity",
+      "result": {
+        "kind": "object",
+        "wrapped": true,
+        "fields": [
+          {
+            "name": "source_artifact_id",
+            "source": {
+              "kind": "input",
+              "pointer": "/artifact_id"
+            },
+            "optional": false
+          },
+          {
+            "name": "device_spec",
+            "source": {
+              "kind": "value",
+              "pointer": "/device_spec"
+            },
+            "optional": false
+          },
+          {
+            "name": "apk_entries",
+            "source": {
+              "kind": "value",
+              "pointer": "/apk_entries"
+            },
+            "optional": false
+          },
+          {
+            "name": "artifact",
+            "source": {
+              "kind": "artifact",
+              "filename": "selected-apks.zip"
+            },
+            "optional": false
+          }
+        ]
+      }
+    }
+  ]
+}

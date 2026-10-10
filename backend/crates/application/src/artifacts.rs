@@ -14,11 +14,13 @@ impl Executor for ArtifactOperations {
         entries["properties"]["limit"] = json!({"type":"integer","minimum":1,"maximum":200});
         vec![
             Operation {
+                execution: None,
                 id: "artifact.inspect".into(),
                 title: "读取产物元数据".into(),
                 input_schema: input,
             },
             Operation {
+                execution: None,
                 id: "artifact.archive.entries".into(),
                 title: "分页预览压缩包条目".into(),
                 input_schema: entries,

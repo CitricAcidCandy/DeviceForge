@@ -35,12 +35,14 @@ export function archive(files) {
   return gzipSync(Buffer.concat([...blocks, Buffer.alloc(1024)]));
 }
 
-export async function fixture(id, root) {
+export async function fixture(id, root, { apiVersion = 1, executionTimeoutMs } = {}) {
   const directory = join(root, id);
   await mkdir(directory, { recursive: true });
   const config = { id, directory, localId, otherId, offlineId };
   const manifest = { id, version: '1.0.0', protocol_version: 3, args: [],
-    devices: { api_version: 1, platform: '第三方模拟设备', discover_operation: 'discover', capabilities },
+    devices: { api_version: apiVersion, platform: '第三方模拟设备', discover_operation: 'discover',
+      capabilities: capabilities.map((capability) => ({ ...capability,
+        ...(capability.id === 'device_write' && executionTimeoutMs !== undefined ? { execution_timeout_ms: executionTimeoutMs } : {}) })) },
     operations: [{ name: 'discover', title: '发现模拟设备', input_schema: { type: 'object', additionalProperties: false } },
       ...capabilities.map((capability) => ({ name: capability.operation, title: `模拟能力 ${capability.id}`,
         input_schema: { type: 'object', required: ['device_id', 'input'], additionalProperties: false,
@@ -51,6 +53,9 @@ export async function fixture(id, root) {
   const files = [['package.json', JSON.stringify(descriptor)], ['plugin.json', JSON.stringify(manifest)],
     ['dist/index.mjs', source], ['dist/fixture.json', JSON.stringify(config)]];
   const value = { id, directory, manifest, archive: archive(files),
+    invalidBudgetArchives: [0, 120001].map((budget) => archive(files.map(([path, bytes]) => path === 'plugin.json'
+      ? [path, JSON.stringify({ ...manifest, devices: { ...manifest.devices, api_version: 2,
+        capabilities: manifest.devices.capabilities.map((capability) => ({ ...capability, execution_timeout_ms: budget })) } })] : [path, bytes]))),
     invalidArchive: archive(files.map(([path, bytes]) => path === 'plugin.json'
       ? [path, JSON.stringify({ ...manifest, devices: { ...manifest.devices, discover_operation: 'not_declared' } })] : [path, bytes])) };
   await control(value, 'valid', 'initial');

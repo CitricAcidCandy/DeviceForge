@@ -225,8 +225,16 @@ async function scenario(mode, manifest) {
     } else {
       assert.equal(cleaned, undefined, '清理失败不能产生成功标记');
     }
-    assert.equal((await job(task.id)).status, 'cancelled', '卸载后的历史任务必须保留取消终态');
-    assert.equal((await tool('deviceforge.get_job', { id: task.id })).data.status, 'cancelled');
+    // 已确认清理保留取消终态；未确认资源必须保留清理失败，不能被取消原因掩盖。
+    const expectedStatus = mode === 'complete' ? 'cancelled' : 'failed';
+    const expectedError = mode === 'complete'
+      ? null
+      : '插件资源清理未确认，请检查外部资源后再恢复';
+    const terminal = await job(task.id);
+    assert.equal(terminal.status, expectedStatus, '卸载后的历史任务必须保留对应的唯一终态');
+    assert.equal(terminal.error, expectedError, '历史原因必须精确区分取消和资源清理未确认');
+    assert.deepEqual((await tool('deviceforge.get_job', { id: task.id })).data, terminal,
+      'HTTP/MCP 必须返回相同历史任务及清理原因');
     const listed = await call('/api/v2/plugins');
     assert.equal(listed.response.status, 200);
     assert.deepEqual((await tool('deviceforge.list_plugins')).data, listed.body.data);
@@ -270,8 +278,9 @@ async function scenario(mode, manifest) {
       result.repeated_unload_and_reload_rejected = true;
     }
     await delay(100);
-    assert.equal((await job(task.id)).status, 'cancelled', '晚到结果不得覆盖历史取消状态');
-    result.history_status = 'cancelled';
+    assert.deepEqual(await job(task.id), terminal, '晚到结果不得覆盖历史终态及原因');
+    result.history_status = expectedStatus;
+    result.history_error = expectedError;
     const shutdown = await call('/api/v2/system/shutdown', { method: 'POST' });
     assert.equal(shutdown.response.status, 200);
     assert.equal(shutdown.body.data.stopping, true);
@@ -298,6 +307,8 @@ async function scenario(mode, manifest) {
     const finished = records.find((record) => record.fields?.message === '插件调用结束'
       && correlated(record, task.id) && correlated(record, submitted.logId));
     assert.ok(finished, '原生插件结束日志必须关联提交请求与历史任务');
+    assert.equal(finished.fields.code, mode === 'complete' ? 'cancelled' : 'cleanup_failed',
+      '调用结束日志必须保留精确取消或清理失败原因');
     const pluginRequestId = logField(finished, 'plugin_request_id');
     assert.match(pluginRequestId, uuid);
     const resourceRecords = records.filter((record) => ['合作插件取消清理已确认', '合作插件资源未确认清理']

@@ -1,8 +1,14 @@
+use crate::artifact_files::Temporary;
 use apk_domain::{Error, Result};
+use deviceforge_tool_process::{
+    self as tool_process, Environment, ExecutionOptions, OutputStream, ToolCommand,
+};
+use std::sync::Arc;
 use std::{process::Stdio, time::Duration};
 use tokio::{
-    io::{AsyncRead, AsyncReadExt, AsyncWriteExt},
+    io::{AsyncRead, AsyncReadExt},
     process::Command,
+    time::Instant,
 };
 use tokio_util::sync::CancellationToken;
 const OUTPUT_LIMIT: u64 = 1024 * 1024;
@@ -40,77 +46,121 @@ fn command(executable: &str, args: &[String], plugin: bool) -> Command {
     command.creation_flags(0x08000000);
     command
 }
+
+/// 保留宿主原错误类别与两种输出模式的非零退出文案。
+fn map_error(error: tool_process::Error, file_output: bool) -> Error {
+    match error {
+        tool_process::Error::Cancelled => Error::Cancelled,
+        tool_process::Error::Timeout => Error::Timeout,
+        tool_process::Error::InvalidOptions(message) => Error::Invalid(message.into()),
+        tool_process::Error::Spawn(error) | tool_process::Error::ProcessIo(error) => {
+            Error::Dependency(error.to_string())
+        }
+        tool_process::Error::FileIo(error) => Error::Storage(error.to_string()),
+        tool_process::Error::OutputTooLarge {
+            stream: OutputStream::Stdout,
+            ..
+        } if file_output => Error::TooLarge,
+        tool_process::Error::OutputTooLarge { .. } => {
+            Error::Dependency("工具输出超过 1 MiB".into())
+        }
+        tool_process::Error::NonZeroExit { code, stderr } => {
+            let stderr = String::from_utf8_lossy(&stderr);
+            if file_output {
+                Error::Dependency(format!("工具退出码 {:?}：{}", code, stderr.trim()))
+            } else {
+                Error::Dependency(stderr.trim().to_owned())
+            }
+        }
+        tool_process::Error::CleanupFailed { .. } => Error::CleanupFailed,
+    }
+}
+
 async fn capture(
     executable: &str,
     args: &[String],
     input: Option<Vec<u8>>,
-    timeout: Duration,
+    deadline: Instant,
     cancel: CancellationToken,
     plugin: bool,
     directory: Option<&std::path::Path>,
 ) -> Result<(Vec<u8>, Vec<u8>)> {
-    if cancel.is_cancelled() {
-        return Err(Error::Cancelled);
-    }
-    let mut command = command(executable, args, plugin);
-    if let Some(directory) = directory {
-        command.current_dir(directory);
-        if plugin {
+    crate::execution_deadline::check(&cancel, Some(deadline))?;
+    let mut command = ToolCommand::new(executable, args);
+    command.input = input.as_deref();
+    command.directory = directory;
+    if plugin {
+        command.environment = Environment::Restricted;
+        if let Some(directory) = directory {
             for key in ["TEMP", "TMP", "TMPDIR"] {
-                command.env(key, directory);
+                command
+                    .env
+                    .insert(key.into(), directory.as_os_str().to_owned());
             }
         }
     }
-    let mut child = command
-        .spawn()
-        .map_err(|e| Error::Dependency(e.to_string()))?;
-    let mut stdin = child
-        .stdin
-        .take()
-        .ok_or_else(|| Error::Dependency("缺少标准输入".into()))?;
-    let stdout = child
-        .stdout
-        .take()
-        .ok_or_else(|| Error::Dependency("缺少标准输出".into()))?;
-    let stderr = child
-        .stderr
-        .take()
-        .ok_or_else(|| Error::Dependency("缺少标准错误".into()))?;
-    let work = async {
-        let write = async {
-            if let Some(input) = input {
-                stdin
-                    .write_all(&input)
-                    .await
-                    .map_err(|e| Error::Dependency(e.to_string()))?;
-            }
-            drop(stdin);
-            Ok::<_, Error>(())
-        };
-        let ((), output, errors, status) =
-            tokio::try_join!(write, bounded(stdout), bounded(stderr), async {
-                child
-                    .wait()
-                    .await
-                    .map_err(|e| Error::Dependency(e.to_string()))
-            })?;
-        if !status.success() {
-            return Err(Error::Dependency(
-                String::from_utf8_lossy(&errors).trim().to_owned(),
-            ));
-        }
-        Ok((output, errors))
-    };
+    let options = ExecutionOptions::new(deadline);
+    await_capture(
+        tool_process::capture(command, options, cancel.clone()),
+        &cancel,
+        deadline,
+    )
+    .await
+}
+
+async fn await_capture(
+    work: impl std::future::Future<Output = tool_process::Result<tool_process::Output>>,
+    cancel: &CancellationToken,
+    deadline: Instant,
+) -> Result<(Vec<u8>, Vec<u8>)> {
+    tokio::pin!(work);
+    let mut cancelled = None;
     let result = tokio::select! {
         biased;
-        _ = cancel.cancelled() => Err(Error::Cancelled),
-        value = tokio::time::timeout(timeout, work) => value.unwrap_or(Err(Error::Timeout)),
+        _ = cancel.cancelled() => {
+            // 在观察取消的时刻固定原因；后续有界清理耗时不能改写提前取消。
+            cancelled = Some(crate::execution_deadline::classify(Error::Cancelled, Some(deadline)));
+            work.await
+        },
+        result = &mut work => result,
     };
-    if result.is_err() {
-        let _ = child.kill().await;
-        let _ = child.wait().await;
-    }
     result
+        .map(|output| (output.stdout, output.stderr))
+        .map_err(|error| match error {
+            tool_process::Error::Cancelled => cancelled.unwrap_or_else(|| {
+                crate::execution_deadline::classify(Error::Cancelled, Some(deadline))
+            }),
+            other => map_error(other, false),
+        })
+}
+
+/// 包副本租约交给公共直接进程所有者，外层等待丢弃不提前删除目录。
+pub(crate) async fn package_output_until(
+    executable: &str,
+    args: &[String],
+    deadline: Instant,
+    cancel: CancellationToken,
+    directory: Arc<Temporary>,
+    restricted: bool,
+) -> Result<(Vec<u8>, Vec<u8>)> {
+    crate::execution_deadline::check(&cancel, Some(deadline))?;
+    let mut command = ToolCommand::new(executable, args);
+    if restricted {
+        command.directory = Some(directory.path());
+        command.environment = Environment::Restricted;
+        for key in ["TEMP", "TMP", "TMPDIR"] {
+            command
+                .env
+                .insert(key.into(), directory.path().as_os_str().to_owned());
+        }
+    }
+    let work = tool_process::capture_with_lease(
+        command,
+        ExecutionOptions::new(deadline),
+        cancel.clone(),
+        directory.clone(),
+    );
+    await_capture(work, &cancel, deadline).await
 }
 pub async fn run(
     executable: &str,
@@ -120,7 +170,27 @@ pub async fn run(
     cancel: CancellationToken,
     plugin: bool,
 ) -> Result<Vec<u8>> {
-    capture(executable, args, input, timeout, cancel, plugin, None)
+    run_until(
+        executable,
+        args,
+        input,
+        Instant::now() + timeout,
+        cancel,
+        plugin,
+    )
+    .await
+}
+
+/// 使用调用方的绝对截止点，不为进程执行重新获得预算。
+pub(crate) async fn run_until(
+    executable: &str,
+    args: &[String],
+    input: Option<Vec<u8>>,
+    deadline: Instant,
+    cancel: CancellationToken,
+    plugin: bool,
+) -> Result<Vec<u8>> {
+    capture(executable, args, input, deadline, cancel, plugin, None)
         .await
         .map(|(output, _)| output)
 }
@@ -132,11 +202,31 @@ pub(crate) async fn run_plugin(
     cancel: CancellationToken,
     directory: &std::path::Path,
 ) -> Result<Vec<u8>> {
+    run_plugin_until(
+        executable,
+        args,
+        input,
+        Instant::now() + Duration::from_secs(60),
+        cancel,
+        directory,
+    )
+    .await
+}
+
+/// 插件工作目录与受限环境保持不变，调用方可共享其完整总期限。
+pub(crate) async fn run_plugin_until(
+    executable: &str,
+    args: &[String],
+    input: Vec<u8>,
+    deadline: Instant,
+    cancel: CancellationToken,
+    directory: &std::path::Path,
+) -> Result<Vec<u8>> {
     capture(
         executable,
         args,
         Some(input),
-        Duration::from_secs(60),
+        deadline,
         cancel,
         true,
         Some(directory),
@@ -150,7 +240,16 @@ pub async fn run_text(
     timeout: Duration,
     cancel: CancellationToken,
 ) -> Result<String> {
-    let (output, errors) = capture(executable, args, None, timeout, cancel, false, None).await?;
+    let (output, errors) = capture(
+        executable,
+        args,
+        None,
+        Instant::now() + timeout,
+        cancel,
+        false,
+        None,
+    )
+    .await?;
     Ok(format!(
         "{}\n{}",
         String::from_utf8_lossy(&output),
@@ -169,77 +268,56 @@ pub async fn run_to_file(
     timeout: Duration,
     cancel: CancellationToken,
 ) -> Result<()> {
-    if cancel.is_cancelled() {
-        return Err(Error::Cancelled);
-    }
-    let mut child = command(executable, args, false)
-        .spawn()
-        .map_err(|e| Error::Dependency(e.to_string()))?;
-    drop(child.stdin.take());
-    let mut stdout = child
-        .stdout
-        .take()
-        .ok_or_else(|| Error::Dependency("缺少标准输出".into()))?;
-    let stderr = child
-        .stderr
-        .take()
-        .ok_or_else(|| Error::Dependency("缺少标准错误".into()))?;
-    let work = async {
-        let copy = async {
-            let mut buffer = [0; 64 * 1024];
-            let mut total = 0u64;
-            loop {
-                let count = stdout
-                    .read(&mut buffer)
-                    .await
-                    .map_err(|e| Error::Dependency(e.to_string()))?;
-                if count == 0 {
-                    break;
-                }
-                total += count as u64;
-                if total > limit {
-                    return Err(Error::TooLarge);
-                }
-                file.write_all(&buffer[..count])
-                    .await
-                    .map_err(|e| Error::Storage(e.to_string()))?;
-            }
-            file.flush()
-                .await
-                .map_err(|e| Error::Storage(e.to_string()))?;
-            Ok::<_, Error>(())
-        };
-        let ((), errors, status) = tokio::try_join!(copy, bounded(stderr), async {
-            child
-                .wait()
-                .await
-                .map_err(|e| Error::Dependency(e.to_string()))
-        })?;
-        if !status.success() {
-            return Err(Error::Dependency(format!(
-                "工具退出码 {:?}：{}",
-                status.code(),
-                String::from_utf8_lossy(&errors).trim()
-            )));
-        }
-        Ok(())
-    };
-    let result = tokio::select! {
-        biased;
-        _ = cancel.cancelled() => Err(Error::Cancelled),
-        value = tokio::time::timeout(timeout, work) => value.unwrap_or(Err(Error::Timeout)),
-    };
-    if result.is_err() {
-        let _ = child.kill().await;
-        let _ = child.wait().await;
-    }
-    result
+    run_to_file_until(
+        executable,
+        args,
+        file,
+        limit,
+        Instant::now() + timeout,
+        cancel,
+    )
+    .await
+}
+
+/// 文件输出使用原绝对截止点，保留独立文件与诊断限额。
+pub async fn run_to_file_until(
+    executable: &str,
+    args: &[String],
+    file: &mut tokio::fs::File,
+    limit: u64,
+    deadline: Instant,
+    cancel: CancellationToken,
+) -> Result<()> {
+    crate::execution_deadline::check(&cancel, Some(deadline))?;
+    let command = ToolCommand::new(executable, args);
+    let options = ExecutionOptions::new(deadline);
+    tool_process::capture_to_file(command, options, cancel, file, limit)
+        .await
+        .map_err(|error| map_error(error, true))
 }
 /// 在独占工作目录中运行受控工具，并剥离宿主凭据环境。
-pub(crate) async fn run_isolated(
+pub async fn run_isolated(
     executable: &str,
     args: &[String],
     timeout: Duration,
+    cancel: CancellationToken,
+    directory: &std::path::Path,
+) -> Result<Vec<u8>> {
+    run_isolated_until(
+        executable,
+        args,
+        Instant::now() + timeout,
+        cancel,
+        directory,
+    )
+    .await
+}
+
+/// 独占目录与受限环境不变，工具共用调用方的原截止点。
+pub(crate) async fn run_isolated_until(
+    executable: &str,
+    args: &[String],
+    deadline: Instant,
     cancel: CancellationToken,
     directory: &std::path::Path,
 ) -> Result<Vec<u8>> {
@@ -247,7 +325,7 @@ pub(crate) async fn run_isolated(
         executable,
         args,
         None,
-        timeout,
+        deadline,
         cancel,
         true,
         Some(directory),
@@ -264,11 +342,29 @@ pub(crate) async fn isolated_text(
     cancel: CancellationToken,
     directory: &std::path::Path,
 ) -> Result<String> {
+    isolated_text_until(
+        executable,
+        args,
+        Instant::now() + timeout,
+        cancel,
+        directory,
+    )
+    .await
+}
+
+/// 合并诊断共用原截止点，不把准备耗时排除在预算外。
+pub(crate) async fn isolated_text_until(
+    executable: &str,
+    args: &[String],
+    deadline: Instant,
+    cancel: CancellationToken,
+    directory: &std::path::Path,
+) -> Result<String> {
     let (stdout, stderr) = capture(
         executable,
         args,
         None,
-        timeout,
+        deadline,
         cancel,
         true,
         Some(directory),
@@ -284,6 +380,60 @@ pub(crate) async fn isolated_text(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn cleanup_failure_is_not_replaced_by_its_cause() {
+        for file_output in [false, true] {
+            let error = tool_process::Error::CleanupFailed {
+                cause: Box::new(tool_process::Error::Timeout),
+            };
+            assert!(matches!(
+                map_error(error, file_output),
+                Error::CleanupFailed
+            ));
+        }
+    }
+
+    #[test]
+    fn file_output_limit_preserves_stdout_and_stderr_error_categories() {
+        assert!(matches!(
+            map_error(
+                tool_process::Error::OutputTooLarge {
+                    stream: OutputStream::Stdout,
+                    limit: 64,
+                },
+                true,
+            ),
+            Error::TooLarge
+        ));
+        assert!(matches!(
+            map_error(
+                tool_process::Error::OutputTooLarge {
+                    stream: OutputStream::Stderr,
+                    limit: OUTPUT_LIMIT,
+                },
+                true,
+            ),
+            Error::Dependency(message) if message == "工具输出超过 1 MiB"
+        ));
+    }
+
+    #[test]
+    fn nonzero_exit_preserves_trimmed_capture_and_file_diagnostics() {
+        for (file_output, expected) in
+            [(false, "工具失败"), (true, "工具退出码 Some(17)：工具失败")]
+        {
+            let error = tool_process::Error::NonZeroExit {
+                code: Some(17),
+                stderr: " \t工具失败\r\n ".as_bytes().to_vec(),
+            };
+            assert!(matches!(
+                map_error(error, file_output),
+                Error::Dependency(message) if message == expected
+            ));
+        }
+    }
+
     #[tokio::test]
     async fn cancelled_before_spawn_does_not_resolve_or_start_program() {
         let token = CancellationToken::new();
@@ -299,6 +449,24 @@ mod tests {
             )
             .await,
             Err(Error::Cancelled)
+        ));
+    }
+
+    #[tokio::test]
+    async fn expired_outer_cancellation_does_not_spawn_and_is_reported_as_timeout() {
+        let cancel = CancellationToken::new();
+        cancel.cancel();
+        assert!(matches!(
+            run_until(
+                "missing-program-must-not-start",
+                &[],
+                Some(b"must-not-send".to_vec()),
+                Instant::now() - Duration::from_secs(1),
+                cancel,
+                true,
+            )
+            .await,
+            Err(Error::Timeout)
         ));
     }
     #[tokio::test]

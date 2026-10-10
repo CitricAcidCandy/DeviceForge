@@ -2,6 +2,7 @@ import { HostError } from '../../plugin-sdk/index.ts';
 import type { CommandContribution, HostResult, JsonValue, TaskSubmission } from '../../plugin-sdk/index.ts';
 import type { ExtensionOwner } from './types.ts';
 import { isJsonValue } from '../../plugin-sdk/json.ts';
+import { awaitActive } from './await-active.ts';
 
 export function ensureOwner(owner: ExtensionOwner): void {
   if (owner.context.signal.aborted) throw new HostError('cancelled', 'extension_revoked', '扩展运行代次已撤销');
@@ -17,7 +18,7 @@ export async function invoke(
   ensureOwner(owner);
   const combined = AbortSignal.any([owner.context.signal, signal]);
   if (combined.aborted || !available()) throw new HostError('cancelled', 'extension_revoked', '扩展调用已撤销');
-  const result: unknown = await call(input, owner.context, combined);
+  const result: unknown = await awaitActive(() => call(input, owner.context, combined), combined);
   ensureOwner(owner);
   if (combined.aborted || !available()) throw new HostError('cancelled', 'stale_extension', '晚到扩展结果已撤销');
   if (typeof result !== 'object' || result === null || !('data' in result) || !('logId' in result)

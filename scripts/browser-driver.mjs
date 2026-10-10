@@ -71,7 +71,7 @@ async function protocol(url) {
 }
 
 // 使用独立临时配置目录与隐藏进程，不连接或操作用户当前浏览器会话。
-export async function runBrowser(pageUrl, expression, profileDirectory) {
+export async function runBrowser(pageUrl, expression, profileDirectory, observeRuntime) {
   const binary = await executable();
   const child = spawn(binary, [
     '--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check',
@@ -82,6 +82,9 @@ export async function runBrowser(pageUrl, expression, profileDirectory) {
   try {
     const browserUrl = await endpoint(child);
     browser = await protocol(browserUrl);
+    const version = await browser.call('Browser.getVersion');
+    observeRuntime?.({ executable_path: binary, version: version.product, revision: version.revision,
+      protocol_version: version.protocolVersion, status: '已记录' });
     const origin = new URL(browserUrl); origin.protocol = 'http:'; origin.pathname = '/json/new';
     origin.search = `?${encodeURIComponent(pageUrl)}`;
     const target = await fetch(origin, { method: 'PUT', signal: AbortSignal.timeout(10000) });

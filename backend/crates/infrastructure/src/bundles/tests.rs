@@ -67,11 +67,7 @@ async fn setup(mode: &str) -> (tempfile::TempDir, AndroidBundles, Artifact) {
         .unwrap();
     (
         directory,
-        AndroidBundles {
-            artifacts: store,
-            bundletool: Some(tool(mode)),
-            signing: Some(signing),
-        },
+        AndroidBundles::new(store, Some(tool(mode)), Some(signing)),
         input,
     )
 }
@@ -102,12 +98,12 @@ async fn builds_both_modes_and_universal_can_be_extracted_again() {
         );
         assert_eq!(result.artifact.filename, "built.apks");
         if mode == BuildMode::Universal {
-            let analyzer = AndroidPackageTools {
-                artifacts: builder.artifacts.clone(),
-                apkanalyzer: tool("unused"),
-                apksigner: tool("unused"),
-                bundletool: None,
-            };
+            let analyzer = AndroidPackageTools::new(
+                builder.artifacts.clone(),
+                tool("unused"),
+                tool("unused"),
+                None,
+            );
             let extracted = analyzer
                 .extract_apk(
                     &result.artifact.id,

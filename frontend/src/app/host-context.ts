@@ -5,8 +5,12 @@ import type { Operations } from '../features/operations/index.ts';
 import type { Tasks } from '../features/tasks/index.ts';
 import { publicCall, publicJob, publicOperation } from './public-api.ts';
 import { createHostDeviceAccess } from './device-host.ts';
+import { createArtifactGateway } from './artifact-gateway.ts';
+import type { ArtifactTransport } from './artifact-gateway.ts';
+import { createTaskHistoryGateway } from './task-history-gateway.ts';
+import type { TaskHistoryTransport } from './task-history-gateway.ts';
 
-export function createHostContext(operations: Operations, tasks: Tasks, lifetime: AbortController, devices?: DeviceAccess) {
+export function createHostContext(operations: Operations, tasks: Tasks, lifetime: AbortController, devices?: DeviceAccess, artifacts?: ArtifactTransport, taskHistory?: TaskHistoryTransport) {
   const disposers = new Set<Dispose>();
   const pending = new Set<Promise<void>>();
   const failures: unknown[] = [];
@@ -44,6 +48,8 @@ export function createHostContext(operations: Operations, tasks: Tasks, lifetime
     },
     onDispose,
     ...(devices ? { devices: createHostDeviceAccess(devices, lifetime.signal, onDispose) } : {}),
+    ...(artifacts ? { artifacts: createArtifactGateway(artifacts, lifetime.signal) } : {}),
+    ...(taskHistory ? { taskHistory: createTaskHistoryGateway(taskHistory, lifetime.signal) } : {}),
   });
   return {
     context,

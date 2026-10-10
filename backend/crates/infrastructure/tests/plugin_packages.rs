@@ -8,6 +8,9 @@ use std::{
 };
 use tokio_util::sync::CancellationToken;
 
+#[path = "plugin_packages/ordinary_execution.rs"]
+mod ordinary_execution;
+
 fn body(bytes: Vec<u8>) -> ArtifactStream {
     Box::pin(stream::once(async move { Ok(bytes.into()) }))
 }
@@ -313,6 +316,8 @@ async fn invalid_archive_paths_duplicates_versions_and_formats_never_publish() {
 
 #[tokio::test]
 async fn archive_symlinks_and_bad_resource_paths_are_rejected() {
+    use std::time::Duration;
+
     let (_directory, store) = store().await;
     let mut archive = zip::ZipWriter::new(Cursor::new(Vec::new()));
     archive
@@ -322,16 +327,16 @@ async fn archive_symlinks_and_bad_resource_paths_are_rejected() {
             zip::write::SimpleFileOptions::default(),
         )
         .unwrap();
-    assert!(
+    assert!(matches!(
         store
             .prepare(
                 PackageKind::Browser,
                 PackageFormat::Zip,
                 body(archive.finish().unwrap().into_inner())
             )
-            .await
-            .is_err()
-    );
+            .await,
+        Err(Error::Invalid(message)) if message == "归档不得包含链接或特殊文件"
+    ));
     let gzip = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
     let mut archive = tar::Builder::new(gzip);
     let mut header = tar::Header::new_gnu();
@@ -342,27 +347,41 @@ async fn archive_symlinks_and_bad_resource_paths_are_rejected() {
     archive
         .append_link(&mut header, "package/link.js", "../escape")
         .unwrap();
-    assert!(
+    assert!(matches!(
         store
             .prepare(
                 PackageKind::Browser,
                 PackageFormat::Tgz,
                 body(archive.into_inner().unwrap().finish().unwrap())
             )
-            .await
-            .is_err()
-    );
-    store
-        .prepare(
-            PackageKind::Browser,
-            PackageFormat::Zip,
-            body(zip(&browser_files())),
-        )
-        .await
-        .unwrap()
-        .commit()
-        .await
-        .unwrap();
+            .await,
+        Err(Error::Invalid(message)) if message == "TAR 不接受链接或特殊条目"
+    ));
+
+    let valid_archive = zip(&browser_files());
+    // 坏包返回后，暂存目录的阻塞清理仍可持有上传许可；只等待该已知竞争。
+    // 每次请求都新建完整流，成功取得许可才证明至少一个暂存清理已完成。
+    let prepared = tokio::time::timeout(Duration::from_secs(5), async {
+        loop {
+            match store
+                .prepare(
+                    PackageKind::Browser,
+                    PackageFormat::Zip,
+                    body(valid_archive.clone()),
+                )
+                .await
+            {
+                Ok(prepared) => break prepared,
+                Err(Error::Conflict(message)) if message == "包上传并发已满" => {
+                    tokio::time::sleep(Duration::from_millis(10)).await;
+                }
+                Err(error) => panic!("正常包上传出现非清理等待错误：{error:?}"),
+            }
+        }
+    })
+    .await
+    .expect("坏包暂存清理未在 5 秒内释放可用上传许可");
+    prepared.commit().await.unwrap();
     for path in [
         "../package.json",
         "dist/../child.js",

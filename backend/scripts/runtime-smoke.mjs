@@ -1,14 +1,19 @@
 import { spawn, execFile } from 'node:child_process';
 import { mkdtemp, mkdir, writeFile, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { randomBytes, createHash } from 'node:crypto';
 import { createServer } from 'node:net';
 import assert from 'node:assert/strict';
 import { promisify } from 'node:util';
 import { deployMessagePackPlugin, verifyMessagePack } from './msgpack-smoke.mjs';
+import { deployAndroidPackages } from './android-packages-deployment.mjs';
 
-const temporary = await mkdtemp(join(tmpdir(), 'deviceforge-smoke-'));
+const temporaryParent = resolve(tmpdir());
+const temporary = await mkdtemp(join(temporaryParent, 'deviceforge-smoke-'));
+if (dirname(resolve(temporary)) !== temporaryParent || !basename(temporary).startsWith('deviceforge-smoke-')) {
+  throw new Error('模拟服务清理目录越过本次临时父目录');
+}
 const reservation = createServer();
 await new Promise((resolve) => reservation.listen(0, '127.0.0.1', resolve));
 const port = reservation.address().port;
@@ -16,15 +21,16 @@ await new Promise((resolve) => reservation.close(resolve));
 const base = `http://127.0.0.1:${port}`;
 const token = randomBytes(32).toString('hex');
 const suffix = process.platform === 'win32' ? '.exe' : '';
-const binary = resolve('target/debug', `apk-server${suffix}`);
-const plugin = resolve('target/debug', `deviceforge-echo-plugin${suffix}`);
+const profile = process.argv.includes('--release') ? 'release' : 'debug';
+const binary = resolve('target', profile, `apk-server${suffix}`);
+const plugin = resolve('target', profile, `deviceforge-echo-plugin${suffix}`);
 const pluginDirectory = join(temporary, 'plugins', 'echo');
 await mkdir(pluginDirectory, { recursive: true });
 await writeFile(join(pluginDirectory, 'manifest.json'), JSON.stringify({
   id: 'echo', version: '0.1.0', protocol_version: 1, executable: plugin, args: [],
   operations: [{ name: 'echo', title: '回显', input_schema: { type: 'object' } }],
 }));
-const artifactPlugin = resolve('target/debug', `deviceforge-artifact-copy-plugin${suffix}`);
+const artifactPlugin = resolve('target', profile, `deviceforge-artifact-copy-plugin${suffix}`);
 const artifactPluginDirectory = join(temporary, 'plugins', 'artifact_copy');
 await mkdir(artifactPluginDirectory, { recursive: true });
 await writeFile(join(artifactPluginDirectory, 'manifest.json'), JSON.stringify({
@@ -33,8 +39,8 @@ await writeFile(join(artifactPluginDirectory, 'manifest.json'), JSON.stringify({
   operations: [{ name: 'copy', title: '复制产物', input_schema: { type: 'object', properties: { artifact_id: { type: 'string', format: 'uuid' } }, required: ['artifact_id'], additionalProperties: false } }],
 }));
 const selectedPerformanceDemo = process.argv.includes('--performance-plugin');
-await deployMessagePackPlugin(temporary, suffix);
-const performancePlugin = resolve('target/debug', `deviceforge-performance-demo-plugin${suffix}`);
+await deployMessagePackPlugin(temporary, suffix, profile);
+const performancePlugin = resolve('target', profile, `deviceforge-performance-demo-plugin${suffix}`);
 const performancePluginDirectory = join(temporary, 'plugins', 'performance_demo');
 await mkdir(performancePluginDirectory, { recursive: true });
 await writeFile(join(performancePluginDirectory, 'manifest.json'), JSON.stringify({
@@ -55,22 +61,15 @@ try {
 // 签名文件仅供模拟 bundletool 检查，不包含真实密钥或口令。
 const signingFile = join(temporary, 'test-signing.txt');
 await writeFile(signingFile, 'test-only');
+const packageDeployment = await deployAndroidPackages(temporary, packageTool, signingFile, suffix, profile);
 const environment = { ...process.env };
 delete environment.APK_APKSIGNER_JAR;
 delete environment.APK_PERFORMANCE_PLUGIN;
 if (selectedPerformanceDemo) environment.APK_PERFORMANCE_PLUGIN = 'performance_demo';
-const serverEnvironment = { ...environment, APK_API_TOKEN: token, APK_BIND: `127.0.0.1:${port}`, APK_DATA_DIR: join(temporary, 'data'), APK_PLUGIN_DIR: join(temporary, 'plugins'), APK_ADB: deviceTool, APK_HDC: deviceTool, APK_APKANALYZER: packageTool, APK_APKSIGNER: packageTool, APK_JAVA: packageTool, APK_BUNDLETOOL_JAR: 'mock-bundletool.jar', APK_APKTOOL_JAR: 'mock-apktool.jar', APK_BUNDLE_KEYSTORE: signingFile, APK_BUNDLE_KEY_ALIAS: 'test-key', APK_BUNDLE_STORE_PASSWORD_FILE: signingFile, APK_BUNDLE_KEY_PASSWORD_FILE: signingFile };
-// 验证签名配置错误在服务启动时收敛，不等待提交任务后才暴露。
-for (const invalidSigning of ['partial', 'missing-file']) {
-  const invalidEnvironment = { ...serverEnvironment };
-  if (invalidSigning === 'partial') delete invalidEnvironment.APK_BUNDLE_KEY_PASSWORD_FILE;
-  else invalidEnvironment.APK_BUNDLE_KEYSTORE = join(temporary, 'missing-signing.jks');
-  let rejected = false;
-  try {
-    await promisify(execFile)(binary, [], { env: invalidEnvironment, windowsHide: true, timeout: 10000 });
-  } catch (error) { rejected = error.code === 1; }
-  assert.ok(rejected, `服务应拒绝签名配置：${invalidSigning}`);
-}
+const serverEnvironment = { ...environment, APK_API_TOKEN: token, APK_BIND: `127.0.0.1:${port}`, APK_DATA_DIR: join(temporary, 'data'), APK_PLUGIN_DIR: join(temporary, 'plugins'), APK_OPERATION_BINDINGS: packageDeployment.bindings, APK_ADB: deviceTool, APK_HDC: deviceTool, APK_APKANALYZER: packageTool, APK_APKSIGNER: packageTool, APK_JAVA: packageTool, APK_BUNDLETOOL_JAR: 'mock-bundletool.jar', APK_APKTOOL_JAR: 'mock-apktool.jar', APK_BUNDLE_KEYSTORE: signingFile, APK_BUNDLE_KEY_ALIAS: 'test-key', APK_BUNDLE_STORE_PASSWORD_FILE: signingFile, APK_BUNDLE_KEY_PASSWORD_FILE: signingFile };
+// 宿主不再消费包业务签名环境；实际签名资格由独立插件旁置配置验证。
+serverEnvironment.APK_BUNDLE_KEYSTORE = join(temporary, 'host-must-not-read-signing.jks');
+delete serverEnvironment.APK_BUNDLE_KEY_PASSWORD_FILE;
 const child = spawn(binary, [], {
   env: serverEnvironment,
   stdio: 'ignore', windowsHide: true,

@@ -17,6 +17,7 @@ impl Executor for InputOperations {
             .into_generator()
             .into_root_schema_for::<InputRequest>();
         vec![Operation {
+            execution: None,
             id: "android.input".into(),
             title: "Android 点击、滑动、按键和文本输入".into(),
             input_schema: serde_json::to_value(schema).expect("设备输入模式必须可序列化"),

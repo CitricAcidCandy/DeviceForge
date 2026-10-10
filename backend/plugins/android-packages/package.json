@@ -1,0 +1,13 @@
+{
+  "name": "@deviceforge/android-packages",
+  "version": "0.1.0",
+  "description": "协议4安卓包工具插件，首批仅Windows x64",
+  "files": ["manifest.json", "bin", "README.md"],
+  "deviceforge": {
+    "kind": "server",
+    "manifest": "manifest.json",
+    "entrypoints": {
+      "win32-x64": {"runtime": "native", "path": "bin/deviceforge-android-packages-plugin.exe"}
+    }
+  }
+}

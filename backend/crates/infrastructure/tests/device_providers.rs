@@ -263,8 +263,8 @@ async fn real_device_process_cancel_cleans_nested_copies_and_confirms_v3_control
 }
 
 #[tokio::test]
-async fn dropping_real_device_process_future_cleans_nested_copies_without_claiming_v3_confirmation()
-{
+async fn dropping_real_device_process_future_cleans_nested_copies_but_retains_unconfirmed_resources()
+ {
     for version in [2, 3] {
         let (_directory, store, source, plugin, marker) = nested_provider(version).await;
         let task = {
@@ -281,7 +281,7 @@ async fn dropping_real_device_process_future_cleans_nested_copies_without_claimi
         assert!(task.await.unwrap_err().is_cancelled());
         assert_call_directories_removed(&paths).await;
         assert!(store.get(&source.id).await.is_ok());
-        assert_eq!(plugin.has_unresolved_resources(), version == 3);
+        assert!(plugin.has_unresolved_resources());
         assert!(!marker.with_file_name("paths.json.cleaned").exists());
     }
 }

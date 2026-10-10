@@ -4,13 +4,15 @@ mod reverse_tool { include!("../../reverse/fixtures/apktool.rs"); }
 // 独立模拟分析工具；固定前缀模拟部署配置，不从请求读取工具命令。
 fn main() {
     let mut args: Vec<String> = std::env::args().skip(1).collect();
-    if args.get(2).map(String::as_str) == Some("mock-apktool.jar") {
+    let jar_name = args.get(2).and_then(|path| std::path::Path::new(path).file_name())
+        .and_then(|name| name.to_str());
+    if jar_name == Some("mock-apktool.jar") {
         reverse_tool::main();
         return;
     }
     if args.first().map(String::as_str) == Some("-Xmx256m") {
         assert_eq!(args[1], "-jar");
-        assert_eq!(args[2], "mock-bundletool.jar");
+        assert_eq!(jar_name, Some("mock-bundletool.jar"));
         args.drain(..3);
         if args.first().map(String::as_str) == Some("build-apks") { bundle_build::run("ok", &args); return; }
         if matches!(args.first().map(String::as_str), Some("install-apks" | "extract-apks")) { split_tool::run("ok", &args); return; }

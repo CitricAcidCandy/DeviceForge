@@ -42,7 +42,7 @@
 
 涉及在线包或开放扩展时，在根目录执行 `node scripts/browser-plugin-smoke.mjs`；当前 release 宿主重建后另执行 `--release`。该独立浏览器验收覆盖真实上传两类包、动态模块、界面替换、逻辑钩子、服务器对接和停用恢复；不替代具体产品界面视觉验收。
 
-2026-10-09 当前源码门禁由主代理完成：generate:api/check 退出 0（49 源码，Svelte 0 错误/0 警告），test 退出 0（73/73），152 模块 production build 通过。当前 artifacts/browser-plugin-smoke-{debug,release}.json 整体通过，覆盖生产公开宿主 HostContext.devices、提供者代次变化与旧引用拒绝；release/runtime 和同一 tgz 的 npx 已重建并通过。嵌套产物由现有 JsonValue 输入消费，无新增手写 DTO；其真实 HTTP/MCP 和 npx 证据见 nested-device-artifacts-smoke 报告。main.ts 未装配产品 runtime，远端推送、常驻会话、真机、产品 UI 和生产容量不在此证据范围内。
+2026-10-09 19:45 当前源码门禁由主代理完成：generate:api/check 退出 0（51 源码，Svelte 0 错误/0 警告），test 退出 0（109/109），154 模块 production build 通过。当前 artifacts/browser-plugin-smoke-{debug,release}.json 均对应 48554 字节的生产宿主，覆盖公开设备目录、提供者代次变化、旧引用拒绝及三项永不返回回调的取消等待；实际 Edge 版本由 CDP 采集。release/runtime 重建、同一测试 tgz 的 npx 两阶段退出 0，最终持久包 24 文件另作字节核对，临时 npx 包当次摘要未保留。取消等待不证明可信回调副作用停止或资源清理完成。main.ts 未装配产品 runtime，远端推送、常驻会话、真机、产品 UI 和生产容量不在此证据范围内；各批版本及完整交付证据以根 todo.md 为准。
 
 ## 协作与交付
 - 不自动提交、恢复或删除用户无关修改，不向旧工程写新实现；大型写入分批进行。

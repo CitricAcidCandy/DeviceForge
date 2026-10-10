@@ -8,3 +8,6 @@ apk-plugin-sdk.workspace = true
 serde_json.workspace = true
 tokio.workspace = true
 tokio-util.workspace = true
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["test-util"] }

@@ -1,5 +1,5 @@
 use apk_domain::{
-    Error, Executor, Operation, Result,
+    Error, ExecutionContext, Executor, Operation, Result,
     bundles::{BuildApksRequest, BundleBuilder},
 };
 use async_trait::async_trait;
@@ -17,6 +17,7 @@ impl Executor for BundleOperations {
             .into_generator()
             .into_root_schema_for::<BuildApksRequest>();
         vec![Operation {
+            execution: None,
             id: "android.package.build_apks".into(),
             title: "将 AAB 构建为签名 APKS 产物".into(),
             input_schema: serde_json::to_value(schema).expect("构建模式可序列化"),
@@ -28,16 +29,35 @@ impl Executor for BundleOperations {
         input: Value,
         cancel: CancellationToken,
     ) -> Result<Value> {
+        self.execute_with_context(operation, input, cancel, ExecutionContext::default())
+            .await
+    }
+
+    fn has_unresolved_resources(&self) -> bool {
+        self.0.has_unresolved_resources()
+    }
+
+    async fn execute_with_context(
+        &self,
+        operation: &str,
+        input: Value,
+        cancel: CancellationToken,
+        context: ExecutionContext,
+    ) -> Result<Value> {
         if operation != "android.package.build_apks" {
             return Err(Error::NotFound(operation.into()));
         }
-        if cancel.is_cancelled() {
-            return Err(Error::Cancelled);
-        }
+        crate::operation_budget::check(
+            context.deadline.map(tokio::time::Instant::from_std),
+            Some(&cancel),
+        )?;
         let request: BuildApksRequest =
             serde_json::from_value(input).map_err(|e| Error::Invalid(e.to_string()))?;
         request.validate()?;
-        serde_json::to_value(self.0.build(request, cancel).await?)
+        serde_json::to_value(self.0.build_with_context(request, cancel, context).await?)
             .map_err(|e| Error::Dependency(e.to_string()))
     }
 }
+
+#[cfg(test)]
+mod context_tests;

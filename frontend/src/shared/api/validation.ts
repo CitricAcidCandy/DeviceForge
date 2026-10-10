@@ -1,3 +1,4 @@
+import { isOperationExecution } from './operation-execution-validation.ts';
 import type { ArtifactDto, JobDto, JobEventDto, OperationDto, PackageInfo, PluginInfo } from './types.ts';
 
 export function isRecord(value: unknown): value is Record<string, unknown> {
@@ -13,7 +14,8 @@ function jobStatus(value: unknown): boolean {
   return value === 'queued' || value === 'running' || value === 'succeeded' || value === 'failed' || value === 'cancelled';
 }
 export function isOperation(value: unknown): value is OperationDto {
-  return isRecord(value) && typeof value.id === 'string' && typeof value.title === 'string' && 'input_schema' in value;
+  return isRecord(value) && typeof value.id === 'string' && typeof value.title === 'string' && 'input_schema' in value
+    && isOperationExecution(value.execution);
 }
 export function isJob(value: unknown): value is JobDto {
   return isRecord(value) && typeof value.id === 'string' && typeof value.operation === 'string'

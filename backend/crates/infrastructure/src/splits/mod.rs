@@ -1,12 +1,14 @@
+mod extract;
 mod packing;
 use crate::{
     artifact_files::{Temporary, materialize},
     bundles::validation,
-    package_tools::ToolCommand,
+    package_tools::{ToolCommand, tool::Tracker, worker::Pool},
+    package_work::PackageCapacity,
     process,
 };
 use apk_domain::{
-    Error, Result,
+    Error, ExecutionContext, Result,
     artifacts::ArtifactStore,
     bundles::BuildMode,
     splits::{
@@ -14,20 +16,21 @@ use apk_domain::{
     },
 };
 use async_trait::async_trait;
-use futures_util::TryStreamExt;
 use std::{
     collections::HashMap,
     path::PathBuf,
     sync::{Arc, Mutex, Weak},
     time::Duration,
 };
-use tokio_util::{io::ReaderStream, sync::CancellationToken};
+use tokio_util::sync::CancellationToken;
 const TIMEOUT: Duration = Duration::from_secs(120);
 pub struct AndroidSplits {
     artifacts: Arc<dyn ArtifactStore>,
     bundletool: Option<ToolCommand>,
     adb: String,
     devices: Mutex<HashMap<String, Weak<tokio::sync::Mutex<()>>>>,
+    workers: Pool,
+    tools: Tracker,
 }
 struct CancelOnDrop(CancellationToken);
 impl Drop for CancelOnDrop {
@@ -68,7 +71,7 @@ fn resolve_adb(configured: &str) -> Result<PathBuf> {
 }
 fn tool_error(error: Error) -> Error {
     match error {
-        Error::Cancelled | Error::Timeout => error,
+        Error::Cancelled | Error::Timeout | Error::CleanupFailed => error,
         _ => Error::Dependency("APKS 工具调用失败，请检查设备、工具版本与包体兼容性".into()),
     }
 }
@@ -94,11 +97,21 @@ impl AndroidSplits {
         bundletool: Option<ToolCommand>,
         adb: String,
     ) -> Self {
+        Self::with_capacity(artifacts, bundletool, adb, PackageCapacity::default())
+    }
+    pub fn with_capacity(
+        artifacts: Arc<dyn ArtifactStore>,
+        bundletool: Option<ToolCommand>,
+        adb: String,
+        capacity: PackageCapacity,
+    ) -> Self {
         Self {
             artifacts,
             bundletool,
             adb,
             devices: Mutex::new(HashMap::new()),
+            workers: Pool::new(capacity),
+            tools: Tracker::default(),
         }
     }
     fn tool(&self) -> Result<&ToolCommand> {
@@ -191,103 +204,6 @@ impl AndroidSplits {
         tokio::select! { biased; _ = cancel.cancelled() => Err(Error::Cancelled),
         result = tokio::time::timeout(timeout, work) => result.unwrap_or(Err(Error::Timeout)) }
     }
-    async fn extract_with_timeout(
-        &self,
-        request: ExtractSplitsRequest,
-        cancel: CancellationToken,
-        timeout: Duration,
-    ) -> Result<ExtractedSplits> {
-        request.validate()?;
-        let token = cancel.child_token();
-        let _cancel = CancelOnDrop(token.clone());
-        let work = async {
-            self.tool()?;
-            let input = materialize(
-                self.artifacts.as_ref(),
-                &request.artifact_id,
-                &[".apks"],
-                token.clone(),
-            )
-            .await?;
-            Self::validate_source(input.path.clone(), input.directory.clone(), token.clone())
-                .await?;
-            let spec = input.directory.path().join("device-spec.json");
-            let payload = serde_json::json!({"supportedAbis":request.device_spec.supported_abis,
-                "supportedLocales":request.device_spec.supported_locales,"screenDensity":request.device_spec.screen_density,
-                "sdkVersion":request.device_spec.sdk_version});
-            tokio::fs::write(
-                &spec,
-                serde_json::to_vec(&payload)
-                    .map_err(|_| Error::Invalid("设备规格序列化失败".into()))?,
-            )
-            .await
-            .map_err(|_| Error::Storage("设备规格写入失败".into()))?;
-            let output = input.directory.path().join("selected");
-            let running = self.run(
-                vec![
-                    "extract-apks".into(),
-                    format!("--apks={}", input.path.display()),
-                    format!("--output-dir={}", output.display()),
-                    format!("--device-spec={}", spec.display()),
-                ],
-                &input.directory,
-                token.clone(),
-            );
-            tokio::pin!(running);
-            tokio::select! { biased;
-                result = &mut running => { result?; }
-                result = monitor(output.clone(), input.directory.clone(), token.clone()) => { token.cancel(); let _ = running.await; result?; }
-            }
-            let destination = input.directory.path().join("selected.zip");
-            let target = destination.clone();
-            let directory = input.directory.clone();
-            let worker_token = token.clone();
-            let apk_entries = tokio::task::spawn_blocking(move || {
-                let _guard = directory;
-                packing::pack(&output, &target, &worker_token)
-            })
-            .await
-            .map_err(|_| Error::Dependency("分包打包任务失败".into()))??;
-            let file = tokio::fs::File::open(destination)
-                .await
-                .map_err(|_| Error::Storage("读取分包产物失败".into()))?;
-            let stream =
-                ReaderStream::new(file).map_err(|_| Error::Storage("读取分包产物流失败".into()));
-            let artifact = self
-                .artifacts
-                .put("selected-apks.zip".into(), Box::pin(stream))
-                .await?;
-            Ok(ExtractedSplits {
-                source_artifact_id: request.artifact_id,
-                device_spec: request.device_spec,
-                artifact,
-                apk_entries,
-            })
-        };
-        tokio::select! { biased; _ = cancel.cancelled() => Err(Error::Cancelled),
-        result = tokio::time::timeout(timeout, work) => result.unwrap_or(Err(Error::Timeout)) }
-    }
-}
-async fn monitor(
-    output: PathBuf,
-    directory: Arc<Temporary>,
-    cancel: CancellationToken,
-) -> Result<()> {
-    loop {
-        tokio::time::sleep(Duration::from_millis(100)).await;
-        let path = output.clone();
-        let guard = directory.clone();
-        let token = cancel.clone();
-        tokio::task::spawn_blocking(move || {
-            let _guard = guard;
-            if path.exists() {
-                packing::check(&path, &token)?;
-            }
-            Ok::<_, Error>(())
-        })
-        .await
-        .map_err(|_| Error::Dependency("分包输出监测失败".into()))??;
-    }
 }
 #[async_trait]
 impl SplitPackages for AndroidSplits {
@@ -296,7 +212,16 @@ impl SplitPackages for AndroidSplits {
         request: ExtractSplitsRequest,
         cancel: CancellationToken,
     ) -> Result<ExtractedSplits> {
-        self.extract_with_timeout(request, cancel, TIMEOUT).await
+        self.extract_with_context(request, cancel, ExecutionContext::default())
+            .await
+    }
+    async fn extract_with_context(
+        &self,
+        request: ExtractSplitsRequest,
+        cancel: CancellationToken,
+        context: ExecutionContext,
+    ) -> Result<ExtractedSplits> {
+        extract::run(self, request, cancel, context).await
     }
     async fn install(
         &self,
@@ -304,6 +229,9 @@ impl SplitPackages for AndroidSplits {
         cancel: CancellationToken,
     ) -> Result<ApksInstalled> {
         self.install_with_timeout(request, cancel, TIMEOUT).await
+    }
+    fn has_unresolved_resources(&self) -> bool {
+        self.workers.unresolved() || self.tools.unresolved()
     }
 }
 #[cfg(test)]

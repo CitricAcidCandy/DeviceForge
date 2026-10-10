@@ -213,7 +213,7 @@ test('生成设备响应拒绝身份错配、重复设备/提供者、未知状�
     const client = createApiClient({ baseUrl: 'http://localhost:7031', transport: async () => success(body, 'malformed-device-log') });
     await assert.rejects(client.call(refreshDeviceProviderEndpoint, { id: 'example', generation: 'g1' }, signal()), (error: unknown) => error instanceof ApiError && error.kind === 'protocol' && error.logId === 'malformed-device-log');
   }
-  for (const body of [[provider(), provider()], [{ ...provider(), definition: { ...provider().definition, api_version: 2 } }]]) {
+  for (const body of [[provider(), provider()], [{ ...provider(), definition: { ...provider().definition, api_version: 4 } }]]) {
     const client = createApiClient({ baseUrl: 'http://localhost:7031', transport: async () => success(body) });
     await assert.rejects(client.call(deviceProvidersEndpoint, undefined, signal()), /生成契约/);
   }

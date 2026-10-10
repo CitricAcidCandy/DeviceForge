@@ -27,9 +27,13 @@ export function createFrontendRuntime(options: RuntimeOptions) {
   const extensions = createExtensionRegistry();
   const tasks = createTasks(client, extensions.beforeTaskSubmit);
   const devices = createDevices(createDeviceGateway(client, lifetime.signal));
-  const host = createHostContext(operations, tasks, lifetime, devices);
+  const artifacts = {
+    upload: (filename: string, content: Blob, signal: AbortSignal) => client.call(uploadEndpoint, { filename, content }, AbortSignal.any([signal, lifetime.signal])),
+    download: (id: string, signal: AbortSignal) => client.downloadArtifact(id, AbortSignal.any([signal, lifetime.signal])),
+  };
+  const host = createHostContext(operations, tasks, lifetime, devices, artifacts, tasks);
   const context = Object.freeze<HostContext>({ ...host.context, extensions: extensions.hostAccess(host.context) });
-  const serverPlugins = createServerPlugins(client, createCatalogRefresh(operations.refresh, devices));
+  const serverPlugins = createServerPlugins(client, createCatalogRefresh(operations.refresh, devices, operations.invalidate));
   const webPlugins = createPluginManager({ host: context, panelTarget: options.panelTarget, extensionRegistry: extensions,
     ...(options.componentTarget ? { componentTarget: options.componentTarget } : {}),
     ...(options.moduleTarget ? { moduleTarget: options.moduleTarget } : {}),
@@ -72,10 +76,7 @@ export function createFrontendRuntime(options: RuntimeOptions) {
       unmount: webPlugins.unmountExtension,
     },
     registerInstalledPackage: browserPackages.register,
-    artifacts: {
-      upload: (filename: string, content: Blob, signal: AbortSignal) => client.call(uploadEndpoint, { filename, content }, AbortSignal.any([signal, lifetime.signal])),
-      download: (id: string, signal: AbortSignal) => client.downloadArtifact(id, AbortSignal.any([signal, lifetime.signal])),
-    },
+    artifacts,
     dispose(): Promise<void> {
       if (disposal) return disposal;
       lifetime.abort();

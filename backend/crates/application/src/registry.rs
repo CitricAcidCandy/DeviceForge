@@ -15,6 +15,8 @@ pub(crate) struct Registered {
     pub executor: Arc<dyn Executor>,
     pub validator: jsonschema::Validator,
     pub owner: Option<Arc<Owner>>,
+    pub target: Option<Arc<Registered>>,
+    pub binding: Option<Arc<crate::operation_aliases::Binding>>,
 }
 pub(crate) struct Owner {
     info: PluginInfo,
@@ -39,8 +41,13 @@ pub(crate) struct Snapshot {
     pub entries: BTreeMap<String, Arc<Registered>>,
     pub owners: BTreeMap<String, Arc<Owner>>,
     pub directories: BTreeMap<String, apk_domain::devices::DeviceDirectory>,
+    pub discovery_attempts: BTreeMap<String, std::sync::Weak<crate::devices::attempt::Attempt>>,
+    pub discovery_started: BTreeMap<String, (String, String)>,
 }
-pub(crate) struct Registry(pub(crate) RwLock<Snapshot>);
+pub(crate) struct Registry(
+    pub(crate) RwLock<Snapshot>,
+    pub(crate) Arc<crate::operation_aliases::Config>,
+);
 
 fn prepare(
     executor: Arc<dyn Executor>,
@@ -48,7 +55,9 @@ fn prepare(
     operations: Vec<Operation>,
 ) -> Result<BTreeMap<String, Arc<Registered>>> {
     let mut entries = BTreeMap::new();
+    let provider = executor.device_provider();
     for operation in operations {
+        let operation = crate::operation_budget::registered(operation, provider.as_ref())?;
         if entries.contains_key(&operation.id) {
             return Err(Error::Conflict("操作重复注册".into()));
         }
@@ -67,6 +76,8 @@ fn prepare(
                 executor: executor.clone(),
                 validator,
                 owner: owner.clone(),
+                target: None,
+                binding: None,
             }),
         );
     }
@@ -76,22 +87,46 @@ fn prepare(
     Ok(entries)
 }
 impl Registry {
+    #[cfg(test)]
     pub fn new(executors: Vec<Arc<dyn Executor>>) -> Result<Self> {
+        Self::new_with_bindings(executors, Default::default())
+    }
+    pub fn new_with_bindings(
+        executors: Vec<Arc<dyn Executor>>,
+        bindings: crate::operation_aliases::Config,
+    ) -> Result<Self> {
+        bindings.validate()?;
+        for binding in &bindings.bindings {
+            // 即使目标尚未部署，也在启动阶段拒绝无效旧入口模式。
+            registration::compile(&binding.operation)?;
+        }
         let mut snapshot = Snapshot {
             revision: 0,
             entries: BTreeMap::new(),
             owners: BTreeMap::new(),
             directories: BTreeMap::new(),
+            discovery_attempts: BTreeMap::new(),
+            discovery_started: BTreeMap::new(),
         };
         for executor in executors {
-            let operations = executor.operations();
+            // 显式部署绑定预留入口；目标未加载时不回退旧内置执行器。
+            let operations = executor
+                .operations()
+                .into_iter()
+                .filter(|operation| {
+                    !bindings
+                        .bindings
+                        .iter()
+                        .any(|binding| binding.operation.id == operation.id)
+                })
+                .collect();
             let entries = prepare(executor, None, operations)?;
             if entries.keys().any(|id| snapshot.entries.contains_key(id)) {
                 return Err(Error::Conflict("操作重复注册".into()));
             }
             snapshot.entries.extend(entries);
         }
-        Ok(Self(RwLock::new(snapshot)))
+        Ok(Self(RwLock::new(snapshot), Arc::new(bindings)))
     }
     pub fn operations(&self) -> (u64, Vec<Operation>) {
         let snapshot = self
@@ -125,6 +160,25 @@ impl Registry {
             .get(id)
             .is_some_and(|entry| Arc::ptr_eq(entry, registered)))
     }
+    /// 短时资格判断与卸载排序；回调不得执行存储或其他阻塞副作用。
+    pub(crate) fn with_current<T>(
+        &self,
+        registered: &Arc<Registered>,
+        claim: impl FnOnce() -> Result<T>,
+    ) -> Result<T> {
+        let snapshot = self
+            .0
+            .read()
+            .map_err(|_| Error::Storage("提交资格注册表异常".into()))?;
+        if !snapshot
+            .entries
+            .get(&registered.operation.id)
+            .is_some_and(|entry| Arc::ptr_eq(entry, registered))
+        {
+            return Err(Error::Conflict("成功结果属于已撤销的操作代际".into()));
+        }
+        claim()
+    }
     pub fn plugins(&self) -> Vec<PluginInfo> {
         self.0
             .read()
@@ -141,7 +195,14 @@ pub(crate) struct Prepared {
     entries: BTreeMap<String, Arc<Registered>>,
 }
 impl Prepared {
+    #[cfg(test)]
     pub fn new(plugin: PluginContribution) -> Result<Self> {
+        Self::new_with_bindings(plugin, &Default::default())
+    }
+    pub fn new_with_bindings(
+        plugin: PluginContribution,
+        bindings: &crate::operation_aliases::Config,
+    ) -> Result<Self> {
         plugin_id(&plugin.id)?;
         if plugin.version.is_empty() || plugin.version.len() > 100 {
             return Err(Error::Invalid("插件版本必须是 1–100 字节".into()));
@@ -156,13 +217,20 @@ impl Prepared {
         }
         let owner = Arc::new(Owner {
             info: PluginInfo {
-                id: plugin.id,
+                id: plugin.id.clone(),
                 version: plugin.version,
                 generation: uuid::Uuid::new_v4().to_string(),
                 state: PluginState::Loaded,
                 operations: operations
                     .iter()
                     .map(|operation| operation.id.clone())
+                    .chain(
+                        bindings
+                            .bindings
+                            .iter()
+                            .filter(|binding| binding.plugin_id() == plugin.id)
+                            .map(|binding| binding.operation.id.clone()),
+                    )
                     .collect(),
                 protected: false,
                 cleanup_failed: false,
@@ -173,7 +241,8 @@ impl Prepared {
             tracker: TaskTracker::new(),
             provider,
         });
-        let entries = prepare(plugin.executor, Some(owner.clone()), operations)?;
+        let mut entries = prepare(plugin.executor, Some(owner.clone()), operations)?;
+        crate::registry_aliases::prepare(&mut entries, &owner, bindings)?;
         Ok(Self { owner, entries })
     }
 }
@@ -231,6 +300,25 @@ impl Registry {
             owner.tracker.close();
             owner.cancel.cancel();
             snapshot.directories.remove(id);
+            snapshot.discovery_started.remove(id);
+            snapshot.discovery_attempts.retain(|_, weak| {
+                let Some(attempt) = weak.upgrade() else {
+                    return false;
+                };
+                if Arc::ptr_eq(&attempt.owner, &owner) {
+                    // registry→gate；取消token由owner撤销统一传播。
+                    let mut state = attempt
+                        .state
+                        .lock()
+                        .unwrap_or_else(std::sync::PoisonError::into_inner);
+                    if matches!(state.decision, crate::devices::attempt::Decision::Pending) {
+                        state.decision = crate::devices::attempt::Decision::Cancelled(
+                            crate::devices::attempt::Rejection::Conflict,
+                        );
+                    }
+                }
+                true
+            });
             snapshot.revision = revision;
         }
         Ok(owner)
@@ -266,6 +354,7 @@ mod tests {
     impl Executor for Echo {
         fn operations(&self) -> Vec<Operation> {
             vec![Operation {
+                execution: None,
                 id: "plugin.test.echo".into(),
                 title: "回显".into(),
                 input_schema: json!({"type":"object"}),

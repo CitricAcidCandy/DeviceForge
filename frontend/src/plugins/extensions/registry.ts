@@ -6,6 +6,7 @@ import { ensureOwner, invoke, isSubmission } from './invocation.ts';
 import { contributionIds } from './types.ts';
 import type { ExtensionOwner, Owned } from './types.ts';
 import { createPluginScope } from '../scope.ts';
+import { awaitActive } from './await-active.ts';
 
 export function createExtensionRegistry() {
   const components = new Map<string, Owned<ComponentContribution>>();
@@ -16,6 +17,7 @@ export function createExtensionRegistry() {
   const ids = new Set<string>();
   const routes = new Set<string>();
   const bus = createExtensionBus();
+  const lifetime = new AbortController();
   let closed = false;
   const check = () => { if (closed) throw new HostError('cancelled', 'registry_closed', '扩展注册表已关闭'); };
   const metadata = (owner: ExtensionOwner, id: string) => ({ id, pluginId: owner.pluginId, generation: owner.generation });
@@ -59,12 +61,12 @@ export function createExtensionRegistry() {
   function executeCommand(id: string, input: JsonValue, signal: AbortSignal) {
     check(); const entry = commands.get(id);
     if (!entry) throw new HostError('protocol', 'command_unavailable', '命令已撤销或不存在');
-    return invoke(entry.owner, entry.contribution.execute, input, signal, () => commands.get(id) === entry);
+    return invoke(entry.owner, entry.contribution.execute, input, AbortSignal.any([signal, lifetime.signal]), () => commands.get(id) === entry);
   }
   function callService(id: string, version: string, input: JsonValue, signal: AbortSignal) {
     check(); const entry = services.get(id);
     if (!entry || entry.contribution.version !== version) throw new HostError('protocol', 'service_unavailable', '服务或请求版本不可用');
-    return invoke(entry.owner, entry.contribution.invoke, input, signal, () => services.get(id) === entry);
+    return invoke(entry.owner, entry.contribution.invoke, input, AbortSignal.any([signal, lifetime.signal]), () => services.get(id) === entry);
   }
   function access(pluginId: string, generation: number, signal: AbortSignal, track: (release: Dispose) => Dispose, dynamic?: (value: PluginContributions) => Dispose): ExtensionAccess {
     const current = () => { check(); if (signal.aborted) throw new HostError('cancelled', 'extension_revoked', '扩展上下文已撤销'); };
@@ -89,20 +91,22 @@ export function createExtensionRegistry() {
   }
   async function beforeTaskSubmit(initial: TaskSubmission, signal: AbortSignal): Promise<TaskSubmission> {
     check();
+    const current = AbortSignal.any([signal, lifetime.signal]);
+    if (current.aborted) throw new HostError('cancelled', 'cancelled', '任务提交等待已取消');
     if (!isSubmission(initial)) throw new HostError('protocol', 'invalid_submission', '任务输入无效');
     let value = initial;
     const ordered = [...hooks.values()].filter(alive).sort((a, b) => (a.contribution.priority ?? 0) - (b.contribution.priority ?? 0) || a.contribution.id.localeCompare(b.contribution.id));
     for (const entry of ordered) {
       const { owner, contribution } = entry; ensureOwner(owner);
-      if (hooks.get(contribution.id) !== entry || signal.aborted) throw new HostError('cancelled', 'hook_revoked', '任务钩子已撤销');
-      const combined = AbortSignal.any([signal, owner.context.signal]);
-      const next: unknown = await contribution.transform(value, owner.context, combined);
+      if (hooks.get(contribution.id) !== entry || current.aborted) throw new HostError('cancelled', 'hook_revoked', '任务钩子已撤销');
+      const combined = AbortSignal.any([current, owner.context.signal]);
+      const next: unknown = await awaitActive(() => contribution.transform(value, owner.context, combined), combined);
       ensureOwner(owner);
       if (combined.aborted || hooks.get(contribution.id) !== entry) throw new HostError('cancelled', 'stale_hook', '晚到钩子结果已撤销');
       if (!isSubmission(next)) throw new HostError('protocol', 'invalid_hook_result', '任务钩子返回无效输入');
       value = next;
     }
-    if (signal.aborted) throw new HostError('cancelled', 'cancelled', '任务提交等待已取消');
+    if (current.aborted) throw new HostError('cancelled', 'cancelled', '任务提交等待已取消');
     return value;
   }
   return {
@@ -110,7 +114,11 @@ export function createExtensionRegistry() {
     hostAccess: (context: HostContext) => access('host', 0, context.signal, context.onDispose),
     component: (id: string) => { check(); return components.get(id); },
     module: (id: string) => { check(); return modules.get(id); },
-    dispose() { closed = true; components.clear(); modules.clear(); commands.clear(); services.clear(); hooks.clear(); ids.clear(); routes.clear(); bus.clear(); },
+    dispose() {
+      closed = true;
+      lifetime.abort();
+      components.clear(); modules.clear(); commands.clear(); services.clear(); hooks.clear(); ids.clear(); routes.clear(); bus.clear();
+    },
   };
 }
 export type ExtensionRegistry = ReturnType<typeof createExtensionRegistry>;

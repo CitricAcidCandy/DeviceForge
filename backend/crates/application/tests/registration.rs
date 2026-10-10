@@ -5,6 +5,7 @@ use serde_json::json;
 #[test]
 fn offline_validation_shares_namespace_schema_and_duplicate_rules() {
     let operation = Operation {
+        execution: None,
         id: "plugin.example.echo".into(),
         title: "回显".into(),
         input_schema: json!({"type":"object","additionalProperties":false}),
@@ -25,6 +26,7 @@ fn offline_validation_shares_namespace_schema_and_duplicate_rules() {
     ] {
         assert!(
             validate_operations(&[Operation {
+                execution: None,
                 id: id.into(),
                 title: "无效".into(),
                 input_schema: schema

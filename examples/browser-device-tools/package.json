@@ -1,0 +1,19 @@
+{
+  "name": "deviceforge-browser-device-tools-example",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "通过公开 SDK v2 消费设备能力、任务和生命周期的浏览器插件示例",
+  "files": ["src", "plugin.json", "tests", "README.md"],
+  "scripts": {
+    "test": "node --test tests/example.test.mjs"
+  },
+  "engines": { "node": ">=22" },
+  "deviceforge": {
+    "kind": "browser",
+    "manifest": "plugin.json",
+    "entrypoints": {
+      "any": { "runtime": "browser", "path": "src/index.mjs" }
+    }
+  }
+}

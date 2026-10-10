@@ -50,11 +50,11 @@ async function pendingDiscovery(client, item, label) {
   return { response, task };
 }
 
-async function cancelledRefresh(response) {
+async function rejectedRefresh(response, code) {
   const reply = await response;
   if (reply.error) throw reply.error;
   assert.equal(reply.value.status, 409);
-  assert.equal(reply.value.body.error.code, 'cancelled');
+  assert.equal(reply.value.body.error.code, code);
 }
 
 export async function verifyLifecycle({ client, first, second, report }) {
@@ -77,7 +77,7 @@ export async function verifyLifecycle({ client, first, second, report }) {
 
   const explicit = await pendingDiscovery(client, first, 'cancel-discovery');
   assert.equal((await client.post(`/api/v2/jobs/${explicit.task.id}/cancel`)).status, 'cancelled');
-  await cancelledRefresh(explicit.response);
+  await rejectedRefresh(explicit.response, 'cancelled');
   await client.finished(explicit.task.id, 'cancelled');
   const discoveryEvidence = await cleaned(first, 'cancel-discovery', { cancelled: true });
   await assertNoDirectory(client, first.provider);
@@ -92,7 +92,8 @@ export async function verifyLifecycle({ client, first, second, report }) {
   const detached = await client.manage(first.id, 'unload', 'mcp');
   const refreshEvidence = await cleaned(first, 'unload-discovery', { cancelled: true, atReturn: true });
   assert.equal(detached.cleanup_failed, false);
-  await cancelledRefresh(refreshing.response);
+  // owner 撤销是当前性冲突；显式用户取消才返回 cancelled。
+  await rejectedRefresh(refreshing.response, 'conflict');
   await client.finished(refreshing.task.id, 'cancelled');
   await hidden(client, first);
   await reload(client, first, generation, 'reload-after-discovery');

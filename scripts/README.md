@@ -30,4 +30,22 @@ cli-smoke-devices.mjs 将公开 Node 设备示例打成 TGZ，并在同一 npx �
 
 浏览器驱动使用独立临时配置目录，不连接用户浏览器。可用 `DEVICEFORGE_TEST_BROWSER` 指定 Chromium 系浏览器路径；默认尝试本机 Edge/Chrome。报告写入 `artifacts/browser-plugin-smoke-<构建模式>.json`。这是框架行为验收，不是产品界面视觉、真机、跨平台或容量验收。
 
+报告的 `host_sha256` 与 `host_bytes` 来自实际提供给浏览器的生产宿主原字节。`browser.deviceDefinitions` 记录设备命令成功调用时观察到的提供者代际、设备 `apiVersion` 及各能力 `executionTimeoutMs`/`executionTimeoutOmitted`，不使用浏览器安装包版本推断设备契约；省略值记录为 `null`。现有 `runBrowser` 不返回实际浏览器路径/版本，`browser_runtime` 因此明确标为未记录，不把候选路径当成已选路径。此轮元数据补充的语法检查不代表已真实运行，debug/release 报告须统一门禁后更新。
+
 设备提供者第一阶段扩展后，浏览器验收另外上传独立公开 Node 示例包，再由上传浏览器插件通过 HostContext.devices 查询提供者、发现设备及提交能力任务。卸载/重载后验证目录撤销、历史保留与旧设备引用拒绝；示例明确为 synthetic_demo。当前代码须在新设备宿主和前端构建完成后运行，旧报告不证明新增范围通过。
+
+## 操作绑定真实验收
+
+`node scripts/operation-alias-smoke.mjs` 运行当前 debug 宿主；release 重建后追加 `--release`。部署静态 JSON，在线安装协议 3 模拟包，验证 HTTP/MCP 单 Job、旧输入与真实目标封套、预留入口无内置回退、普通目标不能绕发现、投影失败、旧/新入口共享锁、取消、卸载排队零执行、重载新代与历史保留。职责和边界见 [操作绑定验收](operation-alias/README.md)。
+
+cli-smoke-alias.mjs 为既有真实 npx 两阶段增加相对绑定配置路径和普通插件别名执行：同一测试 TGZ 的令牌阶段与默认免令牌阶段都经独立 MCP 端口提交，再经 HTTP 查询原名称、输入和结果。脚本新增覆盖不代表已运行，当前命令和分发摘要见根 todo。
+
+## 统一发现与执行身份
+
+`npm run smoke:discovery` 运行当前 debug 宿主，追加 `-- --release` 使用当前 release；`npm run smoke:discovery:browser` 验收生产前端的统一发现消费，实际结果以报告和 OS 退出码为准。夹具与 HTTP/MCP 矩阵见 [统一发现验收](unified-discovery-smoke/README.md)，三入口和 API1/2/3 不因其中一项通过就视为整批完成。
+
+`cli-smoke-evidence.mjs` 由真实 CLI smoke 编排。打包后立即将当次实际 TGZ 字节保存到独立 `artifacts/npx-raw-*` 目录，记录摘要；两阶段分别记录独立 npm 缓存中的实际 Rust、校验器、运行清单和生产前端宿主文件，核对同一资源摘要及在线宿主字节，报告不序列化凭据、请求头或环境变量。失败保留本次临时目录与脱敏日志副本，成功才清理临时目录；真实归档副本和报告持续保留。新增脚本的静态通过不能代替实际 npx 运行。
+
+`cli-smoke-archive.mjs` 只读当次保留 TGZ 的全部普通成员，检查头校验、重复、链接与越界后逐文件核对缓存字节数和 SHA256，并核对 npm bin 入口；不以重新打包的归档替代实际安装包。失败时先保存 `failure-before-cleanup.json`，`cli-smoke-cleanup.mjs` 再有界关闭本次宿主、记录包装进程退出与两个端口各自状态；限流退避也受关闭总等待上限约束。`node --import ./scripts/cli-smoke-controlled-failure.mjs scripts/cli-smoke.mjs` 仅在本入口第一次成功读取生产宿主正文后注入 `CliControlledFailure`，用于独立验证真实失败分支，不能把任意退出1算作注入通过。
+
+CLI smoke 的高频行为矩阵显式使用本次 `10000` 请求/秒配置并记录到报告，生产默认不变，不构成限流容量或性能结论。统一发现辅助区分 CLI 离线部署与在线包视图：在线DELETE对离线夹具返回404；完成卸载与贡献撤销后，仅清理已校验的本轮临时离线目录，不表示生产CLI卸载命令或在线包统一管理已完成。

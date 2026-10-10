@@ -1,0 +1,477 @@
+{
+  "id": "android-device",
+  "version": "0.1.0",
+  "protocol_version": 4,
+  "args": [],
+  "devices": {
+    "api_version": 3,
+    "platform": "android",
+    "discover_operation": "discover",
+    "capabilities": [
+      {
+        "id": "connect",
+        "version": 1,
+        "operation": "connect",
+        "scope": "provider",
+        "access": "write",
+        "execution_timeout_ms": 30000
+      },
+      {
+        "id": "disconnect",
+        "version": 1,
+        "operation": "disconnect",
+        "scope": "provider",
+        "access": "write",
+        "execution_timeout_ms": 30000
+      },
+      {
+        "id": "packages",
+        "version": 1,
+        "operation": "packages",
+        "scope": "device",
+        "access": "read",
+        "execution_timeout_ms": 30000
+      },
+      {
+        "id": "app.start",
+        "version": 1,
+        "operation": "app.start",
+        "scope": "device",
+        "access": "write",
+        "execution_timeout_ms": 30000
+      },
+      {
+        "id": "app.stop",
+        "version": 1,
+        "operation": "app.stop",
+        "scope": "device",
+        "access": "write",
+        "execution_timeout_ms": 30000
+      },
+      {
+        "id": "app.uninstall",
+        "version": 1,
+        "operation": "app.uninstall",
+        "scope": "device",
+        "access": "write",
+        "execution_timeout_ms": 120000
+      },
+      {
+        "id": "input",
+        "version": 1,
+        "operation": "input",
+        "scope": "device",
+        "access": "write",
+        "execution_timeout_ms": 30000
+      }
+    ]
+  },
+  "operations": [
+    {
+      "name": "discover",
+      "title": "发现Android设备",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {},
+        "required": []
+      }
+    },
+    {
+      "name": "connect",
+      "title": "连接Android设备",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "device_id": {
+            "type": "null"
+          },
+          "input": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "address": {
+                "type": "string",
+                "minLength": 3,
+                "maxLength": 200,
+                "pattern": "^(?:[A-Za-z0-9.-]+|\\[[0-9A-Fa-f:.]+\\]):[0-9]+$",
+                "description": "运行时校验IPv4/DNS或方括号IPv6及1至65535端口"
+              }
+            },
+            "required": [
+              "address"
+            ]
+          }
+        },
+        "required": [
+          "device_id",
+          "input"
+        ]
+      }
+    },
+    {
+      "name": "disconnect",
+      "title": "断开指定Android连接",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "device_id": {
+            "type": "null"
+          },
+          "input": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "address": {
+                "type": "string",
+                "minLength": 3,
+                "maxLength": 200,
+                "pattern": "^(?:[A-Za-z0-9.-]+|\\[[0-9A-Fa-f:.]+\\]):[0-9]+$",
+                "description": "运行时校验IPv4/DNS或方括号IPv6及1至65535端口"
+              }
+            },
+            "required": [
+              "address"
+            ]
+          }
+        },
+        "required": [
+          "device_id",
+          "input"
+        ]
+      }
+    },
+    {
+      "name": "packages",
+      "title": "列出Android应用",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "device_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "pattern": "^[^-]",
+            "not": {
+              "anyOf": [
+                {
+                  "pattern": "^\\s*$"
+                },
+                {
+                  "pattern": "[\\u0000-\\u001F\\u007F-\\u009F]"
+                }
+              ]
+            },
+            "description": "保留原文；运行时另校最多200个UTF-8字节，不以ASCII字符集收紧"
+          },
+          "input": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {},
+            "required": []
+          }
+        },
+        "required": [
+          "device_id",
+          "input"
+        ]
+      }
+    },
+    {
+      "name": "app.start",
+      "title": "启动Android应用",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "device_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "pattern": "^[^-]",
+            "not": {
+              "anyOf": [
+                {
+                  "pattern": "^\\s*$"
+                },
+                {
+                  "pattern": "[\\u0000-\\u001F\\u007F-\\u009F]"
+                }
+              ]
+            },
+            "description": "保留原文；运行时另校最多200个UTF-8字节，不以ASCII字符集收紧"
+          },
+          "input": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "package": {
+                "type": "string",
+                "minLength": 3,
+                "maxLength": 200,
+                "pattern": "^[A-Za-z][A-Za-z0-9_]*(?:\\.[A-Za-z][A-Za-z0-9_]*)+$"
+              }
+            },
+            "required": [
+              "package"
+            ]
+          }
+        },
+        "required": [
+          "device_id",
+          "input"
+        ]
+      }
+    },
+    {
+      "name": "app.stop",
+      "title": "停止Android应用",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "device_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "pattern": "^[^-]",
+            "not": {
+              "anyOf": [
+                {
+                  "pattern": "^\\s*$"
+                },
+                {
+                  "pattern": "[\\u0000-\\u001F\\u007F-\\u009F]"
+                }
+              ]
+            },
+            "description": "保留原文；运行时另校最多200个UTF-8字节，不以ASCII字符集收紧"
+          },
+          "input": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "package": {
+                "type": "string",
+                "minLength": 3,
+                "maxLength": 200,
+                "pattern": "^[A-Za-z][A-Za-z0-9_]*(?:\\.[A-Za-z][A-Za-z0-9_]*)+$"
+              }
+            },
+            "required": [
+              "package"
+            ]
+          }
+        },
+        "required": [
+          "device_id",
+          "input"
+        ]
+      }
+    },
+    {
+      "name": "app.uninstall",
+      "title": "卸载Android应用",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "device_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "pattern": "^[^-]",
+            "not": {
+              "anyOf": [
+                {
+                  "pattern": "^\\s*$"
+                },
+                {
+                  "pattern": "[\\u0000-\\u001F\\u007F-\\u009F]"
+                }
+              ]
+            },
+            "description": "保留原文；运行时另校最多200个UTF-8字节，不以ASCII字符集收紧"
+          },
+          "input": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "package": {
+                "type": "string",
+                "minLength": 3,
+                "maxLength": 200,
+                "pattern": "^[A-Za-z][A-Za-z0-9_]*(?:\\.[A-Za-z][A-Za-z0-9_]*)+$"
+              }
+            },
+            "required": [
+              "package"
+            ]
+          }
+        },
+        "required": [
+          "device_id",
+          "input"
+        ]
+      }
+    },
+    {
+      "name": "input",
+      "title": "派发Android输入",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "device_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "pattern": "^[^-]",
+            "not": {
+              "anyOf": [
+                {
+                  "pattern": "^\\s*$"
+                },
+                {
+                  "pattern": "[\\u0000-\\u001F\\u007F-\\u009F]"
+                }
+              ]
+            },
+            "description": "保留原文；运行时另校最多200个UTF-8字节，不以ASCII字符集收紧"
+          },
+          "input": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "action": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "kind": {
+                        "const": "tap"
+                      },
+                      "x": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 32767
+                      },
+                      "y": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 32767
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "x",
+                      "y"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "kind": {
+                        "const": "swipe"
+                      },
+                      "x1": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 32767
+                      },
+                      "y1": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 32767
+                      },
+                      "x2": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 32767
+                      },
+                      "y2": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 32767
+                      },
+                      "duration_ms": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 10000
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "x1",
+                      "y1",
+                      "x2",
+                      "y2",
+                      "duration_ms"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "kind": {
+                        "const": "keyevent"
+                      },
+                      "key_code": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 65535
+                      },
+                      "long_press": {
+                        "type": "boolean",
+                        "default": false
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "key_code"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "kind": {
+                        "const": "text"
+                      },
+                      "text": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 1024,
+                        "pattern": "^[ -~]+$"
+                      },
+                      "enter": {
+                        "type": "boolean",
+                        "default": false
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "text"
+                    ]
+                  }
+                ]
+              }
+            },
+            "required": [
+              "action"
+            ]
+          }
+        },
+        "required": [
+          "device_id",
+          "input"
+        ]
+      }
+    }
+  ]
+}

@@ -31,6 +31,7 @@ fn manifest(directory: &Path, mode: &str) -> Manifest {
             name: "wait".into(),
             title: "合作等待".into(),
             input_schema: json!({"type":"object"}),
+            execution: None,
         }],
     }
 }
@@ -476,7 +477,8 @@ async fn real_application_failed_cleanup_keeps_draining_owner_and_rejects_repeat
         ));
         assert_eq!(service.list()[0].generation, generation);
         let terminal = app.get_async(job.id).await.unwrap();
-        assert_eq!(terminal.status, JobStatus::Cancelled);
+        assert_eq!(terminal.status, JobStatus::Failed);
+        assert_eq!(terminal.error, Some(Error::CleanupFailed.to_string()));
         assert!(terminal.result.is_none());
         assert!(!directory.path().join("cleaned").exists());
         service.close();

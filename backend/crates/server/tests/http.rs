@@ -16,6 +16,7 @@ struct Echo;
 impl Executor for Echo {
     fn operations(&self) -> Vec<Operation> {
         vec![Operation {
+            execution: None,
             id: "plugin.test.echo".into(),
             title: "回显".into(),
             input_schema: json!({"type":"object"}),

@@ -34,5 +34,7 @@ npx --yes --package .\artifacts\deviceforge-cli-0.1.0.tgz deviceforge plugin lis
 
 协议 2/3 设备插件可通过 `artifacts.input_pointers` 选择嵌套业务参数中的产物 ID，例如 `/input/artifact_id`；宿主提前校验、准备摘要一致的独立副本，并发布输出文件。debug/release 真实服务及同一 tgz 的 npx 两协议安装、HTTP/独立 MCP、副本与输出、在途卸载和历史验收已通过，见 [插件产物协议](backend/docs/插件产物协议.md)。Android/Harmony 仍待迁出宿主。
 
+平台迁出的首步已交付独立 [异步工具执行库](backend/crates/tool-process/README.md)，提供 argv、环境、字节/文件输出、限额、绝对截止时间和有界直接进程回收。宿主已经回接，非合作插件清理失败或执行 Future 丢弃保留未确认状态。当前后端 248 项测试、debug/release 运行及真实 npx 通过；实际平台插件、旧操作统一准入和性能会话热卸载继续按 [迁出方案](backend/docs/平台适配器迁出实施.md) 实施。
+
 尚未发布 npm registry，`npx @deviceforge/cli` 的在线启动仍待公开发布。其他平台、另一台局域网客户端、真机与具体产品视觉需要独立验收；平台适配器迁出、常驻会话、Frida、自动化、投屏等仍按迁移清单推进。
 

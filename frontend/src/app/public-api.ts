@@ -3,10 +3,16 @@ import type { HostResult, Job, Operation } from '../plugin-sdk/index.ts';
 import { ApiError } from '../shared/api/index.ts';
 import type { JobDto, OperationDto } from '../shared/api/index.ts';
 import { isJsonValue } from '../plugin-sdk/json.ts';
+import { isOperationExecution } from '../shared/api/operation-execution-validation.ts';
 
 export function publicOperation(dto: OperationDto): Operation {
   if (!isJsonValue(dto.input_schema)) throw new HostError('protocol', 'invalid_schema', '操作模式不是 JSON 值');
-  return { id: dto.id, title: dto.title, input_schema: dto.input_schema };
+  if (!isOperationExecution(dto.execution)) throw new HostError('protocol', 'invalid_execution', '操作执行预算不符合公开契约');
+  return { id: dto.id, title: dto.title, input_schema: dto.input_schema,
+    ...(dto.execution === undefined || dto.execution === null ? {} : { execution: {
+      apiVersion: 1, totalTimeoutMs: dto.execution.total_timeout_ms, source: dto.execution.source,
+    } }),
+  };
 }
 export function publicJob(dto: JobDto): Job {
   const result: unknown = dto.result ?? null;

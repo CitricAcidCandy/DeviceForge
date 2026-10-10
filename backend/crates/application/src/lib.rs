@@ -1,24 +1,34 @@
-use apk_domain::{Error, Executor, Job, JobEvent, JobStatus, JobStore, Operation, Result, now};
-use deviceforge_observability::LogContext;
-use futures_util::FutureExt;
-use serde_json::Value;
+use apk_domain::{Error, Executor, Job, JobEvent, JobStore, Operation, Result};
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, BTreeSet},
     sync::{Arc, Mutex},
 };
 use tokio::sync::Semaphore;
 use tokio_util::{sync::CancellationToken, task::TaskTracker};
-use tracing::Instrument;
+mod alias_plan;
+#[cfg(test)]
+mod alias_regression;
 mod blocking;
+mod completion;
 pub mod devices;
 mod execution;
+pub mod operation_aliases;
+mod operation_budget;
 pub mod plugin_lifecycle;
 pub mod plugin_packages;
 pub mod registration;
 mod registry;
+mod registry_aliases;
+mod runner;
+mod submission;
+mod submission_reservation;
+mod terminal;
 struct Active {
     accepting: bool,
     tokens: BTreeMap<String, CancellationToken>,
+    completions: BTreeMap<String, Arc<completion::Completion>>,
+    discoveries: BTreeMap<String, Arc<devices::attempt::Attempt>>,
+    creating: BTreeSet<String>,
 }
 pub struct Application {
     store: Arc<dyn JobStore>,
@@ -39,10 +49,20 @@ impl Application {
         concurrency: usize,
         capacity: usize,
     ) -> Result<Arc<Self>> {
+        Self::new_with_bindings(store, executors, concurrency, capacity, Default::default())
+    }
+
+    pub fn new_with_bindings(
+        store: Arc<dyn JobStore>,
+        executors: Vec<Arc<dyn Executor>>,
+        concurrency: usize,
+        capacity: usize,
+        bindings: operation_aliases::Config,
+    ) -> Result<Arc<Self>> {
         if concurrency == 0 || capacity < concurrency {
             return Err(Error::Invalid("并发数必须大于零且不超过任务容量".into()));
         }
-        let registry = registry::Registry::new(executors)?;
+        let registry = registry::Registry::new_with_bindings(executors, bindings)?;
         store.recover()?;
         Ok(Arc::new(Self {
             store,
@@ -50,6 +70,9 @@ impl Application {
             active: Arc::new(Mutex::new(Active {
                 accepting: true,
                 tokens: BTreeMap::new(),
+                completions: BTreeMap::new(),
+                discoveries: BTreeMap::new(),
+                creating: BTreeSet::new(),
             })),
             storage_workers: Arc::new(Semaphore::new(4)),
             workers: Arc::new(Semaphore::new(concurrency)),
@@ -84,239 +107,100 @@ impl Application {
         self.store.events(id, after)
     }
 
-    pub fn submit(self: &Arc<Self>, operation: &str, input: Value) -> Result<Job> {
-        let registered = self.registry.find(operation)?;
-        self.submit_registered(operation, input, registered, None)
+    pub(crate) fn request_cancel(&self, id: &str) -> Result<()> {
+        self.request_cancel_gate(id).map(|_| ())
     }
-    pub(crate) fn submit_registered(
-        self: &Arc<Self>,
-        operation: &str,
-        input: Value,
-        registered: Arc<registry::Registered>,
-        external: Option<CancellationToken>,
-    ) -> Result<Job> {
-        registered
-            .validator
-            .validate(&input)
-            .map_err(|e| Error::Invalid(format!("操作输入不符合模式：{e}")))?;
-        let mut active = self
-            .active
-            .lock()
-            .map_err(|e| Error::Storage(e.to_string()))?;
-        if !active.accepting {
-            return Err(Error::Conflict("服务正在停止接收任务".into()));
+    fn request_cancel_gate(&self, id: &str) -> Result<Option<Arc<completion::Completion>>> {
+        let (token, attempt, completion) = {
+            let active = self
+                .active
+                .lock()
+                .map_err(|e| Error::Storage(e.to_string()))?;
+            (
+                active.tokens.get(id).cloned(),
+                active.discoveries.get(id).cloned(),
+                active.completions.get(id).cloned(),
+            )
+        };
+        // Job 成功资格不等于发现目录接受资格，取消必须独立关闭观测门禁。
+        if let Some(attempt) = attempt {
+            attempt.reject(devices::attempt::Rejection::Cancelled);
         }
-        if !self.registry.current(operation, &registered)? {
-            return Err(Error::Conflict("插件贡献已撤销或重载，请重新提交".into()));
-        }
-        if registered
-            .owner
+        if completion
             .as_ref()
-            .is_some_and(|owner| owner.info().cleanup_failed)
+            .map(|completion| completion.request_cancel())
+            .transpose()?
+            .unwrap_or(true)
+            && let Some(token) = token
         {
-            return Err(Error::Conflict("插件资源清理未确认，拒绝新任务".into()));
+            token.cancel();
         }
-        if external
-            .as_ref()
-            .is_some_and(CancellationToken::is_cancelled)
-        {
-            return Err(Error::Cancelled);
-        }
-        let selection = self
-            .registry
-            .device_admission(&registered, &input)?
-            .map(|(provider, device, cap)| {
-                self.device_locks
-                    .selection(&provider, device.as_deref(), &cap.scope, &cap.access)
-            })
-            .transpose()?;
-        let deadline = selection
-            .as_ref()
-            .map(|_| tokio::time::Instant::now() + std::time::Duration::from_secs(30));
-        if active.tokens.len() >= self.capacity {
-            return Err(Error::Conflict("任务队列已满".into()));
-        }
-        let job = Job {
-            id: uuid::Uuid::new_v4().to_string(),
-            operation: operation.into(),
-            input,
-            status: JobStatus::Queued,
-            result: None,
-            error: None,
-            created_at: now(),
-        };
-        self.store.create(&job)?;
-        let token = registered
-            .owner
-            .as_ref()
-            .map(|owner| owner.cancel.child_token())
-            .unwrap_or_default();
-        active.tokens.insert(job.id.clone(), token.clone());
-        let app = self.clone();
-        let executor = registered.executor.clone();
-        let owner = registered.owner.clone();
-        let queued = job.clone();
-        let context = LogContext::current().unwrap_or_default();
-        let span =
-            tracing::info_span!("任务", log_id = %context.log_id, job_id = %job.id, operation);
-        tracing::info!(parent: &span, "任务已排队");
-        let future = async move {
-            context
-                .scope(
-                    async move {
-                        let execution = app.run(&queued, executor, token.clone(),selection,owner,deadline);
-                        tokio::pin!(execution);
-                        let result = if let Some(external)=external {
-                            tokio::select! {biased; _=external.cancelled()=>{token.cancel(); execution.await}, result=&mut execution=>result}
-                        }else{execution.await};
-                        if let Err(error) = result {
-                            tracing::error!(code = error.code(), "任务生命周期处理失败");
-                            let _ = app
-                                .transition_async(
-                                    queued.id.clone(),
-                                    JobStatus::Failed,
-                                    None,
-                                    Some(error.to_string()),
-                                )
-                                .await;
-                        }
-                        if let Ok(mut active) = app.active.lock() {
-                            active.tokens.remove(&queued.id);
-                        }
-                    }
-                    .instrument(span),
-                )
-                .await
-        };
-        if let Some(owner) = &registered.owner {
-            self.tracker.spawn(owner.tracker.track_future(future));
-        } else {
-            self.tracker.spawn(future);
-        }
-        Ok(job)
-    }
-    async fn run(
-        &self,
-        job: &Job,
-        executor: Arc<dyn Executor>,
-        token: CancellationToken,
-        selection: Option<devices::locks::Selection>,
-        owner: Option<Arc<registry::Owner>>,
-        deadline: Option<tokio::time::Instant>,
-    ) -> Result<()> {
-        let _device_guard = match selection {
-            Some(selection) => match selection
-                .acquire_until(&token, deadline.expect("设备任务已设置期限"))
-                .await
-            {
-                Ok(guard) => Some(guard),
-                Err(Error::Cancelled) => {
-                    self.transition_async(job.id.clone(), JobStatus::Cancelled, None, None)
-                        .await?;
-                    return Ok(());
-                }
-                Err(error) => return Err(error),
-            },
-            None => None,
-        };
-        let _permit = tokio::select! {
-            biased;
-            _ = token.cancelled() => {
-                self.transition_async(job.id.clone(), JobStatus::Cancelled, None, None).await?;
-                return Ok(());
-            },
-            _=devices::locks::deadline(deadline)=>return Err(Error::Timeout),
-            permit = self.workers.acquire() => permit.map_err(|e| Error::Dependency(e.to_string()))?,
-        };
-        // 排队期间另一任务可能留下未确认资源；不能在取得共享锁后继续执行。
-        if owner
-            .as_ref()
-            .is_some_and(|owner| owner.info().cleanup_failed)
-        {
-            return Err(Error::Conflict("插件资源清理未确认，排队任务被拒绝".into()));
-        }
-        let running = self
-            .transition_async(job.id.clone(), JobStatus::Running, None, None)
-            .await?;
-        if running.status.is_terminal() {
-            return Ok(());
-        }
-        if token.is_cancelled() {
-            self.transition_async(job.id.clone(), JobStatus::Cancelled, None, None)
-                .await?;
-            return Ok(());
-        }
-        tracing::info!("任务开始执行");
-        let execution = std::panic::AssertUnwindSafe(execution::execute(
-            executor.as_ref(),
-            &job.operation,
-            job.input.clone(),
-            token.clone(),
-            owner.as_deref(),
-            deadline,
-        ))
-        .catch_unwind();
-        tokio::pin!(execution);
-        let result = tokio::select! {
-            biased;
-            _ = token.cancelled() => {
-                // 给予异步执行器有限清理时间，超时后释放 Future；取消后不接受晚到成功。
-                let _ = tokio::time::timeout(std::time::Duration::from_secs(2), &mut execution).await;
-                Err(Error::Cancelled)
-            },
-            _=devices::locks::deadline(deadline)=>{
-                token.cancel();
-                let _=tokio::time::timeout(std::time::Duration::from_secs(2),&mut execution).await;
-                Err(Error::Timeout)
-            },
-            result = &mut execution => result.unwrap_or_else(|_| Err(Error::Dependency("执行器发生内部异常".into()))),
-        };
-        let (status, output, error) = match result {
-            Ok(value) => (JobStatus::Succeeded, Some(value), None),
-            Err(Error::Cancelled) => (JobStatus::Cancelled, None, None),
-            Err(error) => {
-                tracing::warn!(code = error.code(), "任务执行失败");
-                (JobStatus::Failed, None, Some(error.to_string()))
-            }
-        };
-        let terminal = self
-            .transition_async(job.id.clone(), status, output, error)
-            .await?;
-        tracing::info!(status = ?terminal.status, "任务执行已收敛");
-        Ok(())
+        Ok(completion)
     }
     pub fn cancel(&self, id: &str) -> Result<Job> {
-        let active = self
-            .active
-            .lock()
-            .map_err(|e| Error::Storage(e.to_string()))?;
+        let completion = self.request_cancel_gate(id)?;
         let job = self.store.get(id)?;
         tracing::info!(job_id = %job.id, "收到任务取消请求");
         if job.status.is_terminal() {
             return Ok(job);
         }
-        let cancelled = self
-            .store
-            .transition(id, JobStatus::Cancelled, None, None)?;
-        if let Some(token) = active.tokens.get(id) {
-            token.cancel();
-        }
+        let token = self
+            .active
+            .lock()
+            .map_err(|_| Error::Storage("取消准入状态异常".into()))?
+            .tokens
+            .get(id)
+            .cloned();
+        let cancelled =
+            terminal::cancelled(self.store.as_ref(), id, completion.as_ref(), token.as_ref())?;
         Ok(cancelled)
     }
     pub async fn shutdown(&self) -> Result<()> {
         tracing::info!("任务服务开始停止");
-        let active = self.active.clone();
+        let (tokens, persisted, completions, attempts) = {
+            let mut active = self
+                .active
+                .lock()
+                .map_err(|_| Error::Storage("停止准入状态异常".into()))?;
+            active.accepting = false;
+            (
+                active.tokens.clone(),
+                active
+                    .tokens
+                    .iter()
+                    .filter(|(id, _)| !active.creating.contains(*id))
+                    .map(|(id, token)| (id.clone(), token.clone()))
+                    .collect::<BTreeMap<_, _>>(),
+                active.completions.clone(),
+                active.discoveries.clone(),
+            )
+        };
+        for attempt in attempts.values() {
+            attempt.reject(devices::attempt::Rejection::Cancelled);
+        }
+        for (id, token) in &tokens {
+            if completions
+                .get(id)
+                .map(|completion| completion.request_cancel())
+                .transpose()?
+                .unwrap_or(true)
+            {
+                if let Some(attempt) = attempts.get(id) {
+                    attempt.reject(devices::attempt::Rejection::Cancelled);
+                }
+                token.cancel();
+            }
+        }
         let failure = self
             .storage(move |store| {
                 let mut failure = None;
-                let mut active = active.lock().map_err(|e| Error::Storage(e.to_string()))?;
-                active.accepting = false;
-                for (id, token) in &active.tokens {
+                for (id, token) in &persisted {
                     // 存储失败也必须释放执行资源，不能提前退出清理。
-                    if let Err(error) = store.transition(id, JobStatus::Cancelled, None, None) {
+                    if let Err(error) =
+                        terminal::cancelled(store, id, completions.get(id), Some(token))
+                    {
                         failure.get_or_insert(error);
                     }
-                    token.cancel();
                 }
                 Ok(failure)
             })

@@ -73,10 +73,7 @@ async fn setup(
         &[("AndroidManifest.xml", b"fixture")],
     )
     .await;
-    let adapter = AndroidReverse {
-        artifacts: artifacts.clone(),
-        apktool: Some(command(mode)),
-    };
+    let adapter = AndroidReverse::new(artifacts.clone(), Some(command(mode)));
     (directory, artifacts, adapter, apk)
 }
 fn rule(name: &str, path: &str, class: Option<&str>) -> SdkRule {

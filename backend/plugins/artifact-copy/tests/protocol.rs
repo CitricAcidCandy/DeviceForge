@@ -23,6 +23,7 @@ fn manifest(outputs: bool) -> Manifest {
             name: "copy".into(),
             title: "复制产物".into(),
             input_schema: json!({"type":"object"}),
+            execution: None,
         }],
     }
 }

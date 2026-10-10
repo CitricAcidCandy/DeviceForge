@@ -13,7 +13,9 @@ AndroidReverse 实现 PackageReverse，反编译 APK 后发布 ZIP，再按规�
 包目录匹配使用完整路径段边界，com.example.sdk 不匹配 com.example.sdk2。检测点为指定包下精确 class_name.smali。每条最多十条排序后的路径证据，检测点通过时保证其出现在证据中。这里只检查 ZIP 目录，不解压 smali 内容或校验其 CRC，不推断 SDK 版本或运行时状态。
 
 ## 资源与清理
-每个任务独占输出和 framework 缓存，取消后回收临时目录；不使用共享反编译目录、全局 isRunning 或用户服务器路径。
+每个任务独占输出和 framework 缓存，实际同步工作持有临时目录；不使用共享反编译目录、全局 isRunning 或用户服务器路径。目录删除与完整派生树确认不由同步池排空证明。
+
+decode.rs 仅编排，packing.rs / scanning.rs 通过独立 android-package-core 完成树、Stored ZIP 与 smali 规则。with_capacity 与其他包适配器共用四槽实际同步容量，各实例独立记录风险；decode_with_context / scan_sdks_with_context 的 Some(D) 所有阶段复用原点，None 保留原 120 秒分阶段预算。工具与在飞树监测只共享一次两秒并发清理窗口，CleanupFailed 优先返回且禁止发布；工具 Future 丢弃标记持久保留，正常被等待的并发工作不算未确认。
 
 输入单文件最大 64 MiB，准备、工具、打包和发布各阶段最多 120 秒。工具标准输出与错误各最多 1 MiB。输出目录限制 10000 个文件 / 目录条目、128 层以及普通文件总量 64 MiB；工具运行时每次检查完成后间隔 500 毫秒再次检查，超限时取消工具并等待退出。该监测是定期检查，不是操作系统磁盘硬配额，工具快速写入可能短暂超限；framework 缓存不计入输出统计。部署级磁盘配额尚待配置服务实现。
 

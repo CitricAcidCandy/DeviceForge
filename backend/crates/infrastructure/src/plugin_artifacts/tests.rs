@@ -10,6 +10,8 @@ struct RecordingStore {
     inner: Arc<FileArtifacts>,
     reads: Mutex<Vec<String>>,
     downloads: Mutex<Vec<String>>,
+    writes: Mutex<Vec<String>>,
+    publication_deadline: Option<Instant>,
     metadata_size: Option<u64>,
     hold_metadata: bool,
     metadata_entered: tokio::sync::Notify,
@@ -20,6 +22,8 @@ impl RecordingStore {
             inner,
             reads: Mutex::new(Vec::new()),
             downloads: Mutex::new(Vec::new()),
+            writes: Mutex::new(Vec::new()),
+            publication_deadline: None,
             metadata_size: None,
             hold_metadata: false,
             metadata_entered: tokio::sync::Notify::new(),
@@ -29,6 +33,26 @@ impl RecordingStore {
 #[async_trait]
 impl ArtifactStore for RecordingStore {
     async fn put(&self, filename: String, stream: ArtifactStream) -> Result<Artifact> {
+        let ordinal = {
+            let mut writes = self.writes.lock().unwrap();
+            writes.push(filename.clone());
+            writes.len()
+        };
+        if let Some(deadline) = self.publication_deadline {
+            if ordinal == 1 {
+                tokio::time::sleep_until(deadline - Duration::from_millis(300)).await;
+                // 内存端口模拟首个发布已提交，后续发布保持等待以验证共享预算。
+                return Ok(Artifact {
+                    id: uuid::Uuid::new_v4().to_string(),
+                    filename,
+                    media_type: "application/json".into(),
+                    size: 2,
+                    sha256: "0".repeat(64),
+                    created_at: 0,
+                });
+            }
+            return std::future::pending().await;
+        }
         self.inner.put(filename, stream).await
     }
     async fn get(&self, id: &str) -> Result<Artifact> {
@@ -104,6 +128,41 @@ fn capabilities_reject_duplicate_and_nested_fields() {
         );
     }
 }
+
+#[tokio::test]
+async fn multiple_publications_share_deadline_and_do_not_start_later_output() {
+    let (_directory, inner, files) = setup().await;
+    for filename in ["first.json", "second.json", "third.json"] {
+        tokio::fs::write(files.output.as_ref().unwrap().join(filename), b"{}")
+            .await
+            .unwrap();
+    }
+    let deadline = Instant::now() + Duration::from_secs(1);
+    let mut store = RecordingStore::new(inner);
+    store.publication_deadline = Some(deadline);
+    let result = tokio::time::timeout(
+        Duration::from_secs(2),
+        files.publish_until(
+            Some(&store),
+            ["first.json", "second.json", "third.json"]
+                .into_iter()
+                .map(|filename| ArtifactOutput {
+                    filename: filename.into(),
+                })
+                .collect(),
+            CancellationToken::new(),
+            Some(deadline),
+        ),
+    )
+    .await
+    .expect("第二个产物不能重新获得 120 秒发布预算");
+    assert!(matches!(result, Err(Error::Timeout)));
+    assert_eq!(
+        *store.writes.lock().unwrap(),
+        vec!["first.json".to_owned(), "second.json".to_owned()]
+    );
+}
+
 #[tokio::test]
 async fn unauthorized_outputs_and_filename_escapes_are_rejected() {
     let (_directory, store, files) = setup().await;
@@ -343,6 +402,7 @@ async fn v2_protocol_rejects_invalid_responses_and_preserves_null_envelope() {
                 name: "check".into(),
                 title: "协议检查".into(),
                 input_schema: json!({"type":"object"}),
+                execution: None,
             }],
         })
         .unwrap();

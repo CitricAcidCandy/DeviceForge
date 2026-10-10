@@ -1,6 +1,17 @@
 //! 设备目录与离散能力用例；复用原任务、贡献快照及插件取消树。
+pub(crate) mod admission;
+#[cfg(test)]
+mod admission_storage_tests;
+pub(crate) mod attempt;
+#[cfg(test)]
+mod attempt_tests;
+#[cfg(test)]
+mod deadlines;
 pub(crate) mod locks;
+pub(crate) mod observation;
 mod refresh;
+#[cfg(test)]
+mod registration_tests;
 mod registry;
 pub(crate) mod rules;
 #[cfg(test)]
@@ -11,14 +22,10 @@ use std::sync::Arc;
 
 pub struct DeviceService {
     app: Arc<Application>,
-    refreshes: Arc<tokio::sync::Semaphore>,
 }
 impl DeviceService {
     pub fn new(app: Arc<Application>) -> Arc<Self> {
-        Arc::new(Self {
-            refreshes: app.device_refreshes.clone(),
-            app,
-        })
+        Arc::new(Self { app })
     }
     pub fn providers(&self) -> Vec<DeviceProviderInfo> {
         self.app.registry.providers()

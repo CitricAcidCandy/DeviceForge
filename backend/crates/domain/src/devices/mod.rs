@@ -1,7 +1,12 @@
 //! 宿主设备身份与能力目录；平台协议消息由基础设施命名映射进入此边界。
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+#[cfg(test)]
+mod raw_state_tests;
 pub mod rules;
+
+pub const DEFAULT_EXECUTION_TIMEOUT_MS: u64 = 30_000;
+pub const MAX_EXECUTION_TIMEOUT_MS: u64 = 120_000;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -25,6 +30,18 @@ pub struct DeviceCapability {
     pub operation: String,
     pub scope: CapabilityScope,
     pub access: CapabilityAccess,
+    /// API 2/3 的能力总预算；省略或 null 使用宿主默认值。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub execution_timeout_ms: Option<u64>,
+}
+
+impl DeviceCapability {
+    pub fn execution_timeout(&self) -> std::time::Duration {
+        std::time::Duration::from_millis(
+            self.execution_timeout_ms
+                .unwrap_or(DEFAULT_EXECUTION_TIMEOUT_MS),
+        )
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
@@ -76,6 +93,9 @@ pub struct CapabilityAvailability {
 pub struct ProvidedDevice {
     pub reference: DeviceRef,
     pub state: DeviceState,
+    /// 原始观测状态仅供保真展示；动作仍按归一化状态和已声明能力准入。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub raw_state: Option<String>,
     pub model: Option<String>,
     pub capabilities: Vec<CapabilityAvailability>,
 }

@@ -1,12 +1,14 @@
 use super::*;
+use crate::artifact_files::LIMIT;
 use crate::artifacts::FileArtifacts;
 use apk_domain::artifacts::Artifact;
-use futures_util::StreamExt;
+use futures_util::{StreamExt, TryStreamExt};
 use std::{
     io::{Cursor, Write},
     path::PathBuf,
     sync::OnceLock,
 };
+use tokio_util::io::ReaderStream;
 use zip::{ZipWriter, write::SimpleFileOptions};
 
 fn tool() -> &'static str {
@@ -45,12 +47,12 @@ fn command(mode: &str) -> ToolCommand {
 async fn setup() -> (tempfile::TempDir, Arc<FileArtifacts>, AndroidPackageTools) {
     let directory = tempfile::tempdir().unwrap();
     let store = Arc::new(FileArtifacts::open(directory.path()).await.unwrap());
-    let analyzer = AndroidPackageTools {
-        artifacts: store.clone(),
-        apkanalyzer: command("manifest"),
-        apksigner: command("signature"),
-        bundletool: Some(command("bundle")),
-    };
+    let analyzer = AndroidPackageTools::new(
+        store.clone(),
+        command("manifest"),
+        command("signature"),
+        Some(command("bundle")),
+    );
     (directory, store, analyzer)
 }
 fn archive(entries: &[(&str, &[u8])]) -> Vec<u8> {
@@ -370,7 +372,7 @@ fn multiple_signers_and_limits_are_explicit() {
     ));
 }
 #[tokio::test]
-async fn oversized_entry_and_pre_cancelled_extraction_are_rejected() {
+async fn malformed_stored_length_and_pre_cancelled_extraction_are_rejected() {
     let (_directory, store, tools) = setup().await;
     let mut bytes = archive(&[("base.apk", b"fixture")]);
     let central = bytes
@@ -384,12 +386,38 @@ async fn oversized_entry_and_pre_cancelled_extraction_are_rejected() {
         tools
             .extract_apk(&source.id, "base.apk", CancellationToken::new())
             .await,
-        Err(Error::TooLarge)
+        Err(Error::Invalid(_))
     ));
     let token = CancellationToken::new();
     token.cancel();
     assert!(matches!(
         tools.extract_apk(&source.id, "base.apk", token).await,
         Err(Error::Cancelled)
+    ));
+}
+
+#[tokio::test]
+async fn valid_deflated_oversized_entry_is_too_large_before_copy() {
+    let (_directory, store, tools) = setup().await;
+    let mut zip = ZipWriter::new(Cursor::new(Vec::new()));
+    zip.start_file(
+        "base.apk",
+        SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated),
+    )
+    .unwrap();
+    // 合法压缩流真实展开 64 MiB + 1，避免将 Stored 的矛盾 header 当体积证据。
+    let block = [0u8; 64 * 1024];
+    for _ in 0..1024 {
+        zip.write_all(&block).unwrap();
+    }
+    zip.write_all(&[0]).unwrap();
+    let bytes = zip.finish().unwrap().into_inner();
+    assert!(bytes.len() < LIMIT as usize);
+    let source = upload(&store, "oversized-valid.apks", bytes).await;
+    assert!(matches!(
+        tools
+            .extract_apk(&source.id, "base.apk", CancellationToken::new())
+            .await,
+        Err(Error::TooLarge)
     ));
 }

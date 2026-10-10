@@ -1,0 +1,20 @@
+{
+  "name": "@deviceforge/android-device",
+  "version": "0.1.0",
+  "description": "协议4/API3安卓离散设备插件，首批仅Windows x64",
+  "files": [
+    "manifest.json",
+    "bin",
+    "README.md"
+  ],
+  "deviceforge": {
+    "kind": "server",
+    "manifest": "manifest.json",
+    "entrypoints": {
+      "win32-x64": {
+        "runtime": "native",
+        "path": "bin/deviceforge-android-device-plugin.exe"
+      }
+    }
+  }
+}

@@ -17,8 +17,10 @@ pub fn local_id(value: &str) -> Result<()> {
     Ok(())
 }
 pub fn definition(definition: &DeviceProviderDefinition, operations: &[Operation]) -> Result<()> {
-    if definition.api_version != 1 || definition.capabilities.len() > 32 {
-        return Err(Error::Invalid("设备声明要求 API 1 且最多 32 项能力".into()));
+    if !matches!(definition.api_version, 1..=3) || definition.capabilities.len() > 32 {
+        return Err(Error::Invalid(
+            "设备声明要求 API 1/2/3 且最多 32 项能力".into(),
+        ));
     }
     text(&definition.platform, 100)?;
     let mut names = HashSet::new();
@@ -32,6 +34,15 @@ pub fn definition(definition: &DeviceProviderDefinition, operations: &[Operation
     names.insert(&definition.discover_operation);
     let mut capabilities = HashSet::new();
     for capability in &definition.capabilities {
+        if let Some(timeout) = capability.execution_timeout_ms
+            && (!matches!(definition.api_version, 2 | 3)
+                || timeout == 0
+                || timeout > MAX_EXECUTION_TIMEOUT_MS)
+        {
+            return Err(Error::Invalid(
+                "能力执行预算仅支持 API 2/3，要求 1–120000 毫秒".into(),
+            ));
+        }
         crate::identifier(&capability.id)?;
         if capability.id.len() > 100
             || capability.version == 0
@@ -119,6 +130,13 @@ pub fn devices(definition: &DeviceProviderDefinition, devices: &[ProvidedDevice]
         local_id(&device.reference.local_id)?;
         if !ids.insert(&device.reference.local_id) || device.capabilities.len() > 32 {
             return Err(Error::Invalid("发现包含重复设备或过量能力".into()));
+        }
+        if let Some(raw_state) = &device.raw_state {
+            if definition.api_version != 3 {
+                return Err(Error::Invalid("原始设备状态仅支持 API 3".into()));
+            }
+            // len 计算 UTF-8 字节数；只校验，原文不规范化或推导归一化状态。
+            text(raw_state, 100)?;
         }
         if let Some(model) = &device.model {
             text(model, 200)?;

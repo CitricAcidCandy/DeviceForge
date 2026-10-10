@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { mkdir, mkdtemp, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
@@ -49,12 +50,14 @@ async function logs() {
 
 try {
   assert.ok((await stat(binary)).isFile(), `缺少 ${profile} 宿主，请等待主代理构建`);
+  const hostBytes = await readFile(binary);
+  report.host = { path: binary, bytes: hostBytes.length, sha256: createHash('sha256').update(hostBytes).digest('hex') };
   temporary = await mkdtemp(join(tmpdir(), 'deviceforge-provider-smoke-'));
   const plugins = join(temporary, 'server-plugins');
   const browserPlugins = join(temporary, 'browser-plugins');
   await mkdir(plugins); await mkdir(browserPlugins);
   fixtures.push(await fixture('provider_smoke_a', join(temporary, 'markers')));
-  fixtures.push(await fixture('provider_smoke_b', join(temporary, 'markers')));
+  fixtures.push(await fixture('provider_smoke_b', join(temporary, 'markers'), { apiVersion: 2, executionTimeoutMs: 120000 }));
   const port = await reservePort();
   const base = `http://127.0.0.1:${port}`;
   client = createClient(base, report);
@@ -88,6 +91,12 @@ try {
   assert.deepEqual(await client.json('/api/v2/plugin-packages/server'), []);
   assert.deepEqual(await client.json('/api/v2/device-providers'), []);
   report.checks.push({ name: '坏设备声明安装 400 invalid_input、无部署/贡献残留', passed: true });
+  for (const archive of fixtures[1].invalidBudgetArchives) {
+    await client.json('/api/v2/plugin-packages/server?format=tgz', { method: 'POST', status: 400, code: 'invalid_input',
+      headers: { 'content-type': 'application/gzip' }, body: archive });
+  }
+  await poll(async () => (await readdir(plugins)).sort(), (value) => isDeepStrictEqual(value, before), '坏能力预算无部署/暂存残留', 5000);
+  report.checks.push({ name: 'API 2 零预算及超过120秒拒绝，安装无残留', passed: true });
   for (const item of fixtures) {
     const installed = await client.json('/api/v2/plugin-packages/server?format=tgz', { method: 'POST', status: 201,
       headers: { 'content-type': 'application/gzip' }, body: item.archive });
@@ -179,11 +188,20 @@ try {
       const running = (await events(item)).filter((event) => event.kind === 'started' && !exited(event.pid));
       assert.deepEqual(running, [], '本次夹具 PID 仍可见，保留目录并交集成负责人检查；不强杀');
     }
-    if (temporary) {
+    if (temporary && report.passed) {
       const within = relative(resolve(tmpdir()), resolve(temporary));
       assert.ok(within && !within.startsWith('..') && !isAbsolute(within), '设备 smoke 临时目录越界');
       await rm(temporary, { recursive: true, force: true });
       report.temporary_removed = true;
+    } else if (temporary) {
+      report.temporary_retained = temporary;
+      report.temporary_removed = false;
+      report.failure_log_files = [];
+      for (const name of (await readdir(join(temporary, 'logs'))).filter((value) => value.endsWith('.jsonl'))) {
+        const path = join(temporary, 'logs', name);
+        const bytes = await readFile(path);
+        report.failure_log_files.push({ path, bytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') });
+      }
     }
   } catch (error) {
     report.passed = false; report.cleanup_error = String(error.message).slice(0, 1000);

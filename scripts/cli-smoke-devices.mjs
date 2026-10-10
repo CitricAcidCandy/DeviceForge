@@ -60,6 +60,9 @@ async function verify({ call, rpc, finished }) {
   assert.ok(provider);
   assert.equal(provider.generation, loaded.generation);
   assert.equal(provider.definition.platform, 'synthetic_demo');
+  assert.equal(provider.definition.api_version, 2);
+  assert.equal(provider.definition.capabilities.find((capability) => capability.id === 'device.echo')?.execution_timeout_ms, 120000);
+  assert.equal(provider.definition.capabilities.find((capability) => capability.id === 'provider.describe')?.execution_timeout_ms, undefined);
   assert.deepEqual(await rpc('deviceforge.list_device_providers', {}), await call('/api/v2/device-providers'));
   const directory = await rpc('deviceforge.refresh_devices', { id, generation: provider.generation });
   assert.equal(directory.devices.length, 1);

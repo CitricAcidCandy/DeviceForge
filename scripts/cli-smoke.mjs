@@ -8,18 +8,24 @@ import { createServer } from 'node:net';
 import { randomBytes } from 'node:crypto';
 import { setTimeout as delay } from 'node:timers/promises';
 import assert from 'node:assert/strict';
-import { npmCommand, spawnManaged, stopManaged } from '../cli/src/processes.mjs';
+import { npmCommand, spawnManaged } from '../cli/src/processes.mjs';
 import { inside } from '../cli/src/paths.mjs';
 import { packFixture } from './cli-smoke-fixture.mjs';
 import { installNativePlugins, verifyNativePlugins } from './cli-smoke-native.mjs';
 import { verifyLiveInstallation } from './cli-smoke-lifecycle.mjs';
 import { verifyNpxDeviceProvider } from './cli-smoke-devices.mjs';
 import { verifyNpxNestedArtifacts } from './cli-smoke-nested.mjs';
+import { configureNpxAlias, verifyNpxAlias } from './cli-smoke-alias.mjs';
+import { captureNpxRuntime, checkpointCliFailure, createCliEvidence, finishCliEvidence, preserveCliArchive, preserveCliBindings, verifyServedHost } from './cli-smoke-evidence.mjs';
+import { cleanupNpxRuntime, waitForNpxExit } from './cli-smoke-cleanup.mjs';
+import { configureNpxUnifiedDiscovery, verifyNpxUnifiedDiscovery } from './cli-smoke-unified-discovery.mjs';
 
 const root = fileURLToPath(new URL('../',import.meta.url));
 const temporary = await mkdtemp(join(tmpdir(),'deviceforge-npx-'));
 const npm = npmCommand(); const npx = join(dirname(npm.prefix[0]),'npx-cli.js');
 const environment = {...process.env,npm_config_cache:join(temporary,'cache')};
+// 高频行为矩阵使用独立限流配置；本次不验证生产默认请求容量。
+environment.DEVICEFORGE_HTTP_RATE = '10000';
 // 使用独立于数据目录的相对插件路径，验证安装、列举和 Rust 启动使用同一部署位置。
 const pluginDirectory = join(temporary, '独立插件');
 const cooperativeMarkers = join(temporary, '合作资源标记');
@@ -52,19 +58,30 @@ async function assertJsonReply(response) {
   assert.ok(Object.hasOwn(body, 'data'));
   return body.data;
 }
-let running;
+let running, dataDirectory, shutdownTarget;
+let completed = false;
+const evidence = await createCliEvidence(root, temporary);
+evidence.http_requests_per_second = 10000;
 try {
+  evidence.stage = '配置与真实npm打包';
+  await configureNpxAlias(temporary, environment);
+  const discoveryBindings = await configureNpxUnifiedDiscovery(temporary, environment);
+  await preserveCliBindings(discoveryBindings, evidence);
   const fixture = await packFixture(temporary);
   const pack = await promisify(execFile)(npm.command,[...npm.prefix,'pack','--json','--pack-destination',temporary],{cwd:root,windowsHide:true,maxBuffer:1024*1024,timeout:120000});
   const packed = JSON.parse(pack.stdout);
   assert.ok(packed[0].files.some((item) => item.path === 'runtime/manifest.json'));
   assert.ok(!packed[0].files.some((item) => item.path.startsWith('backend/') || item.path.startsWith('frontend/node_modules/')));
-  const archive = join(temporary,packed[0].filename); const dataDirectory = join(temporary,'运行数据');
+  const archive = join(temporary,packed[0].filename); dataDirectory = join(temporary,'运行数据');
+  await preserveCliArchive(archive, evidence);
   const prefix = ['--package',archive,'deviceforge'];
+  evidence.stage = '原生包安装与真实npx启动';
   const native = await installNativePlugins({ root, temporary, runNpx, prefix, dataDirectory, pluginDirectory, cooperativeMarkers });
   const listed = await runNpx([...prefix,'plugin','list','--data-dir',dataDirectory]);
   assert.deepEqual(JSON.parse(listed.stdout).map((plugin) => plugin.id).sort(), native.map((pkg) => pkg.id).sort());
   const webPort = await port(); const mcpPort = await port();
+  shutdownTarget = { url: `http://127.0.0.1:${webPort}/api/v2/system/shutdown`, webPort, mcpPort,
+    headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' } };
   // 不传 --ip，证明默认 0.0.0.0 的局域网监听；端口由命令行显式配置。
   running = spawnManaged(process.execPath,[npx,'--yes',...prefix,'start','--port',String(webPort),'--mcp-port',String(mcpPort),'--data-dir',dataDirectory],{env:environment,stdio:['ignore','pipe','pipe']});
   let output = ''; running.child.stdout.on('data',(bytes) => {output += bytes;}); running.child.stderr.on('data',() => {});
@@ -74,10 +91,17 @@ try {
     await delay(50);
   }
   assert.match(output,/监听 0.0.0.0/); assert.ok(!output.includes(token));
+  evidence.stage = '显式令牌阶段';
+  const authorizedPhase = await captureNpxRuntime(environment.npm_config_cache, evidence, '显式令牌');
+  await verifyServedHost(`http://127.0.0.1:${webPort}`, authorizedPhase);
   const addresses = ['127.0.0.1',...Object.values(networkInterfaces()).flat().filter(Boolean).filter((item) => !item.internal && item.family === 'IPv4').map((item) => item.address)];
   const headers = {authorization:`Bearer ${token}`,'content-type':'application/json'};
   await verifyLiveInstallation({ runNpx, prefix, fixture, dataDirectory, pluginDirectory,
     base: `http://127.0.0.1:${webPort}`, mcp: `http://127.0.0.1:${mcpPort}/mcp`, headers });
+  evidence.stage = '显式令牌统一发现';
+  authorizedPhase.unified_discovery = await verifyNpxUnifiedDiscovery({ root, temporary, pluginDirectory, runNpx, prefix, dataDirectory,
+    base: `http://127.0.0.1:${webPort}`, mcp: `http://127.0.0.1:${mcpPort}/mcp`, headers });
+  evidence.stage = '显式令牌既有服务';
   for (const address of addresses) {
     const base = `http://${address}:${webPort}`; const mcp = `http://${address}:${mcpPort}/mcp`;
     assert.equal((await fetch(base,{signal:AbortSignal.timeout(3000)})).status,200);
@@ -98,14 +122,16 @@ try {
       assert.ok(tools.some((tool) => tool.name === name));
     }
     await verifyNativePlugins({ base, mcp, headers, cooperativeMarkers });
+    await verifyNpxAlias({ base, mcp, headers });
     assert.equal((await fetch(`http://${address}:${mcpPort}/api/v1/health`,{headers})).status,404);
   }
   // 正常停止先让 Rust 刷新日志，再核对 npx 包装进程与公开监听退出。
   const shutdown = await fetch(`http://127.0.0.1:${webPort}/api/v2/system/shutdown`, {method:'POST',headers,signal:AbortSignal.timeout(3000)});
   assert.equal(shutdown.status,200);
-  const stopped = await Promise.race([running.closed,delay(10000).then(() => null)]);
+  const stopped = await waitForNpxExit(running);
   assert.ok(stopped, 'npx 应在优雅退出期限内结束');
   assert.equal(stopped.code,0); running = undefined;
+  authorizedPhase.exit = { code: stopped.code, signal: stopped.signal };
   const logNames = (await readdir(join(dataDirectory,'logs'))).filter((name) => name.endsWith('.jsonl'));
   const logText = (await Promise.all(logNames.map((name) => readFile(join(dataDirectory,'logs',name),'utf8')))).join('');
   assert.ok(!logText.includes(token));
@@ -116,11 +142,15 @@ try {
   await assert.rejects(fetch(`http://127.0.0.1:${webPort}`,{signal:AbortSignal.timeout(1000)}));
   await assertPortReleased(webPort);
   await assertPortReleased(mcpPort);
+  authorizedPhase.ports_released = true;
+  shutdownTarget = undefined;
 
   // 复用同一 tgz、数据和端口，验证用户不设置令牌时真正的 npx 默认路径。
   const anonymousEnvironment = { ...environment };
   delete anonymousEnvironment.APK_API_TOKEN;
   assert.equal(Object.hasOwn(anonymousEnvironment, 'APK_API_TOKEN'), false);
+  shutdownTarget = { url: `http://127.0.0.1:${webPort}/api/v2/system/shutdown`, webPort, mcpPort,
+    headers: { 'content-type': 'application/json' } };
   running = spawnManaged(process.execPath,[npx,'--yes',...prefix,'start','--port',String(webPort),'--mcp-port',String(mcpPort),'--data-dir',dataDirectory],
     {env:anonymousEnvironment,stdio:['ignore','pipe','pipe']});
   let anonymousOutput = '';
@@ -136,6 +166,9 @@ try {
   assert.ok(!anonymousOutput.includes(token));
   const anonymousHeaders = { 'content-type': 'application/json' };
   assert.equal(Object.hasOwn(anonymousHeaders, 'authorization'), false);
+  evidence.stage = '默认免令牌阶段';
+  const anonymousPhase = await captureNpxRuntime(environment.npm_config_cache, evidence, '默认免令牌');
+  await verifyServedHost(`http://127.0.0.1:${webPort}`, anonymousPhase);
   for (const address of addresses) {
     const base = `http://${address}:${webPort}`;
     await assertJsonReply(await fetch(`${base}/api/v2/health`, {signal:AbortSignal.timeout(3000)}));
@@ -157,23 +190,76 @@ try {
     base: `http://127.0.0.1:${webPort}`, mcp: `http://127.0.0.1:${mcpPort}/mcp` });
   await verifyNpxNestedArtifacts({ root, temporary, runNpx, prefix, dataDirectory, pluginDirectory,
     base: `http://127.0.0.1:${webPort}`, mcp: `http://127.0.0.1:${mcpPort}/mcp` });
+  await verifyNpxAlias({ base: `http://127.0.0.1:${webPort}`, mcp: `http://127.0.0.1:${mcpPort}/mcp`, headers: anonymousHeaders });
+  evidence.stage = '默认免令牌统一发现';
+  anonymousPhase.unified_discovery = await verifyNpxUnifiedDiscovery({ root, temporary, pluginDirectory, runNpx, prefix, dataDirectory,
+    base: `http://127.0.0.1:${webPort}`, mcp: `http://127.0.0.1:${mcpPort}/mcp`, headers: anonymousHeaders });
   const anonymousShutdown = await assertJsonReply(await fetch(`http://127.0.0.1:${webPort}/api/v2/system/shutdown`,
     {method:'POST',headers:anonymousHeaders,signal:AbortSignal.timeout(3000)}));
   assert.equal(anonymousShutdown.stopping,true);
-  const anonymousStopped = await Promise.race([running.closed,delay(10000).then(() => null)]);
+  const anonymousStopped = await waitForNpxExit(running);
   assert.ok(anonymousStopped, '默认免令牌 npx 应正常退出');
   assert.equal(anonymousStopped.code,0);
+  anonymousPhase.exit = { code: anonymousStopped.code, signal: anonymousStopped.signal };
   running = undefined;
   await assertPortReleased(webPort);
   await assertPortReleased(mcpPort);
+  anonymousPhase.ports_released = true;
+  shutdownTarget = undefined;
   const finalLogNames = (await readdir(join(dataDirectory,'logs'))).filter((name) => name.endsWith('.jsonl'));
   const finalLogText = (await Promise.all(finalLogNames.map((name) => readFile(join(dataDirectory,'logs',name),'utf8')))).join('');
   assert.ok(!finalLogText.includes(token));
   const finalLogRecords = finalLogText.split('\n').filter(Boolean).map((line) => JSON.parse(line));
   assert.equal(finalLogRecords.filter((record) => record.fields?.message === '宿主运行已结束').length,2);
+  completed = true;
+  evidence.stage = '完成';
+  evidence.passed = true;
   console.log(`npx 打包运行验收通过：显式令牌授权与拒绝、同 tgz 默认免令牌 0.0.0.0 启动、无 Authorization HTTP/MCP 与日志 ID、启动后安装/加载/卸载/重载、Node 依赖与 ${native.length} 个 release 原生插件、公开设备示例实际安装/发现/HTTP与MCP能力调用/新旧代际、回显/产物复制/MessagePack/MCP/合成采样、合作任务/显式取消/卸载清理、相对插件目录、安装脚本禁用、${addresses.length} 个本机/局域网地址与两阶段正常退出/监听释放；未验证真实设备`);
+} catch (error) {
+  evidence.failure = { name: error.name, code: error.code, stage: evidence.stage };
+  if (error.unifiedDiscoveryEvidence) evidence.unified_discovery_failure = error.unifiedDiscoveryEvidence;
+  evidence.passed = false;
+  evidence.temporary_retained = temporary;
+  evidence.temporary_removed = false;
+  await checkpointCliFailure(evidence);
+  throw error;
 } finally {
-  await stopManaged(running);
-  if (!inside(tmpdir(),temporary) || temporary === tmpdir()) throw new Error('测试清理路径越界');
-  await rm(temporary,{recursive:true,force:true});
+  const cleanup = await cleanupNpxRuntime({ running, target: shutdownTarget, assertPortReleased });
+  evidence.runtime_cleanup = cleanup;
+  if (cleanup.shutdown) evidence.failure_shutdown = cleanup.shutdown;
+  if (cleanup.ports_released !== null) evidence.failure_ports_released = cleanup.ports_released;
+  if (!cleanup.passed) {
+    completed = false;
+    evidence.passed = false;
+    evidence.cleanup_error = cleanup.port_error ?? { name: 'NpxExitUnconfirmed' };
+    process.exitCode = 1;
+  }
+  if (completed) {
+    if (!inside(tmpdir(),temporary) || temporary === tmpdir()) throw new Error('测试清理路径越界');
+    evidence.temporary_removed = false;
+  } else {
+    evidence.passed = false;
+    evidence.temporary_retained = temporary;
+  }
+  const report = await finishCliEvidence(evidence, dataDirectory, token);
+  if (!evidence.passed) {
+    completed = false;
+    evidence.temporary_retained = temporary;
+    evidence.temporary_removed = false;
+    process.exitCode = 1;
+    await finishCliEvidence(evidence, undefined, token);
+  }
+  console.log(`本次实际TGZ与运行身份报告：${report}`);
+  if (completed) {
+    try {
+      await rm(temporary,{recursive:true,force:true});
+      evidence.temporary_removed = true;
+    } catch (error) {
+      evidence.passed = false;
+      evidence.temporary_retained = temporary;
+      evidence.cleanup_error = { name: error.name, code: error.code };
+      process.exitCode = 1;
+    }
+    await finishCliEvidence(evidence, undefined, token);
+  }
 }

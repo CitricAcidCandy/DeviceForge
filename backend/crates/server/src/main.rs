@@ -3,10 +3,11 @@ use apk_application::plugin_lifecycle::PluginService;
 use apk_domain::Executor;
 use apk_domain::plugins::PluginContribution;
 use apk_infrastructure::{
-    devices::DeviceTools, plugin_catalog::FilePluginCatalog, store::SqliteStore,
+    devices::HarmonyDeviceTools, plugin_catalog::FilePluginCatalog, store::SqliteStore,
 };
 use std::{path::PathBuf, sync::Arc};
 mod limits;
+mod operation_bindings;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -28,10 +29,10 @@ async fn run(
     let token = std::env::var("APK_API_TOKEN").unwrap_or_default();
     tracing::info!(authentication_enabled = !token.is_empty(), "访问模式已配置");
     let rate = limits::requests_per_second(std::env::var("DEVICEFORGE_HTTP_RATE").ok().as_deref())?;
+    let bindings = operation_bindings::from_environment().await?;
     std::fs::create_dir_all(&data)?;
     let store = Arc::new(SqliteStore::open(data.join("jobs.db"))?);
-    let mut executors: Vec<Arc<dyn Executor>> = vec![Arc::new(DeviceTools {
-        adb: std::env::var("APK_ADB").unwrap_or_else(|_| "adb".into()),
+    let mut executors: Vec<Arc<dyn Executor>> = vec![Arc::new(HarmonyDeviceTools {
         hdc: std::env::var("APK_HDC").unwrap_or_else(|_| "hdc".into()),
     })];
     let artifacts =
@@ -68,87 +69,27 @@ async fn run(
         return Err("指定的性能采样插件不存在或没有性能能力".into());
     }
     executors.push(Arc::new(
-        apk_infrastructure::device_artifacts::DeviceArtifactActions {
-            adb: std::env::var("APK_ADB").unwrap_or_else(|_| "adb".into()),
-            hdc: std::env::var("APK_HDC").unwrap_or_else(|_| "hdc".into()),
-            artifacts: artifacts.clone(),
-        },
+        apk_infrastructure::device_artifacts::RemainingDeviceArtifactActions::new(
+            std::env::var("APK_ADB").unwrap_or_else(|_| "adb".into()),
+            std::env::var("APK_HDC").unwrap_or_else(|_| "hdc".into()),
+            artifacts.clone(),
+        ),
     ));
     executors.push(Arc::new(apk_application::artifacts::ArtifactOperations(
         artifacts.clone(),
     )));
-    executors.push(Arc::new(apk_application::device_input::InputOperations(
-        Arc::new(apk_infrastructure::device_input::AndroidInput::new(
-            std::env::var("APK_ADB").unwrap_or_else(|_| "adb".into()),
-        )),
-    )));
     let java = std::env::var("APK_JAVA").unwrap_or_else(|_| "java".into());
-    let apksigner = match std::env::var("APK_APKSIGNER_JAR") {
-        Ok(jar) => apk_infrastructure::package_tools::ToolCommand::java_jar(java.clone(), jar),
-        Err(_) => apk_infrastructure::package_tools::ToolCommand::executable(
-            std::env::var("APK_APKSIGNER").unwrap_or_else(|_| "apksigner".into()),
-        ),
-    };
     let bundletool = std::env::var("APK_BUNDLETOOL_JAR")
         .ok()
         .map(|jar| apk_infrastructure::package_tools::ToolCommand::java_jar(java.clone(), jar));
-    let signing_keys = [
-        "APK_BUNDLE_KEYSTORE",
-        "APK_BUNDLE_KEY_ALIAS",
-        "APK_BUNDLE_STORE_PASSWORD_FILE",
-        "APK_BUNDLE_KEY_PASSWORD_FILE",
-    ];
-    let signing_values: Vec<_> = signing_keys.iter().map(std::env::var_os).collect();
-    let signing = if signing_values.iter().all(Option::is_none) {
-        None
-    } else {
-        if signing_values.iter().any(Option::is_none) {
-            return Err("AAB 构建签名配置必须同时提供密钥库、别名和两个密码文件".into());
-        }
-        let configured = apk_infrastructure::bundles::BundleSigning {
-            keystore: PathBuf::from(signing_values[0].as_ref().expect("已检查配置完整")),
-            alias: signing_values[1]
-                .as_ref()
-                .and_then(|v| v.to_str())
-                .ok_or("签名别名必须为 UTF-8")?
-                .into(),
-            store_password_file: PathBuf::from(signing_values[2].as_ref().expect("已检查配置完整")),
-            key_password_file: PathBuf::from(signing_values[3].as_ref().expect("已检查配置完整")),
-        };
-        configured.validate()?;
-        Some(configured)
-    };
-    executors.push(Arc::new(apk_application::bundles::BundleOperations(
-        Arc::new(apk_infrastructure::bundles::AndroidBundles {
-            artifacts: artifacts.clone(),
-            bundletool: bundletool.clone(),
-            signing,
-        }),
-    )));
-    executors.push(Arc::new(apk_application::splits::SplitOperations(
-        Arc::new(apk_infrastructure::splits::AndroidSplits::new(
+    let package_capacity = apk_infrastructure::package_work::PackageCapacity::default();
+    executors.push(Arc::new(apk_application::splits::InstallApksOperations(
+        Arc::new(apk_infrastructure::splits::AndroidSplits::with_capacity(
             artifacts.clone(),
-            bundletool.clone(),
-            std::env::var("APK_ADB").unwrap_or_else(|_| "adb".into()),
-        )),
-    )));
-    executors.push(Arc::new(apk_application::packages::PackageOperations(
-        Arc::new(apk_infrastructure::package_tools::AndroidPackageTools {
-            artifacts: artifacts.clone(),
-            apkanalyzer: apk_infrastructure::package_tools::ToolCommand::executable(
-                std::env::var("APK_APKANALYZER").unwrap_or_else(|_| "apkanalyzer".into()),
-            ),
-            apksigner,
             bundletool,
-        }),
-    )));
-    executors.push(Arc::new(apk_application::reverse::ReverseOperations(
-        Arc::new(apk_infrastructure::reverse::AndroidReverse {
-            artifacts: artifacts.clone(),
-            apktool: std::env::var("APK_APKTOOL_JAR").ok().map(|jar| {
-                apk_infrastructure::package_tools::ToolCommand::java_jar(java.clone(), jar)
-            }),
-        }),
+            std::env::var("APK_ADB").unwrap_or_else(|_| "adb".into()),
+            package_capacity.clone(),
+        )),
     )));
     let performance_store = Arc::new(
         apk_infrastructure::performance::store::SqlitePerformance::open(
@@ -162,7 +103,7 @@ async fn run(
         4,
     )?;
     executors.push(Arc::new(performance.clone()));
-    let app = Application::new(store, executors, 4, 128)?;
+    let app = Application::new_with_bindings(store, executors, 4, 128, bindings)?;
     let plugin_service = PluginService::new(
         app.clone(),
         catalog,
@@ -236,8 +177,17 @@ async fn run(
             }
             mcp_shutdown.cancel();
             plugin_service.close();
+            if let Err(error) = package_capacity.close() {
+                tracing::error!(code = error.code(), "包工作容量关闭失败");
+            }
             if let Err(error) = app.shutdown().await {
                 tracing::error!(code = error.code(), "任务停止失败");
+            }
+            if let Err(error) = package_capacity
+                .drain_until(tokio::time::Instant::now() + std::time::Duration::from_secs(2))
+                .await
+            {
+                tracing::error!(code = error.code(), "包同步工作退出未确认");
             }
             if let Err(error) = performance.shutdown().await {
                 tracing::error!(code = error.code(), "性能会话停止失败");

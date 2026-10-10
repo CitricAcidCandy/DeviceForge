@@ -53,7 +53,7 @@ export function createDevices(gateway: DeviceGateway) {
     requireProvider(state.snapshot().providers, id, generation);
     refreshes.get(id)?.controller.abort();
     const request = { generation, controller: new AbortController() }; refreshes.set(id, request);
-    // 与服务端刷新准入保持一致：在途时旧观测不再作为可选择/调用依据。
+    // 本地先撤销旧观测以防误用；服务端排队不清目录，真正执行前才清空本代观测。
     state.clearDirectory(id, generation);
     const current = combined(signal, request.controller); const revision = state.directoryRevision(id);
     try {

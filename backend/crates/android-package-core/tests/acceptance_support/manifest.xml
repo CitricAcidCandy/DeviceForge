@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:a="http://schemas.android.com/apk/res/android" package="com.example.app" a:versionCode="42" a:versionName="1 &amp; 2">
+  <uses-sdk a:minSdkVersion="23" a:targetSdkVersion="35"/>
+  <uses-permission a:name="android.permission.INTERNET"/>
+  <uses-permission a:name="android.permission.INTERNET"/>
+  <application a:label="@string/app_name" a:debuggable="false">
+    <activity a:name=".MainActivity" a:exported="true"/>
+  </application>
+</manifest>

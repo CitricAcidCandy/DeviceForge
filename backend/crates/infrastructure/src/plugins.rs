@@ -1,7 +1,9 @@
-use crate::{plugin_artifacts::InvocationFiles, process};
+use crate::{execution_deadline, plugin_artifacts::InvocationFiles, process};
 use apk_domain::{
-    Error, Executor, Operation, PluginArtifactResult, Result, artifacts::ArtifactStore,
+    Error, ExecutionContext, Executor, ExecutorResultFormat, Operation, PluginArtifactResult,
+    Result, artifacts::ArtifactStore,
 };
+use apk_plugin_sdk::context::CONTEXT_PROTOCOL_VERSION;
 use apk_plugin_sdk::cooperative::COOPERATIVE_PROTOCOL_VERSION;
 use apk_plugin_sdk::{ARTIFACT_PROTOCOL_VERSION, Manifest, PROTOCOL_VERSION, Request, Response};
 use async_trait::async_trait;
@@ -16,6 +18,8 @@ use std::{
 };
 use tokio_util::sync::CancellationToken;
 use tracing::Instrument;
+mod execution;
+mod process_cleanup;
 
 pub struct ProcessPlugin {
     manifest: Manifest,
@@ -34,7 +38,10 @@ impl ProcessPlugin {
     pub fn new(manifest: Manifest) -> Result<Self> {
         if !matches!(
             manifest.protocol_version,
-            PROTOCOL_VERSION | ARTIFACT_PROTOCOL_VERSION | COOPERATIVE_PROTOCOL_VERSION
+            PROTOCOL_VERSION
+                | ARTIFACT_PROTOCOL_VERSION
+                | COOPERATIVE_PROTOCOL_VERSION
+                | CONTEXT_PROTOCOL_VERSION
         ) {
             return Err(Error::Invalid("插件协议版本不兼容".into()));
         }
@@ -61,9 +68,9 @@ impl ProcessPlugin {
         if let Some(access) = &manifest.artifacts {
             if !matches!(
                 manifest.protocol_version,
-                ARTIFACT_PROTOCOL_VERSION | COOPERATIVE_PROTOCOL_VERSION
+                ARTIFACT_PROTOCOL_VERSION | COOPERATIVE_PROTOCOL_VERSION | CONTEXT_PROTOCOL_VERSION
             ) {
-                return Err(Error::Invalid("产物能力要求插件协议版本 2 或 3".into()));
+                return Err(Error::Invalid("产物能力要求插件协议版本 2、3 或 4".into()));
             }
             crate::plugin_artifacts::validate(access)?;
         }
@@ -82,15 +89,8 @@ impl ProcessPlugin {
                 return Err(Error::Invalid("性能采样插件不能声明产物读写能力".into()));
             }
         }
-        let operations = manifest
-            .operations
-            .iter()
-            .map(|c| Operation {
-                id: format!("plugin.{}.{}", manifest.id, c.name),
-                title: c.title.clone(),
-                input_schema: c.input_schema.clone(),
-            })
-            .collect::<Vec<_>>();
+        execution::validate(&manifest)?;
+        let operations = execution::operations(&manifest);
         let devices = manifest
             .devices
             .as_ref()
@@ -166,6 +166,14 @@ fn load_inner(
 }
 #[async_trait]
 impl Executor for ProcessPlugin {
+    fn result_format(&self) -> ExecutorResultFormat {
+        match self.manifest.protocol_version {
+            ARTIFACT_PROTOCOL_VERSION | COOPERATIVE_PROTOCOL_VERSION | CONTEXT_PROTOCOL_VERSION => {
+                ExecutorResultFormat::PublishedArtifacts
+            }
+            _ => ExecutorResultFormat::Json,
+        }
+    }
     fn device_provider(&self) -> Option<apk_domain::devices::DeviceProviderDefinition> {
         self.devices.clone()
     }
@@ -173,15 +181,7 @@ impl Executor for ProcessPlugin {
         self.unresolved.load(Ordering::Acquire)
     }
     fn operations(&self) -> Vec<Operation> {
-        self.manifest
-            .operations
-            .iter()
-            .map(|c| Operation {
-                id: format!("plugin.{}.{}", self.manifest.id, c.name),
-                title: c.title.clone(),
-                input_schema: c.input_schema.clone(),
-            })
-            .collect()
+        execution::operations(&self.manifest)
     }
     async fn execute(
         &self,
@@ -189,12 +189,23 @@ impl Executor for ProcessPlugin {
         input: Value,
         cancel: CancellationToken,
     ) -> Result<Value> {
+        self.execute_with_context(operation, input, cancel, ExecutionContext::default())
+            .await
+    }
+
+    async fn execute_with_context(
+        &self,
+        operation: &str,
+        input: Value,
+        cancel: CancellationToken,
+        context: ExecutionContext,
+    ) -> Result<Value> {
         let id = uuid::Uuid::new_v4().to_string();
         let span = tracing::info_span!("插件调用", plugin_id = %self.manifest.id, plugin_version = %self.manifest.version, plugin_request_id = %id);
         async {
             let started = std::time::Instant::now();
             tracing::info!("插件调用开始");
-            let result = self.invoke(operation, input, cancel, id).await;
+            let result = self.invoke(operation, input, cancel, id, context).await;
             let code = result.as_ref().err().map(Error::code).unwrap_or("ok");
             tracing::info!(
                 code,
@@ -214,7 +225,10 @@ impl ProcessPlugin {
         input: Value,
         cancel: CancellationToken,
         id: String,
+        context: ExecutionContext,
     ) -> Result<Value> {
+        let deadline = context.deadline.map(tokio::time::Instant::from_std);
+        execution_deadline::check(&cancel, deadline)?;
         let prefix = format!("plugin.{}.", self.manifest.id);
         let name = operation
             .strip_prefix(&prefix)
@@ -224,13 +238,33 @@ impl ProcessPlugin {
         }
         let files = if matches!(
             self.manifest.protocol_version,
-            ARTIFACT_PROTOCOL_VERSION | COOPERATIVE_PROTOCOL_VERSION
+            ARTIFACT_PROTOCOL_VERSION | COOPERATIVE_PROTOCOL_VERSION | CONTEXT_PROTOCOL_VERSION
         ) {
-            Some(tokio::select! {
-                biased;
-                _ = cancel.cancelled() => return Err(Error::Cancelled),
-                value = tokio::time::timeout(Duration::from_secs(120),InvocationFiles::prepare(self.artifacts.as_deref(),self.manifest.artifacts.as_ref(),&input,cancel.clone())) => value.unwrap_or(Err(Error::Timeout))?,
-            })
+            let prepare_deadline =
+                deadline.unwrap_or_else(|| tokio::time::Instant::now() + Duration::from_secs(120));
+            Some(
+                execution_deadline::run(&cancel, Some(prepare_deadline), async {
+                    if deadline.is_some() {
+                        InvocationFiles::prepare_until(
+                            self.artifacts.as_deref(),
+                            self.manifest.artifacts.as_ref(),
+                            &input,
+                            cancel.clone(),
+                            deadline,
+                        )
+                        .await
+                    } else {
+                        InvocationFiles::prepare(
+                            self.artifacts.as_deref(),
+                            self.manifest.artifacts.as_ref(),
+                            &input,
+                            cancel.clone(),
+                        )
+                        .await
+                    }
+                })
+                .await?,
+            )
         } else {
             None
         };
@@ -246,30 +280,59 @@ impl ProcessPlugin {
         if bytes.len() > 512 * 1024 {
             return Err(Error::Invalid("插件请求超过 512 KiB".into()));
         }
-        let response = if self.manifest.protocol_version == COOPERATIVE_PROTOCOL_VERSION {
-            process::cooperative::run(
-                process::cooperative::Invocation {
-                    executable: &self.manifest.executable,
-                    args: &self.manifest.args,
-                    input: bytes,
-                    request_id: &id,
-                    cancel: cancel.clone(),
-                    directory: files.as_ref().map(|files| files.directory.path()),
-                    timeout: Duration::from_secs(3600),
-                },
-                self.unresolved.clone(),
-            )
-            .await?
+        execution_deadline::check(&cancel, deadline)?;
+        let response = if matches!(
+            self.manifest.protocol_version,
+            COOPERATIVE_PROTOCOL_VERSION | CONTEXT_PROTOCOL_VERSION
+        ) {
+            let invocation = process::cooperative::Invocation {
+                executable: &self.manifest.executable,
+                args: &self.manifest.args,
+                input: bytes,
+                request_id: &id,
+                cancel: cancel.clone(),
+                directory: files.as_ref().map(|files| files.directory.path()),
+                timeout: Duration::from_secs(3600),
+                deadline: context.deadline,
+            };
+            if self.manifest.protocol_version == CONTEXT_PROTOCOL_VERSION {
+                process::cooperative::run_with_context(invocation, self.unresolved.clone()).await?
+            } else {
+                process::cooperative::run(invocation, self.unresolved.clone()).await?
+            }
         } else {
-            let output = if let Some(files) = &files {
-                process::run_plugin(
+            let mut cleanup = process_cleanup::Guard::new(self.unresolved.clone());
+            let result = if let Some(files) = &files {
+                if let Some(deadline) = deadline {
+                    process::run_plugin_until(
+                        &self.manifest.executable,
+                        &self.manifest.args,
+                        bytes,
+                        deadline,
+                        cancel.clone(),
+                        files.directory.path(),
+                    )
+                    .await
+                } else {
+                    process::run_plugin(
+                        &self.manifest.executable,
+                        &self.manifest.args,
+                        bytes,
+                        cancel.clone(),
+                        files.directory.path(),
+                    )
+                    .await
+                }
+            } else if let Some(deadline) = deadline {
+                process::run_until(
                     &self.manifest.executable,
                     &self.manifest.args,
-                    bytes,
+                    Some(bytes),
+                    deadline,
                     cancel.clone(),
-                    files.directory.path(),
+                    true,
                 )
-                .await?
+                .await
             } else {
                 process::run(
                     &self.manifest.executable,
@@ -279,8 +342,10 @@ impl ProcessPlugin {
                     cancel.clone(),
                     true,
                 )
-                .await?
+                .await
             };
+            cleanup.observe(&result);
+            let output = result?;
             let response: Response = serde_json::from_slice(&output)
                 .map_err(|e| Error::Dependency(format!("插件响应协议无效：{e}")))?;
             response
@@ -289,7 +354,8 @@ impl ProcessPlugin {
         {
             return Err(Error::Dependency("插件响应版本或请求 ID 不匹配".into()));
         }
-        match (response.result, response.error) {
+        execution_deadline::check(&cancel, deadline)?;
+        let result = match (response.result, response.error) {
             (Some(result), None) => {
                 let result = if self
                     .devices
@@ -304,11 +370,30 @@ impl ProcessPlugin {
                     result
                 };
                 if let Some(files) = files {
-                    let published = tokio::select! {
-                        biased;
-                        _ = cancel.cancelled() => return Err(Error::Cancelled),
-                        value = tokio::time::timeout(Duration::from_secs(120),files.publish(self.artifacts.as_deref(),response.outputs,cancel.clone())) => value.unwrap_or(Err(Error::Timeout))?,
-                    };
+                    let publish_deadline = deadline
+                        .unwrap_or_else(|| tokio::time::Instant::now() + Duration::from_secs(120));
+                    let published =
+                        execution_deadline::run(&cancel, Some(publish_deadline), async {
+                            if deadline.is_some() {
+                                files
+                                    .publish_until(
+                                        self.artifacts.as_deref(),
+                                        response.outputs,
+                                        cancel.clone(),
+                                        deadline,
+                                    )
+                                    .await
+                            } else {
+                                files
+                                    .publish(
+                                        self.artifacts.as_deref(),
+                                        response.outputs,
+                                        cancel.clone(),
+                                    )
+                                    .await
+                            }
+                        })
+                        .await?;
                     serde_json::to_value(PluginArtifactResult {
                         result,
                         artifacts: published,
@@ -326,7 +411,9 @@ impl ProcessPlugin {
             _ => Err(Error::Dependency(
                 "插件响应必须只包含 result 或 error 之一".into(),
             )),
-        }
+        }?;
+        execution_deadline::check(&cancel, deadline)?;
+        Ok(result)
     }
 }
 #[cfg(test)]
@@ -354,6 +441,7 @@ mod tests {
             name: "echo".into(),
             title: "回显".into(),
             input_schema: serde_json::json!({"type":"object"}),
+            execution: None,
         };
         manifest.operations = vec![contribution.clone(), contribution];
         assert!(matches!(

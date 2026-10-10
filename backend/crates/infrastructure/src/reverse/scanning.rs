@@ -3,7 +3,6 @@ use apk_domain::{
     reverse::{SdkFinding, SdkRule, SdkScan},
 };
 use std::{collections::BTreeSet, path::Path};
-use tokio_util::sync::CancellationToken;
 fn identifier(value: &str) -> bool {
     !value.is_empty()
         && (value.as_bytes()[0].is_ascii_alphabetic() || b"_$".contains(&value.as_bytes()[0]))
@@ -35,87 +34,71 @@ pub(super) fn validate(rules: &[SdkRule]) -> Result<()> {
     }
     Ok(())
 }
-fn smali_root(root: &str) -> bool {
-    root == "smali"
-        || root.strip_prefix("smali_classes").is_some_and(|number| {
-            !number.is_empty()
-                && number.bytes().all(|c| c.is_ascii_digit())
-                && number.parse::<u32>().is_ok_and(|v| v >= 2)
-        })
-}
-pub(super) fn scan(
+pub(super) fn controlled(
     path: &Path,
     id: &str,
     rules: Vec<SdkRule>,
-    cancel: &CancellationToken,
+    control: &deviceforge_android_package_core::Control<'_>,
 ) -> Result<SdkScan> {
+    use deviceforge_android_package_core::{ArchiveProfile, archive::Archive};
+    control.check().map_err(super::packing::mapped)?;
     validate(&rules)?;
-    crate::artifacts::validation::validate_archive(path)?;
-    let mut archive = crate::artifacts::validation::archive(path)?;
-    if !["apktool.yml", "AndroidManifest.xml"].iter().all(|name| {
-        archive
-            .by_name(name)
-            .is_ok_and(|file| !file.is_dir() && file.size() > 0)
-    }) {
-        return Err(Error::Invalid(
-            "SDK 检测需要包含 apktool.yml 和 AndroidManifest.xml 的反编译 ZIP".into(),
-        ));
+    let file = std::fs::File::open(path).map_err(|error| Error::Storage(error.to_string()))?;
+    let archive = Archive::open(file, ArchiveProfile::Structure, control).map_err(|error| {
+        use deviceforge_android_package_core::{Error as CoreError, LimitKind};
+        match error {
+            CoreError::LimitExceeded {
+                kind: LimitKind::Entries,
+                ..
+            } => Error::Invalid("压缩包条目超过 10000".into()),
+            CoreError::LimitExceeded {
+                kind: LimitKind::ExpandedBytes,
+                ..
+            } => Error::Invalid("压缩包声明解压体积超过 2 GiB".into()),
+            other => super::packing::mapped(other),
+        }
+    })?;
+    let mut names = BTreeSet::new();
+    for entry in archive.directory().entries() {
+        control.check().map_err(super::packing::mapped)?;
+        if !names.insert(entry.name.as_str()) {
+            return Err(Error::Invalid("ZIP 包含重复条目或目录数量不匹配".into()));
+        }
     }
-    let paths: BTreeSet<String> = archive
-        .file_names()
-        .filter(|name| {
-            name.split_once('/')
-                .is_some_and(|(root, rest)| smali_root(root) && rest.ends_with(".smali"))
+    deviceforge_android_package_core::android::validate_decoded(archive.directory()).map_err(
+        |_| {
+            Error::Invalid(
+                "SDK 检测需要包含 apktool.yml 和 AndroidManifest.xml 的反编译 ZIP".into(),
+            )
+        },
+    )?;
+    let core_rules: Vec<_> = rules
+        .iter()
+        .map(|rule| deviceforge_android_package_core::SdkRule {
+            name: rule.name.clone(),
+            package_path: rule.package_path.clone(),
+            class_name: rule.class_name.clone(),
         })
-        .map(str::to_owned)
         .collect();
-    let mut findings = Vec::with_capacity(rules.len());
-    for rule in rules {
-        if cancel.is_cancelled() {
-            return Err(Error::Cancelled);
-        }
-        let prefix = format!("{}/", rule.package_path.replace('.', "/"));
-        let class = rule
-            .class_name
-            .as_ref()
-            .map(|name| format!("{prefix}{name}.smali"));
-        let mut evidence = Vec::new();
-        let mut package_found = false;
-        let mut class_found = class.as_ref().map(|_| false);
-        for path in &paths {
-            let (_, relative) = path.split_once('/').expect("已筛选 smali 路径");
-            if relative.starts_with(&prefix) {
-                package_found = true;
-                if class.as_deref() == Some(relative) {
-                    class_found = Some(true);
-                }
-                if evidence.len() < 10 {
-                    evidence.push(path.clone());
-                }
-            }
-        }
-        // 检测点必须出现在证据列表中，不能被同包其他文件占满。
-        if class_found == Some(true) {
-            let matching = paths
-                .iter()
-                .find(|path| {
-                    path.split_once('/')
-                        .is_some_and(|(_, relative)| class.as_deref() == Some(relative))
-                })
-                .expect("已匹配检测点");
-            if !evidence.contains(matching) {
-                evidence.pop();
-                evidence.push(matching.clone());
-            }
-        }
-        evidence.sort();
-        findings.push(SdkFinding {
-            rule,
-            package_found,
-            class_found,
-            evidence,
-        });
-    }
+    let findings = deviceforge_android_package_core::android::scan_sdks(
+        archive.directory(),
+        &core_rules,
+        control,
+    )
+    .map_err(super::packing::mapped)?;
+    let findings = findings
+        .into_iter()
+        .map(|finding| SdkFinding {
+            rule: SdkRule {
+                name: finding.rule.name,
+                package_path: finding.rule.package_path,
+                class_name: finding.rule.class_name,
+            },
+            package_found: finding.package_found,
+            class_found: finding.class_found,
+            evidence: finding.evidence,
+        })
+        .collect();
     Ok(SdkScan {
         artifact_id: id.into(),
         findings,

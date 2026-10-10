@@ -1,14 +1,19 @@
-import type { DeviceAction, DeviceDirectory, DeviceProviderInfo, DeviceRef } from '../plugin-sdk/index.ts';
+import type { DeviceAction, DeviceCapability, DeviceDirectory, DeviceProviderInfo, DeviceRef } from '../plugin-sdk/index.ts';
 import type { DeviceGateway } from '../features/devices/index.ts';
 import { deviceActionEndpoint, deviceDirectoriesEndpoint, deviceProvidersEndpoint, refreshDeviceProviderEndpoint } from '../shared/api/index.ts';
 import type { ApiClient, DeviceActionDto, DeviceDirectoryDto, DeviceProviderDto, DeviceRefDto } from '../shared/api/index.ts';
 import { publicCall, publicJob } from './public-api.ts';
 
+function capability(dto: DeviceProviderDto['definition']['capabilities'][number]): DeviceCapability {
+  return Object.freeze({ id: dto.id, version: dto.version, operation: dto.operation, scope: dto.scope, access: dto.access,
+    ...(dto.execution_timeout_ms == null ? {} : { executionTimeoutMs: dto.execution_timeout_ms }),
+  });
+}
 function provider(dto: DeviceProviderDto): DeviceProviderInfo {
   return Object.freeze({ id: dto.id, generation: dto.generation, version: dto.version,
     definition: Object.freeze({ apiVersion: dto.definition.api_version, platform: dto.definition.platform,
       discoverOperation: dto.definition.discover_operation,
-      capabilities: Object.freeze(dto.definition.capabilities.map((item) => Object.freeze({ id: item.id, version: item.version, operation: item.operation, scope: item.scope, access: item.access }))),
+      capabilities: Object.freeze(dto.definition.capabilities.map(capability)),
     }),
   });
 }
@@ -18,6 +23,7 @@ function reference(dto: DeviceRefDto): DeviceRef {
 function directory(dto: DeviceDirectoryDto): DeviceDirectory {
   return Object.freeze({ provider: provider(dto.provider), observedAt: dto.observed_at, discoveryJobId: dto.discovery_job_id,
     devices: Object.freeze(dto.devices.map((item) => Object.freeze({ reference: reference(item.reference), state: item.state, model: item.model ?? null,
+      ...(item.raw_state == null ? {} : { rawState: item.raw_state }),
       capabilities: Object.freeze(item.capabilities.map((value) => Object.freeze({ id: value.id, version: value.version, available: value.available, reason: value.reason ?? null }))),
     }))),
   });

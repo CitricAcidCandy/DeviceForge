@@ -15,8 +15,9 @@ export function createPluginPackages(client: ApiClient, actions: PackageActions)
   const directories = { server: createLatestResource<PackageInfo[]>(), browser: createLatestResource<PackageInfo[]>() };
   const lifetime = new AbortController();
   let queue: Promise<unknown> = Promise.resolve();
-  const combined = (signal: AbortSignal) => AbortSignal.any([signal, lifetime.signal]);
-  const refresh = (kind: PackageKind, signal: AbortSignal) => directories[kind].run((current) => client.call(packagesEndpoint, kind, combined(current)), signal);
+  let closed = false;
+  const combined = (signal: AbortSignal) => closed ? AbortSignal.abort() : AbortSignal.any([signal, lifetime.signal]);
+  const refresh = (kind: PackageKind, signal: AbortSignal) => directories[kind].run((current) => client.call(packagesEndpoint, kind, combined(current)), combined(signal));
   const check = (signal: AbortSignal) => { if (combined(signal).aborted) throw new ApiError('cancelled', 'cancelled', '插件包等待已取消'); };
   function serial<T>(kind: PackageKind, signal: AbortSignal, run: (current: AbortSignal) => Promise<T>): Promise<T> {
     const execute = async () => {
@@ -36,7 +37,10 @@ export function createPluginPackages(client: ApiClient, actions: PackageActions)
   return {
     refresh,
     snapshot: (kind: PackageKind) => directories[kind].snapshot(),
-    subscribe: (kind: PackageKind, listener: Parameters<typeof directories.server.subscribe>[0]) => directories[kind].subscribe(listener),
+    subscribe: (kind: PackageKind, listener: Parameters<typeof directories.server.subscribe>[0]) => {
+      if (closed) throw new Error('插件包已关闭');
+      return directories[kind].subscribe(listener);
+    },
     upload: (kind: PackageKind, content: Blob, mediaType: PackageMediaType, signal: AbortSignal) => serial(kind, signal, (current) => client.call(installPackageEndpoint, { kind, content, mediaType }, current)),
     enable: (kind: PackageKind, id: string, signal: AbortSignal): Promise<ApiResult<PluginInfo | WebPluginRuntimeInfo>> => serial(kind, signal, async (current) => {
       const directory = await refresh(kind, current);
@@ -56,6 +60,6 @@ export function createPluginPackages(client: ApiClient, actions: PackageActions)
       check(current);
       return client.call(deletePackageEndpoint, { kind, id }, current);
     }),
-    dispose() { lifetime.abort(); directories.server.dispose(); directories.browser.dispose(); },
+    dispose() { closed = true; directories.server.dispose(); directories.browser.dispose(); lifetime.abort(); },
   };
 }

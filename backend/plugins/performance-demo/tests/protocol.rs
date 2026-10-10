@@ -31,6 +31,7 @@ fn manifest(mode: &str, fps: bool) -> Manifest {
             name: "sample".into(),
             title: "合成性能协议示例".into(),
             input_schema: json!({"type":"object","properties":{"device_id":{"type":"string"},"package":{"type":"string"}},"required":["device_id","package"],"additionalProperties":false}),
+            execution: None,
         }],
     }
 }

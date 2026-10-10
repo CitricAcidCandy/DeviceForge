@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { createServer as createNetServer } from 'node:net';
 import { tmpdir } from 'node:os';
@@ -8,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
 import { createServer } from '../frontend/node_modules/vite/dist/node/index.js';
 import { serverFixture } from '../backend/scripts/online-plugins/fixtures.mjs';
-import { browserRuntimeFixture, deviceProviderFixture } from './browser-plugin-fixture.mjs';
+import { browserRuntimeFixture, browserArtifactsHarness, deviceObservationKey, deviceProviderFixture } from './browser-plugin-fixture.mjs';
 import { runBrowser } from './browser-driver.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
@@ -19,7 +20,8 @@ const temporary = await mkdtemp(join(tmpdir(), 'deviceforge-browser-'));
 const reportPath = resolve(root, 'artifacts', `browser-plugin-smoke-${profile}.json`);
 const report = { timestamp: new Date().toISOString(), profile, platform: process.platform,
   host: 'frontend/dist/assets/plugin-host.js',
-  scope: '本机真实 Rust 在线安装、生产宿主 ESM 与相对依赖、开放扩展、公开设备能力/提供者热装卸与旧代引用拒绝；独立验收页面，不含产品视觉、真机和生产容量', passed: false };
+  browser_runtime: { executable_path: null, version: null, status: '尚未取得' },
+  scope: '本机真实 Rust 在线安装、生产宿主 ESM 与相对依赖、开放扩展、公开设备与产物上传下载、插件/挂载作用域撤销和晚交付拒绝；独立验收页面，不含产品视觉、真机、生产容量或服务器副作用停止证明', passed: false };
 let child; let closed; let vite; let graceful = false;
 async function closeProxy() {
   if (!vite) return;
@@ -53,6 +55,9 @@ async function ready(base) {
 
 try {
   report.stage = '启动真实宿主';
+  const backendBytes = await readFile(binary);
+  report.backend_host = { path: relative(root, binary), bytes: backendBytes.length,
+    sha256: createHash('sha256').update(backendBytes).digest('hex') };
   const port = await reservePort(); const base = `http://127.0.0.1:${port}`;
   child = spawn(binary, [], { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'], env: {
     ...process.env, APK_API_TOKEN: '', APK_BIND: `127.0.0.1:${port}`, APK_DATA_DIR: join(temporary, 'data'),
@@ -65,15 +70,27 @@ try {
   closed = new Promise((resolve, reject) => { child.once('exit', (code, signal) => resolve({ code, signal })); child.once('error', reject); });
   await ready(base);
   const server = serverFixture(2); const browser = browserRuntimeFixture(); const device = await deviceProviderFixture();
+  report.artifact_fixture = { plugin_id: browser.id, archive_bytes: browser.archive.length,
+    archive_sha256: createHash('sha256').update(browser.archive).digest('hex') };
   vite = await createServer({ root: resolve(root, 'frontend'), configFile: false, appType: 'custom', logLevel: 'error',
     server: { host: '127.0.0.1', port: 0, hmr: false, proxy: { '/api': base } } });
   const hostModule = await readFile(resolve(root, 'frontend/dist/assets/plugin-host.js'));
+  report.host_sha256 = createHash('sha256').update(hostModule).digest('hex');
+  report.host_bytes = hostModule.length;
   vite.middlewares.use('/__production_host__', (_request, response) => {
     response.setHeader('content-type', 'text/javascript; charset=utf-8'); response.end(hostModule);
   });
   const harnessModule = await readFile(resolve(root, 'frontend/scripts/browser-plugin-harness.mjs'));
   vite.middlewares.use('/__harness__', (_request, response) => {
     response.setHeader('content-type', 'text/javascript; charset=utf-8'); response.end(harnessModule);
+  });
+  const cancellationModule = await readFile(resolve(root, 'scripts/browser-cancellation-harness.mjs'));
+  vite.middlewares.use('/__cancellation__', (_request, response) => {
+    response.setHeader('content-type', 'text/javascript; charset=utf-8'); response.end(cancellationModule);
+  });
+  const artifactsModule = browserArtifactsHarness();
+  vite.middlewares.use('/__artifacts__', (_request, response) => {
+    response.setHeader('content-type', 'text/javascript; charset=utf-8'); response.end(artifactsModule);
   });
   vite.middlewares.use('/__plugin_verification__', (_request, response) => {
     response.setHeader('content-type', 'text/html; charset=utf-8');
@@ -93,12 +110,23 @@ try {
       if(Date.now()>deadline) throw new Error('浏览器验收页面未就绪');
       await new Promise(resolve=>setTimeout(resolve,25));
     }
-    const harness=await import('/__harness__');
-    return harness.verifyInstalledPlugin();
+    const observationKey=Symbol.for('${deviceObservationKey}');
+    globalThis[observationKey]=[];
+    try {
+      const harness=await import('/__harness__');
+      const result=await harness.verifyInstalledPlugin();
+      const cancellation=await import('/__cancellation__');
+      const cancelled=await cancellation.verifyCancellation();
+      const artifacts=await import('/__artifacts__');
+      const artifactResult=await artifacts.verifyArtifacts();
+      return {...result,deviceDefinitions:globalThis[observationKey],cancellation:cancelled,artifacts:artifactResult};
+    } finally { delete globalThis[observationKey]; }
   })()`;
   report.stage = '生产浏览器行为';
-  report.browser = await runBrowser(page, expression, join(temporary, 'browser-profile'));
+  report.browser = await runBrowser(page, expression, join(temporary, 'browser-profile'),
+    (runtime) => { report.browser_runtime = runtime; });
   assert.equal(report.browser.passed, true);
+  assert.equal(report.browser.artifacts.passed, true, report.browser.artifacts.error ?? report.browser.artifacts.cleanupError);
   for (const [kind, id] of [['server', server.id], ['browser', browser.id]]) {
     assert.deepEqual(await call(base, `/api/v2/plugin-packages/${kind}`), []);
   }

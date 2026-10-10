@@ -5,6 +5,9 @@ use serde_json::{Value, json};
 use std::time::Duration;
 use tokio_util::sync::CancellationToken;
 
+mod harmony;
+pub use harmony::HarmonyDeviceTools;
+
 pub struct DeviceTools {
     pub adb: String,
     pub hdc: String,
@@ -63,18 +66,16 @@ fn field(input: &Value, key: &str) -> Result<String> {
 }
 impl DeviceTools {
     pub async fn list(&self, platform: &str, cancel: CancellationToken) -> Result<Vec<Device>> {
+        if platform == "harmony" {
+            return harmony::list(&self.hdc, cancel).await;
+        }
         let (exe, args) = match platform {
             "android" => (&self.adb, vec!["devices".into(), "-l".into()]),
-            "harmony" => (&self.hdc, vec!["list".into(), "targets".into()]),
             _ => return Err(Error::Invalid("未知设备平台".into())),
         };
         let output = process::run(exe, &args, None, Duration::from_secs(10), cancel, false).await?;
         let output = String::from_utf8_lossy(&output);
-        Ok(if platform == "android" {
-            parse_adb(&output)
-        } else {
-            parse_hdc(&output)
-        })
+        Ok(parse_adb(&output))
     }
 }
 #[async_trait]
@@ -94,7 +95,7 @@ impl Executor for DeviceTools {
             if !id.ends_with("connect") && key != "device_id" {
                 properties.insert("device_id".into(), json!({"type":"string", "minLength":1})); required.push("device_id");
             }
-            Operation { id: id.into(), title: title.into(), input_schema: json!({"type":"object","properties":properties,"required":required,"additionalProperties":false}) }
+            Operation { id: id.into(), title: title.into(), input_schema: json!({"type":"object","properties":properties,"required":required,"additionalProperties":false}), execution: None }
         }).collect();
         for (id, title) in [
             ("android.devices", "枚举 Android 设备"),
@@ -104,6 +105,7 @@ impl Executor for DeviceTools {
                 id: id.into(),
                 title: title.into(),
                 input_schema: json!({"type":"object","additionalProperties":false}),
+                execution: None,
             });
         }
         operations
@@ -119,7 +121,10 @@ impl Executor for DeviceTools {
             return serde_json::to_value(self.list(platform, cancel).await?)
                 .map_err(|e| Error::Dependency(e.to_string()));
         }
-        let mut exe = &self.adb;
+        if operation == "harmony.packages" {
+            return harmony::packages(&self.hdc, &input, cancel).await;
+        }
+        let exe = &self.adb;
         let args = match operation {
             "android.connect" | "android.disconnect" => {
                 let address = field(&input, "address")?;
@@ -158,17 +163,6 @@ impl Executor for DeviceTools {
                 "list".into(),
                 "packages".into(),
             ],
-            "harmony.packages" => {
-                exe = &self.hdc;
-                vec![
-                    "-t".into(),
-                    field(&input, "device_id")?,
-                    "shell".into(),
-                    "bm".into(),
-                    "dump".into(),
-                    "-a".into(),
-                ]
-            }
             _ => return Err(Error::NotFound(operation.into())),
         };
         let timeout = if operation == "android.connect" {
@@ -177,23 +171,8 @@ impl Executor for DeviceTools {
             Duration::from_secs(30)
         };
         let output = process::run(exe, &args, None, timeout, cancel, false).await?;
-        let output = String::from_utf8_lossy(&output).trim().to_owned();
+        let output = checked_output(&output)?;
         let lower = output.to_lowercase();
-        if [
-            "failed",
-            "unable",
-            "cannot",
-            "error:",
-            "no devices",
-            "device offline",
-            "monkey aborted",
-            "no activities",
-        ]
-        .iter()
-        .any(|s| lower.contains(s))
-        {
-            return Err(Error::Dependency(output));
-        }
         if operation == "android.connect"
             && !(lower.starts_with("connected to ") || lower.starts_with("already connected to "))
         {
@@ -201,6 +180,28 @@ impl Executor for DeviceTools {
         }
         Ok(json!({"output":output}))
     }
+}
+
+// 兼容旧设备工具的诊断规则；HDC与旧Android路径共享，不改变现有资格。
+fn checked_output(output: &[u8]) -> Result<String> {
+    let output = String::from_utf8_lossy(output).trim().to_owned();
+    let lower = output.to_lowercase();
+    if [
+        "failed",
+        "unable",
+        "cannot",
+        "error:",
+        "no devices",
+        "device offline",
+        "monkey aborted",
+        "no activities",
+    ]
+    .iter()
+    .any(|word| lower.contains(word))
+    {
+        return Err(Error::Dependency(output));
+    }
+    Ok(output)
 }
 #[cfg(test)]
 mod tests {

@@ -76,6 +76,11 @@ async fn discovery_boundaries_identity_generation_and_exact_capability() {
         Err(Error::Conflict(_))
     ));
     *provider.discovery.lock().unwrap() = json!({"result":observed(),"artifacts":[]});
+    assert!(matches!(
+        devices.refresh(input.clone()).await,
+        Err(Error::Dependency(_))
+    ));
+    provider.published.store(true, Ordering::SeqCst);
     devices.refresh(input.clone()).await.unwrap();
     plugins.unload(input.id.clone()).await.unwrap();
     assert!(devices.directories().is_empty());
@@ -155,7 +160,7 @@ async fn dropped_refresh_keeps_capacity_until_cancel_cleanup_and_unload_removes_
     started(&provider).await;
     assert_eq!(provider.cleaned.load(Ordering::SeqCst), 1);
     plugins.unload(input.id).await.unwrap();
-    assert!(matches!(second.await.unwrap(), Err(Error::Cancelled)));
+    assert!(matches!(second.await.unwrap(), Err(Error::Conflict(_))));
     assert_eq!(provider.cleaned.load(Ordering::SeqCst), 2);
     assert!(devices.directories().is_empty());
     app.shutdown().await.unwrap();

@@ -48,6 +48,30 @@ pub(crate) fn provider(owner: &Owner) -> Option<DeviceProviderInfo> {
         definition,
     })
 }
+
+/// 声明快照和父期限决定唯一截止点，不重新查询提供者或延长刷新预算。
+pub(crate) fn execution_deadline(
+    registered: &Registered,
+    capability: Option<&DeviceCapability>,
+    admitted_at: tokio::time::Instant,
+    inherited: Option<tokio::time::Instant>,
+) -> Option<tokio::time::Instant> {
+    let budget = capability
+        .map(DeviceCapability::execution_timeout)
+        .or_else(|| {
+            registered.owner.as_ref().and_then(|owner| {
+                owner
+                    .provider
+                    .as_ref()
+                    .filter(|provider| provider.discover_operation == registered.operation.id)
+                    .map(|_| std::time::Duration::from_millis(DEFAULT_EXECUTION_TIMEOUT_MS))
+            })
+        });
+    match (budget.map(|budget| admitted_at + budget), inherited) {
+        (Some(own), Some(parent)) => Some(own.min(parent)),
+        (own, parent) => own.or(parent),
+    }
+}
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct Envelope {

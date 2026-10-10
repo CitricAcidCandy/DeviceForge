@@ -10,6 +10,8 @@
 
 部署者可配置 `APK_ADB`、`APK_HDC`、`APK_DATA_DIR`、`APK_PLUGIN_DIR`、`APK_BIND`、`APK_MCP_HOSTS` 和 `APK_MCP_ORIGINS`。安装包分析另支持 APK_APKANALYZER、APK_APKSIGNER、APK_APKSIGNER_JAR、APK_JAVA 和 APK_BUNDLETOOL_JAR；当前不使用 APK_AAPT。
 
+可选 `APK_OPERATION_BINDINGS` 指向静态旧操作绑定 JSON，详见 [操作绑定部署](docs/操作绑定部署.md)。目标未加载时入口不发布，同名内置入口不回退；配置变更需重启，插件运行装卸仍动态生效。
+
 示例插件：执行 `cargo build -p deviceforge-echo-plugin`，按 plugins/echo/README.md 部署并填写绝对入口路径。服务启动时加载贡献，运行中可通过 HTTP/MCP 按插件 ID 加载、卸载和重载；配置令牌时携带鉴权。无需修改通用路由，契约及边界见 [运行中插件生命周期](docs/运行中插件生命周期.md)。
 
 ## API 与验证
@@ -27,6 +29,7 @@ HTTP 推荐 `/api/v2`，业务 JSON 返回日志 ID；v1 保持兼容，MCP 在 
 - docs/插件开发.md：跨语言协议与部署。
 - docs/设备适配器插件架构.md：基础宿主、平台提供者、能力与会话边界，以及当前耦合和迁移验收。
 - docs/设备提供者第一阶段实施.md：离散设备声明、目录、共享锁、任务生命周期和本阶段验收。
+- docs/平台适配器迁出实施.md：公共工具库、独立平台插件、旧操作绑定、长安装与性能会话的迁出边界；工具库说明见 crates/tool-process/README.md。
 - docs/MCP服务.md：MCP 工具及客户端接入。
 - docs/命令行部署与插件安装.md：npx 本地分发、网络参数、部署路径及安装门禁。
 - docs/原生插件分发.md：从 Cargo/公开清单派生平台包，release tgz 构建与实际安装验收。
@@ -70,4 +73,6 @@ APKS 分包操作已接入：android.package.extract_splits 接收四个常见�
 
 已核对当前 debug 报告：[设备集成](../artifacts/device-provider-smoke-debug.json) 的 25 项检查全部通过，35 次真实 Node 夹具调用均确认清理和进程退出；[浏览器集成](../artifacts/browser-plugin-smoke-debug.json) 整体与浏览器结果通过，覆盖公开设备上下文、提供者重载和旧引用拒绝；[日志集成](../artifacts/logging-smoke-debug.json) 的 4000 请求检查通过，零日志丢弃/写入错误并正常退出。上述设备为第三方模拟设备；首轮设备请求超时根因仍未确证，复跑通过不表示间歇问题已根治。
 
-主代理已重建当前 release runtime 和五个原生插件包，release 设备 25 项、生产浏览器、日志 4000 请求、插件生命周期、合作取消和在线安装均通过。真实 npx 在同一包上验证显式令牌与默认免令牌两阶段，并实际安装公开设备示例、经 HTTP/MCP 发现/调用/拒绝旧引用，完整任务及事件历史保持一致。Android/Harmony 平台迁出、常驻会话、iOS、真机及嵌套输入产物选择仍未完成，详见 [实施与验收边界](docs/设备提供者第一阶段实施.md)。设备 smoke 在项目根执行 `node scripts/device-provider-smoke.mjs`，发布重建后加 `--release`；最终状态以根 todo.md 为准。
+主代理已重建当前 release runtime 和五个原生插件包，release 设备 25 项、生产浏览器、日志 4000 请求、插件生命周期、合作取消和在线安装均通过。真实 npx 在同一包上验证显式令牌与默认免令牌两阶段，并实际安装公开设备示例、经 HTTP/MCP 发现/调用/拒绝旧引用，完整任务及事件历史保持一致。嵌套输入产物随后已通过独立 debug/release/npx 验收。Android/Harmony 平台迁出、常驻会话、iOS 和真机仍未完成，详见 [实施与验收边界](docs/设备提供者第一阶段实施.md)。设备 smoke 在项目根执行 `node scripts/device-provider-smoke.mjs`，发布重建后加 `--release`；最终状态以根 todo.md 为准。
+
+公共工具库首步已完成：deviceforge-tool-process 与宿主回接、非合作清理守卫、14 模块/4 规则架构门禁及后端 248 项测试通过。当前 debug/release 与真实 npx 重新验收通过，详见 [平台迁出实施](docs/平台适配器迁出实施.md)。具体 Android/Harmony 与包工具插件仍待实施。

@@ -4,7 +4,7 @@ pub fn main() {
     let mut args: Vec<String> = std::env::args().skip(1).collect();
     let mode = if args[0] == "-Xmx256m" {
         assert_eq!(args[1], "-jar");
-        assert_eq!(args[2], "mock-apktool.jar");
+        assert_eq!(PathBuf::from(&args[2]).file_name().and_then(|name| name.to_str()), Some("mock-apktool.jar"));
         args.drain(..3);
         "ok".to_owned()
     } else { args.remove(0) };

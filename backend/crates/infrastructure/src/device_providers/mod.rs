@@ -29,6 +29,7 @@ pub fn definition(
                     sdk::CapabilityAccess::Read => CapabilityAccess::Read,
                     sdk::CapabilityAccess::Write => CapabilityAccess::Write,
                 },
+                execution_timeout_ms: cap.execution_timeout_ms,
             })
             .collect(),
     };
@@ -71,6 +72,7 @@ pub fn discovery(
                 sdk::DeviceState::Unauthorized => DeviceState::Unauthorized,
                 sdk::DeviceState::Unknown => DeviceState::Unknown,
             },
+            raw_state: item.raw_state.clone(),
             model: item.model.clone(),
             capabilities: item
                 .capabilities

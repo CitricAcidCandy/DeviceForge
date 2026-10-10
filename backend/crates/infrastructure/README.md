@@ -2,7 +2,7 @@
 
 作用：提供受控子进程、ADB / HDC 工具、独立进程插件和 SQLite 任务存储。适用于部署主机的工具执行与持久化。
 快速开始：`cargo test -p apk-infrastructure`；部署前配置工具路径。
-API：`process::run` 参数为入口、argv、可选输入、超时与取消令牌；`devices::DeviceTools` 实现领域执行端口；`plugins::load` 读取管理员部署的清单；`store::SqliteStore::open` 打开任务库。
+API：`process::run` 参数为入口、argv、可选输入、超时与取消令牌；首批Android撤除接缝使用`devices::HarmonyDeviceTools { hdc }`仅提供两项HDC贡献，旧`DeviceTools`保留兼容；`plugins::load`读取管理员部署的清单；`store::SqliteStore::open`打开任务库。
 生产装配使用 plugin_catalog::FilePluginCatalog 的异步 open/initial/load；旧 plugins::load 仅保留兼容。
 插件进程环境不继承 API 令牌；输出超限、退出失败、超时或取消均失败收敛。
 
@@ -12,15 +12,17 @@ plugin_catalog.rs 实现领域 PluginCatalog，输入为固定部署根及产物
 
 目录读取不决定注册或卸载状态，不接受请求指定的路径。tests/plugin_catalog.rs 验证排序/暂存、非法与缺失 ID、错配/损坏/超大清单、扫描上限、目录及清单符号链接。部署插件为管理员可信代码，校验不构成系统沙箱。
 
-设备产物操作由 device_artifacts::DeviceArtifactActions 实现，注入 ArtifactStore 与部署工具路径。process::run_text 同时返回标准输出 / 错误供成功判定，process::run_to_file 为截图提供有界流式写入；具体参数与限制见 src/device_artifacts/README.md。
+设备产物旧实现为device_artifacts::DeviceArtifactActions。残余装配专用RemainingDeviceArtifactActions私有委托它，只放行Android安装/截图与Harmony安装/卸载四项，并在两个执行入口拒绝已迁出的Android卸载；main切换与新宿主验收由主代理完成。注入ArtifactStore及部署工具路径，process::run_text同时返回标准输出/错误供成功判定，process::run_to_file为截图提供有界写入；具体限制与原D/清理观测缺口见src/device_artifacts/README.md。
 
 安装包分析由 package_tools::AndroidPackageTools 实现 PackageAnalyzer 领域端口；artifact_files 统一安装与分析的临时产物流式复制和 SHA-256 校验。各模块 README 描述参数、资源上限与测试。
+
+package_work::PackageCapacity 由服务器显式注入四类本地包适配器，共享最多四个真实同步闭包；各 Pool 独立持有 owner 观测，clone 只在同 owner 内共享状态。登记和 spawn 与 close 共用门禁，关闭后拒绝新提交。server 先 close、等待任务停止，再用一次两秒 drain_until 复核实际同步闭包；许可和临时 lease 在 finished 之前释放。排空不证明工具派生树、临时目录删除或产物 staging 已清理，旧设备安装仍单独迁移。
 
 reverse::AndroidReverse 提供受控反编译和 SDK 路径检测，输出监测、打包与扫描分文件实现；端口和操作贡献位于 domain / application 的 reverse 模块。
 
 plugins::load_with_artifacts 为协议版本 2 插件注入产物端口，plugin_artifacts 实现能力声明检查、临时输入与输出发布；版本 1 的 load / ProcessPlugin::new 保持可用。
 
-device_input::AndroidInput 提供类型化 Android 输入，设备端引用与字面量 %s 分片、同设备串行、30 秒总期限和诊断判定位于 src/device_input，模块文档说明部分输入与非幂等性。
+device_input::AndroidInput保留旧类型化输入适配器与所属测试；首批Android七能力迁出后main停止装配InputOperations(AndroidInput)，实际输入通过独立android-device能力及宿主通用锁。旧引用/%s/局部串行规则位于src/device_input，保留代码不构成内置回退；新装配验收由主代理记录。
 
 performance::AndroidPerformance 与 performance::store::SqlitePerformance 提供设备性能探针和独立会话数据库；端口位于 domain，生命周期及贡献位于 application。详见 src/performance/README.md。
 

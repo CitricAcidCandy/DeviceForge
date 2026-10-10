@@ -10,9 +10,12 @@ test('app 装配 SDK v2 公共模型与日志，服务令牌不进入上下文',
     return success(job(), 'job-log');
   } });
   assert.equal(runtime.host.apiVersion, 2); assert.equal('tokenProvider' in runtime.host, false); assert.equal('transport' in runtime.host, false);
-  for (const name of ['serverPlugins', 'pluginPackages', 'artifacts']) {
+  for (const name of ['serverPlugins', 'pluginPackages']) {
     assert.equal(name in runtime, true); assert.equal(name in runtime.host, false);
   }
+  assert.ok(runtime.host.artifacts);
+  assert.notEqual(runtime.host.artifacts, runtime.artifacts);
+  assert.deepEqual(Object.keys(runtime.host.artifacts).sort(), ['download', 'upload']);
   assert.equal((await runtime.host.listOperations(signal())).data[0]?.input_schema, true);
   const submitted = await runtime.host.submit('example.run', {}, signal());
   assert.equal(submitted.logId, 'job-log'); assert.equal(submitted.data.result, null); assert.equal(submitted.data.error, null);

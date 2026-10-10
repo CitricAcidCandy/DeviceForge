@@ -3,6 +3,13 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio_util::sync::CancellationToken;
 
+mod execution;
+pub use execution::ExecutionContext;
+mod executor_result;
+pub use executor_result::ExecutorResultFormat;
+pub mod operation_execution;
+pub use operation_execution::{OperationExecution, OperationExecutionSource};
+
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("输入无效：{0}")]
@@ -86,10 +93,17 @@ pub struct Operation {
     pub id: String,
     pub title: String,
     pub input_schema: Value,
+    /// 普通操作在注册时固化的有效预算；设备等专用贡献不使用此字段。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub execution: Option<OperationExecution>,
 }
 #[async_trait]
 pub trait Executor: Send + Sync {
     fn operations(&self) -> Vec<Operation>;
+    /// 默认不信任业务 JSON 的包装外形；仅宿主发布适配器覆盖此声明。
+    fn result_format(&self) -> ExecutorResultFormat {
+        ExecutorResultFormat::Json
+    }
     /// 默认没有设备贡献；声明与实际操作一起注册，不按平台字符串推断。
     fn device_provider(&self) -> Option<devices::DeviceProviderDefinition> {
         None
@@ -104,6 +118,16 @@ pub trait Executor: Send + Sync {
         input: Value,
         cancel: CancellationToken,
     ) -> Result<Value>;
+    /// 兼容已有执行器；宿主仍负责外围期限，插件传输覆盖此入口共享截止点。
+    async fn execute_with_context(
+        &self,
+        operation: &str,
+        input: Value,
+        cancel: CancellationToken,
+        _context: ExecutionContext,
+    ) -> Result<Value> {
+        self.execute(operation, input, cancel).await
+    }
 }
 pub trait JobStore: Send + Sync {
     fn create(&self, job: &Job) -> Result<()>;

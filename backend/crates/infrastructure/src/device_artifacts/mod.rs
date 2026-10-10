@@ -13,6 +13,9 @@ use crate::{
 };
 const TIMEOUT: Duration = Duration::from_secs(120);
 
+mod remaining;
+pub use remaining::RemainingDeviceArtifactActions;
+
 pub struct DeviceArtifactActions {
     pub adb: String,
     pub hdc: String,
@@ -154,7 +157,7 @@ impl Executor for DeviceArtifactActions {
                 properties[key] = json!({"type":"string","minLength":1,"maxLength":200});
                 required.push(key);
             }
-            Operation { id:id.into(), title:title.into(), input_schema:json!({"type":"object","properties":properties,"required":required,"additionalProperties":false}) }
+            Operation { id:id.into(), title:title.into(), input_schema:json!({"type":"object","properties":properties,"required":required,"additionalProperties":false}), execution: None }
         }).collect()
     }
     async fn execute(

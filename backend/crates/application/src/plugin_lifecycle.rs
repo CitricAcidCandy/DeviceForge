@@ -138,7 +138,7 @@ impl Application {
     async fn install_plugin(self: &Arc<Self>, plugin: PluginContribution) -> Result<PluginInfo> {
         let app = self.clone();
         self.blocking(move || {
-            let prepared = Prepared::new(plugin)?;
+            let prepared = Prepared::new_with_bindings(plugin, &app.registry.1)?;
             let active = app
                 .active
                 .lock()

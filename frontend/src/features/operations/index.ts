@@ -1,17 +1,30 @@
-import { operationsEndpoint } from '../../shared/api/index.ts';
-import type { ApiClient, OperationDto } from '../../shared/api/index.ts';
-import { createLatestResource } from '../../shared/lifecycle/latest.ts';
+import { ApiError, operationsEndpoint } from '../../shared/api/index.ts';
+import type { ApiClient } from '../../shared/api/index.ts';
+import { abortable } from '../../shared/api/abort.ts';
+import { createOperationState } from './state.ts';
 
 export function createOperations(client: ApiClient) {
-  const resource = createLatestResource<OperationDto[]>();
+  const state = createOperationState();
   const lifetime = new AbortController();
-  const list = (signal: AbortSignal) => client.call(operationsEndpoint, undefined, AbortSignal.any([signal, lifetime.signal]));
+  let observation = new AbortController();
+  async function list(signal: AbortSignal) {
+    const admitted = observation;
+    const current = AbortSignal.any([signal, admitted.signal, lifetime.signal]);
+    if (current.aborted) throw new ApiError('cancelled', 'cancelled', '操作目录请求等待已取消');
+    const result = await abortable(client.call(operationsEndpoint, undefined, current), current);
+    if (current.aborted || admitted !== observation) throw new ApiError('cancelled', 'stale_result', '旧操作列表响应已撤销');
+    return result;
+  }
   return {
     list,
-    refresh: (signal: AbortSignal) => resource.run(list, signal),
-    snapshot: resource.snapshot,
-    subscribe: resource.subscribe,
-    dispose() { lifetime.abort(); resource.dispose(); },
+    refresh: (signal: AbortSignal) => state.refresh(list, signal),
+    snapshot: state.snapshot,
+    subscribe: state.subscribe,
+    invalidate() {
+      if (lifetime.signal.aborted) throw new ApiError('cancelled', 'cancelled', '操作目录已关闭，请求等待已取消');
+      observation.abort(); observation = new AbortController(); state.invalidate();
+    },
+    dispose() { state.dispose(); lifetime.abort(); observation.abort(); },
   };
 }
 export type Operations = ReturnType<typeof createOperations>;

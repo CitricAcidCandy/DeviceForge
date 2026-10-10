@@ -1,9 +1,10 @@
+use crate::execution_deadline;
 use apk_domain::artifacts::{Artifact, ArtifactStore};
 use apk_domain::{Error, Result};
 use futures_util::StreamExt;
 use sha2::{Digest, Sha256};
 use std::{path::PathBuf, sync::Arc, time::Duration};
-use tokio::{fs::File, io::AsyncWriteExt};
+use tokio::{fs::File, io::AsyncWriteExt, time::Instant};
 use tokio_util::sync::CancellationToken;
 pub(crate) const LIMIT: u64 = 64 * 1024 * 1024;
 const TIMEOUT: Duration = Duration::from_secs(120);
@@ -46,7 +47,10 @@ async fn copy_verified(
     id: &str,
     extensions: &[&str],
     file: &mut File,
+    cancel: &CancellationToken,
+    deadline: Option<Instant>,
 ) -> Result<Artifact> {
+    execution_deadline::check(cancel, deadline)?;
     let (artifact, mut stream) = store.download(id).await?;
     if !extensions
         .iter()
@@ -62,13 +66,18 @@ async fn copy_verified(
     }
     let mut size = 0u64;
     let mut hash = Sha256::new();
-    while let Some(chunk) = stream.next().await {
+    loop {
+        execution_deadline::check(cancel, deadline)?;
+        let Some(chunk) = stream.next().await else {
+            break;
+        };
         let chunk = chunk?;
         size += chunk.len() as u64;
         if size > artifact.size || size > LIMIT {
             return Err(Error::TooLarge);
         }
         hash.update(&chunk);
+        execution_deadline::check(cancel, deadline)?;
         file.write_all(&chunk)
             .await
             .map_err(|e| Error::Storage(e.to_string()))?;
@@ -76,6 +85,7 @@ async fn copy_verified(
     if size != artifact.size || format!("{:x}", hash.finalize()) != artifact.sha256 {
         return Err(Error::Storage("产物大小或 SHA-256 与元数据不一致".into()));
     }
+    execution_deadline::check(cancel, deadline)?;
     file.flush()
         .await
         .map_err(|e| Error::Storage(e.to_string()))?;
@@ -92,16 +102,39 @@ pub(crate) async fn materialize(
     extensions: &[&str],
     cancel: CancellationToken,
 ) -> Result<Materialized> {
+    materialize_until(store, id, extensions, cancel, None).await
+}
+
+pub(crate) async fn materialize_until(
+    store: &dyn ArtifactStore,
+    id: &str,
+    extensions: &[&str],
+    cancel: CancellationToken,
+    deadline: Option<Instant>,
+) -> Result<Materialized> {
+    execution_deadline::check(&cancel, deadline)?;
     let directory = Arc::new(Temporary::new()?);
     let input = directory.path().join("package.input");
-    let mut file = File::create(&input)
-        .await
-        .map_err(|e| Error::Storage(e.to_string()))?;
-    let result = tokio::select! {
-        biased;
-        _ = cancel.cancelled() => Err(Error::Cancelled),
-        value = tokio::time::timeout(TIMEOUT, copy_verified(store, id, extensions, &mut file)) => value.unwrap_or(Err(Error::Timeout)),
-    };
+    let mut file = execution_deadline::run(&cancel, deadline, async {
+        File::create(&input)
+            .await
+            .map_err(|e| Error::Storage(e.to_string()))
+    })
+    .await?;
+    let copy_deadline = deadline.unwrap_or_else(|| Instant::now() + TIMEOUT);
+    let result = execution_deadline::run(
+        &cancel,
+        Some(copy_deadline),
+        copy_verified(
+            store,
+            id,
+            extensions,
+            &mut file,
+            &cancel,
+            Some(copy_deadline),
+        ),
+    )
+    .await;
     drop(file);
     let artifact = result?;
     let name = artifact.filename.to_ascii_lowercase();
@@ -110,9 +143,12 @@ pub(crate) async fn materialize(
         .find(|extension| name.ends_with(**extension))
         .ok_or_else(|| Error::Invalid("产物扩展名不匹配".into()))?;
     let path = directory.path().join(format!("package{extension}"));
-    tokio::fs::rename(input, &path)
-        .await
-        .map_err(|e| Error::Storage(e.to_string()))?;
+    execution_deadline::run(&cancel, deadline, async {
+        tokio::fs::rename(input, &path)
+            .await
+            .map_err(|e| Error::Storage(e.to_string()))
+    })
+    .await?;
     Ok(Materialized {
         artifact,
         path,

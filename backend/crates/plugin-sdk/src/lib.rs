@@ -1,8 +1,12 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+pub mod context;
 pub mod cooperative;
 pub mod devices;
+pub mod execution;
 pub mod packages;
+pub use context::{CONTEXT_PROTOCOL_VERSION, ReadyCommand, ReadyFrame, StartCommand, StartFrame};
+pub use execution::ExecutionBudget;
 pub const PROTOCOL_VERSION: u32 = 1;
 pub const ARTIFACT_PROTOCOL_VERSION: u32 = 2;
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -44,6 +48,9 @@ pub struct Contribution {
     pub name: String,
     pub title: String,
     pub input_schema: Value,
+    /// 普通操作的显式总预算；省略或 null 交由宿主注册层确定默认值。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub execution: Option<ExecutionBudget>,
 }
 /// 性能采样操作仍使用普通请求 / 响应协议，宿主按此声明选择采样端口。
 #[derive(Debug, Clone, Serialize, Deserialize)]

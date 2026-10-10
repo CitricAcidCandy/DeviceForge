@@ -25,6 +25,7 @@ fn executor(names: &[&str]) -> Arc<Controlled> {
         operations: names
             .iter()
             .map(|id| Operation {
+                execution: None,
                 id: (*id).into(),
                 title: "测试贡献".into(),
                 input_schema: json!({"type":"object"}),

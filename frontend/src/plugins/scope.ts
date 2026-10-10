@@ -1,6 +1,8 @@
 import { HostError } from '../plugin-sdk/index.ts';
 import type { Dispose, ExtensionAccess, HostContext, HostResult } from '../plugin-sdk/index.ts';
 import { scopedDeviceAccess } from './device-access.ts';
+import { scopedArtifactAccess } from './artifact-access.ts';
+import { scopedTaskHistoryAccess } from './task-history-access.ts';
 
 export function createPluginScope(host: HostContext) {
   const controller = new AbortController();
@@ -43,15 +45,15 @@ export function createPluginScope(host: HostContext) {
     host.signal.addEventListener('abort', parentAbort, { once: true });
     track(() => host.signal.removeEventListener('abort', parentAbort));
   }
-  function current() {
-    if (closed) throw new HostError('cancelled', 'plugin_unloaded', '插件代际或面板已撤销');
+  function current(logId: string | null = null) {
+    if (closed) throw new HostError('cancelled', 'plugin_unloaded', '插件代际或面板已撤销', logId);
   }
   async function call<T>(request: (signal: AbortSignal) => Promise<HostResult<T>>, signal: AbortSignal): Promise<HostResult<T>> {
     current();
     const combined = AbortSignal.any([signal, controller.signal]);
     if (combined.aborted) throw new HostError('cancelled', 'cancelled', '等待已取消');
     const result = await request(combined);
-    current();
+    current(result.logId);
     if (combined.aborted) throw new HostError('cancelled', 'stale_result', '晚到结果已撤销', result.logId);
     return result;
   }
@@ -70,6 +72,8 @@ export function createPluginScope(host: HostContext) {
     } } : {}),
   }) : undefined;
   const devices = scopedDeviceAccess(host.devices, call, current, controller.signal, track);
+  const artifacts = scopedArtifactAccess(host.artifacts, call);
+  const taskHistory = scopedTaskHistoryAccess(host.taskHistory, call);
   const context = Object.freeze<HostContext>({
     apiVersion: 2,
     signal: controller.signal,
@@ -84,6 +88,8 @@ export function createPluginScope(host: HostContext) {
     onDispose: track,
     ...(extensions ? { extensions } : {}),
     ...(devices ? { devices } : {}),
+    ...(artifacts ? { artifacts } : {}),
+    ...(taskHistory ? { taskHistory } : {}),
   });
   return { context, close, dispose, track };
 }

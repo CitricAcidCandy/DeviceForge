@@ -13,6 +13,7 @@ use tokio_util::sync::CancellationToken;
 pub struct Provider {
     pub id: String,
     pub discovery: Mutex<Value>,
+    pub published: AtomicBool,
     pub schema: Mutex<Option<Value>>,
     pub blocked: AtomicBool,
     pub unresolved: AtomicBool,
@@ -28,6 +29,7 @@ impl Provider {
         Arc::new(Self {
             id: id.into(),
             discovery: Mutex::new(observed()),
+            published: AtomicBool::new(false),
             schema: Mutex::new(None),
             blocked: AtomicBool::new(false),
             unresolved: AtomicBool::new(false),
@@ -58,6 +60,7 @@ impl Provider {
             operation: format!("plugin.{}.{id}", self.id),
             scope,
             access,
+            execution_timeout_ms: None,
         }
     }
 }
@@ -67,6 +70,13 @@ pub fn observed() -> Value {
 }
 #[async_trait]
 impl Executor for Provider {
+    fn result_format(&self) -> apk_domain::ExecutorResultFormat {
+        if self.published.load(Ordering::SeqCst) {
+            apk_domain::ExecutorResultFormat::PublishedArtifacts
+        } else {
+            apk_domain::ExecutorResultFormat::Json
+        }
+    }
     fn has_unresolved_resources(&self) -> bool {
         self.unresolved.load(Ordering::SeqCst)
     }
@@ -77,6 +87,7 @@ impl Executor for Provider {
         ["discover", "read", "write", "global"]
             .into_iter()
             .map(|name| Operation {
+                execution: None,
                 id: format!("plugin.{}.{name}", self.id),
                 title: "测试能力".into(),
                 input_schema: if name == "write" {

@@ -44,6 +44,9 @@ export async function start(options, { signal, environment = process.env, runtim
   await mkdir(browserPluginDirectory, { recursive: true });
   const backendPort = await freePort();
   const logDirectory = resolve(environment.DEVICEFORGE_LOG_DIR || join(options.dataDirectory, 'logs'));
+  // 部署绑定同样相对启动器工作目录解析，不能随后端切换到数据目录。
+  const bindings = environment.APK_OPERATION_BINDINGS;
+  const bindingEnvironment = bindings === undefined ? {} : { APK_OPERATION_BINDINGS: bindings ? resolve(bindings) : '' };
   let web; let mcp; let backend;
   const stopped = new Promise((resolve) => signal?.addEventListener('abort', resolve, { once: true }));
   try {
@@ -51,7 +54,7 @@ export async function start(options, { signal, environment = process.env, runtim
     mcp = await startWebServer({ port: options.mcpPort, backendPort, ip: options.ip, allowedHosts: network.hosts, mcpOnly: true });
     backend = spawnManaged(resources.binary, [], {
       cwd: options.dataDirectory, stdio: 'ignore',
-      env: { ...environment, APK_API_TOKEN: token, APK_BIND: `127.0.0.1:${backendPort}`, APK_DATA_DIR: options.dataDirectory, APK_PLUGIN_DIR: pluginDirectory,
+      env: { ...environment, ...bindingEnvironment, APK_API_TOKEN: token, APK_BIND: `127.0.0.1:${backendPort}`, APK_DATA_DIR: options.dataDirectory, APK_PLUGIN_DIR: pluginDirectory,
         APK_BROWSER_PLUGIN_DIR: browserPluginDirectory, DEVICEFORGE_NODE: environment.DEVICEFORGE_NODE ? resolve(environment.DEVICEFORGE_NODE) : process.execPath,
         APK_MCP_HOSTS: `127.0.0.1:${backendPort}`, APK_MCP_ORIGINS: network.origins.join(','), DEVICEFORGE_LOG_DIR: logDirectory },
     });

@@ -215,7 +215,7 @@ test('动态撤销组件立即清理挂载根，挂载失败回滚插件其他�
   assert.equal(instance.extensions.catalog().commands.length, 0); assert.equal(root.children.length, 0); assert.equal(cleanups, 2); await instance.dispose();
 });
 
-test('已安装包每次加载使用独立运行路径，相对依赖继承新 UUID 前缀', async () => {
+test('已安装包每次加载使用独立运行路径，相对依赖继承合法运行代次前缀', async () => {
   const urls = []; let activations = 0;
   const instance = runtime({
     esmImporter: async (url) => { urls.push(url); return { default: { id: 'example', version: '1.0', apiVersion: 2, panels: [], activate: async () => { ++activations; } } }; },
@@ -223,9 +223,9 @@ test('已安装包每次加载使用独立运行路径，相对依赖继承新 U
   });
   instance.registerInstalledPackage({ id: 'example', version: '1.0', entryPath: 'nested/main.js' });
   await instance.webPlugins.load('example'); await instance.webPlugins.unload('example'); await instance.webPlugins.load('example');
-  assert.equal(activations, 2); assert.notEqual(urls[0], urls[1]);
+  assert.equal(activations, 2); assert.equal(urls.length, 2); assert.notEqual(urls[0], urls[1]);
   const dependencies = urls.map((url) => new URL('./dependency.js', url).href);
-  assert.notEqual(dependencies[0], dependencies[1]); assert.ok(dependencies.every((url) => /\/runs\/[0-9a-f-]{36}\/assets\/nested\/dependency.js$/.test(url)));
+  assert.notEqual(dependencies[0], dependencies[1]); assert.ok(dependencies.every((url) => /\/runs\/[A-Za-z0-9_-]+\/assets\/nested\/dependency\.js$/.test(url)));
   await instance.dispose();
 });
 

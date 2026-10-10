@@ -2,7 +2,18 @@
 export type JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue };
 export type Dispose = () => void | Promise<void>;
 export interface HostResult<T> { readonly data: T; readonly logId: string | null }
-export interface Operation { readonly id: string; readonly title: string; readonly input_schema: JsonValue }
+// 当前目录的普通操作有效总预算；只读元数据，不用于覆盖提交或补写历史任务。
+export interface OperationExecution {
+  readonly apiVersion: 1;
+  readonly totalTimeoutMs: number;
+  readonly source: 'default' | 'declared';
+}
+export interface Operation {
+  readonly id: string;
+  readonly title: string;
+  readonly input_schema: JsonValue;
+  readonly execution?: OperationExecution;
+}
 export interface Job { readonly id: string; readonly operation: string; readonly status: 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled'; readonly result: JsonValue; readonly error: string | null }
 export class HostError extends Error {
   readonly kind: 'http' | 'network' | 'cancelled' | 'protocol';

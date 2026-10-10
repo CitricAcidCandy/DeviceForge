@@ -7,6 +7,37 @@ use std::{
     sync::OnceLock,
 };
 use zip::{ZipWriter, write::SimpleFileOptions};
+
+#[test]
+fn final_split_pack_rejects_duplicate_members_inside_an_apk_before_zip_creation() {
+    let source = tempfile::tempdir().unwrap();
+    let destination = tempfile::tempdir().unwrap();
+    // 仅改同长度的本地头和中心目录名称，内容和 CRC 仍有效。
+    let mut bytes = archive(&[("a.txt", b"first"), ("b.txt", b"second")]);
+    let mut changed = 0;
+    for offset in 0..=bytes.len() - 5 {
+        if &bytes[offset..offset + 5] == b"b.txt" {
+            bytes[offset..offset + 5].copy_from_slice(b"a.txt");
+            changed += 1;
+        }
+    }
+    assert_eq!(changed, 2);
+    let input = source.path().join("base.apk");
+    std::fs::write(&input, bytes).unwrap();
+    assert!(matches!(
+        crate::artifacts::validation::validate_archive(&input),
+        Err(Error::Invalid(_))
+    ));
+    let output = destination.path().join("selected.zip");
+    let cancel = CancellationToken::new();
+    let signal = || cancel.is_cancelled();
+    let control = deviceforge_android_package_core::Control::new(None, &signal);
+    assert!(matches!(
+        packing::pack_controlled(source.path(), &output, &control),
+        Err(Error::Invalid(_))
+    ));
+    assert!(!output.exists(), "不合格内 APK 不得创建最终 ZIP");
+}
 fn archive(entries: &[(&str, &[u8])]) -> Vec<u8> {
     let mut zip = ZipWriter::new(Cursor::new(Vec::new()));
     for (name, data) in entries {

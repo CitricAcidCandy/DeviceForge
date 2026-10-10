@@ -82,6 +82,7 @@ dependencies = [
  "apk-domain",
  "apk-plugin-sdk",
  "async-trait",
+ "deviceforge-android-package-core",
  "deviceforge-data-codec",
  "deviceforge-observability",
  "deviceforge-tool-process",
@@ -420,6 +421,49 @@ name = "deranged"
 version = "0.5.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7cd812cc2bc1d69d4764bd80df88b4317eaef9e773c75226407d9bc0876b211c"
+
+[[package]]
+name = "deviceforge-android-device-plugin"
+version = "0.1.0"
+dependencies = [
+ "apk-plugin-sdk",
+ "deviceforge-plugin-runtime",
+ "deviceforge-tool-process",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+ "tokio-util",
+]
+
+[[package]]
+name = "deviceforge-android-package-core"
+version = "0.1.0"
+dependencies = [
+ "quick-xml",
+ "serde",
+ "tempfile",
+ "thiserror",
+ "zip",
+]
+
+[[package]]
+name = "deviceforge-android-packages-plugin"
+version = "0.1.0"
+dependencies = [
+ "apk-plugin-sdk",
+ "deviceforge-android-package-core",
+ "deviceforge-plugin-runtime",
+ "deviceforge-tool-process",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "thiserror",
+ "tokio",
+ "tokio-util",
+ "uuid",
+]
 
 [[package]]
 name = "deviceforge-artifact-copy-plugin"

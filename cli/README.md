@@ -51,6 +51,8 @@ plugin list 返回本地部署清单概要。安装可在服务运行中执行�
 
 当前 Windows x64 release 运行包已重建，根 npm test 15 项通过。真实 npx 使用同一 tgz 分两阶段验证显式令牌和默认无令牌 0.0.0.0 启动、HTTP/MCP 日志 ID、五个原生插件、Node 依赖、热装卸及正常关闭/端口释放。本阶段另实际安装公开设备示例，经 HTTP/MCP 发现和能力调用、重载换代与旧引用精确拒绝，完整任务及事件历史保持一致；没有验证另一台主机或真机。后续修改启动边界仍须先重建 runtime，再运行测试，不能以旧 Rust 包替代当前源码验证。
 
+公共工具执行库回接阶段已重新构建 release 并完成同一 tgz 的真实 npx 两阶段验收，包含协议 2/3 嵌套产物插件。此包包含有界直接进程回收与宿主未确认状态守卫；实际 Android/Harmony 平台实现、常驻会话和性能热卸载仍待迁出，不以示例验收代替。
+
 当前 npx 验收另实际安装协议 2/3 的嵌套产物提供者，检查最终 manifest.json 中的 input_pointers 保留，并通过 HTTP/独立 MCP 核对宿主副本、JSON 输出原字节、摘要、在途卸载及新旧代引用。成功和取消任务保留，原成功任务及事件在换代后保持一致。报告位于 artifacts/nested-device-artifacts-smoke-npx.json；这些 CLI 部署不自动进入在线安装元数据目录。
 
 当前运行包仅包含构建主机的平台。发布前需分别构建 Windows/Linux/macOS 的目标程序并组成平台包或平台矩阵，不能把 Windows 验收写成跨平台验证。--debug 仅用于开发验收；默认 prepare:runtime 使用 release。registry 发布、下载来源签名、其他平台与另一台局域网客户端验收单独跟踪。

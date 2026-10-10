@@ -1,6 +1,10 @@
 //! 独立插件的异步请求与合作取消运行库，不引用宿主模块。
+pub mod context;
 mod framing;
 use apk_plugin_sdk::{ArtifactOutput, Request, Response, cooperative::*};
+pub use context::{
+    ContextError, InvocationContext, serve_io_with_context, serve_once_with_context,
+};
 use serde_json::Value;
 use std::future::Future;
 use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt, BufReader};

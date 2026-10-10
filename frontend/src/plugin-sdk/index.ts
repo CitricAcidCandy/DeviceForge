@@ -1,7 +1,11 @@
 import type { Dispose, HostResult, Job, JsonValue, Operation } from './models.ts';
 import type { DeviceAccess } from './devices.ts';
+import type { ArtifactAccess } from './artifacts.ts';
+import type { TaskHistoryAccess } from './task-history.ts';
 export * from './models.ts';
 export type * from './devices.ts';
+export type * from './artifacts.ts';
+export type * from './task-history.ts';
 export interface HostContext {
   readonly apiVersion: 2;
   readonly signal: AbortSignal;
@@ -14,6 +18,8 @@ export interface HostContext {
   readonly onDispose: (dispose: Dispose) => Dispose;
   readonly extensions?: ExtensionAccess;
   readonly devices?: DeviceAccess;
+  readonly artifacts?: ArtifactAccess;
+  readonly taskHistory?: TaskHistoryAccess;
 }
 export interface PanelContribution {
   readonly id: string;
