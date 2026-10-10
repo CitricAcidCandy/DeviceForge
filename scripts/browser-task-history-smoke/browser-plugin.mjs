@@ -5,7 +5,7 @@ const moduleIdentity = import.meta.url;
 let probe;
 
 function panel(panelId) {
-  return { id: panelId, title: '任务历史作用域验收 ' + panelId, async mount(target, context) {
+  return { id: id + '.' + panelId, title: '任务历史作用域验收 ' + panelId, async mount(target, context) {
     const node = target.ownerDocument.createElement('span');
     node.textContent = '任务历史验收探针'; target.append(node);
     const entry = { context, disposed: false, releases: 0 };

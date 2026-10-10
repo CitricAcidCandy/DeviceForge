@@ -8,7 +8,8 @@ export default defineConfig({
   build: {
     sourcemap: true,
     rolldownOptions: {
-      input: { app: fileURLToPath(new URL('./index.html', import.meta.url)), 'plugin-host': fileURLToPath(new URL('./src/app/public-runtime.ts', import.meta.url)) },
+      input: { app: fileURLToPath(new URL('./index.html', import.meta.url)), 'plugin-host': fileURLToPath(new URL('./src/app/public-runtime.ts', import.meta.url)), 'browser-plugin-harness': fileURLToPath(new URL('./scripts/browser-plugin-harness.ts', import.meta.url)) },
+      external: ['/__production_host__'],
       preserveEntrySignatures: 'strict',
       output: { entryFileNames: 'assets/[name].js' },
     },

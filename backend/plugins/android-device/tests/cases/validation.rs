@@ -19,7 +19,11 @@ fn full_external_names_and_unknown_short_names_are_not_accepted() {
         "android.packages",
         "install",
     ] {
-        reject(name, json!({}), "输入无效：设备插件只接受本批八个短贡献名");
+        reject(
+            name,
+            json!({}),
+            "输入无效：设备插件只接受本批十二个短贡献名",
+        );
     }
 }
 
@@ -206,7 +210,7 @@ fn nonempty_artifact_context_is_rejected_before_bad_config_or_tool() {
         "size":0,"sha256":"0".repeat(64),"path":fixture.root.join("not-read.bin")}]);
     let mut running = fixture.begin_request(request);
     running.start(Duration::from_secs(20));
-    failure(&running.complete(), "输入无效：本批设备操作不接受输入产物");
+    failure(&running.complete(), "输入无效：该设备动作不接受输入产物");
     fixture.assert_no_tool();
 }
 

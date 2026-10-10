@@ -1,4 +1,4 @@
-//! 固定四流的残余侧车；不复制底层业务，也不增强底层清理或期限资格。
+//! 固定Harmony两流的残余侧车。
 use super::DeviceArtifactActions;
 use apk_domain::artifacts::ArtifactStore;
 use apk_domain::{Error, ExecutionContext, Executor, ExecutorResultFormat, Operation, Result};
@@ -12,20 +12,14 @@ pub struct RemainingDeviceArtifactActions {
 }
 
 fn allowed(operation: &str) -> bool {
-    matches!(
-        operation,
-        "android.app.install"
-            | "android.screenshot"
-            | "harmony.app.install"
-            | "harmony.app.uninstall"
-    )
+    matches!(operation, "harmony.app.install" | "harmony.app.uninstall")
 }
 
 impl RemainingDeviceArtifactActions {
-    pub fn new(adb: String, hdc: String, artifacts: Arc<dyn ArtifactStore>) -> Self {
+    pub fn new(hdc: String, artifacts: Arc<dyn ArtifactStore>) -> Self {
         Self {
             inner: DeviceArtifactActions {
-                adb,
+                adb: String::new(),
                 hdc,
                 artifacts,
             },

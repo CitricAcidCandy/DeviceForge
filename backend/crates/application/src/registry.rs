@@ -22,18 +22,24 @@ pub(crate) struct Owner {
     info: PluginInfo,
     executor: Arc<dyn Executor>,
     draining: AtomicBool,
+    unresolved: AtomicBool,
     pub cancel: CancellationToken,
     pub tracker: TaskTracker,
     pub provider: Option<apk_domain::devices::DeviceProviderDefinition>,
+    pub performance: Option<apk_domain::performance::PerformanceSourceDefinition>,
 }
 impl Owner {
     pub fn info(&self) -> PluginInfo {
         let mut info = self.info.clone();
-        info.cleanup_failed = self.executor.has_unresolved_resources();
+        info.cleanup_failed =
+            self.unresolved.load(Ordering::Acquire) || self.executor.has_unresolved_resources();
         if self.draining.load(Ordering::Acquire) {
             info.state = PluginState::Draining;
         }
         info
+    }
+    pub(crate) fn mark_unresolved(&self) {
+        self.unresolved.store(true, Ordering::Release);
     }
 }
 pub(crate) struct Snapshot {
@@ -57,7 +63,16 @@ fn prepare(
     let mut entries = BTreeMap::new();
     let provider = executor.device_provider();
     for operation in operations {
-        let operation = crate::operation_budget::registered(operation, provider.as_ref())?;
+        let sampling = owner
+            .as_ref()
+            .and_then(|owner| owner.performance.as_ref())
+            .is_some_and(|source| source.operation == operation.id);
+        let operation = if sampling {
+            // 声明已校验；采样与设备能力由自己的预算裁定，不填普通默认预算。
+            operation
+        } else {
+            crate::operation_budget::registered(operation, provider.as_ref())?
+        };
         if entries.contains_key(&operation.id) {
             return Err(Error::Conflict("操作重复注册".into()));
         }
@@ -215,6 +230,10 @@ impl Prepared {
         if let Some(definition) = &provider {
             crate::devices::rules::definition(definition, &operations, &plugin.id)?;
         }
+        let performance = plugin.executor.performance_source();
+        if let Some(definition) = &performance {
+            definition.validate(&plugin.id, &operations, provider.as_ref())?;
+        }
         let owner = Arc::new(Owner {
             info: PluginInfo {
                 id: plugin.id.clone(),
@@ -237,9 +256,11 @@ impl Prepared {
             },
             executor: plugin.executor.clone(),
             draining: AtomicBool::new(false),
+            unresolved: AtomicBool::new(false),
             cancel: CancellationToken::new(),
             tracker: TaskTracker::new(),
             provider,
+            performance,
         });
         let mut entries = prepare(plugin.executor, Some(owner.clone()), operations)?;
         crate::registry_aliases::prepare(&mut entries, &owner, bindings)?;
@@ -324,7 +345,7 @@ impl Registry {
         Ok(owner)
     }
     pub fn finish(&self, owner: &Arc<Owner>) -> Result<PluginInfo> {
-        if owner.executor.has_unresolved_resources() {
+        if owner.info().cleanup_failed {
             return Err(Error::CleanupFailed);
         }
         let mut snapshot = self
@@ -387,5 +408,113 @@ mod tests {
         registry.publish(prepared()).unwrap();
         assert!(!registry.current("plugin.test.echo", &old).unwrap());
         assert_eq!(registry.operations().0, 3);
+    }
+
+    struct PerformanceEcho {
+        foreign: bool,
+    }
+    #[async_trait]
+    impl Executor for PerformanceEcho {
+        fn operations(&self) -> Vec<Operation> {
+            Echo.operations()
+        }
+        fn performance_source(
+            &self,
+        ) -> Option<apk_domain::performance::PerformanceSourceDefinition> {
+            Some(apk_domain::performance::PerformanceSourceDefinition {
+                api_version: 1,
+                operation: if self.foreign {
+                    "plugin.other.echo"
+                } else {
+                    "plugin.test.echo"
+                }
+                .into(),
+                fps: false,
+                device_capability: None,
+            })
+        }
+        async fn execute(&self, _: &str, value: Value, _: CancellationToken) -> Result<Value> {
+            Ok(value)
+        }
+    }
+    fn performance(foreign: bool) -> Result<Prepared> {
+        Prepared::new(PluginContribution {
+            id: "test".into(),
+            version: "1".into(),
+            executor: Arc::new(PerformanceEcho { foreign }),
+        })
+    }
+
+    #[test]
+    fn invalid_custom_performance_source_cannot_publish_any_contribution() {
+        let registry = Registry::new(vec![]).unwrap();
+        assert!(matches!(performance(true), Err(Error::Invalid(_))));
+        assert_eq!(registry.operations().0, 0);
+        assert!(registry.operations().1.is_empty());
+        assert!(registry.plugins().is_empty());
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn performance_owner_keeps_generation_and_sample_budget_without_ordinary_default() {
+        let registry = Registry::new(vec![]).unwrap();
+        let first = registry.publish(performance(false).unwrap()).unwrap();
+        let registered = registry.find("plugin.test.echo").unwrap();
+        assert!(registered.operation.execution.is_none());
+        let owner = registered.owner.as_ref().unwrap();
+        assert_eq!(owner.performance.as_ref().unwrap().api_version, 1);
+        let admitted = tokio::time::Instant::now();
+        assert_eq!(
+            crate::operation_budget::deadline(&registered, admitted, None, None),
+            Some(admitted + std::time::Duration::from_secs(10))
+        );
+        let parent = admitted + std::time::Duration::from_secs(5);
+        assert_eq!(
+            crate::operation_budget::deadline(&registered, admitted, None, Some(parent)),
+            Some(parent)
+        );
+        let detached = registry.detach("test").unwrap();
+        assert!(
+            !registry
+                .current(&registered.operation.id, &registered)
+                .unwrap()
+        );
+        assert!(owner.cancel.is_cancelled());
+        registry.finish(&detached).unwrap();
+        let next = registry.publish(performance(false).unwrap()).unwrap();
+        assert_ne!(first.generation, next.generation);
+        assert_eq!(owner.info().generation, first.generation);
+    }
+
+    #[tokio::test]
+    async fn application_cleanup_risk_stays_visible_and_blocks_execution_finish_and_reload() {
+        let registry = Registry::new(vec![]).unwrap();
+        registry.publish(performance(false).unwrap()).unwrap();
+        let registered = registry.find("plugin.test.echo").unwrap();
+        let owner = registered.owner.as_ref().unwrap();
+        owner.mark_unresolved();
+        assert!(registry.plugins()[0].cleanup_failed);
+        assert!(matches!(
+            crate::execution::execute(
+                registered.executor.as_ref(),
+                &registered.operation.id,
+                json!({}),
+                CancellationToken::new(),
+                Some(owner),
+                None
+            )
+            .await,
+            Err(Error::Conflict(_))
+        ));
+        let detached = registry.detach("test").unwrap();
+        assert!(matches!(
+            registry.finish(&detached),
+            Err(Error::CleanupFailed)
+        ));
+        assert!(matches!(
+            registry.publish(performance(false).unwrap()),
+            Err(Error::Conflict(_))
+        ));
+        assert_eq!(registry.plugins()[0].state, PluginState::Draining);
+        assert!(registry.plugins()[0].cleanup_failed);
     }
 }

@@ -19,6 +19,7 @@ use std::{
 use tokio_util::sync::CancellationToken;
 use tracing::Instrument;
 mod execution;
+mod performance;
 mod process_cleanup;
 
 pub struct ProcessPlugin {
@@ -26,6 +27,7 @@ pub struct ProcessPlugin {
     artifacts: Option<Arc<dyn ArtifactStore>>,
     unresolved: Arc<AtomicBool>,
     devices: Option<apk_domain::devices::DeviceProviderDefinition>,
+    performance: Option<apk_domain::performance::PerformanceSourceDefinition>,
 }
 fn valid_name(name: &str) -> bool {
     !name.is_empty()
@@ -74,21 +76,6 @@ impl ProcessPlugin {
             }
             crate::plugin_artifacts::validate(access)?;
         }
-        if let Some(access) = &manifest.performance {
-            if manifest.protocol_version != ARTIFACT_PROTOCOL_VERSION {
-                return Err(Error::Invalid("性能采样能力要求插件协议版本 2".into()));
-            }
-            if !names.contains(&access.sample_operation) {
-                return Err(Error::Invalid("性能采样操作必须存在于贡献列表".into()));
-            }
-            if manifest.artifacts.as_ref().is_some_and(|access| {
-                !access.input_fields.is_empty()
-                    || !access.input_pointers.is_empty()
-                    || access.outputs
-            }) {
-                return Err(Error::Invalid("性能采样插件不能声明产物读写能力".into()));
-            }
-        }
         execution::validate(&manifest)?;
         let operations = execution::operations(&manifest);
         let devices = manifest
@@ -96,11 +83,13 @@ impl ProcessPlugin {
             .as_ref()
             .map(|access| crate::device_providers::definition(&manifest.id, access, &operations))
             .transpose()?;
+        let performance = performance::definition(&manifest, &operations, devices.as_ref())?;
         Ok(Self {
             manifest,
             artifacts: None,
             unresolved: Arc::new(AtomicBool::new(false)),
             devices,
+            performance,
         })
     }
     pub fn manifest(&self) -> &Manifest {
@@ -177,6 +166,9 @@ impl Executor for ProcessPlugin {
     fn device_provider(&self) -> Option<apk_domain::devices::DeviceProviderDefinition> {
         self.devices.clone()
     }
+    fn performance_source(&self) -> Option<apk_domain::performance::PerformanceSourceDefinition> {
+        self.performance.clone()
+    }
     fn has_unresolved_resources(&self) -> bool {
         self.unresolved.load(Ordering::Acquire)
     }
@@ -236,6 +228,15 @@ impl ProcessPlugin {
         if !self.manifest.operations.iter().any(|c| c.name == name) {
             return Err(Error::NotFound(operation.into()));
         }
+        let sampling = self
+            .performance
+            .as_ref()
+            .is_some_and(|source| source.operation == operation);
+        let artifact_access = if sampling {
+            None
+        } else {
+            self.manifest.artifacts.as_ref()
+        };
         let files = if matches!(
             self.manifest.protocol_version,
             ARTIFACT_PROTOCOL_VERSION | COOPERATIVE_PROTOCOL_VERSION | CONTEXT_PROTOCOL_VERSION
@@ -247,7 +248,7 @@ impl ProcessPlugin {
                     if deadline.is_some() {
                         InvocationFiles::prepare_until(
                             self.artifacts.as_deref(),
-                            self.manifest.artifacts.as_ref(),
+                            artifact_access,
                             &input,
                             cancel.clone(),
                             deadline,
@@ -256,7 +257,7 @@ impl ProcessPlugin {
                     } else {
                         InvocationFiles::prepare(
                             self.artifacts.as_deref(),
-                            self.manifest.artifacts.as_ref(),
+                            artifact_access,
                             &input,
                             cancel.clone(),
                         )
@@ -355,6 +356,9 @@ impl ProcessPlugin {
             return Err(Error::Dependency("插件响应版本或请求 ID 不匹配".into()));
         }
         execution_deadline::check(&cancel, deadline)?;
+        if sampling && !response.outputs.is_empty() {
+            return Err(Error::Invalid("性能采样响应不得包含产物输出".into()));
+        }
         let result = match (response.result, response.error) {
             (Some(result), None) => {
                 let result = if self

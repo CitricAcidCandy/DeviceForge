@@ -3,12 +3,16 @@ use crate::{Error, Result, rules};
 use apk_plugin_sdk::devices::{CapabilityAvailability, DeviceState, PluginDevice};
 use std::collections::HashSet;
 
-const DEVICE_CAPABILITIES: [&str; 5] = [
+const DEVICE_CAPABILITIES: [&str; 9] = [
     "packages",
     "app.start",
     "app.stop",
     "app.uninstall",
     "input",
+    "app.install",
+    "app.install_apks",
+    "screenshot",
+    "performance.sample",
 ];
 
 pub(crate) fn parse(output: &str) -> Result<Vec<PluginDevice>> {

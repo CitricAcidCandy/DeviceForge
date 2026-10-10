@@ -27,7 +27,14 @@ export async function verifyTaskHistory() {
       document.body.append(target); targets[id] = target;
     }
     runtime = createFrontendRuntime({ baseUrl: location.origin, transport: transport.transport,
-      panelTarget: (id, panel) => id === config.browserId ? targets[panel] ?? null : null });
+      panelTarget: (id, panel) => id !== config.browserId ? null
+        : panel === config.panelIds.left ? targets.left : panel === config.panelIds.right ? targets.right : null,
+      esmImporter: async (url, current) => {
+        current.throwIfAborted();
+        const loaded = await import(url);
+        current.throwIfAborted();
+        return loaded;
+      } });
     check(runtime.host.apiVersion === 2 && runtime.host.taskHistory, 'production host缺少可选历史接口');
     const env = { runtime, config, report, step, transport, targets,
       signal: new AbortController().signal, probe: () => globalThis[Symbol.for(config.probeKey)] };

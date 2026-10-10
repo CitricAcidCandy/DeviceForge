@@ -6,6 +6,7 @@ mod execution;
 mod lifecycle;
 mod options;
 mod ownership;
+mod streaming;
 mod streams;
 
 pub use error::{Error, OutputStream, Result};
@@ -14,4 +15,8 @@ pub use execution::{
 };
 pub use options::{
     DEFAULT_OUTPUT_LIMIT, Environment, ExecutionOptions, MAX_CLEANUP_TIMEOUT, ToolCommand,
+};
+pub use streaming::{
+    InputError, StreamChunk, StreamExit, StreamOptions, StreamingInput, StreamingProcess,
+    spawn_stream, spawn_stream_with_lease,
 };

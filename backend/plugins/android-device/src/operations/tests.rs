@@ -1,6 +1,28 @@
 //! 严格业务输入、固定命令与输出资格；不借用包插件或真实进程验收。
 use super::*;
 
+#[test]
+fn performance_accepts_only_the_strict_device_package_envelope() {
+    for package in ["com.example.app", "_app._worker"] {
+        assert!(matches!(
+            parse(
+                "performance.sample",
+                &json!({"device_id":"设备:一","input":{"package":package}})
+            ),
+            Ok(Input::Performance { .. })
+        ));
+    }
+    for input in [
+        json!({"device_id":"device","input":{"package":"com.example","args":[]}}),
+        json!({"device_id":"device","input":{"package":"com.example"},"source":"other"}),
+        json!({"device_id":null,"input":{"package":"com.example"}}),
+        json!({"device_id":"device","package":"com.example"}),
+        json!({"device_id":"device","input":{"package":"com.example;id"}}),
+    ] {
+        assert!(parse("performance.sample", &input).is_err());
+    }
+}
+
 fn command(operation: &str, value: Value) -> commands::Command {
     commands::plan(&parse(operation, &value).unwrap()).unwrap()
 }
@@ -41,6 +63,66 @@ fn all_eight_short_names_accept_their_exact_envelopes() {
             parse(&format!("plugin.android-device.{name}"), &value),
             Err(Error::Invalid(_))
         ));
+    }
+}
+
+#[test]
+fn artifact_actions_require_exact_nested_input_and_short_names() {
+    let artifact_id = "d0da1b1b-919c-40a8-9c71-fbb56614e488";
+    assert!(matches!(
+        parse(
+            "app.install_apks",
+            &json!({"device_id":"serial","input":{"artifact_id":artifact_id}})
+        ),
+        Ok(Input::InstallApks { .. })
+    ));
+    assert!(matches!(
+        parse(
+            "app.install",
+            &json!({"device_id":" 原文 ","input":{"artifact_id":artifact_id}})
+        ),
+        Ok(Input::Install { .. })
+    ));
+    assert!(matches!(
+        parse("screenshot", &json!({"device_id":" 原文 ","input":{}})),
+        Ok(Input::Screenshot { .. })
+    ));
+    for (operation, value) in [
+        (
+            "app.install_apks",
+            json!({"device_id":"serial","input":{"artifact_id":artifact_id,"adb":"other"}}),
+        ),
+        (
+            "plugin.android-device.app.install_apks",
+            json!({"device_id":"serial","input":{"artifact_id":artifact_id}}),
+        ),
+        (
+            "app.install",
+            json!({"device_id":"serial","input":{"artifact_id":"bad"}}),
+        ),
+        (
+            "app.install",
+            json!({"device_id":"serial","input":{"artifact_id":artifact_id,"path":"copy.apk"}}),
+        ),
+        (
+            "app.install",
+            json!({"device_id":"serial","artifact_id":artifact_id}),
+        ),
+        (
+            "screenshot",
+            json!({"device_id":"serial","input":{"filename":"other.png"}}),
+        ),
+        ("screenshot", json!({"device_id":null,"input":{}})),
+        (
+            "plugin.android-device.screenshot",
+            json!({"device_id":"serial","input":{}}),
+        ),
+        (
+            "plugin.android-device.app.install",
+            json!({"device_id":"serial","input":{"artifact_id":artifact_id}}),
+        ),
+    ] {
+        assert!(parse(operation, &value).is_err());
     }
 }
 

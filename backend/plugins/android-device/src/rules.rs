@@ -1,8 +1,12 @@
 //! 设备标识与业务参数的纯资格规则，不读取配置或启动进程。
+pub(crate) mod apks;
+pub(crate) mod artifacts;
 mod input;
 mod output;
+pub(crate) mod performance;
 
 use crate::{Error, Result};
+pub(crate) use artifacts::artifact_id;
 pub(crate) use input::Action;
 pub(crate) use output::adb_diagnostic_line;
 use std::net::{Ipv4Addr, Ipv6Addr};

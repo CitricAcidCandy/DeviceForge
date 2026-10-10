@@ -13,7 +13,7 @@ fn reject(fixture: &Fixture, expected: &str) {
 #[test]
 fn config_unknown_fields_and_duplicate_fields_are_strict() {
     for bytes in [
-        r#"{"format_version":1,"scratch_root":null}"#,
+        r#"{"format_version":1,"unknown_scratch":null}"#,
         r#"{"format_version":1,"tools":{"adb":"adb","server":"other"}}"#,
         r#"{"format_version":1,"format_version":1}"#,
         r#"{"tools":{"adb":"adb"}}"#,

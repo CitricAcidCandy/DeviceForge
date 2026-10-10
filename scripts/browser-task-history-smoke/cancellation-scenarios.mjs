@@ -63,7 +63,7 @@ export async function runCancellationScenarios(env) {
   await step('TH-B07-挂载子作用域撤销与兄弟隔离', async () => {
     const probe = env.probe(); const left = probe.panels.left; const right = probe.panels.right;
     const cancelled = await cancelAtReceipt(env, getPath,
-      () => left.context.taskHistory.get(id, signal), () => runtime.webPlugins.unmount(config.browserId, 'left'));
+      () => left.context.taskHistory.get(id, signal), () => runtime.webPlugins.unmount(config.browserId, config.panelIds.left));
     check(left.disposed && left.releases === 1 && left.context.signal.aborted, '退出挂载未释放子作用域');
     check(env.targets.left.childElementCount === 0, '退出挂载残留DOM');
     const old = await zeroTransport(left.context.taskHistory, id, signal, report);
@@ -113,7 +113,9 @@ export async function runCancellationScenarios(env) {
       equal(reply.data, item, '卸载后历史被当前目录补写或删除'); assertHistory(reply.data); history.push(reply);
       const events = await runtime.host.taskHistory.events(item.id, {}, signal);
       matchReceipt(events, report, '/api/v2/jobs/' + encodeURIComponent(item.id) + '/events');
-      check(events.data.at(-1)?.status === 'succeeded', '卸载后成功任务事件丢失');
+      const original = report.events.find((row) => row.jobId === item.id);
+      check(original, '缺少TH-B03原始事件证据');
+      equal(events.data, original.events, '卸载或删除部署改变了原事件序号、关联、状态或时间');
     }
     check(!report.transport.some((entry) => entry.path.endsWith('/cancel')), '查询撤销误调用服务器取消Job');
     return { old, directories, history, currentBrowserInstanceOnly: true, remoteInstancesForceStopped: false };

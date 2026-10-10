@@ -2,6 +2,8 @@
 
 deviceforge-plugin-runtime 只依赖公开 SDK、Tokio 与 JSON，不引用宿主领域、用例、存储或 HTTP。适用于每任务一个进程、需要在取消前执行自有资源清理的插件；不实现设备提供者、常驻 RPC 或业务规则。
 
+协议 5 新增独立 `session` 模块与 `serve_session` / `serve_session_io`，一个插件进程承载一个交互会话，旧协议 3、4 的帧和入口不变。处理器接收 `SessionOpen`、`InvocationContext`、`SessionInput` 与可克隆 `SessionOutput`，返回原 `Execution`。有界二进制输入/输出、EOF、取消、连续序号、固定 C0 和真实清理等待见[会话模块说明](src/session/README.md)；此能力不等于多会话 RPC 或完整终端迁移。
+
 serve_once(handler) 从标准输入读协议 3 Request，将请求与 CancellationToken 交给异步处理器。stdin EOF、取消或坏控制帧会通知取消；处理器先清理，再返回 Execution 与明确 CleanupOutcome。Execution::complete 只能在清理成功后调用，失败必须返回 Failed。标准输出仅写一份有界 CooperativeResponse，不使用它打印业务日志。
 
 framing.rs 先限制缓冲再读取换行帧，请求 512 KiB、控制 4 KiB；响应 1 MiB，超大结果转为固定错误。serve_io 支持注入异步读写用于测试。主机断开后输出可能失败，但处理器清理先于输出。
@@ -13,3 +15,5 @@ InvocationContext 可 Clone，deadline() 返回同一个 std::time::Instant，ca
 context.rs 负责公开上下文与加法入口，context/transport.rs 负责有界握手和响应，context/execution.rs 负责首次调用预检与期限竞争。两进程没有共享单调时钟：C0 + 剩余预算允许保守提前到期，宿主仍以原 D 判定最终发布资格；不宣称精确同点、派生进程树排空或真机事务回滚。本批协议 4 代码与纯 SDK 回归已落盘，独立传输测试由测试角色提供，尚未执行格式化、编译、测试或真实进程验收。
 
 样例见 ../../plugins/cooperative-demo；`cargo test -p deviceforge-plugin-runtime` 覆盖正确取消、EOF、坏/错配/超大控制、初始帧限制、晚到成功拒绝、清理失败及响应上限。实际外部连接是否释放由业务插件和真机验收证明，运行库只传递信号与声明。
+
+会话入口的取消、满输入队列和输出失败均撤销新 I/O，并继续等待处理器真实 Execution，不改写 cleanup。正常结束排空输出后发送终态，取消丢弃未发送输出；半帧写入中断只报告传输失败，不向损坏流追加终态。终态在独立有界宽限内传输，失败不能证明宿主收到清理确认。本批实现冻结后由主代理执行独立测试与完整门禁；宿主代际/卸载、HTTP/MCP、前端消费和终端插件仍属后续批次。

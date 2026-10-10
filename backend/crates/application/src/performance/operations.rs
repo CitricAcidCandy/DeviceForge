@@ -1,5 +1,5 @@
 use super::*;
-use apk_domain::{Executor, Operation};
+use apk_domain::{ExecutionContext, Executor, Operation};
 use async_trait::async_trait;
 use serde_json::{Value, json};
 fn schema<T: schemars::JsonSchema>() -> Value {
@@ -49,16 +49,27 @@ impl Executor for PerformanceService {
         value: Value,
         cancel: CancellationToken,
     ) -> Result<Value> {
-        if cancel.is_cancelled() {
-            return Err(Error::Cancelled);
-        }
+        self.execute_with_context(operation, value, cancel, ExecutionContext::default())
+            .await
+    }
+    async fn execute_with_context(
+        &self,
+        operation: &str,
+        value: Value,
+        cancel: CancellationToken,
+        execution: ExecutionContext,
+    ) -> Result<Value> {
+        let context = CallContext::new(cancel.clone(), execution.deadline.map(Instant::from_std));
+        context.check()?;
         let result = match operation {
-            "android.performance.start" => {
-                serde_json::to_value(self.start(input(value)?, cancel).await?)
-            }
-            "android.performance.inspect" => {
-                serde_json::to_value(self.get(input::<PerformanceId>(value)?.session_id).await?)
-            }
+            "android.performance.start" => serde_json::to_value(
+                self.start_with_context(input(value)?, cancel, context.deadline)
+                    .await?,
+            ),
+            "android.performance.inspect" => serde_json::to_value(
+                self.get_with_context(input::<PerformanceId>(value)?.session_id, &context)
+                    .await?,
+            ),
             "android.performance.pause"
             | "android.performance.resume"
             | "android.performance.stop" => {
@@ -68,20 +79,27 @@ impl Executor for PerformanceService {
                     _ => PerformanceState::Stopped,
                 };
                 serde_json::to_value(
-                    self.change(input::<PerformanceId>(value)?.session_id, state)
-                        .await?,
+                    self.change_with_context(
+                        input::<PerformanceId>(value)?.session_id,
+                        state,
+                        context.cancel.clone(),
+                        context.deadline,
+                    )
+                    .await?,
                 )
             }
             "android.performance.samples" => {
-                serde_json::to_value(self.samples(input(value)?).await?)
+                serde_json::to_value(self.samples_with_context(input(value)?, &context).await?)
             }
-            "android.performance.list" => serde_json::to_value(self.list(input(value)?).await?),
+            "android.performance.list" => {
+                serde_json::to_value(self.list_with_context(input(value)?, &context).await?)
+            }
             "android.performance.capabilities" => {
                 if !value.is_object() || !value.as_object().is_some_and(|object| object.is_empty())
                 {
                     return Err(Error::Invalid("性能能力查询不接受参数".into()));
                 }
-                let capability = self.0.probe.capabilities();
+                let capability = self.capabilities()?;
                 let mut metrics = vec![
                     "cpu_share_percent",
                     "cpu_core_percent",

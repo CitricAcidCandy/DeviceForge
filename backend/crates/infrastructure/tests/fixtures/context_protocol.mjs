@@ -10,10 +10,11 @@ if (mode === 'stderr-first' && !process.stderr.write('x'.repeat(256 * 1024))) {
 const lines = createInterface({ input: process.stdin });
 let request;
 let start;
-const reply = (value, error = null) => {
+const reply = (value, error = null, outputs = []) => {
   process.stdout.write(`${JSON.stringify({ response: {
     protocol_version: 4, request_id: request.request_id,
     ...(error === null ? { result: value } : { error }),
+    outputs,
   }, cleanup: 'complete' })}\n`);
 };
 lines.on('line', async (line) => {
@@ -35,6 +36,8 @@ lines.on('line', async (line) => {
     start = frame;
     writeFileSync(marker, JSON.stringify({ pid: process.pid, start, request }));
     if (mode === 'normal' || mode === 'stderr-ready' || mode === 'stderr-first') reply({ remaining_timeout_ns: start.remaining_timeout_ns, input: request.input });
+    if (mode === 'outputs') reply({ sample: true }, null, [{ filename: 'unexpected.png' }]);
+    if (mode === 'error-outputs') reply(null, '夹具采样失败', [{ filename: 'unexpected.png' }]);
     return;
   }
   if (frame.protocol_version !== 4 || frame.request_id !== request.request_id || frame.command !== 'cancel') throw Error('控制帧不匹配');

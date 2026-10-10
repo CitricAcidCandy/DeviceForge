@@ -52,7 +52,7 @@ impl InvocationContext {
         Ok(())
     }
 
-    fn from_start(origin: Instant, remaining_timeout_ns: u64) -> Result<Self, String> {
+    pub(crate) fn from_start(origin: Instant, remaining_timeout_ns: u64) -> Result<Self, String> {
         let deadline = origin
             .checked_add(Duration::from_nanos(remaining_timeout_ns))
             .ok_or("本地执行期限无法表示")?;

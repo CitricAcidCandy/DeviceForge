@@ -2,7 +2,7 @@
 use super::*;
 use crate::artifacts::FileArtifacts;
 use apk_domain::artifacts::{ArchivePage, Artifact, ArtifactStream};
-use futures_util::{StreamExt, TryStreamExt};
+use futures_util::TryStreamExt;
 use serde_json::json;
 use std::{
     io::{Cursor, Write},
@@ -143,7 +143,7 @@ async fn setup() -> (
     });
     tokio::fs::copy(tool(), &executable).await.unwrap();
     let path = executable.to_string_lossy().into_owned();
-    let actions = RemainingDeviceArtifactActions::new(path.clone(), path, store.clone());
+    let actions = RemainingDeviceArtifactActions::new(path, store.clone());
     let marker = directory.path().join("installation-path");
     (directory, store, actions, marker)
 }
@@ -173,24 +173,16 @@ async fn invoke(
 }
 
 #[test]
-fn declares_exactly_the_four_preserved_contributions() {
-    let actions = RemainingDeviceArtifactActions::new(
-        "unused".into(),
-        "unused".into(),
-        Arc::new(StoreSpy::default()),
-    );
+fn declares_exactly_the_two_harmony_contributions() {
+    let actions =
+        RemainingDeviceArtifactActions::new("unused".into(), Arc::new(StoreSpy::default()));
     assert_eq!(
         actions
             .operations()
             .iter()
             .map(|operation| operation.id.as_str())
             .collect::<Vec<_>>(),
-        [
-            "android.app.install",
-            "android.screenshot",
-            "harmony.app.install",
-            "harmony.app.uninstall"
-        ]
+        ["harmony.app.install", "harmony.app.uninstall"]
     );
     assert!(matches!(
         actions.result_format(),
@@ -208,9 +200,11 @@ async fn both_entrypoints_reject_uninstall_before_cancellation_context_or_any_si
     tokio::fs::copy(spy_tool(), &executable).await.unwrap();
     let path = executable.to_string_lossy().into_owned();
     let store = Arc::new(StoreSpy::default());
-    let actions = RemainingDeviceArtifactActions::new(path.clone(), path, store.clone());
+    let actions = RemainingDeviceArtifactActions::new(path, store.clone());
     for operation in [
         "android.app.uninstall",
+        "android.app.install",
+        "android.screenshot",
         "android.app.start",
         "android.input",
         "android.devices",
@@ -276,11 +270,6 @@ async fn install_preserves_verified_copy(operation: &str, filename: &str) {
 }
 
 #[tokio::test]
-async fn android_apk_install_preserves_the_real_tool_and_artifact_result() {
-    install_preserves_verified_copy("android.app.install", "sample.apk").await;
-}
-
-#[tokio::test]
 async fn harmony_hap_install_preserves_the_real_tool_and_artifact_result() {
     install_preserves_verified_copy("harmony.app.install", "sample.hap").await;
 }
@@ -305,39 +294,14 @@ async fn harmony_uninstall_preserves_hdc_arguments_and_success_text() {
 }
 
 #[tokio::test]
-async fn screenshot_preserves_original_png_bytes_from_the_real_tool() {
+async fn harmony_flows_keep_their_stderr_failure_boundaries() {
     let (_directory, store, actions, _marker) = setup().await;
-    for with_context in [false, true] {
-        let result = invoke(
-            &actions,
-            "android.screenshot",
-            json!({"device_id":"ok"}),
-            with_context,
-        )
-        .await
-        .unwrap();
-        assert_eq!(result["filename"], "screenshot.png");
-        let (_, mut stream) = store
-            .download(result["id"].as_str().unwrap())
-            .await
-            .unwrap();
-        let mut bytes = Vec::new();
-        while let Some(chunk) = stream.next().await {
-            bytes.extend_from_slice(&chunk.unwrap());
-        }
-        assert_eq!(bytes, include_bytes!("../fixtures/pixel.png"));
-    }
-}
-
-#[tokio::test]
-async fn preserved_flows_keep_their_stderr_failure_and_invalid_png_boundaries() {
-    let (_directory, store, actions, _marker) = setup().await;
-    let artifact = upload(&store, "sample.apk").await;
+    let artifact = upload(&store, "sample.hap").await;
     for with_context in [false, true] {
         assert!(matches!(
             invoke(
                 &actions,
-                "android.app.install",
+                "harmony.app.install",
                 json!({"device_id":"stderr-failure","artifact_id":artifact.id}),
                 with_context
             )
@@ -354,34 +318,20 @@ async fn preserved_flows_keep_their_stderr_failure_and_invalid_png_boundaries() 
             .await,
             Err(Error::Dependency(_))
         ));
-        assert!(matches!(
-            invoke(
-                &actions,
-                "android.screenshot",
-                json!({"device_id":"invalid"}),
-                with_context
-            )
-            .await,
-            Err(Error::Invalid(_))
-        ));
     }
 }
 
 #[tokio::test]
 async fn allowed_operations_forward_the_original_cancellation_without_io() {
     let store = Arc::new(StoreSpy::default());
-    let actions = RemainingDeviceArtifactActions::new(
-        "never-start".into(),
-        "never-start".into(),
-        store.clone(),
-    );
+    let actions = RemainingDeviceArtifactActions::new("never-start".into(), store.clone());
     for with_context in [false, true] {
         let cancel = CancellationToken::new();
         cancel.cancel();
         let result = if with_context {
             actions
                 .execute_with_context(
-                    "android.app.install",
+                    "harmony.app.install",
                     json!({}),
                     cancel,
                     ExecutionContext::default(),
@@ -389,7 +339,7 @@ async fn allowed_operations_forward_the_original_cancellation_without_io() {
                 .await
         } else {
             actions
-                .execute("android.app.install", json!({}), cancel)
+                .execute("harmony.app.install", json!({}), cancel)
                 .await
         };
         assert!(matches!(result, Err(Error::Cancelled)));

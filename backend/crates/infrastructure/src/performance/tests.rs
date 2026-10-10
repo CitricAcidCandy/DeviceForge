@@ -60,6 +60,7 @@ fn raw(ticks: u64, total: u64) -> RawPerformance {
 }
 fn session(id: String) -> PerformanceSession {
     PerformanceSession {
+        source: None,
         id,
         request: PerformanceStart {
             target: PerformanceTarget {

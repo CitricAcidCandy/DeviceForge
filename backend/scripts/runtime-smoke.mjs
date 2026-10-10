@@ -8,6 +8,8 @@ import assert from 'node:assert/strict';
 import { promisify } from 'node:util';
 import { deployMessagePackPlugin, verifyMessagePack } from './msgpack-smoke.mjs';
 import { deployAndroidPackages } from './android-packages-deployment.mjs';
+import { deployAndroidDevice } from './android-device-deployment.mjs';
+import { deployHarmonyDevice } from './harmony-device-deployment.mjs';
 
 const temporaryParent = resolve(tmpdir());
 const temporary = await mkdtemp(join(temporaryParent, 'deviceforge-smoke-'));
@@ -62,22 +64,34 @@ try {
 const signingFile = join(temporary, 'test-signing.txt');
 await writeFile(signingFile, 'test-only');
 const packageDeployment = await deployAndroidPackages(temporary, packageTool, signingFile, suffix, profile);
+const deviceDeployment = await deployAndroidDevice(temporary, deviceTool, suffix, profile, packageDeployment, packageTool);
+const harmonyDeployment = await deployHarmonyDevice(temporary, deviceTool, suffix, profile, deviceDeployment.bindings);
 const environment = { ...process.env };
 delete environment.APK_APKSIGNER_JAR;
 delete environment.APK_PERFORMANCE_PLUGIN;
 if (selectedPerformanceDemo) environment.APK_PERFORMANCE_PLUGIN = 'performance_demo';
-const serverEnvironment = { ...environment, APK_API_TOKEN: token, APK_BIND: `127.0.0.1:${port}`, APK_DATA_DIR: join(temporary, 'data'), APK_PLUGIN_DIR: join(temporary, 'plugins'), APK_OPERATION_BINDINGS: packageDeployment.bindings, APK_ADB: deviceTool, APK_HDC: deviceTool, APK_APKANALYZER: packageTool, APK_APKSIGNER: packageTool, APK_JAVA: packageTool, APK_BUNDLETOOL_JAR: 'mock-bundletool.jar', APK_APKTOOL_JAR: 'mock-apktool.jar', APK_BUNDLE_KEYSTORE: signingFile, APK_BUNDLE_KEY_ALIAS: 'test-key', APK_BUNDLE_STORE_PASSWORD_FILE: signingFile, APK_BUNDLE_KEY_PASSWORD_FILE: signingFile };
+const serverEnvironment = { ...environment, APK_API_TOKEN: token, APK_BIND: `127.0.0.1:${port}`, APK_DATA_DIR: join(temporary, 'data'), APK_PLUGIN_DIR: join(temporary, 'plugins'), APK_OPERATION_BINDINGS: harmonyDeployment.bindings, APK_ADB: deviceTool, APK_HDC: join(temporary, 'host-must-not-read-hdc'), APK_APKANALYZER: packageTool, APK_APKSIGNER: packageTool, APK_JAVA: packageTool, APK_BUNDLETOOL_JAR: 'mock-bundletool.jar', APK_APKTOOL_JAR: 'mock-apktool.jar', APK_BUNDLE_KEYSTORE: signingFile, APK_BUNDLE_KEY_ALIAS: 'test-key', APK_BUNDLE_STORE_PASSWORD_FILE: signingFile, APK_BUNDLE_KEY_PASSWORD_FILE: signingFile };
 // 宿主不再消费包业务签名环境；实际签名资格由独立插件旁置配置验证。
 serverEnvironment.APK_BUNDLE_KEYSTORE = join(temporary, 'host-must-not-read-signing.jks');
 delete serverEnvironment.APK_BUNDLE_KEY_PASSWORD_FILE;
+// APKS 的 Java 和 JAR 只由插件配置提供，宿主不得读取旧工具环境。
+serverEnvironment.APK_JAVA = join(temporary, 'host-must-not-read-java');
+serverEnvironment.APK_BUNDLETOOL_JAR = join(temporary, 'host-must-not-read-bundletool.jar');
 const child = spawn(binary, [], {
   env: serverEnvironment,
-  stdio: 'ignore', windowsHide: true,
+  stdio: ['ignore', 'ignore', 'pipe'], windowsHide: true,
+});
+// 保留有界启动诊断，不将部署环境或认证信息写入报告。
+let serverStderr = Buffer.alloc(0);
+child.stderr.on('data', (chunk) => {
+  const remaining = 65536 - serverStderr.length;
+  if (remaining > 0) serverStderr = Buffer.concat([serverStderr, chunk.subarray(0, remaining)]);
 });
 let spawnFailure;
 child.on('error', (error) => { spawnFailure = error; });
 const headers = { authorization: `Bearer ${token}`, 'content-type': 'application/json' };
 const deadline = Date.now() + 15000;
+let runtimeFailure;
 try {
   let ready = false;
   while (Date.now() < deadline) {
@@ -90,11 +104,7 @@ try {
   assert.ok(ready, '服务应在期限内启动');
   if (selectedPerformanceDemo) {
     const listed = await (await fetch(`${base}/api/v2/plugins`, { headers })).json();
-    assert.equal(listed.data.find((plugin) => plugin.id === 'performance_demo').protected, true);
-    const rejected = await fetch(`${base}/api/v2/plugins/performance_demo/unload`, { method: 'POST', headers });
-    assert.equal(rejected.status, 409);
-    const body = await rejected.json();
-    assert.equal(body.log_id, rejected.headers.get('x-deviceforge-log-id'));
+    assert.equal(listed.data.find((plugin) => plugin.id === 'performance_demo').protected, false);
   }
   assert.equal((await fetch(`${base}/api/v1/health`)).status, 401);
   const operations = await (await fetch(`${base}/api/v1/operations`, { headers })).json();
@@ -147,6 +157,12 @@ try {
     assert.equal(response.status, 202);
     return finished((await response.json()).id);
   }
+  const devices = await deviceJob('android.devices', {});
+  assert.equal(devices.status, 'succeeded');
+  assert.ok(devices.result.some((device) => device.id === 'input-ok'));
+  const harmonyDevices = await deviceJob('harmony.devices', {});
+  assert.equal(harmonyDevices.status, 'succeeded', harmonyDevices.error);
+  assert.ok(harmonyDevices.result.some((device) => device.id === 'ok'));
   // 验证输入命令在共享任务层中的四种动作，以及设备端引用后的文本。
   for (const action of [
     { kind: 'tap', x: 17, y: 42 },
@@ -173,8 +189,12 @@ try {
     assert.ok(operations.some((operation) => operation.id === id));
     assert.ok(mcp.result.tools.some((tool) => tool.name === id));
   }
+  if (selectedPerformanceDemo) {
   const performanceStart = await deviceJob('android.performance.start', { target: { device_id: 'perf.smoke', package: 'com.example.app' }, interval_ms: 1000, duration_secs: 30 });
   assert.equal(performanceStart.status, 'succeeded');
+  assert.equal(performanceStart.result.source.plugin_id, 'performance_demo');
+  assert.equal(performanceStart.result.source.operation, 'plugin.performance_demo.sample');
+  assert.equal(performanceStart.result.source.device, undefined);
   const session_id = performanceStart.result.id;
   async function performanceJob(name, input) {
     const job = await deviceJob(`android.performance.${name}`, input);
@@ -194,16 +214,10 @@ try {
   await performanceWait(2);
   const performancePage = await performanceJob('samples', { session_id, after: 0, limit: 100 });
   assert.equal(performancePage.readings[0].cpu_share_percent, null);
-  if (selectedPerformanceDemo) {
     assert.ok(Math.abs(performancePage.readings[1].cpu_share_percent - 10) < 0.2);
     assert.ok(Math.abs(performancePage.readings[1].cpu_core_percent - 20) < 0.4);
     assert.equal(performancePage.readings[0].fps, 60);
     assert.deepEqual(performancePage.readings[0].frame_window, { frames: 60, duration_ms: 1000, source: 'synthetic_demo' });
-  } else {
-    assert.equal(performancePage.readings[1].cpu_share_percent, 10);
-    assert.equal(performancePage.readings[1].cpu_core_percent, 20);
-    assert.equal(performancePage.readings[0].fps, undefined);
-  }
   assert.equal(performancePage.readings[1].pss_kib, 2048);
   assert.equal(performancePage.readings[1].rss_kib, 4096);
   const performancePauseCall = await fetch(`${base}/mcp`, { method: 'POST', headers: mcpHeaders, body: JSON.stringify({ jsonrpc: '2.0', id: 21, method: 'tools/call', params: { name: 'android.performance.pause', arguments: { session_id } } }) });
@@ -223,8 +237,36 @@ try {
   const performanceList = await performanceJob('list', { after_id: null, limit: 100 });
   assert.ok(performanceList.sessions.some((session) => session.id === session_id && session.state === 'stopped'));
   const performanceCapabilities = await performanceJob('capabilities', {});
-  assert.equal(performanceCapabilities.fps, selectedPerformanceDemo);
-  assert.equal(performanceCapabilities.source, selectedPerformanceDemo ? 'plugin.performance_demo' : 'android_adb');
+  assert.equal(performanceCapabilities.fps, true);
+  assert.equal(performanceCapabilities.source, 'plugin.performance_demo');
+  const unload = await fetch(`${base}/api/v2/plugins/performance_demo/unload`, { method: 'POST', headers });
+  assert.equal(unload.status, 200);
+  const unloaded = await unload.json();
+  assert.equal(unloaded.data.state, 'unloaded');
+  assert.equal(unloaded.log_id, unload.headers.get('x-deviceforge-log-id'));
+  assert.deepEqual((await performanceJob('inspect', { session_id })).source, performanceStart.result.source);
+  const unavailable = await deviceJob('android.performance.capabilities', {});
+  assert.equal(unavailable.status, 'failed');
+  assert.equal(unavailable.error, '资源不存在：性能采样源不可用');
+  const reload = await fetch(`${base}/api/v2/plugins/performance_demo/load`, { method: 'POST', headers });
+  assert.equal(reload.status, 200);
+  const reloaded = await reload.json();
+  assert.notEqual(reloaded.data.generation, performanceStart.result.source.generation);
+  assert.deepEqual((await performanceJob('inspect', { session_id })).source, performanceStart.result.source);
+  } else {
+    // 普通模式故意不配置来源；在线部署示例不代表自动选择或内置 ADB 回退。
+    const unavailable = await deviceJob('android.performance.start', {
+      target: { device_id: 'perf.smoke', package: 'com.example.app' }, interval_ms: 1000, duration_secs: 30,
+    });
+    assert.equal(unavailable.status, 'failed');
+    assert.equal(unavailable.error, '资源不存在：性能采样源不可用');
+    const capabilities = await deviceJob('android.performance.capabilities', {});
+    assert.equal(capabilities.status, 'failed');
+    assert.equal(capabilities.error, '资源不存在：性能采样源不可用');
+    const history = await deviceJob('android.performance.list', { after_id: null, limit: 100 });
+    assert.equal(history.status, 'succeeded');
+    assert.deepEqual(history.result.sessions, []);
+  }
   const installed = await deviceJob('android.app.install', { device_id: 'ok', artifact_id: artifact.id });
   assert.equal(installed.status, 'succeeded');
   assert.equal(installed.result.artifact_id, artifact.id);
@@ -395,16 +437,33 @@ try {
   assert.equal(pluginDownload.status, 200);
   assert.deepEqual(Buffer.from(await pluginDownload.arrayBuffer()), png);
   await verifyMessagePack({ base, headers, mcpHeaders, operations, mcp, deviceJob, finished });
-  console.log(selectedPerformanceDemo ? '性能采样插件与合成 FPS 窗口的真实服务验证通过' : '内置 ADB 性能端口的真实服务验证通过');
+  console.log(selectedPerformanceDemo ? '性能采样插件与合成 FPS 窗口的真实服务验证通过' : '未配置性能来源的精确拒绝与历史读取验证通过');
   console.log('真实 HTTP 服务、部署插件任务、持久化事件、产物上传下载、ZIP 预览、模拟设备安装卸载和 MCP 截图下载、APK / AAB manifest 、APK 签名、AAB 双模式构建、设备规格匹配提取、APKS 整包安装及 APK 提取再安装、反编译产物下载及 MCP SDK 检测与协议 2 插件产物读写、Android 输入与性能会话验证通过');
+} catch (error) {
+  runtimeFailure = error;
+  await writeFile(join(temporary, 'host-stderr.txt'), serverStderr);
+  console.error('服务回归失败，保留本次日志、数据库和工具原件：', temporary);
+  throw error;
 } finally {
   // 仅终止本脚本启动的进程，并仅清理本脚本创建的临时目录。
-  if (child.exitCode === null && !spawnFailure) {
-    const closed = new Promise((resolve) => child.once('close', resolve));
-    child.kill();
-    await closed;
+  try {
+    if (child.exitCode === null && !spawnFailure) {
+      const closed = new Promise((resolve) => child.once('close', resolve));
+      child.kill();
+      await closed;
+    }
+  } catch (error) {
+    console.error('自有宿主退出失败：', error.code ?? error.name);
+    if (!runtimeFailure) throw error;
   }
-  await rm(temporary, { recursive: true, force: true });
+  if (!runtimeFailure) {
+    try {
+      await rm(temporary, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
+    } catch (error) {
+      console.error('通过后的临时目录清理失败，保留剩余原件：', temporary);
+      throw error;
+    }
+  }
 }
 
 

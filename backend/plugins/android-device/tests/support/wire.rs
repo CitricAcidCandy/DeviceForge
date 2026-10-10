@@ -36,6 +36,9 @@ impl Invocation {
             .env("ADB_SERVER_SOCKET", "must_not_be_inherited")
             .env("ANDROID_ADB_SERVER_PORT", "must_not_be_inherited")
             .env("APK_API_TOKEN", "independent-fixture-only-not-a-token")
+            .env("JAVA_TOOL_OPTIONS", "must_not_be_inherited")
+            .env("_JAVA_OPTIONS", "must_not_be_inherited")
+            .env("JDK_JAVA_OPTIONS", "must_not_be_inherited")
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
@@ -223,11 +226,21 @@ impl Drop for Invocation {
         {
             thread::sleep(Duration::from_millis(5));
         }
+        let mut test_kill = false;
         if self.child.try_wait().is_ok_and(|status| status.is_none()) {
             // 失败兜底只杀本次直接插件；标记不能计入成功或资源树清理证据。
             let _ = fs::write(self.evidence.join("test-fallback-kill"), b"1");
+            test_kill = true;
             let _ = self.child.kill();
             let _ = self.child.wait();
+        }
+        if let Ok(Some(status)) = self.child.try_wait() {
+            let _ = fs::write(
+                self.evidence.join("plugin.exit.json"),
+                serde_json::to_vec(&json!({"pid":self.child.id(),"request_id":self.id,
+                    "code":status.code(),"test_kill":test_kill}))
+                .unwrap(),
+            );
         }
         if let Some(output) = self.stdout.take() {
             let _ = output.join();

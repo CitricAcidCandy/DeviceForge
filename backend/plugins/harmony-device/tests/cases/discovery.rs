@@ -1,0 +1,116 @@
+use crate::support::{Fixture, expected_device, failure, success};
+use serde_json::{Value, json};
+
+fn discover(bytes: &[u8]) -> Value {
+    let fixture = Fixture::new("discovery");
+    let reply = fixture.run("discover", json!({}), bytes, b"", 0);
+    assert_eq!(fixture.argv(), ["list", "targets"]);
+    reply
+}
+
+#[test]
+fn discovery_trimmed_ids_keep_order_and_all_three_online_capabilities() {
+    assert_eq!(
+        success(&discover(b" HDC001 \r\n\n[Empty]\n127.0.0.1:5555\n")),
+        &json!([expected_device("HDC001"), expected_device("127.0.0.1:5555")])
+    );
+}
+
+#[test]
+fn known_empty_marker_and_whitespace_only_produce_explicit_empty_array() {
+    for output in [
+        b"[Empty]\r\n".as_slice(),
+        b"\r\n \n".as_slice(),
+        b"".as_slice(),
+    ] {
+        assert_eq!(success(&discover(output)), &json!([]));
+    }
+}
+
+#[test]
+fn duplicate_unknown_diagnostic_and_bad_id_reject_entire_directory() {
+    for output in [
+        "valid\nvalid\n",
+        "valid\n[Error]\n",
+        "valid\nbad device\n",
+        "valid\n-flag\n",
+        "valid\n设备\n",
+        "valid\nhdc: connection error:\n",
+    ] {
+        failure(
+            &discover(output.as_bytes()),
+            "工具依赖失败：HDC发现条目无效、重复或超过128条",
+        );
+    }
+}
+
+#[test]
+fn control_character_in_second_line_rejects_first_valid_entry_too() {
+    for output in ["valid\nsecond\t\n", "valid\nsecond\u{7}\n"] {
+        failure(
+            &discover(output.as_bytes()),
+            "工具依赖失败：HDC发现输出含非法控制符",
+        );
+    }
+}
+
+#[test]
+fn discovery_exact_128_count_and_200_byte_serial_boundaries_are_accepted() {
+    let ids: Vec<String> = (0..128).map(|index| format!("HDC{index:03}")).collect();
+    let expected: Vec<Value> = ids.iter().map(|id| expected_device(id)).collect();
+    assert_eq!(
+        success(&discover(ids.join("\n").as_bytes())),
+        &json!(expected)
+    );
+    let serial = "S".repeat(200);
+    assert_eq!(
+        success(&discover(serial.as_bytes())),
+        &json!([expected_device(&serial)])
+    );
+}
+
+#[test]
+fn discovery_count_and_serial_overflow_fail_without_partial_array() {
+    for output in [
+        (0..129)
+            .map(|index| format!("HDC{index:03}"))
+            .collect::<Vec<_>>()
+            .join("\n"),
+        format!("valid\n{}", "S".repeat(201)),
+    ] {
+        failure(
+            &discover(output.as_bytes()),
+            "工具依赖失败：HDC发现条目无效、重复或超过128条",
+        );
+    }
+}
+
+#[test]
+fn discovery_invalid_utf8_stderr_failure_and_nonzero_exit_are_fixed_errors() {
+    for (stdout, stderr, code, expected) in [
+        (
+            &[0xff][..],
+            b"".as_slice(),
+            0,
+            "工具依赖失败：HDC发现输出不是有效UTF-8",
+        ),
+        (
+            b"HDC001\n".as_slice(),
+            b"error: private diagnostic".as_slice(),
+            0,
+            "工具依赖失败：HDC返回失败诊断",
+        ),
+        (
+            b"HDC001\n".as_slice(),
+            b"".as_slice(),
+            7,
+            "工具依赖失败：HDC客户端执行失败，请检查部署配置",
+        ),
+    ] {
+        let fixture = Fixture::new("discovery-failure");
+        failure(
+            &fixture.run("discover", json!({}), stdout, stderr, code),
+            expected,
+        );
+    }
+}

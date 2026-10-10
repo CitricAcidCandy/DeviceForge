@@ -242,7 +242,7 @@ fn text_exact_1024_ascii_bytes_has_one_quoted_command() {
 }
 
 #[test]
-fn public_metadata_is_api3_protocol4_with_eight_short_names_and_seven_capabilities() {
+fn public_metadata_is_api3_protocol4_with_twelve_short_names_and_eleven_capabilities() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
     let bytes = fs::read(root.join("manifest.json")).unwrap();
     assert_eq!(bytes, fs::read(root.join("manifest.example.json")).unwrap());
@@ -251,23 +251,28 @@ fn public_metadata_is_api3_protocol4_with_eight_short_names_and_seven_capabiliti
     assert_eq!(manifest["protocol_version"], 4);
     assert_eq!(manifest["devices"]["api_version"], 3);
     assert_eq!(manifest["devices"]["discover_operation"], "discover");
-    let names: Vec<_> = manifest["operations"]
+    let mut names: Vec<_> = manifest["operations"]
         .as_array()
         .unwrap()
         .iter()
         .map(|entry| entry["name"].as_str().unwrap())
         .collect();
+    names.sort_unstable();
     assert_eq!(
         names,
         [
-            "discover",
-            "connect",
-            "disconnect",
-            "packages",
+            "app.install",
+            "app.install_apks",
             "app.start",
             "app.stop",
             "app.uninstall",
-            "input"
+            "connect",
+            "disconnect",
+            "discover",
+            "input",
+            "packages",
+            "performance.sample",
+            "screenshot"
         ]
     );
     assert!(
@@ -278,15 +283,22 @@ fn public_metadata_is_api3_protocol4_with_eight_short_names_and_seven_capabiliti
             .all(|entry| entry.get("execution").is_none())
     );
     let capabilities = manifest["devices"]["capabilities"].as_array().unwrap();
-    assert_eq!(capabilities.len(), 7);
-    for (index, name) in names[1..].iter().enumerate() {
-        let capability = &capabilities[index];
+    assert_eq!(capabilities.len(), 11);
+    for name in names.iter().filter(|name| **name != "discover") {
+        let matches: Vec<_> = capabilities
+            .iter()
+            .filter(|entry| entry["id"] == *name)
+            .collect();
+        assert_eq!(matches.len(), 1);
+        let capability = matches[0];
         assert_eq!(capability["id"], *name);
         assert_eq!(capability["operation"], *name);
         assert_eq!(capability["version"], 1);
         assert_eq!(
             capability["execution_timeout_ms"],
-            if *name == "app.uninstall" {
+            if *name == "performance.sample" {
+                10000
+            } else if matches!(*name, "app.uninstall" | "app.install" | "app.install_apks") {
                 120000
             } else {
                 30000
@@ -294,29 +306,72 @@ fn public_metadata_is_api3_protocol4_with_eight_short_names_and_seven_capabiliti
         );
         assert_eq!(
             capability["scope"],
-            if index < 2 { "provider" } else { "device" }
+            if matches!(*name, "connect" | "disconnect") {
+                "provider"
+            } else {
+                "device"
+            }
         );
         assert_eq!(
             capability["access"],
-            if *name == "packages" { "read" } else { "write" }
+            if matches!(*name, "packages" | "performance.sample") {
+                "read"
+            } else {
+                "write"
+            }
         );
     }
+    assert_eq!(
+        manifest["artifacts"],
+        json!({"input_fields":[],"input_pointers":["/input/artifact_id"],"outputs":true})
+    );
+    assert_eq!(
+        manifest["performance"],
+        json!({"api_version":2,"sample_operation":"performance.sample","fps":false,"device_capability":{"id":"performance.sample","version":1}})
+    );
     let aliases: serde_json::Value =
         serde_json::from_slice(&fs::read(root.join("aliases.example.json")).unwrap()).unwrap();
     assert_eq!(aliases["format_version"], 2);
-    assert_eq!(aliases["bindings"].as_array().unwrap().len(), 8);
-    assert_eq!(aliases["bindings"][0]["operation"]["id"], "android.devices");
+    let bindings = aliases["bindings"].as_array().unwrap();
+    assert_eq!(bindings.len(), 11);
+    let discovery = bindings
+        .iter()
+        .find(|binding| binding["operation"]["id"] == "android.devices")
+        .unwrap();
     assert_eq!(
-        aliases["bindings"][0]["target"],
+        discovery["target"],
         json!({"kind":"device_discovery","plugin_id":"android-device"})
     );
-    for (index, name) in names[1..].iter().enumerate() {
-        let binding = &aliases["bindings"][index + 1];
+    assert!(
+        bindings
+            .iter()
+            .all(|binding| { binding["operation"]["id"] != "android.performance.sample" }),
+        "采样只通过插件贡献或公开设备动作调用，不添加内置别名"
+    );
+    for name in names
+        .iter()
+        .filter(|name| !matches!(**name, "discover" | "performance.sample"))
+    {
+        let id = format!("android.{name}");
+        let matches: Vec<_> = bindings
+            .iter()
+            .filter(|binding| binding["operation"]["id"] == id)
+            .collect();
+        assert_eq!(matches.len(), 1);
+        let binding = matches[0];
         assert_eq!(binding["operation"]["id"], format!("android.{name}"));
         assert_eq!(binding["input"], "device_envelope");
         assert_eq!(
             binding["target"],
             json!({"kind":"device_capability","plugin_id":"android-device","capability":name,"version":1})
+        );
+        assert_eq!(
+            binding["result"],
+            if *name == "screenshot" {
+                json!({"kind":"artifact","filename":"screenshot.png"})
+            } else {
+                json!({"kind":"value","wrapped":true})
+            }
         );
     }
     // 静态元数据对照不算真实validator或宿主服务加载通过。

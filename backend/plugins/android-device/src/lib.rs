@@ -5,6 +5,7 @@ mod discovery;
 mod error;
 mod operations;
 mod rules;
+mod session;
 
 use apk_plugin_sdk::Request;
 pub(crate) use control::Control;
@@ -19,13 +20,8 @@ pub async fn execute(request: Request, context: InvocationContext) -> Execution 
         Ok(input) => input,
         Err(error) => return Execution::complete(Err(error.to_string())),
     };
-    // 宿主协议4也为非产物操作提供空上下文；只有真实输入产物越出本批声明。
-    if request
-        .artifacts
-        .as_ref()
-        .is_some_and(|artifacts| !artifacts.inputs.is_empty())
-    {
-        return Execution::complete(Err(Error::Invalid("本批设备操作不接受输入产物").to_string()));
+    if let Err(error) = session::validate_context(&request, &input) {
+        return Execution::complete(Err(error.to_string()));
     }
     let config = match config::Config::read(&context).await {
         Ok(config) => config,
@@ -36,6 +32,15 @@ pub async fn execute(request: Request, context: InvocationContext) -> Execution 
         Err(error) => return Execution::complete(Err(error.to_string())),
     };
     let control = Control::new(context, executable);
+    if matches!(
+        input,
+        operations::Input::Install { .. }
+            | operations::Input::InstallApks { .. }
+            | operations::Input::Screenshot { .. }
+            | operations::Input::Performance { .. }
+    ) {
+        return session::Session::execute(control, config, &request, input).await;
+    }
     let result = operations::execute(&control, input).await;
     control.finish(result)
 }

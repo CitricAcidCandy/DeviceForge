@@ -8,7 +8,9 @@ Svelte 5、TypeScript 和 Vite 的独立浏览器工程。已实现 v2 客户端
 
 统一 npx 运行包携带构建后的静态资源，对外默认前端/API 地址为 `http://服务器地址:7030`；可通过 CLI `--ip`、`--port` 修改。前端分发边界见 [静态分发与访问](docs/静态分发与访问.md)。本轮设备版本已重建 release runtime，并通过真实浏览器及 npx 验收。
 
-验证：`npm run generate:api`、`npm run check`、`npm test`、`npm run build`。依赖锁文件提交到源码管理，CI 使用 npm ci。TypeScript 使用 5.9 兼容当前接口生成器和 Svelte 检查器，不通过忽略 peer 依赖强行升级。
+验证：`npm run generate:api`、`npm run check`、`npm test`、`npm run build`。生成器由主代理与 Cargo 验证串行协调。依赖锁文件提交到源码管理，CI 使用 npm ci。TypeScript 使用 5.9 兼容当前接口生成器和 Svelte 检查器，不通过忽略 peer 依赖强行升级。
+
+前端维护源码、开发脚本与测试使用 TypeScript，Svelte 组件使用 `lang="ts"`；三项严格类型选项同时覆盖脚本、测试和 Vite 配置。Node 22.18 以上直接执行 `.ts` 工具及测试。浏览器插件验收源码为 `scripts/browser-plugin-harness.ts`，`npm run build` 输出 `dist/assets/browser-plugin-harness.js`，根驱动读取此 JavaScript 构建产物并连接公开生产宿主。空 Svelte 配置已移除，工具使用默认行为与 `vite.config.ts`。
 
 ## API 与参数
 `src/app/index.ts` 公开 `createFrontendRuntime`；传入 baseUrl、fetch 传输及挂载目标，tokenProvider 可选，缺省不发送鉴权头。请求显式传 AbortSignal，返回 data/logId，错误受控分类；产物上传为 octet-stream，下载保留原字节。令牌不保存到 localStorage 或 URL。

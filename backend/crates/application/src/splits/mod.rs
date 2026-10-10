@@ -6,8 +6,6 @@ use async_trait::async_trait;
 use serde_json::Value;
 use std::sync::Arc;
 use tokio_util::sync::CancellationToken;
-mod install;
-pub use install::InstallApksOperations;
 
 pub struct SplitOperations(pub Arc<dyn SplitPackages>);
 pub(super) fn operation<T: schemars::JsonSchema>(id: &str, title: &str) -> Operation {
@@ -87,5 +85,3 @@ impl Executor for SplitOperations {
 
 #[cfg(test)]
 mod context_tests;
-#[cfg(test)]
-mod install_tests;

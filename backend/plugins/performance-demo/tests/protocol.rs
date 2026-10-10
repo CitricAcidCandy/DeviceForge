@@ -24,8 +24,10 @@ fn manifest(mode: &str, fps: bool) -> Manifest {
         artifacts: None,
         devices: None,
         performance: Some(PerformanceAccess {
+            api_version: 1,
             sample_operation: "sample".into(),
             fps,
+            device_capability: None,
         }),
         operations: vec![Contribution {
             name: "sample".into(),

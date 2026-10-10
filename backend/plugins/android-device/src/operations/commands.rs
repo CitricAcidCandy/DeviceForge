@@ -60,7 +60,12 @@ pub(super) fn plan(input: &Input) -> Option<Command> {
             Response::Uninstall,
             None,
         ),
-        Input::Discover | Input::Action { .. } => return None,
+        Input::Discover
+        | Input::Action { .. }
+        | Input::Install { .. }
+        | Input::InstallApks { .. }
+        | Input::Screenshot { .. }
+        | Input::Performance { .. } => return None,
     };
     Some(Command {
         args,

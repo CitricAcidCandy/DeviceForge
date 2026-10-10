@@ -6411,6 +6411,17 @@ export interface components {
 
                 samples: number;
 
+                source?: {
+                    device?: {
+                        generation: string;
+                        local_id: string;
+                        provider_id: string;
+                    } | null;
+                    generation: string;
+                    operation: string;
+                    plugin_id: string;
+                } | null;
+
                 started_at: number;
 
                 state: "running" | "paused" | "stopped" | "completed" | "failed" | "interrupted";
@@ -6436,6 +6447,17 @@ export interface components {
             revision: number;
 
             samples: number;
+
+            source?: {
+                device?: {
+                    generation: string;
+                    local_id: string;
+                    provider_id: string;
+                } | null;
+                generation: string;
+                operation: string;
+                plugin_id: string;
+            } | null;
 
             started_at: number;
 
@@ -6463,6 +6485,17 @@ export interface components {
                 revision: number;
 
                 samples: number;
+
+                source?: {
+                    device?: {
+                        generation: string;
+                        local_id: string;
+                        provider_id: string;
+                    } | null;
+                    generation: string;
+                    operation: string;
+                    plugin_id: string;
+                } | null;
 
                 started_at: number;
 

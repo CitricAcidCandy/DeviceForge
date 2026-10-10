@@ -1,4 +1,6 @@
 # 分包应用操作
+本模块仅保留旧 `SplitOperations` 兼容实现及其回归，不在通用宿主生产装配。设备匹配 APKS 安装现由独立 `android-device` 插件提供，旧名须显式配置绑定；卸载插件后不回退到本模块。安装专用侧车及其专属回归已撤除，旧领域端口、基础设施和以下兼容行为继续保留。
+
 SplitOperations 注册 android.package.extract_splits 与 android.app.install_apks，复用通用 HTTP / MCP 任务层。以领域类型生成模式并增加规格列表 uniqueItems 约束，执行时再次验证，不把任意工具参数交给端口。行为测试见 tests/splits.rs。
 
 旧 `execute` 委托默认 `ExecutionContext`。新入口先通过 `operation_budget::check` 检查原截止点和取消，再匹配操作和转换原请求；到期与取消同现时优先 Timeout。提取调用 `extract_with_context` 并直接转发 `Some(D)`；安装仍调用旧 `install`，只有应用入口预检，不表示安装全阶段已经接通原截止点。输入模式、操作 ID 与输出 DTO 保留。

@@ -10,13 +10,46 @@ use serde_json::{Value, json};
 #[derive(Debug)]
 pub(crate) enum Input {
     Discover,
-    Connect { address: String },
-    Disconnect { address: String },
-    Packages { device_id: String },
-    Start { device_id: String, package: String },
-    Stop { device_id: String, package: String },
-    Uninstall { device_id: String, package: String },
-    Action { device_id: String, action: Action },
+    Connect {
+        address: String,
+    },
+    Disconnect {
+        address: String,
+    },
+    Packages {
+        device_id: String,
+    },
+    Start {
+        device_id: String,
+        package: String,
+    },
+    Stop {
+        device_id: String,
+        package: String,
+    },
+    Uninstall {
+        device_id: String,
+        package: String,
+    },
+    Action {
+        device_id: String,
+        action: Action,
+    },
+    Install {
+        device_id: String,
+        artifact_id: String,
+    },
+    InstallApks {
+        device_id: String,
+        artifact_id: String,
+    },
+    Screenshot {
+        device_id: String,
+    },
+    Performance {
+        device_id: String,
+        package: String,
+    },
 }
 
 pub(crate) fn parse(operation: &str, input: &Value) -> Result<Input> {
@@ -33,8 +66,12 @@ pub(crate) fn parse(operation: &str, input: &Value) -> Result<Input> {
             | "app.stop"
             | "app.uninstall"
             | "input"
+            | "app.install"
+            | "app.install_apks"
+            | "screenshot"
+            | "performance.sample"
     ) {
-        return Err(Error::Invalid("设备插件只接受本批八个短贡献名"));
+        return Err(Error::Invalid("设备插件只接受本批十二个短贡献名"));
     }
     if input.get("device_id").is_none() || input.get("input").is_none() {
         return Err(Error::Invalid("设备动作封套必须显式提供device_id和input"));
@@ -63,6 +100,33 @@ pub(crate) fn parse(operation: &str, input: &Value) -> Result<Input> {
         .to_owned();
     rules::serial(&device_id)?;
     match operation {
+        "performance.sample" => {
+            let value: models::Package = decode(&envelope.input)?;
+            rules::performance::package(&value.package)?;
+            Ok(Input::Performance {
+                device_id,
+                package: value.package,
+            })
+        }
+        "app.install" | "app.install_apks" => {
+            let value: models::Artifact = decode(&envelope.input)?;
+            rules::artifact_id(&value.artifact_id)?;
+            Ok(if operation == "app.install" {
+                Input::Install {
+                    device_id,
+                    artifact_id: value.artifact_id,
+                }
+            } else {
+                Input::InstallApks {
+                    device_id,
+                    artifact_id: value.artifact_id,
+                }
+            })
+        }
+        "screenshot" => {
+            decode::<models::Empty>(&envelope.input)?;
+            Ok(Input::Screenshot { device_id })
+        }
         "packages" => {
             decode::<models::Empty>(&envelope.input)?;
             Ok(Input::Packages { device_id })
@@ -108,6 +172,12 @@ fn decode<T: DeserializeOwned>(value: &Value) -> Result<T> {
 pub(crate) async fn execute(control: &Control, input: Input) -> Result<Value> {
     control.check()?;
     let value = match input {
+        Input::Install { .. }
+        | Input::InstallApks { .. }
+        | Input::Screenshot { .. }
+        | Input::Performance { .. } => {
+            return Err(Error::Invalid("产物设备动作必须进入独立资源流程"));
+        }
         Input::Discover => {
             let args = vec!["devices".into(), "-l".into()];
             let output = control.capture(&args, None).await?;

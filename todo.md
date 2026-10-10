@@ -1,11 +1,38 @@
 # DeviceForge 开发与验收记录
 
-## 目标与新会话交接归档（2026-10-10 10:16，UTC+8）
+## 交互终端公共双向流批次（2026-10-10，UTC+8）
+
+- 按业务迁移优先启动终端/常驻接续，架构门禁及职责见 `backend/docs/交互终端迁移实施裁定.md`。tool-process 新增 spawn_stream/租约入口和分离的输入、输出、监督、会话模块；共享输入/EOF、原字节双路、有界背压、原绝对期限、可重等终态和直接进程租约确认均已实现，原 capture/Error 不变。
+- 新增真实进程/配置 18 组首次通过，完整工作区 87 组结果共 1057 passed/0 failed/0 ignored；旧工具测试 39 与新流式 18 均在，末尾 Doc-tests 完整。架构 18 模块/6 规则、全量 fmt、Clippy -D warnings 与 debug build 全退出 0。报告为 `artifacts/interactive-stream-{behavior-initial,workspace-test-initial,workspace-clippy-initial,workspace-build-initial,architecture,architecture-tests,fmt}-20261010.txt`。
+- 693 个后端冻结输入在门禁期间零差异：`artifacts/interactive-stream-frozen-inputs-verification-20261010.json`；门禁原件摘要为 `interactive-stream-gate-reports-20261010.json`。测试助手独立核对所有最终组与末尾终态，受控 ZipWriter I/O 诊断未造成断言失败。默认/显式性能插件 runtime 与合作取消三情景服务均退出 0，报告 `interactive-stream-runtime-{default,plugin}-20261010.txt`、`interactive-stream-cooperative-service-20261010.txt`。
+- 前端仅新增 `frontend/docs/交互终端公开接口消费边界.md`，未造 DTO/HTTP 路由、未改 UI 或生成类型；现有严格 TS 保持。React 尚未切换，根 scripts 整理与优化继续后置。
+- 本批只证明本机真实直接进程与公共双向管道；终端插件/常驻传输、owner/generation 卸载、HTTP/MCP、前端用例尚未接线，不计整体终端迁移完成。下一批继续这些业务接口，再推进 Frida/自动化/投屏；完整分发、真机及其他原目标缺口仍保留。当前所有本批命令已终态，未自动提交或回退其他改动。
+
+## 当前业务迁移与前端类型约束（2026-10-10，UTC+8）
+
+- 最新优先级为先迁移业务、再优化。安卓十贡献九能力已取得 57 项库、89 项独立协议、875 项完整 workspace 与 debug/release 构建证据；假 ADB 服务两模式各 33 checks/38 Jobs 通过。875 仅属于 Harmony 集成前版本。
+- 安装/截图真实浏览器两模式 B01–B09 通过：`artifacts/android-artifacts-browser-debug-XrHsHN/report.json`、`artifacts/android-artifacts-browser-release-OOnWRO/report.json`；任务历史增强浏览器两模式各 10 项通过。报告输入稳定，模拟工具不代表真机，正式新 TGZ/npx 仍待。
+- Harmony 冻结版已接入第 18 成员并撤除宿主 HDC 装配；架构 18 模块/6 规则、fmt、全目标 Clippy、942 项完整测试及 workspace build 全部通过，报告 `artifacts/harmony-integration-scoped-gates-20261010.txt` 与 `artifacts/harmony-integration-workspace-20261010.txt`。debug 服务 `artifacts/harmony-device-smoke-debug-67e6b7ff-c08b-4ed1-b482-821db5a06b72/report.json` 26 checks/28 Jobs/27 HDC 通过，30 输入稳定、日志关联、正常 exit0/端口释放及 79 原件已独立核对。首轮非 ZIP HAP 夹具上传400保留，修夹具后复跑通过，生产规则未放宽；release/正式包/真机待验。
+- APKS 十一贡献/十能力冻结版已撤宿主 Java/bundletool、PackageCapacity 与安装侧车。62 库与 108 独立协议通过；架构、规则回归、fmt、全目标 Clippy、959 项 workspace 测试与 build 通过，记录 `artifacts/android-apks-integration-gates-20261010.txt`。该链首次性能 runtime 因清理 EPERM 退出1，原根因未确证；保留原失败后仅修驱动错误保留和有界删除重试，两模式复跑分别退出0，见 `android-apks-performance-runtime-rerun-20261010.txt` 与 `android-apks-runtime-after-retention-20261010.txt`，预算未放宽。
+- APKS 独立 debug 服务 `artifacts/android-device-smoke-debug-37b535e7-d430-4c57-8c4f-e20731cbec44/report.json` 54/54 检查、60 Jobs/57 工具（14 Java+43 ADB）通过：51 成功/4 预期失败/5 取消；175 原件哈希和 35 输入身份稳定、22 私有安装副本已清理，宿主 exit0、端口释放。首轮能力顺序夹具失败原件保留，仅修期望顺序，生产和预算未改；release/当前正式包/npx/真机仍待。
+- 动态性能迁出按 `backend/docs/性能采样迁出最小实施裁定.md` 实施。新版 Android 为 12 贡献/11 能力；库 71、协议 124 与旧 context_protocol 5 项通过。Weak 来源、动态生命周期和慢存储通过应用层全量 226 项（含库 129、原生命周期 3、新生命周期 8）；`server/main.rs` 已撤除 `AndroidPerformance`、固定 `PluginPerformance` 及永久 probe/protected 装配。清单资格修复后的最终 workspace 为 1039 passed/0 failed/0 ignored，架构、规则、fmt、Clippy、debug 构建及必要服务已通过，见下列修后报告。
+- 前端五个脚本与五个原 JS 测试已迁 TS，检查覆盖维护源码且无 JS/mjs/cjs 维护文件；API 生成、check、152/152 测试、161 模块构建及差异检查通过。生成类型摘要前后均9227ED546F0CE9BE57E4B257F284457BA3904E2F2F77FBD2EBE0C72E52088421。新根驱动接线 debug 实跑退出0，报告 `artifacts/frontend-typescript-browser-debug-20261010.json`；实际 harness9037字节、宿主53533字节及摘要与冻结构建一致。本批release接线尚未验，React选择待答复、Svelte外壳保留，产品UI与整体迁移不计完成。
+- 性能 source 生成同步退出 0；接入真实生成类型后的前端完整 check/test/build 退出 0（63 源码、165/165 测试、161 构建模块），报告 `artifacts/performance-source-api-generation-20261010.txt` 与 `artifacts/performance-frontend-gates-20261010.txt`。八会话用例仍为框架无关 TS；React 尚未切换，现有九行 Svelte 外壳保留，不因严格 TS 或消费者通过计产品页面完成。
+
+- 动态性能应用层首次编译的三处 `TaskTrackerToken` 导入路径错误已修；库 129、原生命周期 3、新生命周期 8 及应用层全量 226 项通过，报告 `artifacts/performance-application-lib-20261010.txt`、`artifacts/performance-application-legacy-lifecycle-20261010.txt`、`artifacts/performance-dynamic-lifecycle-20261010.txt` 与 `artifacts/performance-application-all-20261010.txt`。来源 draining 精确错误、风险门禁、原期限、实际采样 Drop 的屏障释放顺序、启动等待丢弃和慢存储终态重试均已纳入回归。
+- 字符串规则修复前 workspace 为 1037 passed/0 failed/0 ignored，debug 构建成功，见 `artifacts/performance-workspace-test-20261010.txt` 和 `artifacts/performance-workspace-build-20261010.txt`。首次 runtime 启动失败保留临时目录 `qerxav`，追加 stderr 诊断目录 `9mUNBj` 揭示领域字符串白名单误拒真实 Android 清单的 `not`；已窄修有限排除模式并直接消费两个真实清单，来源回归 9/9 通过，见 `artifacts/performance-source-schema-rerun-20261010.txt`。1037 项属于修前输入，不能作为修后最终完整门禁。
+- 修后 workspace 构建、默认 runtime 与显式 API 1 demo runtime 均退出 0，见 `artifacts/performance-schema-workspace-build-20261010.txt`、`artifacts/performance-runtime-default-schema-fixed-20261010.txt`、`artifacts/performance-runtime-plugin-schema-fixed-20261010.txt`。Android 性能独立 debug 服务见 `artifacts/android-device-performance-smoke-debug-6318819a-25b7-442e-b998-005e29c20978/report.json`：67 checks 全通过，99 唯一 Jobs（86 成功/8 预期失败/5 取消），38 输入零差异、371 原件逐哈希一致、宿主 exit0/端口释放。实际工具 138 次为前景 92 及后台 46，后台 11 组且零后台 Job；该证据限定假 ADB/Java 与真实宿主链路，不证明真机指标或生产延迟。
+- 最终修后六门禁已终态：架构 18 模块/6 规则、规则回归、fmt、全目标 Clippy、workspace 测试及 build 全部退出 0；最终测试报告 `artifacts/performance-schema-final-workspace-test-20261010.txt` 独立统计为 86 组、1039 passed/0 failed/0 ignored，最后 Doc-tests 终态确认。首次启动错误及诊断原件保留，修前 1037 不转计本轮。
+- 当前 debug 的日志、插件生命周期、合作取消、在线安装、设备提供者及嵌套产物六项服务回归均退出 0；JSON 快照为 `artifacts/performance-{logging-smoke,plugin-lifecycle-smoke,cooperative-smoke,online-plugins-smoke,device-provider-smoke,nested-device-artifacts-smoke}-debug.json`，设备提供者 26 checks、嵌套产物 42 checks。旧报告已先复制至 `artifacts/performance-prior-services-5f59586d-f0a4-4c25-affe-89755dd39c99/`。所有本轮主命令已终态、无残留宿主；release、正式包/npx、真机和产品 UI 仍待，根 scripts 整理后置，继续下一项核心业务迁移。
+
+以下章节均为按时间保留的历史记录，其中的“当前”“尚待”只描述各章节当时输入，不覆盖上面的最新状态。
+
+## 目标与新会话交接归档（2026-10-10 10:16 历史快照，UTC+8）
 
 - 原始完整目标与后续决定已保存到 [docs/项目目标.md](docs/项目目标.md)；最新状态、证据、剩余事项与接续顺序见 [docs/当前进度与新会话交接.md](docs/当前进度与新会话交接.md)。根 AGENTS 已补接续导航。
-- 前端最新 generate/check/test/build 均退出0，152项通过、106输入差异0，报告 task-history-log-fix-gates-20261010-0440.txt；任务历史真实浏览器未执行。
+- 当时前端 generate/check/test/build 均退出0，152项通过、106输入差异0，报告 task-history-log-fix-gates-20261010-0440.txt；当时任务历史真实浏览器未执行，后续结果见当前状态。
 - 安卓设备29库项及独立59项复验通过；新宿主撤除源码已装配，新增14项回归尚无当前完整运行终态。最新后端444非文档输入与0441清单差异0；架构/fmt已过，1002恢复报告Clippy退出0。workspace test编译时按用户要求主动中止，工具退出1不代表断言失败；当前完整test/build/release仍待，上一版717项不借记本版。
-- 四代理均已停止；本次只整理本地文档并核对既有记录，没有恢复开发、构建或测试。新会话明确继续后按交接推进，用户只问进度时仅只读汇报。
+- 当时四代理均已停止，仅整理本地文档并核对既有记录；现已按用户继续指令恢复开发。用户只问进度时仍仅只读汇报。
 
 ## 原包装卸验证与安卓设备接续实施（2026-10-10 04:36，UTC+8）
 
@@ -492,3 +519,14 @@
 - 已现场核对四角色交接后的状态：前后端及总监的独立预备已完成，存在等待主代理契约/写集的任务空档；不是等待测试结束。已冻结backend/docs/普通操作总期限第一批契约.md，SHA-256为6CBE0F61F84D52617AE6939C3FE630303251F44CC37D9777733D8A0336A40914，明确普通60000毫秒缺省/1–3600000声明、公开元数据、同一截止点及成功资格边界。
 - 队列分为后端声明与副作用映射、前端公开消费、测试独立竞争矩阵、总监即时审核；主代理负责application调度与终态、server/OpenAPI、生成类型及实际门禁。当前契约和排程已完成，本批生产实现、确定性测试、真实长执行及新分发尚未通过，不把旧证据转计本批。
 - Kuhn已回流最终npx动态报告独立复核，尚未独立重读最终日志/临时目录/423清单；主代理既有核对不等于每个角色都完成同一复核。RAW整体、历史异常及剩余迁移不关闭。
+
+## 新会话恢复与设备八贡献批次（2026-10-10）
+
+- 已按项目目标恢复四角色协作，初始Git工作区干净，无旧cargo/rustc/设备插件进程；444个后端冻结输入与10:02清单逐项零差异。
+- 当前八贡献宿主撤除批次工作区测试819项通过、退出0，debug/release工作区构建均退出0。报告为artifacts/android-device-removal-workspace-test-20261010-1032.txt、android-device-removal-build-20261010-1037.txt和android-device-removal-release-20261010-1037.txt；此前同输入Clippy证据复用。此结果不转计后续十贡献版本。
+- 普通服务驱动改为部署真实android-device插件与显式格式2绑定，先发现再执行设备能力；修正旧内置输入装配假设。首次409准入失败保留，后续debug/release各两种性能部署模式退出0；假工具与包不能当作真机通过。
+- 新设备驱动debug/release各21项检查、25个Job、30个实际输入前后零差异，真实宿主正常退出及端口释放、请求/插件日志关联通过。报告分别为artifacts/android-device-smoke-debug-f9198277-7d07-4069-a875-890766d8374c/report.json及artifacts/android-device-smoke-release-41f17180-a7fb-4637-b43e-a515fa684c63/report.json。旧8/7元数据快照在artifacts/android-device-eight-source-20261010，后续源码修改不替换本次binary或清单身份。
+- 首次独立设备驱动失败是旧alias结果预期错误，兼容入口实际为裸值；修正版通过。原失败保留artifacts/android-device-smoke-debug-first-20261010-1047.json，不能将失败轮写为通过。报告改为每轮独立目录，终端仅输出摘要。
+- 任务历史浏览器先修复驱动遗漏ESM导入器及面板完整ID，再补完整事件保留与具体监听释放断言。增强debug/release各10项、7门闩、输入稳定、双进程正常退出通过，报告分别为artifacts/browser-task-history-debug-GjOOf3/report.json和artifacts/browser-task-history-release-jAxt1c/report.json；两次TH-B01失败与增强前通过报告均保留。
+- 安装/截图裁定已冻结；后端开发实现同提供者十贡献九能力、单槽文件worker及明确清理，测试助理独占黑盒原帧验证，前端已有公开端口足够并补消费接缝及新浏览器驱动。主代理已将残余产物侧车收敛为Harmony两流，停止接收ADB；本批源码尚未完整集成验收，不计完成。
+- 现场ADB发现一台在线Android，HDC为空；仅设备枚举证据，不计插件真机安装、输入、截图或完整平台验收。正式新原TGZ/npx、真实工具包、跨平台、另一LAN主机、性能及迁移清单其余模块保持待推进；原目标未缩减。

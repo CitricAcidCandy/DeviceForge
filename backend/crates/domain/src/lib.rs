@@ -108,6 +108,10 @@ pub trait Executor: Send + Sync {
     fn device_provider(&self) -> Option<devices::DeviceProviderDefinition> {
         None
     }
+    /// 默认没有性能来源；注册层将声明与对应贡献原子发布和撤销。
+    fn performance_source(&self) -> Option<performance::PerformanceSourceDefinition> {
+        None
+    }
     /// 默认用于无外部会话的执行器；合作插件不可确定清理后必须持续返回 true。
     fn has_unresolved_resources(&self) -> bool {
         false

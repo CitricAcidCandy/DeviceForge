@@ -2,9 +2,7 @@ use apk_application::Application;
 use apk_application::plugin_lifecycle::PluginService;
 use apk_domain::Executor;
 use apk_domain::plugins::PluginContribution;
-use apk_infrastructure::{
-    devices::HarmonyDeviceTools, plugin_catalog::FilePluginCatalog, store::SqliteStore,
-};
+use apk_infrastructure::{plugin_catalog::FilePluginCatalog, store::SqliteStore};
 use std::{path::PathBuf, sync::Arc};
 mod limits;
 mod operation_bindings;
@@ -32,17 +30,10 @@ async fn run(
     let bindings = operation_bindings::from_environment().await?;
     std::fs::create_dir_all(&data)?;
     let store = Arc::new(SqliteStore::open(data.join("jobs.db"))?);
-    let mut executors: Vec<Arc<dyn Executor>> = vec![Arc::new(HarmonyDeviceTools {
-        hdc: std::env::var("APK_HDC").unwrap_or_else(|_| "hdc".into()),
-    })];
+    let mut executors: Vec<Arc<dyn Executor>> = Vec::new();
     let artifacts =
         Arc::new(apk_infrastructure::artifacts::FileArtifacts::open(data.join("artifacts")).await?);
-    let mut performance_probe: Arc<dyn apk_domain::performance::PerformanceProbe> =
-        Arc::new(apk_infrastructure::performance::AndroidPerformance {
-            adb: std::env::var("APK_ADB").unwrap_or_else(|_| "adb".into()),
-        });
     let selected_performance = std::env::var("APK_PERFORMANCE_PLUGIN").ok();
-    let mut selected_found = false;
     let plugin_directory = std::env::var_os("APK_PLUGIN_DIR")
         .map(PathBuf::from)
         .unwrap_or_else(|| data.join("plugins"));
@@ -55,41 +46,10 @@ async fn run(
             if !ids.insert(plugin.manifest().id.clone()) {
                 return Err("插件标识符重复".into());
             }
-            if plugin.manifest().performance.is_some() {
-                let probe =
-                    apk_infrastructure::performance_plugin::PluginPerformance::new(plugin.clone())?;
-                if selected_performance.as_deref() == Some(&plugin.manifest().id) {
-                    performance_probe = Arc::new(probe);
-                    selected_found = true;
-                }
-            }
         }
     }
-    if selected_performance.is_some() && !selected_found {
-        return Err("指定的性能采样插件不存在或没有性能能力".into());
-    }
-    executors.push(Arc::new(
-        apk_infrastructure::device_artifacts::RemainingDeviceArtifactActions::new(
-            std::env::var("APK_ADB").unwrap_or_else(|_| "adb".into()),
-            std::env::var("APK_HDC").unwrap_or_else(|_| "hdc".into()),
-            artifacts.clone(),
-        ),
-    ));
     executors.push(Arc::new(apk_application::artifacts::ArtifactOperations(
         artifacts.clone(),
-    )));
-    let java = std::env::var("APK_JAVA").unwrap_or_else(|_| "java".into());
-    let bundletool = std::env::var("APK_BUNDLETOOL_JAR")
-        .ok()
-        .map(|jar| apk_infrastructure::package_tools::ToolCommand::java_jar(java.clone(), jar));
-    let package_capacity = apk_infrastructure::package_work::PackageCapacity::default();
-    executors.push(Arc::new(apk_application::splits::InstallApksOperations(
-        Arc::new(apk_infrastructure::splits::AndroidSplits::with_capacity(
-            artifacts.clone(),
-            bundletool,
-            std::env::var("APK_ADB").unwrap_or_else(|_| "adb".into()),
-            package_capacity.clone(),
-        )),
     )));
     let performance_store = Arc::new(
         apk_infrastructure::performance::store::SqlitePerformance::open(
@@ -97,18 +57,15 @@ async fn run(
         )?,
     );
     apk_domain::performance::PerformanceStore::recover(performance_store.as_ref())?;
-    let performance = apk_application::performance::PerformanceService::new(
-        performance_probe,
+    let performance = apk_application::performance::PerformanceService::registered(
         performance_store,
         4,
+        selected_performance,
     )?;
     executors.push(Arc::new(performance.clone()));
     let app = Application::new_with_bindings(store, executors, 4, 128, bindings)?;
-    let plugin_service = PluginService::new(
-        app.clone(),
-        catalog,
-        selected_performance.into_iter().collect(),
-    );
+    performance.bind(&app)?;
+    let plugin_service = PluginService::new(app.clone(), catalog, Default::default());
     for plugin in loaded {
         plugin_service
             .seed(PluginContribution {
@@ -177,17 +134,8 @@ async fn run(
             }
             mcp_shutdown.cancel();
             plugin_service.close();
-            if let Err(error) = package_capacity.close() {
-                tracing::error!(code = error.code(), "包工作容量关闭失败");
-            }
             if let Err(error) = app.shutdown().await {
                 tracing::error!(code = error.code(), "任务停止失败");
-            }
-            if let Err(error) = package_capacity
-                .drain_until(tokio::time::Instant::now() + std::time::Duration::from_secs(2))
-                .await
-            {
-                tracing::error!(code = error.code(), "包同步工作退出未确认");
             }
             if let Err(error) = performance.shutdown().await {
                 tracing::error!(code = error.code(), "性能会话停止失败");

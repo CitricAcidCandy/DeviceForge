@@ -40,7 +40,17 @@ pub(crate) fn deadline(
     special: Option<tokio::time::Instant>,
     inherited: Option<tokio::time::Instant>,
 ) -> Option<tokio::time::Instant> {
-    let own = special.or_else(|| {
+    let sampling = registered
+        .owner
+        .as_ref()
+        .and_then(|owner| owner.performance.as_ref())
+        .filter(|source| source.operation == registered.operation.id)
+        .map(|_| admitted_at + Duration::from_secs(10));
+    let own = match (special, sampling) {
+        (Some(capability), Some(sample)) => Some(capability.min(sample)),
+        (capability, sample) => capability.or(sample),
+    }
+    .or_else(|| {
         registered
             .operation
             .execution
@@ -97,6 +107,47 @@ mod tests {
         }
     }
 
+    struct SamplingEcho;
+    #[async_trait]
+    impl Executor for SamplingEcho {
+        fn operations(&self) -> Vec<Operation> {
+            vec![Operation {
+                id: "plugin.test.sample".into(),
+                title: "采样预算回显".into(),
+                input_schema: json!({"type":"object"}),
+                execution: None,
+            }]
+        }
+        fn performance_source(
+            &self,
+        ) -> Option<apk_domain::performance::PerformanceSourceDefinition> {
+            Some(apk_domain::performance::PerformanceSourceDefinition {
+                api_version: 1,
+                operation: "plugin.test.sample".into(),
+                fps: false,
+                device_capability: None,
+            })
+        }
+        async fn execute(&self, _: &str, input: Value, _: CancellationToken) -> Result<Value> {
+            Ok(input)
+        }
+    }
+
+    fn sampling() -> Arc<Registered> {
+        let registry = crate::registry::Registry::new(vec![]).unwrap();
+        registry
+            .publish(
+                crate::registry::Prepared::new(apk_domain::plugins::PluginContribution {
+                    id: "test".into(),
+                    version: "1".into(),
+                    executor: Arc::new(SamplingEcho),
+                })
+                .unwrap(),
+            )
+            .unwrap();
+        registry.find("plugin.test.sample").unwrap()
+    }
+
     #[test]
     fn ordinary_registration_exposes_effective_default_and_preserves_declared() {
         let registered = registered(operation(None), None).unwrap();
@@ -143,6 +194,53 @@ mod tests {
             deadline(&registered, admitted, Some(special), None),
             Some(special)
         );
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn sampling_deadline_is_the_earliest_of_ten_seconds_capability_and_parent() {
+        let registered = sampling();
+        assert!(registered.operation.execution.is_none());
+        let admitted = tokio::time::Instant::now();
+        // 各期限缺省、收紧和放宽均明确列出期望，不以生产算法计算答案。
+        for (capability_seconds, parent_seconds, expected_seconds) in [
+            (None, None, 10),
+            (Some(5), None, 5),
+            (Some(20), None, 10),
+            (None, Some(4), 4),
+            (None, Some(15), 10),
+            (Some(5), Some(4), 4),
+            (Some(5), Some(15), 5),
+            (Some(20), Some(4), 4),
+            (Some(20), Some(15), 10),
+        ] {
+            let capability =
+                capability_seconds.map(|seconds| admitted + Duration::from_secs(seconds));
+            let parent = parent_seconds.map(|seconds| admitted + Duration::from_secs(seconds));
+            assert_eq!(
+                deadline(&registered, admitted, capability, parent),
+                Some(admitted + Duration::from_secs(expected_seconds)),
+                "设备能力期限={capability_seconds:?}，父期限={parent_seconds:?}"
+            );
+        }
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn sampling_deadline_never_refreshes_after_admission_or_queue_delay() {
+        let registered = sampling();
+        let admitted = tokio::time::Instant::now();
+        let capability = admitted + Duration::from_secs(20);
+        let parent = admitted + Duration::from_secs(15);
+        let expected = admitted + Duration::from_secs(10);
+        assert_eq!(
+            deadline(&registered, admitted, Some(capability), Some(parent)),
+            Some(expected)
+        );
+        tokio::time::advance(Duration::from_secs(20)).await;
+        assert_eq!(
+            deadline(&registered, admitted, Some(capability), Some(parent)),
+            Some(expected)
+        );
+        assert!(matches!(check(Some(expected), None), Err(Error::Timeout)));
     }
 
     #[tokio::test(start_paused = true)]

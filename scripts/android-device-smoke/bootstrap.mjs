@@ -7,10 +7,16 @@ const uuid = /^[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12}$/;
 export async function catalog(host, deployment, report, phase, available, owner) {
   const operations = await host.client.json('/api/v2/operations');
   assert.deepEqual(await host.client.tool('deviceforge.list_operations'), operations);
-  const tools = new Set(await host.client.tools());
+  const tools = await host.client.tools();
+  if (deployment.performance) {
+    assert.equal(operations.filter(item => item.id === operation('performance.sample')).length, available ? 1 : 0);
+    assert.equal(tools.filter(item => item === operation('performance.sample')).length, available ? 1 : 0);
+    assert.equal(operations.some(item => item.id === alias('performance.sample')), false);
+    assert.equal(tools.includes(alias('performance.sample')), false);
+  }
   for (const name of names) for (const id of [alias(name), operation(name)]) {
     assert.equal(operations.filter((item) => item.id === id).length, available ? 1 : 0, `${phase} ${id}`);
-    assert.equal(tools.has(id), available, `${phase} MCP ${id}`);
+    assert.equal(tools.filter((item) => item === id).length, available ? 1 : 0, `${phase} MCP ${id}`);
   }
   const providers = await host.client.json('/api/v2/device-providers');
   assert.deepEqual(await host.client.tool('deviceforge.list_device_providers'), providers);
@@ -23,8 +29,8 @@ export async function catalog(host, deployment, report, phase, available, owner)
     report.provider = ours[0];
   }
   assert.deepEqual(await host.client.tool('deviceforge.list_devices'), await host.client.json('/api/v2/devices'));
-  report.catalog_phases ??= []; report.catalog_phases.push({ phase, available, operations: names.map(operation), aliases: names.map(alias),
-    boundary: '仅端点采样，不证明内部注册原子性；七能力尚未执行业务' });
+  report.catalog_phases ??= []; report.catalog_phases.push({ phase, available, operations: deployment.contributions.map(operation), aliases: names.map(alias),
+    boundary: '仅端点采样，不证明内部注册原子性；十能力业务由动作、产物及APKS组另验' });
 }
 
 export async function missingAdb(host, report) {

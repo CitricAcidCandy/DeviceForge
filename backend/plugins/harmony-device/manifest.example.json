@@ -1,0 +1,23 @@
+{
+  "id": "harmony-device",
+  "version": "0.1.0",
+  "protocol_version": 4,
+  "args": [],
+  "artifacts": {"input_fields": [], "input_pointers": ["/input/artifact_id"], "outputs": false},
+  "devices": {
+    "api_version": 3,
+    "platform": "harmony",
+    "discover_operation": "discover",
+    "capabilities": [
+      {"id":"packages","version":1,"operation":"packages","scope":"device","access":"read","execution_timeout_ms":30000},
+      {"id":"app.install","version":1,"operation":"app.install","scope":"device","access":"write","execution_timeout_ms":120000},
+      {"id":"app.uninstall","version":1,"operation":"app.uninstall","scope":"device","access":"write","execution_timeout_ms":120000}
+    ]
+  },
+  "operations": [
+    {"name":"discover","title":"发现Harmony设备","input_schema":{"type":"object","additionalProperties":false,"properties":{},"required":[]}},
+    {"name":"packages","title":"枚举Harmony应用","input_schema":{"type":"object","additionalProperties":false,"properties":{"device_id":{"type":"string","minLength":1,"maxLength":200,"pattern":"^[A-Za-z0-9._:\\[\\]][A-Za-z0-9._:\\[\\]-]*$"},"input":{"type":"object","additionalProperties":false,"properties":{},"required":[]}},"required":["device_id","input"]}},
+    {"name":"app.install","title":"安装Harmony HAP","input_schema":{"type":"object","additionalProperties":false,"properties":{"device_id":{"type":"string","minLength":1,"maxLength":200,"pattern":"^[A-Za-z0-9._:\\[\\]][A-Za-z0-9._:\\[\\]-]*$"},"input":{"type":"object","additionalProperties":false,"properties":{"artifact_id":{"type":"string","minLength":36,"maxLength":36,"pattern":"^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$"}},"required":["artifact_id"]}},"required":["device_id","input"]}},
+    {"name":"app.uninstall","title":"卸载Harmony应用","input_schema":{"type":"object","additionalProperties":false,"properties":{"device_id":{"type":"string","minLength":1,"maxLength":200,"pattern":"^[A-Za-z0-9._:\\[\\]][A-Za-z0-9._:\\[\\]-]*$"},"input":{"type":"object","additionalProperties":false,"properties":{"package":{"type":"string","maxLength":200,"pattern":"^[A-Za-z][A-Za-z0-9_]*(?:\\.[A-Za-z][A-Za-z0-9_]*)+$"}},"required":["package"]}},"required":["device_id","input"]}}
+  ]
+}

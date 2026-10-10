@@ -22,7 +22,7 @@ export async function assertListenerReleased(port) {
 }
 
 // 编排只使用主代理已构建的宿主；重启沿用同一部署、SQLite和日志目录。
-export async function startHost({ root, binary, directory, bindingsPath, report, port, ordinal }) {
+export async function startHost({ root, binary, directory, bindingsPath, report, port, ordinal, performancePlugin }) {
   const plugins = join(directory, 'server-plugins'), browser = join(directory, 'browser-plugins');
   await mkdir(plugins, { recursive: true });
   await mkdir(browser, { recursive: true });
@@ -32,7 +32,9 @@ export async function startHost({ root, binary, directory, bindingsPath, report,
     APK_PLUGIN_DIR: plugins, APK_BROWSER_PLUGIN_DIR: browser,
     APK_MCP_HOSTS: `127.0.0.1:${port}`, APK_MCP_ORIGINS: base,
     DEVICEFORGE_NODE: process.execPath, DEVICEFORGE_HTTP_RATE: '10000',
-    ...(bindingsPath ? { APK_OPERATION_BINDINGS: bindingsPath } : {}) };
+    ...(bindingsPath ? { APK_OPERATION_BINDINGS: bindingsPath } : {}),
+    ...(performancePlugin === undefined ? {} : { APK_PERFORMANCE_PLUGIN: performancePlugin }) };
+  if (performancePlugin !== undefined) assert.match(performancePlugin, /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,199}$/);
   const identity = await fileIdentity(binary);
   const entry = { ordinal, binary: identity, started_at: new Date().toISOString(), default_authentication: '无token',
     node: { executable: process.execPath, version: process.version }, port };

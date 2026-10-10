@@ -3,11 +3,40 @@
   "version": "0.1.0",
   "protocol_version": 4,
   "args": [],
+  "performance": {
+    "api_version": 2,
+    "sample_operation": "performance.sample",
+    "fps": false,
+    "device_capability": {"id":"performance.sample","version":1}
+  },
+  "artifacts": {
+    "input_fields": [],
+    "input_pointers": ["/input/artifact_id"],
+    "outputs": true
+  },
   "devices": {
     "api_version": 3,
     "platform": "android",
     "discover_operation": "discover",
     "capabilities": [
+      {"id":"performance.sample","version":1,"operation":"performance.sample","scope":"device","access":"read","execution_timeout_ms":10000},
+      {"id":"app.install_apks","version":1,"operation":"app.install_apks","scope":"device","access":"write","execution_timeout_ms":120000},
+      {
+        "id": "app.install",
+        "version": 1,
+        "operation": "app.install",
+        "scope": "device",
+        "access": "write",
+        "execution_timeout_ms": 120000
+      },
+      {
+        "id": "screenshot",
+        "version": 1,
+        "operation": "screenshot",
+        "scope": "device",
+        "access": "write",
+        "execution_timeout_ms": 30000
+      },
       {
         "id": "connect",
         "version": 1,
@@ -67,6 +96,81 @@
     ]
   },
   "operations": [
+    {
+      "name": "performance.sample", "title": "读取Android主进程CPU与内存累计样本",
+      "input_schema": {
+        "type": "object", "additionalProperties": false,
+        "properties": {
+          "device_id": {
+            "type":"string","minLength":1,"maxLength":200,"pattern":"^[^-]",
+            "not":{"anyOf":[{"pattern":"^\\s*$"},{"pattern":"[\\u0000-\\u001F\\u007F-\\u009F]"}]},
+            "description":"保留原文；运行时另校最多200个UTF-8字节"
+          },
+          "input": {
+            "type":"object","additionalProperties":false,
+            "properties":{"package":{"type":"string","minLength":3,"maxLength":200,"pattern":"^[A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-9_]*)+$"}},
+            "required":["package"]
+          }
+        },
+        "required":["device_id","input"]
+      }
+    },
+    {
+      "name": "app.install_apks", "title": "匹配指定设备并安装APKS",
+      "input_schema": {
+        "type": "object", "additionalProperties": false,
+        "properties": {
+          "device_id": {
+            "type":"string","minLength":1,"maxLength":200,"pattern":"^[^-]",
+            "not":{"anyOf":[{"pattern":"^\\s*$"},{"pattern":"[\\u0000-\\u001F\\u007F-\\u009F]"}]},
+            "description":"保留原文；运行时另校最多200个UTF-8字节"
+          },
+          "input": {
+            "type":"object","additionalProperties":false,
+            "properties":{"artifact_id":{"type":"string","minLength":36,"maxLength":36,"pattern":"^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$"}},
+            "required":["artifact_id"]
+          }
+        },
+        "required":["device_id","input"]
+      }
+    },
+    {
+      "name": "app.install",
+      "title": "安装Android APK",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "device_id": {
+            "type": "string", "minLength": 1, "maxLength": 200, "pattern": "^[^-]",
+            "not": {"anyOf": [{"pattern": "^\\s*$"}, {"pattern": "[\\u0000-\\u001F\\u007F-\\u009F]"}]},
+            "description": "保留原文；运行时另校最多200个UTF-8字节"
+          },
+          "input": {
+            "type": "object", "additionalProperties": false,
+            "properties": {"artifact_id": {"type": "string", "minLength": 36, "maxLength": 36, "pattern": "^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$"}},
+            "required": ["artifact_id"]
+          }
+        },
+        "required": ["device_id", "input"]
+      }
+    },
+    {
+      "name": "screenshot",
+      "title": "保存Android截图",
+      "input_schema": {
+        "type": "object", "additionalProperties": false,
+        "properties": {
+          "device_id": {
+            "type": "string", "minLength": 1, "maxLength": 200, "pattern": "^[^-]",
+            "not": {"anyOf": [{"pattern": "^\\s*$"}, {"pattern": "[\\u0000-\\u001F\\u007F-\\u009F]"}]},
+            "description": "保留原文；运行时另校最多200个UTF-8字节"
+          },
+          "input": {"type": "object", "additionalProperties": false, "properties": {}, "required": []}
+        },
+        "required": ["device_id", "input"]
+      }
+    },
     {
       "name": "discover",
       "title": "发现Android设备",

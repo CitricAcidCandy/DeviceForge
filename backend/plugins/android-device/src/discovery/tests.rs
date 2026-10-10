@@ -16,7 +16,7 @@ fn normalized_state_keeps_all_special_and_unknown_raw_tokens() {
         "Vendor.状态",
     ]) {
         assert_eq!(device.raw_state.as_deref(), Some(raw));
-        assert_eq!(device.capabilities.len(), 5);
+        assert_eq!(device.capabilities.len(), 9);
         assert!(
             device
                 .capabilities

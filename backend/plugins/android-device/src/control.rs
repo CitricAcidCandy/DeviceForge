@@ -1,11 +1,15 @@
 //! 原截止点、固定工具入口和直接进程租约；不承担平台命令或共享server所有权。
+mod file;
+mod resources;
 use crate::{Error, Result};
 use apk_plugin_sdk::cooperative::CleanupOutcome;
 use deviceforge_plugin_runtime::{Execution, InvocationContext};
 use deviceforge_tool_process::{
     Environment, ExecutionOptions, Output, ToolCommand, capture_with_lease,
 };
+pub(crate) use resources::{Lease, Waiting};
 use std::{
+    path::Path,
     sync::{
         Arc,
         atomic::{AtomicBool, Ordering},
@@ -15,10 +19,10 @@ use std::{
 use tokio::time::Instant;
 
 pub(crate) struct Control {
-    context: InvocationContext,
-    executable: String,
-    lease: Arc<()>,
-    unresolved: Arc<AtomicBool>,
+    pub(crate) context: InvocationContext,
+    pub(crate) executable: String,
+    pub(crate) lease: Arc<Lease>,
+    pub(crate) unresolved: Arc<AtomicBool>,
 }
 
 struct ToolGuard {
@@ -39,7 +43,7 @@ impl Control {
         Self {
             context,
             executable,
-            lease: Arc::new(()),
+            lease: Arc::default(),
             unresolved: Arc::new(AtomicBool::new(false)),
         }
     }
@@ -88,6 +92,68 @@ impl Control {
             return Err(Error::CleanupFailed);
         }
         // 工具库的取消优先次序不改变本插件公开上下文的到期优先规则。
+        self.check()?;
+        result.map_err(Into::into)
+    }
+
+    pub(crate) async fn capture_scoped(&self, args: &[String]) -> Result<Output> {
+        let mut command = ToolCommand::new(&self.executable, args);
+        command.environment = Environment::Restricted;
+        self.capture_scoped_command(command).await
+    }
+
+    pub(crate) async fn capture_private(
+        &self,
+        executable: &str,
+        args: &[String],
+        directory: &Path,
+    ) -> Result<Output> {
+        let mut command = ToolCommand::new(executable, args);
+        command.environment = Environment::Restricted;
+        command.directory = Some(directory);
+        for key in ["TEMP", "TMP", "TMPDIR"] {
+            command
+                .env
+                .insert(key.into(), directory.as_os_str().to_owned());
+        }
+        self.capture_scoped_command(command).await
+    }
+
+    async fn capture_scoped_command(&self, command: ToolCommand<'_>) -> Result<Output> {
+        self.check()?;
+        let mut guard = ToolGuard {
+            unresolved: self.unresolved.clone(),
+            confirmed: false,
+        };
+        let result = {
+            let work = capture_with_lease(
+                command,
+                ExecutionOptions::new(self.context.deadline().into()),
+                self.context.cancellation(),
+                self.lease.clone(),
+            );
+            tokio::pin!(work);
+            let cancel = self.context.cancellation();
+            tokio::select! {
+                biased;
+                _ = tokio::time::sleep_until(self.context.deadline().into()) => {
+                    let until = self.lease.cleanup_point()?;
+                    tokio::time::timeout_at(until, &mut work).await.map_err(|_| Error::CleanupFailed)?
+                },
+                _ = cancel.cancelled() => {
+                    let until = self.lease.cleanup_point()?;
+                    tokio::time::timeout_at(until, &mut work).await.map_err(|_| Error::CleanupFailed)?
+                },
+                result = &mut work => result,
+            }
+        };
+        guard.confirmed = !matches!(
+            result,
+            Err(deviceforge_tool_process::Error::CleanupFailed { .. })
+        );
+        if !guard.confirmed {
+            return Err(Error::CleanupFailed);
+        }
         self.check()?;
         result.map_err(Into::into)
     }

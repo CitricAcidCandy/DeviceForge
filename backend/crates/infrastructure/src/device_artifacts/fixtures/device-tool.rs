@@ -6,6 +6,15 @@ mod shell_words;
 mod performance_probe;
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
+    if args == ["devices", "-l"] {
+        // offline 是已观测在线设备；由假 Java 返回离线诊断，验证 APKS 输出失败规则。
+        println!("List of devices attached\ninput-ok\tdevice model:fixture\ninput-error\tdevice model:fixture\nok\tdevice model:fixture\nstderr-failure\tdevice model:fixture\noffline\tdevice model:fixture");
+        return;
+    }
+    if args == ["list", "targets"] {
+        println!("ok\nstderr-failure");
+        return;
+    }
     assert!(args.len() >= 3);
     assert!(args[0] == "-s" || args[0] == "-t");
     let mode = &args[1];

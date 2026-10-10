@@ -2,6 +2,8 @@ use crate::{Error, Result, identifier};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use tokio_util::sync::CancellationToken;
+mod source;
+pub use source::{PerformanceDeviceCapability, PerformanceSourceDefinition, PerformanceSourceRef};
 
 #[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -98,6 +100,8 @@ impl PerformanceState {
 #[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct PerformanceSession {
     pub id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source: Option<PerformanceSourceRef>,
     pub request: PerformanceStart,
     pub state: PerformanceState,
     pub revision: u64,

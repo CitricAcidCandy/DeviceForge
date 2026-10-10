@@ -80,7 +80,9 @@ try {
   vite.middlewares.use('/__production_host__', (_request, response) => {
     response.setHeader('content-type', 'text/javascript; charset=utf-8'); response.end(hostModule);
   });
-  const harnessModule = await readFile(resolve(root, 'frontend/scripts/browser-plugin-harness.mjs'));
+  const harnessModule = await readFile(resolve(root, 'frontend/dist/assets/browser-plugin-harness.js'));
+  report.harness_sha256 = createHash('sha256').update(harnessModule).digest('hex');
+  report.harness_bytes = harnessModule.length;
   vite.middlewares.use('/__harness__', (_request, response) => {
     response.setHeader('content-type', 'text/javascript; charset=utf-8'); response.end(harnessModule);
   });

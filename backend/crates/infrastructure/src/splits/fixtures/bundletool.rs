@@ -12,7 +12,8 @@ pub fn run(mode: &str, args: &[String]) {
     assert_eq!(args.len(), 4);
     let input = args[1].strip_prefix("--apks=").unwrap();
     assert!(input.ends_with(".apks")); assert!(fs::read(input).unwrap().starts_with(b"PK"));
-    assert_eq!(Path::new(input).parent(), Some(std::env::current_dir().unwrap().as_path()));
+    // Windows 工作目录与参数可能采用不同长路径前缀，按真实目录身份核对。
+    assert_eq!(Path::new(input).parent().unwrap().canonicalize().unwrap(), std::env::current_dir().unwrap().canonicalize().unwrap());
     if mode == "fail" { eprintln!("模拟诊断包含服务器路径 {input}"); std::process::exit(2); }
     if mode == "false-success" { eprintln!("Error: INSTALL_FAILED_INVALID_APK"); return; }
     if args[0] == "install-apks" {

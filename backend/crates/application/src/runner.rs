@@ -1,7 +1,6 @@
 //! 队列、设备锁、执行与有界取消清理的任务生命周期。
 use crate::{Application, alias_plan::Plan, devices, execution};
 use apk_domain::{Error, Job, JobStatus, Result};
-use futures_util::FutureExt;
 use tokio_util::sync::CancellationToken;
 
 pub(crate) struct Admission {
@@ -56,10 +55,7 @@ impl Application {
         };
         // 排队期间另一任务可能留下未确认资源；不能在取得共享锁后继续执行。
         let owner = plan.target.owner.as_ref();
-        if owner
-            .as_ref()
-            .is_some_and(|owner| owner.info().cleanup_failed)
-        {
+        if owner.is_some_and(|owner| owner.info().cleanup_failed) {
             return Err(Error::Conflict("插件资源清理未确认，排队任务被拒绝".into()));
         }
         let running = self
@@ -72,7 +68,7 @@ impl Application {
         tracing::info!("任务开始执行");
         // 执行Future在终态存储等待前结束作用域，有限清理到期也立即释放其资源守卫。
         let result = {
-            let execution = std::panic::AssertUnwindSafe(async {
+            let execution = async {
                 if let Some(attempt) = &discovery {
                     self.registry.begin_discovery(attempt)?;
                 }
@@ -100,31 +96,14 @@ impl Application {
                 // 纯转换可能与其他线程取消或截止点竞争，完成后再次核对才能接受成功。
                 crate::operation_budget::check(deadline, Some(&token))?;
                 Ok((projected, directory))
-            })
-            .catch_unwind();
-            tokio::pin!(execution);
-            tokio::select! {
-                biased;
-                _=devices::locks::deadline(deadline)=>{
-                    token.cancel();
-                    let cleanup=tokio::time::timeout(std::time::Duration::from_secs(2),&mut execution).await;
-                    if matches!(cleanup, Ok(Ok(Err(Error::CleanupFailed)))) {
-                        Err(Error::CleanupFailed)
-                    } else { Err(Error::Timeout) }
-                },
-                _ = token.cancelled() => {
-                    // 给予异步执行器有限清理时间，超时后释放 Future；取消后不接受晚到成功。
-                    let cleanup = tokio::time::timeout(std::time::Duration::from_secs(2), &mut execution).await;
-                    if matches!(cleanup, Ok(Ok(Err(Error::CleanupFailed)))) {
-                        Err(Error::CleanupFailed)
-                    } else { Err(Error::Cancelled) }
-                },
-                result = &mut execution => result.unwrap_or_else(|_| Err(Error::Dependency("执行器发生内部异常".into()))),
-            }
+            };
+            execution::settle(execution, &token, owner.map(AsRef::as_ref), deadline).await
         };
         // 有限清理到期的Drop守卫可能刚留下未确认风险；首次终态await前重新观测。
         // 已取得提交资格的终态仍由Completion保护，不能被晚到清理诊断改写。
-        let result = if plan.target.executor.has_unresolved_resources() {
+        let result = if owner.is_some_and(|owner| owner.info().cleanup_failed)
+            || plan.target.executor.has_unresolved_resources()
+        {
             Err(Error::CleanupFailed)
         } else {
             result

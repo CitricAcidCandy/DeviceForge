@@ -22,6 +22,8 @@
 
 ## 类型与行为
 - 保持 strict、noUncheckedIndexedAccess、exactOptionalPropertyTypes，不得以 any、类型断言或关闭检查绕过接口边界。
+- 前端维护的源码、开发脚本及测试使用 `.ts`；Svelte 组件脚本使用 `lang="ts"`。`scripts/**/*.ts`、`tests/**/*.ts` 与配置均纳入同一严格检查，不保留并行维护的 `.js/.mjs` 实现。
+- Node 工具及测试要求 Node 22.18 以上，直接执行 TypeScript；浏览器只能载入构建后的 JavaScript。独立插件验收源码为 `scripts/browser-plugin-harness.ts`，稳定浏览器产物为 `dist/assets/browser-plugin-harness.js`，依赖既有公开 `plugin-host.js`。
 - HTTP 类型由 generate:api 生成，禁止手改 generated.ts 或手写重复 DTO；公开 SDK 独立版本化，由适配器映射。
 - 异步调用显式传 AbortSignal，处理失败、取消、销毁和晚到结果；插件卸载释放事件、订阅和 DOM。
 - 日志 ID 由 shared/api 按公开响应契约提取并传递，失败界面应支持复制排查；任务 ID 不代替日志 ID。日志响应升级需同步生成类型、适配器和公开 SDK，不把协议包装或服务器日志路径混入组件。
@@ -34,11 +36,13 @@
 ## 必须执行的门禁
 在前端目录执行并确认退出码：
 1. `npm run generate:api`
-2. `npm run check`（包含架构、Svelte 与 TypeScript 检查）
+2. `npm run check`（包含架构、Svelte 与 TypeScript 检查，覆盖维护脚本与所有测试）
 3. `npm test`（包含架构拒绝用例、插件契约及外壳测试）
 4. `npm run build`
 
 新增可见交互补行为测试；静态架构检查不能代替运行时插件信任或资源清理。
+
+生成器由主代理串行运行，前端角色不与后端 Cargo 验证并行执行 `generate:api`。纯前端 TypeScript 迁移不手改生成类型；记录实际检查结果和生成器交接状态。
 
 涉及在线包或开放扩展时，在根目录执行 `node scripts/browser-plugin-smoke.mjs`；当前 release 宿主重建后另执行 `--release`。该独立浏览器验收覆盖真实上传两类包、动态模块、界面替换、逻辑钩子、服务器对接和停用恢复；不替代具体产品界面视觉验收。
 

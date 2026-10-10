@@ -24,8 +24,8 @@ export async function runHistoryScenarios(env) {
       const enabled = await runtime.pluginPackages.enable(kind, installed.data.id, signal); log(enabled.logId);
     }
     const probe = env.probe(); check(probe.context.apiVersion === 2 && probe.context.taskHistory, '公开历史端口未注入');
-    await runtime.webPlugins.mount(config.browserId, 'left');
-    await runtime.webPlugins.mount(config.browserId, 'right');
+    await runtime.webPlugins.mount(config.browserId, config.panelIds.left);
+    await runtime.webPlugins.mount(config.browserId, config.panelIds.right);
     check(probe.panels.left.context.taskHistory && probe.panels.right.context.taskHistory, '挂载上下文缺历史端口');
     const jobs = [];
     for (let index = 0; index < 2; index += 1) {
@@ -70,6 +70,7 @@ export async function runHistoryScenarios(env) {
   });
   await step('TH-B03-events序号游标和精确jobId', async () => {
     const access = env.probe().context.taskHistory; const pages = [];
+    report.events = [];
     for (const job of report.jobs) {
       const path = '/api/v2/jobs/' + encodeURIComponent(job.id) + '/events';
       const reply = await access.events(job.id, {}, signal); matchReceipt(reply, report, path);
@@ -90,6 +91,7 @@ export async function runHistoryScenarios(env) {
       matchReceipt(end, report, path + '?after=' + previous); equal(end.data, [], '终态游标之后仍返回旧事件');
       const zero = await access.events(job.id, { after: 0 }, signal);
       matchReceipt(zero, report, path + '?after=0'); equal(zero.data, reply.data, '显式0与缺省事件游标不兼容');
+      report.events.push({ jobId: job.id, events: reply.data });
       pages.push({ jobId: job.id, initial: reply, wireLogId: wire.logId, after, next, end, zero });
     }
     return { pages, sequenceGapsAllowed: true, reconnectImplemented: false };

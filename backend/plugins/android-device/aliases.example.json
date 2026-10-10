@@ -3,6 +3,61 @@
   "bindings": [
     {
       "operation": {
+        "id":"android.app.install_apks","title":"匹配指定设备并安装APKS",
+        "input_schema": {
+          "type":"object","additionalProperties":false,
+          "properties": {
+            "device_id":{"type":"string","minLength":1,"maxLength":200,"pattern":"^[A-Za-z0-9._:\\[\\]][A-Za-z0-9._:\\[\\]-]*$"},
+            "artifact_id":{"type":"string","minLength":36,"maxLength":36,"pattern":"^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$"}
+          },
+          "required":["device_id","artifact_id"]
+        }
+      },
+      "target":{"kind":"device_capability","plugin_id":"android-device","capability":"app.install_apks","version":1},
+      "input":"device_envelope",
+      "result":{"kind":"value","wrapped":true}
+    },
+    {
+      "operation": {
+        "id": "android.app.install", "title": "安装Android APK",
+        "input_schema": {
+          "type": "object", "additionalProperties": false,
+          "properties": {
+            "device_id": {
+              "type": "string", "minLength": 1, "maxLength": 200, "pattern": "^[^-]",
+              "not": {"anyOf": [{"pattern": "^\\s*$"}, {"pattern": "[\\u0000-\\u001F\\u007F-\\u009F]"}]},
+              "description": "保留原文；运行时另校最多200个UTF-8字节"
+            },
+            "artifact_id": {"type": "string", "minLength": 36, "maxLength": 36, "pattern": "^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$"}
+          },
+          "required": ["device_id", "artifact_id"]
+        }
+      },
+      "target": {"kind": "device_capability", "plugin_id": "android-device", "capability": "app.install", "version": 1},
+      "input": "device_envelope",
+      "result": {"kind": "value", "wrapped": true}
+    },
+    {
+      "operation": {
+        "id": "android.screenshot", "title": "保存Android截图",
+        "input_schema": {
+          "type": "object", "additionalProperties": false,
+          "properties": {
+            "device_id": {
+              "type": "string", "minLength": 1, "maxLength": 200, "pattern": "^[^-]",
+              "not": {"anyOf": [{"pattern": "^\\s*$"}, {"pattern": "[\\u0000-\\u001F\\u007F-\\u009F]"}]},
+              "description": "保留原文；运行时另校最多200个UTF-8字节"
+            }
+          },
+          "required": ["device_id"]
+        }
+      },
+      "target": {"kind": "device_capability", "plugin_id": "android-device", "capability": "screenshot", "version": 1},
+      "input": "device_envelope",
+      "result": {"kind": "artifact", "filename": "screenshot.png"}
+    },
+    {
+      "operation": {
         "id": "android.devices",
         "title": "发现Android设备",
         "input_schema": {

@@ -16,5 +16,6 @@ export async function createFixtures() {
     { path: 'dist/index.js', bytes: await readFile(new URL('./browser-plugin.mjs', import.meta.url)) },
   ];
   return { server, browser: { id: browserId, kind: 'browser', files, archive: npmTgz(files) },
-    config: { browserId, serverId: server.id, operation: 'plugin.' + server.id + '.echo', probeKey } };
+    config: { browserId, serverId: server.id, operation: 'plugin.' + server.id + '.echo', probeKey,
+      panelIds: { left: browserId + '.left', right: browserId + '.right' } } };
 }

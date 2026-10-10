@@ -427,10 +427,13 @@ name = "deviceforge-android-device-plugin"
 version = "0.1.0"
 dependencies = [
  "apk-plugin-sdk",
+ "deviceforge-android-package-core",
  "deviceforge-plugin-runtime",
  "deviceforge-tool-process",
  "serde",
  "serde_json",
+ "sha2",
+ "tempfile",
  "thiserror",
  "tokio",
  "tokio-util",
@@ -513,6 +516,22 @@ dependencies = [
  "apk-infrastructure",
  "apk-plugin-sdk",
  "serde_json",
+ "tokio",
+ "tokio-util",
+]
+
+[[package]]
+name = "deviceforge-harmony-device-plugin"
+version = "0.1.0"
+dependencies = [
+ "apk-plugin-sdk",
+ "deviceforge-plugin-runtime",
+ "deviceforge-tool-process",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "thiserror",
  "tokio",
  "tokio-util",
 ]

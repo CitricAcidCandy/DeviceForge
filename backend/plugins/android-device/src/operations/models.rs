@@ -28,6 +28,12 @@ pub(super) struct Package {
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
+pub(super) struct Artifact {
+    pub artifact_id: String,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
 pub(super) struct InputAction {
     pub action: Action,
 }

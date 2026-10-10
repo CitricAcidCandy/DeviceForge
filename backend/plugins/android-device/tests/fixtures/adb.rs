@@ -1,4 +1,4 @@
-//! 独立std-only假ADB；每笔只记录自己的argv/PID，不创建daemon或派生进程。
+//! 独立std-only假ADB/Java；每笔只记录自己的argv/PID，不创建daemon或派生进程。
 use std::{
     env, fs,
     io::{self, Write},
@@ -28,6 +28,23 @@ fn main() {
     }
     fs::write(call.join("argv.bin"), encoded).unwrap();
     fs::write(call.join("pid"), process::id().to_string()).unwrap();
+    if args.len() == 4 && args[0] == "-s" && args[2] == "install" {
+        fs::copy(&args[3], call.join("install-input.bin")).unwrap();
+    }
+    if args.len() == 7 && args[0] == "-Xmx256m" && args[1] == "-jar" && args[3] == "install-apks" {
+        let source = args[4].strip_prefix("--apks=").expect("APKS参数必须为固定前缀");
+        assert!(args[5].starts_with("--device-id="));
+        assert!(args[6].starts_with("--adb="));
+        fs::copy(source, call.join("install-apks-input.bin")).unwrap();
+        fs::write(call.join("cwd.txt"), env::current_dir().unwrap().to_str().unwrap()).unwrap();
+        for key in ["TEMP", "TMP", "TMPDIR"] {
+            // 只记录本次明确设置的私有临时目录，不采集任意环境变量。
+            fs::write(call.join(format!("{key}.txt")), env::var(key).unwrap()).unwrap();
+        }
+        let flags = ["JAVA_TOOL_OPTIONS", "_JAVA_OPTIONS", "JDK_JAVA_OPTIONS"]
+            .map(|key| u8::from(env::var_os(key).is_some()));
+        fs::write(call.join("java-restricted-flags.bin"), flags).unwrap();
+    }
     // 仅记录禁继承变量是否存在，不保存其值、部署环境或凭据。
     let keys = [
         "APK_ADB",
@@ -53,11 +70,15 @@ fn main() {
         assert!(Instant::now() < deadline, "失败兜底看门狗，不构成性能证据");
         thread::sleep(Duration::from_millis(2));
     }
-    let stdout = fs::read(root.join(format!("stdout-{index}"))).unwrap();
-    let stderr = fs::read(root.join(format!("stderr-{index}"))).unwrap();
-    io::stdout().write_all(&stdout).unwrap();
+    if root.join(format!("echo-install-path-{index}")).exists() {
+        writeln!(io::stdout(), "Installed {}\nSuccess", args[3]).unwrap();
+    } else {
+        let mut stdout = fs::File::open(root.join(format!("stdout-{index}"))).unwrap();
+        io::copy(&mut stdout, &mut io::stdout()).unwrap();
+    }
     io::stdout().flush().unwrap();
-    io::stderr().write_all(&stderr).unwrap();
+    let mut stderr = fs::File::open(root.join(format!("stderr-{index}"))).unwrap();
+    io::copy(&mut stderr, &mut io::stderr()).unwrap();
     io::stderr().flush().unwrap();
     let code: i32 = fs::read_to_string(root.join(format!("code-{index}")))
         .unwrap()

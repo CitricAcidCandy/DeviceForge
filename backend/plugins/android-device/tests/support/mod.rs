@@ -1,4 +1,7 @@
 //! 有界原帧、独立工具与每场景私有证据目录；不调用生产规则生成期望。
+pub mod apks;
+pub mod artifacts;
+pub mod performance;
 mod process;
 mod wire;
 
@@ -224,6 +227,10 @@ pub fn expected_device(
         "app.stop",
         "app.uninstall",
         "input",
+        "app.install",
+        "app.install_apks",
+        "screenshot",
+        "performance.sample",
     ]
     .into_iter()
     .map(|id| {

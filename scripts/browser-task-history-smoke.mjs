@@ -33,6 +33,23 @@ async function reservePort() {
   const port = server.address().port;
   await new Promise((done, reject) => server.close((error) => error ? reject(error) : done())); return port;
 }
+async function verifyPortReleased(port) {
+  const evidence = { host: '127.0.0.1', port, verified: false };
+  report.backend_process.port_release = evidence;
+  const server = createServer();
+  try {
+    await new Promise((done, reject) => {
+      server.once('error', reject);
+      server.listen(port, evidence.host, done);
+    });
+    evidence.verified = true;
+  } catch (error) {
+    evidence.error = error.code ?? 'bind_failed';
+    throw new Error('本次Rust端口关闭后仍不能重新绑定：' + evidence.error);
+  } finally {
+    if (server.listening) await new Promise((done, reject) => server.close((error) => error ? reject(error) : done()));
+  }
+}
 async function inputPaths() {
   return [...new Set([
     fileURLToPath(import.meta.url), binary, process.execPath,
@@ -98,7 +115,8 @@ try {
   report.stage = '关闭本次代理和Rust宿主';
   await bridge.close(); bridge = undefined;
   await host.call('/api/v2/system/shutdown', { method: 'POST' }); await observer.wait(10000);
-  assert.equal(normalExit(report.backend_process), true, 'Rust宿主没有正常OS终态'); report.passed = true;
+  assert.equal(normalExit(report.backend_process), true, 'Rust宿主没有正常OS终态');
+  await verifyPortReleased(port); report.passed = true;
 } catch (error) { report.error = String(error.message).slice(0, 1400); }
 finally {
   if (bridge) {
