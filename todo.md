@@ -1,5 +1,12 @@
 # DeviceForge 开发与验收记录
 
+## 交互会话公开协议第五版批次（2026-10-10，UTC+8）
+
+- 已实现 SDK 独立 session 帧/规则、运行库双向监督与公开入口，旧协议 1–4 保持；公开冻结及证据见 `backend/docs/交互会话协议第五版裁定.md`。SDK 21/21、运行库 23/23 专项通过，包含严格枚举、固定原期限、EOF 后取消、背压/限额、处理器清理等待及半帧传输失败。
+- 架构 18 模块/6 规则、规则测试、fmt、全目标 Clippy、完整 workspace test 和 debug build 全部退出 0；完整报告独立核对为 89 组、1101 passed/0 failed/0 ignored，末尾 Doc-tests 正常收尾。报告前缀 `artifacts/interactive-session-`；722 冻结输入完整门禁期间零差异，见 `interactive-session-frozen-inputs-verification-20261010.json`。
+- 默认/显式性能插件 runtime、合作取消 complete/ignore/failed 服务均退出 0。原合作报告先保留，本批 JSON 为 `interactive-session-cooperative-debug-20261010.json`。首次运行库 22/1 的夹具时序失败及首次导入排序 fmt 失败保留；只修观察门闩与格式，生产规则未放宽。
+- 本批新协议仅纯 SDK/内存双工管道；真实旧宿主服务回归不计协议 5 进程/宿主业务完成。Manifest、领域端口、会话进程适配、owner/generation 卸载、HTTP/MCP、前端消费及完整终端仍待。前端仅更新文档，React 未切换，根脚本整理和优化后置；继续宿主会话，再迁 Frida。
+
 ## 交互终端公共双向流批次（2026-10-10，UTC+8）
 
 - 按业务迁移优先启动终端/常驻接续，架构门禁及职责见 `backend/docs/交互终端迁移实施裁定.md`。tool-process 新增 spawn_stream/租约入口和分离的输入、输出、监督、会话模块；共享输入/EOF、原字节双路、有界背压、原绝对期限、可重等终态和直接进程租约确认均已实现，原 capture/Error 不变。

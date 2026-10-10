@@ -150,6 +150,7 @@ pub fn validate(
                 artifacts: portable.artifacts,
                 performance: portable.performance,
                 devices: portable.devices,
+                sessions: portable.sessions,
             };
             let plugin = ProcessPlugin::new(manifest.clone()).map_err(|error| match error {
                 Error::Conflict(_) => Error::Invalid("包清单包含无效或重复贡献".into()),

@@ -21,6 +21,7 @@ use tracing::Instrument;
 mod execution;
 mod performance;
 mod process_cleanup;
+mod interactive;
 
 pub struct ProcessPlugin {
     manifest: Manifest,
@@ -28,6 +29,8 @@ pub struct ProcessPlugin {
     unresolved: Arc<AtomicBool>,
     devices: Option<apk_domain::devices::DeviceProviderDefinition>,
     performance: Option<apk_domain::performance::PerformanceSourceDefinition>,
+    sessions: Vec<apk_domain::interactive::SessionDefinition>,
+    session_validators: Arc<interactive::Validators>,
 }
 fn valid_name(name: &str) -> bool {
     !name.is_empty()
@@ -64,7 +67,8 @@ impl ProcessPlugin {
                 return Err(Error::Conflict("插件操作名无效或重复".into()));
             }
         }
-        if manifest.operations.is_empty() {
+        let (sessions, session_validators) = interactive::definitions(&manifest)?;
+        if manifest.operations.is_empty() && sessions.is_empty() {
             return Err(Error::Invalid("插件没有贡献操作".into()));
         }
         if let Some(access) = &manifest.artifacts {
@@ -90,6 +94,8 @@ impl ProcessPlugin {
             unresolved: Arc::new(AtomicBool::new(false)),
             devices,
             performance,
+            sessions,
+            session_validators: Arc::new(session_validators),
         })
     }
     pub fn manifest(&self) -> &Manifest {
@@ -168,6 +174,9 @@ impl Executor for ProcessPlugin {
     }
     fn performance_source(&self) -> Option<apk_domain::performance::PerformanceSourceDefinition> {
         self.performance.clone()
+    }
+    fn session_provider(&self) -> Option<Arc<dyn apk_domain::interactive::SessionProvider>> {
+        interactive::provider(self)
     }
     fn has_unresolved_resources(&self) -> bool {
         self.unresolved.load(Ordering::Acquire)
@@ -436,6 +445,7 @@ mod tests {
             args: vec![],
             performance: None,
             devices: None,
+            sessions: None,
             artifacts: None,
             operations: vec![],
         };

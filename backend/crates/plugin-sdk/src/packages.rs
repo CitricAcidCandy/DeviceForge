@@ -1,5 +1,5 @@
 //! npm 与 ZIP 共用的便携包声明；运行入口由宿主映射。
-use crate::{ArtifactAccess, Contribution, PerformanceAccess};
+use crate::{ArtifactAccess, Contribution, PerformanceAccess, SessionAccess};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
@@ -33,6 +33,9 @@ pub struct PortableServerManifest {
     #[serde(default)]
     pub args: Vec<String>,
     pub operations: Vec<Contribution>,
+    /// 包入口映射后原样保留独立会话声明。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sessions: Option<SessionAccess>,
     #[serde(default)]
     pub artifacts: Option<ArtifactAccess>,
     #[serde(default)]

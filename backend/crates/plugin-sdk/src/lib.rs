@@ -7,9 +7,11 @@ pub mod execution;
 pub mod packages;
 pub mod performance;
 pub mod session;
+pub mod session_access;
 pub use context::{CONTEXT_PROTOCOL_VERSION, ReadyCommand, ReadyFrame, StartCommand, StartFrame};
 pub use execution::ExecutionBudget;
 pub use performance::{PerformanceAccess, PerformanceDeviceCapability};
+pub use session_access::SessionAccess;
 pub const PROTOCOL_VERSION: u32 = 1;
 pub const ARTIFACT_PROTOCOL_VERSION: u32 = 2;
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -93,6 +95,9 @@ pub struct Manifest {
     #[serde(default)]
     pub args: Vec<String>,
     pub operations: Vec<Contribution>,
+    /// 独立会话采用协议 5；顶层版本仍声明普通任务协议 1–4。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sessions: Option<SessionAccess>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub artifacts: Option<ArtifactAccess>,
     #[serde(default, skip_serializing_if = "Option::is_none")]

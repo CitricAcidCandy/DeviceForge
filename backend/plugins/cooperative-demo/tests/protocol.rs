@@ -26,6 +26,7 @@ fn manifest(directory: &Path, mode: &str) -> Manifest {
         args: vec![directory.to_string_lossy().into_owned(), mode.into()],
         performance: None,
         devices: None,
+        sessions: None,
         artifacts: None,
         operations: vec![Contribution {
             name: "wait".into(),

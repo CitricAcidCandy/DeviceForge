@@ -23,6 +23,7 @@ fn manifest(mode: &str, fps: bool) -> Manifest {
         },
         artifacts: None,
         devices: None,
+        sessions: None,
         performance: Some(PerformanceAccess {
             api_version: 1,
             sample_operation: "sample".into(),

@@ -397,6 +397,7 @@ async fn v2_protocol_rejects_invalid_responses_and_preserves_null_envelope() {
             args: vec![mode.into()],
             performance: None,
             devices: None,
+            sessions: None,
             artifacts: None,
             operations: vec![Contribution {
                 name: "check".into(),

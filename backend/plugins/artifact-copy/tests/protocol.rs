@@ -14,6 +14,7 @@ fn manifest(outputs: bool) -> Manifest {
         args: vec![],
         performance: None,
         devices: None,
+        sessions: None,
         artifacts: Some(ArtifactAccess {
             input_fields: vec!["artifact_id".into()],
             input_pointers: vec![],

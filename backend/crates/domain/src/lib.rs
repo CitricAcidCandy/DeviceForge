@@ -9,6 +9,7 @@ mod executor_result;
 pub use executor_result::ExecutorResultFormat;
 pub mod operation_execution;
 pub use operation_execution::{OperationExecution, OperationExecutionSource};
+pub mod interactive;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -100,6 +101,10 @@ pub struct Operation {
 #[async_trait]
 pub trait Executor: Send + Sync {
     fn operations(&self) -> Vec<Operation>;
+    /// 默认没有独立会话；不改变已有贡献构造或普通执行签名。
+    fn session_provider(&self) -> Option<std::sync::Arc<dyn interactive::SessionProvider>> {
+        None
+    }
     /// 默认不信任业务 JSON 的包装外形；仅宿主发布适配器覆盖此声明。
     fn result_format(&self) -> ExecutorResultFormat {
         ExecutorResultFormat::Json
