@@ -1,0 +1,287 @@
+{
+  "id": "settings",
+  "version": "0.1.0",
+  "protocol_version": 4,
+  "executable": "deviceforge-settings-plugin.exe",
+  "args": [],
+  "operations": [
+    {
+      "name": "list",
+      "title": "列出配置",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "scope": {
+            "type": "string",
+            "enum": [
+              "user",
+              "workspace"
+            ]
+          },
+          "owner_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$"
+          }
+        },
+        "required": [
+          "scope",
+          "owner_id"
+        ]
+      }
+    },
+    {
+      "name": "get",
+      "title": "读取配置",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "scope": {
+            "type": "string",
+            "enum": [
+              "user",
+              "workspace"
+            ]
+          },
+          "owner_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$"
+          },
+          "section": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$"
+          }
+        },
+        "required": [
+          "scope",
+          "owner_id",
+          "section"
+        ]
+      }
+    },
+    {
+      "name": "set",
+      "title": "原子写入配置",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "scope": {
+            "type": "string",
+            "enum": [
+              "user",
+              "workspace"
+            ]
+          },
+          "owner_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$"
+          },
+          "section": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$"
+          },
+          "expected_revision": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$",
+            "maxLength": 20
+          },
+          "value": {}
+        },
+        "required": [
+          "scope",
+          "owner_id",
+          "section",
+          "expected_revision",
+          "value"
+        ]
+      }
+    },
+    {
+      "name": "delete",
+      "title": "删除配置区",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "scope": {
+            "type": "string",
+            "enum": [
+              "user",
+              "workspace"
+            ]
+          },
+          "owner_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$"
+          },
+          "section": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$"
+          },
+          "expected_revision": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$",
+            "maxLength": 20
+          }
+        },
+        "required": [
+          "scope",
+          "owner_id",
+          "section",
+          "expected_revision"
+        ]
+      }
+    },
+    {
+      "name": "import",
+      "title": "导入旧配置",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "scope": {
+            "type": "string",
+            "enum": [
+              "user",
+              "workspace"
+            ]
+          },
+          "owner_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$"
+          },
+          "sections": {
+            "type": "object",
+            "minProperties": 1,
+            "maxProperties": 64,
+            "additionalProperties": true
+          },
+          "expected_revision": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$",
+            "maxLength": 20
+          }
+        },
+        "required": [
+          "scope",
+          "owner_id",
+          "sections",
+          "expected_revision"
+        ]
+      }
+    },
+    {
+      "name": "remote.load",
+      "title": "读取远端配置并保留备份",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "scope": {
+            "type": "string",
+            "enum": [
+              "user",
+              "workspace"
+            ]
+          },
+          "owner_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$"
+          },
+          "section": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$"
+          },
+          "expected_revision": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$",
+            "maxLength": 20
+          }
+        },
+        "required": [
+          "scope",
+          "owner_id",
+          "section",
+          "expected_revision"
+        ]
+      },
+      "execution": {
+        "total_timeout_ms": 30000,
+        "api_version": 1
+      }
+    },
+    {
+      "name": "remote.save",
+      "title": "保存远端配置并保留备份",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "scope": {
+            "type": "string",
+            "enum": [
+              "user",
+              "workspace"
+            ]
+          },
+          "owner_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$"
+          },
+          "section": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$"
+          },
+          "expected_revision": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$",
+            "maxLength": 20
+          },
+          "value": {},
+          "write_local_backup": {
+            "type": "boolean",
+            "default": true,
+            "description": "远端保存确认后是否更新本地备份；关闭时保留本地内容和修订"
+          }
+        },
+        "required": [
+          "scope",
+          "owner_id",
+          "section",
+          "expected_revision",
+          "value"
+        ]
+      },
+      "execution": {
+        "total_timeout_ms": 30000,
+        "api_version": 1
+      }
+    }
+  ]
+}

@@ -15,23 +15,40 @@ pub(super) struct Reader {
 }
 
 impl Reader {
-    pub fn new() -> Self { Self { buffer: Vec::new(), stderr: 0 } }
+    pub fn new() -> Self {
+        Self {
+            buffer: Vec::new(),
+            stderr: 0,
+        }
+    }
 
-    pub async fn next(&mut self, process: &mut StreamingProcess, limit: usize) -> Result<Option<Vec<u8>>> {
+    pub async fn next(
+        &mut self,
+        process: &mut StreamingProcess,
+        limit: usize,
+    ) -> Result<Option<Vec<u8>>> {
         loop {
             if let Some(index) = self.buffer.iter().position(|byte| *byte == b'\n') {
-                if index + 1 > limit { return Err(Error::TooLarge); }
+                if index + 1 > limit {
+                    return Err(Error::TooLarge);
+                }
                 return Ok(Some(self.buffer.drain(..=index).collect()));
             }
-            if self.buffer.len() >= limit { return Err(Error::TooLarge); }
+            if self.buffer.len() >= limit {
+                return Err(Error::TooLarge);
+            }
             match process.recv().await {
                 Some(chunk) if chunk.stream == OutputStream::Stdout => {
                     self.buffer.extend_from_slice(&chunk.bytes);
                 }
                 Some(chunk) => {
-                    self.stderr = self.stderr.checked_add(chunk.bytes.len() as u64)
+                    self.stderr = self
+                        .stderr
+                        .checked_add(chunk.bytes.len() as u64)
                         .ok_or(Error::TooLarge)?;
-                    if self.stderr > 1024 * 1024 { return Err(Error::TooLarge); }
+                    if self.stderr > 1024 * 1024 {
+                        return Err(Error::TooLarge);
+                    }
                     // 诊断管道不进入业务输出、日志或错误文案。
                 }
                 None if self.buffer.is_empty() => return Ok(None),
@@ -42,17 +59,20 @@ impl Reader {
 }
 
 pub(super) fn frame(value: &impl Serialize, limit: usize) -> Result<Vec<u8>> {
-    let mut bytes = serde_json::to_vec(value)
-        .map_err(|_| Error::Invalid("会话帧无法序列化".into()))?;
+    let mut bytes =
+        serde_json::to_vec(value).map_err(|_| Error::Invalid("会话帧无法序列化".into()))?;
     bytes.push(b'\n');
-    if bytes.len() > limit { return Err(Error::TooLarge); }
+    if bytes.len() > limit {
+        return Err(Error::TooLarge);
+    }
     Ok(bytes)
 }
 
 pub(super) async fn send(input: &StreamingInput, bytes: &[u8], deadline: Instant) -> Result<()> {
     // Open 大帧先拆成公共管道块；同一发送 Future 完成前不穿插其他帧。
     for chunk in bytes.chunks(65536) {
-        tokio::time::timeout_at(deadline, input.send(chunk)).await
+        tokio::time::timeout_at(deadline, input.send(chunk))
+            .await
             .map_err(|_| Error::Timeout)?
             .map_err(|_| Error::Dependency("会话帧写入队列已关闭".into()))?;
     }

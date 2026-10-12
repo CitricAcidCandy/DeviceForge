@@ -1,0 +1,16 @@
+[package]
+name = "deviceforge-ai-assistant-plugin"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+apk-plugin-sdk.workspace = true
+deviceforge-plugin-runtime.workspace = true
+deviceforge-tool-process.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+fs2 = "0.4"
+tempfile = "3"
+

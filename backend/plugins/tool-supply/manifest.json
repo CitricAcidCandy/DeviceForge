@@ -1,0 +1,77 @@
+{
+  "id": "tool-supply",
+  "version": "0.1.0",
+  "protocol_version": 4,
+  "executable": "deviceforge-tool-supply-plugin.exe",
+  "args": [],
+  "operations": [
+    {
+      "name": "catalog",
+      "title": "查看工具供应与本地安装差异",
+      "execution": { "api_version": 1, "total_timeout_ms": 120000 },
+      "input_schema": { "type": "object", "additionalProperties": false, "properties": {} }
+    },
+    {
+      "name": "plan",
+      "title": "规划工具安装或更新",
+      "execution": { "api_version": 1, "total_timeout_ms": 120000 },
+      "input_schema": {
+        "type": "object", "additionalProperties": false,
+        "properties": {
+          "module_ids": {
+            "type": "array", "maxItems": 128, "uniqueItems": true,
+            "items": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-z][a-z0-9_-]{0,63}$" }
+          }
+        }
+      }
+    },
+    {
+      "name": "install",
+      "title": "校验并事务安装工具模块",
+      "execution": { "api_version": 1, "total_timeout_ms": 900000 },
+      "input_schema": {
+        "type": "object", "additionalProperties": false,
+        "properties": {
+          "module_id": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-z][a-z0-9_-]{0,63}$" }
+        },
+        "required": ["module_id"]
+      }
+    },
+    {
+      "name": "runtime_feature.status",
+      "title": "查询运行时功能匹配与安装资格",
+      "execution": { "api_version": 1, "total_timeout_ms": 120000 },
+      "input_schema": {
+        "type": "object", "additionalProperties": false,
+        "properties": {
+          "feature_key": { "type": "string", "minLength": 1, "maxLength": 128 }
+        },
+        "required": ["feature_key"]
+      }
+    },
+    {
+      "name": "runtime_feature.prepare",
+      "title": "按单清单快照准备运行时功能",
+      "execution": { "api_version": 1, "total_timeout_ms": 900000 },
+      "input_schema": {
+        "type": "object", "additionalProperties": false,
+        "properties": {
+          "feature_key": { "type": "string", "minLength": 1, "maxLength": 128 }
+        },
+        "required": ["feature_key"]
+      }
+    },
+    {
+      "name": "remove",
+      "title": "显式移除已托管工具模块",
+      "execution": { "api_version": 1, "total_timeout_ms": 120000 },
+      "input_schema": {
+        "type": "object", "additionalProperties": false,
+        "properties": {
+          "module_id": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-z][a-z0-9_-]{0,63}$" }
+        },
+        "required": ["module_id"]
+      }
+    }
+  ]
+}

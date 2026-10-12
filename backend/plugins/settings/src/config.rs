@@ -4,12 +4,22 @@ use std::path::PathBuf;
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
-struct Config {
+pub(crate) struct Config {
     format_version: u32,
-    storage_root: PathBuf,
+    pub storage_root: PathBuf,
+    #[serde(default)]
+    pub remote: Option<Remote>,
 }
 
-pub(crate) async fn root() -> Result<PathBuf, String> {
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct Remote {
+    pub base_url: String,
+    #[serde(default)]
+    pub headers: std::collections::BTreeMap<String, String>,
+}
+
+pub(crate) async fn read() -> Result<Config, String> {
     let arguments: Vec<_> = std::env::args_os().skip(1).collect();
     let path = match arguments.as_slice() {
         [] => std::env::current_exe()
@@ -29,10 +39,25 @@ pub(crate) async fn root() -> Result<PathBuf, String> {
     let raw = tokio::fs::read(path)
         .await
         .map_err(|_| "无法读取配置插件部署配置".to_owned())?;
-    let config: Config = serde_json::from_slice(&raw)
-        .map_err(|_| "配置插件部署配置格式无效".to_owned())?;
+    let config: Config =
+        serde_json::from_slice(&raw).map_err(|_| "配置插件部署配置格式无效".to_owned())?;
     if config.format_version != 1 || !config.storage_root.is_absolute() {
         return Err("配置插件部署版本或根目录无效".into());
     }
-    Ok(config.storage_root)
+    if let Some(remote) = &config.remote {
+        let url = reqwest::Url::parse(&remote.base_url).map_err(|_| "远端配置地址无效")?;
+        if !["http", "https"].contains(&url.scheme())
+            || !url.username().is_empty()
+            || url.password().is_some()
+            || url.query().is_some()
+            || url.fragment().is_some()
+            || !remote.base_url.ends_with('/')
+        {
+            return Err("远端配置地址须为无凭据和查询的HTTP目录地址".into());
+        }
+        if remote.headers.len() > 32 {
+            return Err("远端配置头数量超限".into());
+        }
+    }
+    Ok(config)
 }

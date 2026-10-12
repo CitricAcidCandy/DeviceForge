@@ -1,5 +1,41 @@
 # DeviceForge 开发与验收记录
 
+## 工具缓存与AI旧请求当前收口（2026-10-12 08:05，UTC）
+
+- 08:02 UTC日志服务最终复验通过：debug/release各4000请求、32并发、真实SQLite，均exit0，0丢弃、0写入错误、0超大记录，敏感哨兵不落盘，宿主结束与shutdown响应结束事件完整；无负载隔离各13记录也完整。原首轮末尾事件缺失、数组包装和错误工作目录失败原件保留，不能删除或改写；证据tool-cache-logging-isolated-final-20261012.json及logging-exit-isolated-2026-10-12T08-00-14-708Z/report.json。此为本机给定负载，不宣称持续生产容量、慢磁盘或真机性能。
+- 08:00 UTC独立原包审核终态：9/9归档摘要与62普通成员一致，CLI26成员及5关键资源两阶段一致；三业务模板/物化清单身份一致。两阶段各7检查/17Jobs，日志关联132/132及116/116；实际config、日志正文和缓存临时目录已清理，不能重新读取，只核对保留摘要。总监未发现原包差异，不扩大live准备为缓存fallback矩阵；Raman完成已回收。日志无负载隔离debug/release各13记录，宿主结束和shutdown响应结束各1条、exit0/非强杀，报告logging-exit-isolated-2026-10-12T08-00-14-708Z/report.json；不替代原4000请求失败或证明唯一根因。
+- 目标保持 active，遵守用户“不允许暂停”；继续完整业务迁移，不缩减目标。缓存最终后端1263项/114顶层组、完整门禁与两模式构建通过；882冻结结论先于本次诊断脚本与文档变化，不宣称当前全后端字节仍相同。
+- 缓存真实服务 debug/release各41检查/64Jobs（44成功、18预期失败、2取消）通过；40输入稳定、各六代正常退出。测试助理独立复核SQLite、日志、来源/缓存/安装原件及退出，零身份差异；未独立重算Rust canonical。release终态原件 ordinary-tool-cache-release-2026-10-12T07-04-03.334Z-f6d8ecd3-78cf-4336-8347-9bdd3bec0115/report.json，不再是下文历史“正在运行”。同版本旧工具功能debug/release各22检查/42Jobs通过，见tool-cache-feature-service-results-20261012.json。
+- 必需服务首轮十命令因PowerShell单元素数组退化失败，第二次runtime因错误根工作目录失败，均是命令包装问题，不改生产。按backend目录复验runtime/runtime-performance/生命周期/合作取消/在线安装/日志两模式通过；首轮日志断言失败和诊断保留，最终两模式4000请求日志通过。tool-cache-required-services、required-services-final、required-services-revalidated、remaining-services-revalidated与logging诊断/最终原件分别保留。
+- 旧AI单次纯转换新增23项测试，首次22/23因错误要求组合AbortSignal深比较；修为操作/输入、公开信号状态和调用者取消传播后23/23。生成、严格106源码、完整291/291及161模块构建通过，根21/21；随后全量测试曾与prepare-runtime的npm ci重叠发生4文件依赖缺失，终验严格检查与291/291串行通过，原失败保留。生产转换未为测试放宽，不计真实模型/SDK/UI。
+- prepare-runtime/verify-package/真实八包npx均exit0，原包与报告artifacts/npx-raw-ruxgsM/，1318→1318输入成员/大小/摘要零差异，tool-cache-distribution-input-verification-20261012.json。本轮npx仅live和准备，不借记缓存41/64；冻结先于本次文档回写。独立总监正在复核原包，未将其在途审核计为终态。
+- Darwin/Nietzsche/Bernoulli完成后均已回收；当前仅Raman只读分发审核，无主代理在途构建/服务，前端终验会话58031与分发71591均已exit0。继续补日志缺口与剩余六业务；真实来源/工具、模型、跨平台、真机、产品UI及registry发布仍独立待验。
+
+## 工具来源缓存集成接续（2026-10-12，UTC）
+
+- 07:04 UTC当前终态：最终后端 fmt/Clippy/完整 workspace/debug/release 构建均退出 0，114 顶层组/1263 项通过（嵌套 AI 子进程 1 项排除），见 tool-cache-backend-gates-verified 和 workspace-verified-top-level-20261012.json。882 个后端输入前后成员/大小/摘要零差异。此前完整复验在裸读并发缓存提交处退出 101、底层 PermissionDenied/os5，原件保留；默认读取含 DELETE 共享，不能归因为禁共享。
+- 跨进程回归改为生产短锁契约：四轮先明确 CacheBusy，再按门闩完成生产写入并逐轮核对 A/B 封装、摘要、公开读取与无 pending；不重试、不忽略 Io，不改生产或 12/10 秒看门狗。定点加连续八次均退出 0；这证明短锁互斥与完整发布，不承诺绕过短锁的任意裸读竞争发布必成功。
+- debug 缓存真实服务已退出 0：41 检查/64 Jobs（44 成功、18 预期失败、2 取消），40 输入稳定，HTTP/MCP 原自然到期分别 120537/120267ms，六代宿主 exit0/非强杀/PID 消失/端口释放。原件报告 ordinary-tool-cache-debug-2026-10-12T06-59-30.626Z-e9cec953-9653-48c4-b360-b46e8a77ac5c/report.json；release 正在运行，尚无终态。没有独立重算 canonical，不借记缓存 IO/Busy/提交等服务缺口或 npx。
+- 下一独立业务仅旧 AI CLI 单次请求纯转换，四文件范围限定 projectRoot/userPrompt 和显式项目 ID 绑定，无等价 timeoutMs/requestId 拒绝。原前端/总监线程复用返回系统错误、已归档；替代前端只独占新增测试，总监只读审核，主代理保留生产写集冻结。不迁部署凭据、SDK/持续流或产品 UI，新增代码尚无门禁结果。
+- 用户最新明确“不允许暂停了”，目标现场为 active；继续业务迁移，不自行暂停、不回退或删除无关修改。四角色本批写集均交回冻结，构建、生成器与真实服务由主代理串行协调。
+- 后端缓存提交已直接原子 persist 到目标，不先搬走旧快照；失败明确关闭临时文件，提交错误与未确认清理分别为 Io/Cleanup。提交后预算取消仍失败，但不声称旧字节必然保留。总监静态审核来源分类、五操作元数据与锁序无新增生产契约阻断。
+- 首轮格式失败、缓存 11/12、来源 16/17 与完整插件 67/69 的失败日志保留。提交失败旧断言改为精确 Io；跨进程子测试增加提前退出诊断和标准错误输出，不延长看门狗。定点原子发布复验退出 0，随后完整插件 69/69 与全工作区格式检查退出 0，证据 tool-cache-atomic-diagnostic/tool-cache-plugin-lib-final-20261012.txt。跨进程首次超时的唯一根因仍未证明。
+- 架构 24 模块与规则 6/6 通过；完整 Clippy 首轮在新增代码两处局部警告退出 101。完整 workspace 测试、两模式构建与 API 生成流水正在运行，待全部终态后窄修警告并重新冻结，不提前宣称门禁全绿。
+- 缓存真实服务驱动说明实际为 backend/tests/fixtures/ordinary-tool-cache-README.md。独立 HTTP/MCP 原 120 秒自然到期保留；当前尚未启动本批服务/新包验证，不借记旧 T4FxOI 或工具功能 22/42。前端已记录的 268/268 与 AutoMouse 13/13 保持各自证据边界。
+
+## 工具运行时功能当前验收（2026-10-12 05:25，UTC）
+
+- 05:43 UTC下一批实施中：缓存裁定已冻结于backend/docs/工具来源缓存回退裁定.md，后端Volta、前端James、独立驱动Ampere各持互斥写集，主代理协调命令与旧驱动兼容。旧22/42驱动显式关闭缓存以保留来源失败矩阵，来源元数据断言按新契约同步；npx辅助同步新外层、2项定点通过，尚未执行新真实服务或包验收。
+- 主代理四文件完成旧AutoMouse→DesktopRepeat纯转换，字段/枚举取自旧CodeGraph当前源码；不提交、不原地修改、不减一秒，手动要求有限上限/F9，歧义坐标拒绝。新7项加旧桌面5项共12/12定点通过；1.001秒浮点乘法误拒先红后绿，生产改为十进制BigInt精确整数毫秒，不取整钳制。独立严格TS退出0；首次根目录类型检查因Node类型解析入口缺失退出2，显式typeRoots/types复验通过，原日志保留。证据artifacts/legacy-mouse-{targeted,decimal-red,decimal-green,typecheck,typecheck-resolved}-20261012.txt。前端完整新版本门禁、真实桌面/F9及产品UI未验，旧246通过不转计本增量。
+- 总监只读审核指出固定速度档位的非活动timeInterval:0应兼容；新增第8项先红后绿，活动custom/次数/时长零仍拒绝。最终转换8项加旧桌面5项13/13和独立严格TS退出0，README补坐标模式及次数/时长字段；报告legacy-mouse-placeholder-{red,green}与legacy-mouse-typecheck-final-20261012.txt。npx来源元数据拒绝新增1项，根最终21/21退出0，报告tool-cache-root-tests-metadata-20261012.txt；不计真实新包通过。
+- 05:58 UTCJames来源消费七文件已冻结，工具定点41/41（新14+旧27）通过；完整前端check/test/build exit0（105源码/Svelte零错误警告、268/268、161模块），生成器待后端src冻结再由主代理运行。214前端输入身份保留tool-cache-frontend-frozen-20261012.json；总监只读审核三态/旧兼容/子项/日志恢复无新增阻断。后端及新服务驱动仍实施中，不把前端通过或旧T4FxOI计为缓存真实服务/分发完成。
+- 独立真实宿主debug/release各22/22检查、42 Jobs（28成功/12预期失败/2取消）、126事件通过；40清单/20归档请求验证单快照、多模块准备、重复零下载、部分提交、在途Busy、取消无损及新任务恢复。重启只查询原任务；33输入、4部署、44安装文件稳定，宿主正常exit0/非强杀/PID退出/端口释放。报告后缀debug137a5c8a、release067a6e50，位于artifacts/ordinary-tool-feature对应目录；测试助理已独立核对SQLite、日志和原件。
+- 两次旧失败发生在来源切换之前：驱动精确错误断言漏宿主“依赖执行失败”前缀。仅修改backend/tests/fixtures/ordinary-tool-feature-cases.ts三处断言，生产、来源夹具和期限均未改；04:24与04:42失败报告保留，不改写历史结果。
+- 工具库40/40、架构24模块/6规则、fmt、全目标Clippy及debug/release完整构建通过；前端四门禁已终态（103源码、246/246、161构建模块、API生成摘要不变），严格驱动两种TS检查及根20/20通过。默认workspace test退出101，基础设施lib127通过/10失败；隔离单线程lib137/137退出0，耗时136.62秒，未改代码或期限。只支持并行环境相关，不证明唯一根因或完整workspace通过。报告为artifacts/tool-feature-backend-gates-20261012.json及workspace-test/infrastructure-serial原日志。
+- 两模式runtime、runtime-performance、logging、lifecycle、cooperative、online共12条必需服务命令全部exit0，见artifacts/tool-feature-services-20261012.json；历史交互与性能失败继续保留。真实服务合成来源/文本ZIP不等于真实发布工具或真机。
+- 当前release运行包重建、包门禁及真实八包npx会话19175全部exit0；当轮原归档和报告artifacts/npx-raw-T4FxOI/report.json。显式令牌/默认免令牌各7普通检查、17成功Jobs，含运行时功能单快照、多模块准备及重复零下载；不等于npx覆盖独立22检查的失败/取消/重启矩阵。05:25:15 UTC冻结复算1302→1302、成员/大小/摘要零差异，见artifacts/tool-feature-fixed-input-verification-20261012.json与before/after清单，先于本记录及下一批修改。
+- 继续业务迁移：工具来源缓存回退先冻结错误分类及前端语义，不改宿主、不吞取消/到期、不重置期限；旧AutoMouse仅纯转换现有DesktopRepeat，不复刻减一秒/原地修改、手动要求显式有限上限。两项尚未实施；真实来源、缺入口/错归属/错摘要、较新本地版本、稳定损坏/遗留事务、非法输入及自然到期等服务覆盖、实际桌面/F9、SDK/模型、跨平台/真机仍未验。目标保持active，用户已明确不允许自行暂停。
+
 ## 交互会话公开协议第五版批次（2026-10-10，UTC+8）
 
 - 已实现 SDK 独立 session 帧/规则、运行库双向监督与公开入口，旧协议 1–4 保持；公开冻结及证据见 `backend/docs/交互会话协议第五版裁定.md`。SDK 21/21、运行库 23/23 专项通过，包含严格枚举、固定原期限、EOF 后取消、背压/限额、处理器清理等待及半帧传输失败。
@@ -537,3 +573,48 @@
 - 任务历史浏览器先修复驱动遗漏ESM导入器及面板完整ID，再补完整事件保留与具体监听释放断言。增强debug/release各10项、7门闩、输入稳定、双进程正常退出通过，报告分别为artifacts/browser-task-history-debug-GjOOf3/report.json和artifacts/browser-task-history-release-jAxt1c/report.json；两次TH-B01失败与增强前通过报告均保留。
 - 安装/截图裁定已冻结；后端开发实现同提供者十贡献九能力、单槽文件worker及明确清理，测试助理独占黑盒原帧验证，前端已有公开端口足够并补消费接缝及新浏览器驱动。主代理已将残余产物侧车收敛为Harmony两流，停止接收ADB；本批源码尚未完整集成验收，不计完成。
 - 现场ADB发现一台在线Android，HDC为空；仅设备枚举证据，不计插件真机安装、输入、截图或完整平台验收。正式新原TGZ/npx、真实工具包、跨平台、另一LAN主机、性能及迁移清单其余模块保持待推进；原目标未缩减。
+
+## 六业务接续与三业务真实服务（2026-10-10 17:22）
+
+- 既有六业务未提交实现保留。补自动化七贡献调度、输入轨迹产物与正常stdin保存；11项专项及全目标Clippy通过，未实际点击桌面，真实旧工具/私有文件和真机保持待验。配置跨网络CAS锁、AI持久归属/串行及工具事务修补进入同一生产冻结批次。
+- 分发脚本优先正式manifest.json，仅不存在时兼容示例；公开配置模板进入包内bin，不采集部署配置、不自动启用。根18项通过，14份清单debug校验成功；清单通过尚不等于正式包或npx行为通过。
+- 前端三业务与共享Job消费的严格检查/213项测试/构建通过，28个摘要主代理核对一致；API生成成功且generated.ts与Git无差异。保留Svelte，不新增产品UI，真实浏览器/模型/设备另验。
+- 当前后端架构24模块/规则6项、fmt、完整Clippy、Cargo顶层112组/1200项workspace测试及debug构建均退出0，报告artifacts/six-business-{clippy,workspace-test,workspace-build}-20261010.txt。日志累计113/1201含AI子进程1组/1项，独立复核后不重复计数。670个非文档生产输入在debug门禁及服务后摘要零差异，清单six-business-backend-input-20261010.sha256；不包含backend/tests。
+- 三业务基础真实服务13checks/28Jobs通过；最终扩展21checks/53Jobs通过（36成功、13预期失败、4取消），HTTPv2/MCP同Job与日志、57输入稳定、宿主exit0且非强杀/端口释放。报告分别为ordinary-business-debug-2026-10-10T09-15-44.239Z-c5684adb-7017-4fa5-9161-0031e4eb229d及ordinary-business-debug-2026-10-10T09-18-19.023Z-865eaf4d-a69c-493a-9bef-e38e79f7337a目录。合成CLI/配置/ZIP不代表真实模型、外部配置服务或发布工具。
+- 首轮扩展40891512因测试违反remote.save跨网络持锁契约而超时，驱动修为保存锁排队及GET备份CAS竞争；第二轮2cc19f6f因最终报告rename EPERM退出1，两份原件保留。仅报告发布增加Windows最多6次50..1600ms退避，不业务重试；最终通过轮无重试。新9文件身份见ordinary-business-driver-final-20261010.sha256，旧清单保留。
+- 两模式runtime、日志、插件生命周期及合作取消debug回归全部退出0，各报告前缀six-business。日志短测仅本机debug范围，不据此宣称生产性能。现完整release构建会话37460仍在运行；新增settings提交未知专项和三业务npx helper为独立写集，尚未实跑。真实rename提交失败恢复、旧配置语义、AI SDK/助手工具、完整投屏/终端、正式分发与真机缺口继续保留，完整目标仍进行中。
+- 17:26终态更新：完整release构建37460退出0；release扩展21checks/53Jobs、两模式runtime、日志、生命周期、合作取消全部退出0，报告six-business-*-release-20261010。扩展报告ordinary-business-release-2026-10-10T09-23-29.509Z-a7c41808-c21e-4999-8ae9-7766d9516e93/report.json，57输入稳定、host exit0/非强杀/端口释放。发布runtime正在独立生成，不能借记旧包。
+- settings提交未知专项48793两模式退出0：debug-2359c00b及release-11aacd76报告在settings-commit-uncertainty对应目录，各18checks/12Jobs/20输入稳定。合成远端先写后断连/HTTP取消/MCP取消均验证POST一次、远端状态仍在、本地备份原件不变、连接关闭、卸载排空及锁释放；host exit0且源端口释放。确认成功响应后再取消的窗口与真实外部服务保持缺口。测试助理只读复核在接续，源码冻结不重跑服务。
+- 17:30补证：测试助理已只读核对提交未知两模式报告、20原输入和5部署文件摘要，确认取消次序正确。release运行包18813、根18测试/包门禁及独立八包构包97763全部exit0。持久原TGZ与archive-identities.json位于artifacts/six-business-native-2026-10-10T09-28-32.918Z，三普通包归档内容含公开模板而无实际配置；不替代后续npx当次原包。交付总监只读通过八包选择、模板时序、双阶段调用和失败/源清理接线，helper正文与动态分发仍待后续验证。
+- 17:36分发终态：修后真实npx会话89135退出0，报告artifacts/npx-raw-fq5AVE/report.json。显式令牌/默认免令牌阶段各6普通checks/10成功Job，HTTP/MCP同终态且47/49响应日志关联；默认0.0.0.0、回环及本机LAN两个地址通过，双阶段exit0/双端口释放、合成源关闭/端口释放和成功临时目录清理。1007输入前后0差异，见six-business-npx-fixed-input-20261010.sha256、after JSON及six-business-npx-fixed-20261010.txt。
+- 当次CLI TGZ SHA256 f9a4deb5b799fc600a927968c1b19afd2d6d3b14e65b20bc7ff2ee112e705c67，CLI 26普通成员与两阶段缓存摘要一致、在线host原字节相等。八原生原TGZ保留同目录，ordinary-package-archive-audit.json只读核对八包大小/摘要和三业务15普通成员与运行时安装摘要一致；模板另核对，不用17:30独立构包替代。
+- 首轮npx51543退出1及npx-raw-6UzE03原报告保留，1007输入稳定且host未启动：helper错误假定部署根包含bin，实际CLI保留node_modules布局。主代理仅修helper，从物化入口定位受限包根，用公开materializeManifest完整比较清单；新轮通过不改写原失败，生产/安装器未改。helper最终SHA256 F7F20817F59CE001B37631C7A4EB1F568C5CC73F9BE84FABA87B9F69A520C0E9。整体目标仍active，真实模型/外部服务/发布工具/桌面/真机、平台当前分发及其余迁移保持独立缺口。
+- 17:41交付总监独立读审冻结：1007输入现场逐项复算零差异、helper摘要匹配、8原TGZ摘要和三业务15成员一致、两阶段CLI26成员一致；两阶段6checks/10Jobs与日志/共享终态引用核对通过，无新增证据阻断。原失败报告/检查点仍false且失败临时目录保留；成功轮日志仅留摘要，日志关联证据来自运行时断言，不能夸大为成功日志原件复核或全部失败回收分支通过。主代理git diff --check退出0，无构建/服务进程；全量生产/前端门禁复用冻结输入的既有结果。
+- 17:49验收辅助P2：AI提交原先在门闩try外，已接受但响应/关联校验异常可能跳过释放。主代理将submit纳入同一finally，修后helper摘要767DA5158AC66982529F3C4EB766CE2D330C1BE0291AB8A8A0F07DD179F2D98F；旧F7身份及npx成功报告继续只证明修前版本。独立专项10604退出0，报告ordinary-npx-submit-failure-2026-10-10T09-48-20.399Z-545d37b3-d4d6-4e2a-a82c-0dcedfe2ccca/report.json：真实保留三原TGZ安装、release宿主及独立MCP代理，实际CLI ready后各注入一次缺日志头/无效JSON；helper失败仍false，release_written=true，CLI正常exit0/PID消失且先于宿主关闭，原Job成功且HTTP/MCP同实体。6输入稳定，host/source与双端口正常收口；这是定点故障验收，不冒充新npx整矩阵。
+- 新专项前三轮均失败保留：ordinary-npx-submit-failure后缀3e78b367（驱动误用同源MCP）、75d22c20（漏配Origin导致403）、6f3c6fa8（深目录下settings.set原子提交失败），均未到AI注入点，不能计P2通过。第三轮数据库明确“配置提交失败，保留原文件”；后端角色独占settings store及长路径测试定位修补，其他生产保持冻结，旧670/1200门禁不转计修后。测试助理另独占tool-supply真实提交rename失败专项，当前评估确定性NTFS方案，尚未运行。
+- 17:54长路径增量：后端定位tempfile3.27.0 Windows persist直接Win32且未规范化普通绝对目标；在原受控目录/链接检查后仅Windows规范化owner，保留CAS/锁/原子提交。新增store_path_tests.rs三项，主代理定点fmt及debug库13/13退出0。生产清单settings-long-path-backend-input-20261010.sha256共671输入，相对原670仅store.rs修改和长路径测试新增；release库专项、完整架构/fmt/Clippy/workspace及两模式构建会话9852在运行，未记为通过。修后真实深目录必须使用重新构包的settings，不能安装旧TGZ再冒充验证修补。
+- 18:05长路径门禁终态：9852退出0，release库13/13、架构24模块/规则6项、fmt、全目标Clippy、顶层Cargo112组/1203项及debug/release workspace构建通过。日志累计113/1204含AI子进程额外1项，统计见settings-long-path-workspace-test-summary-20261010.json；671输入门禁后零差异，见settings-long-path-production-after-gates-20261010.json。根npm测试18/18通过。服务85785中两模式runtime debug及普通业务debug扩展通过；ordinary release b2861001的AI uncertain禁止重放Job c590b7e8停在running，15秒预算到期，后端只读定位，不盲目放宽或重试。后续独立28311退出0，settings提交未知debug/release、runtime release与performance release全通过，登记settings-long-path-independent-services-20261010.json。
+- 18:05工具供应提交失败专项：独立NTFS探针738c1de5通过不计插件动态完成。真实宿主debug首轮9119940d退出1，报告tool-supply-commit-failure-debug-2026-10-10T10-03-06.060Z-9119940d-15d7-4116-a983-81a93170d642/report.json保留；v1安装与v2局部ACL就绪通过，提交阶段断言失败，宿主exit0/非强杀/端口释放、合成源关闭及输入稳定。测试角色只读定位，尚无release专项通过证据；新运行包和npx不借记旧版本。
+- 18:07工具供应专项收口：首轮测试错误期待插件内部文案，宿主实际公开CleanupFailed文案正确。主代理仅修精确断言并提前保存目录时序，debug75f1ccd5/release4446e411各16项/31输入稳定且exit0。监听与新旧字节证明提交拒绝后backup恢复；插件明确cleanup_failed、卸载draining/重载409，撤销ACL后仅人工回收本轮事务，重启以独立新Job升级/移除，三次下载无原Job重试；两宿主正常exit0/端口释放。总监及测试独立复核接续，旧失败不覆盖。
+- 18:10公共runtime增量：后端只读定位协议4末帧write_all后直接shutdown缺flush，Tokio标准输出可能仍有阻塞写入；符合AI互等现象但缺当轮帧/退出阶段证据，不能认定b286唯一根因。主代理在协议3同类末帧及协议4末帧补显式flush，新增公开入口buffered writer回归：修前2项失败、修后2项通过，固定刷新错误且不改清理、协议帧或15秒预算。后端独占真实stdio回归，新的完整门禁/构建/宿主及分发仍须取得；旧671/1203不转计本增量。18:06生成的运行包已exit0，但先于runtime增量，最终分发须重新生成。
+- 2026-10-10后续收口：runtime flush最终673输入、顶层114组/1207项及两模式构建/12项必需服务通过；普通扩展两模式21checks/53Jobs，工具提交失败各16checks/5Jobs/31输入稳定。最终nQ4feJ八包真实npx通过，两阶段各6普通checks/10成功Jobs、53/54日志响应关联、1017输入稳定并经总监独立复核。该冻结证据不转计后续AI/settings增量。
+- 深目录a24013ea失败已确认AI首次complete原子提交失败，CLI正常退出但目标JSON普通路径290码元；旧失败保留。新增三长路径测试修前均首次提交失败；修后Windows规范化threads，AI debug/release库11项通过，含三长路径回归。取消、uncertain、归属锁和真实替换失败无损行为保留；新包短/深专项未验。
+- 2026-10-12用户恢复active：继续业务迁移，不扩交互底座。settings remote.save新增可选布尔write_local_backup默认true，false仍CAS/持锁/单POST，完整确认后不写本地备份，返回remote_committed=true/backup_updated=false/revision=null。前端定点14项通过；后端补首写无备份/显式true测试后debug/release库18项通过，完整门禁执行中。首次fmt失败为新增测试排版，原记录保留；尚未完整验证、重建服务或新分发，不宣称迁移完成。
+- 02:20 UTC门禁/构建更新：675生产输入零差异，fmt/架构24模块/规则6项/Clippy/settings两模式18项及debug/release完整构建通过。workspace既有交互会话later_success回归13/14时失败，定点复跑0/1；两个隔离夹具均在新进程start.json.pending替换旧start.json时EPERM，旧/新Start帧已留证，不能归因宿主未发送Start。两失败原件保留，完整门禁未通过，不修改无关交互底座；当前AI/settings服务、前端门禁和新原包验收独立继续。
+# 2026-10-12 02:43 UTC 恢复记录
+
+- 用户重新恢复目标active；此前暂停保留所有修改。原runtime release会话61543在暂停检查时已终态exit0。
+- AI长路径与配置备份批次：当前675生产输入完整workspace仍失败；既有交互夹具第二Start发布rename EPERM及performance debug数值断言失败保留，不重复盲跑、不改无关底座。
+- 前端四门禁exit0、227项通过；普通业务debug/release各26checks/70Jobs，61输入稳定；提交未知各18checks/12Jobs、22输入稳定，四轮报告与SQLite已独立核对。
+- 当前运行包prepare/verify exit0，根18项通过；1061项分发输入前后零差异，新八包npx-C4jIFU两阶段exit0，总监复核CLI26成员、三包15成员与物化清单身份；各6普通checks/10成功Jobs、69/73日志响应关联及正常退出/端口释放。
+- 同轮原包短/深响应故障专项均exit0，各两成功Job、输入稳定、宿主exit0/非强杀/双端口释放；JSON目标普通路径220/290码元。旧深目录首次complete失败保留，不扩大为任意路径、真实SDK或模型通过。
+- 工具运行时功能裁定已落盘，后端Volta、前端James、测试Ampere获独占写集实施两贡献与驱动，主代理负责接线和串行门禁；新批次不借记675门禁或上述npx证据。
+
+## 工具运行时功能恢复开发（2026-10-12 03:39 UTC）
+
+- 用户恢复目标为active并明确不允许自行暂停；四角色继续原互斥写集，保留全部暂停点修改。旧只读句柄7981/99018/84253已确认不存在，未发现遗留Cargo、rustc或DeviceForge服务进程。
+- 后端负责两贡献、共享快照安装和测试；前端负责严格解码、任务恢复/取消与日志专项；测试助理负责独立HTTP/MCP驱动；总监只读审核并发查询、清理与公开契约。生成器、构建、格式和服务门禁仍由主代理串行执行。
+- 当前新增代码与部分测试已落盘但未运行，不能转计227项前端门禁、675输入后端局部门禁或1061输入npx证据。合法在途安装不能被查询误判为清理失败，正在闭合该风险；未运行的服务、真实工具/模型和真机仍明确待验。
+- 主代理新前端证据：feature与既有消费定点27/27，check覆盖103源码且Svelte零错误/警告，全量246/246与161模块构建均退出0；API生成仍在执行，不将三项门禁写成四项。报告前缀artifacts/tool-feature-frontend-，本批尚无真实浏览器/模型/设备验收。
+- npx新增独立运行时功能辅助与接线：同键tool不计入runtime、多模块单快照/实际原字节/重复准备无下载/移除；语法检查及2项辅助单元测试退出0，真实新包npx待验，不能借记旧C4jIFU报告。根旧18项本次再次通过，完整根测试需包含新增2项后再执行。
+- API生成随后退出0，generated.ts前后字节相同，前端本批四门禁已终态。完整根测试20/20退出0；总监指出npx辅助的总计抵消和字段遗漏，主代理已按每次调用区间断言清单读取、准备下载/重复零下载，补齐状态与持久清单版本/归属/资格，收紧后2项定点再次退出0。后端P1和真实服务仍待，不借记辅助单测为分发通过。

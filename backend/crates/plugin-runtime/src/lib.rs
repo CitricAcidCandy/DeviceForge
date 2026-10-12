@@ -126,5 +126,7 @@ where
     }
     bytes.push(b'\n');
     writer.write_all(&bytes).await.map_err(|_| "响应写入失败")?;
+    // 显式交付缓冲末帧，不能依赖 shutdown 隐式刷新标准输出。
+    writer.flush().await.map_err(|_| "响应刷新失败")?;
     writer.shutdown().await.map_err(|_| "响应流关闭失败".into())
 }

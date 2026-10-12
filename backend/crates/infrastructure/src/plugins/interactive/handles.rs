@@ -55,24 +55,50 @@ pub(super) fn channel(deadline: Instant, cancel: CancellationToken) -> (Handle, 
     let (exit, exit_receiver) = watch::channel(None);
     let revoked = CancellationToken::new();
     let input = Arc::new(Input {
-        state: Mutex::new(Admission { sender, bytes: 0, messages: 0, eof: false }),
+        state: Mutex::new(Admission {
+            sender,
+            bytes: 0,
+            messages: 0,
+            eof: false,
+        }),
         cancel,
         revoked: revoked.clone(),
         deadline: tokio::time::Instant::from_std(deadline),
         ready: ready_receiver.clone(),
         ready_failure: std::sync::Mutex::new(None),
     });
-    (Handle { input, output: receiver, ready: ready_receiver, exit: exit_receiver, terminal: None },
-        Channels { commands, output, ready, exit, revoked })
+    (
+        Handle {
+            input,
+            output: receiver,
+            ready: ready_receiver,
+            exit: exit_receiver,
+            terminal: None,
+        },
+        Channels {
+            commands,
+            output,
+            ready,
+            exit,
+            revoked,
+        },
+    )
 }
 
 impl Input {
     fn ready_failed(&self, error: Arc<Error>) -> Arc<Error> {
-        self.ready_failure.lock().expect("会话准备错误锁未污染")
-            .get_or_insert(error).clone()
+        self.ready_failure
+            .lock()
+            .expect("会话准备错误锁未污染")
+            .get_or_insert(error)
+            .clone()
     }
 
-    fn ready_or_failed(&self, receiver: &watch::Receiver<Ready>, error: Arc<Error>) -> SessionResult<()> {
+    fn ready_or_failed(
+        &self,
+        receiver: &watch::Receiver<Ready>,
+        error: Arc<Error>,
+    ) -> SessionResult<()> {
         // 已挂起的选择在重新唤醒时可能同时看到终态和撤销，优先真实 ready 结论。
         if let Some(result) = receiver.borrow().clone() {
             return result;
@@ -82,10 +108,17 @@ impl Input {
 
     async fn wait_ready(&self, mut receiver: watch::Receiver<Ready>) -> SessionResult<()> {
         loop {
-            if let Some(error) = self.ready_failure.lock().expect("会话准备错误锁未污染").clone() {
+            if let Some(error) = self
+                .ready_failure
+                .lock()
+                .expect("会话准备错误锁未污染")
+                .clone()
+            {
                 return Err(error);
             }
-            if let Some(result) = receiver.borrow().clone() { return result; }
+            if let Some(result) = receiver.borrow().clone() {
+                return result;
+            }
             tokio::select! {
                 biased;
                 _ = self.cancel.cancelled() => return self.ready_or_failed(&receiver, self.closed()),
@@ -99,14 +132,19 @@ impl Input {
     }
 
     fn unavailable(&self) -> bool {
-        self.cancel.is_cancelled() || self.revoked.is_cancelled()
+        self.cancel.is_cancelled()
+            || self.revoked.is_cancelled()
             || tokio::time::Instant::now() >= self.deadline
     }
 
     fn closed(&self) -> Arc<Error> {
-        Arc::new(if tokio::time::Instant::now() >= self.deadline { Error::Timeout }
-            else if self.cancel.is_cancelled() { Error::Cancelled }
-            else { Error::Conflict("会话输入已关闭".into()) })
+        Arc::new(if tokio::time::Instant::now() >= self.deadline {
+            Error::Timeout
+        } else if self.cancel.is_cancelled() {
+            Error::Cancelled
+        } else {
+            Error::Conflict("会话输入已关闭".into())
+        })
     }
 
     async fn admit(&self, bytes: Option<&[u8]>) -> SessionResult<()> {
@@ -121,11 +159,20 @@ impl Input {
             _ = tokio::time::sleep_until(self.deadline) => return Err(self.closed()),
             state = self.state.lock() => state,
         };
-        if self.unavailable() { return Err(self.closed()); }
-        if state.eof { return Err(Arc::new(Error::Conflict("会话输入已交付 EOF".into()))); }
-        let total = state.bytes.checked_add(bytes.map_or(0, |bytes| bytes.len() as u64))
-            .filter(|value| *value <= INPUT_LIMIT).ok_or_else(|| Arc::new(Error::TooLarge))?;
-        if state.messages >= MESSAGE_LIMIT { return Err(Arc::new(Error::TooLarge)); }
+        if self.unavailable() {
+            return Err(self.closed());
+        }
+        if state.eof {
+            return Err(Arc::new(Error::Conflict("会话输入已交付 EOF".into())));
+        }
+        let total = state
+            .bytes
+            .checked_add(bytes.map_or(0, |bytes| bytes.len() as u64))
+            .filter(|value| *value <= INPUT_LIMIT)
+            .ok_or_else(|| Arc::new(Error::TooLarge))?;
+        if state.messages >= MESSAGE_LIMIT {
+            return Err(Arc::new(Error::TooLarge));
+        }
         let sender = state.sender.clone();
         let permit = tokio::select! {
             biased;
@@ -134,9 +181,15 @@ impl Input {
             _ = tokio::time::sleep_until(self.deadline) => return Err(self.closed()),
             permit = sender.reserve() => permit.map_err(|_| self.closed())?,
         };
-        if self.unavailable() { return Err(self.closed()); }
-        let message = if let Some(bytes) = bytes { Command::Input(bytes.to_vec()) }
-            else { state.eof = true; Command::Eof };
+        if self.unavailable() {
+            return Err(self.closed());
+        }
+        let message = if let Some(bytes) = bytes {
+            Command::Input(bytes.to_vec())
+        } else {
+            state.eof = true;
+            Command::Eof
+        };
         state.bytes = total;
         state.messages += 1;
         permit.send(message);
@@ -146,16 +199,28 @@ impl Input {
 
 #[async_trait]
 impl SessionInput for Input {
-    async fn send(&self, bytes: &[u8]) -> SessionResult<()> { self.admit(Some(bytes)).await }
-    async fn eof(&self) -> SessionResult<()> { self.admit(None).await }
-    fn cancel(&self) { self.cancel.cancel(); }
+    async fn send(&self, bytes: &[u8]) -> SessionResult<()> {
+        self.admit(Some(bytes)).await
+    }
+    async fn eof(&self) -> SessionResult<()> {
+        self.admit(None).await
+    }
+    fn cancel(&self) {
+        self.cancel.cancel();
+    }
 }
 
 #[async_trait]
 impl InteractiveSession for Handle {
-    fn input(&self) -> Arc<dyn SessionInput> { self.input.clone() }
-    async fn ready(&self) -> SessionResult<()> { self.input.wait_ready(self.ready.clone()).await }
-    async fn recv(&mut self) -> Option<SessionChunk> { self.output.recv().await }
+    fn input(&self) -> Arc<dyn SessionInput> {
+        self.input.clone()
+    }
+    async fn ready(&self) -> SessionResult<()> {
+        self.input.wait_ready(self.ready.clone()).await
+    }
+    async fn recv(&mut self) -> Option<SessionChunk> {
+        self.output.recv().await
+    }
     async fn wait(&mut self) -> Arc<SessionExit> {
         let mut output_closed = false;
         loop {
@@ -180,7 +245,9 @@ impl InteractiveSession for Handle {
 }
 
 impl Drop for Handle {
-    fn drop(&mut self) { self.input.cancel(); }
+    fn drop(&mut self) {
+        self.input.cancel();
+    }
 }
 
 impl Drop for Channels {
@@ -191,9 +258,13 @@ impl Drop for Channels {
             self.ready.send_replace(Some(Err(failure.clone())));
         }
         if self.exit.borrow().is_none() {
-            self.exit.send_replace(Some(Arc::new(SessionExit { sequence: None, outcome: None,
-                cleanup: SessionCleanup::Unconfirmed, process_exited: false,
-                failure: Some(failure) })));
+            self.exit.send_replace(Some(Arc::new(SessionExit {
+                sequence: None,
+                outcome: None,
+                cleanup: SessionCleanup::Unconfirmed,
+                process_exited: false,
+                failure: Some(failure),
+            })));
         }
         self.revoked.cancel();
     }

@@ -1,0 +1,9 @@
+{
+  "local_manifest": "tool-catalog.json",
+  "manifest_cache_enabled": true,
+  "install_root": "G:/DeviceForge/tools",
+  "allow_http": false,
+  "download_limit_bytes": 536870912,
+  "extracted_limit_bytes": 1073741824,
+  "file_limit": 10000
+}

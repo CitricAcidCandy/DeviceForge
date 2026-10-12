@@ -1,0 +1,6 @@
+{
+  "format_version": 1,
+  "tools": {"adb": "adb", "frida": "frida", "frida_ps": "frida-ps"},
+  "server_path": "/data/local/tmp/deviceforge-frida-server",
+  "scratch_root": null
+}

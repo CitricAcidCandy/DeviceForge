@@ -7,6 +7,7 @@ import { inside, readJson, regularFile } from '../cli/src/paths.mjs';
 import { materializeManifest } from '../cli/src/plugin-package.mjs';
 import { npmCommand } from '../cli/src/processes.mjs';
 import { nativePluginPlan, nativePluginReadme, selectPluginPlans, verifyNativeHost } from './native-plugin-plan.mjs';
+import { loadNativePluginSource } from './native-plugin-source.mjs';
 
 const execute = promisify(execFile);
 const defaultRoot = fileURLToPath(new URL('../', import.meta.url));
@@ -16,10 +17,11 @@ async function loadPlans(backend, selected, options) {
   const metadata = JSON.parse(output.stdout);
   const packages = metadata.packages.filter((pkg) => metadata.workspace_members.includes(pkg.id)
     && inside(join(backend, 'plugins'), dirname(pkg.manifest_path)));
-  const plans = await Promise.all(packages.map(async (pkg) => ({
-    ...nativePluginPlan(pkg, await readJson(join(dirname(pkg.manifest_path), 'manifest.example.json'))),
-    sourceDirectory: dirname(pkg.manifest_path),
-  })));
+  const plans = await Promise.all(packages.map(async (pkg) => {
+    const sourceDirectory = dirname(pkg.manifest_path);
+    const { manifest, configurationTemplates } = await loadNativePluginSource(sourceDirectory);
+    return { ...nativePluginPlan(pkg, manifest), sourceDirectory, configurationTemplates };
+  }));
   return { metadata, plans: selectPluginPlans(plans, selected) };
 }
 
@@ -46,8 +48,11 @@ async function packOne(plan, temporary, destination, compiled, options, cliVersi
   const directory = join(temporary, plan.id);
   await mkdir(join(directory, 'bin'), { recursive: true });
   await copyFile(await compiled.binary(plan.packageId, plan.target), join(directory, plan.entry));
+  for (const template of plan.configurationTemplates) {
+    await copyFile(template.source, join(directory, 'bin', template.name));
+  }
   const sourceReadme = await readFile(await regularFile(plan.sourceDirectory, 'README.md'), 'utf8');
-  await writeFile(join(directory, 'README.md'), nativePluginReadme(plan, cliVersion, sourceReadme));
+  await writeFile(join(directory, 'README.md'), nativePluginReadme(plan, cliVersion, sourceReadme, plan.configurationTemplates));
   await writeFile(join(directory, 'package.json'), JSON.stringify(plan.packageJson, null, 2));
   await writeFile(join(directory, 'plugin.json'), JSON.stringify(plan.portableManifest, null, 2));
   // 与真正安装器共用入口映射和 Rust 注册门禁，打包阶段也不执行插件。

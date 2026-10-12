@@ -1,0 +1,17 @@
+{
+  "manifestVersion": "deployment-1",
+  "generatedAt": "2026-10-10",
+  "modules": [
+    {
+      "name": "adb",
+      "type": "tool",
+      "version": "1.0.0",
+      "url": "https://tools.example.org/adb-1.0.0.zip",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "size": 12345,
+      "archiveRoot": "platform-tools",
+      "entryFile": "adb.exe",
+      "required": true
+    }
+  ]
+}

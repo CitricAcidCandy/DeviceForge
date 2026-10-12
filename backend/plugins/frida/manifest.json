@@ -1,0 +1,343 @@
+{
+  "id": "frida",
+  "version": "0.1.0",
+  "protocol_version": 4,
+  "args": [],
+  "artifacts": {
+    "input_fields": [],
+    "input_pointers": [
+      "/input/artifact_id",
+      "/input/script_artifact_id"
+    ],
+    "outputs": true
+  },
+  "operations": [
+    {
+      "name": "server.deploy",
+      "title": "部署Frida服务",
+      "execution": {
+        "api_version": 1,
+        "total_timeout_ms": 150000
+      },
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "device_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+          },
+          "input": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "artifact_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              }
+            },
+            "required": [
+              "artifact_id"
+            ]
+          }
+        },
+        "required": [
+          "device_id",
+          "input"
+        ]
+      }
+    },
+    {
+      "name": "server.status",
+      "title": "检查Frida服务状态",
+      "execution": {
+        "api_version": 1,
+        "total_timeout_ms": 30000
+      },
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "device_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+          },
+          "input": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {},
+            "required": []
+          }
+        },
+        "required": [
+          "device_id",
+          "input"
+        ]
+      }
+    },
+    {
+      "name": "server.run",
+      "title": "有界运行Frida服务",
+      "execution": {
+        "api_version": 1,
+        "total_timeout_ms": 150000
+      },
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "device_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+          },
+          "input": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "duration_ms": {
+                "type": "integer",
+                "minimum": 100,
+                "maximum": 120000
+              }
+            },
+            "required": [
+              "duration_ms"
+            ]
+          }
+        },
+        "required": [
+          "device_id",
+          "input"
+        ]
+      }
+    },
+    {
+      "name": "processes",
+      "title": "枚举Frida进程",
+      "execution": {
+        "api_version": 1,
+        "total_timeout_ms": 30000
+      },
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "device_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+          },
+          "input": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {},
+            "required": []
+          }
+        },
+        "required": [
+          "device_id",
+          "input"
+        ]
+      }
+    },
+    {
+      "name": "script.run",
+      "title": "运行Frida脚本",
+      "execution": {
+        "api_version": 1,
+        "total_timeout_ms": 150000
+      },
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "device_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+          },
+          "input": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "package": {
+                "type": "string",
+                "minLength": 3,
+                "maxLength": 255,
+                "pattern": "^[A-Za-z0-9_]+(\\.[A-Za-z0-9_]+)+$"
+              },
+              "mode": {
+                "type": "string",
+                "enum": [
+                  "spawn",
+                  "attach"
+                ]
+              },
+              "duration_ms": {
+                "type": "integer",
+                "minimum": 100,
+                "maximum": 120000
+              },
+              "script_artifact_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              }
+            },
+            "required": [
+              "package",
+              "mode",
+              "duration_ms",
+              "script_artifact_id"
+            ]
+          }
+        },
+        "required": [
+          "device_id",
+          "input"
+        ]
+      }
+    },
+    {
+      "name": "permissions.analyze",
+      "title": "分析应用权限访问",
+      "execution": {
+        "api_version": 1,
+        "total_timeout_ms": 150000
+      },
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "device_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+          },
+          "input": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "package": {
+                "type": "string",
+                "minLength": 3,
+                "maxLength": 255,
+                "pattern": "^[A-Za-z0-9_]+(\\.[A-Za-z0-9_]+)+$"
+              },
+              "mode": {
+                "type": "string",
+                "enum": [
+                  "spawn",
+                  "attach"
+                ]
+              },
+              "duration_ms": {
+                "type": "integer",
+                "minimum": 100,
+                "maximum": 120000
+              },
+              "modules": {
+                "type": "array",
+                "maxItems": 11,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "permissions",
+                    "phone",
+                    "system",
+                    "packages",
+                    "location",
+                    "camera",
+                    "network",
+                    "bluetooth",
+                    "files",
+                    "media",
+                    "sensor"
+                  ]
+                },
+                "default": []
+              },
+              "hooks": {
+                "type": "array",
+                "maxItems": 256,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "class": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 255,
+                      "pattern": "^[A-Za-z0-9_.$]+$"
+                    },
+                    "method": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 255,
+                      "pattern": "^[A-Za-z0-9_$]+$"
+                    },
+                    "module": {
+                      "type": "string",
+                      "maxLength": 255
+                    },
+                    "action": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 512
+                    },
+                    "messages": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 2048
+                    },
+                    "args": {
+                      "type": "array",
+                      "maxItems": 32,
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 2048
+                      },
+                      "default": []
+                    }
+                  },
+                  "required": [
+                    "class",
+                    "method",
+                    "action",
+                    "messages"
+                  ]
+                },
+                "default": []
+              },
+              "show_log": {
+                "type": "boolean",
+                "default": true
+              }
+            },
+            "required": [
+              "package",
+              "mode",
+              "duration_ms"
+            ]
+          }
+        },
+        "required": [
+          "device_id",
+          "input"
+        ]
+      }
+    }
+  ]
+}

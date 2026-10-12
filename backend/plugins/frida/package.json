@@ -1,0 +1,13 @@
+{
+  "name": "@deviceforge/frida",
+  "version": "0.1.0",
+  "description": "协议4的独立Frida业务插件",
+  "files": ["manifest.json", "bin", "README.md", "frida.config.example.json"],
+  "deviceforge": {
+    "kind": "server",
+    "manifest": "manifest.json",
+    "entrypoints": {
+      "win32-x64": {"runtime": "native", "path": "bin/deviceforge-frida-plugin.exe"}
+    }
+  }
+}

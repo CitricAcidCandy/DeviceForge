@@ -1,0 +1,65 @@
+{
+  "id": "mirroring",
+  "version": "0.1.0",
+  "protocol_version": 4,
+  "executable": "deviceforge-mirroring-plugin.exe",
+  "args": [],
+  "artifacts": {
+    "input_fields": [],
+    "outputs": true
+  },
+  "operations": [
+    {
+      "name": "runtime.status",
+      "title": "检查投屏运行工具",
+      "execution": {
+        "api_version": 1,
+        "total_timeout_ms": 150000
+      },
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {},
+        "required": []
+      }
+    },
+    {
+      "name": "record",
+      "title": "录制设备画面",
+      "execution": {
+        "api_version": 1,
+        "total_timeout_ms": 150000
+      },
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "device_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "duration_ms": {
+            "type": "integer",
+            "minimum": 1000,
+            "maximum": 120000
+          },
+          "max_size": {
+            "type": "integer",
+            "minimum": 64,
+            "maximum": 4096
+          },
+          "max_fps": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 60
+          }
+        },
+        "required": [
+          "device_id",
+          "duration_ms"
+        ]
+      }
+    }
+  ]
+}

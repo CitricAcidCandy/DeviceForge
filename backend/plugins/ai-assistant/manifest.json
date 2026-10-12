@@ -1,0 +1,141 @@
+{
+  "id": "ai-assistant",
+  "version": "0.1.0",
+  "protocol_version": 4,
+  "executable": "deviceforge-ai-assistant-plugin.exe",
+  "args": [],
+  "operations": [
+    {
+      "name": "runtime.status",
+      "title": "查询AI运行配置",
+      "execution": {
+        "api_version": 1,
+        "total_timeout_ms": 600000
+      },
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {},
+        "required": []
+      }
+    },
+    {
+      "name": "cli.single",
+      "title": "AI单次请求",
+      "execution": {
+        "api_version": 1,
+        "total_timeout_ms": 600000
+      },
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "pattern": "^[A-Za-z0-9_-]+$"
+          },
+          "prompt": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 131072
+          }
+        },
+        "required": [
+          "project_id",
+          "prompt"
+        ]
+      }
+    },
+    {
+      "name": "cli.turn",
+      "title": "AI恢复线程请求",
+      "execution": {
+        "api_version": 1,
+        "total_timeout_ms": 600000
+      },
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "pattern": "^[A-Za-z0-9_-]+$"
+          },
+          "prompt": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 131072
+          },
+          "thread_id": {
+            "type": "string",
+            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+          }
+        },
+        "required": [
+          "project_id",
+          "prompt"
+        ]
+      }
+    },
+    {
+      "input_schema": {
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "project_id",
+          "thread_id"
+        ],
+        "properties": {
+          "thread_id": {
+            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+            "type": "string"
+          },
+          "project_id": {
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9_-]+$",
+            "type": "string",
+            "maxLength": 80
+          }
+        }
+      },
+      "name": "session.get",
+      "execution": {
+        "api_version": 1,
+        "total_timeout_ms": 600000
+      },
+      "title": "查询AI会话"
+    },
+    {
+      "input_schema": {
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "project_id",
+          "thread_id"
+        ],
+        "properties": {
+          "thread_id": {
+            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+            "type": "string"
+          },
+          "project_id": {
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9_-]+$",
+            "type": "string",
+            "maxLength": 80
+          }
+        }
+      },
+      "name": "session.close",
+      "execution": {
+        "api_version": 1,
+        "total_timeout_ms": 600000
+      },
+      "title": "关闭AI会话"
+    }
+  ]
+}

@@ -66,4 +66,3 @@ fn direct_definition_budget_is_validated_before_registration() {
     definition.execution.as_mut().unwrap().api_version = 2;
     assert!(definition.validate("example").is_err());
 }
-

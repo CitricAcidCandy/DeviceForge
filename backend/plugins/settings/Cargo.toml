@@ -5,6 +5,8 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "stream", "json"] }
+futures-util.workspace = true
 apk-plugin-sdk.workspace = true
 deviceforge-plugin-runtime.workspace = true
 serde.workspace = true

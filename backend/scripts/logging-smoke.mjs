@@ -59,6 +59,7 @@ async function load(path, total = 2000, concurrency = 32) {
     p50_ms: times[Math.floor(total * 0.5)], p95_ms: times[Math.floor(total * 0.95)], p99_ms: times[Math.floor(total * 0.99)] };
 }
 let graceful = false;
+let diagnostic;
 try {
   let ready = false;
   for (let attempt = 0; attempt < 200; attempt++) {
@@ -114,6 +115,11 @@ try {
   assert.ok(!text.includes(token));
   assert.ok(!text.includes(sentinel));
   const records = text.trim().split('\n').map((line) => JSON.parse(line));
+  diagnostic = { timestamp: new Date().toISOString(), profile, graceful_shutdown: graceful,
+    log_stats_before_shutdown: stats, persisted_records: records.length, persisted_bytes: Buffer.byteLength(text),
+    host_end_records: records.filter((record) => record.fields?.message === '宿主运行已结束').length,
+    shutdown_response_end_records: records.filter((record) => record.fields?.message === '响应流已结束'
+      && JSON.stringify(record).includes(stopping.id)).length };
   const pluginEvent = records.find((record) => record.fields?.message === '插件调用结束');
   assert.ok(pluginEvent);
   assert.ok(JSON.stringify(pluginEvent).includes(submitted.id));
@@ -128,6 +134,14 @@ try {
   await mkdir(resolve('../artifacts'), { recursive: true });
   await writeFile(resolve(`../artifacts/logging-smoke-${profile}.json`), `${JSON.stringify(report, null, 2)}\n`);
   console.log(JSON.stringify(report, null, 2));
+} catch (error) {
+  if (diagnostic) {
+    await mkdir(resolve('../artifacts'), { recursive: true });
+    const stamp = diagnostic.timestamp.replaceAll(/[:.]/g, '-');
+    await writeFile(resolve(`../artifacts/logging-smoke-failure-${profile}-${stamp}.json`),
+      `${JSON.stringify(diagnostic, null, 2)}\n`);
+  }
+  throw error;
 } finally {
   if (!graceful && child.exitCode === null) { child.kill(); await closed; }
   const target = resolve(temporary); const within = relative(resolve(tmpdir()), target);

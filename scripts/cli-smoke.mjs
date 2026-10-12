@@ -1,11 +1,11 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { mkdtemp, mkdir, readFile, readdir, rm } from 'node:fs/promises';
+import { copyFile, mkdtemp, mkdir, readFile, readdir, rm } from 'node:fs/promises';
 import { tmpdir, networkInterfaces } from 'node:os';
-import { join, dirname, relative } from 'node:path';
+import { basename, join, dirname, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createServer } from 'node:net';
-import { randomBytes } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import { setTimeout as delay } from 'node:timers/promises';
 import assert from 'node:assert/strict';
 import { npmCommand, spawnManaged } from '../cli/src/processes.mjs';
@@ -19,6 +19,7 @@ import { configureNpxAlias, verifyNpxAlias } from './cli-smoke-alias.mjs';
 import { captureNpxRuntime, checkpointCliFailure, createCliEvidence, finishCliEvidence, preserveCliArchive, preserveCliBindings, verifyServedHost } from './cli-smoke-evidence.mjs';
 import { cleanupNpxRuntime, waitForNpxExit } from './cli-smoke-cleanup.mjs';
 import { configureNpxUnifiedDiscovery, verifyNpxUnifiedDiscovery } from './cli-smoke-unified-discovery.mjs';
+import { configureOrdinaryNpx, verifyOrdinaryNpx } from './cli-smoke-ordinary.mjs';
 
 const root = fileURLToPath(new URL('../',import.meta.url));
 const temporary = await mkdtemp(join(tmpdir(),'deviceforge-npx-'));
@@ -58,7 +59,7 @@ async function assertJsonReply(response) {
   assert.ok(Object.hasOwn(body, 'data'));
   return body.data;
 }
-let running, dataDirectory, shutdownTarget;
+let running, dataDirectory, shutdownTarget, ordinary;
 let completed = false;
 const evidence = await createCliEvidence(root, temporary);
 evidence.http_requests_per_second = 10000;
@@ -77,6 +78,17 @@ try {
   const prefix = ['--package',archive,'deviceforge'];
   evidence.stage = '原生包安装与真实npx启动';
   const native = await installNativePlugins({ root, temporary, runNpx, prefix, dataDirectory, pluginDirectory, cooperativeMarkers });
+  // 保留本次真正安装的原生归档，不以后续独立构包替代分发证据。
+  evidence.native_archives = [];
+  for (const pkg of native) {
+    const bytes = await readFile(pkg.archive); const path = join(evidence.directory, basename(pkg.archive));
+    await copyFile(pkg.archive, path);
+    evidence.native_archives.push({ id: pkg.id, version: pkg.version, path, bytes: bytes.length,
+      sha256: createHash('sha256').update(bytes).digest('hex') });
+  }
+  evidence.stage = '普通业务公开模板与合成部署配置';
+  ordinary = await configureOrdinaryNpx({ root, temporary, pluginDirectory });
+  evidence.ordinary_configuration = ordinary.evidence;
   const listed = await runNpx([...prefix,'plugin','list','--data-dir',dataDirectory]);
   assert.deepEqual(JSON.parse(listed.stdout).map((plugin) => plugin.id).sort(), native.map((pkg) => pkg.id).sort());
   const webPort = await port(); const mcpPort = await port();
@@ -94,6 +106,9 @@ try {
   evidence.stage = '显式令牌阶段';
   const authorizedPhase = await captureNpxRuntime(environment.npm_config_cache, evidence, '显式令牌');
   await verifyServedHost(`http://127.0.0.1:${webPort}`, authorizedPhase);
+  evidence.stage = '显式令牌普通业务';
+  authorizedPhase.ordinary_business = await verifyOrdinaryNpx({ base: `http://127.0.0.1:${webPort}`,
+    mcp: `http://127.0.0.1:${mcpPort}/mcp`, headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' }, ordinary });
   const addresses = ['127.0.0.1',...Object.values(networkInterfaces()).flat().filter(Boolean).filter((item) => !item.internal && item.family === 'IPv4').map((item) => item.address)];
   const headers = {authorization:`Bearer ${token}`,'content-type':'application/json'};
   await verifyLiveInstallation({ runNpx, prefix, fixture, dataDirectory, pluginDirectory,
@@ -169,6 +184,9 @@ try {
   evidence.stage = '默认免令牌阶段';
   const anonymousPhase = await captureNpxRuntime(environment.npm_config_cache, evidence, '默认免令牌');
   await verifyServedHost(`http://127.0.0.1:${webPort}`, anonymousPhase);
+  evidence.stage = '默认免令牌普通业务';
+  anonymousPhase.ordinary_business = await verifyOrdinaryNpx({ base: `http://127.0.0.1:${webPort}`,
+    mcp: `http://127.0.0.1:${mcpPort}/mcp`, headers: anonymousHeaders, ordinary });
   for (const address of addresses) {
     const base = `http://${address}:${webPort}`;
     await assertJsonReply(await fetch(`${base}/api/v2/health`, {signal:AbortSignal.timeout(3000)}));
@@ -218,6 +236,7 @@ try {
 } catch (error) {
   evidence.failure = { name: error.name, code: error.code, stage: evidence.stage };
   if (error.unifiedDiscoveryEvidence) evidence.unified_discovery_failure = error.unifiedDiscoveryEvidence;
+  if (error.ordinaryBusinessEvidence) evidence.ordinary_business_failure = error.ordinaryBusinessEvidence;
   evidence.passed = false;
   evidence.temporary_retained = temporary;
   evidence.temporary_removed = false;
@@ -233,6 +252,13 @@ try {
     evidence.passed = false;
     evidence.cleanup_error = cleanup.port_error ?? { name: 'NpxExitUnconfirmed' };
     process.exitCode = 1;
+  }
+  if (ordinary) {
+    try { await ordinary.close(); evidence.ordinary_source_closed = true; }
+    catch (error) {
+      completed = false; evidence.passed = false; process.exitCode = 1;
+      evidence.ordinary_source_close_failure = { name: error.name, code: error.code };
+    }
   }
   if (completed) {
     if (!inside(tmpdir(),temporary) || temporary === tmpdir()) throw new Error('测试清理路径越界');

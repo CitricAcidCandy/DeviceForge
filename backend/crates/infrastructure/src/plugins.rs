@@ -19,9 +19,9 @@ use std::{
 use tokio_util::sync::CancellationToken;
 use tracing::Instrument;
 mod execution;
+mod interactive;
 mod performance;
 mod process_cleanup;
-mod interactive;
 
 pub struct ProcessPlugin {
     manifest: Manifest,

@@ -7,8 +7,9 @@ import { inside } from '../cli/src/paths.mjs';
 import { packNativePlugins } from './native-plugin-package.mjs';
 
 export async function installNativePlugins({ root, temporary, runNpx, prefix, dataDirectory, pluginDirectory, cooperativeMarkers }) {
-  const packages = await packNativePlugins({ root, destination: temporary });
-  assert.deepEqual(packages.map((pkg) => pkg.id).sort(), ['artifact_copy', 'cooperative_demo', 'echo', 'msgpack', 'performance_demo']);
+  const selected = ['artifact_copy', 'cooperative_demo', 'echo', 'msgpack', 'performance_demo', 'settings', 'ai-assistant', 'tool-supply'];
+  const packages = await packNativePlugins({ root, destination: temporary, selected });
+  assert.deepEqual(packages.map((pkg) => pkg.id).sort(), [...selected].sort());
   for (const pkg of packages) {
     const installed = await runNpx([...prefix, 'plugin', 'install', pkg.archive, '--data-dir', dataDirectory]);
     assert.ok(installed.stdout.includes(`${pkg.id}@${pkg.version} 安装完成`));

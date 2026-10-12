@@ -1,0 +1,197 @@
+{
+  "id": "automation",
+  "version": "0.1.0",
+  "protocol_version": 4,
+  "executable": "deviceforge-automation-plugin.exe",
+  "args": [],
+  "artifacts": {"outputs": true, "input_fields": ["artifact_id"]},
+  "operations": [
+    {
+      "name": "sequence.run",
+      "title": "执行自动化动作序列",
+      "execution": {
+        "api_version": 1,
+        "total_timeout_ms": 600000
+      },
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "device_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "steps": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 10000,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "at_ms": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 3600000
+                },
+                "action": {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "tap",
+                        "swipe",
+                        "key",
+                        "text"
+                      ]
+                    },
+                    "x": {
+                      "type": "integer"
+                    },
+                    "y": {
+                      "type": "integer"
+                    },
+                    "x1": {
+                      "type": "integer"
+                    },
+                    "y1": {
+                      "type": "integer"
+                    },
+                    "x2": {
+                      "type": "integer"
+                    },
+                    "y2": {
+                      "type": "integer"
+                    },
+                    "duration_ms": {
+                      "type": "integer"
+                    },
+                    "code": {
+                      "type": "integer"
+                    },
+                    "text": {
+                      "type": "string",
+                      "maxLength": 1024
+                    }
+                  },
+                  "required": [
+                    "kind"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "at_ms",
+                "action"
+              ]
+            }
+          }
+        },
+        "required": [
+          "device_id",
+          "steps"
+        ]
+      }
+    },
+    {
+      "name": "click.repeat",
+      "title": "重复设备点击",
+      "execution": {
+        "api_version": 1,
+        "total_timeout_ms": 600000
+      },
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "device_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "x": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 65535
+          },
+          "y": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 65535
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10000
+          },
+          "interval_ms": {
+            "type": "integer",
+            "minimum": 10,
+            "maximum": 60000
+          }
+        },
+        "required": [
+          "device_id",
+          "x",
+          "y",
+          "count",
+          "interval_ms"
+        ]
+      }
+    },
+    {
+      "name": "windows.mouse.position", "title": "查询服务器桌面鼠标位置",
+      "input_schema": {"type": "object", "additionalProperties": false}
+    },
+    {
+      "name": "windows.mouse.click", "title": "执行服务器桌面鼠标点击",
+      "input_schema": {
+        "type": "object", "additionalProperties": false, "required": ["button", "click"],
+        "properties": {
+          "button": {"type": "string", "enum": ["left", "right", "middle"]},
+          "click": {"type": "string", "enum": ["single", "double"]},
+          "position": {"type": "object", "additionalProperties": false, "required": ["x", "y"], "properties": {"x": {"type": "integer", "minimum": -2147483648, "maximum": 2147483647}, "y": {"type": "integer", "minimum": -2147483648, "maximum": 2147483647}}}
+        }
+      }
+    },
+    {
+      "name": "windows.mouse.repeat", "title": "重复服务器桌面鼠标点击",
+      "execution": {"api_version": 1, "total_timeout_ms": 660000},
+      "input_schema": {
+        "type": "object", "additionalProperties": false, "required": ["button", "click", "interval_ms", "repeat"],
+        "properties": {
+          "button": {"type": "string", "enum": ["left", "right", "middle"]},
+          "click": {"type": "string", "enum": ["single", "double"]},
+          "position": {"type": "object", "additionalProperties": false, "required": ["x", "y"], "properties": {"x": {"type": "integer", "minimum": -2147483648, "maximum": 2147483647}, "y": {"type": "integer", "minimum": -2147483648, "maximum": 2147483647}}},
+          "interval_ms": {"type": "integer", "minimum": 10, "maximum": 60000},
+          "stop_on_f9": {"type": "boolean"},
+          "repeat": {"type": "object", "additionalProperties": false, "required": ["kind"], "properties": {
+            "kind": {"type": "string", "enum": ["count", "duration", "manual"]},
+            "count": {"type": "integer", "minimum": 1, "maximum": 10000},
+            "duration_ms": {"type": "integer", "minimum": 100, "maximum": 600000},
+            "max_duration_ms": {"type": "integer", "minimum": 100, "maximum": 600000}
+          }}
+        }
+      }
+    },
+    {
+      "name": "input_trace.record", "title": "录制服务器桌面输入轨迹",
+      "execution": {"api_version": 1, "total_timeout_ms": 660000},
+      "input_schema": {"type": "object", "additionalProperties": false, "required": ["event_type", "interval_ms", "duration_ms"], "properties": {
+        "event_type": {"type": "integer", "minimum": 0, "maximum": 2},
+        "interval_ms": {"type": "integer", "minimum": 2, "maximum": 1000},
+        "duration_ms": {"type": "integer", "minimum": 100, "maximum": 600000}
+      }}
+    },
+    {
+      "name": "input_trace.playback", "title": "回放已授权的输入轨迹",
+      "execution": {"api_version": 1, "total_timeout_ms": 660000},
+      "input_schema": {"type": "object", "additionalProperties": false, "required": ["artifact_id", "event_type"], "properties": {
+        "artifact_id": {"type": "string", "minLength": 1, "maxLength": 200},
+        "event_type": {"type": "integer", "minimum": 0, "maximum": 2}
+      }}
+    }
+  ]
+}

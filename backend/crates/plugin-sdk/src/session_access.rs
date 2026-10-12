@@ -24,10 +24,9 @@ impl SessionAccess {
         for operation in &self.operations {
             if operation.name.is_empty()
                 || operation.name.len() >= 100
-                || !operation
-                    .name
-                    .bytes()
-                    .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || b"._-".contains(&byte))
+                || !operation.name.bytes().all(|byte| {
+                    byte.is_ascii_lowercase() || byte.is_ascii_digit() || b"._-".contains(&byte)
+                })
             {
                 return Err("会话操作名必须为小写字母、数字及 ._-，且少于 100 字节");
             }
@@ -35,7 +34,10 @@ impl SessionAccess {
                 return Err("会话操作名重复");
             }
             if !operation.input_schema.is_object()
-                || operation.input_schema.get("type").and_then(serde_json::Value::as_str)
+                || operation
+                    .input_schema
+                    .get("type")
+                    .and_then(serde_json::Value::as_str)
                     != Some("object")
             {
                 return Err("公开会话必须声明对象类型输入模式");

@@ -45,8 +45,9 @@ export function selectPluginPlans(plans, selected = []) {
   return result;
 }
 
-export function nativePluginReadme(plan, cliVersion, sourceReadme) {
+export function nativePluginReadme(plan, cliVersion, sourceReadme, configurationTemplates = []) {
   const archive = `${plan.packageJson.name.slice(1).replace('/', '-')}-${plan.packageJson.version}.tgz`;
+  const configuration = configurationTemplates.length ? `\n包内 bin 目录携带公开配置模板：${configurationTemplates.map((item) => item.name).join('、')}。安装后按下方插件说明将模板复制为实际配置，填写本机工具、存储目录及必要凭据后再启动或加载；模板不会自动启用，打包器不采集部署者的实际配置。\n` : '';
   return `# DeviceForge 原生插件：${plan.id}
 
 此包携带 ${plan.packageJson.os[0]}/${plan.packageJson.cpu[0]} 的 release 原生程序，版本 ${plan.packageJson.version}，协议 ${plan.portableManifest.protocol_version}。部署者只需 Node.js/npm 和对应平台的 DeviceForge CLI 运行包，不需要 Rust。
@@ -67,6 +68,7 @@ npx --yes --package .\\deviceforge-cli-${cliVersion}.tgz deviceforge start
 公开操作：${plan.portableManifest.operations.map((operation) => `plugin.${plan.id}.${operation.name}`).join('、')}。
 
 本地 tgz 不代表已公开发布 npm；插件是可信服务器代码，不提供操作系统沙箱。
+${configuration}
 
 ## 源码开发说明
 

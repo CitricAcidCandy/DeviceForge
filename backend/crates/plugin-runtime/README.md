@@ -8,6 +8,8 @@ serve_once(handler) 从标准输入读协议 3 Request，将请求与 Cancellati
 
 framing.rs 先限制缓冲再读取换行帧，请求 512 KiB、控制 4 KiB；响应 1 MiB，超大结果转为固定错误。serve_io 支持注入异步读写用于测试。主机断开后输出可能失败，但处理器清理先于输出。
 
+协议3和4的末帧均按写入、显式刷新、关闭输出的顺序交付。部分异步输出（包括标准输出）关闭时不会隐式完成缓冲写入；必须先刷新完整换行帧，宿主才能在读取响应后关闭插件输入。刷新失败返回固定传输错误，不宣称响应已经送达，也不改写处理器的清理声明。独立response_flush测试以不会隐式刷新的输出验证交付和刷新失败两个行为；真实stdio与宿主验证另行记录。
+
 协议 4 使用新增 serve_once_with_context / serve_io_with_context，处理器为 FnOnce(Request, InvocationContext) -> Future<Output=Execution>，旧入口与旧字段保持不变。解析请求后、发送 Ready 前固定本地单调点 C0；只接受一份严格 Start，将截止点固定为 C0 + remaining_timeout_ns。等待 Start 的耗时不会重新获得预算，0 表示到期；Start 前或到期准入时业务处理器零调用。Ready/Start 使用 SDK context 模型，两个握手帧分别不超过 4 KiB。
 
 InvocationContext 可 Clone，deadline() 返回同一个 std::time::Instant，cancellation() 返回共享 CancellationToken，check() 返回 ContextError::{Timeout,Cancelled}，同时到期与取消时到期优先。运行中到期会通知取消并等待处理器真实返回；显式取消、EOF、坏控制或重复 Start 同样先收口再响应，晚成功改为错误，处理器的 CleanupOutcome 原样保留。运行库不自行延长宿主合作窗口，不丢弃已启动处理器来制造 complete；若调用方丢弃运行入口 Future，则没有成功清理响应，宿主仍须保留未确认风险。
@@ -17,3 +19,5 @@ context.rs 负责公开上下文与加法入口，context/transport.rs 负责有
 样例见 ../../plugins/cooperative-demo；`cargo test -p deviceforge-plugin-runtime` 覆盖正确取消、EOF、坏/错配/超大控制、初始帧限制、晚到成功拒绝、清理失败及响应上限。实际外部连接是否释放由业务插件和真机验收证明，运行库只传递信号与声明。
 
 会话入口的取消、满输入队列和输出失败均撤销新 I/O，并继续等待处理器真实 Execution，不改写 cleanup。正常结束排空输出后发送终态，取消丢弃未发送输出；半帧写入中断只报告传输失败，不向损坏流追加终态。终态在独立有界宽限内传输，失败不能证明宿主收到清理确认。本批实现冻结后由主代理执行独立测试与完整门禁；宿主代际/卸载、HTTP/MCP、前端消费和终端插件仍属后续批次。
+
+2026-10-10末帧增量已取得独立验证：response_flush两项先红后绿；context_stdio在debug/release各两个顶层测试通过，每种模式覆盖协议3/4与直接/阻塞池拒绝共32轮真实子进程。输入在完整错误末帧到达后才关闭，随后子进程零退出并回收；单轮共用15秒期限、整组60秒看门狗。ordinary真实宿主扩展debug/release各21检查/53Jobs、runtime两模式、日志、生命周期、合作取消与settings提交未知两构建模式均通过。完整workspace门禁及最终分发的状态以根交接和runtime-response-flush报告为准；当前证据不认定历史AI超时的唯一根因，也不证明背压下新增本地传输期限或真实外部业务。

@@ -30,7 +30,12 @@ fn explicit_null_sessions_are_omitted_on_serialization() {
     });
     let manifest: Manifest = serde_json::from_value(original).unwrap();
     assert!(manifest.sessions.is_none());
-    assert!(serde_json::to_value(manifest).unwrap().get("sessions").is_none());
+    assert!(
+        serde_json::to_value(manifest)
+            .unwrap()
+            .get("sessions")
+            .is_none()
+    );
 }
 
 #[test]
@@ -60,8 +65,14 @@ fn portable_package_keeps_session_declaration_without_entry_paths() {
     assert!(encoded.get("executable").is_none());
     let legacy: PortableServerManifest = serde_json::from_value(json!({
         "id":"legacy", "version":"0.1.0", "protocol_version":1, "operations":[]
-    })).unwrap();
-    assert!(serde_json::to_value(legacy).unwrap().get("sessions").is_none());
+    }))
+    .unwrap();
+    assert!(
+        serde_json::to_value(legacy)
+            .unwrap()
+            .get("sessions")
+            .is_none()
+    );
 }
 
 #[test]

@@ -89,5 +89,7 @@ pub(super) async fn reply<W: AsyncWrite + Unpin>(
     }
     bytes.push(b'\n');
     writer.write_all(&bytes).await.map_err(|_| "响应写入失败")?;
+    // 标准输出关闭不保证提交阻塞写入；宿主收到完整末帧后才会关闭插件输入。
+    writer.flush().await.map_err(|_| "响应刷新失败")?;
     writer.shutdown().await.map_err(|_| "响应流关闭失败".into())
 }

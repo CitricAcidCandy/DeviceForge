@@ -1,20 +1,34 @@
 //! 同时推进数据、控制与读取；取消不等待满输出队列。
 use super::Call;
-use crate::plugins::interactive::{handles, transport::{self, Reader}};
+use crate::plugins::interactive::{
+    handles,
+    transport::{self, Reader},
+};
 use apk_domain::{Error, Result, interactive::*};
-use apk_plugin_sdk::{ArtifactOutput, cooperative::{CancelReason, CleanupOutcome}, session::{self, SessionControl, SessionEvent}};
+use apk_plugin_sdk::{
+    ArtifactOutput,
+    cooperative::{CancelReason, CleanupOutcome},
+    session::{self, SessionControl, SessionEvent},
+};
 use deviceforge_tool_process::StreamingProcess;
 use futures_util::future::BoxFuture;
 use std::sync::Arc;
 use tokio::time::Instant;
 
-fn write(input: deviceforge_tool_process::StreamingInput, bytes: Vec<u8>, deadline: Instant)
-    -> BoxFuture<'static, Result<()>> {
+fn write(
+    input: deviceforge_tool_process::StreamingInput,
+    bytes: Vec<u8>,
+    deadline: Instant,
+) -> BoxFuture<'static, Result<()>> {
     Box::pin(async move { transport::send(&input, &bytes, deadline).await })
 }
 
-pub(super) async fn run(call: &mut Call, process: &mut StreamingProcess, reader: &mut Reader,
-    deadline: Instant) -> (SessionExit, Vec<ArtifactOutput>) {
+pub(super) async fn run(
+    call: &mut Call,
+    process: &mut StreamingProcess,
+    reader: &mut Reader,
+    deadline: Instant,
+) -> (SessionExit, Vec<ArtifactOutput>) {
     let mut failure: Option<Arc<Error>> = None;
     let mut stop_at = None;
     let mut exit_at = None;
@@ -28,11 +42,16 @@ pub(super) async fn run(call: &mut Call, process: &mut StreamingProcess, reader:
     let mut protocol_valid = true;
 
     loop {
-        if failure.is_none() && terminal.is_none()
+        if failure.is_none()
+            && terminal.is_none()
             && (call.cancel.is_cancelled() || Instant::now() >= deadline)
         {
             let timeout = Instant::now() >= deadline;
-            failure = Some(Arc::new(if timeout { Error::Timeout } else { Error::Cancelled }));
+            failure = Some(Arc::new(if timeout {
+                Error::Timeout
+            } else {
+                Error::Cancelled
+            }));
             let until = Instant::now() + transport::CLEANUP;
             stop_at = Some(until);
             call.channels.revoked.cancel();
@@ -42,11 +61,18 @@ pub(super) async fn run(call: &mut Call, process: &mut StreamingProcess, reader:
             let control = SessionControl::Cancel {
                 protocol_version: session::SESSION_PROTOCOL_VERSION,
                 session_id: call.request.session_id.clone(),
-                reason: if timeout { CancelReason::Timeout } else { CancelReason::Cancelled },
+                reason: if timeout {
+                    CancelReason::Timeout
+                } else {
+                    CancelReason::Cancelled
+                },
             };
             match transport::frame(&control, session::SESSION_FRAME_LIMIT) {
                 Ok(bytes) => pending_write = Some(write(input.clone(), bytes, until)),
-                Err(_) => { protocol_valid = false; break; }
+                Err(_) => {
+                    protocol_valid = false;
+                    break;
+                }
             }
         }
         // Finished 之后只核对剩余传输和真实退出，不再发业务取消或接受输入。
@@ -143,13 +169,21 @@ pub(super) async fn run(call: &mut Call, process: &mut StreamingProcess, reader:
         }
     }
     call.channels.revoked.cancel();
-    if terminal.is_none() || !protocol_valid { process.cancel(); }
+    if terminal.is_none() || !protocol_valid {
+        process.cancel();
+    }
     let end = if let Some(until) = exit_at {
         match tokio::time::timeout_at(until, process.wait()).await {
             Ok(end) => end,
-            Err(_) => { process.cancel(); protocol_valid = false; process.wait().await }
+            Err(_) => {
+                process.cancel();
+                protocol_valid = false;
+                process.wait().await
+            }
         }
-    } else { process.wait().await };
+    } else {
+        process.wait().await
+    };
     let (process_exited, zero) = match end {
         Ok(exit) => (true, exit.status.success()),
         Err(deviceforge_tool_process::Error::CleanupFailed { .. }) => (false, false),
@@ -159,13 +193,37 @@ pub(super) async fn run(call: &mut Call, process: &mut StreamingProcess, reader:
         failure.get_or_insert_with(|| Arc::new(Error::CleanupFailed));
     }
     let (sequence, outcome, outputs, cleanup) = if let Some((sequence, outcome)) = terminal {
-        let cleanup = if !protocol_valid || !zero { SessionCleanup::Unconfirmed }
-            else if outcome.cleanup == CleanupOutcome::Complete { SessionCleanup::Complete }
-            else { SessionCleanup::Failed };
+        let cleanup = if !protocol_valid || !zero {
+            SessionCleanup::Unconfirmed
+        } else if outcome.cleanup == CleanupOutcome::Complete {
+            SessionCleanup::Complete
+        } else {
+            SessionCleanup::Failed
+        };
         if cleanup != SessionCleanup::Complete {
             failure.get_or_insert_with(|| Arc::new(Error::CleanupFailed));
         }
-        (Some(sequence), Some(SessionOutcome { result: outcome.result, error: outcome.error, artifacts: Vec::new() }), outcome.outputs, cleanup)
-    } else { (None, None, Vec::new(), SessionCleanup::Unconfirmed) };
-    (SessionExit { sequence, outcome, cleanup, process_exited, failure }, outputs)
+        (
+            Some(sequence),
+            Some(SessionOutcome {
+                result: outcome.result,
+                error: outcome.error,
+                artifacts: Vec::new(),
+            }),
+            outcome.outputs,
+            cleanup,
+        )
+    } else {
+        (None, None, Vec::new(), SessionCleanup::Unconfirmed)
+    };
+    (
+        SessionExit {
+            sequence,
+            outcome,
+            cleanup,
+            process_exited,
+            failure,
+        },
+        outputs,
+    )
 }

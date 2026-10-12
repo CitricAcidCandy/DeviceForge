@@ -27,9 +27,9 @@ impl SessionDefinition {
         if self.id.len() > 128
             || name.is_empty()
             || name.len() >= 100
-            || !name
-                .bytes()
-                .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || b"._-".contains(&byte))
+            || !name.bytes().all(|byte| {
+                byte.is_ascii_lowercase() || byte.is_ascii_digit() || b"._-".contains(&byte)
+            })
         {
             return Err(Error::Invalid("会话操作 ID 或局部名称无效".into()));
         }
