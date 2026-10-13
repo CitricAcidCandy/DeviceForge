@@ -8,6 +8,7 @@ license.workspace = true
 apk-plugin-sdk.workspace = true
 deviceforge-plugin-runtime.workspace = true
 deviceforge-tool-process.workspace = true
+deviceforge-data-codec.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 tokio.workspace = true

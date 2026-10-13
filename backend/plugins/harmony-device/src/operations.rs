@@ -1,12 +1,15 @@
 mod models;
 
-use crate::{Control, Error, Result, discovery, rules};
+use crate::{Control, Error, Result, applications, discovery, input, network, rules};
 use serde::de::DeserializeOwned;
 use serde_json::{Value, json};
 
 #[derive(Debug)]
 pub(crate) enum Input {
     Discover,
+    Screenshot {
+        device_id: String,
+    },
     Packages {
         device_id: String,
     },
@@ -18,6 +21,9 @@ pub(crate) enum Input {
         device_id: String,
         package: String,
     },
+    App(applications::Input),
+    DeviceAction(input::Input),
+    Network(network::Input),
 }
 
 fn decode<T: DeserializeOwned>(value: &Value) -> Result<T> {
@@ -33,16 +39,49 @@ pub(crate) fn parse(operation: &str, input: &Value) -> Result<Input> {
         decode::<models::Empty>(input)?;
         return Ok(Input::Discover);
     }
-    if !matches!(operation, "packages" | "app.install" | "app.uninstall") {
-        return Err(Error::Invalid("鸿蒙设备插件只接受本批四个短贡献名"));
+    if !matches!(
+        operation,
+        "packages"
+            | "screenshot"
+            | "input"
+            | "connect"
+            | "disconnect"
+            | "app.install"
+            | "app.uninstall"
+            | "app.detail"
+            | "app.start"
+            | "app.stop"
+            | "app.reset"
+    ) {
+        return Err(Error::Invalid("鸿蒙设备插件只接受本批十二个短贡献名"));
     }
     if input.get("device_id").is_none() || input.get("input").is_none() {
         return Err(Error::Invalid("设备动作封套必须显式提供device_id和input"));
     }
+    if matches!(operation, "connect" | "disconnect") {
+        let envelope: models::ProviderEnvelope = decode(input)?;
+        if !envelope.device_id.is_null() {
+            return Err(Error::Invalid("连接管理封套device_id必须为显式null"));
+        }
+        return network::parse(operation, &envelope.input).map(Input::Network);
+    }
     let envelope: models::Envelope = decode(input)?;
     rules::serial(&envelope.device_id)?;
     let device_id = envelope.device_id;
+    if operation == "input" {
+        return input::parse(device_id, &envelope.input).map(Input::DeviceAction);
+    }
+    if matches!(
+        operation,
+        "app.detail" | "app.start" | "app.stop" | "app.reset"
+    ) {
+        return applications::parse(operation, device_id, &envelope.input).map(Input::App);
+    }
     match operation {
+        "screenshot" => {
+            decode::<models::Empty>(&envelope.input)?;
+            Ok(Input::Screenshot { device_id })
+        }
         "packages" => {
             decode::<models::Empty>(&envelope.input)?;
             Ok(Input::Packages { device_id })
@@ -75,7 +114,7 @@ pub(crate) async fn execute(control: &Control, input: Input) -> Result<Value> {
             let stdout = std::str::from_utf8(&captured.stdout)
                 .map_err(|_| Error::Dependency("HDC发现输出不是有效UTF-8"))?;
             rules::text(b"", &captured.stderr)?;
-            let devices = discovery::parse(stdout)?;
+            let devices = input::observe_devices(control, discovery::parse(stdout)?).await?;
             control.check()?;
             serde_json::to_value(devices).map_err(|_| Error::Dependency("发现结果无法序列化"))
         }
@@ -100,7 +139,12 @@ pub(crate) async fn execute(control: &Control, input: Input) -> Result<Value> {
             control.check()?;
             Ok(json!({"output":output}))
         }
-        Input::Install { .. } => Err(Error::Invalid("安装须进入私有资源流程")),
+        Input::Install { .. } | Input::Screenshot { .. } => {
+            Err(Error::Invalid("安装或截图须进入私有资源流程"))
+        }
+        Input::App(input) => applications::execute(control, input).await,
+        Input::DeviceAction(input) => input::execute(control, input).await,
+        Input::Network(input) => network::execute(control, input).await,
     }
 }
 

@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/domain", "crates/plugin-sdk", "crates/infrastructure", "crates/application", "crates/server", "plugins/echo", "plugins/artifact-copy", "plugins/performance-demo", "crates/data-codec", "plugins/msgpack", "crates/observability", "crates/plugin-runtime", "plugins/cooperative-demo", "crates/tool-process", "crates/android-package-core", "plugins/android-packages", "plugins/android-device", "plugins/harmony-device", "plugins/settings", "plugins/automation", "plugins/ai-assistant", "plugins/mirroring", "plugins/frida", "plugins/tool-supply"]
+members = ["crates/domain", "crates/plugin-sdk", "crates/infrastructure", "crates/application", "crates/server", "plugins/echo", "plugins/artifact-copy", "plugins/performance-demo", "crates/data-codec", "plugins/msgpack", "crates/observability", "crates/plugin-runtime", "plugins/cooperative-demo", "crates/tool-process", "crates/android-package-core", "plugins/android-packages", "plugins/android-device", "plugins/harmony-device", "plugins/settings", "plugins/automation", "plugins/ai-assistant", "plugins/mirroring", "plugins/frida", "plugins/tool-supply", "plugins/terminal", "plugins/dex-analysis", "plugins/ai-sdk"]
 resolver = "2"
 
 [workspace.package]

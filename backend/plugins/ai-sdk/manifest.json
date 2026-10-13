@@ -1,0 +1,94 @@
+{
+  "id": "ai-sdk",
+  "version": "0.1.0",
+  "protocol_version": 4,
+  "executable": "deviceforge-ai-sdk-plugin.exe",
+  "args": [],
+  "operations": [
+    {
+      "name": "runtime.status", "title": "查询官方SDK运行资格",
+      "execution": { "api_version": 1, "total_timeout_ms": 600000 },
+      "input_schema": { "type": "object", "additionalProperties": false, "properties": {}, "required": [] }
+    },
+    {
+      "name": "sdk.single", "title": "官方SDK单次请求",
+      "execution": { "api_version": 1, "total_timeout_ms": 600000 },
+      "input_schema": {
+        "type": "object", "additionalProperties": false,
+        "properties": {
+          "project_id": { "type": "string", "minLength": 1, "maxLength": 80, "pattern": "^[A-Za-z0-9_-]+$" },
+          "prompt": { "type": "string", "minLength": 1, "maxLength": 131072 }
+        },
+        "required": ["project_id", "prompt"]
+      }
+    },
+    {
+      "name": "sdk.turn", "title": "官方SDK线程轮次",
+      "execution": { "api_version": 1, "total_timeout_ms": 600000 },
+      "input_schema": {
+        "type": "object", "additionalProperties": false,
+        "properties": {
+          "project_id": { "type": "string", "minLength": 1, "maxLength": 80, "pattern": "^[A-Za-z0-9_-]+$" },
+          "prompt": { "type": "string", "minLength": 1, "maxLength": 131072 },
+          "thread_id": { "type": "string", "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$" }
+        },
+        "required": ["project_id", "prompt"]
+      }
+    },
+    {
+      "name": "session.get", "title": "查询官方SDK线程资格",
+      "execution": { "api_version": 1, "total_timeout_ms": 600000 },
+      "input_schema": {
+        "type": "object", "additionalProperties": false,
+        "properties": {
+          "project_id": { "type": "string", "minLength": 1, "maxLength": 80, "pattern": "^[A-Za-z0-9_-]+$" },
+          "thread_id": { "type": "string", "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$" }
+        },
+        "required": ["project_id", "thread_id"]
+      }
+    },
+    {
+      "name": "session.close", "title": "关闭官方SDK线程资格",
+      "execution": { "api_version": 1, "total_timeout_ms": 600000 },
+      "input_schema": {
+        "type": "object", "additionalProperties": false,
+        "properties": {
+          "project_id": { "type": "string", "minLength": 1, "maxLength": 80, "pattern": "^[A-Za-z0-9_-]+$" },
+          "thread_id": { "type": "string", "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$" }
+        },
+        "required": ["project_id", "thread_id"]
+      }
+    },
+    {
+      "name": "assistant.run", "title": "官方SDK四轮测试助手",
+      "execution": { "api_version": 1, "total_timeout_ms": 600000 },
+      "input_schema": {
+        "type": "object", "additionalProperties": false,
+        "properties": {
+          "project_id": { "type": "string", "minLength": 1, "maxLength": 80, "pattern": "^[A-Za-z0-9_-]+$" },
+          "user_prompt": { "type": "string", "minLength": 1, "maxLength": 131072 },
+          "stream_output": { "type": "boolean", "default": false }
+        },
+        "required": ["project_id"]
+      }
+    }
+  ],
+  "sessions": {
+    "protocol_version": 5,
+    "operations": [
+      {
+        "name": "sdk.stream", "title": "官方SDK实时线程轮次",
+        "execution": { "api_version": 1, "total_timeout_ms": 600000 },
+        "input_schema": {
+          "type": "object", "additionalProperties": false,
+          "properties": {
+            "project_id": { "type": "string", "minLength": 1, "maxLength": 80, "pattern": "^[A-Za-z0-9_-]+$" },
+            "prompt": { "type": "string", "minLength": 1, "maxLength": 131072 },
+            "thread_id": { "type": "string", "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$" }
+          },
+          "required": ["project_id", "prompt"]
+        }
+      }
+    ]
+  }
+}

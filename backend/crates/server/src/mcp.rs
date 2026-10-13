@@ -6,9 +6,9 @@ use rmcp::{
     ErrorData, RoleServer, ServerHandler,
     model::{
         CallToolRequestParams, CallToolResponse, CallToolResult, Implementation, ListToolsResult,
-        PaginatedRequestParams, ServerCapabilities, ServerConfig, Tool,
+        PaginatedRequestParams, ServerCapabilities, ServerConfig, SubscriptionFilter, Tool,
     },
-    service::RequestContext,
+    service::{RequestContext, SubscriptionContext},
     transport::streamable_http_server::{
         StreamableHttpService, session::local::LocalSessionManager,
     },
@@ -23,6 +23,7 @@ struct McpAdapter {
     app: Arc<Application>,
     plugins: Option<Arc<PluginService>>,
     devices: Arc<apk_application::devices::DeviceService>,
+    notifications: Arc<crate::mcp_notifications::CatalogNotifications>,
 }
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -47,11 +48,15 @@ impl McpAdapter {
         app: Arc<Application>,
         plugins: Option<Arc<PluginService>>,
         devices: Arc<apk_application::devices::DeviceService>,
+        shutdown: tokio_util::sync::CancellationToken,
     ) -> Self {
         Self {
             app,
             plugins,
             devices,
+            notifications: Arc::new(crate::mcp_notifications::CatalogNotifications::new(
+                shutdown,
+            )),
         }
     }
     fn plugin_service(&self) -> Result<&Arc<PluginService>> {
@@ -60,6 +65,9 @@ impl McpAdapter {
             .ok_or_else(|| Error::Dependency("插件管理服务未配置".into()))
     }
     async fn invoke(&self, name: &str, input: Value) -> Result<Value> {
+        if crate::interactive_mcp::manages(name) || self.app.session_definition(name).is_some() {
+            return crate::interactive_mcp::invoke(&self.app, name, input).await;
+        }
         match name {
             "deviceforge.list_device_providers"
             | "deviceforge.list_devices"
@@ -105,9 +113,18 @@ impl McpAdapter {
 }
 impl ServerHandler for McpAdapter {
     fn get_info(&self) -> ServerConfig {
-        ServerConfig::new(ServerCapabilities::builder().enable_tools().build())
+        ServerConfig::new(ServerCapabilities::builder().enable_tools().enable_tool_list_changed().build())
             .with_server_info(Implementation::new("deviceforge", env!("CARGO_PKG_VERSION")))
             .with_instructions("设备操作以异步任务执行。工具返回排队任务时应读取任务最终状态；需要中止时显式调用取消工具。")
+    }
+    fn accepted_subscription_filter(
+        &self,
+        requested: &SubscriptionFilter,
+    ) -> Option<SubscriptionFilter> {
+        Some(requested.supported_by(&self.get_info().capabilities))
+    }
+    async fn listen(&self, context: SubscriptionContext) -> std::result::Result<(), ErrorData> {
+        self.notifications.listen(&self.app, context).await
     }
     async fn list_tools(
         &self,
@@ -153,9 +170,15 @@ impl ServerHandler for McpAdapter {
             .operation(name)
             .map(crate::mcp_tools::operation_tool)
             .or_else(|| {
+                self.app
+                    .session_definition(name)
+                    .map(crate::interactive_mcp::session_tool)
+            })
+            .or_else(|| {
                 crate::mcp_tools::management_tools(self.plugins.is_some())
                     .into_iter()
                     .chain(crate::device_mcp::tools())
+                    .chain(crate::interactive_mcp::tools())
                     .find(|tool| tool.name == name)
             })
     }
@@ -197,7 +220,12 @@ pub(crate) fn service_with_devices(
     devices: Arc<apk_application::devices::DeviceService>,
     config: StreamableHttpServerConfig,
 ) -> StreamableHttpService<impl ServerHandler, LocalSessionManager> {
-    let handler = crate::mcp_observability::Observed(McpAdapter::new(app, plugins, devices));
+    let handler = crate::mcp_observability::Observed(McpAdapter::new(
+        app,
+        plugins,
+        devices,
+        config.cancellation_token.clone(),
+    ));
     StreamableHttpService::new(
         move || Ok(handler.clone()),
         Arc::new(LocalSessionManager::default()),

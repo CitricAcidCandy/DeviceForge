@@ -1,4 +1,5 @@
 //! 七项业务的严格输入；纯预检不读取产物、不访问部署配置。
+pub(crate) use deviceforge_android_package_core::apks::DeviceSpec;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::BTreeSet;
@@ -85,20 +86,15 @@ pub(crate) struct ScanInput {
     pub rules: Vec<SdkRule>,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
-#[serde(deny_unknown_fields)]
-pub(crate) struct DeviceSpec {
-    pub supported_abis: Vec<String>,
-    pub supported_locales: Vec<String>,
-    pub screen_density: u32,
-    pub sdk_version: u32,
-}
-
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct SplitsInput {
     pub artifact_id: String,
     pub device_spec: DeviceSpec,
+    #[serde(default)]
+    pub modules: Option<Vec<String>>,
+    #[serde(default)]
+    pub instant: bool,
 }
 
 pub(crate) enum Input {
@@ -157,6 +153,15 @@ impl Input {
             }
             Self::Splits(input) => {
                 spec(&input.device_spec)?;
+                deviceforge_android_package_core::apks::Selection {
+                    modules: input.modules.clone(),
+                    instant: input.instant,
+                }
+                .validate(&deviceforge_android_package_core::Control::new(
+                    None,
+                    &|| false,
+                ))
+                .map_err(|_| "APKS模块选择无效")?;
                 &input.artifact_id
             }
         };
@@ -220,25 +225,10 @@ fn rules(values: &[SdkRule]) -> Result<(), &'static str> {
 }
 
 fn spec(value: &DeviceSpec) -> Result<(), &'static str> {
-    fn tokens(values: &[String], max: usize) -> bool {
-        let mut unique = BTreeSet::new();
-        !values.is_empty()
-            && values.len() <= max
-            && values.iter().all(|value| {
-                !value.is_empty()
-                    && value.len() <= 80
-                    && unique.insert(value.as_str())
-                    && value
-                        .bytes()
-                        .all(|byte| byte.is_ascii_alphanumeric() || b"_-".contains(&byte))
-            })
-    }
-    if !tokens(&value.supported_abis, 16)
-        || !tokens(&value.supported_locales, 100)
-        || !(1..=10000).contains(&value.screen_density)
-        || !(1..=10000).contains(&value.sdk_version)
-    {
-        return Err("设备规格列表或数值无效");
-    }
-    Ok(())
+    value
+        .validate(&deviceforge_android_package_core::Control::new(
+            None,
+            &|| false,
+        ))
+        .map_err(|_| "设备规格列表或数值无效")
 }

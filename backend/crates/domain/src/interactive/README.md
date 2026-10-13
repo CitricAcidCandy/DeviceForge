@@ -6,6 +6,8 @@
 
 `SessionDefinition` 包含完整 `id`、`title`、打开参数的 `input_schema` 和可选 `execution`。`validate(plugin_id)` 限定所属命名空间、完整名称长度、对象模式、文档内引用与预算；注册层还须编译模式、拒绝重复贡献并固化有效预算。`protocol_version()` 固定返回 5，`chunk_limit()` 固定返回 8192；所有会话支持原字节输入、stdout/stderr、EOF 与取消，不声明伪终端或多会话复用。
 
+`SessionDefinition.output_retention` 使用 `SessionOutputRetention`：默认 `Complete`（序列化省略默认值），显式 `BoundedTail` 表示有限尾部窗口。该纯声明不执行缓存，也不放宽期限；提供者与应用必须共同遵守输出策略。完整模式超限失败，尾部模式淘汰旧块并保留真实序号，过期游标由应用返回 Conflict。
+
 `SessionRequest` 包含 `session_id`、完整 `operation`、打开参数 `input` 与必须给出的单调时钟 `deadline`。原截止点覆盖排队、准备、打开、握手和业务，不因 Ready/Start 重计。
 
 `SessionProvider::open(request, cancel)` 只同步构造 `SessionLaunch { handle, supervisor }`，不启动进程或访问文件。应用须在原子资格判断时固定所属 Owner 与 generation，并将 supervisor 登记到该 owner 的 tracker，随后锁外运行。tracker 必须覆盖整场监督，不能只跟踪 open。
@@ -28,4 +30,4 @@
 
 业务 cancel 和原业务 deadline 不能直接交给底层进程流监督，否则插件在合作清理前被杀。适配器保留独立强制取消与硬期限，为合作清理、Finished 传输和真实退出留有界宽限；宽限结束仍未确认则强制收口并保留 Unconfirmed。丢弃 wait Future、接收结束、发出强杀或子进程退出都不能自行证明外部清理完成。
 
-`definition.rs` 负责声明纯规则，`model.rs` 负责输出及终态类型，`ports.rs` 负责句柄和监督契约。纯规则测试不代替进程、宿主卸载、HTTP/MCP 或真机验收；这些行为由后续适配器和应用集成验证。
+`definition.rs`负责声明纯规则，`model.rs`负责端口输出及终态类型，`ports.rs`负责句柄和监督契约，`view.rs`提供可序列化会话状态、清理结果及输出页。公开视图保持真实序号和原字节，失败只公开稳定类别；应用负责固定插件代际、容量和历史保留。纯规则测试不代替进程、宿主卸载、HTTP/MCP或真机验收。

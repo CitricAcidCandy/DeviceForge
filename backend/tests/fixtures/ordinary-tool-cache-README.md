@@ -51,6 +51,6 @@ HTTP/MCP 两种提交分别使用独立数据、安装、缓存和部署目录�
 
 身份同时包括当前插件源码、公开配置/契约、驱动/共享辅助、预构建二进制以及部署副本前后摘要；源码/输入变化使本轮失败，不能接受后端自报 passed 作为独立证据。
 
-当前后端 `cache.rs` 定义 canonical 为 `serde_json::to_vec(Manifest)`：固定 Rust 字段声明顺序、默认/null 字段与模块数组顺序。驱动只将原 HTTP JSON 哈希标为 `response_body_sha256`，不等同公开 `manifest_sha256`；独立比较 live/cache、A/B 摘要、封装对应摘要、固定规范 URL 身份与模块输入。**本批没有独立重算 Rust canonical 摘要**，报告固定标记 `independent_canonical_recomputed=false`；原件供后续复核。该定义来自编写时只读源码，仍需主代理/Volta核对冻结版本。
+当前后端 `cache.rs` 定义 canonical 为 `serde_json::to_vec(Manifest)`：固定 Rust 字段声明顺序、默认/null 字段与模块数组顺序。驱动同时保留原 HTTP JSON 哈希 `response_body_sha256`，并按同一字段顺序独立重算 canonical 摘要，核对公开 `manifest_sha256`；独立比较 live/cache、A/B 摘要、封装对应摘要、固定规范 URL 身份与模块输入。报告标记 `independent_canonical_recomputed=true`，不把原 HTTP JSON 哈希误当作 `manifest_sha256`。
 
-未覆盖：缓存 IO/Busy、写入/flush/sync/提交失败与清理失败、切换来源身份、并发原子读取、旧 install 锁序、缓存关闭/local_manifest、DNS/TLS/正文超限、模块下载阶段自然到期、真实来源/SDK/跨平台/npx。不能借记旧 22/42、库测试或其它二进制的证据补齐这些缺口。
+本轮新增并已纳入服务矩阵：`manifest_cache_enabled=false` 时仅查询可降级且不创建缓存目录；`local_manifest` 不读取远端且不创建缓存目录。仍未覆盖：缓存 IO/Busy、写入/flush/sync/提交失败与清理失败、切换来源身份、并发原子读取、旧 install 锁序、DNS/TLS/正文超限、模块下载阶段自然到期、真实来源/SDK/跨平台/npx。不能借记旧 22/42、库测试或其它二进制的证据补齐这些缺口。

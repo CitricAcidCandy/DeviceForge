@@ -4,6 +4,23 @@ use crate::{Error, OperationExecution, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+/// 声明决定输出保存语义，宿主不按具体插件名称推断持续媒体能力。
+#[derive(
+    Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum SessionOutputRetention {
+    #[default]
+    Complete,
+    BoundedTail,
+}
+
+impl SessionOutputRetention {
+    pub fn is_complete(&self) -> bool {
+        *self == Self::Complete
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct SessionDefinition {
@@ -13,6 +30,8 @@ pub struct SessionDefinition {
     /// 复用已有总预算数据；注册会话时固化，不进入普通任务调度。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub execution: Option<OperationExecution>,
+    #[serde(default, skip_serializing_if = "SessionOutputRetention::is_complete")]
+    pub output_retention: SessionOutputRetention,
 }
 
 impl SessionDefinition {

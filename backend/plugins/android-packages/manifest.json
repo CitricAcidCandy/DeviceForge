@@ -266,6 +266,20 @@
                 "type": "integer",
                 "minimum": 1,
                 "maximum": 10000
+              },
+              "device_features": {
+                "type":"array","maxItems":256,"uniqueItems":true,
+                "items":{"type":"string","minLength":1,"maxLength":160,"pattern":"^[A-Za-z0-9_.:-]+$"}
+              },
+              "gl_extensions": {
+                "type":"array","maxItems":256,"uniqueItems":true,
+                "items":{"type":"string","minLength":1,"maxLength":160,"pattern":"^[A-Za-z0-9_.:-]+$"}
+              },
+              "codename": {
+                "type":["string","null"],"minLength":1,"maxLength":80,"pattern":"^[A-Za-z0-9_-]+$"
+              },
+              "device_tier": {
+                "type":["string","null"],"minLength":1,"maxLength":80,"pattern":"^[A-Za-z0-9_-]+$"
               }
             },
             "required": [
@@ -274,7 +288,13 @@
               "screen_density",
               "sdk_version"
             ]
-          }
+          },
+          "modules": {
+            "type":["array","null"],"minItems":1,"maxItems":128,"uniqueItems":true,
+            "items":{"type":"string","minLength":1,"maxLength":80,"pattern":"^[A-Za-z][A-Za-z0-9_]*$"},
+            "description":"省略或null沿原默认匹配；ALL必须单独选择，运行时另校混用"
+          },
+          "instant": {"type":"boolean","description":"仅提取支持；缺省false保持原argv"}
         },
         "required": [
           "artifact_id",

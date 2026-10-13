@@ -6,6 +6,9 @@ import { decodeAiSession, decodeAiStatus, decodeAiTurn } from './results.ts';
 import type { AiSessionInput, AiSingleInput, AiTurnInput } from './types.ts';
 
 export type * from './types.ts';
+export { createAiTaskObserver } from './task-observer.ts';
+export type { AiTaskGateway, AiTaskObservation, AiTaskSnapshot } from './task-observer.ts';
+export { createHttpAiTaskGateway } from './task-observer-http.ts';
 export { convertLegacyAiSingleRequest } from './legacy.ts';
 export type { AiLegacySingleOptions } from './legacy.ts';
 export function createAiAssistant(gateway: JobGateway, options: JobOptions = {}) {

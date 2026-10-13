@@ -242,6 +242,88 @@ fn text_exact_1024_ascii_bytes_has_one_quoted_command() {
 }
 
 #[test]
+fn unicode_text_uses_real_pm_path_and_fixed_adb_keyboard_argv() {
+    let mut fixture = Fixture::new("normal-unicode-input");
+    fixture.config["unicode_input"] = json!({
+        "package": "com.android.adbkeyboard",
+        "component": "com.android.adbkeyboard/.AdbIME",
+        "action": "ADB_INPUT_TEXT",
+        "extra": "msg"
+    });
+    fixture.save_config();
+    let reply = fixture.run(
+        "input",
+        support::input(json!({"kind":"text","text":"中文🙂","enter":true})),
+        &[
+            b"package:/data/app/~~fixed/com.android.adbkeyboard-abc/base.apk\n",
+            b"com.android.adbkeyboard/.AdbIME\n",
+            b"com.android.adbkeyboard/.AdbIME\n",
+            b"Broadcast completed: result=0\n",
+            b"",
+        ],
+    );
+    assert_eq!(
+        success(&reply),
+        &json!({
+            "device_id": SERIAL,
+            "action": "text",
+            "transport": "adb_keyboard_base64",
+            "bytes": 10,
+            "dispatched": true
+        })
+    );
+    assert_eq!(
+        fixture.argv(1),
+        argv(&[
+            "-s",
+            SERIAL,
+            "shell",
+            "-T",
+            "pm",
+            "path",
+            "com.android.adbkeyboard"
+        ])
+    );
+    assert_eq!(
+        fixture.argv(2),
+        argv(&["-s", SERIAL, "shell", "-T", "ime", "list", "-s"])
+    );
+    assert_eq!(
+        fixture.argv(3),
+        argv(&[
+            "-s",
+            SERIAL,
+            "shell",
+            "-T",
+            "settings",
+            "get",
+            "secure",
+            "default_input_method"
+        ])
+    );
+    assert_eq!(
+        fixture.argv(4),
+        argv(&[
+            "-s",
+            SERIAL,
+            "shell",
+            "-T",
+            "am",
+            "broadcast",
+            "-a",
+            "ADB_INPUT_TEXT",
+            "--es",
+            "msg",
+            "5Lit5paH8J+Zgg=="
+        ])
+    );
+    assert_eq!(
+        fixture.argv(5),
+        argv(&["-s", SERIAL, "shell", "-T", "input", "keyevent", "66"])
+    );
+}
+
+#[test]
 fn public_metadata_is_api3_protocol4_with_twelve_short_names_and_eleven_capabilities() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
     let bytes = fs::read(root.join("manifest.json")).unwrap();

@@ -11,6 +11,7 @@ import { createServer } from '../frontend/node_modules/vite/dist/node/index.js';
 import { serverFixture } from '../backend/scripts/online-plugins/fixtures.mjs';
 import { browserRuntimeFixture, browserArtifactsHarness, deviceObservationKey, deviceProviderFixture } from './browser-plugin-fixture.mjs';
 import { runBrowser } from './browser-driver.mjs';
+import { mountBuiltBrowserAssets } from './browser-built-assets.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 assert.ok(process.argv.slice(2).every(value => value === '--release'), '仅支持 --release');
@@ -83,6 +84,8 @@ try {
   const harnessModule = await readFile(resolve(root, 'frontend/dist/assets/browser-plugin-harness.js'));
   report.harness_sha256 = createHash('sha256').update(harnessModule).digest('hex');
   report.harness_bytes = harnessModule.length;
+  const builtAssets = await mountBuiltBrowserAssets(vite, resolve(root, 'frontend/dist/assets'));
+  report.built_assets = builtAssets.inputs;
   vite.middlewares.use('/__harness__', (_request, response) => {
     response.setHeader('content-type', 'text/javascript; charset=utf-8'); response.end(harnessModule);
   });
@@ -115,7 +118,7 @@ try {
     const observationKey=Symbol.for('${deviceObservationKey}');
     globalThis[observationKey]=[];
     try {
-      const harness=await import('/__harness__');
+      const harness=await import('/assets/browser-plugin-harness.js');
       const result=await harness.verifyInstalledPlugin();
       const cancellation=await import('/__cancellation__');
       const cancelled=await cancellation.verifyCancellation();
@@ -129,6 +132,7 @@ try {
     (runtime) => { report.browser_runtime = runtime; });
   assert.equal(report.browser.passed, true);
   assert.equal(report.browser.artifacts.passed, true, report.browser.artifacts.error ?? report.browser.artifacts.cleanupError);
+  await builtAssets.verify();
   for (const [kind, id] of [['server', server.id], ['browser', browser.id]]) {
     assert.deepEqual(await call(base, `/api/v2/plugin-packages/${kind}`), []);
   }

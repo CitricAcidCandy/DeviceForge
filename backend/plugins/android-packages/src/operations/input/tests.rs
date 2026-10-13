@@ -143,3 +143,72 @@ fn exact_entry_rejects_traversal_and_has_utf8_byte_bound() {
         json!({"artifact_id":ID,"entry":format!("{}.apk", "中".repeat(166))})
     ));
 }
+
+#[test]
+fn advanced_spec_and_selection_fields_are_compatible_optional_and_strictly_typed() {
+    let mut value = spec();
+    value["device_features"] = json!(["android.hardware.camera"]);
+    value["gl_extensions"] = json!(["GL_KHR_texture_compression_astc_ldr"]);
+    value["codename"] = json!("REL");
+    value["device_tier"] = json!("3");
+    assert!(accepts(
+        "extract_splits",
+        json!({"artifact_id":ID,"device_spec":value,"modules":["base","feature_1"],"instant":true})
+    ));
+    assert!(accepts(
+        "extract_splits",
+        json!({"artifact_id":ID,"device_spec":spec(),"modules":null,"instant":false})
+    ));
+    for (field, invalid) in [
+        ("device_features", Value::Null),
+        ("gl_extensions", json!(["GL space"])),
+        ("device_tier", json!(3)),
+        ("codename", json!("")),
+        ("unknown", json!(true)),
+    ] {
+        let mut value = spec();
+        value[field] = invalid;
+        assert!(!accepts(
+            "extract_splits",
+            json!({"artifact_id":ID,"device_spec":value})
+        ));
+    }
+}
+
+#[test]
+fn modules_and_instant_reject_empty_duplicate_flags_and_wrong_types() {
+    for modules in [
+        json!([]),
+        json!(["ALL", "base"]),
+        json!(["base", "base"]),
+        json!(["--module"]),
+        json!(["a,b"]),
+        json!("base"),
+        json!(vec!["a"; 129]),
+    ] {
+        assert!(!accepts(
+            "extract_splits",
+            json!({"artifact_id":ID,"device_spec":spec(),"modules":modules})
+        ));
+    }
+    for instant in [Value::Null, json!(1), json!("true")] {
+        assert!(!accepts(
+            "extract_splits",
+            json!({"artifact_id":ID,"device_spec":spec(),"instant":instant})
+        ));
+    }
+}
+
+#[test]
+fn standard_spec_serialization_remains_exactly_four_fields() {
+    let Input::Splits(input) = Input::parse(
+        "extract_splits",
+        &json!({"artifact_id":ID,"device_spec":spec()}),
+    )
+    .unwrap() else {
+        panic!("提取类型不符");
+    };
+    assert_eq!(serde_json::to_value(input.device_spec).unwrap(), spec());
+    assert_eq!(input.modules, None);
+    assert!(!input.instant);
+}

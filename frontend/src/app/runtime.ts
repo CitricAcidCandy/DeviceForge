@@ -1,4 +1,4 @@
-import { browserPackageEntryUrl, createApiClient, uploadEndpoint } from '../shared/api/index.ts';
+import { browserPackageEntryUrl, createApiClient, createMcpTransport, uploadEndpoint } from '../shared/api/index.ts';
 import type { ClientOptions } from '../shared/api/index.ts';
 import { createOperations } from '../features/operations/index.ts';
 import { createTasks } from '../features/tasks/index.ts';
@@ -11,6 +11,17 @@ import { createPluginPackages } from '../features/plugin-packages/index.ts';
 import { createDevices } from '../features/devices/index.ts';
 import { createDeviceGateway } from './device-gateway.ts';
 import { createCatalogRefresh } from './catalog-refresh.ts';
+import { createDomThemeAdapter } from '../plugins/themes/dom.ts';
+import { createHttpAiSdkStreaming } from '../features/ai-sdk-streaming/index.ts';
+import { registerAiSdkStreamingService } from './ai-sdk-streaming-service.ts';
+import { createHttpAiSdk } from '../features/ai-sdk/index.ts';
+import { registerAiSdkService } from './ai-sdk-service.ts';
+import { createMcpClient } from '../features/mcp/index.ts';
+import { createHttpPerformance } from '../features/performance/index.ts';
+import { registerPerformanceService } from './performance-service.ts';
+import { createHttpMirroringStreaming } from '../features/mirroring-streaming/index.ts';
+import type { MirroringStreamSink } from '../features/mirroring-streaming/index.ts';
+import { registerMirroringStreamingService } from './mirroring-streaming-service.ts';
 
 export interface RuntimeOptions extends ClientOptions {
   readonly panelTarget: ManagerOptions['panelTarget'];
@@ -19,12 +30,19 @@ export interface RuntimeOptions extends ClientOptions {
   readonly esmImporter?: EsmImporter;
   readonly packageEntryResolver?: PackageEntryResolver;
   readonly slotAdapter?: ManagerOptions['slotAdapter'];
+  readonly themeTarget?: HTMLElement;
+  readonly mirroringSink?: MirroringStreamSink;
 }
 export function createFrontendRuntime(options: RuntimeOptions) {
   const lifetime = new AbortController();
   const client = createApiClient(options);
+  const mcp = createMcpClient(createMcpTransport(options));
+  const aiSdk = createHttpAiSdk(client);
+  const aiSdkStreaming = createHttpAiSdkStreaming(client);
+  const performance = createHttpPerformance(client);
+  const mirroringStreaming = createHttpMirroringStreaming(client, options.mirroringSink ? { sink: options.mirroringSink } : {});
   const operations = createOperations(client);
-  const extensions = createExtensionRegistry();
+  const extensions = createExtensionRegistry(options.themeTarget ? createDomThemeAdapter(options.themeTarget) : undefined);
   const tasks = createTasks(client, extensions.beforeTaskSubmit);
   const devices = createDevices(createDeviceGateway(client, lifetime.signal));
   const artifacts = {
@@ -32,7 +50,12 @@ export function createFrontendRuntime(options: RuntimeOptions) {
     download: (id: string, signal: AbortSignal) => client.downloadArtifact(id, AbortSignal.any([signal, lifetime.signal])),
   };
   const host = createHostContext(operations, tasks, lifetime, devices, artifacts, tasks);
-  const context = Object.freeze<HostContext>({ ...host.context, extensions: extensions.hostAccess(host.context) });
+  host.context.onDispose(registerAiSdkService(extensions, host.context, aiSdk));
+  host.context.onDispose(registerAiSdkStreamingService(extensions, host.context, aiSdkStreaming));
+  host.context.onDispose(registerPerformanceService(extensions, host.context, performance));
+  host.context.onDispose(registerMirroringStreamingService(extensions, host.context, mirroringStreaming));
+  const themes = extensions.themeAccess(host.context);
+  const context = Object.freeze<HostContext>({ ...host.context, extensions: extensions.hostAccess(host.context), themes });
   const serverPlugins = createServerPlugins(client, createCatalogRefresh(operations.refresh, devices, operations.invalidate));
   const webPlugins = createPluginManager({ host: context, panelTarget: options.panelTarget, extensionRegistry: extensions,
     ...(options.componentTarget ? { componentTarget: options.componentTarget } : {}),
@@ -67,6 +90,7 @@ export function createFrontendRuntime(options: RuntimeOptions) {
     serverPlugins,
     pluginPackages,
     webPlugins,
+    themes,
     extensions: {
       catalog: extensions.catalog,
       executeCommand: extensions.executeCommand,
@@ -77,12 +101,20 @@ export function createFrontendRuntime(options: RuntimeOptions) {
     },
     registerInstalledPackage: browserPackages.register,
     artifacts,
+    aiSdk,
+    aiSdkStreaming,
+    performance,
+    mirroringStreaming,
+    mcp,
     dispose(): Promise<void> {
       if (disposal) return disposal;
       lifetime.abort();
+      aiSdk.dispose();
+      aiSdkStreaming.dispose();
+      performance.dispose();
       operations.dispose(); tasks.dispose(); devices.dispose(); serverPlugins.dispose(); pluginPackages.dispose();
       disposal = (async () => {
-        const results = await Promise.allSettled([webPlugins.dispose(), host.dispose()]);
+        const results = await Promise.allSettled([webPlugins.dispose(), host.dispose(), mcp.dispose(), Promise.resolve().then(() => mirroringStreaming.dispose())]);
         extensions.dispose();
         browserPackages.clearSources();
         const failures = results.filter((result) => result.status === 'rejected');

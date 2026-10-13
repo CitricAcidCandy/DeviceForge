@@ -41,7 +41,7 @@ pub enum SessionCleanup {
 }
 
 /// 已验证的插件结果；artifacts 只能包含宿主已发布的产物元数据。
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct SessionOutcome {
     pub result: Option<Value>,
     pub error: Option<String>,

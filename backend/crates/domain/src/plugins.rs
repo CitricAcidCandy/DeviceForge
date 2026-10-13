@@ -35,6 +35,8 @@ pub struct PluginInfo {
     pub generation: String,
     pub state: PluginState,
     pub operations: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub sessions: Vec<String>,
     pub protected: bool,
     pub cleanup_failed: bool,
 }

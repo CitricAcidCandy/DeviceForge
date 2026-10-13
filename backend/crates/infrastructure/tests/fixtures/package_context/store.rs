@@ -105,6 +105,9 @@ impl ArtifactStore for ObservedStore {
     async fn get(&self, id: &str) -> Result<Artifact> {
         self.inner.get(id).await
     }
+    async fn delete(&self, id: &str) -> Result<Artifact> {
+        self.inner.delete(id).await
+    }
 
     async fn download(&self, id: &str) -> Result<(Artifact, ArtifactStream)> {
         self.downloads.fetch_add(1, Ordering::SeqCst);

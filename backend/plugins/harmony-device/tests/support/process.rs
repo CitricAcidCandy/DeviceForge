@@ -13,13 +13,14 @@ mod native {
     unsafe extern "system" {
         fn OpenProcess(access: u32, inherit: i32, pid: u32) -> *mut c_void;
         fn WaitForSingleObject(handle: *mut c_void, milliseconds: u32) -> u32;
+        fn GetExitCodeProcess(handle: *mut c_void, code: *mut u32) -> i32;
         fn TerminateProcess(handle: *mut c_void, code: u32) -> i32;
         fn CloseHandle(handle: *mut c_void) -> i32;
     }
     pub struct Probe(*mut c_void);
     impl Probe {
         pub fn open(pid: u32) -> Self {
-            let handle = unsafe { OpenProcess(0x0010_0001, 0, pid) };
+            let handle = unsafe { OpenProcess(0x0010_1001, 0, pid) };
             assert!(!handle.is_null(), "ready后取得本次PID等待句柄");
             Self(handle)
         }
@@ -27,6 +28,12 @@ mod native {
             let result = unsafe { WaitForSingleObject(self.0, 0) };
             assert!(result == 0 || result == 258);
             result == 0
+        }
+        pub fn exit_code(&self) -> u32 {
+            assert!(self.exited());
+            let mut code = 0;
+            assert_ne!(unsafe { GetExitCodeProcess(self.0, &mut code) }, 0);
+            code
         }
     }
     impl Drop for Probe {
@@ -97,6 +104,20 @@ impl PidProbe {
             assert!(Instant::now() < deadline, "本次PID {}未退出", self.pid);
             thread::sleep(Duration::from_millis(5));
         }
+    }
+    #[cfg(windows)]
+    pub fn assert_exit_code(&self, expected: u32) {
+        self.assert_exited();
+        let actual = self.native.exit_code();
+        fs::write(
+            self.fallback.with_extension("os-exit.json"),
+            format!(
+                r#"{{"pid":{},"code":{actual},"test_kill":false}}"#,
+                self.pid
+            ),
+        )
+        .unwrap();
+        assert_eq!(actual, expected);
     }
 }
 impl Drop for PidProbe {

@@ -121,3 +121,39 @@ fn apks_java_and_jar_configuration_is_optional_but_has_a_fixed_shape() {
         assert!(invalid.validate().is_err());
     }
 }
+
+#[test]
+fn unicode_input_requires_the_fixed_adb_keyboard_target() {
+    let valid: Config = serde_json::from_value(serde_json::json!({
+        "format_version": 1,
+        "unicode_input": {
+            "package": "com.android.adbkeyboard",
+            "component": "com.android.adbkeyboard/.AdbIME",
+            "action": "ADB_INPUT_TEXT",
+            "extra": "msg"
+        }
+    }))
+    .unwrap();
+    assert!(valid.validate().is_ok());
+    for field in ["package", "component", "action", "extra"] {
+        let mut value = serde_json::json!({
+            "format_version": 1,
+            "unicode_input": {
+                "package": "com.android.adbkeyboard",
+                "component": "com.android.adbkeyboard/.AdbIME",
+                "action": "ADB_INPUT_TEXT",
+                "extra": "msg"
+            }
+        });
+        value["unicode_input"][field] = serde_json::Value::String("other".into());
+        let invalid: Config = serde_json::from_value(value).unwrap();
+        assert!(
+            invalid.validate().is_err(),
+            "未拒绝Unicode目标字段：{field}"
+        );
+    }
+    let unknown = serde_json::from_str::<Config>(
+        r#"{"format_version":1,"unicode_input":{"package":"com.android.adbkeyboard","component":"com.android.adbkeyboard/.AdbIME","action":"ADB_INPUT_TEXT","extra":"msg","args":[]}}"#,
+    );
+    assert!(unknown.is_err());
+}

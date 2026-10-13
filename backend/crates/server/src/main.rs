@@ -4,6 +4,7 @@ use apk_domain::Executor;
 use apk_domain::plugins::PluginContribution;
 use apk_infrastructure::{plugin_catalog::FilePluginCatalog, store::SqliteStore};
 use std::{path::PathBuf, sync::Arc};
+mod artifact_config;
 mod limits;
 mod operation_bindings;
 
@@ -30,9 +31,18 @@ async fn run(
     let bindings = operation_bindings::from_environment().await?;
     std::fs::create_dir_all(&data)?;
     let store = Arc::new(SqliteStore::open(data.join("jobs.db"))?);
+    let shutdown = tokio_util::sync::CancellationToken::new();
     let mut executors: Vec<Arc<dyn Executor>> = Vec::new();
-    let artifacts =
-        Arc::new(apk_infrastructure::artifacts::FileArtifacts::open(data.join("artifacts")).await?);
+    let artifact_config = artifact_config::from_environment()
+        .map_err(|error| std::io::Error::new(std::io::ErrorKind::InvalidInput, error))?;
+    let artifacts = Arc::new(
+        apk_infrastructure::artifacts::FileArtifacts::with_config(
+            data.join("artifacts"),
+            artifact_config,
+        )
+        .await?,
+    );
+    let artifact_worker = artifacts.spawn_retention_worker(shutdown.clone());
     let selected_performance = std::env::var("APK_PERFORMANCE_PLUGIN").ok();
     let plugin_directory = std::env::var_os("APK_PLUGIN_DIR")
         .map(PathBuf::from)
@@ -93,7 +103,6 @@ async fn run(
             .collect();
     }
     let mcp_shutdown = mcp_config.cancellation_token.clone();
-    let shutdown = tokio_util::sync::CancellationToken::new();
     let browser_directory = std::env::var_os("APK_BROWSER_PLUGIN_DIR")
         .map(PathBuf::from)
         .unwrap_or_else(|| data.join("browser-plugins"));
@@ -133,6 +142,9 @@ async fn run(
                 _ = shutdown.cancelled() => {},
             }
             mcp_shutdown.cancel();
+            if let Some(worker) = artifact_worker {
+                worker.shutdown().await;
+            }
             plugin_service.close();
             if let Err(error) = app.shutdown().await {
                 tracing::error!(code = error.code(), "任务停止失败");

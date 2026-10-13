@@ -1,5 +1,5 @@
 import { HostError } from '../../plugin-sdk/index.ts';
-import type { BeforeTaskSubmitHook, CommandContribution, ComponentContribution, Dispose, ExtensionAccess, ExtensionCatalog, HostContext, JsonValue, ModuleContribution, PluginContributions, ServiceContribution, TaskSubmission } from '../../plugin-sdk/index.ts';
+import type { BeforeTaskSubmitHook, CommandContribution, ComponentContribution, Dispose, ExtensionAccess, ExtensionCatalog, HostContext, JsonValue, ModuleContribution, PluginContributions, ServiceContribution, TaskSubmission, ThemeAccess } from '../../plugin-sdk/index.ts';
 import { validatePluginContributions } from '../contributions.ts';
 import { createExtensionBus } from './bus.ts';
 import { ensureOwner, invoke, isSubmission } from './invocation.ts';
@@ -7,13 +7,17 @@ import { contributionIds } from './types.ts';
 import type { ExtensionOwner, Owned } from './types.ts';
 import { createPluginScope } from '../scope.ts';
 import { awaitActive } from './await-active.ts';
+import { createThemeRegistry } from '../themes/registry.ts';
+import type { ThemeAdapter } from '../themes/types.ts';
+import { scopedThemeAccess } from '../theme-access.ts';
 
-export function createExtensionRegistry() {
+export function createExtensionRegistry(themeAdapter?: ThemeAdapter) {
   const components = new Map<string, Owned<ComponentContribution>>();
   const modules = new Map<string, Owned<ModuleContribution>>();
   const commands = new Map<string, Owned<CommandContribution>>();
   const services = new Map<string, Owned<ServiceContribution>>();
   const hooks = new Map<string, Owned<BeforeTaskSubmitHook>>();
+  const themes = createThemeRegistry(themeAdapter);
   const ids = new Set<string>();
   const routes = new Set<string>();
   const bus = createExtensionBus();
@@ -39,6 +43,7 @@ export function createExtensionRegistry() {
     if (new Set(newRoutes).size !== newRoutes.length || newRoutes.some((route) => routes.has(route))) throw new Error('模块路由冲突');
     const scope = createPluginScope(owner.context);
     const registeredOwner: ExtensionOwner = { ...owner, context: scope.context };
+    const releaseThemes = value.themes?.length ? themes.stage(registeredOwner, value.themes) : undefined;
     for (const id of additions) ids.add(id); for (const route of newRoutes) routes.add(route);
     for (const c of value.components ?? []) components.set(c.id, { owner: registeredOwner, contribution: c });
     for (const c of value.modules ?? []) modules.set(c.id, { owner: registeredOwner, contribution: c });
@@ -54,8 +59,11 @@ export function createExtensionRegistry() {
         ids.delete(id); components.delete(id); modules.delete(id); commands.delete(id); services.delete(id); hooks.delete(id);
       }
       for (const route of newRoutes) routes.delete(route);
+      releaseThemes?.();
     };
     owner.context.signal.addEventListener('abort', stop, { once: true });
+    if (owner.context.signal.aborted) stop();
+    else if (releaseThemes) themes.publish();
     return () => { stop(); return scope.dispose(); };
   }
   function executeCommand(id: string, input: JsonValue, signal: AbortSignal) {
@@ -84,7 +92,10 @@ export function createExtensionRegistry() {
   }
   function attach(pluginId: string, generation: number, base: HostContext, track: (dispose: Dispose) => Dispose): HostContext {
     const extensions = access(pluginId, generation, base.signal, track, (value) => register(owner, value));
-    const context = Object.freeze<HostContext>({ ...base, extensions });
+    const scopedThemes = scopedThemeAccess(themes.access, () => {
+      if (base.signal.aborted) throw new HostError('cancelled', 'plugin_unloaded', '主题上下文已撤销');
+    }, base.signal, track);
+    const context = Object.freeze<HostContext>({ ...base, extensions, ...(scopedThemes ? { themes: scopedThemes } : {}) });
     const owner: ExtensionOwner = { pluginId, generation, context };
     track(() => bus.clearOwner(pluginId));
     return context;
@@ -112,12 +123,21 @@ export function createExtensionRegistry() {
   return {
     catalog, register, attach, executeCommand, callService, beforeTaskSubmit,
     hostAccess: (context: HostContext) => access('host', 0, context.signal, context.onDispose),
+    themeAccess: (context: HostContext): ThemeAccess => Object.freeze<ThemeAccess>({
+      snapshot: () => { if (context.signal.aborted) throw new HostError('cancelled', 'themes_closed', '宿主主题入口已关闭'); return themes.access.snapshot(); },
+      select: (id) => { if (context.signal.aborted) throw new HostError('cancelled', 'themes_closed', '宿主主题入口已关闭'); themes.access.select(id); },
+      subscribe: (listener) => {
+        if (context.signal.aborted) throw new HostError('cancelled', 'themes_closed', '宿主主题入口已关闭');
+        return context.onDispose(themes.access.subscribe((snapshot) => { if (!context.signal.aborted) listener(snapshot); }));
+      },
+    }),
     component: (id: string) => { check(); return components.get(id); },
     module: (id: string) => { check(); return modules.get(id); },
     dispose() {
       closed = true;
       lifetime.abort();
       components.clear(); modules.clear(); commands.clear(); services.clear(); hooks.clear(); ids.clear(); routes.clear(); bus.clear();
+      themes.dispose();
     },
   };
 }

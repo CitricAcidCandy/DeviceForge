@@ -1,7 +1,7 @@
 //! AI 助手通过部署者配置的 CLI 执行，响应不得泄露凭据配置。
 #[tokio::main]
 async fn main() {
-    if deviceforge_plugin_runtime::serve_once_with_context(deviceforge_ai_assistant_plugin::execute)
+    if deviceforge_ai_assistant_plugin::entry::serve_io(tokio::io::stdin(), tokio::io::stdout())
         .await
         .is_err()
     {

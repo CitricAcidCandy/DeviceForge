@@ -3,12 +3,29 @@ use crate::{Contribution, session::SESSION_PROTOCOL_VERSION};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 
+/// 连续媒体只保留有限尾部；省略时维持原完整历史和累计限额。
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SessionOutputRetention {
+    #[default]
+    Complete,
+    BoundedTail,
+}
+
+impl SessionOutputRetention {
+    pub fn is_complete(&self) -> bool {
+        *self == Self::Complete
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SessionAccess {
     #[serde(deserialize_with = "version")]
     pub protocol_version: u32,
     pub operations: Vec<Contribution>,
+    #[serde(default, skip_serializing_if = "SessionOutputRetention::is_complete")]
+    pub output_retention: SessionOutputRetention,
 }
 
 impl SessionAccess {

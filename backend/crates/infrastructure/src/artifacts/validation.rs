@@ -1,5 +1,6 @@
 use apk_domain::artifacts::{ArchiveEntry, ArchivePage};
 use apk_domain::{Error, Result};
+use sha2::{Digest, Sha256};
 use std::{
     fs::File,
     io::{Read, Seek, SeekFrom},
@@ -9,6 +10,28 @@ use zip::ZipArchive;
 
 const MAX_ENTRIES: usize = 10_000;
 const MAX_EXPANDED: u64 = 2 * 1024 * 1024 * 1024;
+const HASH_BUFFER_SIZE: usize = 64 * 1024;
+pub(crate) const DEX_LIMIT: u64 = 64 * 1024 * 1024;
+
+pub(crate) fn content_digest(path: &Path) -> Result<(u64, String)> {
+    let mut file = File::open(path).map_err(|error| Error::Storage(error.to_string()))?;
+    let mut digest = Sha256::new();
+    let mut size = 0u64;
+    let mut buffer = [0; HASH_BUFFER_SIZE];
+    loop {
+        let length = file
+            .read(&mut buffer)
+            .map_err(|error| Error::Storage(error.to_string()))?;
+        if length == 0 {
+            break;
+        }
+        size = size
+            .checked_add(length as u64)
+            .ok_or_else(|| Error::Invalid("产物大小溢出".into()))?;
+        digest.update(&buffer[..length]);
+    }
+    Ok((size, format!("{:x}", digest.finalize())))
+}
 pub(crate) fn archive(path: &Path) -> Result<ZipArchive<File>> {
     let mut file = File::open(path).map_err(|e| Error::Storage(e.to_string()))?;
     let declared = preflight(&mut file)?;
@@ -147,11 +170,20 @@ pub fn validate_png(path: &Path) -> Result<()> {
 /// 按文件类型执行同一内容门禁，上传和插件输出共同使用。
 pub fn validate_content(path: &Path, media_type: &str) -> apk_domain::Result<()> {
     use apk_domain::Error;
+    if super::stream_content::limit(media_type).is_some() {
+        return super::stream_content::validate(path, media_type);
+    }
     if media_type == "image/png" {
         return validate_png(path);
     }
+    if media_type == "image/jpeg" {
+        return validate_jpeg(path);
+    }
     if media_type == "application/zip" {
         return validate_archive(path);
+    }
+    if media_type == "application/vnd.android.dex" {
+        return validate_dex(path);
     }
     if !matches!(media_type, "application/json" | "application/msgpack") {
         return Err(Error::Invalid("未知产物媒体类型".into()));
@@ -171,4 +203,57 @@ pub fn validate_content(path: &Path, media_type: &str) -> apk_domain::Result<()>
         deviceforge_data_codec::Error::Limit => Error::TooLarge,
         _ => Error::Invalid(error.to_string()),
     })
+}
+
+fn validate_jpeg(path: &Path) -> Result<()> {
+    let mut file = File::open(path).map_err(|error| Error::Storage(error.to_string()))?;
+    let mut validator = deviceforge_data_codec::jpeg::Validator::new();
+    let mut buffer = [0; 64 * 1024];
+    loop {
+        let length = file
+            .read(&mut buffer)
+            .map_err(|error| Error::Storage(error.to_string()))?;
+        if length == 0 {
+            break;
+        }
+        validator.push(&buffer[..length]).map_err(jpeg_error)?;
+    }
+    validator.finish().map(|_| ()).map_err(jpeg_error)
+}
+
+fn jpeg_error(error: deviceforge_data_codec::jpeg::Error) -> Error {
+    match error {
+        deviceforge_data_codec::jpeg::Error::Limit => Error::TooLarge,
+        _ => Error::Invalid(error.to_string()),
+    }
+}
+
+fn validate_dex(path: &Path) -> Result<()> {
+    let mut file = File::open(path).map_err(|error| Error::Storage(error.to_string()))?;
+    let size = file
+        .metadata()
+        .map_err(|error| Error::Storage(error.to_string()))?
+        .len();
+    if size > DEX_LIMIT {
+        return Err(Error::TooLarge);
+    }
+    let mut header = [0; 44];
+    if size < 112 {
+        return Err(Error::Invalid("DEX 头部不完整".into()));
+    }
+    file.read_exact(&mut header)
+        .map_err(|error| match error.kind() {
+            std::io::ErrorKind::UnexpectedEof => Error::Invalid("DEX 头部不完整".into()),
+            _ => Error::Storage(error.to_string()),
+        })?;
+    if !matches!(
+        &header[..8],
+        b"dex\n035\0" | b"dex\n037\0" | b"dex\n038\0" | b"dex\n039\0" | b"dex\n040\0"
+    ) || u64::from(u32::from_le_bytes(header[32..36].try_into().unwrap())) != size
+        || u32::from_le_bytes(header[36..40].try_into().unwrap()) != 112
+        || u32::from_le_bytes(header[40..44].try_into().unwrap()) != 0x1234_5678
+    {
+        return Err(Error::Invalid("DEX 标识、长度、头部或字节序无效".into()));
+    }
+    Ok(())
 }

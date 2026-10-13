@@ -24,6 +24,15 @@ pub(super) struct Call {
     pub channels: Channels,
 }
 
+impl Call {
+    fn continuous_output(&self) -> bool {
+        self.manifest.sessions.as_ref().is_some_and(|access| {
+            access.output_retention
+                == apk_plugin_sdk::session_access::SessionOutputRetention::BoundedTail
+        })
+    }
+}
+
 struct Guard {
     unresolved: Arc<AtomicBool>,
     channels: ChannelsNotice,
@@ -111,7 +120,11 @@ async fn execute(call: &mut Call, guard: &mut Guard) -> SessionExit {
     }
     let mut execution = ExecutionOptions::new(deadline + transport::CLEANUP + transport::EXIT);
     // JSON 数组有编码膨胀，业务字节/事件上限另在 pump 中精确执行。
-    execution.stdout_limit = 128 * 1024 * 1024;
+    execution.stdout_limit = if call.continuous_output() {
+        u64::MAX
+    } else {
+        128 * 1024 * 1024
+    };
     execution.stderr_limit = 1024 * 1024;
     let mut options = StreamOptions::new(execution);
     options.chunk_size = 65536;

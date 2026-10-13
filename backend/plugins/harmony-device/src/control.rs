@@ -1,4 +1,7 @@
+mod cleanup;
+mod file;
 mod resources;
+mod worker;
 
 use crate::{Error, Result};
 use apk_plugin_sdk::cooperative::CleanupOutcome;
@@ -6,6 +9,8 @@ use deviceforge_plugin_runtime::{Execution, InvocationContext, Output};
 use deviceforge_tool_process::{
     Environment, ExecutionOptions, Output as ToolOutput, ToolCommand, capture_with_lease,
 };
+pub(crate) use file::ResourceGuard;
+pub(crate) use resources::{AuthorizedOutput, Remote, RemotePhase};
 pub(crate) use resources::{Lease, Waiting};
 use std::sync::{
     Arc,
@@ -77,22 +82,42 @@ impl Control {
     }
 
     pub(crate) fn finish(&self, result: Result<serde_json::Value>) -> Execution {
+        self.finish_output(
+            self.context
+                .check()
+                .map_err(Error::from)
+                .and(result)
+                .map(Output::from),
+        )
+    }
+
+    pub(crate) fn finish_output(&self, result: Result<Output>) -> Execution {
         if matches!(result, Err(Error::CleanupFailed))
             || self.unresolved.load(Ordering::Acquire)
             || Arc::strong_count(&self.lease) != 1
+            || !self.lease.resources_clear().unwrap_or(false)
         {
             return Execution {
                 outcome: Err(Error::CleanupFailed.to_string()),
                 cleanup: CleanupOutcome::Failed,
             };
         }
-        Execution::complete(
-            self.context
-                .check()
-                .map_err(Error::from)
-                .and(result)
-                .map(Output::from)
-                .map_err(|error| error.to_string()),
-        )
+        let Ok(mut authorized) = self.lease.output.lock() else {
+            return Execution {
+                outcome: Err(Error::CleanupFailed.to_string()),
+                cleanup: CleanupOutcome::Failed,
+            };
+        };
+        if let Some(output) = authorized.as_mut() {
+            if result.is_ok() && output.created && output.closed {
+                output.handed_off = true;
+            } else if output.created {
+                return Execution {
+                    outcome: Err(Error::CleanupFailed.to_string()),
+                    cleanup: CleanupOutcome::Failed,
+                };
+            }
+        }
+        Execution::complete(result.map_err(|error| error.to_string()))
     }
 }

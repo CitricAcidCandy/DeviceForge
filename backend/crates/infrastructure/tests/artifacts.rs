@@ -69,6 +69,29 @@ async fn streaming_roundtrip_metadata_preview_and_reopen() {
     let reopened = FileArtifacts::open(dir.path()).await.unwrap();
     assert_eq!(reopened.get(&item.id).await.unwrap().sha256, item.sha256);
 }
+
+#[tokio::test]
+async fn delete_returns_metadata_and_protects_active_readers() {
+    let dir = tempfile::tempdir().unwrap();
+    let store = FileArtifacts::open(dir.path()).await.unwrap();
+    let item = store
+        .put("删除测试.json".into(), input(br#"{"ok":true}"#.to_vec()))
+        .await
+        .unwrap();
+    let (_metadata, stream) = store.download(&item.id).await.unwrap();
+    assert!(matches!(
+        store.delete(&item.id).await,
+        Err(Error::Conflict(message)) if message == "产物正在被读取或预览"
+    ));
+    drop(stream);
+    let deleted = store.delete(&item.id).await.unwrap();
+    assert_eq!(deleted.id, item.id);
+    assert!(matches!(store.get(&item.id).await, Err(Error::NotFound(_))));
+    assert!(matches!(
+        store.delete("00000000-0000-0000-0000-000000000000").await,
+        Err(Error::NotFound(_))
+    ));
+}
 #[tokio::test]
 async fn rejected_inputs_and_traversal_never_publish() {
     let dir = tempfile::tempdir().unwrap();

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFile, rename, writeFile } from 'node:fs/promises';
+import { lstat, mkdir, readFile, rename, rmdir, unlink, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { hash, object, value, type Host, type JsonObject } from './six-business-support.ts';
 import { identities, type Reporter } from './ordinary-business-report.ts';
@@ -288,4 +288,110 @@ export async function toolCacheCases(host: Host, source: ToolCacheSource, audit:
     await check.traffic(callableStart, [], 'http'); await check.evidence('post_expiry_callable', callable);
   });
   return { digestB, snapshotB: frozenB, jobs: ledger.jobs, inputs: await identities(root, [installRoot], []) };
+}
+
+export async function toolCacheFaultCases(host: Host, source: ToolCacheSource, audit: Reporter,
+  ledger: CacheLedger, root: string, installRoot: string, seed: CacheSeed,
+  holdFile: (root: string, path: string) => Promise<{ evidence: JsonObject; release: () => Promise<JsonObject> }>) {
+  const check = helpers(host, source, audit, ledger, seed.viaMcp, installRoot);
+  const sourceUrl = source.base + '/catalog';
+  const sourceIdentity = hash(new URL(sourceUrl).href);
+  const cacheDirectory = join(installRoot, '.manifest-cache');
+  await audit.check(`缓存 ${check.transport}：非目录缓存硬失败且原件稳定`, async () => {
+    const saved = ownedPath(root, join(root, 'cache-originals', `${check.transport}-cache-directory`));
+    await rename(cacheDirectory, saved);
+    const obstacle = ownedPath(root, cacheDirectory);
+    await writeFile(obstacle, Buffer.from('synthetic-cache-directory-obstacle', 'utf8'));
+    const original = await readFile(obstacle);
+    try {
+      source.mode('http');
+      const start = source.calls.length;
+      const failed = await check.run('catalog', {}, 'failed');
+      await check.evidence('cache_io_directory_obstacle', failed, {
+        failure_class: 'cache_object_invalid', obstacle: '.manifest-cache-is-regular-file', obstacle_sha256: hash(original),
+      });
+      await check.traffic(start, [], 'http');
+      assert.ok(typeof failed.error === 'string' && String(failed.error).includes('清单缓存'));
+      assert.deepEqual(await readFile(obstacle), original);
+      await absent(join(installRoot, `${sourceIdentity}.json`));
+    } finally { await unlink(obstacle); await rename(saved, cacheDirectory); }
+  });
+  await audit.check(`缓存 ${check.transport}：快照打开IO失败不降级、释放后恢复`, async () => {
+    const snapshot = ownedPath(root, join(cacheDirectory, `${sourceIdentity}.json`));
+    const original = await readFile(snapshot); const holder = await holdFile(root, snapshot);
+    let released = false;
+    try {
+      source.mode('http'); const start = source.calls.length;
+      const failed = await check.run('catalog', {}, 'failed');
+      assert.equal(failed.error, '依赖执行失败：工具供应文件操作失败：打开配置或清单失败');
+      await check.evidence('cache_snapshot_open_io_failure', failed, {
+        failure_class: 'cache_io', snapshot_sha256: hash(original), holder: holder.evidence,
+      });
+      await check.traffic(start, [], 'http');
+      const releaseEvidence = await holder.release(); released = true;
+      ledger.cases.push({ case: 'cache_io_holder_released', transport: check.transport, ...releaseEvidence });
+      assert.deepEqual(await readFile(snapshot), original);
+      const recoveryStart = source.calls.length;
+      const recovered = await check.run('catalog', {}); check.meta(value(recovered), 'cache', seed.version);
+      await check.evidence('cache_io_after_release', recovered, { original_snapshot_unchanged: true });
+      await check.traffic(recoveryStart, [], 'http');
+    } finally {
+      if (!released) ledger.cases.push({ case: 'cache_io_holder_released_after_failure', transport: check.transport, ...await holder.release() });
+    }
+  });
+  await audit.check(`缓存 ${check.transport}：pending遗留报告清理失败并保留现场`, async () => {
+    await mkdir(cacheDirectory, { recursive: true });
+    const pending = ownedPath(root, join(cacheDirectory, `${sourceIdentity}.pending`));
+    await mkdir(pending);
+    try {
+      source.mode('live');
+      const start = source.calls.length;
+      const failed = await check.run('catalog', {}, 'failed');
+      await check.evidence('cache_pending_cleanup_failure', failed, {
+        failure_class: 'cache_cleanup', pending: '.manifest-cache/<source>.pending', pending_preexisting: true,
+      });
+      await check.traffic(start, [], 'live');
+      assert.equal(failed.error, '插件资源清理未确认，请检查外部资源后再恢复');
+      const pendingInfo = await lstat(pending); assert.ok(pendingInfo.isDirectory() && !pendingInfo.isSymbolicLink());
+      assert.ok((await lstat(join(cacheDirectory, `${sourceIdentity}.json`))).isFile());
+    } finally { await rmdir(pending); }
+  });
+  source.mode('http');
+}
+
+export async function toolCacheBusyCase(host: Host, source: ToolCacheSource, audit: Reporter,
+  ledger: CacheLedger, root: string, installRoot: string, seed: CacheSeed, expectedDigest: string, configPath: string,
+  hold: (configPath: string, reportPath: string) => Promise<{
+    evidence: JsonObject; release: () => Promise<JsonObject>;
+  }>) {
+  const check = helpers(host, source, audit, ledger, seed.viaMcp, installRoot);
+  const reportPath = ownedPath(root, join(root, 'cache-lock-holder', `${check.transport}.json`));
+  const holder = await hold(configPath, reportPath);
+  let released = false;
+  try {
+    source.mode('live');
+    const start = source.calls.length;
+    const failed = await check.run('catalog', {}, 'failed');
+    await check.evidence('cache_busy_lock_held', failed, { failure_class: 'cache_busy', holder: holder.evidence });
+    await check.traffic(start, [], 'live');
+    assert.ok(typeof failed.error === 'string' && String(failed.error).includes('缓存正在'));
+    const releaseEvidence = await holder.release(); released = true;
+    ledger.cases.push({ case: 'cache_busy_holder_released', transport: check.transport, ...releaseEvidence });
+    source.mode('http');
+    const recoveryStart = source.calls.length;
+    const recovered = await check.run('catalog', {});
+    const result = value(recovered);
+    check.meta(result, 'cache', seed.version, expectedDigest);
+    await check.evidence('cache_busy_after_release', recovered, { failure_class: 'cache_busy', released: true });
+    await check.traffic(recoveryStart, [], 'http');
+    ledger.cases.push({ case: 'cache_busy_recovered', transport: check.transport,
+      failed_job_id: failed.id, recovered_job_id: recovered.id, holder: holder.evidence });
+    await audit.flush();
+  } finally {
+    if (!released) {
+      const releaseEvidence = await holder.release();
+      ledger.cases.push({ case: 'cache_busy_holder_released_after_failure', transport: check.transport, ...releaseEvidence });
+      await audit.flush();
+    }
+  }
 }

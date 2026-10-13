@@ -29,6 +29,7 @@ fn defaults_and_option_boundaries_keep_finite_queues_and_transport_budgets() {
         channel_capacity: 64,
         input_limit: 64 * 1024 * 1024,
         output_limit: 64 * 1024 * 1024,
+        continuous_output: false,
         handshake_timeout: Duration::from_secs(30),
         transport_grace: Duration::from_secs(5),
     };
@@ -99,6 +100,7 @@ async fn output_chunk_and_shared_total_limits_cancel_even_if_handler_ignores_err
     for oversized_chunk in [false, true] {
         let options = SessionOptions {
             output_limit: 3,
+            continuous_output: oversized_chunk,
             ..SessionOptions::default()
         };
         let (reported, error) = oneshot::channel();
@@ -160,6 +162,31 @@ async fn exact_combined_output_limit_succeeds_across_clones_and_streams() {
     assert_eq!(events[0]["bytes"], json!([0, 255]));
     assert_eq!(events[1]["bytes"], json!([254]));
     assert_eq!(events[2]["outcome"]["result"], json!({"exact":3}));
+}
+
+#[tokio::test(start_paused = true)]
+async fn continuous_output_keeps_order_and_chunk_limits_beyond_cumulative_budget() {
+    let options = SessionOptions {
+        output_limit: 1,
+        continuous_output: true,
+        ..SessionOptions::default()
+    };
+    let mut session = Session::launch(options, 128 * 1024, |_, _, _, output| async move {
+        output.send(SessionStream::Stdout, &[0, 255]).await.unwrap();
+        output
+            .clone()
+            .send(SessionStream::Stderr, &[254, 1])
+            .await
+            .unwrap();
+        Execution::complete(Ok(json!({"continuous":true}).into()))
+    });
+    session.begin().await;
+    let events = session.terminal().await;
+    support::assert_order(&events, 1);
+    assert_eq!(events.len(), 3);
+    assert_eq!(events[0]["bytes"], json!([0, 255]));
+    assert_eq!(events[1]["bytes"], json!([254, 1]));
+    assert_eq!(events[2]["outcome"]["result"], json!({"continuous":true}));
 }
 
 #[tokio::test(start_paused = true)]

@@ -20,7 +20,7 @@ pub enum InputError {
     InputTooLarge { limit: u64 },
 }
 
-pub(super) enum Message {
+pub(crate) enum Message {
     Bytes(Vec<u8>),
     Eof,
 }
@@ -42,7 +42,7 @@ pub struct StreamingInput {
     input_limit: u64,
 }
 
-pub(super) fn channel(
+pub(crate) fn channel(
     options: StreamOptions,
     cancel: CancellationToken,
 ) -> (StreamingInput, mpsc::Receiver<Message>) {
@@ -72,11 +72,11 @@ impl StreamingInput {
         self.admit(None).await
     }
 
-    pub(super) fn revoked(&self) -> CancellationToken {
+    pub(crate) fn revoked(&self) -> CancellationToken {
         self.revoked.clone()
     }
 
-    pub(super) fn revoke(&self) {
+    pub(crate) fn revoke(&self) {
         self.revoked.cancel();
     }
 
@@ -135,7 +135,7 @@ impl StreamingInput {
     }
 }
 
-pub(super) async fn write(
+pub(crate) async fn write(
     mut stdin: ChildStdin,
     mut receiver: mpsc::Receiver<Message>,
     revoked: CancellationToken,

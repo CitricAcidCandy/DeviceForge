@@ -1,6 +1,23 @@
 import { ApiError } from '../../shared/api/index.ts';
 import { jsonObject, naturalNumber, onlyKeys } from '../../shared/jobs/index.ts';
 
+export function frozenAutomationCopy<T>(value: T): T {
+  const copied: T = structuredClone(value);
+  function freeze(item: unknown): void {
+    if (item !== null && typeof item === 'object') { for (const child of Object.values(item)) freeze(child); Object.freeze(item); }
+  }
+  freeze(copied); return copied;
+}
+export function validAutomationUnicode(value: string): boolean {
+  for (let index = 0; index < value.length; index++) {
+    const code = value.charCodeAt(index);
+    if (code >= 0xd800 && code <= 0xdbff) {
+      const next = value.charCodeAt(++index);
+      if (!(next >= 0xdc00 && next <= 0xdfff)) return false;
+    } else if (code >= 0xdc00 && code <= 0xdfff) return false;
+  }
+  return true;
+}
 export const automationDevice = (value: unknown): value is string => typeof value === 'string' && value.length <= 200 && /^[A-Za-z0-9._:][A-Za-z0-9._:-]*$/.test(value);
 const coordinate = (value: unknown): value is number => naturalNumber(value) && value <= 65535;
 function action(value: unknown): boolean {

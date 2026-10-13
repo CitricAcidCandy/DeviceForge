@@ -1,5 +1,6 @@
 import { readdir } from 'node:fs/promises';
 import { readJson, regularFile } from '../cli/src/paths.mjs';
+import { loadNativePluginAssets } from './native-plugin-assets.mjs';
 
 // 正式清单优先；只在文件不存在时兼容旧示例，损坏的正式清单不能被掩盖。
 export async function loadNativePluginSource(directory) {
@@ -18,5 +19,6 @@ export async function loadNativePluginSource(directory) {
     await readJson(source);
     configurationTemplates.push({ name, source });
   }
-  return { manifest, configurationTemplates };
+  const assets = await loadNativePluginAssets(directory);
+  return { manifest, configurationTemplates, assets };
 }

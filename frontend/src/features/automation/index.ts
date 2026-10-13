@@ -1,43 +1,57 @@
-import { ApiError } from '../../shared/api/index.ts';
-import { createJobRunner, requireJson } from '../../shared/jobs/index.ts';
-import type { ArtifactReader, JobGateway, JobOptions, JobTicket } from '../../shared/jobs/index.ts';
+import { ApiError, operationsEndpoint } from '../../shared/api/index.ts';
+import type { ApiClient } from '../../shared/api/index.ts';
+import { createHttpJobGateway, createJobRunner, requireJson } from '../../shared/jobs/index.ts';
+import type { ArtifactReader, JobGateway, JobTicket } from '../../shared/jobs/index.ts';
 import { createDesktopAutomation } from './desktop.ts';
-import { requireRepeat, requireSequence } from './rules.ts';
+import { frozenAutomationCopy, requireRepeat, requireSequence } from './rules.ts';
 import { decodeAutomationResult } from './results.ts';
-import type { AutomationSequence, RepeatedClick } from './types.ts';
+import type { AutomationOptions, AutomationSequence, RepeatedClick } from './types.ts';
+import { automationOperation, createAutomationCatalog, isAutomationOperation } from './catalog.ts';
 
 export type * from './types.ts';
 export type * from './desktop-types.ts';
 export { convertLegacyMouse } from './legacy-mouse.ts';
 export type { LegacyMouseOptions } from './legacy-mouse.ts';
-export function createAutomation(gateway: JobGateway, options: JobOptions = {}, artifacts?: ArtifactReader) {
-  const jobs = createJobRunner(gateway, options);
-  const desktop = createDesktopAutomation(gateway, artifacts, options);
+export function createAutomation(gateway: JobGateway, options: AutomationOptions = {}, artifacts?: ArtifactReader) {
+  const jobs = createJobRunner(gateway, options); const lifetime = new AbortController();
+  const current = (signal: AbortSignal) => AbortSignal.any([signal, lifetime.signal]);
+  const catalog = createAutomationCatalog(options.operations);
+  const desktop = createDesktopAutomation(gateway, artifacts, options, catalog.requireOperation);
   function ticket(action: 'sequence.run' | 'click.repeat', value: JobTicket): void {
-    if (value.operation !== `plugin.automation.${action}`) throw new ApiError('protocol', 'invalid_automation_ticket', '恢复任务与自动化操作不匹配');
+    if (value.operation !== automationOperation(action)) throw new ApiError('protocol', 'invalid_automation_ticket', '恢复任务与自动化操作不匹配');
   }
   return {
     ...desktop,
+    refreshOperations: catalog.refresh,
+    snapshot: catalog.snapshot,
     runSequence(input: AutomationSequence, signal: AbortSignal) {
-      requireSequence(input); const deviceId = input.device_id; const count = input.steps.length;
-      return jobs.execute('plugin.automation.sequence.run', requireJson(input), signal, (value, logId) => decodeAutomationResult(value, logId, deviceId, count));
+      requireSequence(input); const expected = frozenAutomationCopy(input);
+      return jobs.execute(catalog.requireOperation('sequence.run'), requireJson(expected), current(signal), (value, logId) => decodeAutomationResult(value, logId, expected.device_id, expected.steps.length));
     },
     repeatClick(input: RepeatedClick, signal: AbortSignal) {
-      requireRepeat(input); const deviceId = input.device_id; const count = input.count;
-      return jobs.execute('plugin.automation.click.repeat', requireJson(input), signal, (value, logId) => decodeAutomationResult(value, logId, deviceId, count));
+      requireRepeat(input); const expected = frozenAutomationCopy(input);
+      return jobs.execute(catalog.requireOperation('click.repeat'), requireJson(expected), current(signal), (value, logId) => decodeAutomationResult(value, logId, expected.device_id, expected.count));
     },
     resumeSequence(value: JobTicket, input: AutomationSequence, signal: AbortSignal) {
-      ticket('sequence.run', value); requireSequence(input); const deviceId = input.device_id; const count = input.steps.length;
-      return jobs.resume(value, signal, (raw, logId) => decodeAutomationResult(raw, logId, deviceId, count));
+      ticket('sequence.run', value); requireSequence(input); const expected = frozenAutomationCopy(input);
+      return jobs.resume(value, current(signal), (raw, logId) => decodeAutomationResult(raw, logId, expected.device_id, expected.steps.length));
     },
     resumeRepeat(value: JobTicket, input: RepeatedClick, signal: AbortSignal) {
-      ticket('click.repeat', value); requireRepeat(input); const deviceId = input.device_id; const count = input.count;
-      return jobs.resume(value, signal, (raw, logId) => decodeAutomationResult(raw, logId, deviceId, count));
+      ticket('click.repeat', value); requireRepeat(input); const expected = frozenAutomationCopy(input);
+      return jobs.resume(value, current(signal), (raw, logId) => decodeAutomationResult(raw, logId, expected.device_id, expected.count));
+    },
+    queryJob(value: JobTicket, signal: AbortSignal) {
+      if (!isAutomationOperation(value.operation)) throw new ApiError('protocol', 'invalid_automation_ticket', '任务不属于自动化模块');
+      return jobs.query(value, current(signal));
     },
     cancel(value: JobTicket, signal: AbortSignal) {
-      if (!['plugin.automation.sequence.run', 'plugin.automation.click.repeat'].includes(value.operation)) return desktop.cancelDesktop(value, signal);
-      return jobs.cancel(value, signal);
+      if (!isAutomationOperation(value.operation)) throw new ApiError('protocol', 'invalid_automation_ticket', '任务不属于自动化模块');
+      return jobs.cancel(value, current(signal));
     },
-    dispose() { jobs.dispose(); desktop.dispose(); },
+    dispose() { lifetime.abort(); catalog.dispose(); jobs.dispose(); desktop.dispose(); },
   };
+}
+export function createHttpAutomation(client: ApiClient, options: Omit<AutomationOptions, 'operations'> = {}) {
+  return createAutomation(createHttpJobGateway(client), { ...options, operations: { list: (signal) => client.call(operationsEndpoint, undefined, signal) } },
+    { download: (id, signal) => client.downloadArtifact(id, signal) });
 }

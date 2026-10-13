@@ -1,4 +1,7 @@
-use crate::support::{Fixture, expected_device, failure, success};
+use crate::{
+    input::{discovered, qualified_discovery, unfinished_discovery},
+    support::{Fixture, failure, success},
+};
 use serde_json::{Value, json};
 
 fn discover(bytes: &[u8]) -> Value {
@@ -9,10 +12,16 @@ fn discover(bytes: &[u8]) -> Value {
 }
 
 #[test]
-fn discovery_trimmed_ids_keep_order_and_all_three_online_capabilities() {
+fn discovery_trimmed_ids_keep_order_and_eight_existing_plus_qualified_input_capabilities() {
     assert_eq!(
-        success(&discover(b" HDC001 \r\n\n[Empty]\n127.0.0.1:5555\n")),
-        &json!([expected_device("HDC001"), expected_device("127.0.0.1:5555")])
+        success(&qualified_discovery(
+            b" HDC001 \r\n\n[Empty]\n127.0.0.1:5555\n",
+            &["HDC001", "127.0.0.1:5555"]
+        )),
+        &json!([
+            discovered("HDC001", true, None),
+            discovered("127.0.0.1:5555", true, None)
+        ])
     );
 }
 
@@ -57,15 +66,18 @@ fn control_character_in_second_line_rejects_first_valid_entry_too() {
 #[test]
 fn discovery_exact_128_count_and_200_byte_serial_boundaries_are_accepted() {
     let ids: Vec<String> = (0..128).map(|index| format!("HDC{index:03}")).collect();
-    let expected: Vec<Value> = ids.iter().map(|id| expected_device(id)).collect();
+    let expected: Vec<Value> = ids
+        .iter()
+        .map(|id| discovered(id, false, Some("本次发现未完成输入资格探测")))
+        .collect();
     assert_eq!(
-        success(&discover(ids.join("\n").as_bytes())),
+        success(&unfinished_discovery(ids.join("\n").as_bytes(), &ids[0])),
         &json!(expected)
     );
     let serial = "S".repeat(200);
     assert_eq!(
-        success(&discover(serial.as_bytes())),
-        &json!([expected_device(&serial)])
+        success(&qualified_discovery(serial.as_bytes(), &[&serial])),
+        &json!([discovered(&serial, true, None)])
     );
 }
 

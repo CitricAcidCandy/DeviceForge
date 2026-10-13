@@ -1,5 +1,6 @@
 import { ApiError } from '../../shared/api/index.ts';
 import { jsonObject, naturalNumber, onlyKeys } from '../../shared/jobs/index.ts';
+import { validAutomationUnicode } from './rules.ts';
 
 export const int32 = (value: unknown): value is number => typeof value === 'number' && Number.isInteger(value) && value >= -2147483648 && value <= 2147483647;
 const time = (value: unknown): value is number => naturalNumber(value) && value >= 100 && value <= 600000;
@@ -20,7 +21,8 @@ export function requireDesktopClick(value: unknown, repeat: boolean): void {
 export function requireInputTrace(value: unknown, playback: boolean): void {
   if (!jsonObject(value) || !onlyKeys(value, playback ? ['artifact_id', 'event_type'] : ['event_type', 'interval_ms', 'duration_ms']) || !event(value.event_type)) throw invalid();
   if (playback) {
-    if (typeof value.artifact_id !== 'string' || !value.artifact_id || new TextEncoder().encode(value.artifact_id).length > 200 || /\p{Cc}/u.test(value.artifact_id)) throw invalid();
+    if (typeof value.artifact_id !== 'string' || !value.artifact_id || !validAutomationUnicode(value.artifact_id)
+      || new TextEncoder().encode(value.artifact_id).length > 200 || /\p{Cc}/u.test(value.artifact_id)) throw invalid();
   } else if (!naturalNumber(value.interval_ms) || value.interval_ms < 2 || value.interval_ms > 1000 || !time(value.duration_ms)) throw invalid();
 }
 function invalid(): ApiError { return new ApiError('protocol', 'invalid_desktop_automation_input', 'Windows 鼠标或输入轨迹业务参数无效'); }

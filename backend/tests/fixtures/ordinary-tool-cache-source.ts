@@ -101,6 +101,11 @@ export async function toolCacheSource(root: string) {
         preserved_path: relative(root, manifestFile).replaceAll('\\', '/'),
         modules: modules.map((item) => ({ module_id: item.module_id, sha256: item.checksum })) });
     },
+    async localManifest(path: string) {
+      assert.equal(closed, false); assert.ok(!held || held.call.closed, '不能在来源响应未收口时复制本地清单');
+      await writeFile(path, bytes);
+      return { path, bytes: Buffer.from(bytes), sha256: hash(bytes) };
+    },
     mode(selected: CacheSourceMode) { assert.equal(closed, false); assert.ok(!held || held.call.closed); held = undefined; mode = selected; },
     archivesAvailable(available: boolean) { archiveAvailable = available; },
     async gate(after: number) {

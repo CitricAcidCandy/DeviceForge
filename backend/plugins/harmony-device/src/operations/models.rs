@@ -10,6 +10,13 @@ pub(super) struct Envelope {
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
+pub(super) struct ProviderEnvelope {
+    pub device_id: Value,
+    pub input: Value,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
 pub(super) struct Empty {}
 
 #[derive(Deserialize)]

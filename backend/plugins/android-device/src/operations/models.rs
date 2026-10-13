@@ -34,6 +34,14 @@ pub(super) struct Artifact {
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
+pub(super) struct ApksArtifact {
+    pub artifact_id: String,
+    #[serde(default)]
+    pub modules: Option<Vec<String>>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
 pub(super) struct InputAction {
     pub action: Action,
 }

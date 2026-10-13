@@ -6,6 +6,8 @@ pub struct SessionOptions {
     pub channel_capacity: usize,
     pub input_limit: u64,
     pub output_limit: u64,
+    /// 持续媒体保留有界队列、分片和原期限，不按总传输量停止。
+    pub continuous_output: bool,
     pub handshake_timeout: Duration,
     pub transport_grace: Duration,
 }
@@ -16,6 +18,7 @@ impl Default for SessionOptions {
             channel_capacity: 8,
             input_limit: 1024 * 1024,
             output_limit: 16 * 1024 * 1024,
+            continuous_output: false,
             handshake_timeout: Duration::from_secs(5),
             transport_grace: Duration::from_secs(2),
         }

@@ -30,6 +30,9 @@ impl ArtifactStore for DeniedArtifacts {
     async fn get(&self, _: &str) -> Result<Artifact> {
         self.denied()
     }
+    async fn delete(&self, _: &str) -> Result<Artifact> {
+        self.denied()
+    }
     async fn download(&self, _: &str) -> Result<(Artifact, ArtifactStream)> {
         self.denied()
     }

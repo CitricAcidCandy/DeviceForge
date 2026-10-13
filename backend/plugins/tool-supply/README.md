@@ -75,3 +75,12 @@
 测试源包括真实本地 HTTP/ZIP 安装、摘要错误、无效/越界 ZIP、扩容限额、入口缺失、HTTP 失败、版本计划、离线 catalog、在途移除拒绝、取消/到期清理、真实目录重命名失败回滚、遗留 backup 保留、runtime 包装目录，以及真实插件协议 4 进程与请求路径覆盖拒绝。
 
 编译和运行命令由工作区统一门禁执行：`cargo test -p deviceforge-tool-supply-plugin`。测试文件的存在不代表已经运行；外部发布源、真实工具使用和生产部署仍需要各自的动态证据。
+
+## 当前服务矩阵证据
+
+2026-10-13 使用当前源码分别重建 debug/release 宿主和本插件后，缓存服务矩阵各通过 49 项检查：
+
+- debug：`../../../artifacts/ordinary-tool-cache-debug-2026-10-13T00-34-14.788Z-dd91565a-17db-4475-b947-af34b456bc5b/report.json`
+- release：`../../../artifacts/ordinary-tool-cache-release-2026-10-13T00-39-41.111Z-0edfc37e-5958-4b3e-af7a-3f423f600baf/report.json`
+
+两种构建均覆盖 HTTP/MCP、`manifest_cache_enabled=false` 的查询降级和 `local_manifest` 不读取远端且不创建缓存目录；服务正常退出并释放端口，源码、插件与二进制输入前后保持稳定。报告还按 `cache.rs` 字段顺序、默认值和模块顺序独立重算 canonical `manifest_sha256`。该矩阵不覆盖缓存 IO/Busy/原子提交与清理失败、来源切换、裸并发、DNS/TLS/超限等完整服务场景；这些场景仍需独立动态验收。

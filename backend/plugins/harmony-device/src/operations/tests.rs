@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-fn four_short_contributions_require_strict_inputs() {
+fn eleven_short_contributions_require_strict_inputs() {
     assert!(matches!(
         parse("discover", &json!({})).unwrap(),
         Input::Discover
@@ -9,6 +9,10 @@ fn four_short_contributions_require_strict_inputs() {
     assert!(matches!(
         parse("packages", &json!({"device_id":"HDC001","input":{}})).unwrap(),
         Input::Packages { .. }
+    ));
+    assert!(matches!(
+        parse("screenshot", &json!({"device_id":"HDC001","input":{}})).unwrap(),
+        Input::Screenshot { .. }
     ));
     assert!(matches!(parse("app.install", &json!({"device_id":"HDC001","input":{"artifact_id":"d0da1b1b-919c-40a8-9c71-fbb56614e488"}})).unwrap(), Input::Install { .. }));
     assert!(matches!(
@@ -19,6 +23,59 @@ fn four_short_contributions_require_strict_inputs() {
         .unwrap(),
         Input::Uninstall { .. }
     ));
+    for operation in ["app.detail", "app.start", "app.stop", "app.reset"] {
+        assert!(matches!(
+            parse(
+                operation,
+                &json!({"device_id":"HDC001","input":{"bundle":"com.example.app"}})
+            )
+            .unwrap(),
+            Input::App(_)
+        ));
+    }
+    for operation in ["connect", "disconnect"] {
+        assert!(matches!(
+            parse(
+                operation,
+                &json!({"device_id":null,"input":{"address":"localhost:80"}})
+            )
+            .unwrap(),
+            Input::Network(_)
+        ));
+    }
+}
+
+#[test]
+fn provider_network_actions_require_explicit_null_without_device_qualification() {
+    for operation in ["connect", "disconnect"] {
+        for value in [
+            json!({"input":{"address":"localhost:80"}}),
+            json!({"device_id":null}),
+            json!({"device_id":"HDC001","input":{"address":"localhost:80"}}),
+            json!({"device_id":"","input":{"address":"localhost:80"}}),
+            json!({"device_id":0,"input":{"address":"localhost:80"}}),
+            json!({"device_id":false,"input":{"address":"localhost:80"}}),
+            json!({"device_id":{},"input":{"address":"localhost:80"}}),
+            json!({"device_id":[],"input":{"address":"localhost:80"}}),
+            json!({"device_id":null,"input":null}),
+            json!({"device_id":null,"input":{"address":"localhost:80"},"extra":true}),
+            json!({"device_id":null,"input":{"address":"localhost:80","extra":true}}),
+        ] {
+            assert!(parse(operation, &value).is_err());
+        }
+    }
+    for operation in [
+        "packages",
+        "screenshot",
+        "app.install",
+        "app.uninstall",
+        "app.detail",
+        "app.start",
+        "app.stop",
+        "app.reset",
+    ] {
+        assert!(parse(operation, &json!({"device_id":null,"input":{}})).is_err());
+    }
 }
 
 #[test]
@@ -32,13 +89,15 @@ fn missing_extra_and_wrong_fields_fail_before_configuration() {
         json!({"device_id":"-flag","input":{}}),
         json!([]),
     ] {
-        assert!(parse("packages", &value).is_err());
+        for operation in ["packages", "screenshot"] {
+            assert!(parse(operation, &value).is_err());
+        }
     }
     assert!(parse("discover", &json!({"device_id":"HDC001","input":{}})).is_err());
     for operation in [
         "plugin.harmony-device.packages",
         "harmony.packages",
-        "app.start",
+        "app.unknown",
     ] {
         assert!(parse(operation, &json!({})).is_err());
     }

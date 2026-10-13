@@ -68,7 +68,8 @@ impl InvocationFiles {
                 store,
                 id,
                 &[
-                    ".apk", ".apks", ".aab", ".hap", ".zip", ".png", ".json", ".msgpack",
+                    ".apk", ".apks", ".aab", ".hap", ".zip", ".png", ".json", ".msgpack", ".dex",
+                    ".bin", ".js",
                 ],
                 cancel.clone(),
                 deadline,

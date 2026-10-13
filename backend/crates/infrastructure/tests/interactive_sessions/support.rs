@@ -92,6 +92,21 @@ impl Fixture {
     pub fn marker(&self, name: &str) -> PathBuf {
         self.root().join(format!("{name}.json"))
     }
+    pub fn scoped_marker(&self, name: &str, session_id: &str) -> PathBuf {
+        self.root().join(format!(
+            "{name}.{}.json",
+            session_id
+                .chars()
+                .map(|character| {
+                    if character.is_ascii_alphanumeric() || matches!(character, '_' | '-') {
+                        character
+                    } else {
+                        '_'
+                    }
+                })
+                .collect::<String>()
+        ))
+    }
     pub async fn event(&self, name: &str) -> Value {
         observe(
             async {
@@ -107,6 +122,25 @@ impl Fixture {
                 }
             },
             name,
+        )
+        .await
+    }
+    pub async fn event_for(&self, name: &str, session_id: &str) -> Value {
+        let marker = self.scoped_marker(name, session_id);
+        observe(
+            async {
+                loop {
+                    match tokio::fs::read(&marker).await {
+                        Ok(bytes) => {
+                            return serde_json::from_slice(&bytes).expect("原子JSON标记完整");
+                        }
+                        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                        Err(error) => panic!("标记读取失败：{error}"),
+                    }
+                    tokio::task::yield_now().await;
+                }
+            },
+            &format!("{name}会话标记"),
         )
         .await
     }
@@ -153,19 +187,7 @@ impl Fixture {
         observe(running.handle().ready(), "公开Ready")
             .await
             .expect("会话可接收输入");
-        let started = observe(
-            async {
-                loop {
-                    let event = self.event("start").await;
-                    if event["frame"]["session_id"] == running.id {
-                        break event;
-                    }
-                    tokio::task::yield_now().await;
-                }
-            },
-            "同一次Start原帧",
-        )
-        .await;
+        let started = observe(self.event_for("start", &running.id), "同一次Start原帧").await;
         let pid = pid(&started);
         assert!(liveness::alive(pid), "握手同一个真实PID");
         pid

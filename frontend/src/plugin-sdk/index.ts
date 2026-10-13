@@ -2,10 +2,12 @@ import type { Dispose, HostResult, Job, JsonValue, Operation } from './models.ts
 import type { DeviceAccess } from './devices.ts';
 import type { ArtifactAccess } from './artifacts.ts';
 import type { TaskHistoryAccess } from './task-history.ts';
+import type { ThemeAccess, ThemeContribution } from './themes.ts';
 export * from './models.ts';
 export type * from './devices.ts';
 export type * from './artifacts.ts';
 export type * from './task-history.ts';
+export type * from './themes.ts';
 export interface HostContext {
   readonly apiVersion: 2;
   readonly signal: AbortSignal;
@@ -20,6 +22,7 @@ export interface HostContext {
   readonly devices?: DeviceAccess;
   readonly artifacts?: ArtifactAccess;
   readonly taskHistory?: TaskHistoryAccess;
+  readonly themes?: ThemeAccess;
 }
 export interface PanelContribution {
   readonly id: string;
@@ -66,6 +69,7 @@ export interface BeforeTaskSubmitHook {
   readonly transform: (submission: TaskSubmission, context: HostContext, signal: AbortSignal) => Promise<TaskSubmission>;
 }
 export interface PluginContributions {
+  readonly themes?: readonly ThemeContribution[];
   readonly components?: readonly ComponentContribution[];
   readonly modules?: readonly ModuleContribution[];
   readonly commands?: readonly CommandContribution[];

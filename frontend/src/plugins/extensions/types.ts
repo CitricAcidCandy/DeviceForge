@@ -7,5 +7,5 @@ export interface ExtensionOwner {
 }
 export interface Owned<T> { readonly contribution: T; readonly owner: ExtensionOwner }
 export function contributionIds(value: PluginContributions): string[] {
-  return [...value.components ?? [], ...value.modules ?? [], ...value.commands ?? [], ...value.services ?? [], ...value.beforeTaskSubmit ?? []].map((entry) => entry.id);
+  return [...value.components ?? [], ...value.modules ?? [], ...value.commands ?? [], ...value.services ?? [], ...value.beforeTaskSubmit ?? [], ...value.themes ?? []].map((entry) => entry.id);
 }

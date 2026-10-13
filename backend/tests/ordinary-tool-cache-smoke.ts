@@ -1,12 +1,92 @@
 import assert from 'node:assert/strict';
+import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { copyFile, mkdir } from 'node:fs/promises';
+import { copyFile, mkdir, readFile, readdir, stat, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
-import { backend, deploy, host, object, pidAlive, suffix, type Host, type JsonObject } from './fixtures/six-business-support.ts';
+import { backend, deploy, hash, host, object, pidAlive, poll, suffix, type Host, type JsonObject } from './fixtures/six-business-support.ts';
 import { identities, reporter } from './fixtures/ordinary-business-report.ts';
 import { toolCacheSource, type ToolCacheSource } from './fixtures/ordinary-tool-cache-source.ts';
-import { cacheLoaded, toolCacheARecovery, toolCacheCases, toolCacheSeed, type CacheLedger } from './fixtures/ordinary-tool-cache-cases.ts';
-import { cacheTerminal, persistedEvidence } from './fixtures/ordinary-tool-cache-evidence.ts';
+import { cacheLoaded, toolCacheARecovery, toolCacheBusyCase, toolCacheCases, toolCacheFaultCases, toolCacheSeed, type CacheLedger } from './fixtures/ordinary-tool-cache-cases.ts';
+import { absent, cacheMeta, cacheTerminal, persistedEvidence } from './fixtures/ordinary-tool-cache-evidence.ts';
+
+async function cacheTestBinary(profile: string) {
+  const directory = join(backend, 'target', profile, 'deps');
+  const names = await readdir(directory);
+  const candidates: { path: string; modified: number }[] = [];
+  for (const name of names) {
+    if (!name.startsWith('deviceforge_tool_supply_plugin-') || !name.endsWith(suffix)) continue;
+    const path = join(directory, name); const dependency = path.slice(0, -suffix.length) + '.d';
+    try {
+      const body = await readFile(dependency, 'utf8');
+      if (!body.includes('source_tests.rs') || !body.includes('cache.rs')) continue;
+      candidates.push({ path, modified: (await stat(path)).mtimeMs });
+    } catch { /* 只采用带缓存测试源依赖的测试二进制。 */ }
+  }
+  candidates.sort((left, right) => right.modified - left.modified);
+  const selected = candidates[0]; assert.ok(selected, `未找到${profile} tool-supply缓存测试二进制`);
+  return selected.path;
+}
+
+async function cacheLockHolder(testBinary: string, configPath: string, reportPath: string) {
+  await mkdir(join(reportPath, '..'), { recursive: true });
+  const releasePath = reportPath.replace(/\.json$/u, '.release');
+  const child = spawn(testBinary, ['--exact', 'source_tests::cache_child', '--nocapture', '--test-threads=1'], {
+    cwd: backend, windowsHide: true, stdio: ['ignore', 'ignore', 'pipe'],
+    env: { ...process.env, DEVICEFORGE_TOOL_CACHE_TEST_CONFIG: configPath,
+      DEVICEFORGE_TOOL_CACHE_TEST_MODE: 'hold', DEVICEFORGE_TOOL_CACHE_TEST_REPORT: reportPath },
+  });
+  let stderrBytes = 0; child.stderr?.on('data', (part: Buffer) => { stderrBytes += part.length; });
+  const closed = new Promise<{ code: number | null; signal: NodeJS.Signals | null }>((resolve) =>
+    child.once('close', (code, signal) => resolve({ code, signal })));
+  try {
+    await poll(async () => {
+      if (child.exitCode !== null) throw new Error('缓存锁持有子进程就绪前退出');
+      try { return (await readFile(reportPath)).toString('utf8'); } catch { return ''; }
+    }, (value) => value === 'locked', '缓存锁持有子进程就绪', 15000);
+  } catch (error) {
+    await writeFile(releasePath, 'release'); await closed; throw error;
+  }
+  const evidence: JsonObject = { pid: child.pid, test_binary: testBinary.split(/[\\/]/u).pop(),
+    test_binary_sha256: hash(await readFile(testBinary)), report: reportPath, stderr_bytes: stderrBytes, locked: true };
+  return {
+    evidence,
+    release: async () => {
+      await writeFile(releasePath, 'release');
+      const result = await Promise.race([closed, new Promise<null>((resolve) => setTimeout(() => resolve(null), 15000))]);
+      assert.ok(result, '缓存锁持有子进程未收口'); assert.equal(result.code, 0); assert.equal(result.signal, null);
+      assert.equal(pidAlive(Number(child.pid)), false);
+      return { released: true, exit_code: result.code, signal: result.signal, pid_alive_after: false,
+        release_path: releasePath, stderr_bytes: stderrBytes };
+    },
+  };
+}
+
+async function cacheFileHolder(root: string, snapshot: string) {
+  const script = join(backend, 'tests', 'fixtures', 'ordinary-tool-cache-file-lock.ps1');
+  const child = spawn('pwsh.exe', ['-NoLogo', '-NoProfile', '-NonInteractive', '-File', script, '-Root', root, '-Snapshot', snapshot], {
+    cwd: backend, windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'],
+  });
+  let pending = ''; let stderrBytes = 0; child.stdout.setEncoding('utf8');
+  child.stdout.on('data', (part: string) => { pending += part; });
+  child.stderr.on('data', (part: Buffer) => { stderrBytes += part.length; });
+  const closed = new Promise<{ code: number | null; signal: NodeJS.Signals | null }>((resolve) =>
+    child.once('close', (code, signal) => resolve({ code, signal })));
+  try {
+    const ready = await poll(async () => {
+      if (child.exitCode !== null) throw new Error('缓存快照文件门闩就绪前退出');
+      return pending.includes('\n') ? pending.slice(0, pending.indexOf('\n')) : '';
+    }, (value) => value.length > 0, '缓存快照文件门闩就绪', 15000);
+    assert.equal(object(JSON.parse(ready)).locked, true);
+  } catch (error) { child.stdin.end(); await closed; throw error; }
+  const evidence: JsonObject = { pid: child.pid, script: script.split(/[\\/]/u).pop(), snapshot, stderr_bytes: stderrBytes, locked: true };
+  return { evidence, release: async () => {
+    child.stdin.write('release\n');
+    const result = await Promise.race([closed, new Promise<null>((resolve) => setTimeout(() => resolve(null), 15000))]);
+    assert.ok(result, '缓存快照文件门闩未收口'); assert.equal(result.code, 0); assert.equal(result.signal, null);
+    assert.equal(pidAlive(Number(child.pid)), false);
+    return { released: true, exit_code: result.code, signal: result.signal, pid_alive_after: false, stderr_bytes: stderrBytes };
+  } };
+}
 
 const options = process.argv.slice(2);
 if (options.includes('--help')) {
@@ -26,16 +106,17 @@ if (options.includes('--help')) {
     await mkdir(root, { recursive: true }); const audit = await reporter(root, profile);
     audit.report.round = round; audit.report.scope = ['tool-supply.manifest_cache'];
     audit.report.evidence = '预构建真实宿主/插件、HTTP v2/MCP与只含文本的合成ZIP；原预算、缓存封装/SQLite/宿主日志原件保留';
-    audit.report.remaining_gaps = ['未独立重算Rust确定性序列化的canonical摘要；原JSON响应哈希不是manifest_sha256，封装原件与跨任务摘要/模块输入另行核验',
-      '缓存IO/Busy/原子提交与清理失败、来源切换、并发原子读写和旧install锁序未纳入本批服务矩阵',
-      '缓存关闭/local_manifest、DNS/TLS/正文超限未纳入；真实来源、SDK执行、跨平台与npx另行验收'];
+    audit.report.remaining_gaps = ['缓存封装摘要已由独立canonical重算核对；原JSON响应哈希仍不等同manifest_sha256，封装原件与跨任务摘要/模块输入另行核验',
+      '原子提交/flush/sync失败、来源切换、并发裸读和旧install锁序未纳入本批服务矩阵；本批IO/Busy/Cleanup仅覆盖安全注入场景',
+      'DNS/TLS/正文超限未纳入；真实来源、SDK执行、跨平台与npx另行验收'];
     const inputFiles = [join(backend, 'Cargo.toml'), join(backend, 'Cargo.lock'), join(backend, 'docs/工具来源缓存回退裁定.md'),
       join(backend, 'docs/工具运行时功能迁移裁定.md'), join(backend, 'tests/ordinary-tool-cache-smoke.ts'),
       ...['six-business-support.ts', 'ordinary-business-source.ts', 'ordinary-business-report.ts',
-        'ordinary-tool-cache-source.ts', 'ordinary-tool-cache-evidence.ts', 'ordinary-tool-cache-cases.ts', 'ordinary-tool-cache-README.md']
+        'ordinary-tool-cache-source.ts', 'ordinary-tool-cache-evidence.ts', 'ordinary-tool-cache-cases.ts', 'ordinary-tool-cache-file-lock.ps1', 'ordinary-tool-cache-README.md']
         .map((name) => join(backend, 'tests/fixtures', name)),
       ...['apk-server', 'deviceforge-tool-supply-plugin'].map((name) => join(binDirectory, name + suffix))];
     const inputDirectories = [join(backend, 'plugins/tool-supply')];
+    let cacheLockTestBinary = '';
     type ServerRecord = { running: Host; directory: string; transport: string; generation: number };
     const servers: ServerRecord[] = [];
     const stopped = new Set<Host>(); const sources: { source: ToolCacheSource; transport: string }[] = [];
@@ -53,6 +134,8 @@ if (options.includes('--help')) {
     let success = false;
     try {
       await audit.check('输入：新缓存驱动、插件源码/公开契约与预构建二进制摘要', async () => {
+        cacheLockTestBinary = await cacheTestBinary(profile);
+        inputFiles.push(cacheLockTestBinary);
         audit.report.inputs_before = await identities(backend, inputDirectories, inputFiles);
       });
       for (const viaMcp of [false, true]) {
@@ -90,6 +173,10 @@ if (options.includes('--help')) {
         assert.equal(source.calls.length, beforeRestart, '重启不能隐式读取来源');
         await toolCacheARecovery(second.running, source, audit, ledger, installRoot, seed);
         const completed = await toolCacheCases(second.running, source, audit, ledger, directory, installRoot, seed);
+        await toolCacheBusyCase(second.running, source, audit, ledger, directory, installRoot, seed, completed.digestB,
+          join(directory, 'plugins', 'tool-supply', 'tool-supply.config.json'),
+          (configPath, reportPath) => cacheLockHolder(cacheLockTestBinary, configPath, reportPath));
+        await toolCacheFaultCases(second.running, source, audit, ledger, directory, installRoot, seed, cacheFileHolder);
         scenario.manifest_sha256_A = seed.digestA; scenario.manifest_sha256_B = completed.digestB;
         scenario.snapshot_B = completed.snapshotB.evidence;
         await audit.check(`宿主 ${transport}：第二代正常退出、PID与端口释放`, async () => { await normalClose(second); });
@@ -109,6 +196,79 @@ if (options.includes('--help')) {
           scenario.persisted = await persistedEvidence(directory, ledger.jobs, ledger.submissions);
           scenario.final_install_inputs = await identities(directory, [installRoot], []);
         });
+        const configurationCases: JsonObject[] = [];
+        scenario.configuration_cases = configurationCases;
+        const resultOf = (job: JsonObject) => {
+          assert.equal(job.status, 'succeeded');
+          const payload = object(job.result); assert.ok(Array.isArray(payload.artifacts));
+          return object(payload.result);
+        };
+        const runConfiguration = async (
+          label: string,
+          configuration: JsonObject,
+          verify: (running: Host, evidence: JsonObject, target: string) => Promise<void>,
+        ) => {
+          const auxiliary = join(root, `${transport}-${label}`);
+          const target = join(auxiliary, 'installed');
+          const auxiliaryBin = join(auxiliary, 'bin');
+          const evidence: JsonObject = { label, transport, jobs: [], source_calls_before: source.calls.length };
+          configurationCases.push(evidence); await audit.flush();
+          let record: ServerRecord | undefined;
+          try {
+            await mkdir(auxiliaryBin, { recursive: true }); await mkdir(join(auxiliary, 'browser-plugins'), { recursive: true });
+            await copyFile(join(binDirectory, `apk-server${suffix}`), join(auxiliaryBin, `apk-server${suffix}`));
+            await deploy(auxiliary, 'tool-supply', configuration, binDirectory);
+            const running = await host(auxiliary, auxiliaryBin);
+            record = { running, directory: auxiliary, transport: `${transport}:${label}`, generation: 1 }; servers.push(record);
+            await audit.check(`配置 ${transport}/${label}：真实宿主加载缓存插件`, async () => {
+              await running.ready(); await cacheLoaded(running);
+            });
+            await verify(running, evidence, target);
+            evidence.source_calls_after = source.calls.length;
+            await audit.flush();
+          } finally {
+            if (record && !stopped.has(record.running)) {
+              await audit.check(`配置 ${transport}/${label}：宿主正常退出并释放端口`, async () => { await normalClose(record!); });
+            }
+          }
+        };
+        await source.catalog(seed.version, seed.modulesB);
+        await runConfiguration(`cache-disabled`, {
+          manifest_url: source.base + '/catalog', manifest_cache_enabled: false, install_root: join(root, `${transport}-cache-disabled`, 'installed'),
+          allow_http: true, download_limit_bytes: 8388608, extracted_limit_bytes: 8388608, file_limit: 100,
+        }, async (running, evidence, target) => {
+          const live = object(await running.run('plugin.tool-supply.catalog', {}, viaMcp));
+          await audit.recordJob(running, live, 'succeeded', 'plugin.tool-supply.catalog');
+          (evidence.jobs as JsonObject[]).push(cacheTerminal(live));
+          const liveResult = resultOf(live); cacheMeta(liveResult, 'live', seed.version, source.base, target);
+          await absent(join(target, '.manifest-cache'));
+          const beforeFailure = source.calls.length; source.mode('http');
+          const failedSource = object(await running.run('plugin.tool-supply.catalog', {}, viaMcp));
+          await audit.recordJob(running, failedSource, 'succeeded', 'plugin.tool-supply.catalog');
+          (evidence.jobs as JsonObject[]).push(cacheTerminal(failedSource));
+          const fallback = resultOf(failedSource); cacheMeta(fallback, null, null, source.base, target);
+          assert.equal(source.calls.length, beforeFailure + 1, '关闭缓存时来源失败只能读取一次');
+          await absent(join(target, '.manifest-cache')); await audit.flush();
+        });
+        const localDirectory = join(root, `${transport}-local-manifest`); await mkdir(localDirectory, { recursive: true });
+        const localPath = join(localDirectory, 'manifest.json'); const local = await source.localManifest(localPath);
+        await runConfiguration(`local-manifest`, {
+          local_manifest: localPath, manifest_cache_enabled: true, install_root: join(root, `${transport}-local-manifest`, 'installed'),
+          allow_http: true, download_limit_bytes: 8388608, extracted_limit_bytes: 8388608, file_limit: 100,
+        }, async (running, evidence, target) => {
+          source.mode('http'); const before = source.calls.length;
+          for (const round of [1, 2]) {
+            const job = object(await running.run('plugin.tool-supply.catalog', {}, viaMcp));
+            await audit.recordJob(running, job, 'succeeded', 'plugin.tool-supply.catalog');
+            (evidence.jobs as JsonObject[]).push(cacheTerminal(job));
+            const result = resultOf(job); cacheMeta(result, 'live', seed.version, source.base, target);
+            assert.equal(source.calls.length, before, 'local_manifest不得读取远端清单');
+            evidence[`round_${round}_manifest_sha256`] = result.manifest_sha256;
+          }
+          assert.equal(local.sha256, hash(local.bytes));
+          await absent(join(target, '.manifest-cache')); await audit.flush();
+        });
+        source.mode('http');
       }
       success = true;
     } catch (error) { audit.report.failure = audit.failure(error); }

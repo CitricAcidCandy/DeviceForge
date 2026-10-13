@@ -1,0 +1,10 @@
+{
+  "format_version": 1,
+  "profiles": {
+    "python": {
+      "executable": "python",
+      "args": ["-u", "-i"],
+      "resource_scope": "direct_process"
+    }
+  }
+}

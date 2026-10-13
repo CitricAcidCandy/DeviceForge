@@ -114,3 +114,16 @@ fn duplicate_session_names_are_rejected() {
     access.operations.push(access.operations[0].clone());
     assert!(access.validate().is_err());
 }
+
+#[test]
+fn bounded_tail_is_explicit_and_default_keeps_old_wire_bytes() {
+    let mut value = sessions();
+    let complete: SessionAccess = serde_json::from_value(value.clone()).unwrap();
+    assert_eq!(serde_json::to_value(complete).unwrap(), value);
+    value["output_retention"] = json!("bounded_tail");
+    let tail: SessionAccess = serde_json::from_value(value.clone()).unwrap();
+    tail.validate().unwrap();
+    assert_eq!(serde_json::to_value(tail).unwrap(), value);
+    value["output_retention"] = json!("unlimited_history");
+    assert!(serde_json::from_value::<SessionAccess>(value).is_err());
+}

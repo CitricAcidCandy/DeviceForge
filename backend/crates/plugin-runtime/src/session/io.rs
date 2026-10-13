@@ -74,6 +74,7 @@ pub struct SessionOutput {
     output: Arc<Mutex<OutputState>>,
     state: Arc<State>,
     limit: u64,
+    continuous: bool,
 }
 
 pub(super) fn channels(
@@ -95,6 +96,7 @@ pub(super) fn channels(
         output: Arc::new(Mutex::new(OutputState { sender, total: 0 })),
         state,
         limit: options.output_limit,
+        continuous: options.continuous_output,
     };
     (input, input_sender, output, output_receiver)
 }
@@ -128,7 +130,7 @@ impl SessionOutput {
         let total = match output
             .total
             .checked_add(bytes.len() as u64)
-            .filter(|total| *total <= self.limit)
+            .filter(|total| self.continuous || *total <= self.limit)
         {
             Some(total) => total,
             None => {

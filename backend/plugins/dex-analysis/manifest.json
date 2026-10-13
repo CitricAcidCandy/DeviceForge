@@ -1,0 +1,46 @@
+{
+  "id": "dex-analysis",
+  "version": "0.1.0",
+  "protocol_version": 4,
+  "executable": "deviceforge-dex-analysis-plugin.exe",
+  "args": [],
+  "artifacts": {"input_fields": ["artifact_id"], "outputs": false},
+  "operations": [
+    {
+      "name": "inspect",
+      "title": "分析单一DEX结构和统计",
+      "execution": {"api_version": 1, "total_timeout_ms": 30000},
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {"artifact_id": {"type": "string", "format": "uuid"}},
+        "required": ["artifact_id"]
+      }
+    },
+    {
+      "name": "scan_sdks",
+      "title": "按DEX实际定义类检测SDK",
+      "execution": {"api_version": 1, "total_timeout_ms": 30000},
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "artifact_id": {"type": "string", "format": "uuid"},
+          "rules": {
+            "type": "array", "minItems": 1, "maxItems": 100,
+            "items": {
+              "type": "object", "additionalProperties": false,
+              "properties": {
+                "name": {"type": "string", "minLength": 1, "maxLength": 100},
+                "package_path": {"type": "string", "minLength": 1, "maxLength": 200},
+                "class_name": {"type": ["string", "null"], "minLength": 1, "maxLength": 100}
+              },
+              "required": ["name", "package_path"]
+            }
+          }
+        },
+        "required": ["artifact_id", "rules"]
+      }
+    }
+  ]
+}

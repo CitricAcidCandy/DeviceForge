@@ -72,6 +72,12 @@ pub(super) async fn metadata(
 ) -> Result<Json<Artifact>, ApiError> {
     Ok(Json(store(&state)?.get(&id).await?))
 }
+pub(super) async fn delete(
+    State(state): State<ApiState>,
+    Path(id): Path<String>,
+) -> Result<Json<Artifact>, ApiError> {
+    Ok(Json(store(&state)?.delete(&id).await?))
+}
 pub(super) async fn download(
     State(state): State<ApiState>,
     Path(id): Path<String>,

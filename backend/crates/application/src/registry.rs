@@ -27,12 +27,17 @@ pub(crate) struct Owner {
     pub tracker: TaskTracker,
     pub provider: Option<apk_domain::devices::DeviceProviderDefinition>,
     pub performance: Option<apk_domain::performance::PerformanceSourceDefinition>,
+    pub session_provider: Option<Arc<dyn apk_domain::interactive::SessionProvider>>,
 }
 impl Owner {
     pub fn info(&self) -> PluginInfo {
         let mut info = self.info.clone();
-        info.cleanup_failed =
-            self.unresolved.load(Ordering::Acquire) || self.executor.has_unresolved_resources();
+        info.cleanup_failed = self.unresolved.load(Ordering::Acquire)
+            || self.executor.has_unresolved_resources()
+            || self
+                .session_provider
+                .as_ref()
+                .is_some_and(|provider| provider.has_unresolved_resources());
         if self.draining.load(Ordering::Acquire) {
             info.state = PluginState::Draining;
         }
@@ -43,9 +48,10 @@ impl Owner {
     }
 }
 pub(crate) struct Snapshot {
-    revision: u64,
+    pub(crate) revision: u64,
     pub entries: BTreeMap<String, Arc<Registered>>,
     pub owners: BTreeMap<String, Arc<Owner>>,
+    pub sessions: BTreeMap<String, Arc<crate::registry_sessions::RegisteredSession>>,
     pub directories: BTreeMap<String, apk_domain::devices::DeviceDirectory>,
     pub discovery_attempts: BTreeMap<String, std::sync::Weak<crate::devices::attempt::Attempt>>,
     pub discovery_started: BTreeMap<String, (String, String)>,
@@ -53,6 +59,7 @@ pub(crate) struct Snapshot {
 pub(crate) struct Registry(
     pub(crate) RwLock<Snapshot>,
     pub(crate) Arc<crate::operation_aliases::Config>,
+    tokio::sync::watch::Sender<u64>,
 );
 
 fn prepare(
@@ -119,6 +126,7 @@ impl Registry {
             revision: 0,
             entries: BTreeMap::new(),
             owners: BTreeMap::new(),
+            sessions: BTreeMap::new(),
             directories: BTreeMap::new(),
             discovery_attempts: BTreeMap::new(),
             discovery_started: BTreeMap::new(),
@@ -141,7 +149,11 @@ impl Registry {
             }
             snapshot.entries.extend(entries);
         }
-        Ok(Self(RwLock::new(snapshot), Arc::new(bindings)))
+        let (changes, _) = tokio::sync::watch::channel(snapshot.revision);
+        Ok(Self(RwLock::new(snapshot), Arc::new(bindings), changes))
+    }
+    pub(crate) fn subscribe(&self) -> tokio::sync::watch::Receiver<u64> {
+        self.2.subscribe()
     }
     pub fn operations(&self) -> (u64, Vec<Operation>) {
         let snapshot = self
@@ -208,6 +220,7 @@ impl Registry {
 pub(crate) struct Prepared {
     owner: Arc<Owner>,
     entries: BTreeMap<String, Arc<Registered>>,
+    sessions: BTreeMap<String, Arc<crate::registry_sessions::RegisteredSession>>,
 }
 impl Prepared {
     #[cfg(test)]
@@ -223,9 +236,11 @@ impl Prepared {
             return Err(Error::Invalid("插件版本必须是 1–100 字节".into()));
         }
         let operations = plugin.executor.operations();
-        if operations.is_empty() {
-            return Err(Error::Invalid("插件没有贡献操作".into()));
-        }
+        let session_provider = plugin.executor.session_provider();
+        let definitions = session_provider
+            .as_ref()
+            .map(|provider| provider.definitions())
+            .unwrap_or_default();
         let provider = plugin.executor.device_provider();
         if let Some(definition) = &provider {
             crate::devices::rules::definition(definition, &operations, &plugin.id)?;
@@ -251,6 +266,10 @@ impl Prepared {
                             .map(|binding| binding.operation.id.clone()),
                     )
                     .collect(),
+                sessions: definitions
+                    .iter()
+                    .map(|definition| definition.id.clone())
+                    .collect(),
                 protected: false,
                 cleanup_failed: false,
             },
@@ -261,10 +280,26 @@ impl Prepared {
             tracker: TaskTracker::new(),
             provider,
             performance,
+            session_provider,
         });
         let mut entries = prepare(plugin.executor, Some(owner.clone()), operations)?;
         crate::registry_aliases::prepare(&mut entries, &owner, bindings)?;
-        Ok(Self { owner, entries })
+        let sessions = crate::registry_sessions::prepare(
+            owner.session_provider.as_ref(),
+            &owner,
+            definitions,
+        )?;
+        if entries.is_empty() && sessions.is_empty() {
+            return Err(Error::Invalid("插件没有贡献操作或会话".into()));
+        }
+        if sessions.keys().any(|id| entries.contains_key(id)) {
+            return Err(Error::Conflict("普通操作与会话贡献名称重复".into()));
+        }
+        Ok(Self {
+            owner,
+            entries,
+            sessions,
+        })
     }
 }
 impl Registry {
@@ -277,13 +312,20 @@ impl Registry {
             || prepared
                 .entries
                 .keys()
-                .any(|id| snapshot.entries.contains_key(id))
+                .chain(prepared.sessions.keys())
+                .any(|id| snapshot.entries.contains_key(id) || snapshot.sessions.contains_key(id))
         {
             return Err(Error::Conflict(
                 "插件或贡献已注册，排空期间也不能重载".into(),
             ));
         }
-        if snapshot.owners.len() >= 256 || snapshot.entries.len() + prepared.entries.len() > 4096 {
+        if snapshot.owners.len() >= 256
+            || snapshot.entries.len()
+                + snapshot.sessions.len()
+                + prepared.entries.len()
+                + prepared.sessions.len()
+                > 4096
+        {
             return Err(Error::Conflict("插件或操作目录容量已满".into()));
         }
         let revision = snapshot
@@ -292,8 +334,10 @@ impl Registry {
             .ok_or_else(|| Error::Conflict("操作目录修订已耗尽".into()))?;
         let info = prepared.owner.info();
         snapshot.entries.extend(prepared.entries);
+        snapshot.sessions.extend(prepared.sessions);
         snapshot.owners.insert(info.id.clone(), prepared.owner);
         snapshot.revision = revision;
+        self.2.send_replace(revision);
         Ok(info)
     }
     pub fn detach(&self, id: &str) -> Result<Arc<Owner>> {
@@ -317,6 +361,9 @@ impl Registry {
                     .as_ref()
                     .is_some_and(|value| Arc::ptr_eq(value, &owner))
             });
+            snapshot
+                .sessions
+                .retain(|_, entry| !Arc::ptr_eq(&entry.owner, &owner));
             owner.draining.store(true, Ordering::Release);
             owner.tracker.close();
             owner.cancel.cancel();
@@ -341,6 +388,7 @@ impl Registry {
                 true
             });
             snapshot.revision = revision;
+            self.2.send_replace(revision);
         }
         Ok(owner)
     }
@@ -408,6 +456,48 @@ mod tests {
         registry.publish(prepared()).unwrap();
         assert!(!registry.current("plugin.test.echo", &old).unwrap());
         assert_eq!(registry.operations().0, 3);
+    }
+
+    #[test]
+    fn contribution_watch_tracks_publication_and_first_detach_only() {
+        let registry = Registry::new(vec![]).unwrap();
+        let mut changes = registry.subscribe();
+        assert_eq!(*changes.borrow_and_update(), 0);
+        registry.publish(prepared()).unwrap();
+        assert!(changes.has_changed().unwrap());
+        assert_eq!(*changes.borrow_and_update(), registry.operations().0);
+        assert!(matches!(
+            registry.publish(prepared()),
+            Err(Error::Conflict(_))
+        ));
+        assert!(!changes.has_changed().unwrap());
+        let owner = registry.detach("test").unwrap();
+        assert_eq!(*changes.borrow_and_update(), 2);
+        registry.detach("test").unwrap();
+        registry.finish(&owner).unwrap();
+        assert!(!changes.has_changed().unwrap());
+        registry.publish(prepared()).unwrap();
+        assert_eq!(*changes.borrow_and_update(), 3);
+    }
+
+    #[test]
+    fn contribution_watch_coalesces_changes_and_seeds_late_subscribers() {
+        let registry = Registry::new(vec![]).unwrap();
+        let mut existing = registry.subscribe();
+        registry.publish(prepared()).unwrap();
+        let owner = registry.detach("test").unwrap();
+        registry.finish(&owner).unwrap();
+        registry.publish(prepared()).unwrap();
+        assert_eq!(*existing.borrow_and_update(), 3);
+        assert!(!existing.has_changed().unwrap());
+        let late = registry.subscribe();
+        assert_eq!(*late.borrow(), 3);
+        assert!(!late.has_changed().unwrap());
+        drop(existing);
+        drop(late);
+        let owner = registry.detach("test").unwrap();
+        registry.finish(&owner).unwrap();
+        assert_eq!(*registry.subscribe().borrow(), 4);
     }
 
     struct PerformanceEcho {

@@ -1,0 +1,27 @@
+{
+  "id": "terminal",
+  "version": "0.1.0",
+  "protocol_version": 4,
+  "executable": "deviceforge-terminal-plugin.exe",
+  "args": [],
+  "artifacts": {"input_fields": [], "outputs": false},
+  "operations": [],
+  "sessions": {
+    "protocol_version": 5,
+    "operations": [
+      {
+        "name": "open",
+        "title": "打开部署终端档案",
+        "execution": {"api_version": 1, "total_timeout_ms": 3600000},
+        "input_schema": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "profile": {"type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-z0-9][a-z0-9._-]*$"}
+          },
+          "required": ["profile"]
+        }
+      }
+    ]
+  }
+}

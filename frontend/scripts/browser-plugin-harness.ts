@@ -123,7 +123,8 @@ export async function verifyInstalledPlugin() {
     await runtime.pluginPackages.disable('browser', descriptor.id, signal);
     check(panel.childElementCount === 0 && module.childElementCount === 0, '插件停用后仍有 DOM');
     checkText(toolbar, '宿主默认工具栏', '插件停用后未恢复宿主渲染');
-    check(Object.values(runtime.extensions.catalog()).every(items => items.length === 0), '插件停用后贡献仍可发现');
+    const remaining = Object.values(runtime.extensions.catalog()).flat().filter(item => item.pluginId === descriptor.id);
+    check(remaining.length === 0, '插件停用后贡献仍可发现');
     let revoked = false;
     try { await runtime.extensions.executeCommand(`${descriptor.id}.command`, {}, signal); } catch { revoked = true; }
     check(revoked, '插件停用后命令仍可调用');

@@ -7,7 +7,7 @@ use tokio::{
 };
 
 /// 保留管道字节和分路标识；背压由外层同一期限及取消约束。
-pub(super) async fn read(
+pub(crate) async fn read(
     mut reader: impl AsyncRead + Unpin,
     sender: mpsc::Sender<StreamChunk>,
     stream: OutputStream,

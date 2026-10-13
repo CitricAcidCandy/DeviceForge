@@ -30,7 +30,7 @@ APKS 安装额外要求可选的 Java 和 bundletool 部署字段；其它动作
 
 动作严格封套为 `{device_id,input}`：provider必须显式null，device必须合法serial，每层未知字段拒绝。地址为ASCII host:port，支持IPv4/DNS或方括号IPv6、端口1至65535。start/stop/uninstall包名必须是最多200字节的点分ASCII标识；start/stop比旧宽identifier收紧，这是兼容变化。
 
-非input动作返回trim后的 `{output}`。packages只识别明确ADB诊断行，`package:com.failed.example`等合法包名不因子串被拒。connect必须明确connected to/already connected to；uninstall必须含独立Success行且无失败诊断。input保留可打印ASCII、单引号、空格到%s、字面%s分段及enter最后按键规则；返回 `{device_id,action,dispatched:true}`只表示命令完成，不证明界面已改变。错误只含固定中文，不回传工具诊断或输入文本。
+非input动作返回trim后的 `{output}`。packages只识别明确ADB诊断行，`package:com.failed.example`等合法包名不因子串被拒。connect必须明确connected to/already connected to；uninstall必须含独立Success行且无失败诊断。input 的可打印 ASCII 文本仍沿用单引号、空格到 `%s`、字面 `%s` 分段及 enter 最后按键规则，限 1024 个 UTF-8 字节并返回 `{device_id,action,dispatched:true}`。包含非 ASCII 的 text 限 4096 个 UTF-8 字节，要求配置固定 ADB Keyboard，先核验安装、启用和当前输入法，再以 Base64 广播；成功返回 `transport:"adb_keyboard_base64"` 与原始 `bytes`。两种结果都只表示工具接受，不证明界面已改变。错误只含固定中文，不回传工具诊断、输入文本或 Base64。
 
 旧绑定见 `aliases.example.json`：仍为十一项，格式2的android.devices采用专用发现profile，其余十动作采用device_envelope；截图采用宿主真实产物投影，其余为值投影。性能采样没有新旧别名，旧八项性能会话操作由宿主继续管理。加载必须显式指定该绑定，目标缺失不回退内置。清单能力预算是唯一设备预算，不声明普通execution。旧 `android.app.install_apks` 精确映射 `app.install_apks@1`，value 投影 `wrapped:true`，继续保留旧入口 ASCII 设备 ID schema。
 
@@ -75,5 +75,7 @@ Java 固定 argv 为 `-Xmx256m -jar <JAR> install-apks --apks=<私有input.apks>
 APKS 的确认范围仅为本次直接 Java 进程、文件与目录。bundletool 可派生 ADB 客户端并使用共享 server；Java 退出不证明派生进程树退出，也不回滚部分安装。
 
 ## 交付边界
+
+`app.install_apks@1`的嵌套输入新增可选modules，缺省保持原安装argv及结果；不接提取instant或请求自选设备规格。模块规则归公共核心apks模块，真实设备匹配仍归bundletool。本批新增4项所属回归尚未运行，详见[APKS高级匹配插件实施裁定](../../docs/APKS高级匹配插件实施裁定.md)。
 
 本批性能声明、采样源码、纯解析和独立协议/假ADB/PID测试已实施，编写者未运行Cargo、格式化、构建或服务；当前十二贡献版本尚无本批运行通过证据。前批APKS十一贡献版本已由主代理单独冻结元数据并完成测试与构建，详见 [性能采样迁出裁定](../../docs/性能采样迁出最小实施裁定.md)，该证据不转计性能改动。宿主装配、统一门禁与debug/release/npx由主代理串行验证。真实Java/bundletool/ADB、默认共享server、真机设备匹配、CPU/PSS/RSS数值及暂停/停止/卸载、派生树、其它系统、真实FPS和常驻采集仍需独立验收。

@@ -1,4 +1,5 @@
 import type { PluginContributions } from '../plugin-sdk/index.ts';
+import { isThemeContribution } from './themes/rules.ts';
 
 function record(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -9,6 +10,7 @@ function array(value: unknown, check: (entry: Record<string, unknown>) => boolea
 }
 export function isPluginContributions(value: unknown): value is PluginContributions {
   return record(value)
+    && array(value.themes, isThemeContribution)
     && array(value.components, (entry) => typeof entry.slot === 'string' && typeof entry.title === 'string' && typeof entry.mount === 'function'
       && (entry.mode === undefined || entry.mode === 'append' || entry.mode === 'replace'))
     && array(value.modules, (entry) => typeof entry.route === 'string' && typeof entry.title === 'string' && typeof entry.mount === 'function')
@@ -20,7 +22,7 @@ export function isPluginContributions(value: unknown): value is PluginContributi
 export function validatePluginContributions(pluginId: string, value: PluginContributions): void {
   if (!isPluginContributions(value)) throw new Error('扩展贡献结构无效');
   const ids = new Set<string>();
-  const all = [...value.components ?? [], ...value.modules ?? [], ...value.commands ?? [], ...value.services ?? [], ...value.beforeTaskSubmit ?? []];
+  const all = [...value.components ?? [], ...value.modules ?? [], ...value.commands ?? [], ...value.services ?? [], ...value.beforeTaskSubmit ?? [], ...value.themes ?? []];
   for (const entry of all) {
     if (!entry.id.startsWith(`${pluginId}.`) || !/^[a-z][a-z0-9._-]{0,199}$/.test(entry.id) || ids.has(entry.id)) throw new Error('扩展贡献标识冲突或超出插件命名空间');
     ids.add(entry.id);

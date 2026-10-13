@@ -1,6 +1,10 @@
 use crate::correlation::Correlation;
 use deviceforge_observability::LogContext;
-use rmcp::{ErrorData, RoleServer, ServerHandler, model::*, service::RequestContext};
+use rmcp::{
+    ErrorData, RoleServer, ServerHandler,
+    model::*,
+    service::{RequestContext, SubscriptionContext},
+};
 use std::{future::Future, time::Instant};
 use tracing::Instrument;
 
@@ -92,6 +96,35 @@ impl<S: ServerHandler> ServerHandler for Observed<S> {
     }
     fn get_tool(&self, name: &str) -> Option<Tool> {
         self.0.get_tool(name)
+    }
+    fn accepted_subscription_filter(
+        &self,
+        requested: &SubscriptionFilter,
+    ) -> Option<SubscriptionFilter> {
+        self.0.accepted_subscription_filter(requested)
+    }
+    async fn listen(&self, context: SubscriptionContext) -> Result<(), ErrorData> {
+        let invocation = Invocation::new(context.request_context(), "subscriptions/listen");
+        invocation
+            .log
+            .scope(
+                async {
+                    tracing::info!("MCP 工具目录订阅开始");
+                    let mut result = self.0.listen(context).await;
+                    if let Err(error) = &mut result {
+                        let mut data = error.data.take().unwrap_or_else(|| serde_json::json!({}));
+                        if !data.is_object() {
+                            data = serde_json::json!({"details":data});
+                        }
+                        data["log_id"] = serde_json::json!(invocation.log.log_id);
+                        error.data = Some(data);
+                    }
+                    tracing::info!(success = result.is_ok(), "MCP 工具目录订阅结束");
+                    result
+                }
+                .instrument(invocation.span.clone()),
+            )
+            .await
     }
     fn supported_protocol_versions(&self) -> std::borrow::Cow<'static, [ProtocolVersion]> {
         self.0.supported_protocol_versions()

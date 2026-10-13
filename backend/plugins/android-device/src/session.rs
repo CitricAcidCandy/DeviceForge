@@ -6,6 +6,7 @@ mod install_apks;
 pub(crate) mod lifecycle;
 mod output;
 mod performance;
+pub(crate) mod unicode;
 mod worker;
 
 use crate::{Control, Error, Result, config::Config, operations::Input};
@@ -72,8 +73,9 @@ impl Session {
             Input::InstallApks {
                 device_id,
                 artifact_id,
+                modules,
             } => {
-                self.install_apks(&config, request, device_id, artifact_id, &root)
+                self.install_apks(&config, request, device_id, artifact_id, modules, &root)
                     .await
             }
             Input::Screenshot { device_id } => {
@@ -289,6 +291,7 @@ mod tests {
         let input = Input::InstallApks {
             device_id: "serial".into(),
             artifact_id: "d0da1b1b-919c-40a8-9c71-fbb56614e488".into(),
+            modules: None,
         };
         let mut value = request();
         assert!(validate_context(&value, &input).is_err());

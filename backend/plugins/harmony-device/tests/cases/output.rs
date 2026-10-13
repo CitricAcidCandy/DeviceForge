@@ -121,6 +121,46 @@ fn uninstall_success_never_overrides_failure_in_either_stream() {
 }
 
 #[test]
+fn exact_hdc_fail_tag_rejects_zero_exit_packages_and_uninstall_without_raw_diagnostic() {
+    for (operation, input, valid) in [
+        ("packages", device(json!({})), b"com.alpha.app".as_slice()),
+        (
+            "app.uninstall",
+            device(json!({"package":PACKAGE})),
+            UNINSTALL_SUCCESS,
+        ),
+    ] {
+        for stderr_tag in [false, true] {
+            let fixture = Fixture::new("hdc-fail-tag-business");
+            let valid = std::str::from_utf8(valid).unwrap();
+            let (stdout, stderr) = if stderr_tag {
+                (valid.to_owned(), "[FAIL] independent diagnostic".to_owned())
+            } else {
+                (
+                    format!("{valid}\n[Fail] independent diagnostic"),
+                    String::new(),
+                )
+            };
+            failure(
+                &fixture.run(
+                    operation,
+                    input.clone(),
+                    stdout.as_bytes(),
+                    stderr.as_bytes(),
+                    0,
+                ),
+                "工具依赖失败：HDC返回失败诊断",
+            );
+        }
+    }
+    let fixture = Fixture::new("hdc-legal-fail-substring");
+    assert_eq!(
+        success(&fixture.run("packages", device(json!({})), b"com.fail.example", b"", 0)),
+        &json!({"output":"com.fail.example"}),
+    );
+}
+
+#[test]
 fn each_output_stream_is_bounded_before_partial_business_result() {
     for oversized_stderr in [false, true] {
         let fixture = Fixture::new("bounded-output");

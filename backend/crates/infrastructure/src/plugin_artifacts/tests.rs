@@ -67,6 +67,9 @@ impl ArtifactStore for RecordingStore {
         }
         Ok(metadata)
     }
+    async fn delete(&self, id: &str) -> Result<Artifact> {
+        self.inner.delete(id).await
+    }
     async fn download(&self, id: &str) -> Result<(Artifact, ArtifactStream)> {
         self.downloads.lock().unwrap().push(id.into());
         self.inner.download(id).await
@@ -127,6 +130,149 @@ fn capabilities_reject_duplicate_and_nested_fields() {
             .is_err()
         );
     }
+}
+
+#[tokio::test]
+async fn authorized_dex_input_preserves_identity_bytes_and_releases_private_copy() {
+    let directory = tempfile::tempdir().unwrap();
+    let store = FileArtifacts::open(directory.path()).await.unwrap();
+    let mut bytes = vec![0; 112];
+    bytes[..8].copy_from_slice(b"dex\n039\0");
+    bytes[32..36].copy_from_slice(&112u32.to_le_bytes());
+    bytes[36..40].copy_from_slice(&112u32.to_le_bytes());
+    bytes[40..44].copy_from_slice(&0x1234_5678u32.to_le_bytes());
+    let upload = bytes.clone();
+    let artifact = store
+        .put(
+            "classes.DEX".into(),
+            Box::pin(stream::once(async move { Ok(upload.into()) })),
+        )
+        .await
+        .unwrap();
+    let files = InvocationFiles::prepare(
+        Some(&store),
+        Some(&selected_access(&["artifact_id"], &[])),
+        &json!({"artifact_id": artifact.id}),
+        CancellationToken::new(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(files.context.inputs.len(), 1);
+    let reference = &files.context.inputs[0];
+    assert_eq!(reference.artifact_id, artifact.id);
+    assert_eq!(reference.field, "artifact_id");
+    assert_eq!(reference.filename, "classes.DEX");
+    assert_eq!(reference.size, bytes.len() as u64);
+    assert_eq!(reference.sha256, artifact.sha256);
+    let path = PathBuf::from(&reference.path);
+    assert_eq!(tokio::fs::read(&path).await.unwrap(), bytes);
+    assert!(files.context.output_directory.is_none());
+    drop(files);
+    assert!(!path.exists());
+    assert_eq!(
+        store.get(&artifact.id).await.unwrap().sha256,
+        artifact.sha256
+    );
+}
+
+#[tokio::test]
+async fn authorized_binary_and_script_inputs_preserve_identity_and_release_private_copies() {
+    let directory = tempfile::tempdir().unwrap();
+    let store = FileArtifacts::open(directory.path()).await.unwrap();
+    for (filename, bytes) in [
+        ("server.BIN", vec![0, 255, 128]),
+        ("hook.JS", "const 文本 = '设备';".as_bytes().to_vec()),
+    ] {
+        let upload = bytes.clone();
+        let artifact = store
+            .put(
+                filename.into(),
+                Box::pin(stream::once(async move { Ok(upload.into()) })),
+            )
+            .await
+            .unwrap();
+        let files = InvocationFiles::prepare(
+            Some(&store),
+            Some(&selected_access(&["artifact_id"], &[])),
+            &json!({"artifact_id": artifact.id}),
+            CancellationToken::new(),
+        )
+        .await
+        .unwrap();
+        let reference = &files.context.inputs[0];
+        assert_eq!(reference.filename, filename);
+        assert_eq!(reference.artifact_id, artifact.id);
+        assert_eq!(reference.sha256, artifact.sha256);
+        assert_eq!(reference.size, bytes.len() as u64);
+        let path = PathBuf::from(&reference.path);
+        assert_eq!(tokio::fs::read(&path).await.unwrap(), bytes);
+        drop(files);
+        assert!(!path.exists());
+        assert_eq!(
+            store.get(&artifact.id).await.unwrap().sha256,
+            artifact.sha256
+        );
+    }
+}
+
+#[tokio::test]
+async fn runtime_outputs_validate_every_file_before_publication() {
+    let (_directory, inner, files) = setup().await;
+    let store = RecordingStore::new(inner);
+    let root = files.output.as_ref().unwrap();
+    for (filename, bytes) in [
+        ("good.log", vec![255, 0, 128]),
+        ("bad.js", vec![0xff]),
+        ("bad.jsonl", b"{}\ninvalid".to_vec()),
+        ("bad.mp4", b"not a video header".to_vec()),
+    ] {
+        tokio::fs::write(root.join(filename), bytes).await.unwrap();
+    }
+    for filename in ["bad.js", "bad.jsonl", "bad.mp4"] {
+        assert!(matches!(
+            files
+                .publish(
+                    Some(&store),
+                    vec![
+                        ArtifactOutput {
+                            filename: "good.log".into()
+                        },
+                        ArtifactOutput {
+                            filename: filename.into()
+                        }
+                    ],
+                    CancellationToken::new(),
+                )
+                .await,
+            Err(Error::Invalid(_))
+        ));
+    }
+    assert!(store.writes.lock().unwrap().is_empty());
+    for (filename, bytes) in [
+        ("hook.js", b"const value = 1;".to_vec()),
+        ("events.jsonl", Vec::new()),
+        ("record.mp4", b"\0\0\0\x18ftypisom".to_vec()),
+    ] {
+        tokio::fs::write(root.join(filename), bytes).await.unwrap();
+    }
+    let artifacts = files
+        .publish(
+            Some(&store),
+            ["good.log", "hook.js", "events.jsonl", "record.mp4"]
+                .into_iter()
+                .map(|filename| ArtifactOutput {
+                    filename: filename.into(),
+                })
+                .collect(),
+            CancellationToken::new(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(artifacts.len(), 4);
+    assert_eq!(artifacts[0].media_type, "text/plain");
+    assert_eq!(artifacts[1].media_type, "text/javascript");
+    assert_eq!(artifacts[2].size, 0);
+    assert_eq!(artifacts[3].media_type, "video/mp4");
 }
 
 #[tokio::test]

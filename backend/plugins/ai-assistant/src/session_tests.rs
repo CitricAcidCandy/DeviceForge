@@ -1,5 +1,30 @@
 use super::*;
 const ID: &str = "12345678-1234-1234-1234-123456789abc";
+
+#[test]
+fn new_stream_thread_registers_uncertain_zero_turns_before_any_success() {
+    let root = tempfile::tempdir().unwrap();
+    let project = root.path().join("project");
+    let mut lease = Lease::acquire(root.path(), ID, "demo", &project, &|| Ok(())).unwrap();
+    lease
+        .register_uncertain("demo".into(), project.clone(), ID.into(), &|| Ok(()))
+        .unwrap();
+    assert_eq!(lease.snapshot.as_ref().unwrap().turns, 0);
+    assert!(lease.snapshot.as_ref().unwrap().uncertain);
+    assert!(
+        lease
+            .register_uncertain("demo".into(), project.clone(), ID.into(), &|| Ok(()))
+            .is_err()
+    );
+    drop(lease);
+    let mut lease = Lease::acquire(root.path(), ID, "demo", &project, &|| Ok(())).unwrap();
+    assert!(lease.begin(&|| Ok(())).is_err());
+    lease
+        .complete("demo".into(), project, ID.into(), &|| Ok(()))
+        .unwrap();
+    assert_eq!(lease.snapshot.as_ref().unwrap().turns, 1);
+    assert!(!lease.snapshot.as_ref().unwrap().uncertain);
+}
 #[test]
 fn durable_owner_close_and_uncertain_prevent_unsafe_resume() {
     let root = tempfile::tempdir().unwrap();

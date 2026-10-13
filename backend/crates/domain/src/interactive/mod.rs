@@ -2,13 +2,15 @@
 mod definition;
 mod model;
 mod ports;
+mod view;
 
-pub use definition::SessionDefinition;
+pub use definition::{SessionDefinition, SessionOutputRetention};
 pub use model::{
     SessionChunk, SessionCleanup, SessionExit, SessionOutcome, SessionRequest, SessionStream,
 };
 pub use ports::{InteractiveSession, SessionInput, SessionLaunch, SessionProvider};
 use std::sync::Arc;
+pub use view::{SessionCompletion, SessionFailure, SessionInfo, SessionOutputPage, SessionStatus};
 
 pub const SESSION_PROTOCOL_VERSION: u32 = 5;
 pub const SESSION_CHUNK_LIMIT: usize = 8192;

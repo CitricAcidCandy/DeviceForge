@@ -15,7 +15,8 @@ async function identity(path) {
 export async function createCliEvidence(root, temporary) {
   const directory = await mkdtemp(join(root, 'artifacts', 'npx-raw-'));
   return { directory, temporary, command: 'node scripts/cli-smoke.mjs',
-    started_at: new Date().toISOString(), node: { path: process.execPath, version: process.version }, phases: [] };
+    started_at: new Date().toISOString(), node: { path: process.execPath, version: process.version },
+    phases: [], cli_commands: [] };
 }
 
 export async function preserveCliArchive(archive, report) {

@@ -275,7 +275,110 @@ export interface paths {
         };
         put?: never;
         post?: never;
-        delete?: never;
+
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            created_at: number;
+                            filename: string;
+                            id: string;
+                            media_type: string;
+                            sha256: string;
+
+                            size: number;
+                        };
+                    };
+                };
+
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            code: string;
+                            message: string;
+                        };
+                    };
+                };
+
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            code: string;
+                            message: string;
+                        };
+                    };
+                };
+
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            code: string;
+                            message: string;
+                        };
+                    };
+                };
+
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            code: string;
+                            message: string;
+                        };
+                    };
+                };
+
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            code: string;
+                            message: string;
+                        };
+                    };
+                };
+
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            code: string;
+                            message: string;
+                        };
+                    };
+                };
+            };
+        };
         options?: never;
         head?: never;
         patch?: never;
@@ -1891,7 +1994,159 @@ export interface paths {
         };
         put?: never;
         post?: never;
-        delete?: never;
+
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+
+                200: {
+                    headers: {
+
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            data: {
+
+                                created_at: number;
+                                filename: string;
+                                id: string;
+                                media_type: string;
+                                sha256: string;
+
+                                size: number;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                400: {
+                    headers: {
+
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                401: {
+                    headers: {
+
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                404: {
+                    headers: {
+
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                409: {
+                    headers: {
+
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                429: {
+                    headers: {
+
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                500: {
+                    headers: {
+
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+            };
+        };
         options?: never;
         head?: never;
         patch?: never;
@@ -5419,6 +5674,7 @@ export interface paths {
                                 id: string;
                                 operations: string[];
                                 protected: boolean;
+                                sessions?: string[];
 
                                 state: "loaded" | "draining" | "unloaded";
                                 version: string;
@@ -5584,6 +5840,7 @@ export interface paths {
                                 id: string;
                                 operations: string[];
                                 protected: boolean;
+                                sessions?: string[];
 
                                 state: "loaded" | "draining" | "unloaded";
                                 version: string;
@@ -5783,6 +6040,7 @@ export interface paths {
                                 id: string;
                                 operations: string[];
                                 protected: boolean;
+                                sessions?: string[];
 
                                 state: "loaded" | "draining" | "unloaded";
                                 version: string;
@@ -5938,6 +6196,1580 @@ export interface paths {
                 };
             };
         };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/session-definitions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+
+                200: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            data: {
+
+                                revision: number;
+                                sessions: {
+
+                                    execution?: {
+
+                                        api_version: number;
+
+                                        source: "default" | "declared";
+
+                                        total_timeout_ms: number;
+                                    } | null;
+                                    id: string;
+                                    input_schema: unknown;
+
+                                    output_retention?: "complete" | "bounded_tail";
+                                    title: string;
+                                }[];
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                400: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                401: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                404: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                409: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                429: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                500: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+
+                200: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            data: {
+                                completion?: {
+                                    cleanup: "complete" | "failed" | "unconfirmed";
+                                    failure?: {
+                                        code: string;
+                                        message: string;
+                                    } | null;
+
+                                    outcome?: {
+                                        artifacts: {
+
+                                            created_at: number;
+                                            filename: string;
+                                            id: string;
+                                            media_type: string;
+                                            sha256: string;
+
+                                            size: number;
+                                        }[];
+                                        error?: string | null;
+                                        result?: unknown;
+                                    } | null;
+                                    process_exited: boolean;
+
+                                    sequence?: number | null;
+                                } | null;
+
+                                created_at: number;
+                                generation: string;
+                                id: string;
+                                operation: string;
+
+                                output_sequence: number;
+                                plugin_id: string;
+
+                                status: "opening" | "running" | "stopping" | "finished";
+                            }[];
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                400: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                401: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                404: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                409: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                429: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                500: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        input: unknown;
+                        operation: string;
+                    };
+                };
+            };
+            responses: {
+
+                202: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            data: {
+                                completion?: {
+                                    cleanup: "complete" | "failed" | "unconfirmed";
+                                    failure?: {
+                                        code: string;
+                                        message: string;
+                                    } | null;
+
+                                    outcome?: {
+                                        artifacts: {
+
+                                            created_at: number;
+                                            filename: string;
+                                            id: string;
+                                            media_type: string;
+                                            sha256: string;
+
+                                            size: number;
+                                        }[];
+                                        error?: string | null;
+                                        result?: unknown;
+                                    } | null;
+                                    process_exited: boolean;
+
+                                    sequence?: number | null;
+                                } | null;
+
+                                created_at: number;
+                                generation: string;
+                                id: string;
+                                operation: string;
+
+                                output_sequence: number;
+                                plugin_id: string;
+
+                                status: "opening" | "running" | "stopping" | "finished";
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                400: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                401: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                404: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                409: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                429: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                500: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/sessions/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+
+                200: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            data: {
+                                completion?: {
+                                    cleanup: "complete" | "failed" | "unconfirmed";
+                                    failure?: {
+                                        code: string;
+                                        message: string;
+                                    } | null;
+
+                                    outcome?: {
+                                        artifacts: {
+
+                                            created_at: number;
+                                            filename: string;
+                                            id: string;
+                                            media_type: string;
+                                            sha256: string;
+
+                                            size: number;
+                                        }[];
+                                        error?: string | null;
+                                        result?: unknown;
+                                    } | null;
+                                    process_exited: boolean;
+
+                                    sequence?: number | null;
+                                } | null;
+
+                                created_at: number;
+                                generation: string;
+                                id: string;
+                                operation: string;
+
+                                output_sequence: number;
+                                plugin_id: string;
+
+                                status: "opening" | "running" | "stopping" | "finished";
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                400: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                401: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                404: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                409: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                429: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                500: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+
+                200: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            data: {
+                                id: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                400: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                401: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                404: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                409: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                429: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                500: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/sessions/{id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+
+                200: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            data: {
+                                completion?: {
+                                    cleanup: "complete" | "failed" | "unconfirmed";
+                                    failure?: {
+                                        code: string;
+                                        message: string;
+                                    } | null;
+
+                                    outcome?: {
+                                        artifacts: {
+
+                                            created_at: number;
+                                            filename: string;
+                                            id: string;
+                                            media_type: string;
+                                            sha256: string;
+
+                                            size: number;
+                                        }[];
+                                        error?: string | null;
+                                        result?: unknown;
+                                    } | null;
+                                    process_exited: boolean;
+
+                                    sequence?: number | null;
+                                } | null;
+
+                                created_at: number;
+                                generation: string;
+                                id: string;
+                                operation: string;
+
+                                output_sequence: number;
+                                plugin_id: string;
+
+                                status: "opening" | "running" | "stopping" | "finished";
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                400: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                401: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                404: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                409: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                429: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                500: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/sessions/{id}/eof": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+
+                200: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            data: {
+                                accepted: boolean;
+                                id: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                400: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                401: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                404: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                409: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                429: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                500: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/sessions/{id}/input": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        bytes: number[];
+                    };
+                };
+            };
+            responses: {
+
+                200: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            data: {
+                                accepted: boolean;
+                                id: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                400: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                401: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                404: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                409: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                429: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                500: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/sessions/{id}/output": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+
+        get: {
+            parameters: {
+                query?: {
+                    after?: number;
+                    limit?: number;
+                };
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+
+                200: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            data: {
+                                chunks: {
+                                    bytes: number[];
+
+                                    sequence: number;
+
+                                    stream: "stdout" | "stderr";
+                                }[];
+
+                                next_sequence: number;
+                                session: {
+                                    completion?: {
+                                        cleanup: "complete" | "failed" | "unconfirmed";
+                                        failure?: {
+                                            code: string;
+                                            message: string;
+                                        } | null;
+
+                                        outcome?: {
+                                            artifacts: {
+
+                                                created_at: number;
+                                                filename: string;
+                                                id: string;
+                                                media_type: string;
+                                                sha256: string;
+
+                                                size: number;
+                                            }[];
+                                            error?: string | null;
+                                            result?: unknown;
+                                        } | null;
+                                        process_exited: boolean;
+
+                                        sequence?: number | null;
+                                    } | null;
+
+                                    created_at: number;
+                                    generation: string;
+                                    id: string;
+                                    operation: string;
+
+                                    output_sequence: number;
+                                    plugin_id: string;
+
+                                    status: "opening" | "running" | "stopping" | "finished";
+                                };
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                400: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                401: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                404: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                409: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                429: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                500: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -6554,6 +8386,127 @@ export interface components {
                     package_path: string;
                 };
             }[];
+        };
+
+        SessionBytesInput: {
+            bytes: number[];
+        };
+
+        SessionDefinitions: {
+
+            revision: number;
+            sessions: {
+
+                execution?: {
+
+                    api_version: number;
+
+                    source: "default" | "declared";
+
+                    total_timeout_ms: number;
+                } | null;
+                id: string;
+                input_schema: unknown;
+
+                output_retention?: "complete" | "bounded_tail";
+                title: string;
+            }[];
+        };
+
+        SessionInfo: {
+            completion?: {
+                cleanup: "complete" | "failed" | "unconfirmed";
+                failure?: {
+                    code: string;
+                    message: string;
+                } | null;
+
+                outcome?: {
+                    artifacts: {
+
+                        created_at: number;
+                        filename: string;
+                        id: string;
+                        media_type: string;
+                        sha256: string;
+
+                        size: number;
+                    }[];
+                    error?: string | null;
+                    result?: unknown;
+                } | null;
+                process_exited: boolean;
+
+                sequence?: number | null;
+            } | null;
+
+            created_at: number;
+            generation: string;
+            id: string;
+            operation: string;
+
+            output_sequence: number;
+            plugin_id: string;
+
+            status: "opening" | "running" | "stopping" | "finished";
+        };
+
+        SessionOutputPage: {
+            chunks: {
+                bytes: number[];
+
+                sequence: number;
+
+                stream: "stdout" | "stderr";
+            }[];
+
+            next_sequence: number;
+            session: {
+                completion?: {
+                    cleanup: "complete" | "failed" | "unconfirmed";
+                    failure?: {
+                        code: string;
+                        message: string;
+                    } | null;
+
+                    outcome?: {
+                        artifacts: {
+
+                            created_at: number;
+                            filename: string;
+                            id: string;
+                            media_type: string;
+                            sha256: string;
+
+                            size: number;
+                        }[];
+                        error?: string | null;
+                        result?: unknown;
+                    } | null;
+                    process_exited: boolean;
+
+                    sequence?: number | null;
+                } | null;
+
+                created_at: number;
+                generation: string;
+                id: string;
+                operation: string;
+
+                output_sequence: number;
+                plugin_id: string;
+
+                status: "opening" | "running" | "stopping" | "finished";
+            };
+        };
+
+        SessionReceipt: {
+            accepted: boolean;
+            id: string;
+        };
+
+        SessionRemoved: {
+            id: string;
         };
     };
     responses: never;

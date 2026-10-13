@@ -461,8 +461,8 @@
                     "text": {
                       "type": "string",
                       "minLength": 1,
-                      "maxLength": 1024,
-                      "pattern": "^[ -~]+$"
+                      "maxLength": 4096,
+                      "description": "ASCII运行时限1024字节；Unicode运行时限4096字节并要求显式ADB Keyboard配置"
                     },
                     "enter": {
                       "type": "boolean",

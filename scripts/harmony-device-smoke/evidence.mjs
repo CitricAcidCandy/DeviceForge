@@ -7,11 +7,11 @@ export { retain } from '../android-packages-smoke/evidence.mjs';
 
 export function reportFor(profile) {
   return { timestamp: new Date().toISOString(), run_id: randomUUID(), profile, passed: false, checks: [], requests: [], jobs: [],
-    scope: '当前新宿主真实HTTP/MCP、harmony-device四贡献/三能力、显式格式2旧绑定、HAP安装私有副本、假HDC固定argv与共享锁、卸载历史重载及正常退出',
+    scope: '当前新宿主真实HTTP/MCP、harmony-device十贡献/九定义能力含七设备和二提供者、显式格式2绑定、HAP副本、完整应用详情/启动停止重置及自动ability、连接重复连接/静默断开、provider写屏障、假HDC固定argv共享锁、读取并行、取消卸载历史重载及正常退出',
     limitations: ['假HDC不证明真实HDC、共享daemon、真机或另一LAN主机',
       '便携目录不是正式原TGZ、CLI install、npx或registry发布证据',
       '只观察工具与父插件直接PID，未取得OS退出码，不证明派生树与设备状态回滚',
-      '端点采样不证明内部注册/提交原子性；不覆盖扩展业务/性能的设备锁',
+      '端点采样不证明内部注册/提交原子性；不覆盖其它插件与性能会话的设备锁',
       '插件request_id从同Job宿主日志读取，未截获stdin原帧',
       '有界看门狗和10000限流配置不提供性能结论'] };
 }

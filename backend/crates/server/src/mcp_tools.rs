@@ -4,8 +4,14 @@ use rmcp::model::Tool;
 use serde_json::json;
 
 pub(crate) fn catalog(app: &Application, management: bool) -> (u64, Vec<Tool>) {
-    let (revision, operations) = app.operations_snapshot();
+    let (revision, operations, sessions) = app.contributions_snapshot();
     let mut tools: Vec<_> = operations.into_iter().map(operation_tool).collect();
+    tools.extend(
+        sessions
+            .into_iter()
+            .map(crate::interactive_mcp::session_tool),
+    );
+    tools.extend(crate::interactive_mcp::tools());
     tools.extend(management_tools(management));
     tools.extend(crate::device_mcp::tools());
     (revision, tools)

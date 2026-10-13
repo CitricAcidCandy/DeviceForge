@@ -1,5 +1,6 @@
 //! 独立的受限归档机制与 Android 包解析；不包含宿主、工具进程或设备连接。
 pub mod android;
+pub mod apks;
 pub mod archive;
 pub mod control;
 pub mod error;

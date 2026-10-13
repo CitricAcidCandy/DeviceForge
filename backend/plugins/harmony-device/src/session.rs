@@ -1,5 +1,5 @@
 mod directory;
-mod files;
+pub(crate) mod files;
 mod input;
 #[cfg(test)]
 mod lifecycle;

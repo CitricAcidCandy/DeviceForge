@@ -4,7 +4,7 @@ use std::{
     path::{Component, Path},
 };
 
-pub(super) fn regular(path: &Path, directory: bool) -> Result<Metadata> {
+pub(crate) fn regular(path: &Path, directory: bool) -> Result<Metadata> {
     let value = path.to_str().ok_or(Error::Invalid("资源路径须为UTF-8"))?;
     if value.trim().is_empty()
         || value.len() > 4096
@@ -52,7 +52,7 @@ fn reparse(metadata: &Metadata) -> bool {
     }
 }
 
-pub(super) fn create(path: &Path) -> Result<File> {
+pub(crate) fn create(path: &Path) -> Result<File> {
     regular(path.parent().ok_or(Error::Invalid("文件没有父目录"))?, true)?;
     OpenOptions::new()
         .write(true)
@@ -61,7 +61,7 @@ pub(super) fn create(path: &Path) -> Result<File> {
         .map_err(|_| Error::Io("资源文件无法独占创建"))
 }
 
-pub(super) fn opened(path: &Path, file: &File, expected: &Metadata) -> Result<()> {
+pub(crate) fn opened(path: &Path, file: &File, expected: &Metadata) -> Result<()> {
     let actual = file.metadata().map_err(|_| Error::Io("文件句柄无法读取"))?;
     let current = regular(path, false)?;
     if !actual.is_file()

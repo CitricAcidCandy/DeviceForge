@@ -138,6 +138,30 @@ async fn upload_download_preview_and_shared_operations() {
     })
     .await
     .unwrap();
+    let deleted = call(
+        &router,
+        "DELETE",
+        &format!("/api/v2/artifacts/{id}"),
+        vec![],
+        true,
+        "application/json",
+    )
+    .await;
+    assert_eq!(deleted.status(), StatusCode::OK);
+    assert_eq!(json(deleted).await["data"]["id"], id);
+    assert_eq!(
+        call(
+            &router,
+            "GET",
+            &format!("/api/v1/artifacts/{id}"),
+            vec![],
+            true,
+            "application/json",
+        )
+        .await
+        .status(),
+        StatusCode::NOT_FOUND
+    );
     app.shutdown().await.unwrap();
 }
 #[tokio::test]

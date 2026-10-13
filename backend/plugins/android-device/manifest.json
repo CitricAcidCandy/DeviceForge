@@ -127,7 +127,14 @@
           },
           "input": {
             "type":"object","additionalProperties":false,
-            "properties":{"artifact_id":{"type":"string","minLength":36,"maxLength":36,"pattern":"^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$"}},
+            "properties":{
+              "artifact_id":{"type":"string","minLength":36,"maxLength":36,"pattern":"^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$"},
+              "modules":{
+                "type":["array","null"],"minItems":1,"maxItems":128,"uniqueItems":true,
+                "items":{"type":"string","minLength":1,"maxLength":80,"pattern":"^[A-Za-z][A-Za-z0-9_]*$"},
+                "description":"省略或null沿原默认匹配；ALL必须单独选择，运行时另校混用"
+              }
+            },
             "required":["artifact_id"]
           }
         },
@@ -550,8 +557,8 @@
                       "text": {
                         "type": "string",
                         "minLength": 1,
-                        "maxLength": 1024,
-                        "pattern": "^[ -~]+$"
+                        "maxLength": 4096,
+                        "description": "ASCII运行时限1024字节；Unicode运行时限4096字节并要求显式ADB Keyboard配置"
                       },
                       "enter": {
                         "type": "boolean",

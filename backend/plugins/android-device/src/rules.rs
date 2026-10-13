@@ -4,6 +4,7 @@ pub(crate) mod artifacts;
 mod input;
 mod output;
 pub(crate) mod performance;
+pub(crate) mod unicode;
 
 use crate::{Error, Result};
 pub(crate) use artifacts::artifact_id;

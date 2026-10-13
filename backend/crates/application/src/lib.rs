@@ -12,6 +12,7 @@ mod blocking;
 mod completion;
 pub mod devices;
 mod execution;
+pub mod interactive;
 pub mod operation_aliases;
 mod operation_budget;
 pub mod plugin_lifecycle;
@@ -19,6 +20,7 @@ pub mod plugin_packages;
 pub mod registration;
 mod registry;
 mod registry_aliases;
+mod registry_sessions;
 mod runner;
 mod submission;
 mod submission_reservation;
@@ -40,6 +42,7 @@ pub struct Application {
     tracker: TaskTracker,
     device_locks: devices::locks::Locks,
     device_refreshes: Arc<Semaphore>,
+    sessions: interactive::Sessions,
 }
 
 impl Application {
@@ -80,6 +83,7 @@ impl Application {
             tracker: TaskTracker::new(),
             device_locks: Default::default(),
             device_refreshes: Arc::new(Semaphore::new(2)),
+            sessions: Default::default(),
         }))
     }
     pub fn operations(&self) -> Vec<Operation> {
@@ -87,6 +91,9 @@ impl Application {
     }
     pub fn operations_snapshot(&self) -> (u64, Vec<Operation>) {
         self.registry.operations()
+    }
+    pub fn subscribe_contributions(&self) -> tokio::sync::watch::Receiver<u64> {
+        self.registry.subscribe()
     }
     pub fn operation(&self, id: &str) -> Option<Operation> {
         self.registry
@@ -178,6 +185,7 @@ impl Application {
         for attempt in attempts.values() {
             attempt.reject(devices::attempt::Rejection::Cancelled);
         }
+        self.sessions.cancel_all();
         for (id, token) in &tokens {
             if completions
                 .get(id)

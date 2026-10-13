@@ -8,6 +8,7 @@ fn definition() -> SessionDefinition {
         title: "交互会话".into(),
         input_schema: json!({"type":"object"}),
         execution: None,
+        output_retention: Default::default(),
     }
 }
 

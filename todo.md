@@ -1,5 +1,241 @@
 # DeviceForge 开发与验收记录
 
+## 2026-10-13 投屏直播集成与业务接续
+
+- [x] 用户完成精确沙箱目录所有权修复，外部 CLI 两次 `sandbox-probe-ok`；当前主代理 managed 执行器仍为 `helper_unknown_error: setup refresh had errors`。备用 Node 可读写工作区并执行命令，开发继续。
+- [x] 公共输出策略已实现：默认完整保留、显式尾部窗口与过期游标 Conflict；SDK 8、运行库 24、缓存 3、交互 15 项实际通过，四份公共 README 已补策略与边界。
+- [x] 投屏首冻结后端库 13/13、Clippy、宿主 check 与 debug build 通过；副本位于 `artifacts/mirroring-live-debug-frozen-ea223604-2dc0-4af6-a72c-04988fdadf96`，首轮 10/12 失败原件保留。
+- [x] 前端实时媒体、控制 epoch、`readPackets` 与 `host.mirroring.stream` v1 已完成；33 项定点通过。主代理 `generate:api`、`check`（190 源码、Svelte 0/0、tsc）、默认 `npm test` 62/62 文件及 `build` 207 模块退出 0。全量首轮 61/62 的旧服务目录断言已窄修，原件保留；生产工厂未改。
+- [x] 新常驻服务 OS 句柄夹具资格 3 项通过，报告 `artifacts/mirroring-streaming-fixture-self-check-ca662704-53d6-4982-a65a-6dae156090c3/report.json`；旧资格另留原件。
+- [ ] 新真实服务报告 `artifacts/mirroring-streaming-service-debug-0f72d0fb-8a08-4d08-b647-885636a13cbe/report.json` 为失败：宿主空产物上下文被直播误拒绝，零工具/媒体输出。主代理已修为仅拒绝非空输入产物并补 2 项回归；备用 Node 首编译因缺 `link.exe` 退出 101，修后编译与新冻结交后端复用可用环境，尚未计通过。
+- [ ] 独立服务继续验证 HTTP/MCP、实际前端工厂、重连、取消/卸载/代际和缺 PID、外来 forward 清理失败。浏览器实际 H264/PCM 播放、真实 ADB/scrcpy、真机、Release 与正式分发仍待。
+- [ ] 后端接续 Android FPS 实际展示时间戳适配；复用已有 FrameWindow，不伪造帧数或填零，CPU/PSS/RSS 与原截止点保持。源码仍实施，不计通过。
+- [x] 所有业务完成后再做性能测试；当前只并行业务开发与必要功能检查，具体页面等待设计稿。
+
+## 2026-10-13 性能消费接线与缓存故障并行批次
+
+- [x] 修正前端在线插件、插件开发、架构约束和设备面板文档中的旧入口描述：`main.ts` 已通过 bootstrap 装配 runtime，SDK 已公开产物上传/下载，主题框架的当前报告与历史摘要分开记录。
+- [x] 工具供应 README 与缓存驱动 README 同步 49 项历史终态证据，明确 canonical 摘要独立重算、关闭缓存与本地清单已验证；不把新故障矩阵计入旧报告。
+- [x] 本轮在新增性能接线之前，主代理执行前端 `generate:api`、`check`、`npm test` 与 `build` 均退出 0：177 个源码文件、Svelte 零错误/警告、57/57 个测试文件、191 个构建模块；根目录 `npm test` 29/29 通过。后续性能增量须独立验证。
+- [x] 前端性能消费 HTTP 工厂、`host.performance` 版本 1 服务和 runtime 生命周期已接线；性能定点测试 3+5+5+8 项通过，前端架构检查覆盖 179 个源码文件，生产构建 197 个模块；不开发具体页面，不自动开始或停止服务器性能会话。
+- [ ] 测试助理仍需执行新性能消费真实本机服务驱动，使用实际前端工厂和合成采样插件，验证八个会话动作、日志、卸载与历史；合成帧率不能替代真机 FPS。
+- [x] 缓存新 IO/Busy/Cleanup 服务矩阵已用当前 debug/release 构建各通过 55 项、84 Jobs、10 次宿主正常退出；debug 报告 `artifacts/ordinary-tool-cache-debug-2026-10-13T01-41-52.316Z-04a94926-d959-42d4-8295-a5b6010648e6/report.json`，release 报告 `artifacts/ordinary-tool-cache-release-2026-10-13T01-51-48.374Z-c2507509-76f9-4fa0-817e-30e77e9d3711/report.json`。新增覆盖 HTTP/MCP CacheBusy→释放恢复、真实文件占用 IO→释放恢复、非目录缓存硬失败和遗留 pending Cleanup；提交/flush/sync 故障、裸并发、来源切换、DNS/TLS/正文超限、真实来源、跨平台和 npx 仍待。
+
+
+## 2026-10-13 工具清单缓存服务矩阵增量
+
+- [x] 当前源码重建 `apk-server` 与 `deviceforge-tool-supply-plugin` 的 debug/release 构建均退出 0。
+- [x] `backend/tests/ordinary-tool-cache-smoke.ts` 严格 TypeScript、帮助入口和 `git diff --check` 通过；缓存封装摘要按 Rust `cache.rs` canonical 字段顺序独立重算。
+- [x] debug 报告 `artifacts/ordinary-tool-cache-debug-2026-10-13T00-34-14.788Z-dd91565a-17db-4475-b947-af34b456bc5b/report.json` 与 release 报告 `artifacts/ordinary-tool-cache-release-2026-10-13T00-39-41.111Z-0edfc37e-5958-4b3e-af7a-3f423f600baf/report.json` 均通过 49 项检查；HTTP/MCP 各覆盖 `manifest_cache_enabled=false` 查询降级和 `local_manifest` 远端零读取，输入身份稳定、宿主正常退出且端口释放。
+- [x] 本批之后后端 `node scripts/check-architecture.mjs`、`node --test scripts/architecture.test.mjs`（6/6）、`cargo fmt --all -- --check`、`cargo clippy --workspace --all-targets -- -D warnings`、`cargo test --workspace` 与 `cargo build --workspace` 均退出 0；tool-supply 定向为 69 个单测 + 2 个协议测试通过。
+- [ ] 缓存 IO/Busy/提交清理失败、来源切换、裸并发、DNS/TLS/超限、真实来源、跨平台和 npx 仍未由本批服务矩阵证明；不扩大为生产容量或完整迁移完成。
+
+## 2026-10-13 前端主题证据计数收口
+
+- [x] `frontend/docs/主题插件与宿主样式.md:58` 更新为当前源码复核：`npm test` 57/57 个测试文件（533 项）、`npm run check` 177 个源码文件、`npm run build` 191 个模块；主题浏览器 smoke 当前 debug/release 均 `passed=true`，报告分别为 `artifacts/browser-theme-smoke-debug-cef1ff15-2013-47ae-8851-b37f5e68f4c9/report.json` 和 `artifacts/browser-theme-smoke-release-f5c10b1e-8053-4e73-b386-63d39687b0a4/report.json`；保留主题定点 11/11 与历史报告边界。
+
+## 2026-10-13 Harmony 截图正式 npx 收口
+
+- [x] 修复 `scripts/cli-smoke-evidence.mjs` 报告对象未初始化 `cli_commands` 的验收脚本缺陷；旧 `artifacts/npx-raw-FA0JlZ/report.json` 保留为修复前失败原件。
+- [x] 按当前源码重建 CLI 与 Harmony Windows x64 release TGZ，重新编译 fake HDC 和可观测进程探针；`npm run pack:cli`、`npm run pack:plugins -- harmony-device`、两个 `rustc` 编译命令均退出 0。
+- [x] `scripts/harmony-screenshot-npx-smoke.mjs` 修正为先启动空宿主、再 CLI 安装插件、再显式加载；两阶段正式 npx smoke 通过：14 个业务 Job、12 个元数据 Job、62 个工具，报告为 `artifacts/npx-raw-foB9MO/report.json`。
+- [x] 根目录 `npm test` 29/29 通过；两份 npx 脚本语法检查、`git diff --check` 和本轮自有进程收口检查通过。
+- [ ] 该证据仍限定 Windows、本机 TGZ、假 HDC 和结构化 JPEG；真实 HDC/真机、registry、第三方 MCP、跨平台和视觉正确性仍待。
+
+## 2026-10-13 终端交互 release 服务增量
+
+- [x] 当前源码 `cargo build --locked --release -p apk-server -p deviceforge-terminal-plugin` 通过；`node scripts/terminal-interactive-smoke.mjs --release` 通过 9 项检查、6 个会话，报告为 `artifacts/terminal-interactive-service-release-1496c833-a115-4fc3-af57-60c1968c7aad/report.json`。
+- [ ] 该服务证据仍不等同正式 TGZ/npx、PTY、真实外部工具、完整派生进程树、跨平台或真机；正式分发仍需独立收口。
+
+## 2026-10-13 浏览器插件真实 debug/release 收口
+
+- [x] `node scripts/browser-plugin-smoke.mjs` 与 `node scripts/browser-plugin-smoke.mjs --release` 均退出 0、`passed=true`；报告为 `artifacts/browser-plugin-smoke-debug.json` 与 `artifacts/browser-plugin-smoke-release.json`。
+- [x] 两轮使用真实 Edge 155.0.4283.45，覆盖在线包上传/安装、生产 ESM 与相对依赖、面板/组件/模块、命令/服务/动态状态、设备提供者代次与旧引用拒绝、二进制/JSON 产物摘要、取消、作用域撤销和卸载恢复；各轮 `firstGeneration=1` 到 `nextGeneration=2`、3 个取消检查、8 个日志 ID，Rust 宿主正常退出且无残留。
+- [ ] 证据限定 Windows 本机 Edge、合成设备和在线夹具，不证明真机、跨平台、产品视觉或生产容量；不把历史浏览器报告扩大为完整产品 UI。
+
+## 2026-10-13 传输与分发验收增量
+
+- [x] `artifact-browser` 增加无界面上传/下载消费端口，新增 4 项后定向 22/22；上传校验文件名和返回元数据，下载保留原始 `Blob`、日志与取消代次，未伪造摘要校验或 UI。
+- [x] 前端新增传输消费后 `npm test` 57/57、`npm run check`（架构、Svelte、TypeScript）和 `npm run build`（191 模块）均通过。
+- [x] Harmony 截图修后 debug smoke 15 Job/7 元数据 Job/63 工具通过，输入 known smoke 2 Job/8 工具通过；报告为 `artifacts/harmony-screenshot-service-debug-20a0145e-8e9d-4f5f-8b85-e7a76bf6eb02/report.json` 与 `artifacts/harmony-input-service-debug-c1f8850e-4ecf-47b3-832f-4d8388cc82da/report.json`。
+- [x] 使用当前源码重建 release 后，Harmony 截图 normal smoke 15 Job/7 元数据 Job/63 工具通过，输入 known smoke 2 Job/8 工具通过；报告为 `artifacts/harmony-screenshot-service-release-3b0886fc-d3cb-404b-87ee-81d4fc35162f/report.json` 与 `artifacts/harmony-input-service-release-fd301243-6090-4062-b9cb-4de5e4b1b46c/report.json`。
+- [x] AI SDK Windows x64 本地 TGZ npx 审计 6/6 通过，报告为 `artifacts/ai-sdk-npx-audit-992d8162-aaa0-4ce7-9ebb-0ab32f72b09b/report.json`；安装、列举、同 ID 覆盖保护、协议/可执行文件和进程清理均已核对。
+- [ ] 上述证据仍限定本机 Windows、假 HDC/合成设备和本地 TGZ；真实 HDC/真机、release/TGZ 全链、模型资格、registry、跨平台、真实 HTTP/MCP 互操作和产品 UI 仍待。
+
+## 2026-10-13 普通 AI SDK 宿主服务接线
+
+- [x] 前端 runtime 新增版本为 `1` 的 `host.ai-sdk` 服务；普通六项动作按公开目录自动刷新，严格校验动作、输入与 JSON 大小，只返回已解码业务结果并保留最终日志 ID。
+- [x] 普通 SDK 接入 `createFrontendRuntime`，返回 `aiSdk` 实例并随 runtime 释放；插件上下文、卸载代次和 runtime 关闭均有定向回归。
+- [x] `tests/ai-sdk-runtime.test.ts` 4 项、普通 SDK 消费 11 项、`npm run check`（177 个源码文件）、前端全量测试（57/57）和生产构建（191 模块）通过。
+- [ ] 该接线不等同后端真实 SDK/模型、真实服务 debug/release、跨平台、真机或具体产品 UI 完成；Windows x64 TGZ 与本机 npx 安装已单独验收，runtime 状态仍以真实资格字段为准。
+
+## 2026-10-13 产物删除消费接线
+
+- [x] 前端共享 API 新增生成合同对应的 `DELETE /api/v2/artifacts/{id}` 端点；artifact-browser 新增 `remove(id, signal)`，校验被删元数据并保留独立 `removeLogId`。
+- [x] 删除成功清空当前选择，删除其他产物不覆盖当前选择；冲突、未知身份、取消、选择切换和晚到结果均有代次保护与真实日志传递。
+- [x] artifact-browser 定向回归 18/18，覆盖 HTTP DELETE、成功/冲突/取消和现有查询行为；`npm run check`（177 源码、Svelte/TypeScript 0 错误）及 `npm test`（57/57）通过，生产构建 191 模块通过。
+- [ ] 仍未覆盖产物列表、上传下载 UI、实际生产视觉、跨主机共享回收、后台持续负载、真实 LAN 页面或跨平台验收。
+
+## 2026-10-13 产物 server 跨进程协调收口
+
+- [x] `backend/crates/server/tests/artifact_storage_coordination.rs` 使用真实 `apk-server` 子进程验证同一目录锁竞争：第二实例非零退出，首实例退出后锁可重新取得；路由重启用例覆盖摘要篡改不计配额、替代上传和保留期过期清理。
+- [x] `cargo test -p apk-server --test artifact_storage_coordination -- --test-threads=1` 退出 0，2/2 通过；Clippy、fmt 和 `git diff --check` 均通过。
+- [ ] 证据限定单机 Windows 同目录和受控临时目录；跨主机共享、生产持续负载、慢磁盘、release/npx 和真机仍待。
+
+## 2026-10-13 Android Unicode 输入定向增量
+
+- [x] Android Unicode 输入已按 ADB 实际 `pm path` 回显形状判定安装状态；新增假 ADB 五段固定 argv、真实路径、Base64、回车追加及公开结果字段回归，记录于 `backend/plugins/android-device/tests/cases/normal.rs`。
+- [ ] 当前仅证明插件协议与受控假工具链；ADB Keyboard 安装/启用、当前输入法选择、目标应用文字效果、真机、跨平台及 release/npx 仍待独立验收。
+
+## 2026-10-13 AI SDK 分发增量
+
+- [x] 当前 Windows x64 AI SDK 正式插件包已由 `npm run pack:plugins -- ai-sdk` 生成：`artifacts/deviceforge-plugin-ai-sdk-win32-x64-0.1.0.tgz`；同次 release 构建通过 Rust `validate-plugin` 门禁，包内固定 worker、配置模板和 `plugin.json` 均已纳入。
+- [x] 使用现有 CLI 正式包执行真实 `npx --package ... deviceforge plugin install/list`，在隔离数据目录安装并列出 `ai-sdk@0.1.0`，登记 6 项操作；该证据只证明本机 Windows x64 分发和安装，不证明模型可用或完整服务 release。
+- [ ] AI SDK `runtime.status` 仍为 `real_model_verified=false`、`ready=false`；真实模型/账号、完整服务 debug/release、跨平台、真机和远程 registry 仍待。
+
+## 2026-10-13 最新并行收口
+
+- [x] AI SDK 修复后最新 `frontend-only` debug smoke 通过：7/7 检查通过，覆盖协议4/5动态注册、官方 SDK 加载、前端普通六贡献、实时工厂、Finished/游标恢复、冻结输入身份和日志关联；最新报告为 `artifacts/ai-sdk-service-debug-51d0379f-c629-4094-b4a8-a475acd7e568/report.json`，旧031报告继续保留。
+- [x] Windows AI SDK 进程族修复已收口：supervisor 工作目录固定到 worker 父目录；`conhost.exe` 仅允许规范化的 `SystemRoot\\System32\\conhost.exe`，直接父必须属于冻结成员，仍执行 OS probe 与退出确认；进程族定点回归 2/2 通过。
+- [x] 产物删除已接入 `ArtifactStore`、文件实现、HTTP v1/v2 和 OpenAPI 生成源；读取许可全部占用时才允许删除，活动下载/预览返回冲突。产物库 141/141、基础设施定向 7/7、HTTP 定向测试通过；前端 `generate:api`、`check`、`npm test` 55/55、`build` 180 模块通过。
+- [ ] AI SDK `real_model_verified=false`；完整服务 debug/release、真实模型/账号、跨平台和真机仍待。Windows x64 TGZ 与本机 npx 安装/列举已单独通过；产物总配额、启动重建、过期扫描和完整内容校验已实现；跨进程回收、后台真实服务计时仍待。
+- [x] 前端无界面 bootstrap 已接入 `main.ts`，主题 smoke 首轮共享 chunk 路径失败保留；修复 `scripts/browser-built-assets.mjs` 根级严格映射后，当前源码主题 debug/release 均 8/8，宿主正常退出、端口释放、输入稳定。AI SDK release 旧包失败定位为旧插件版本探针被进程范围提前收口为124，同一工具在最新 debug 输入中退出0，必须重建最新 release 后再验。
+
+## 2026-10-13 当前并行收口
+
+- [x] 前端 MCP 消费层已修复真实宿主 `tools/list` 的标准 `resultType:"complete"` 字段校验；定点测试4/4、全量测试55/55、`npm run check`、`npm run build`（180模块）通过。真实 debug 宿主返回29个工具，SSE首帧、日志关联、释放和宿主正常关闭通过；契约说明见 `frontend/docs/MCP目录消费契约.md`。
+- [x] AI SDK 旧冻结副本曾因 Windows `\\?\\` worker 路径触发 `EISDIR: illegal operation on a directory, lstat 'G:'`；修复路径组装后已用最新驱动重新通过 frontend-only smoke。旧失败原件继续保留。
+- [x] 已回收上一轮 AI SDK 快照产生的孤儿 supervisor；当前复核无 `deviceforge-ai-sdk-plugin`、`sdk-cli`、`apk-server` 或 `process-probe` 残留进程。该清理不改变失败原件。
+- [ ] 当前仍没有可核验的 AI SDK 正式 TGZ 或 npx 产物；现有 Harmony 包/npx 证据不转计 AI SDK。真实模型、正式分发、跨平台和真机验收继续待完成。
+- [x] MCP 动态目录订阅独立 debug/release 门禁通过：`cargo test -p apk-server --test mcp_notifications` 与 `--release` 均 5/5，覆盖 POST SSE 建连确认、首次及动态 `tools/list_changed`、旧游标失效、鉴权过滤、断开后 32 许可回收、普通断开立即重连和服务 shutdown；原始日志为 `artifacts/mcp-notifications-debug-20261013.txt`、`artifacts/mcp-notifications-release-20261013.txt`。该证据基于真实服务器路由与内存 HTTP/SSE 流，不等同第三方 MCP 客户端、真实 LAN、代理/TLS 或跨实现互操作。
+- [x] 产物保留期维护独立 debug/release 门禁通过：`cargo test -p apk-infrastructure --test artifacts_quota` 与 `--release` 均 11/11，包含真实 Tokio 定时 `MaintenanceWorker` 回收过期产物、活动读取跳过、取消和 shutdown 等待、启动重建及配额释放；原始日志为 `artifacts/artifacts-maintenance-debug-20261013.txt`、`artifacts/artifacts-maintenance-release-20261013.txt`。证据使用本地临时目录和受控过期元数据，不等同生产持续负载、跨进程竞争、慢磁盘或跨平台回收能力。
+
+## 2026-10-13 并行收口：AI SDK资格修复与浏览器插件夹具
+
+- [x] 修复 `backend/plugins/ai-sdk/src/runtime_status/probes/sdk.rs` 丢弃 `scope_ready` 接收端的问题；修后 `cargo test -p deviceforge-ai-sdk-plugin` 24 项通过，所属 Clippy 通过。旧 AI SDK 服务报告因该缺陷阻断，继续保留，不改写为通过。
+- [x] AI SDK smoke 冻结器单文件上限由 256 MiB 调整为 512 MiB，总冻结树上限仍为 2 GiB；原因是官方 Windows vendor 可执行文件约 333 MiB。最新准备根已重新 staging 宿主与插件，`host_and_plugin_pending=false`，待独立 smoke 运行。
+- [x] 浏览器插件 smoke 夹具改为只检查被测插件 ID 的贡献撤销，保留宿主 `host.ai-sdk.stream` 等服务；debug/release browser smoke、主题 smoke、`npm run check`、`npm test`（54/54）和 `npm run build` 通过。
+- [x] 最新修复后二进制的 AI SDK frontend-only smoke 已通过；[ ] 完整服务 debug/release、远程 registry 与真实模型仍待，测试与后端并行，不阻塞其他迁移。
+
+## 插件产物阻断修复与SDK消费冻结（2026-10-12，UTC）
+
+- [x] 通用BIN/JS/LOG/JSONL/MP4映射、流式格式限额及共同资格已实现；BIN/JS输入副本接通，保留摘要、原64 MiB总量、取消/期限和释放。最低ftyp不等于完整视频，BIN不等于可执行资格；默认上传/插件输出总量仍64 MiB。
+- [x] 新上传8项、相关基础设施库41项、既有上传/DEX/JPEG/数据16项共65项退出0；26模块架构与基础设施/宿主/Frida/投屏全目标Clippy通过。原件为artifacts/plugin-formats-*test-20261012.txt及架构/Clippy日志，不借记旧1524阶段结果。
+- [x] 新AI SDK普通基础消费7文件冻结，覆盖六贡献、动态目录、严格输入/结果、原Job取消/查询/恢复，11项与严格类型/架构/编码通过；public_results按实际13状态字段/9会话字段批准，普通助手streamtrue仍单轮Job最终结果。
+- [x] SDK裁定补实际首批8项、前端11项和1250ms宿主/1000ms内部共享清理点；macOS不再用已不受支持的NOTE_TRACK宣称资格。后端继续私有协调器/代理/监督和助手，公共进程树仍待。
+- [x] 当前debug宿主和Frida/投屏插件重建退出0；六输入复制前后与冻结副本摘要一致，位于`artifacts/plugin-formats-debug-frozen-56f8cffe-a0c6-489e-b38a-901fd5a688fe/{frida,mirroring}`。定点rustfmt退出0；测试已获独立副本执行权，后续共享target变化不影响本批。
+- [x] 修后Frida真实debug7检查/8Job/11工具通过，67输入稳定、6下载、812日志/229响应ID；录像真实debug9检查/8Job/8工具通过，51输入稳定、7下载、924日志/244响应ID。报告分别为`artifacts/frida-consumption-service-debug-82ce7a9e-0e3d-4e52-b593-566f6dd5d634/report.json`和`artifacts/mirroring-consumption-service-debug-503921a0-53f6-450f-92d0-24b31cf9798b/report.json`。直接工具/父插件/探针实际OS退出、两宿主exit0/监听释放成立；首轮驱动误读票据与临时目录假设失败保留，仅修oracle，不计真实工具/真机/完整派生树或播放解码。
+- [x] 新前端阶段295输入全部来自当前源码，纳入Frida/投屏/自动化/SDK增量；npm ci、158源码架构/严格检查、串行483/483及169模块build退出0，前后源/快照按路径键零差异。报告`artifacts/frontend-plugin-stage-a437bc65-42d6-4e0d-a618-fc28cb7abd1b/report.json`；默认npm test仍exit1/Node克隆异常，483通过/1文件级失败，不计默认入口已修；后续SDK实时不包含此快照。
+- [x] SDK加入第27个workspace成员，首Rust批修后10/10、lib+tests Clippy、fmt与架构退出0。原flush的String类型错误及未排版首失败保留；Cargo精确旧版本约束造成7依赖意外降级后，主代理按原真实版本对齐libc/tempfile/Tokio等，仅更新新插件约束和锁，不用git恢复。日志为`artifacts/ai-sdk-first-rust-*20261012.txt`；不计完整执行/模型/全树。
+- [x] 公共scoped工具调用形状已审定并记录`backend/docs/工具进程完整范围公共契约.md`，生产仍未实现。测试转独占原生多代夹具，后端继续私有执行链，前端继续新SDK实时基础消费；四角色不等普通验收。
+- [ ] 完整SDK/助手、直播/音频/控制/重连、产物跨进程回收/后台定时/完整内容、Unicode/FPS/旧私有格式、MCP真实长连接互操作、真实工具/包/模型/设备、release/正式分发及跨平台继续保持未完成。
+
+## AI流、Harmony集中修复与下一批并行（2026-10-12，UTC）
+
+- [x] AI cli.stream真实debug首轮19检查、14会话、6管理Job、9工具通过；第二轮实际导入前端公开工厂，4检查、1会话、1工具通过。同会话保游标、新工厂从0恢复且不重发提示词，完整关闭和实际父子进程退出成立。报告分别为`artifacts/ai-streaming-service-debug-dc45434c-383d-4652-a505-501d1298e122/report.json`与`artifacts/ai-streaming-service-debug-8add815c-4c38-4a93-9258-6d221cc02560/report.json`；不计真实SDK或模型。
+- [x] 前端AI流18定点通过；新282成员冻结快照严格检查、正确串行440/440和build通过。`artifacts/frontend-ai-streaming-frozen-59e0a854-2b2f-4499-8a41-36cc14b54936/source-manifest.json`标明每个成员来源，Frida使用旧已验原件，不包含后来兼容增量。默认Node测试脚本的既有克隆异常仍保留。
+- [x] Harmony非零客户端修后83/83库、串行输入协议20/20、全目标Clippy及debug构建通过。新known真实debug1轮、2Job、8工具通过，报告`artifacts/harmony-input-service-debug-8de3fb23-5627-4bcf-941f-f8f9c336231f/report.json`；严格匹配回执后返回原dependency_failed且cleanup complete，正常卸载。旧六轮不转计新版，原并行期限失败和旧known失败保留。
+- [x] Frida兼容增量冻结：保留原SDK门面和原5测试字节，新增HTTP工厂、动态目录、历史查询与结果规则；15/15、tsc及151源码架构通过。真实服务/实际Frida/真机仍待。
+- [x] 当前26模块阶段架构、6规则、全量fmt、完整Clippy及debug workspace build退出0；默认workspace在两项既有基础设施期限测试失败，单独各1通过，正确串行完整1524/1524通过。1030冻结输入中生产成员前后稳定，四份文档按实际结果更新，新ai-sdk不属于本阶段成员。报告`artifacts/backend-migration-stage-97bd43e9-15f0-49a9-b134-4a86ab9cf672/report.json`；不称默认并行全过。
+- [x] APKS高级真实debug24检查/19Job/15工具通过，151输入含29前端源码稳定，12下载、1819日志/447响应ID、全部直接父子OS退出与宿主exit0/监听释放成立。报告`artifacts/apks-advanced-service-debug-37e46e22-3a07-4bf9-8b72-d46e1e9fd8d4/report.json`；5份驱动首失败保留，不计真实JVM/bundletool匹配或真机。
+- [x] 投屏兼容增量14/14、自动化兼容增量27/27冻结，原门面和原测试字节保留，严格类型与模块架构通过；当前全量前端、真实服务和设备另验。主代理本轮API生成退出0，不手改生成类型。
+- [x] SDK桥规格已审核并授权独立私有生产；首批实际官方SDK0.162.1固定加载及模拟CLI的8项Node回归由后端交接，私有TS构建通过。Rust配置/资格/会话/帧已冻结待主代理Cargo，后端继续协调器/代理/原生监督，不把8项当真实CLI/模型或全树清理完成。
+- [ ] Frida真实前端首轮暴露通用产物接缝：bin/js上传与授权输入、log/jsonl/js输出及录像mp4媒体映射尚未支持。原失败`artifacts/frida-consumption-service-debug-3973e971-10a2-4acd-8d51-36dda9e5dbce/report.json`保留；实施裁定见`backend/docs/插件脚本与录像产物接缝.md`。主代理接通用生产修复，测试独占新Frida驱动补强，不换后缀绕过问题。
+- [ ] SDK/助手、直播/音频/控制/重连、产物跨进程回收/后台定时/完整内容、Unicode/FPS/旧私有格式、MCP真实长连接互操作、真实工具/包/模型/设备、当前release/正式分发及跨平台仍未完成，完整目标保持active。前端继续新AI SDK基础消费，不做UI。
+
+## DEX链路、交互会话与AI流并行接续（2026-10-12，UTC）
+
+- [x] DEX插件修后26/26、Clippy、debug构建；首次六项失败为CooperativeResponse测试夹具封套错误，只修夹具，生产未改，首失败保留。
+- [x] DEX上传最低资格16项及通用插件授权副本22项、基础设施Clippy/宿主debug构建。真实联调发现第二处输入白名单缺.dex并补齐，继续原SHA256/总量/清理规则。
+- [x] DEX真实debug7检查/5Job通过：实际前端公开inspect/scan、上传/两版本原字节、MCP两贡献与同Job、Adler32失败、卸载撤销/历史不重发、187日志/44响应ID；6原输入、25前端源码前后稳定。报告`artifacts/dex-analysis-service-debug-b0d929ff-5deb-4798-a2b9-a8099f8b6330/report.json`，首失败另存，不计真实APK/真机。
+- [x] APKS高级字段核心6＋包22＋设备75，共103库项；相关Clippy通过。前端新增9项在当前源码独立定点通过，`artifacts/frontend-apks-options-delta-20261012.txt`；真实JAR/高级服务/包/真机仍待。
+- [x] 宿主监督启动门闩保证释放准入/记录锁后运行；15交互回归、应用/服务器完整crate回归及相关Clippy通过，生成由主代理同步。终端真实debug9检查/6会话、245日志/62响应ID/7输入身份通过，原字节、EOF、取消/卸载/换代/历史/删除与exit0/端口释放；OS句柄及完整进程树边界保留。
+- [x] 前端终端19、DEX16、既有包分析与AI观测已冻结。终端＋DEX阶段快照严格检查、413/413正确串行全量测试与build通过；默认npm test发生Node克隆反序列化异常仍保留，旧413快照不含后续APKS9或AI流。
+- [x] 截图冻结debug按补强normal替换旧normal后汇总16场景轮、46插件Job/7元数据Job/123工具；是多轮场景汇总，不是一次all，详见独立驱动README。
+- [x] Harmony输入独立协议19/20、发现7/7。冻结debug通过6轮49Job/151工具，另known失败2Job/8工具，共7轮51Job/159工具；实际OS客户端exit7、完整匹配远端成功回执仍错误cleanup_failed/draining。原件`artifacts/harmony-input-service-debug-summary-20261012.json`，所有自有服务结束。普通生产缺陷已集中交后端窄修，不阻塞其它研发。
+- [x] AI cli.stream私有21文件已冻结，新增22回归。首次两编译错误窄修后33/33库、全目标Clippy与debug构建通过；测试角色已接独立HTTP/MCP/Node驱动，前端同步实施新基础消费，不做UI。
+- [ ] 集成前端AI流与新阶段快照；AI真实服务、Harmony输入修后协议/known与完整后端阶段门禁待执行。release、正式TGZ/npx、真实工具/包/模型/真机、直播/音频/控制/重连、产物删除/配额、AI SDK/工具与跨平台仍在完整目标内，不自行暂停或标完成。
+
+角色继续并行：主代理独占宿主/生成/集成与共同记录；后端修Harmony私有缺陷；前端AI流基础用例；测试AI流独立冻结服务。冻结后开发接下一无冲突内容，普通缺陷集中回流，不等待整批测试或分发。
+
+## 排程纠正后的实际并行进展（2026-10-12，UTC）
+
+- 研发不等待整批验收：后端交接终端后已领取独立DEX分析插件；前端交接MessagePack后已领取包分析基础消费；测试在实际冻结截图二进制上独立运行服务。主代理只协调公共接缝、共享构建和生成器，不将完整测试、分发或审核作为下一模块研发前置条件。
+- 普通缺陷集中修复；编译阻断、公共契约破坏、数据损坏与资源失控只即时处理相关写集。已授权独占模块由代理完成契约核对后直接实施，减少等待主代理逐文件审批的空档。
+- 终端插件已加入workspace，生产依赖符合既有独立插件规则，25模块架构通过。初始库14/14通过；定点Clippy发现一项可派生Default，仅主代理窄修 `lifecycle.rs`，修后全目标Clippy、14/14和debug插件构建均exit0，原件为 `artifacts/terminal-plugin-{initial-lib,targeted-clippy,targeted-clippy-fixed,integrated-lib,debug-build}-20261012.txt`。未运行当前完整workspace、服务、正式包或跨平台验收，不计完整终端完成。
+- 测试角色交接冻结截图debug服务首批15轮全部exit0：normal1、cancel5、deadline5、late3、leftover1，共43插件Job/7元数据Job/120工具。普通首轮报告 `artifacts/harmony-screenshot-service-debug-369dd738-fae0-4f90-a750-174eea48ed02/report.json` 为15插件Job/7元数据Job/63工具；MCP只验artifact.inspect元数据，不宣称MCP原字节下载。当前补输入拒绝零工具与未知文件持锁卸载两项证据，分发尚未运行。
+- 前端MessagePack基础消费已交接：encode/decode/query、分页/筛选/按ID、恢复、取消和原字节摘要下载；13/13、tsc及119源码架构通过。宽整数查询与旧DLL私有格式兼容仍不支持，完整前端门禁和实际服务器消费待阶段验收。
+- 后端继续 `backend/plugins/dex-analysis/**` 和所属裁定；前端继续 `frontend/src/features/package-analysis/**` 与本功能测试。主代理接续宿主会话注册/代际/卸载、HTTP/MCP；终端清单仅有session贡献，不能把普通Job或插件编译冒充公开会话已接通。完整目标保持active。
+
+## 研发与测试并行及截图收尾（2026-10-12，UTC）
+
+- 用户明确纠正排程：研发交接后继续下一独立模块，测试在冻结批次上并行验收，普通缺陷集中修复；不让所有开发等待完整测试或分发。当前生效规则见 `docs/代理协作.md` 顶部，最终各端门禁仍保留，未执行项不计完成。
+- 后端已接续 Harmony 输入官方取证及私有模块，不等待截图；测试继续独占晚到 worker 夹具及截图服务驱动。主代理负责短时集成与共享构建，不重复接手代理写集，具体产品界面仍等待设计稿。
+- 原截图协议新增首轮 29 通过/7 失败，错误优先级和 Start→Cancel 测试帧已窄修；晚到进程复验 1 通过/2 失败。原件分别保留在 `artifacts/harmony-screenshot-targeted-protocol-20261012.txt`、`artifacts/harmony-screenshot-reviewed-late-reader-writer-20261012.txt`，不能计当前协议全通过。
+- 晚到 worker 原件证明插件真实退出已先发生，测试 stdout/stderr join 被祖先继承管道拖延；测试助理仅修改 Windows 夹具为自建 NUL 的 HANDLE_LIST 派发，不改生产、五秒退出检查或六秒 worker 看门狗。该修复尚待定点协议复验。
+- 旧库测试句柄 90011 经轮询确认仍运行，核对本次 Cargo/测试父子链后仅终止挂起测试 56344；原日志 `artifacts/harmony-screenshot-reviewed-lib-20261012.txt` 保留异常终态。挂起由暂停 Tokio 时钟与真实阻塞门闩互等引起；仅测试显式推进首次清理绝对截止点，不改生产两秒清理预算。
+- 修后独立 Harmony 库 63/63 通过，命令退出 0，原件 `artifacts/harmony-screenshot-clock-fixed-lib-20261012.txt`；保留真实 worker 租约、关闭后才释放以及未确认标记粘性断言。此结果不替代协议、workspace、服务、正式包、浏览器或真机。
+- 截图别名修为 `kind:value, wrapped:false`，完整保留宿主 `result`/`artifacts` 包装；原裁定副本 `artifacts/harmony-screenshot-contract-812C67-20261012.md` 保留。前端四门禁退出 0、308/308 通过，当前截图三入口服务包装仍待验。
+- 测试助理已独立执行新夹具修后协议：`unknown_` 3/3、固定watchdog 1/1和截图批次36/36均exit0；日志为 `artifacts/harmony-screenshot-handle-list-{unknown,watchdog,all}-20261012.txt`，全36项耗时56.86秒。插件真实退出后worker仍Running、固定六秒OS124已成立；未执行完整108或workspace，旧失败原件保留。
+- 前端已接续AI任务观测基础用例：只沿现有Job/events、生成类型和取消生命周期，不做产品页面或模型token流。后端官方取证校准Harmony滑动速度、文本定位及原生按键表，输入私有实现正在推进；两项均不等待截图服务或分发。
+- 当前截图debug运行输入已实际隔离复制：`artifacts/harmony-screenshot-frozen-debug-20261012-141929/identity.json` 记录3个exe及双清单/别名/README共7成员，源/副本前后SHA一致；宿主/validator/插件构建exit0。测试服务消费该十一贡献/十能力版，后续输入源码和原binary改动不影响此冻结副本。
+- Harmony输入私有7生产模块已完成并接入lib/operations/Discover，双清单和别名发布十二贡献/十一能力/十二绑定。四类原生动作、UTF-8字节限制、固定版本与帮助资格、唯一远端完成帧、缺帧粘性未确认及原预算已实现；同名input能力不代表Android参数等价。发现单路八秒资格启动窗口，剩余未探测设备input明确不可用，其余八能力保留，此阶段限制仍需后续优化。
+- 输入新增16/16与集成Harmony库79/79均exit0，报告 `artifacts/harmony-input-integrated-{lib,all-lib}-20261012.txt`；当前debug插件构建exit0，后端架构24模块通过，双清单字节与12/11/12数量一致。公开宿主validator实际接受十二贡献，`artifacts/harmony-input-contract-QWsnaR/report.json` passed；只证明模式和本地编译，独立原帧/服务/分发/真实HDC/真机未验。
+- 前端代理已冻结AI任务观测基础用例，沿实际Job/events及生成类型，14新增+32既有定点46/46、tsc及115源码架构exit0。状态和事件保留各自日志ID，非原子且不是模型token流；共享生成/完整前端门禁待阶段集成。前端已接续独立MessagePack消费模块，后端已接续独立终端插件；两端不等待本批测试。
+- 新observable process-probe首次缺少限定路径编译E0425，仅改为crate::evidence_path后rustc退出0；原probe保留，新exe为 `artifacts/harmony-screenshot-fixtures-20261012/process-probe-observable.exe`，编译原件 `artifacts/harmony-screenshot-observable-probe-compile-20261012.txt`。测试驱动普通场景和late场景可分别使用对应冻结工具，未把工具编译计作服务通过。
+
+## Harmony 截图公共 JPEG 接缝（2026-10-12 13:03，UTC）
+
+- 13:20 UTC增量：独立审查发现空重启区间与渐进扫描历史漏拒绝，回归修前10通过/3失败、修后13/13；用固定256字节近似表补频段历史并检查RST间隔字节。修后公共/宿主定点29/29、data-codec全量19/19、三crate全目标Clippy、定点rustfmt和正确换行配置的差异检查通过；原红绿与修后原件、11输入身份分别保留在 `artifacts/harmony-jpeg-review*-20261012.*`。没有修改公共API。
+- 通用JPEG真实宿主debug `jpeg-artifact-smoke-debug-lh9bGa`、release `jpeg-artifact-smoke-release-GrjPAt` 均passed，各3检查/2成功Job/4原字节下载；日志分别87/90、响应ID分别21/22，七指定输入身份零差异，Rust直接进程exit/close0。报告和日志保留，原临时目录正常清理；不宣称SQLite原件、端口探测或截图/像素/真机。debug首次工具编排store(undefined)导致命令结果未回显，已核原报告终态而未重跑；release命令exit0。frontend独立审核终态通过：两模式七输入和共享十一输入、两产物/四下载、Job/日志/错误与关闭原件零差异；保留记录不包含SQLite或原始响应体。
+- 独立审核回流：release多一次Job HTTP轮询，对应多3条请求/响应/流结束记录；不是原件差异。两模式四下载日志均“响应流被提前关闭”、计数31字节，内容完整依据驱动arrayBuffer/原字节/摘要，日志正常EOF不作结论。该通用日志语义独立排队，不改本批格式或重复运行掩盖观察。
+- 首阶段冻结身份后，lib.rs仅按rustfmt调整模块排序；完整已触及Rust文件fmt检查和codec19项复验通过，前后身份见 `artifacts/harmony-jpeg-format-delta-20261012.json`。两模式服务原binary仍冻结，不把后续源码/截图编译借记到原报告。
+
+- 最终截图实施裁定 `backend/docs/Harmony截图插件实施裁定.md` 已由前端独立复评闭合，冻结 SHA256 为 `812C67A33F9CB99B6E3C97BF5422433A9CDB8F50BE09658BE89DFCC836977E15`。模式为 architecture-first / Hybrid：先共享纯格式及通用产物资格，再截图插件及独立协议，不扩展 SDK、DTO 或平台宿主分支。
+- 主代理补完 `data-codec::jpeg::Validator`，纯增量检查 SOF0/SOF2、SOI/EOI、组件/SOS、扫描转义与重启顺序，固定 64 MiB/65,536 标记；段字段规则独立于状态机，无整图分配和 I/O。仅最低结构资格，不证明熵解码、像素或视觉正确。
+- 通用产物支持大小写不敏感的 jpg/jpeg→image/jpeg，在原受限验证 worker 内分块复用同一 Validator；提前限制 JPEG 流式上传，部署上限不能提高格式限额，不改 JSON/MessagePack 的 16 MiB 规则。
+- 定点回归 27/27：JPEG 11、宿主 JPEG 4、HTTP/v1/v2 原字节下载与 MCP inspect 1、原产物 11。日志原件 `artifacts/harmony-jpeg-targeted-20261012.txt`；独立 data-codec 全量 17/17 通过。前置红灯包括未实现 advance 的 E0599 和宿主不接受 JPEG；测试元数据 PartialEq 假设的 E0369 只改测试比较后再取得业务红灯。
+- 上述 Hybrid 首阶段通过后，已批准 backend 独占截图私有生产/Control/薄接线/清单/alias/库测试，director_test 独占协议/夹具，frontend 仅同步消费合同；主代理独占共享格式、宿主、生成与串行门禁。截图生产、协议、真实服务与分发仍在实施，不能借记连接版通过数量。
+- 当前尚未取得本批完整 workspace、全量门禁、实际截图服务、正式包或真机/视觉证据；具体页面继续等待设计稿，目标保持 active。
+
+## Harmony 连接/断开当前门禁（2026-10-12 12:20，UTC）
+
+- 十贡献/九定义能力生产已冻结，连接/断开为 provider/write、30 秒、显式 null 设备范围；库 45/45、独立协议 72/72 通过。前端提供者动作定点 6/6、严格 112 源码检查、全量 308/308 和 166 模块构建通过，生成器退出 0。
+- 架构、规则回归、fmt、完整 Clippy 退出 0。默认完整 workspace 在既有 `terminal::later_success_on_same_provider_cannot_clear_prior_unconfirmed_risk` 看门狗失败；不修改该无关测试、不放宽预算。精确 skip 该项后的其余 workspace、debug/release 构建均退出 0，见 `artifacts/harmony-network-{backend-gates,remaining-backend-gates}-20261012.json`。不能称默认完整测试通过。
+- 730 后端成员按路径键逐件复算大小和 SHA256 零差异，见 `artifacts/harmony-network-backend-identity-keyed-20261012.json`。首身份报告按数组位置比较，原序与 PowerShell 文化排序不同造成 82 项移位，原误差报告保留；不是源码变化。
+- 服务/npx 驱动 24 文件冻结摘要为 `BC5DF4BFE27205E1517C03E81032CA5346A3326B08399E20991475AECBE4BF22`，主代理严格 UTF-8、全部 MJS 语法和差异检查通过，版本化假 HDC 已编译。npx 旧固定八贡献断言改为读取清单贡献数；前端独立只读审计通过。
+- 当前真实宿主服务 debug `b909556a-51b2-4f68-b2d7-c5594301cdb5`、release `e59da9ea-8045-4f3a-b398-300439fc671c` 均 47 检查/148 Job/130 假 HDC 通过，主命令 76465 退出 0。独立审核各 SQLite 148/444、87 成功/50 预期失败/11 取消、工具库存及每 Job 日志起止零差异；128 形状拒绝区间零 Job/工具，24 语义失败 Job 零工具。各 35 输入/280 保留原件复算零差异，四代不同，正常 exit0/监听释放；未观测跨代并发、真机或派生树。
+- 两模式十二条必要后端服务、两模式提供者/嵌套产物及根 21 项全部退出 0，见 `artifacts/harmony-network-required-services-20261012.json`。精确 skip 的 workspace 实际 1313 通过、1 项过滤，默认失败仍保留。
+- 当前正式 CLI/Harmony 原 TGZ 独立保存在 `artifacts/harmony-network-distribution-20261012/`，prepare-runtime/包门禁/两正式构包均退出 0，没有覆盖旧根 TGZ。打包原 binary 和四元数据复制到该目录 `frozen-network-inputs/`，逐件来源/副本身份记录使后续开发与本版分发输入分离。
+- 新 `artifacts/npx-raw-2uIwQP/report.json` passed，主命令 69164 退出 0；两阶段各 22 Job/24 假 HDC，总 44/48、9 检查和 46 输入稳定。独立审核已终态通过：SQLite 44/132 全成功、48 工具、3216 日志及 818 tracked 请求关联成立，实际另含 2 次内部 health 响应；107 原件及包/缓存/安装/served 字节零差异。两代不同、鉴权可选、两次包装 exit0/双端口释放成立；不扩为直接 Rust OS 退出、另一 LAN 主机或真机证据。
+- 本段冻结版本只代表连接/断开批次。截图接缝及生产批准见顶部新批次；Harmony 输入、常驻会话、真机及其它未迁业务继续待完成，完整目标保持 active。
+
+## Harmony 应用详情验收与连接准备（2026-10-12 11:30，UTC）
+
+- 应用详情分发独立审核已终态：FUAAaf的CLI29成员/Harmony6成员、两阶段缓存/安装/shim/served宿主字节一致；SQLite36Jobs/108events全成功，40工具、2626日志/36调用起止/664响应日志ID、两次正常宿主结束、91原件及43输入复算无差异。默认LAN、显式令牌双端401、默认免令牌、两代不同、包装exit0/双端口释放成立；无直接Rust PID/OS退出或真机证据。
+- 下一连接/断开裁定已审核，按公开provider/write、30秒、显式null、规范IPv4/localhost地址和固定tconn/-remove实施十贡献/九能力；不改宿主锁、不管理共享daemon、不自动发现或回滚。backend独占生产/库测试，director_test独占新独立协议及狭窄夹具，frontend独占公开provider动作回归与所属合同，主代理执行生成/门禁/服务与记录。新版本尚未验收，八/七证据不转计它；根scripts暂保持冻结，后续服务驱动另交写权。
+- 11:40 UTC两模式详情原件独立审核通过：38checks/83Job/89工具，SQLite83Jobs/249events（61成功、14预期失败、8取消）、83日志调用起止、34冻结输入/198原件零差异，42非法详情请求零新增Job/工具。十二条后端必需服务、两模式设备提供者及根21项测试全部exit0。
+- 新版release运行包、包门禁、CLI29成员与Harmony6成员正式构包退出0，原TGZ独立保存在 `artifacts/harmony-detail-distribution-20261012/`。首npx dCt78s实际安装exit0及成员/binary核对通过，却因驱动固定7别名断言失败；仅将identity.mjs改为names.length并重新冻结，旧失败保留。新FUAAaf报告passed：两阶段各18成功Job/20HDC，总36/40、9checks、43输入稳定、91原件保留；独立分发审核尚在途，不借记真机或npm registry发布。
+- 八贡献/七能力生产已实现冻结，库39/39、协议57/57，架构/规则/fmt/完整Clippy/默认workspace/debug与release构建全部exit0；815后端输入零差异。原交互看门狗本次通过，历史失败保留，不认定已修。前端生成/严格112源码/302项测试/166模块构建通过。
+- 首详情服务 `debug-c08c13e1-3bd7-467a-ae03-23c64390e36f` 因旧fixtures目录能力顺序深比较失败，保留输入稳定且与当前修正版SHA不同；2Job工具与HTTP/MCP历史正确，宿主exit0/端口释放，不能计详情矩阵通过。重编当前fake-HDC后新debug报告 `harmony-device-smoke-debug-6ce1a8c9-339a-4600-8ee1-14807c3c355f/report.json` passed、命令exit0；release和独立审核在途，八/七正式包/npx尚未执行。
+- 主代理串行协调服务/构包，director_test只读审核；backend与frontend准备provider/write连接/断开公开合同，生产及scripts输入保持冻结。前端消费文档可同步已终态证据，具体产品界面仍等待设计稿。目标保持active，七/六历史TGZ不借记本批。
+
+## 主题插件与 Harmony 应用管理接续（2026-10-12 10:20，UTC）
+
+- 10:45 UTC当前正式分发已通过：prepare-runtime/verify-package、真实CLI原TGZ与Harmony正式TGZ构包退出0，独立 `artifacts/npx-raw-IBoaW0/report.json` 两阶段各16成功Job/18HDC、总32/36、9检查；显式令牌HTTP/MCP无令牌401与默认免令牌、默认LAN、同端口重启/new generation、七贡献/六能力、完整历史/日志及HAP原字节通过。CLI29成员和Harmony6成员核真实缓存/安装字节，83业务原件及实际原TGZ保留，输入前后稳定；包装exit0和两次正常宿主日志不宣称直接采集Rust PID/OS退出码，当前等独立审核终态。根测试仍21/21。1237项目输入快照只在分发结束采集，不是跨全流程前后冻结证明。
+- 10:49 UTC正式分发独立审核终态：IBoaW0的六Harmony原成员/安装及binary身份一致，CLI缓存成员一致；SQLite32Jobs/96events、36唯一工具、2451日志/32调用起止/两次宿主正常结束、83保留原件、42冻结输入均无差异。两代不同、401与默认免令牌/默认LAN、两阶段包装exit0/双端口释放成立；此前“等独立审核”仅为历史，不继续等待。下一app.detail架构已批准，backend实现、frontend消费合同、director_test独立驱动互不重叠写集进行中，主代理协调集成。
+- 本批服务工具PID不可见为执行当时观察，当前数字PID可被无关进程复用，不能再把当前kill0当作额外退出证据。后端独立审核确认两模式[Fail]精确失败、自动启动顺序/同父插件、目录和日志；原deadline值未记录，期限不借记服务。当前后端开始下一批完整app.detail@1，前端准备公开消费文档；八贡献/七能力尚未实施或验收，不把本批七/六报告转计下一版本。
+- 10:36 UTC诊断修补及服务终态：精确大小写无关 `[fail]` 识别已实现，库37/37、协议52/52、架构/规则/fmt/完整Clippy和两模式完整构建退出0；814后端冻结成员/长度/SHA256前后零差异。默认workspace仍在原交互看门狗失败，显式skip该精确项后的其余workspace退出0，不宣称完整门禁通过。
+- Harmony debug/release新服务均33检查、65唯一Job/71实际假HDC调用，报告分别 `harmony-device-smoke-debug-78f0c67a-3bdf-4631-86b0-3af5b40ad76e/report.json` 与 `harmony-device-smoke-release-d520921f-4235-41b3-b72c-4e6a06ffc393/report.json`。各72组非法业务输入经HTTP/MCP共144请求拒绝，零新增Job/工具；SQLite65Jobs/195events、日志关联、33输入和163保留原件均由两角色独立复核无差异，宿主正常exit0、直接PID消失与端口释放。两工具顺序和同父插件成立，日志未记录截止点原值，原预算保证以定点协议回归为证据。
+- 当前版本runtime/runtime-performance/生命周期/合作取消/在线安装/日志两模式十二条必要服务退出0；设备提供者debug、嵌套产物两模式通过。提供者release首轮在已正常宿主退出后因 `process.kill(pid,0)` 返回EPERM失败，原报告保留；同源码原命令复验退出0，只报告观察差异，不断言唯一根因。运行包/正式Harmony包/npx仍在执行。
+- 四角色继续执行：主代理负责交付总监、公开契约、生成与集成，frontend 负责主题框架，backend 负责 Harmony 应用管理，director_test 负责独立驱动与原件审核。具体产品界面仍等待设计稿，目标保持 active，不自动暂停或提交。
+- 主题公开贡献与 ThemeAccess 已实现：显式目标与选择、变量/可信 CSS/配色方案、owner/generation、子作用域撤销、激活回滚、通知重入和卸载/dispose 精确恢复原行内值与 priority。定点 11/11、全前端 302/302、112 源码严格检查、API 生成及 166 模块构建退出 0。
+- 真实主题浏览器 debug/release 各 `report.browser.checks` 8/8，分别为 `browser-theme-smoke-debug-a6fae0c4-ce7c-4150-91c4-ab5fc8391e6a/report.json` 与 `browser-theme-smoke-release-adbc1cc0-cca4-408c-b028-5742c6ba54e0/report.json`。两轮均正常退出、冻结输入与 13 项保留业务原件摘要稳定，独立前端复核通过；浏览器 profile 不计入业务原件索引。旧失败报告全部保留。
+- 新增多入口构建共享 JS 后，浏览器驱动改为提供完整构建 JS 集合，核对成员/长度/SHA256；原插件 debug/release 回归退出 0，本批副本为 `theme-original-browser-{debug,release}-20261012.json`。旧驱动成功后已清理临时包，不宣称原件仍可重读。根测试 `theme-root-tests-20261012.txt` 为 21/21。
+- Harmony 新增 app.start/stop/reset 与省略 ability 时的首模块详情推导，七贡献/六能力；共用原截止点、租约、受限阻塞工作和共享设备写锁。修前库 34/34、协议 49/49、架构/fmt/Clippy 与 debug/release 构建通过；完整 workspace 在未改交互会话看门狗测试失败，隔离单线程复验仍失败，不能归因仅并行负载或写成完整通过。
+- 首次 Harmony 服务报告 `harmony-device-smoke-debug-daa46fad-9ced-4ffa-872a-884d9c49ed16/report.json` 中 stderr-diagnostic 被错误判成功；独立 SQLite 与假 HDC 原件确认 stdout 成功行加 stderr `[Fail]`、exit0。真实 HDC 3.1.0b 对明确不存在目标也返回 `[Fail]` 与 exit0，后端正在补精确标记识别和两流回归。当前新 Harmony 两模式服务、当前分发与真机仍待验，不借记旧四贡献报告。
+- 下一步先收口诊断修补、重跑受影响门禁/构建与 Harmony 两模式服务，再验当前正式包/npx。完整应用详情 app.detail 已取证但未实施；Harmony 输入/连接/截图、常驻会话、跨平台、真实设备与产品 UI 继续按迁移清单推进。
+
 ## 工具缓存与AI旧请求当前收口（2026-10-12 08:05，UTC）
 
 - 08:02 UTC日志服务最终复验通过：debug/release各4000请求、32并发、真实SQLite，均exit0，0丢弃、0写入错误、0超大记录，敏感哨兵不落盘，宿主结束与shutdown响应结束事件完整；无负载隔离各13记录也完整。原首轮末尾事件缺失、数组包装和错误工作目录失败原件保留，不能删除或改写；证据tool-cache-logging-isolated-final-20261012.json及logging-exit-isolated-2026-10-12T08-00-14-708Z/report.json。此为本机给定负载，不宣称持续生产容量、慢磁盘或真机性能。
@@ -549,6 +785,18 @@
 - 本轮npx三失败目录UsUzml/IOiZ9u/fXUaLG分别保留，不冒称完成；422/423新版输入纳入原生插件源码和包README。第三次高频HTTP429也导致shutdown429及强停，正常退出未通过；当前新执行仅提高本次矩阵请求上限并有界退避，生产默认不改。CLI离线部署清理不冒充在线包删除或生产CLI卸载能力。
 - HTTP/MCP两模式与新浏览器局部通过不关闭RAW全矩阵，61秒补证仍仅Executor Future/PID，不等于Application Job全部判据；原历史取消与2039根因未确认，整体迁移保持进行。
 
+## SDK入口、前端实时宿主和公共Windows范围增量（2026-10-12）
+
+- 最新并行收口：SDK运行状态/native/成功资格及清理终态批18项、check/全目标Clippy/debug/27模块架构通过，首Clippy4处局部失败保留。68输入清单与69成员实际副本已冻结，后端继续固定旁置部署，测试独占新ai-sdk-smoke驱动，不等整轮验收。
+- 正式前端测试入口已修：最多4个普通Node进程、53文件/511项exit0，避开Node v24.14.0二进制父子报告解析异常，不重试或跳文件。完整check（165源码/228严格TS）、build（175模块）exit0，233输入前后稳定；默认入口旧失败保留，不借记旧快照，生成/API及真实浏览器SDK另验。
+- 公共MCP目录通知已接线：注册表发布/首次撤销在短锁内推送最新修订，现代subscriptions/listen标准POST SSE、首次失效/后续合并、32订阅/5秒发送边界和日志关联。10协议/过滤/容量/断开/既有日志关联与2注册表用例通过，check/两crate全目标Clippy及定点fmt退出0；原trait编译首失败保留，旧会话GET、慢发送故障专项、真实客户端互操作及当前release/npx未验。原件artifacts/mcp-notifications-{test-first,registry-test,protocol-regression,clippy-first}-20261012.txt。
+- 原生包新增通用package-assets.json静态成员映射，SHA核对及路径/冲突/限额收口；6新加6既有定点12/12及根正式27/27通过，实际SDK7成员已读取。正式构包、安装后执行及npx没有本批证据，不把模板或静态复制称为完整分发。原件artifacts/native-plugin-assets-{test-first,root-test}-20261012.txt。
+
+- 公共tool-process新增独立OwnedTree入口、范围结果和租约生命周期；Windows先挂起创建、绑定Job再恢复，实际完成端口与活动计数核对，启动工作池4槽。最终11原生行为与57旧接口回归通过，全目标Clippy、fmt、27模块架构及6规则通过。初次Windows常量导入、测试括号/Receiver move/参数丢失失败保留；正常退出漏撤输入、单次清理截止点和启动Future丢弃保护已修。11行为含真实Scope Failed，唯一租约在三真实句柄全退出后才释放，绝不转计Complete；pipe/breakaway收紧各1通过，后者实际拒绝error5。PID审计60案/110身份/70探针，最终自有存活0、终止0；110历史句柄不可再取得不等于新增退出证据。报告artifacts/scoped-pid-audit-69a0d7c8-1013-45c7-bf5b-a5812f6578ae/report.json，不计Linux/macOS全树。
+- SDK普通/实时/助手协调器已接lib/main；主代理check和14库通过，后端worker8项/build交接。运行状态实探与资格聚合继续开发，固定配置不冒充真实SDK/模型资格。新增私有sha2依赖和公共windows-sys仅用于所属职责，不向宿主新增AI分支。
+- 前端实时8文件24项已冻结；私有runtime服务host.ai-sdk.stream注册、公开插件上下文消费和销毁撤销完成，联合44项、严格类型与定点架构通过。原有主题未提交修改保留，具体UI未开发，生成/shared未手改。新增实时与装配不属于旧295成员/483门禁；新全量和真实服务另验。
+- 前后端研发与原生测试并行，不等待整批验收；当前正式包/npx、真实CLI/模型/工具/真机、三平台及剩余业务目标保持未完成。
+
 ## 最终 npx 双分支（2026-10-09 22:03）
 
 - 正向2201/session58970退出0，423输入前后0差异，摘要63B870B3793A952729354455596FA3100D6201E0C29301B940BFE3AFC81502AF；实际报告artifacts/npx-raw-nAdnTu/report.json。同TGZ显式令牌/默认免令牌各18发现记录、各2重载/2离线夹具收口、各24缓存成员匹配、实际Windows bin目标和HTTP host字节相等，两阶段退出0/双端口释放，成功临时目录清理。
@@ -618,3 +866,41 @@
 - 主代理新前端证据：feature与既有消费定点27/27，check覆盖103源码且Svelte零错误/警告，全量246/246与161模块构建均退出0；API生成仍在执行，不将三项门禁写成四项。报告前缀artifacts/tool-feature-frontend-，本批尚无真实浏览器/模型/设备验收。
 - npx新增独立运行时功能辅助与接线：同键tool不计入runtime、多模块单快照/实际原字节/重复准备无下载/移除；语法检查及2项辅助单元测试退出0，真实新包npx待验，不能借记旧C4jIFU报告。根旧18项本次再次通过，完整根测试需包含新增2项后再执行。
 - API生成随后退出0，generated.ts前后字节相同，前端本批四门禁已终态。完整根测试20/20退出0；总监指出npx辅助的总计抵消和字段遗漏，主代理已按每次调用区间断言清单读取、准备下载/重复零下载，补齐状态与持久清单版本/归属/资格，收紧后2项定点再次退出0。后端P1和真实服务仍待，不借记辅助单测为分发通过。
+# 2026-10-13 产物删除接缝
+
+- 后端独立补齐 `ArtifactStore::delete`、文件适配器受控目录删除及 HTTP `DELETE /api/v1|v2/artifacts/{id}`；删除返回被删除元数据，活动下载或 ZIP 目录预览占用读取许可时精确返回冲突，未知/非规范 ID 不触碰文件系统。
+- 新增 `artifacts` 定向测试覆盖活动读取保护、成功删除、删除后不可读与不存在 ID；尚未覆盖 HTTP 真实服务重启、跨进程共享存储、保留期限和总磁盘配额。OpenAPI 描述已由主代理生成同步补齐。
+
+- 前端新增 `frontend/docs/产物配额消费边界.md`，冻结当前 `payload_too_large/conflict/not_found/storage_failed` 的错误保真、删除/取消后的重新查询和未来 `quota_exceeded`/保留期清理接缝；现有 shared/api 已保留 code、status、logId、retry-after，无需映射修复。本批不补删除适配器或产品 UI；文档 UTF-8、链接检查和 diff-check 通过。
+
+# 2026-10-13 产物保留期后台 worker 增量
+
+- 后端 infrastructure 新增可取消、有界的 `MaintenanceWorker`：按保留期每次串行扫描，复用产物读写租约与配额释放，取消在扫描和删除批次之间收口；`FileArtifacts::spawn_retention_worker` 提供服务生命周期接线。新增取消扫描与真实 1.2 秒回收/关闭测试，产物配额定向测试 11/11 通过；server main 的启动、shutdown 持有与真实服务定时报告由后续接线验证。
+- 当前仍缺真实 HTTP 服务重启后的配额维护、跨进程共享存储协调和服务接线后的后台运行证据；本增量不把 infrastructure worker API 或定向测试扩大为生产容量、release/npx 分发或真机完成。
+
+# 2026-10-13 产物总配额与保留期限
+
+- 后端新增 `ArtifactStoreConfig`、总字节预留 guard、删除释放、活动读写租约、启动重建已用配额、过期维护扫描及 `APK_ARTIFACT_MAX_SIZE`、`APK_ARTIFACT_MAX_TOTAL_BYTES`、`APK_ARTIFACT_RETENTION_SECONDS` 启动配置；保留 `FileArtifacts::open/with_limit` 兼容入口，配置错误阻止服务启动。
+- 独立验收新增 9 个非 ignored 用例，覆盖总配额超额与删除释放、按字节预留及取消释放、上传并发、活动下载/预览保护、过期回收、重启扫描和错误 code；`cargo test -p apk-infrastructure --test artifacts_quota` 9/9，既有 `cargo test -p apk-infrastructure --test artifacts` 7/7。
+- 当前定向门禁：`cargo fmt --all -- --check`、`cargo check -p apk-infrastructure -p apk-server`、`cargo clippy -p apk-infrastructure -p apk-server --all-targets -- -D warnings`、`node scripts/check-architecture.mjs` 均通过；服务启动环境变量解析新增测试待随 server 定向门禁执行。
+- 复跑发现取消上传的异步 staging 清理与启动扫描存在消失目录竞态，已让扫描把并发消失的临时条目视为已清理并保留其他 I/O 错误；修后旧回归定点 1/1、重复 10/10，配额专项仍 9/9，server 二进制单测 5/5。
+- server 已接入三项产物环境变量解析，新增解析单测；配置解析、架构、定向 Clippy 和 `cargo check` 均已复验通过。
+- `node --test scripts/architecture.test.mjs` 6/6 通过；`cargo test --workspace` 已实际运行，但当前工作区仍有两个与本批无关的既有工具时序失败（`device_artifacts::tests::text_process_timeout_and_running_cancellation`、`bundles::tests::total_deadline_stops_the_real_tool`），本批新增维护单测已修正并通过。完整 workspace 不记为全绿。
+- 尚未覆盖真实 HTTP 服务重启后的配额维护、跨进程共享存储协调、保留期限后台定时触发和完整 workspace/release/npx 分发；本批不把定向存储测试扩大为生产容量或真机完成。
+
+## 2026-10-13 并行开发接续
+
+- 前端新增 `frontend/src/app/bootstrap.ts`，并由 `frontend/src/app/main.ts` 的 `startFrontendApp` 创建运行实例；组件、模块、面板和主题默认绑定根节点，`pagehide` 幂等释放。新增 `frontend/tests/app-bootstrap.test.ts`，主题选择与基础样式恢复定点12/12；前端 `check` 通过，完整 `generate:api/test/build` 待主代理复核。
+- 后端新增 `backend/crates/server/tests/artifacts_quota.rs`，真实 Axum 路由覆盖总配额拒绝、DELETE 释放、重启配额重建和过期维护；`cargo test -p apk-server --test artifacts_quota` 3/3，rustfmt check 通过。生产配额实现未被测试绕过。
+- 测试助理复核：`artifacts/ai-sdk-service-debug-51d0379f-c629-4094-b4a8-a475acd7e568/report.json` 为 frontend-only 7/7 且 `real_model_verified=false`；`artifacts/ai-sdk-service-release-2454438e-d584-4e1b-9300-c3af84b2d6c8/report.json` 为 `passed=false`，不能计 AI SDK 正式 release/TGZ/npx。
+- 主题浏览器 debug/release smoke 通过，范围仅含主题动态装载与撤销恢复，不含具体产品 UI；MCP目录协议/注册表定点通过，真实长连接客户端互操作仍需独立验收。研发与测试保持并行，不把旧失败改写为通过。
+
+# 2026-10-13 产物完整内容校验增量
+
+- 产物读取、启动重建和保留期扫描现按 64 KiB 分块复算内容大小与 SHA-256；摘要不一致的目录不计入已用配额并保留诊断，元数据读取和下载打开返回存储错误。活动读写租约保持原有边界，完整校验在受控阻塞任务中执行。
+- 新增摘要篡改、重启配额重建和读取许可释放定向用例；真实 HTTP 重启矩阵、跨进程共享存储协调、慢磁盘持续负载及 release/npx 仍待。
+
+# 2026-10-13 产物 server 跨进程协调增量
+
+- 新增 `backend/crates/server/tests/artifact_storage_coordination.rs`：真实 `apk-server` 子进程竞争同一产物目录时第二实例非零退出，首实例退出后锁可重新取得；同文件路由测试覆盖摘要损坏重启不计配额、替代上传和保留期过期清理。
+- 定向命令 `cargo test -p apk-server --test artifact_storage_coordination -- --nocapture` 退出 0，2/2 通过。该证据覆盖同目录排他和单实例重启矩阵，不代表跨主机/跨进程共享回收、生产持续负载、release/npx 或真机验收。

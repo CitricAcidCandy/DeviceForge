@@ -1,4 +1,5 @@
 //! 独立的受限数据编解码，不依赖宿主领域、任务、文件系统或 HTTP。
+pub mod jpeg;
 mod json;
 mod wire;
 use serde_json::{Map, Number, Value};

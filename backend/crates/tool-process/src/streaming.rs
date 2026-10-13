@@ -1,8 +1,8 @@
 //! 同一直接进程的有界双向字节流；不解释平台命令或终端协议。
-mod input;
+pub(crate) mod input;
 mod lifecycle;
 mod options;
-mod output;
+pub(crate) mod output;
 mod session;
 
 pub use input::{InputError, StreamingInput};

@@ -181,7 +181,7 @@ fn address_and_package_safety_errors_have_precise_categories() {
 }
 
 #[test]
-fn input_ranges_and_non_ascii_text_are_rejected_before_tool() {
+fn input_ranges_and_invalid_text_are_rejected_before_tool() {
     for action in [
         json!({"kind":"tap","x":32768,"y":0}),
         json!({"kind":"swipe","x1":0,"y1":0,"x2":1,"y2":1,"duration_ms":0}),
@@ -189,7 +189,6 @@ fn input_ranges_and_non_ascii_text_are_rejected_before_tool() {
         json!({"kind":"keyevent","key_code":0}),
         json!({"kind":"keyevent","key_code":65536}),
         json!({"kind":"text","text":""}),
-        json!({"kind":"text","text":"中文"}),
         json!({"kind":"text","text":"a\nb"}),
         json!({"kind":"text","text":"a".repeat(1025)}),
     ] {
@@ -199,6 +198,24 @@ fn input_ranges_and_non_ascii_text_are_rejected_before_tool() {
             "输入无效：输入动作参数超出坐标、时间、按键或ASCII文本限额",
         );
     }
+}
+
+#[test]
+fn non_ascii_text_requires_explicit_adb_keyboard_configuration() {
+    let fixture = Fixture::new("unicode-input-without-config");
+    let mut running = fixture.begin(
+        "input",
+        support::input(json!({
+            "kind": "text",
+            "text": "中文"
+        })),
+    );
+    running.start(Duration::from_secs(20));
+    failure(
+        &running.complete(),
+        "工具依赖失败：未配置ADB Keyboard Unicode输入",
+    );
+    fixture.assert_no_tool();
 }
 
 #[test]

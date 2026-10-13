@@ -26,6 +26,39 @@ export function cacheMeta(result: JsonObject, source: 'live' | 'cache' | null, v
     source_error_sha256: typeof result.source_error === 'string' ? hash(result.source_error) : null };
 }
 
+function optionalField(value: JsonObject, name: string, fallback: unknown) {
+  return Object.hasOwn(value, name) ? value[name] : fallback;
+}
+
+export function canonicalManifestBytes(value: JsonObject) {
+  const modules = Array.isArray(value.modules) ? value.modules.map((raw) => {
+    const module = object(raw);
+    return {
+      name: module.name,
+      type: optionalField(module, 'type', 'tool'),
+      version: module.version,
+      url: module.url,
+      sha256: module.sha256,
+      size: module.size,
+      extractRoot: optionalField(module, 'extractRoot', null),
+      archiveRoot: optionalField(module, 'archiveRoot', null),
+      required: optionalField(module, 'required', true),
+      entryFile: optionalField(module, 'entryFile', null),
+      featureKey: optionalField(module, 'featureKey', null),
+    };
+  }) : [];
+  return Buffer.from(JSON.stringify({
+    manifestVersion: value.manifestVersion,
+    generatedAt: optionalField(value, 'generatedAt', ''),
+    minAppVersion: optionalField(value, 'minAppVersion', null),
+    modules,
+  }), 'utf8');
+}
+
+export function canonicalManifestDigest(value: JsonObject) {
+  return hash(canonicalManifestBytes(value));
+}
+
 export async function absent(path: string) {
   try { await lstat(path); }
   catch (error) { if (object(error).code === 'ENOENT') return; throw error; }
@@ -91,6 +124,8 @@ export async function cacheSnapshot(root: string, installRoot: string, label: st
   const modules = snapshot.manifest.modules.map(object);
   assert.deepEqual(modules.map((item) => [item.name, item.version, item.sha256]), expected.map((item) => [item.module_id, item.version, item.checksum]));
   assert.equal(snapshot.envelope.manifest_sha256, manifestSha, '封装必须保存公开清单摘要');
+  const canonicalDigest = canonicalManifestDigest(snapshot.manifest);
+  assert.equal(canonicalDigest, String(manifestSha), '独立canonical摘要必须与服务公开摘要一致');
   const sourceSha = hash(new URL(sourceUrl).href);
   assert.equal(snapshot.envelope.source_sha256, sourceSha, '固定规范URL身份应在封装中');
   const preservation = join(root, 'cache-originals', label); await mkdir(preservation, { recursive: true });
@@ -101,7 +136,9 @@ export async function cacheSnapshot(root: string, installRoot: string, label: st
       bytes: snapshot.bytes.length, envelope_sha256: hash(snapshot.bytes), schema_version: snapshot.envelope.schema_version,
       envelope_fields: Object.keys(snapshot.envelope), manifest_sha256: manifestSha, normalized_source_url_sha256: sourceSha,
       module_inputs: expected.map((item) => ({ module_id: item.module_id, version: item.version, sha256: item.checksum })),
-      independent_canonical_recomputed: false } };
+      canonical_bytes: canonicalManifestBytes(snapshot.manifest).length,
+      canonical_manifest_sha256: canonicalDigest,
+      independent_canonical_recomputed: true } };
 }
 
 export async function originalBudgetTerminal(host: Host, id: string, started: number, budget: number) {

@@ -320,3 +320,40 @@ fn invalid_utf8_is_a_fixed_dependency_failure_without_output_leakage() {
     assert!(matches!(error, Error::Dependency(_)));
     assert_eq!(error.to_string(), "工具依赖失败：ADB输出不是有效UTF-8文本");
 }
+
+#[test]
+fn apks_modules_are_optional_and_do_not_expand_apk_install_fields() {
+    let artifact_id = "d0da1b1b-919c-40a8-9c71-fbb56614e488";
+    let value = json!({"device_id":"serial","input":{"artifact_id":artifact_id,"modules":["base","feature_1"]}});
+    let Input::InstallApks { modules, .. } = parse("app.install_apks", &value).unwrap() else {
+        panic!("安装类型不符");
+    };
+    assert_eq!(modules.unwrap(), ["base", "feature_1"]);
+    assert!(parse("app.install", &value).is_err());
+    let value = json!({"device_id":"serial","input":{"artifact_id":artifact_id,"modules":null}});
+    assert!(matches!(
+        parse("app.install_apks", &value),
+        Ok(Input::InstallApks { modules: None, .. })
+    ));
+}
+
+#[test]
+fn apks_install_rejects_instant_device_specs_and_invalid_module_selection() {
+    let artifact_id = "d0da1b1b-919c-40a8-9c71-fbb56614e488";
+    for input in [
+        json!({"artifact_id":artifact_id,"instant":true}),
+        json!({"artifact_id":artifact_id,"device_spec":{}}),
+        json!({"artifact_id":artifact_id,"modules":[]}),
+        json!({"artifact_id":artifact_id,"modules":["ALL","base"]}),
+        json!({"artifact_id":artifact_id,"modules":["base","base"]}),
+        json!({"artifact_id":artifact_id,"modules":["--module"]}),
+    ] {
+        assert!(
+            parse(
+                "app.install_apks",
+                &json!({"device_id":"serial","input":input})
+            )
+            .is_err()
+        );
+    }
+}

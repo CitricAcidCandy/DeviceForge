@@ -38,6 +38,7 @@ pub(super) async fn run(
     let mut expected = 1u64;
     let mut output_bytes = 0u64;
     let mut events = 0u64;
+    let continuous = call.continuous_output();
     let input = process.input();
     let mut protocol_valid = true;
 
@@ -135,13 +136,13 @@ pub(super) async fn run(
                     None => { protocol_valid = false; break; }
                 };
                 events += 1;
-                if events > handles::MESSAGE_LIMIT {
+                if !continuous && events > handles::MESSAGE_LIMIT {
                     failure.get_or_insert_with(|| Arc::new(Error::TooLarge)); protocol_valid = false; break;
                 }
                 match event {
                     SessionEvent::Output { sequence, stream, bytes: payload, .. } => {
                         output_bytes = match output_bytes.checked_add(payload.len() as u64) {
-                            Some(total) if total <= handles::OUTPUT_LIMIT && bytes.len() <= session::SESSION_FRAME_LIMIT => total,
+                            Some(total) if (continuous || total <= handles::OUTPUT_LIMIT) && bytes.len() <= session::SESSION_FRAME_LIMIT => total,
                             _ => { failure.get_or_insert_with(|| Arc::new(Error::TooLarge)); protocol_valid = false; break; }
                         };
                         if failure.is_none() {

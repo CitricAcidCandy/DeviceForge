@@ -19,7 +19,7 @@ impl StreamOptions {
         }
     }
 
-    pub(super) fn validate(&self) -> Result<()> {
+    pub(crate) fn validate(&self) -> Result<()> {
         self.execution.validate()?;
         if !(1..=65536).contains(&self.chunk_size) {
             return Err(Error::InvalidOptions("流式分片须为1至65536字节"));

@@ -29,7 +29,18 @@ pub(crate) struct Config {
     #[serde(default)]
     pub tools: Tools,
     #[serde(default)]
+    pub unicode_input: Option<UnicodeInput>,
+    #[serde(default)]
     pub scratch_root: Option<PathBuf>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct UnicodeInput {
+    pub package: String,
+    pub component: String,
+    pub action: String,
+    pub extra: String,
 }
 
 impl Default for Config {
@@ -37,6 +48,7 @@ impl Default for Config {
         Self {
             format_version: 1,
             tools: Tools::default(),
+            unicode_input: None,
             scratch_root: None,
         }
     }
@@ -91,6 +103,16 @@ impl Config {
         }
         if let Some(adb) = &self.tools.adb {
             program(adb)?;
+        }
+        if let Some(unicode) = &self.unicode_input
+            && (unicode.package != "com.android.adbkeyboard"
+                || unicode.component != "com.android.adbkeyboard/.AdbIME"
+                || unicode.action != "ADB_INPUT_TEXT"
+                || unicode.extra != "msg")
+        {
+            return Err(Error::Invalid(
+                "Unicode输入配置必须使用固定ADB Keyboard目标",
+            ));
         }
         if let Some(java) = &self.tools.java {
             program_named(java, "Java入口须为绝对路径或单一程序名")?;

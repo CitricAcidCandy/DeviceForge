@@ -12,7 +12,7 @@
 
 装配插件管理服务后另贡献 `deviceforge.list_plugins`（空对象）、`deviceforge.load_plugin` 和 `deviceforge.unload_plugin`（`{"id":"echo"}`）。它们与 HTTP 管理入口共用异步生命周期，成功直接返回 PluginInfo，不创建业务任务。只能管理部署根内已发布的插件，不接受路径或清单；受保护依赖拒绝卸载。加载/卸载错误同样具有请求日志 ID。
 
-工具发现每次读取当前目录，缓存时间为 0；分页游标包含目录修订。加载或撤销贡献后旧游标返回 invalid_params，客户端须从第一页重新发现。当前无会话传输不提供 tools/list_changed 推送；卸载后的工具调用不能使用旧目录继续提交。
+工具发现每次读取当前目录，缓存时间为 0；分页游标包含目录修订。加载或撤销贡献后旧游标返回 invalid_params，客户端须从第一页重新发现。协议 `2026-07-28` 现在通过 `subscriptions/listen` 的 POST SSE 流支持 `notifications/tools/list_changed`，请求 `notifications:{toolsListChanged:true}` 并携带该协议的标准请求元数据；普通请求继续使用无会话 JSON。订阅先发送一次失效通知，之后在贡献成功发布或首次撤销时通知，客户端重新发现目录。旧协议继续显式刷新，不提供旧会话 GET SSE。卸载后的工具调用不能使用旧目录继续提交；资源、关联和验证边界见 [MCP目录通知实施](MCP目录通知实施.md)。
 
 MCP 请求取消和业务任务取消是不同生命周期；中止设备操作应显式调用 cancel_job。HTTP 和 MCP 返回同一任务 ID，可交叉查询。
 
@@ -23,6 +23,6 @@ MCP 请求取消和业务任务取消是不同生命周期；中止设备操作�
 
 请求体上限 256 KiB。MCP 请求在 SDK 前经过全局资源门禁；配置令牌后增加鉴权。退出时取消 MCP 服务再停止应用任务。当前不提供独立 stdio 服务，也不提供 MCP 原生长期任务协议；长期动作采用应用层任务 ID。
 
-验证命令：`cargo test -p apk-server --test mcp`。覆盖无令牌、非法 Origin、工具发现、插件操作提交、共享任务读取和模式错误。
+验证命令：`cargo test -p apk-server --test mcp --test mcp_notifications --test correlation`。覆盖无令牌、非法 Origin、工具发现、插件操作提交、共享任务读取、模式错误，以及现代目录订阅、普通/会话贡献、过滤、32订阅容量、断开回收和日志关联。
 
 新增产物工具 artifact.inspect 与 artifact.archive.entries，均通过任务层执行；二进制传输保留在 HTTP，详见产物接口.md。

@@ -24,7 +24,7 @@ export async function catalog(host, deployment, report, phase, available, owner)
   }
   assert.deepEqual(await host.client.tool('deviceforge.list_devices'), await host.client.json('/api/v2/devices'));
   report.catalog_phases ??= []; report.catalog_phases.push({ phase, available, operations: names.map(operation), aliases: names.map(alias),
-    boundary: '仅端点采样，不证明内部注册原子性；三能力业务由动作组另验' });
+    boundary: '仅端点采样，不证明内部注册原子性；九定义能力含七设备/二提供者，设备availability仍七项' });
 }
 
 export async function missingHdc(host, report) {

@@ -6,7 +6,7 @@ fn unknown_operation_and_unknown_envelope_fields_are_rejected_without_hdc() {
     let fixture = Fixture::new("strict-operation");
     fixture.reject(
         fixture.request("harmony.devices", json!({})),
-        "输入无效：鸿蒙设备插件只接受本批四个短贡献名",
+        "输入无效：鸿蒙设备插件只接受本批十二个短贡献名",
     );
 
     let fixture = Fixture::new("strict-envelope");

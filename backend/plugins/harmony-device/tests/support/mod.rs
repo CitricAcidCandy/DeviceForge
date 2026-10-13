@@ -3,7 +3,7 @@ pub mod artifacts;
 mod process;
 mod wire;
 
-use process::PidProbe;
+pub use process::PidProbe;
 use serde_json::{Value, json};
 use std::{
     fs,
@@ -112,7 +112,22 @@ impl Fixture {
         fs::write(self.root.join("code"), code.to_string()).unwrap();
     }
     pub fn wait_tool(&self) -> PidProbe {
-        let call = self.root.join("call-01");
+        self.wait_tool_at(1)
+    }
+    pub fn plan_call(&self, ordinal: usize, stdout: &[u8], stderr: &[u8], code: i32) {
+        let plan = self.root.join(format!("plan-{ordinal:02}"));
+        fs::create_dir(&plan).unwrap();
+        fs::write(plan.join("stdout"), stdout).unwrap();
+        fs::write(plan.join("stderr"), stderr).unwrap();
+        fs::write(plan.join("code"), code.to_string()).unwrap();
+    }
+    pub fn release_call(&self, ordinal: usize) {
+        let plan = self.root.join(format!("plan-{ordinal:02}"));
+        fs::write(plan.join("release.tmp"), b"1").unwrap();
+        fs::rename(plan.join("release.tmp"), plan.join("release")).unwrap();
+    }
+    pub fn wait_tool_at(&self, ordinal: usize) -> PidProbe {
+        let call = self.root.join(format!("call-{ordinal:02}"));
         let deadline = Instant::now() + Duration::from_secs(8);
         while !call.join("ready").exists() {
             assert!(
@@ -136,7 +151,10 @@ impl Fixture {
         fs::rename(self.root.join("release.tmp"), self.root.join("release")).unwrap();
     }
     pub fn argv(&self) -> Vec<String> {
-        let bytes = fs::read(self.root.join("call-01/argv.bin")).unwrap();
+        self.argv_at(1)
+    }
+    pub fn argv_at(&self, ordinal: usize) -> Vec<String> {
+        let bytes = fs::read(self.root.join(format!("call-{ordinal:02}/argv.bin"))).unwrap();
         let mut offset = 0;
         let integer = |offset: &mut usize| {
             let value = u32::from_le_bytes(bytes[*offset..*offset + 4].try_into().unwrap());
@@ -203,6 +221,11 @@ pub fn expected_device(id: &str) -> Value {
     json!({"id":id,"state":"online","raw_state":"device","capabilities":[
         {"id":"packages","version":1,"available":true},
         {"id":"app.install","version":1,"available":true},
-        {"id":"app.uninstall","version":1,"available":true}
+        {"id":"app.uninstall","version":1,"available":true},
+        {"id":"app.detail","version":1,"available":true},
+        {"id":"app.start","version":1,"available":true},
+        {"id":"app.stop","version":1,"available":true},
+        {"id":"app.reset","version":1,"available":true},
+        {"id":"screenshot","version":1,"available":true}
     ]})
 }

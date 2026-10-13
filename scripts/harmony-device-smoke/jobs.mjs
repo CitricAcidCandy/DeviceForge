@@ -5,8 +5,8 @@ import { finishedTool, keys, observations } from './fixtures.mjs';
 
 export const uuid = /^[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12}$/;
 export async function jobList(host) {
-  const jobs = await host.client.json('/api/v2/jobs?limit=100');
-  assert.ok(jobs.length < 100, '本次完整任务列表不可截断'); return jobs;
+  const jobs = await host.client.json('/api/v2/jobs?limit=200');
+  assert.ok(jobs.length < 200, '本次完整任务列表不可截断'); return jobs;
 }
 export async function submit(host, report, caseId, operation, input, transport = 'http') {
   report.active_case_id = caseId;

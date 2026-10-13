@@ -6,6 +6,8 @@
 
 v1 升级：apiVersion 改为 2；所有请求显式传信号，成功从 HostResult.data 读取模型，并保留 logId。HostError 包含错误分类、代码、状态、日志 ID 与限流等待值。Operation.input_schema 可为任意 JSON 模式；任务无结果/无错误映射为 null。
 
+主题是可选的 `HostContext.themes` 与 `PluginContributions.themes` 扩展，使用显式选择、运行代次和可释放订阅。变量/CSS 限额、目标节点与基础样式恢复见 [主题插件与宿主样式](../../docs/主题插件与宿主样式.md)。
+
 WebPlugin.contributions 为兼容的可选字段，包括具名 components、路由 modules、commands、显式版本 services 及 beforeTaskSubmit。extensions 提供公开目录、命令/服务调用、事件、状态；插件专属上下文允许动态 register。状态/发射事件必须使用自身命名空间；host.* 由宿主发布。手动撤销与卸载均收敛贡献。
 
 components.mode 缺省为 append；replace 通过公开 SlotAdapter 获取宿主受控租约。宿主可注入 createNamedSlotAdapter 的具名默认 renderer，替换时释放默认渲染，卸载恢复。没有直接修改宿主私有 DOM；具体 UI 框架由插件自带。json.ts 校验公开扩展输入/输出，拒绝循环引用、类实例和非有限数字。

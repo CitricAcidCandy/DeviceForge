@@ -1,7 +1,7 @@
-//! 投屏业务的离线录制阶段，通过公开任务协议提交。
+//! 保留录像任务并按首帧接入协议5实时投屏。
 #[tokio::main]
 async fn main() {
-    if deviceforge_plugin_runtime::serve_once_with_context(deviceforge_mirroring_plugin::execute)
+    if deviceforge_mirroring_plugin::entry::serve_io(tokio::io::stdin(), tokio::io::stdout())
         .await
         .is_err()
     {

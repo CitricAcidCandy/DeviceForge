@@ -1,0 +1,33 @@
+{
+  "api_version": 1,
+  "files": [
+    {
+      "source": "worker/dist/index.js",
+      "target": "bin/worker/dist/index.js"
+    },
+    {
+      "source": "worker/dist/probe.js",
+      "target": "bin/worker/dist/probe.js"
+    },
+    {
+      "source": "worker/dist/protocol.js",
+      "target": "bin/worker/dist/protocol.js"
+    },
+    {
+      "source": "worker/dist/sdk.js",
+      "target": "bin/worker/dist/sdk.js"
+    },
+    {
+      "source": "worker/dist/shutdown.js",
+      "target": "bin/worker/dist/shutdown.js"
+    },
+    {
+      "source": "worker/package.json",
+      "target": "bin/worker/package.json"
+    },
+    {
+      "source": "worker/package-lock.json",
+      "target": "bin/worker/package-lock.json"
+    }
+  ]
+}

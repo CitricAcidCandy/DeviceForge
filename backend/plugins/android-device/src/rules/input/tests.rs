@@ -66,7 +66,7 @@ fn text_quotes_device_shell_and_splits_literal_percent_s_before_enter() {
 }
 
 #[test]
-fn text_only_accepts_one_to_1024_printable_ascii_bytes() {
+fn text_keeps_ascii_limit_and_accepts_bounded_unicode_for_keyboard_transport() {
     assert!(
         Action::Text {
             text: "x".repeat(1024),
@@ -78,7 +78,6 @@ fn text_only_accepts_one_to_1024_printable_ascii_bytes() {
     for text in [
         String::new(),
         "x".repeat(1025),
-        "中文".into(),
         "a\n".into(),
         "a\t".into(),
         "a\u{7f}".into(),
@@ -88,6 +87,27 @@ fn text_only_accepts_one_to_1024_printable_ascii_bytes() {
             Err(Error::Invalid(_))
         ));
     }
+    assert!(
+        Action::Text {
+            text: "中文输入".into(),
+            enter: false
+        }
+        .validate()
+        .is_ok()
+    );
+    assert!(
+        Action::Text {
+            text: "中".repeat(crate::rules::unicode::UNICODE_TEXT_LIMIT / 3 + 1),
+            enter: false
+        }
+        .validate()
+        .is_err()
+    );
+    let unicode = Action::Text {
+        text: "中文".into(),
+        enter: true,
+    };
+    assert_eq!(unicode.unicode_text(), Some("中文"));
 }
 
 #[test]

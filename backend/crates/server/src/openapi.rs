@@ -1,6 +1,6 @@
 use serde_json::{Value, json};
 
-fn schema<T: schemars::JsonSchema>() -> Value {
+pub(super) fn schema<T: schemars::JsonSchema>() -> Value {
     let mut settings = schemars::generate::SchemaSettings::draft2020_12();
     settings.inline_subschemas = true;
     serde_json::to_value(settings.into_generator().into_root_schema_for::<T>())
@@ -9,7 +9,7 @@ fn schema<T: schemars::JsonSchema>() -> Value {
 fn response(description: &str, schema: Value) -> Value {
     json!({"description":description,"content":{"application/json":{"schema":schema}}})
 }
-fn endpoint(description: &str, success: &str, output_schema: Value) -> Value {
+pub(super) fn endpoint(description: &str, success: &str, output_schema: Value) -> Value {
     json!({"summary":description,"responses":{
         success: response("成功", output_schema),
         "400":response("输入无效", schema::<crate::Failure>()),
@@ -89,7 +89,7 @@ pub fn document() -> Value {
         },
         "paths":{
             "/api/v1/artifacts":{"post":upload},
-            "/api/v1/artifacts/{id}":{"parameters":[id.clone()],"get":endpoint("读取产物元数据","200",schema::<apk_domain::artifacts::Artifact>())},
+            "/api/v1/artifacts/{id}":{"parameters":[id.clone()],"get":endpoint("读取产物元数据","200",schema::<apk_domain::artifacts::Artifact>()),"delete":endpoint("删除产物","200",schema::<apk_domain::artifacts::Artifact>())},
             "/api/v1/artifacts/{id}/content":{"parameters":[id.clone()],"get":download},
             "/api/v1/artifacts/{id}/entries":{"parameters":[id.clone()],"get":entries},
             "/api/v1/health":{"get":endpoint("服务状态", "200", json!({"type":"object","required":["status","api_version"],"properties":{"status":{"const":"ok"},"api_version":{"const":1}}}))},
@@ -112,7 +112,7 @@ pub fn document() -> Value {
     for (path, mut item) in old_paths {
         let new_path = path.replacen("/api/v1/", "/api/v2/", 1);
         for (method, operation) in item.as_object_mut().expect("路径描述为对象") {
-            if !["get", "post"].contains(&method.as_str()) {
+            if !["get", "post", "delete"].contains(&method.as_str()) {
                 continue;
             }
             if let Some(responses) = operation["responses"].as_object_mut() {
@@ -185,6 +185,7 @@ pub fn document() -> Value {
     }
     plugin_package_paths(&mut document);
     device_paths(&mut document);
+    crate::interactive_openapi::contribute(&mut document);
     document
 }
 
@@ -276,7 +277,7 @@ fn plugin_package_paths(document: &mut Value) {
     document["components"]["schemas"]["PluginPackageFormat"] = schema::<PackageFormat>();
 }
 
-fn v2_endpoint(mut operation: Value) -> Value {
+pub(super) fn v2_endpoint(mut operation: Value) -> Value {
     for (status, response) in operation["responses"]
         .as_object_mut()
         .expect("响应集合为对象")

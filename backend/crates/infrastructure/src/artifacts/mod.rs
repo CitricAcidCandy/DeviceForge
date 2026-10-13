@@ -1,26 +1,45 @@
+mod config;
+mod maintenance;
+mod stream_content;
 pub(crate) mod validation;
-use apk_domain::artifacts::{ArchivePage, Artifact, ArtifactStore, ArtifactStream};
+use apk_domain::artifacts::{
+    ArchivePage, Artifact, ArtifactStore, ArtifactStoreConfig, ArtifactStream,
+};
 use apk_domain::{Error, Result, now};
 use async_trait::async_trait;
 use futures_util::StreamExt;
+pub use maintenance::{MaintenanceReport, MaintenanceWorker};
 use sha2::{Digest, Sha256};
 use std::{
+    collections::HashMap,
     path::{Path, PathBuf},
     sync::Arc,
     time::Duration,
 };
-use tokio::{fs, io::AsyncWriteExt, sync::Semaphore};
+use tokio::{
+    fs,
+    io::AsyncWriteExt,
+    sync::{Mutex, OwnedRwLockReadGuard, OwnedSemaphorePermit, RwLock, Semaphore},
+};
 use tokio_util::io::ReaderStream;
+use tokio_util::sync::CancellationToken;
 
-const DEFAULT_LIMIT: u64 = 64 * 1024 * 1024;
+const MAX_READERS: usize = 8;
 pub struct FileArtifacts {
     root: PathBuf,
     _lock: std::fs::File,
-    max_size: u64,
+    config: ArtifactStoreConfig,
+    quota: Arc<config::Quota>,
     uploads: Arc<Semaphore>,
     readers: Arc<Semaphore>,
+    artifact_locks: Arc<Mutex<HashMap<String, Arc<RwLock<()>>>>>,
 }
 struct Staging(PathBuf);
+
+struct ReadLease {
+    _permit: OwnedSemaphorePermit,
+    _guard: OwnedRwLockReadGuard<()>,
+}
 impl Drop for Staging {
     fn drop(&mut self) {
         // 清理仅限本次上传创建的临时目录；取消 Future 时也会执行。
@@ -64,21 +83,52 @@ pub(crate) fn media_type(filename: &str) -> Result<&'static str> {
     {
         "apk" | "apks" | "aab" | "hap" | "zip" => Ok("application/zip"),
         "png" => Ok("image/png"),
+        "jpg" | "jpeg" => Ok("image/jpeg"),
         "json" => Ok("application/json"),
         "msgpack" => Ok("application/msgpack"),
+        "dex" => Ok("application/vnd.android.dex"),
+        "bin" => Ok("application/octet-stream"),
+        "js" => Ok("text/javascript"),
+        "log" => Ok("text/plain"),
+        "jsonl" => Ok("application/x-ndjson"),
+        "mp4" => Ok("video/mp4"),
         _ => Err(Error::Invalid(
-            "仅支持 APK、APKS、AAB、HAP、ZIP、PNG、JSON 和 MSGPACK 产物".into(),
+            "仅支持 APK、APKS、AAB、HAP、ZIP、PNG、JPEG、JSON、MSGPACK、DEX、BIN、JS、LOG、JSONL 和 MP4 产物".into(),
         )),
     }
 }
 impl FileArtifacts {
     pub async fn open(root: impl AsRef<Path>) -> Result<Self> {
-        Self::with_limit(root, DEFAULT_LIMIT).await
+        Self::with_config(root, ArtifactStoreConfig::default()).await
     }
     pub async fn with_limit(root: impl AsRef<Path>, max_size: u64) -> Result<Self> {
-        if max_size == 0 {
-            return Err(Error::Invalid("产物大小上限必须大于零".into()));
-        }
+        Self::with_config(
+            root,
+            ArtifactStoreConfig {
+                max_size,
+                ..ArtifactStoreConfig::default()
+            },
+        )
+        .await
+    }
+    pub async fn with_limits(
+        root: impl AsRef<Path>,
+        max_size: u64,
+        max_total_bytes: u64,
+        retention_seconds: Option<u64>,
+    ) -> Result<Self> {
+        Self::with_config(
+            root,
+            ArtifactStoreConfig {
+                max_size,
+                max_total_bytes,
+                retention_seconds,
+            },
+        )
+        .await
+    }
+    pub async fn with_config(root: impl AsRef<Path>, config: ArtifactStoreConfig) -> Result<Self> {
+        config.validate()?;
         fs::create_dir_all(root.as_ref()).await.map_err(storage)?;
         let root = fs::canonicalize(root.as_ref()).await.map_err(storage)?;
         let lock_root = root.clone();
@@ -103,21 +153,116 @@ impl FileArtifacts {
         }
         let mut entries = fs::read_dir(&staging).await.map_err(storage)?;
         while let Some(entry) = entries.next_entry().await.map_err(storage)? {
+            let path = entry.path();
             let name = entry.file_name().to_string_lossy().into_owned();
-            if valid_id(&name).is_ok()
-                && entry.file_type().await.map_err(storage)?.is_dir()
-                && fs::canonicalize(entry.path()).await.map_err(storage)? == entry.path()
-            {
-                fs::remove_dir_all(entry.path()).await.map_err(storage)?;
+            let file_type = match entry.file_type().await {
+                Ok(file_type) => file_type,
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
+                Err(error) => return Err(storage(error)),
+            };
+            let canonical = match fs::canonicalize(&path).await {
+                Ok(canonical) => canonical,
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
+                Err(error) => return Err(storage(error)),
+            };
+            if valid_id(&name).is_ok() && file_type.is_dir() && canonical == path {
+                match fs::remove_dir_all(&path).await {
+                    Ok(()) => {}
+                    Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                    Err(error) => return Err(storage(error)),
+                }
             }
         }
-        Ok(Self {
+        let (confirmed, _) = maintenance::scan_confirmed(&root).await?;
+        let committed = confirmed.iter().try_fold(0u64, |total, entry| {
+            total
+                .checked_add(entry.metadata.size)
+                .ok_or(Error::TooLarge)
+        })?;
+        let max_total_bytes = config.max_total_bytes;
+        let has_retention = config.retention_seconds.is_some();
+        let store = Self {
             root,
             _lock: lock,
-            max_size,
+            config,
+            quota: config::Quota::new(max_total_bytes, committed)?,
             uploads: Arc::new(Semaphore::new(4)),
-            readers: Arc::new(Semaphore::new(8)),
-        })
+            readers: Arc::new(Semaphore::new(MAX_READERS)),
+            artifact_locks: Arc::new(Mutex::new(HashMap::new())),
+        };
+        if has_retention {
+            store.maintain().await?;
+        }
+        Ok(store)
+    }
+    async fn artifact_lock(&self, id: &str) -> Arc<RwLock<()>> {
+        let mut locks = self.artifact_locks.lock().await;
+        locks
+            .entry(id.to_owned())
+            .or_insert_with(|| Arc::new(RwLock::new(())))
+            .clone()
+    }
+    pub async fn maintain(&self) -> Result<MaintenanceReport> {
+        self.maintain_with_cancel(&CancellationToken::new()).await
+    }
+
+    pub async fn maintain_with_cancel(
+        &self,
+        cancel: &CancellationToken,
+    ) -> Result<MaintenanceReport> {
+        let (confirmed, skipped_unconfirmed) =
+            maintenance::scan_confirmed_with_cancel(&self.root, Some(cancel)).await?;
+        let mut report = maintenance::MaintenanceReport {
+            scanned: confirmed.len(),
+            skipped_unconfirmed,
+            ..Default::default()
+        };
+        let timestamp = now();
+        for artifact in confirmed {
+            if cancel.is_cancelled() {
+                return Err(Error::Cancelled);
+            }
+            if !maintenance::expired(
+                artifact.metadata.created_at,
+                timestamp,
+                self.config.retention_seconds,
+            ) {
+                continue;
+            }
+            let lock = self.artifact_lock(&artifact.metadata.id).await;
+            let guard = match lock.try_write_owned() {
+                Ok(guard) => guard,
+                Err(_) => {
+                    report.skipped_active += 1;
+                    continue;
+                }
+            };
+            if let Err(error) = fs::remove_dir_all(&artifact.directory).await {
+                drop(guard);
+                if error.kind() == std::io::ErrorKind::NotFound {
+                    continue;
+                }
+                return Err(storage(error));
+            }
+            self.quota.release_committed(artifact.metadata.size)?;
+            drop(guard);
+            report.removed += 1;
+            report.released_bytes = report
+                .released_bytes
+                .checked_add(artifact.metadata.size)
+                .ok_or(Error::TooLarge)?;
+        }
+        Ok(report)
+    }
+    pub async fn cleanup_expired(&self) -> Result<MaintenanceReport> {
+        self.maintain().await
+    }
+
+    pub fn spawn_retention_worker(
+        self: &Arc<Self>,
+        shutdown: CancellationToken,
+    ) -> Option<MaintenanceWorker> {
+        MaintenanceWorker::spawn(Arc::clone(self), self.config.retention_seconds, shutdown)
     }
     async fn directory(&self, id: &str) -> Result<PathBuf> {
         valid_id(id)?;
@@ -143,12 +288,34 @@ impl FileArtifacts {
         }
         Ok(actual)
     }
+    async fn verify_content(&self, metadata: &Artifact) -> Result<()> {
+        let path = self.content_path(&metadata.id).await?;
+        let expected_size = metadata.size;
+        let expected_digest = metadata.sha256.clone();
+        let (size, digest) = tokio::task::spawn_blocking(move || validation::content_digest(&path))
+            .await
+            .map_err(storage)??;
+        if size != expected_size || digest != expected_digest {
+            return Err(Error::Storage("产物内容摘要不匹配".into()));
+        }
+        Ok(())
+    }
     async fn persist(&self, filename: String, mut stream: ArtifactStream) -> Result<Artifact> {
         let media_type = media_type(&filename)?;
-        let max_size = if matches!(media_type, "application/json" | "application/msgpack") {
-            self.max_size.min(deviceforge_data_codec::MAX_BYTES as u64)
-        } else {
-            self.max_size
+        let max_size = match media_type {
+            "application/json" | "application/msgpack" => self
+                .config
+                .max_size
+                .min(deviceforge_data_codec::MAX_BYTES as u64),
+            "image/jpeg" => self
+                .config
+                .max_size
+                .min(deviceforge_data_codec::jpeg::MAX_BYTES),
+            "application/vnd.android.dex" => self.config.max_size.min(validation::DEX_LIMIT),
+            _ => self
+                .config
+                .max_size
+                .min(stream_content::limit(media_type).unwrap_or(u64::MAX)),
         };
         let _permit = self
             .uploads
@@ -162,14 +329,17 @@ impl FileArtifacts {
         let mut file = fs::File::create(&path).await.map_err(storage)?;
         let mut digest = Sha256::new();
         let mut size = 0u64;
+        let mut reservation = self.quota.reserve(0)?;
         while let Some(chunk) = stream.next().await {
             let chunk = chunk?;
-            size = size
+            let next_size = size
                 .checked_add(chunk.len() as u64)
                 .ok_or_else(|| Error::Invalid("产物大小溢出".into()))?;
-            if size > max_size {
+            if next_size > max_size {
                 return Err(Error::TooLarge);
             }
+            reservation.reserve_more(next_size - size)?;
+            size = next_size;
             digest.update(&chunk);
             file.write_all(&chunk).await.map_err(storage)?;
         }
@@ -201,6 +371,7 @@ impl FileArtifacts {
         fs::rename(&staging.0, self.root.join(id))
             .await
             .map_err(storage)?;
+        reservation.commit()?;
         Ok(artifact)
     }
 }
@@ -222,9 +393,37 @@ impl ArtifactStore for FileArtifacts {
         if artifact.id != id || media_type(&artifact.filename)? != artifact.media_type {
             return Err(Error::Storage("产物元数据不匹配".into()));
         }
+        self.verify_content(&artifact).await?;
         Ok(artifact)
     }
+    async fn delete(&self, id: &str) -> Result<Artifact> {
+        let lock = self.artifact_lock(id).await;
+        let guard = lock
+            .try_write_owned()
+            .map_err(|_| Error::Conflict("产物正在被读取或预览".into()))?;
+        let metadata = self.get(id).await?;
+        let permits = self
+            .readers
+            .clone()
+            .try_acquire_many_owned(MAX_READERS as u32)
+            .map_err(|_| Error::Conflict("产物正在被读取或预览".into()))?;
+        let directory = self.directory(id).await?;
+        fs::remove_dir_all(&directory).await.map_err(|error| {
+            if error.kind() == std::io::ErrorKind::NotFound {
+                Error::NotFound(id.into())
+            } else {
+                storage(error)
+            }
+        })?;
+        let release = self.quota.release_committed(metadata.size);
+        drop(guard);
+        drop(permits);
+        release?;
+        Ok(metadata)
+    }
     async fn download(&self, id: &str) -> Result<(Artifact, ArtifactStream)> {
+        let lock = self.artifact_lock(id).await;
+        let guard = lock.read_owned().await;
         let permit = self
             .readers
             .clone()
@@ -238,8 +437,12 @@ impl ArtifactStore for FileArtifacts {
             return Err(Error::Storage("产物文件大小不匹配".into()));
         }
         let stream = ReaderStream::with_capacity(file, 64 * 1024);
+        let lease = ReadLease {
+            _permit: permit,
+            _guard: guard,
+        };
         let stream = stream.map(move |chunk| {
-            let _keep_alive = &permit;
+            let _keep_alive = &lease;
             chunk.map_err(storage)
         });
         Ok((metadata, Box::pin(stream)))
@@ -251,14 +454,20 @@ impl ArtifactStore for FileArtifacts {
         if self.get(id).await?.media_type != "application/zip" {
             return Err(Error::Invalid("此产物不是压缩包".into()));
         }
+        let lock = self.artifact_lock(id).await;
+        let guard = lock.read_owned().await;
         let permit = self
             .readers
             .clone()
             .try_acquire_owned()
             .map_err(|_| Error::Conflict("并发预览已满".into()))?;
         let path = self.content_path(id).await?;
+        let lease = ReadLease {
+            _permit: permit,
+            _guard: guard,
+        };
         tokio::task::spawn_blocking(move || {
-            let _permit = permit;
+            let _lease = lease;
             validation::entries(&path, offset, limit)
         })
         .await

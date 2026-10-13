@@ -203,7 +203,10 @@ fn build_router(
             "/artifacts",
             post(artifacts::upload).layer(DefaultBodyLimit::disable()),
         )
-        .route("/artifacts/{id}", get(artifacts::metadata))
+        .route(
+            "/artifacts/{id}",
+            get(artifacts::metadata).delete(artifacts::delete),
+        )
         .route("/artifacts/{id}/content", get(artifacts::download))
         .route("/artifacts/{id}/entries", get(artifacts::entries))
         .route("/health", get(health))
@@ -216,6 +219,7 @@ fn build_router(
     Ok(Router::new()
         .nest("/api/v1", api.clone())
         .nest("/api/v2", api)
+        .merge(interactive_routes::router())
         .route("/api/v2/diagnostics/logging", get(runtime::logging))
         .route("/api/v2/system/shutdown", post(runtime::shutdown))
         .route("/api/v2/plugins", get(plugin_routes::list))
@@ -405,6 +409,10 @@ async fn openapi(request: Request) -> Response {
         .insert(responses::RawRepresentation);
     response
 }
+mod interactive;
+mod interactive_mcp;
+mod interactive_openapi;
+mod interactive_routes;
 mod openapi;
 
 pub mod mcp;
@@ -417,6 +425,7 @@ mod artifacts;
 mod correlation;
 mod device_mcp;
 mod device_routes;
+mod mcp_notifications;
 mod mcp_observability;
 mod mcp_tools;
 mod mcp_wire;

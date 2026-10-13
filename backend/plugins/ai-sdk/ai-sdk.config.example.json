@@ -1,0 +1,17 @@
+{
+  "format_version": 1,
+  "profile": "codex_sdk_ts_0_162_1_node24",
+  "node_executable": "C:/DeviceForge/runtime/node/node.exe",
+  "node_version": "24.14.0",
+  "sdk_entry": "C:/DeviceForge/runtime/sdk/dist/index.js",
+  "sdk_version": "0.162.1",
+  "cli_executable": "C:/DeviceForge/runtime/cli/cli.exe",
+  "cli_version": "0.162.1",
+  "projects": {
+    "demo": "C:/DeviceForge/projects/demo"
+  },
+  "state_root": "C:/DeviceForge/data/ai-sdk/qualification",
+  "codex_home": "C:/DeviceForge/data/ai-sdk/provider",
+  "environment": {},
+  "thread_options": {}
+}

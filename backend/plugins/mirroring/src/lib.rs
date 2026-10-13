@@ -1,9 +1,12 @@
-//! 实际 scrcpy 录制和产物发布；本阶段不宣称浏览器直播已完成。
+//! 投屏录像及公开协议5直播；真实工具、真机与播放独立验收。
 mod config;
+pub mod entry;
+mod live;
 mod model;
 use apk_plugin_sdk::{ArtifactOutput, Request, cooperative::CleanupOutcome};
 use deviceforge_plugin_runtime::{Execution, InvocationContext, Output};
 use deviceforge_tool_process::{Environment, ExecutionOptions, ToolCommand, capture};
+pub use live::execute as execute_stream;
 use serde_json::json;
 use std::path::PathBuf;
 use tokio::io::AsyncReadExt;
@@ -19,7 +22,7 @@ pub async fn execute(request: Request, context: InvocationContext) -> Execution 
             let args=vec!["--version".into()];
             let mut command=ToolCommand::new(&config.scrcpy,&args);command.environment=Environment::Restricted;
             let output=capture(command,ExecutionOptions::new(context.deadline().into()),context.cancellation()).await.map_err(|error|{if matches!(error,deviceforge_tool_process::Error::CleanupFailed{..}){cleanup=CleanupOutcome::Failed;}"scrcpy工具检查失败".to_owned()})?;
-            return Ok(Output::from(json!({"available":true,"version":String::from_utf8(output.stdout).map_err(|_|"scrcpy版本不是UTF-8")?,"live_stream":false,"recording":true})));
+            return Ok(Output::from(json!({"available":true,"version":String::from_utf8(output.stdout).map_err(|_|"scrcpy版本不是UTF-8")?,"live_stream":true,"live_configured":config.live.is_some(),"recording":true})));
         }
         if request.operation!="record"{return Err("未知投屏操作".into());}
         let input:model::Input=serde_json::from_value(request.input).map_err(|_|"投屏录制输入无效")?;input.validate()?;

@@ -1,6 +1,6 @@
 # 异步工具执行公共库
 
-`deviceforge-tool-process` 面向独立平台插件及宿主进程适配器。它只依赖 Tokio、tokio-util 和 thiserror，不依赖宿主领域、任务、产物存储或任何平台工具。平台命令、工具路径选择、请求限额及插件协议由调用方负责。
+`deviceforge-tool-process` 面向独立平台插件及宿主进程适配器。它依赖 Tokio、tokio-util 和 thiserror，Windows完整范围监督额外使用windows-sys；不依赖宿主领域、任务、产物存储或任何平台工具。平台命令、工具路径选择、请求限额及插件协议由调用方负责。
 
 ## 调用与限额
 
@@ -11,6 +11,7 @@
 - `capture_to_file` 用 64 KiB 缓冲写调用方文件；标准输出由 `file_limit` 限制，stderr 仍独立遵守选项限额。已有文件的位置、覆盖方式和部分写入由调用方管理，失败不删除或截断文件。
 - `capture_with_lease` / `capture_to_file_with_lease` 在原参数末追加 `Arc<T: Send + Sync + 'static>`，绑定本次目录或其他调用者资源。旧入口和 ExecutionOptions 字段 / Copy 兼容保持。
 - `spawn_stream` / `spawn_stream_with_lease` 提供同一直接进程的有界双向流，使用 `StreamOptions::new(execution)`；命令不得设置预置 `input`。会话的可克隆输入句柄支持多次 `send` 和按序 `close`，`recv` 保留带路标的原始字节，`wait` 排空未读输出并返回真实退出状态（含非零）与字节计数。分片、通道、累计输入、输出、期限和取消均有界，详细契约见[流模块说明](src/streaming/README.md)。
+- `spawn_scoped_stream` / `spawn_scoped_stream_with_lease` 显式选择 `ScopePolicy::OwnedTree`，返回的 `ScopedStreamExit` 分开报告直接进程和完整范围结果。Windows 在恢复初始线程前完成 Job 归属，清理确认覆盖所有 Job 后代、管道和监督工作；只有 `ScopeCompletion::Complete` 才释放租约。其他平台未取得完整范围资格时返回错误，不把直接 PID 退出算作范围完成，详细实现边界见[完整范围说明](src/scoped/README.md)。
 - Windows 子进程隐藏窗口。成功要求直接进程零退出以及输入和输出全部完成。
 
 ## 取消与资源归属

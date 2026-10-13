@@ -11,7 +11,7 @@ const boundaries = {
   'apk-plugin-sdk': { internal: [], external: ['serde', 'serde_json'] },
   'deviceforge-plugin-runtime': { internal: ['apk-plugin-sdk'], external: ['serde_json', 'tokio', 'tokio-util'] },
   'deviceforge-data-codec': { internal: [], external: ['serde', 'serde_json', 'thiserror', 'rmpv'] },
-  'deviceforge-tool-process': { internal: [], external: ['tokio', 'tokio-util', 'thiserror'] },
+  'deviceforge-tool-process': { internal: [], external: ['tokio', 'tokio-util', 'thiserror', 'windows-sys'] },
   'deviceforge-android-package-core': { internal: [], external: ['zip', 'quick-xml', 'serde', 'thiserror'] },
 };
 

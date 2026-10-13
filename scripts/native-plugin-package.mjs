@@ -8,6 +8,7 @@ import { materializeManifest } from '../cli/src/plugin-package.mjs';
 import { npmCommand } from '../cli/src/processes.mjs';
 import { nativePluginPlan, nativePluginReadme, selectPluginPlans, verifyNativeHost } from './native-plugin-plan.mjs';
 import { loadNativePluginSource } from './native-plugin-source.mjs';
+import { copyNativePluginAssets } from './native-plugin-assets.mjs';
 
 const execute = promisify(execFile);
 const defaultRoot = fileURLToPath(new URL('../', import.meta.url));
@@ -19,8 +20,8 @@ async function loadPlans(backend, selected, options) {
     && inside(join(backend, 'plugins'), dirname(pkg.manifest_path)));
   const plans = await Promise.all(packages.map(async (pkg) => {
     const sourceDirectory = dirname(pkg.manifest_path);
-    const { manifest, configurationTemplates } = await loadNativePluginSource(sourceDirectory);
-    return { ...nativePluginPlan(pkg, manifest), sourceDirectory, configurationTemplates };
+    const { manifest, configurationTemplates, assets } = await loadNativePluginSource(sourceDirectory);
+    return { ...nativePluginPlan(pkg, manifest), sourceDirectory, configurationTemplates, assets };
   }));
   return { metadata, plans: selectPluginPlans(plans, selected) };
 }
@@ -51,6 +52,7 @@ async function packOne(plan, temporary, destination, compiled, options, cliVersi
   for (const template of plan.configurationTemplates) {
     await copyFile(template.source, join(directory, 'bin', template.name));
   }
+  await copyNativePluginAssets(plan.assets, directory, [plan.entry, ...plan.configurationTemplates.map((template) => `bin/${template.name}`)]);
   const sourceReadme = await readFile(await regularFile(plan.sourceDirectory, 'README.md'), 'utf8');
   await writeFile(join(directory, 'README.md'), nativePluginReadme(plan, cliVersion, sourceReadme, plan.configurationTemplates));
   await writeFile(join(directory, 'package.json'), JSON.stringify(plan.packageJson, null, 2));

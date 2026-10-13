@@ -125,6 +125,30 @@ impl Lease {
         self.commit(state, check)
     }
 
+    pub(crate) fn register_uncertain(
+        &mut self,
+        project_id: String,
+        project_root: PathBuf,
+        id: String,
+        check: &dyn Fn() -> Result<(), String>,
+    ) -> Result<(), String> {
+        if self.snapshot.is_some() {
+            return Err("AI助手返回已经登记的线程，拒绝覆盖归属".into());
+        }
+        self.commit(
+            Snapshot {
+                format_version: 1,
+                project_id,
+                project_root,
+                thread_id: id.to_ascii_lowercase(),
+                turns: 0,
+                closed: false,
+                uncertain: true,
+            },
+            check,
+        )
+    }
+
     pub(crate) fn complete(
         &mut self,
         project_id: String,

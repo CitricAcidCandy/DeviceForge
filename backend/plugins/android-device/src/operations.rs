@@ -2,7 +2,7 @@
 mod commands;
 mod models;
 
-use crate::{Control, Error, Result, discovery, rules};
+use crate::{Control, Error, Result, config::Config, discovery, rules};
 use rules::Action;
 use serde::de::DeserializeOwned;
 use serde_json::{Value, json};
@@ -42,6 +42,7 @@ pub(crate) enum Input {
     InstallApks {
         device_id: String,
         artifact_id: String,
+        modules: Option<Vec<String>>,
     },
     Screenshot {
         device_id: String,
@@ -108,19 +109,30 @@ pub(crate) fn parse(operation: &str, input: &Value) -> Result<Input> {
                 package: value.package,
             })
         }
-        "app.install" | "app.install_apks" => {
+        "app.install" => {
             let value: models::Artifact = decode(&envelope.input)?;
             rules::artifact_id(&value.artifact_id)?;
-            Ok(if operation == "app.install" {
-                Input::Install {
-                    device_id,
-                    artifact_id: value.artifact_id,
-                }
-            } else {
-                Input::InstallApks {
-                    device_id,
-                    artifact_id: value.artifact_id,
-                }
+            Ok(Input::Install {
+                device_id,
+                artifact_id: value.artifact_id,
+            })
+        }
+        "app.install_apks" => {
+            let value: models::ApksArtifact = decode(&envelope.input)?;
+            rules::artifact_id(&value.artifact_id)?;
+            deviceforge_android_package_core::apks::Selection {
+                modules: value.modules.clone(),
+                instant: false,
+            }
+            .validate(&deviceforge_android_package_core::Control::new(
+                None,
+                &|| false,
+            ))
+            .map_err(|_| Error::Invalid("APKS模块选择无效"))?;
+            Ok(Input::InstallApks {
+                device_id,
+                artifact_id: value.artifact_id,
+                modules: value.modules,
             })
         }
         "screenshot" => {
@@ -169,7 +181,7 @@ fn decode<T: DeserializeOwned>(value: &Value) -> Result<T> {
         .map_err(|_| Error::Invalid("设备动作封套或业务字段不符合严格格式"))
 }
 
-pub(crate) async fn execute(control: &Control, input: Input) -> Result<Value> {
+pub(crate) async fn execute(control: &Control, config: &Config, input: Input) -> Result<Value> {
     control.check()?;
     let value = match input {
         Input::Install { .. }
@@ -185,6 +197,10 @@ pub(crate) async fn execute(control: &Control, input: Input) -> Result<Value> {
             serde_json::to_value(devices).map_err(|_| Error::Dependency("设备发现结果无法编码"))?
         }
         Input::Action { device_id, action } => {
+            if action.unicode_text().is_some() {
+                return crate::session::unicode::dispatch(control, config, &device_id, &action)
+                    .await;
+            }
             for command in action.commands() {
                 control.check()?;
                 let mut args = vec![

@@ -3,6 +3,7 @@ import type { Dispose, ExtensionAccess, HostContext, HostResult } from '../plugi
 import { scopedDeviceAccess } from './device-access.ts';
 import { scopedArtifactAccess } from './artifact-access.ts';
 import { scopedTaskHistoryAccess } from './task-history-access.ts';
+import { scopedThemeAccess } from './theme-access.ts';
 
 export function createPluginScope(host: HostContext) {
   const controller = new AbortController();
@@ -74,6 +75,7 @@ export function createPluginScope(host: HostContext) {
   const devices = scopedDeviceAccess(host.devices, call, current, controller.signal, track);
   const artifacts = scopedArtifactAccess(host.artifacts, call);
   const taskHistory = scopedTaskHistoryAccess(host.taskHistory, call);
+  const themes = scopedThemeAccess(host.themes, current, controller.signal, track);
   const context = Object.freeze<HostContext>({
     apiVersion: 2,
     signal: controller.signal,
@@ -90,6 +92,7 @@ export function createPluginScope(host: HostContext) {
     ...(devices ? { devices } : {}),
     ...(artifacts ? { artifacts } : {}),
     ...(taskHistory ? { taskHistory } : {}),
+    ...(themes ? { themes } : {}),
   });
   return { context, close, dispose, track };
 }

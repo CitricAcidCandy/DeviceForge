@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { names, alias, operation } from './deployment.mjs';
+import { names, alias, operation, providerCapabilities } from './deployment.mjs';
 import { finishedTool, keys, localId, observations } from './fixtures.mjs';
 import { jobList, oneJob, record, uuid } from './jobs.mjs';
 
@@ -10,12 +10,17 @@ export const envelope = (deviceId, input = {}) => ({ device_id: deviceId, input 
 export const legacyInput = (name) => ({
   discover: {}, packages: { device_id: localId }, 'app.uninstall': { device_id: localId, package: 'com.smoke.harmony' },
   'app.install': { device_id: localId, artifact_id: 'd0da1b1b-919c-40a8-9c71-fbb56614e488' },
+  'app.start': { device_id: localId, bundle: 'com.smoke.harmony', ability: 'com.smoke.harmony.MainAbility' },
+  'app.stop': { device_id: localId, bundle: 'com.smoke.harmony' },
+  'app.reset': { device_id: localId, bundle: 'com.smoke.harmony' },
+  'app.detail': { device_id: localId, bundle: 'com.smoke.harmony' },
+  connect: { address: 'localhost:5555' }, disconnect: { address: 'localhost:5555' },
 }[name]);
 
 export async function noFallback(host, fixture, report, phase) {
   const before = await jobList(host), previous = await keys(fixture);
   for (const name of names) {
-    const input = legacyInput(name), direct = name === 'discover' ? {} : envelope(input.device_id,
+    const input = legacyInput(name), direct = name === 'discover' ? {} : envelope(providerCapabilities.includes(name) ? null : input.device_id,
       Object.fromEntries(Object.entries(input).filter(([key]) => key !== 'device_id')));
     for (const [id, value] of [[alias(name), input], [operation(name), direct]]) {
       await host.client.post('/api/v2/jobs', { operation: id, input: value }, { status: 404, code: 'not_found' });
@@ -23,7 +28,7 @@ export async function noFallback(host, fixture, report, phase) {
     }
   }
   assert.deepEqual(await jobList(host), before); assert.deepEqual(await keys(fixture), previous);
-  report.checks.push({ name: phase + ' 四旧名/四新贡献404/not_found、零Job/零工具，无内置回退', passed: true });
+  report.checks.push({ name: phase + ' 十绑定/十短贡献404/not_found、零Job/零工具，无内置回退', passed: true });
 }
 export async function preciseErrors(host, fixture, report, { beforeDiscovery = false } = {}) {
   const base = action(report.provider, 'packages', localId), before = await jobList(host), previous = await keys(fixture);

@@ -25,15 +25,24 @@ pub(crate) fn parse(output: &str) -> Result<Vec<PluginDevice>> {
             state: DeviceState::Online,
             raw_state: Some("device".into()),
             model: None,
-            capabilities: ["packages", "app.install", "app.uninstall"]
-                .into_iter()
-                .map(|id| CapabilityAvailability {
-                    id: id.into(),
-                    version: 1,
-                    available: true,
-                    reason: None,
-                })
-                .collect(),
+            capabilities: [
+                "packages",
+                "app.install",
+                "app.uninstall",
+                "app.detail",
+                "app.start",
+                "app.stop",
+                "app.reset",
+                "screenshot",
+            ]
+            .into_iter()
+            .map(|id| CapabilityAvailability {
+                id: id.into(),
+                version: 1,
+                available: true,
+                reason: None,
+            })
+            .collect(),
         });
     }
     Ok(devices)
@@ -44,13 +53,13 @@ mod tests {
     use super::*;
 
     #[test]
-    fn known_empty_marker_and_devices_map_all_three_capabilities() {
+    fn known_empty_marker_and_devices_map_all_eight_capabilities() {
         assert!(parse("[Empty]\r\n").unwrap().is_empty());
         let devices = parse(" HDC001 \r\nHDC002\n").unwrap();
         assert_eq!(devices.len(), 2);
         assert_eq!(devices[0].id, "HDC001");
         assert_eq!(devices[0].raw_state.as_deref(), Some("device"));
-        assert_eq!(devices[0].capabilities.len(), 3);
+        assert_eq!(devices[0].capabilities.len(), 8);
     }
 
     #[test]

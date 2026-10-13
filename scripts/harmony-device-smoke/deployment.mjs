@@ -6,7 +6,8 @@ import { materializeManifest } from '../../cli/src/plugin-package.mjs';
 import { fileIdentity } from '../unified-discovery-smoke/evidence.mjs';
 
 export const pluginId = 'harmony-device';
-export const names = ['discover', 'packages', 'app.install', 'app.uninstall'];
+export const names = ['discover', 'packages', 'connect', 'disconnect', 'app.install', 'app.uninstall', 'app.detail', 'app.start', 'app.stop', 'app.reset'];
+export const providerCapabilities = ['connect', 'disconnect'];
 export const alias = (name) => name === 'discover' ? 'harmony.devices' : `harmony.${name}`;
 export const operation = (name) => `plugin.${pluginId}.${name}`;
 export const oldNames = [...names.flatMap((name) => [alias(name), operation(name)])];
@@ -20,9 +21,9 @@ export async function prepareDeployment({ root, directory, profile, report, sour
   assert.equal(manifest.protocol_version, 4); assert.equal(manifest.devices.api_version, 3);
   assert.equal(manifest.devices.platform, 'harmony'); assert.deepEqual(manifest.args, []);
   assert.deepEqual(manifest.operations.map((entry) => entry.name).sort(), [...names].sort());
-  assert.equal(manifest.devices.capabilities.length, 3);
+  assert.equal(manifest.devices.capabilities.length, 9);
   assert.deepEqual(manifest.artifacts, { input_fields: [], input_pointers: ['/input/artifact_id'], outputs: false });
-  assert.equal(bindings.format_version, 2); assert.equal(bindings.bindings.length, 4);
+  assert.equal(bindings.format_version, 2); assert.equal(bindings.bindings.length, names.length);
   assert.equal(manifest.devices.discover_operation, 'discover');
   for (const name of names) {
     const matching = bindings.bindings.filter((row) => row.operation.id === alias(name)); assert.equal(matching.length, 1);
@@ -33,7 +34,7 @@ export async function prepareDeployment({ root, directory, profile, report, sour
     else {
       assert.deepEqual(binding.result, { kind: 'value', wrapped: true });
       assert.deepEqual(manifest.devices.capabilities.find((row) => row.id === name), { id: name, version: 1, operation: name,
-        scope: 'device', access: name === 'packages' ? 'read' : 'write', execution_timeout_ms: name === 'packages' ? 30000 : 120000 });
+        scope: providerCapabilities.includes(name) ? 'provider' : 'device', access: name === 'packages' || name === 'app.detail' ? 'read' : 'write', execution_timeout_ms: name === 'app.install' || name === 'app.uninstall' ? 120000 : 30000 });
     }
   }
 
@@ -76,11 +77,11 @@ export async function publishAndValidate(deployment, report) {
         report.validator = { pid: child.pid, exit_code: child.exitCode, signal: child.signalCode, error_name: error?.name, error_code: error?.code };
         if (error) { reject(error); return; }
         try { assert.equal(child.exitCode, 0); assert.equal(child.signalCode, null); assert.equal(stderr.trim(), '');
-          assert.deepEqual(JSON.parse(stdout), { id: pluginId, version: deployment.manifest.version, operations: 4 });
+          assert.deepEqual(JSON.parse(stdout), { id: pluginId, version: deployment.manifest.version, operations: names.length });
           report.validator.result = JSON.parse(stdout); done(); } catch (failure) { reject(failure); }
       });
   });
-  report.checks.push({ name: '当前原binary、源双manifest及真实validator exit0/四贡献', passed: true });
+  report.checks.push({ name: '当前原binary、源双manifest及真实validator exit0/十贡献九定义能力', passed: true });
 }
 export async function verifyDeployment(deployment, report) {
   const after = await fileIdentity(deployment.actualBinary); assert.equal(after.sha256, report.deployment.original_plugin_binary.sha256);

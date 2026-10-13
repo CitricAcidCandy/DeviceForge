@@ -1,0 +1,9 @@
+{
+  "format_version": 1,
+  "scrcpy": "scrcpy",
+  "adb": "adb",
+  "live": {
+    "scrcpy_server": "C:\\Tools\\scrcpy\\scrcpy-server",
+    "server_version": "3.3.1"
+  }
+}

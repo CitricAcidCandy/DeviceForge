@@ -1,5 +1,7 @@
 import { HostError } from '../../plugin-sdk/index.ts';
 import type { JsonValue } from '../../plugin-sdk/index.ts';
+import type { ApiClient } from '../../shared/api/index.ts';
+import { createHttpPerformanceGateway } from './http.ts';
 import { createPerformanceJobs } from './jobs.ts';
 import { decodePerformanceCapabilities, invalidResult, isPerformancePage, isPerformanceSessions, isPerformanceStart, requireAfter, requireLimit, requireSession, requireSessionId } from './results.ts';
 import { createPerformanceState } from './state.ts';
@@ -7,6 +9,7 @@ import type { PerformanceGateway, PerformanceOptions, PerformanceOutcome, Perfor
 
 export type * from './types.ts';
 export { PerformanceJobFailure, PerformanceWaitFailure } from './jobs.ts';
+export { isPerformanceStart } from './results.ts';
 
 export function createPerformance(gateway: PerformanceGateway, options: PerformanceOptions = {}) {
   const state = createPerformanceState();
@@ -119,3 +122,7 @@ export function createPerformance(gateway: PerformanceGateway, options: Performa
   };
 }
 export type Performance = ReturnType<typeof createPerformance>;
+
+export function createHttpPerformance(client: ApiClient, options: PerformanceOptions = {}) {
+  return createPerformance(createHttpPerformanceGateway(client), options);
+}

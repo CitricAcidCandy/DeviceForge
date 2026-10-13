@@ -8,6 +8,29 @@
     "input_fields": [],
     "outputs": true
   },
+  "sessions": {
+    "protocol_version": 5,
+    "output_retention": "bounded_tail",
+    "operations": [
+      {
+        "name": "open",
+        "title": "实时投屏与设备控制",
+        "execution": {"api_version":1,"total_timeout_ms":3600000},
+        "input_schema": {
+          "type":"object","additionalProperties":false,
+          "properties": {
+            "device_id":{"type":"string","minLength":1,"maxLength":200},
+            "max_size":{"type":"integer","minimum":64,"maximum":4096},
+            "max_fps":{"type":"integer","minimum":1,"maximum":60},
+            "video_bit_rate":{"type":"integer","minimum":128000,"maximum":16000000},
+            "audio":{"type":"boolean"},"control":{"type":"boolean"},
+            "reconnect_attempts":{"type":"integer","minimum":0,"maximum":5}
+          },
+          "required":["device_id"]
+        }
+      }
+    ]
+  },
   "operations": [
     {
       "name": "runtime.status",

@@ -44,6 +44,14 @@ pub(in crate::plugins) fn definitions(
                 total_timeout_ms: budget.total_timeout_ms,
                 source: OperationExecutionSource::Declared,
             }),
+            output_retention: match access.output_retention {
+                apk_plugin_sdk::session_access::SessionOutputRetention::Complete => {
+                    SessionOutputRetention::Complete
+                }
+                apk_plugin_sdk::session_access::SessionOutputRetention::BoundedTail => {
+                    SessionOutputRetention::BoundedTail
+                }
+            },
         };
         definition.validate(&manifest.id)?;
         let validator = jsonschema::validator_for(&definition.input_schema)

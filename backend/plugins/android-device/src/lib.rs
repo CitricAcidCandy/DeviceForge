@@ -41,6 +41,6 @@ pub async fn execute(request: Request, context: InvocationContext) -> Execution 
     ) {
         return session::Session::execute(control, config, &request, input).await;
     }
-    let result = operations::execute(&control, input).await;
+    let result = operations::execute(&control, &config, input).await;
     control.finish(result)
 }

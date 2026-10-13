@@ -1,15 +1,16 @@
 # 受控产物存储
 
 ## 作用与适用场景
-保存浏览器上传的 APK、APKS、AAB、HAP、ZIP、PNG、JSON 与 MessagePack，供设备、分析和编解码模块通过产物 ID 使用。实现领域 ArtifactStore 端口，业务代码不依赖本机绝对路径。
+保存浏览器上传的 APK、APKS、AAB、HAP、ZIP、PNG、JPEG、JSON、MessagePack、DEX、BIN、JS、LOG、JSONL 与 MP4，供设备、分析和编解码模块通过产物 ID 使用。实现领域 ArtifactStore 端口，业务代码不依赖本机绝对路径。
 
 ## 快速开始
 在后端目录执行 `cargo test -p apk-infrastructure --test artifacts`。启动服务器后使用 `POST /api/v1/artifacts?filename=应用.apk`，Content-Type 为 application/octet-stream，请求体为原始文件流。正式目录位于 APK_DATA_DIR/artifacts。
 
 ## API 与参数
-- FileArtifacts::open(root)：默认单文件 64 MiB，JSON/MessagePack 最多 16 MiB；with_limit(root, max_size) 支持更低的部署上限。流式写入提前执行类型限额。
+- FileArtifacts::open(root)：默认单文件 64 MiB，JSON/MessagePack 最多 16 MiB，JPEG/DEX 最多 64 MiB；with_limit(root, max_size) 支持更低的部署上限，不能提高格式限额。流式写入提前执行类型限额。
 - put(filename, stream)：校验名称和容器，流式写入、计算 SHA-256，完成后返回 Artifact。
 - get(id)：读取 ID、文件名、媒体类型、大小、摘要和创建时间；不返回服务器路径。
+- delete(id)：在取得全部读取许可后删除受控产物目录并返回原元数据；存在下载或目录预览时快速返回冲突，删除后不保留历史内容。
 - download(id)：返回元数据与分块数据流，整个流释放后回收下载许可。
 - archive_entries(id, offset, limit)：只读取压缩包目录，分页范围 1 到 200，不解压条目。
 
@@ -21,11 +22,23 @@
 ## 校验范围与限制
 文件名只作显示，必须不含路径、控制字符及冒号。ID 必须为规范 UUID。产物目录、内容和元数据不得通过链接转到其他文件。
 
+上传完成时按流计算 SHA-256 并写入元数据；启动重建、保留期扫描、元数据读取和下载打开前都以 64 KiB 分块重新计算内容大小与 SHA-256。摘要或大小不一致的目录不计入已用配额，保留在受控目录中供诊断，读取和下载返回存储错误；重新打开存储不会删除这类目录。重算在受控阻塞任务中执行，不持有活动读写租约之外的长期锁。
+
 ZIP 校验中央目录、最多 10000 个条目、累计声明解压体积不超过 2 GiB，拒绝越界路径、符号链接和无法读取的加密条目。上传验证不解压条目，不逐项验证 CRC；不是 APK 业务结构、签名或恶意代码检查。
 
 PNG 当前只校验标识、IHDR 头及非零尺寸，不执行完整图像解码或 CRC 验证。下载强制作为附件，不以内联网页方式执行。后续截图或图像处理模块需要完整图片验证。
 
-当前没有删除、保留期限、总磁盘配额、续传和 Range 下载。数据根目录应由部署者控制；原子发布避免半成品可见，但尚未验证突然断电下的目录元数据持久性。
+`jpg`/`jpeg` 后缀不区分大小写，映射 `image/jpeg`。内容在既有受限验证工作池中用 64 KiB 缓冲调用共享 `data-codec::jpeg::Validator`，上传与插件输出共同使用；拒绝截断、尾随、不支持编码及资源超限。结构通过不代表完整解码、视觉正确或设备截图成功。`cargo test -p apk-infrastructure --test artifacts_jpeg` 验证分块上传、元数据与原字节下载、错误不发布和流式提前拒绝。
+
+当前没有保留期限、总磁盘配额、续传和 Range 下载。数据根目录应由部署者控制；原子发布避免半成品可见，但尚未验证突然断电下的目录元数据持久性。删除只覆盖本服务持有的受控目录，未实现跨进程共享存储的回收协调。
+
+DEX 最低资格只读取44字节前导，核对标准035/037/038/039/040、至少112字节、file_size、header_size与字节序；完整结构、校验和与SDK检测属于独立插件。后缀不区分大小写，下载为`application/vnd.android.dex`，ZIP预览拒绝。验证边界见[DEX产物资格接缝](../../../../docs/DEX产物资格接缝.md)。
+
+BIN、JS、LOG、JSONL 格式上限为64 MiB，MP4为128 MiB，部署上限可更低；默认单文件上限仍为64 MiB，插件输入和输出累计上限仍为64 MiB。所有新后缀均不区分大小写，摘要与下载保留原字节。BIN须非空，不证明可执行资格；JS须非空合法UTF-8且不含空字节，不校验语法。JS使用64 KiB缓冲并保留跨块不完整字符，LOG允许空文件及任意工具字节。
+
+JSONL允许空文件，非空文件每行须为合法UTF-8 JSON；接受CRLF和无末尾换行，拒绝空白行、坏行及重复键。总量64 MiB，每行最多16 MiB，另沿公共JSON节点与深度限制；逐块读取且只保留有界当前行。MP4只读取12字节，检查ftyp与首段声明大小至少12，不表示完整容器或解码成功。上传与插件输出共用这些资格检查，详见[插件脚本与录像产物接缝](../../../../docs/插件脚本与录像产物接缝.md)。
+
+`cargo test -p apk-infrastructure --test artifacts_plugin_formats`验证原字节与摘要、大小写、跨块字符、非法输入不发布、单行限额及流式提前拒绝。插件输入授权仅增加BIN/JS，沿用原摘要、总量、期限、取消及私有目录清理，不允许按改名绕过格式检查。
 
 ZIP 解析前读取最多 65557 字节尾部，先限制条目数及目录范围，再交给库解析，减少恶意目录引起的内存分配。当前拒绝分卷和 ZIP64；后续支持这些格式时必须保留解析前的资源上限。
 

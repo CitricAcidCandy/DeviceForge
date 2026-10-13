@@ -36,6 +36,9 @@ impl ArtifactStore for StoreSpy {
     async fn get(&self, _: &str) -> Result<Artifact> {
         self.reject()
     }
+    async fn delete(&self, _: &str) -> Result<Artifact> {
+        self.reject()
+    }
     async fn download(&self, _: &str) -> Result<(Artifact, ArtifactStream)> {
         self.reject()
     }

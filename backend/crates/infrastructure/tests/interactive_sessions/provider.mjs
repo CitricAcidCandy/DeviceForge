@@ -1,16 +1,10 @@
 // 独立协议原帧夹具；不调用 SDK、不执行 shell、不派生其他进程。
 import { createInterface } from 'node:readline';
-import { existsSync, mkdirSync, renameSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { once } from 'node:events';
 const [root] = process.argv.slice(2);
 mkdirSync(root, { recursive: true });
-const mark = (name, value = {}) => {
-  const path = join(root, `${name}.json`);
-  writeFileSync(`${path}.pending`, JSON.stringify({ pid: process.pid, ...value }));
-  renameSync(`${path}.pending`, path);
-};
-mark('started');
 let open;
 let start;
 let mode;
@@ -19,6 +13,33 @@ let inputs = 0;
 let cancelled = false;
 let finishing = false;
 let outputChain = Promise.resolve();
+const markerPath = (name, scoped) => {
+  const session = open?.session_id;
+  const suffix = scoped && session ? `.${String(session).replace(/[^A-Za-z0-9_-]/g, '_')}` : '';
+  return join(root, `${name}${suffix}.json`);
+};
+const writeMarker = (path, value) => {
+  const pending = `${path}.pending.${process.pid}`;
+  writeFileSync(pending, JSON.stringify(value));
+  try {
+    renameSync(pending, path);
+    return true;
+  } catch (error) {
+    if (error?.code !== 'EEXIST' && error?.code !== 'EPERM') throw error;
+    try { unlinkSync(pending); } catch (cleanupError) {
+      if (cleanupError?.code !== 'ENOENT') throw cleanupError;
+    }
+    return false;
+  }
+};
+const mark = (name, value = {}) => {
+  const payload = { pid: process.pid, ...value };
+  const scoped = markerPath(name, true);
+  writeMarker(scoped, payload);
+  const legacy = markerPath(name, false);
+  if (legacy !== scoped && !existsSync(legacy)) writeMarker(legacy, payload);
+};
+mark('started');
 const lines = createInterface({ input: process.stdin });
 const insurance = setTimeout(() => process.exit(91), 120_000);
 const waitFile = async (name) => {

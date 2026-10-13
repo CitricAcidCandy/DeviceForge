@@ -96,7 +96,12 @@ test('具名槽位和模块有真实挂载/释放行为，发现入口与命令�
   assert.deepEqual((await instance.extensions.callService('example.service', '1', [1], signal())).data, [1]);
   assert.throws(() => instance.extensions.callService('example.service', '2', null, signal()), /版本/);
   await instance.webPlugins.unload('example'); assert.equal(releases, 2); assert.equal(slot.children.length, 0); assert.equal(moduleRoot.children.length, 0);
-  assert.deepEqual(instance.extensions.catalog(), { components: [], modules: [], commands: [], services: [] });
+  assert.deepEqual(instance.extensions.catalog(), { components: [], modules: [], commands: [], services: [
+    { id: 'host.ai-sdk', pluginId: 'host', generation: 0, version: '1' },
+    { id: 'host.ai-sdk.stream', pluginId: 'host', generation: 0, version: '1' },
+    { id: 'host.performance', pluginId: 'host', generation: 0, version: '1' },
+    { id: 'host.mirroring.stream', pluginId: 'host', generation: 0, version: '1' },
+  ] });
   assert.throws(() => instance.extensions.executeCommand('example.command', null, signal()), /撤销/); await instance.dispose();
 });
 

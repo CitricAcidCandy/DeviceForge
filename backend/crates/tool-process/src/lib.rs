@@ -6,6 +6,7 @@ mod execution;
 mod lifecycle;
 mod options;
 mod ownership;
+mod scoped;
 mod streaming;
 mod streams;
 
@@ -15,6 +16,10 @@ pub use execution::{
 };
 pub use options::{
     DEFAULT_OUTPUT_LIMIT, Environment, ExecutionOptions, MAX_CLEANUP_TIMEOUT, ToolCommand,
+};
+pub use scoped::{
+    ScopeCompletion, ScopePolicy, ScopedStreamExit, ScopedStreamingProcess, spawn_scoped_stream,
+    spawn_scoped_stream_with_lease,
 };
 pub use streaming::{
     InputError, StreamChunk, StreamExit, StreamOptions, StreamingInput, StreamingProcess,

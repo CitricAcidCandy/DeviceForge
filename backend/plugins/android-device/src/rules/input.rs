@@ -1,5 +1,5 @@
 //! 严格输入动作及设备端引用；工具argv不会替代Android shell的文本解析。
-use crate::{Error, Result};
+use crate::{Error, Result, rules::unicode};
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
@@ -43,10 +43,7 @@ impl Action {
                     && (1..=10_000).contains(duration_ms)
             }
             Self::Keyevent { key_code, .. } => (1..=65_535).contains(key_code),
-            Self::Text { text, .. } => {
-                (1..=1024).contains(&text.len())
-                    && text.bytes().all(|byte| (b' '..=b'~').contains(&byte))
-            }
+            Self::Text { text, .. } => unicode::valid_text(text),
         };
         if !valid {
             return Err(Error::Invalid(
@@ -62,6 +59,13 @@ impl Action {
             Self::Swipe { .. } => "swipe",
             Self::Keyevent { .. } => "keyevent",
             Self::Text { .. } => "text",
+        }
+    }
+
+    pub(crate) fn unicode_text(&self) -> Option<&str> {
+        match self {
+            Self::Text { text, .. } if unicode::is_unicode(text) => Some(text),
+            _ => None,
         }
     }
 

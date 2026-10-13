@@ -1,0 +1,24 @@
+const usage = { input_tokens: 1, cached_input_tokens: 0, cache_write_input_tokens: 0, output_tokens: 1, reasoning_output_tokens: 0 };
+const identifier = "12345678-1234-1234-1234-123456789abc";
+let prompt = "";
+process.stdin.setEncoding("utf8");
+process.stdin.on("data", (bytes) => { prompt += bytes; });
+process.stdin.on("end", () => {
+  if (process.env.OPENAI_API_KEY) {
+    process.stderr.write("专用环境泄漏");
+    process.exitCode = 13;
+    return;
+  }
+  process.stdout.write(JSON.stringify({ type: "thread.started", thread_id: identifier }) + "\n");
+  process.stdout.write(JSON.stringify({ type: "turn.started" }) + "\n");
+  if (prompt === "等待取消") {
+    setInterval(() => undefined, 100);
+    return;
+  }
+  process.stdout.write(JSON.stringify({ type: "item.completed", item: { id: "message_1", type: "agent_message", text: prompt === "失败" ? "失败前回答" : "真实SDK与模拟CLI" } }) + "\n");
+  process.stdout.write(JSON.stringify({ type: "turn.completed", usage }) + "\n");
+  if (prompt === "失败") {
+    process.stderr.write("受控非零诊断");
+    process.exitCode = 7;
+  }
+});

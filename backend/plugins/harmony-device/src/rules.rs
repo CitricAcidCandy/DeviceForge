@@ -66,6 +66,7 @@ pub(crate) fn text(stdout: &[u8], stderr: &[u8]) -> Result<String> {
     if [
         "failure",
         "failed",
+        "[fail]",
         "error",
         "unable",
         "cannot",
@@ -120,5 +121,29 @@ mod tests {
         assert!(success(b"msg:install bundle successfully.", b"error: denied", true).is_err());
         assert!(success(b"Success", b"", true).is_err());
         assert!(text(&[0xff], b"").is_err());
+    }
+
+    #[test]
+    fn exact_hdc_fail_tag_in_either_stream_wins_over_install_success() {
+        for (stdout, stderr) in [
+            (
+                b"msg:install bundle successfully.\n[Fail]Not match target founded, check connect-key please".as_slice(),
+                b"".as_slice(),
+            ),
+            (
+                b"msg:install bundle successfully.".as_slice(),
+                b"[fAiL] independent diagnostic".as_slice(),
+            ),
+        ] {
+            assert_eq!(
+                success(stdout, stderr, true).unwrap_err().to_string(),
+                "工具依赖失败：HDC返回失败诊断"
+            );
+        }
+        assert_eq!(text(b"com.fail.example", b"").unwrap(), "com.fail.example");
+        assert_eq!(
+            text(b"[Failover] benign", b"").unwrap(),
+            "[Failover] benign"
+        );
     }
 }

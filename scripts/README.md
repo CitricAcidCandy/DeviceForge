@@ -1,5 +1,15 @@
 # 根工程打包与交付工具
 
+- dex-analysis-smoke.mjs：真实宿主、独立DEX插件及前端公开基础用例，验证上传/原字节、HTTP/MCP两贡献、完整校验失败、卸载与历史恢复、关联日志和输入身份；执行及证据边界见同名目录README。
+
+- terminal-interactive-smoke.mjs：消费已构建宿主和纯会话终端插件，验证动态HTTP/MCP、多次原字节输入/EOF、取消/卸载/换代、六会话日志关联与正常关闭；执行及边界见同名目录README。
+
+- jpeg-artifact-smoke.mjs：复用既有真实宿主启动、共享HTTP/MCP客户端与有界退出流程，验证当前通用JPEG后缀、元数据、两版本原字节下载及错误资格。只消费已构建程序，不执行构建；`node scripts/jpeg-artifact-smoke.mjs` 与 `--release` 分别验收两模式。每次在独立artifacts目录保留报告和脱敏日志，核对七个输入字节身份；最小结构帧不证明像素解码、实际Harmony截图、视觉或真机。
+
+- browser-built-assets.mjs：挂载构建后的完整 JS 资产集合，保持生产入口的相对依赖路径；前后核对成员、大小与摘要，供真实浏览器验收复用。
+- browser-theme-smoke.mjs：真实浏览器上传主题包并验证公开主题接口、实际计算样式、热撤销和基础样式恢复；报告及边界见同名目录 README。
+- harmony-npx-smoke.mjs：消费本轮正式 CLI/Harmony 原 TGZ、打包原二进制与已编译假 HDC，验证真实 npx 安装、两阶段鉴权、公开设备能力、模板物化、全部包成员身份、历史/日志与正常退出；不会自行构包，报告不能替代真机或独立故障矩阵，执行参数见同名目录 README。
+
 这里仅保存跨端交付工具，各端业务与约束仍放各自目录。
 
 `cli-smoke-ordinary-feature.mjs` 为普通业务真实npx补充运行时功能验收，只消费本轮已安装包和合成来源。通过公开HTTP/MCP验证未知功能、同键工具排除、两个runtime模块的单快照准备、持久状态与原字节、重复准备无下载和显式移除；不代表真实SDK执行或外部发布来源通过。由 `npm run smoke:cli` 统一调用，需先重建当前运行包和插件包，旧包不包含新增贡献时明确失败。
@@ -9,6 +19,7 @@
 - cli-smoke.mjs 与 cli-smoke-fixture.mjs：真实 tgz/npx 安装与局域网运行验证；仅操作本次临时目录和进程，不写源项目。
 - native-plugin-plan.mjs：从 Cargo 与现有插件清单派生便携平台包、校对版本和选择；不复制宿主业务规则。
 - native-plugin-source.mjs：优先读取正式 manifest.json，仅在不存在时兼容 manifest.example.json；收集受限公开配置模板，不采集部署者配置。
+- native-plugin-assets.mjs：按插件根 package-assets.json 的版本1声明复制固定静态成员至包内 bin。路径复用公开安装规则，拒绝链接、越界、大小写冲突及入口/模板覆盖；单文件8 MiB、总量32 MiB、最多64文件，复制摘要须匹配构建前输入。未声明文件不自动收集，源码变动导致构包失败。
 - native-plugin-package.mjs 与 pack-native-plugins.mjs：构建原生 release 插件、调用 Rust 安装门禁并生成 tgz；`npm run pack:plugins` 可按插件 ID 选择。
 - cli-smoke-native.mjs：显式选择八个原生包（echo、artifact_copy、msgpack、performance_demo、cooperative_demo、settings、ai-assistant、tool-supply），通过真实 npx 安装，既有协议验证与普通业务分别执行；与 Node 依赖安装验证共用启动器。
 - cli-smoke-ordinary.mjs：核对包内公开模板，在本轮隔离部署配置普通三业务，经HTTPv2/独立MCP执行配置、合成AI线程与文本ZIP安装；不连接真实模型或发布工具。两鉴权阶段共用主编排，实际结果以当次报告和退出码为准。
@@ -58,3 +69,6 @@ cli-smoke-alias.mjs 为既有真实 npx 两阶段增加相对绑定配置路径�
 `cli-smoke-archive.mjs` 只读当次保留 TGZ 的全部普通成员，检查头校验、重复、链接与越界后逐文件核对缓存字节数和 SHA256，并核对 npm bin 入口；不以重新打包的归档替代实际安装包。失败时先保存 `failure-before-cleanup.json`，`cli-smoke-cleanup.mjs` 再有界关闭本次宿主、记录包装进程退出与两个端口各自状态；限流退避也受关闭总等待上限约束。`node --import ./scripts/cli-smoke-controlled-failure.mjs scripts/cli-smoke.mjs` 仅在本入口第一次成功读取生产宿主正文后注入 `CliControlledFailure`，用于独立验证真实失败分支，不能把任意退出1算作注入通过。
 
 CLI smoke 的高频行为矩阵显式使用本次 `10000` 请求/秒配置并记录到报告，生产默认不变，不构成限流容量或性能结论。统一发现辅助区分 CLI 离线部署与在线包视图：在线DELETE对离线夹具返回404；完成卸载与贡献撤销后，仅清理已校验的本轮临时离线目录，不表示生产CLI卸载命令或在线包统一管理已完成。
+- ai-streaming-smoke.mjs：消费冻结宿主/AI插件及受控Node工具，独立验证HTTP/MCP实时会话、分页、取消/卸载/重载与历史；可实际导入前端工厂验证增量消费和无重放。实际两轮debug已通过，入口参数与证据边界见同名目录README，不代表SDK或真实模型。
+- frida-consumption-smoke.mjs：实际导入Frida前端HTTP工厂，消费真实宿主/插件与固定标准库假工具，验证六业务、MCP同Job、原字节、取消及卸载历史；只消费已构建程序，真实设备/注入与工具OS句柄另验。入口和冻结边界见同名目录README。
+- apks-advanced-smoke.mjs：测试角色正在完成高级规格/modules/instant独立驱动，消费隔离debug输入和fake-java黄金参数；当前尚未运行完整服务，真实JAR/包/设备另验。

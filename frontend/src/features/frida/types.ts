@@ -1,4 +1,5 @@
-import type { JsonData } from '../../shared/jobs/index.ts';
+import type { ApiError, ApiResult, OperationDto } from '../../shared/api/index.ts';
+import type { JsonData, JobOptions } from '../../shared/jobs/index.ts';
 
 export type FridaAction = 'server.deploy' | 'server.status' | 'server.run' | 'processes' | 'script.run' | 'permissions.analyze';
 export type FridaMode = 'spawn' | 'attach';
@@ -13,6 +14,14 @@ export interface FridaProcesses { readonly source: 'frida-ps --json'; readonly p
 export interface FridaScriptResult {
   readonly package: string; readonly mode: FridaMode; readonly duration_requested_ms: number; readonly cli_timeout_seconds: number;
   readonly loaded: true; readonly resume: 'cli_default' | 'already_running'; readonly notice_count: number;
-  readonly hook_summary: readonly { [key: string]: JsonData }[];
+  readonly hook_summary: readonly JsonData[];
   readonly cleanup: 'direct_cli_confirmed'; readonly target_process_cleanup: 'not_claimed';
 }
+export interface FridaOperationReader { readonly list: (signal: AbortSignal) => Promise<ApiResult<unknown>> }
+export interface FridaCatalogSnapshot {
+  readonly operations: readonly Readonly<OperationDto>[];
+  readonly refreshing: boolean;
+  readonly logId: string | null;
+  readonly error: ApiError | null;
+}
+export interface FridaOptions extends JobOptions { readonly operations?: FridaOperationReader }

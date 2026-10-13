@@ -1,0 +1,80 @@
+use super::*;
+use apk_plugin_sdk::{ArtifactContext, ArtifactInput, Manifest};
+use serde_json::{Value, json};
+
+mod protocol;
+
+#[test]
+fn terminal_manifest_uses_independent_session_contribution_and_one_hour_original_budget() {
+    let manifest: Manifest = serde_json::from_str(include_str!("../manifest.json")).unwrap();
+    assert_eq!(manifest.id, "terminal");
+    assert_eq!(manifest.protocol_version, 4);
+    assert!(manifest.operations.is_empty());
+    let sessions = manifest.sessions.unwrap();
+    sessions.validate().unwrap();
+    assert_eq!(sessions.protocol_version, 5);
+    assert_eq!(sessions.operations.len(), 1);
+    assert_eq!(sessions.operations[0].name, "open");
+    assert_eq!(
+        sessions.operations[0].execution.unwrap().total_timeout_ms,
+        3_600_000
+    );
+}
+
+#[test]
+fn open_rejects_free_program_paths_arguments_shell_unknown_fields_and_wrong_types() {
+    for input in [
+        Value::Null,
+        json!([]),
+        json!({}),
+        json!({"profile":null}),
+        json!({"profile":1}),
+        json!({"profile":"tool","shell":"id"}),
+        json!({"profile":"tool","executable":"node"}),
+        json!({"profile":"tool","args":[]}),
+        json!({"profile":"../tool"}),
+        json!({"profile":"Tool"}),
+        json!({"profile":"-tool"}),
+        json!({"profile":"t".repeat(65)}),
+    ] {
+        let request = SessionOpen::new("case", "open", input);
+        assert!(operation::parse(&request).is_err());
+    }
+    let request = SessionOpen::new("case", "open", json!({"profile":"tool-1._"}));
+    assert_eq!(operation::parse(&request).unwrap(), "tool-1._");
+    assert!(
+        operation::parse(&SessionOpen::new(
+            "case",
+            "other",
+            json!({"profile":"tool"})
+        ))
+        .is_err()
+    );
+}
+
+#[test]
+fn terminal_rejects_input_and_output_artifacts_and_does_not_choose_server_paths() {
+    let mut request = SessionOpen::new("case", "open", json!({"profile":"tool"}));
+    request.artifacts = Some(ArtifactContext {
+        inputs: Vec::new(),
+        output_directory: None,
+    });
+    assert!(operation::parse(&request).is_ok());
+    request.artifacts.as_mut().unwrap().output_directory = Some("/unaccepted".into());
+    assert!(operation::parse(&request).is_err());
+    request.artifacts.as_mut().unwrap().output_directory = None;
+    request
+        .artifacts
+        .as_mut()
+        .unwrap()
+        .inputs
+        .push(ArtifactInput {
+            field: "source".into(),
+            artifact_id: "ignored".into(),
+            filename: "source".into(),
+            size: 0,
+            sha256: "0".repeat(64),
+            path: "/unaccepted".into(),
+        });
+    assert!(operation::parse(&request).is_err());
+}
