@@ -41,3 +41,17 @@ SIMPLEPERF格式：magic10字节SIMPLEPERF，u16le version1，u32le记录长度+
 2026-10-13用户明确选择每个指标采样点对应当时画面；设备可是真机或模拟器，Root方式为su，必须兼容无Root设备。部署Root策略支持auto/adbd_root/su_c，业务不接受shell命令；先以固定id -u核UID0，按策略尝试固定su -c路径。无Root或拒绝授权时profile.record仍采集普通指标与PNG，返回stack_status=unavailable和固定stack_reason；不伪造perf.bin或堆栈。Result/index增root_access=none|adbd_root|su、stack_status=captured|unavailable、stack_reason=null|非空；unavailable堆栈计数/丢样为0且全部indices为空。su提示/超时有界，不能阻止普通指标无限期等待。
 
 无符号包仅保留报告可用库/函数/地址。REA为MCP服务，需要Agent操作插件连接；用户要求仅列后续计划，本次不接入、不实施。后续方向仍由用户决定。
+
+## scrcpy持续视频画面增量
+
+用户要求优先scrcpy，避免每次screencap启动、捕获、编码和传输延时。本批调整为持续启动固定版本scrcpy-server3.3.1，audio/control=false，只接收H264和原presentationTimeUs。Rust持续保存有限H264字节与每帧PTS/序号，不在每个指标采样点启动截图。录制结束后按指标设备采集区间中点选择最近视频帧，受检FFprobe确认无B帧、解码帧数与视频记录一致，再用固定FFmpeg参数抽取对应PNG。尚未完成真机速度/精度验证，不承诺零延时；静态画面重复帧不等于手机实际显示每帧。
+
+媒体模块profile/media.rs及media/**负责独立scrcpy目录/forward/server/socket、时钟helper、frame选取和解码。Root remote模块保持simpleperf监督器所有权。两者各自记录原PID/starttime；正常收口沿原deadline，取消/错误同一次cleanup_point，远端/直接进程/forward不确认则cleanup_failed。设备写锁覆盖整个profile.record。
+
+部署profile可选media {scrcpy_server:绝对路径,server_version:"3.3.1",clock_helper:绝对DEX/JAR路径,ffmpeg:固定入口,ffprobe:固定入口,max_size:640,max_fps:30}；业务不能选择程序/脚本。无配置或明确不支持画面时保留指标，frame_status=unavailable及固定frame_reason；capture_frames=false为disabled。media累计32MiB、frame记录≤2000、单包4MiB、输出归档64MiB、PNG最多16张和每张4MiB。取消清理不因普通unsupported被吞掉。
+
+设备时钟helper一次读取System.nanoTime→elapsedRealtimeNanos→System.nanoTime，输出monotonic/boottime对应区间；前后两个校时锚限制误差和offset变化。原媒体PTS与monotonic锚实际范围必须符合，boottime offset变动或落界外保持无关联，不凭MediaCodec字段默认推测。helper由本项目最小Java入口生成，纯读时钟，不修改游戏。各采样窗口由/proc/uptime原百分秒文本给10ms量化边界；target_ns为begin/end中点。
+
+新frame_kind=scrcpy_sampled_frame。frame既有字段保留，增 {source:"scrcpy",epoch:1,video_frame_index:u32,pts_us:string,device_time_ns:string,selection_delta_ns:有符号十进制字符串,clock_error_ns:string}。frame.begin_ns/end_ns为选中视频帧映射时间的误差区间，不伪装指标采集瞬间；距离target_ns超过250ms不补过期画面。index/result增frame_status=captured|unavailable|disabled、frame_reason=null|固定字符串；frame_status与stack_status相互独立。旧sampled_screenshot仅前端兼容保留，不作为当前生产主采集路线。下载归档能够取得每样本对应PNG并消费时间差。
+
+必要验证：命令/字节/PTS/时钟不同域、无B帧及帧数量、过期拒配、取消远端原进程退出及forward、ZIP原字节；真实设备画面/延时与FPS精度独立，性能专项仍待全部业务完成。

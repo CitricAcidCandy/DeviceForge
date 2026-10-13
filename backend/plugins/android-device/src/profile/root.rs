@@ -14,6 +14,7 @@ pub(crate) struct Qualification {
     pub access: Option<Access>,
     pub available: bool,
     pub supported: bool,
+    pub execution_type: bool,
     pub reason: Option<&'static str>,
 }
 pub(crate) fn quote(value: &str) -> String {
@@ -57,7 +58,7 @@ impl Session {
             }
         }
         let Some(root) = access.as_ref() else {
-            return Ok(Qualification { access:None,available:false,supported:false,reason:Some("设备未取得Root权限，已保留指标与采样画面能力") });
+            return Ok(Qualification { access:None,available:false,supported:false,execution_type:false,reason:Some("设备未取得Root权限，已保留指标与采样画面能力") });
         };
         let version = self.root_try(device,Some(root),&[&config.simpleperf,"--version"]).await?;
         let available = version.as_ref().is_some_and(|x| !x.trim().is_empty());
@@ -65,7 +66,8 @@ impl Session {
         let report = if available { self.root_try(device,Some(root),&[&config.simpleperf,"report-sample","--help"]).await? } else { None };
         let supported = record.as_ref().is_some_and(|x| x.contains("--clockid") && x.contains("--keep-failed-unwinding-result"))
             && report.as_ref().is_some_and(|x| x.contains("--protobuf") && x.contains("--show-callchain"));
-        Ok(Qualification { access,available,supported,reason:if supported { None } else { Some("设备Simpleperf入口或所需报告参数不可用，已保留指标与采样画面能力") } })
+        let execution_type = report.as_ref().is_some_and(|x| x.contains("--show-execution-type"));
+        Ok(Qualification { access,available,supported,execution_type,reason:if supported { None } else { Some("设备Simpleperf入口或所需报告参数不可用，已保留指标与采样画面能力") } })
     }
     pub(crate) async fn stack_probe(&self, device_id: String, package: String, config: &Profile) -> Result<Output> {
         let qualification = self.root_qualification(&device_id,config).await?;

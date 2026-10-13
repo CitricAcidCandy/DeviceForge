@@ -40,6 +40,9 @@ impl Session {
             Input::Performance { device_id, package } => {
                 return self.sample(device_id, package).await;
             }
+            Input::StackProbe { device_id, package } => {
+                return self.stack_probe(device_id, package, &config.profile).await;
+            }
             other => other,
         };
         let root = self
@@ -212,7 +215,7 @@ pub(crate) fn validate_context(request: &Request, input: &Input) -> Result<()> {
     {
         return Err(Error::Invalid("截图缺少宿主输出授权"));
     }
-    if matches!(input, Input::Performance { .. })
+    if matches!(input, Input::Performance { .. } | Input::StackProbe { .. })
         && request
             .artifacts
             .as_ref()

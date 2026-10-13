@@ -14,6 +14,8 @@ export { decodeProfileIndex } from './index-results.ts';
 export { decodeStackSample, decodeStackJsonLines } from './stacks.ts';
 export { buildProfileTimeline } from './timeline.ts';
 export { downloadProfileIndex, downloadProfileArchive } from './artifacts.ts';
+export { openProfileArchive, downloadAndOpenProfileArchive } from './archive.ts';
+export type { OpenedProfileArchive, OpenedProfileFrame } from './archive.ts';
 export { JobFailure, JobWaitFailure } from '../../shared/jobs/index.ts';
 
 const probeOperation = 'android-device.stack.probe';
@@ -59,7 +61,7 @@ export function createAndroidProfile(host: ProfileHost, reference: ProfileRefere
       const input = { package: request.package, duration_ms: request.duration_ms, interval_ms: request.interval_ms, capture_frames: request.capture_frames ?? true };
       return runner.execute(recordOperation, { device_id: target.localId, input }, active(signal), (value, logId) => {
         const result = decodeProfileResult(value, logId, target.localId, input.package);
-        if (!input.capture_frames && result.result.frame_count !== 0) throw new ApiError('protocol', 'unexpected_profile_frames', '未请求画面却返回了画面产物', null, logId);
+        if (!input.capture_frames && (result.result.frame_count !== 0 || result.result.frame_kind === 'scrcpy_sampled_frame' && result.result.frame_status !== 'disabled')) throw new ApiError('protocol', 'unexpected_profile_frames', '未请求画面却返回了画面产物', null, logId);
         return result;
       });
     },

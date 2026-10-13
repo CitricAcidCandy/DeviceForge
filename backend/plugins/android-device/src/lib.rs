@@ -38,6 +38,7 @@ pub async fn execute(request: Request, context: InvocationContext) -> Execution 
             | operations::Input::InstallApks { .. }
             | operations::Input::Screenshot { .. }
             | operations::Input::Performance { .. }
+            | operations::Input::StackProbe { .. }
     ) {
         return session::Session::execute(control, config, &request, input).await;
     }

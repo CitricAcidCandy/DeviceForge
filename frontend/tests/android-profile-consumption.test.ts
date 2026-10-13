@@ -176,3 +176,33 @@ test('无Root或缺simpleperf仍成功返回指标和截图，堆栈保留不可
     assert.throws(() => decodeProfileIndex({ ...unavailableIndex, samples: [{ ...row, stack_sample_indices: [0] }] }, unavailable, 'profile-log'), protocolLog);
   } finally { factory.dispose(); }
 });
+
+test('scrcpy新画面严格保留PTS、窗口中点和映射误差，旧截图兼容仍保留', () => {
+  const current: ProfileResult = { ...result(), frame_kind: 'scrcpy_sampled_frame', frame_status: 'captured', frame_reason: null };
+  const value = indexValue(); const row = value.samples[0]; assert.ok(row);
+  const frame = { index: 0, filename: 'frames/000000.png', begin_ns: '155', end_ns: '165', source: 'scrcpy', epoch: 1,
+    video_frame_index: 22, pts_us: '90071992547409930', device_time_ns: '160', selection_delta_ns: '10', clock_error_ns: '5' };
+  const sample = { ...row, begin_ns: '100', end_ns: '200', target_ns: '150', frame };
+  const next = { ...value, frame_kind: 'scrcpy_sampled_frame', frame_status: 'captured', frame_reason: null, samples: [sample] };
+  const accepted = decodeProfileIndex(next, current, 'profile-log');
+  assert.equal(accepted.samples[0]?.frame?.pts_us, '90071992547409930'); assert.equal(accepted.samples[0]?.target_ns, '150');
+  assert.equal(buildProfileTimeline(accepted, [stack('130'), stack('160'), stack('201')], 'profile-log').frameKind, 'scrcpy_sampled_frame');
+  for (const changed of [{ ...frame, selection_delta_ns: '11' }, { ...frame, selection_delta_ns: '-0' }, { ...frame, clock_error_ns: '20000001' },
+    { ...frame, epoch: 2 }, { ...frame, begin_ns: '154' }, { ...frame, device_time_ns: '250000151', selection_delta_ns: '250000001' }]) {
+    assert.throws(() => decodeProfileIndex({ ...next, samples: [{ ...sample, frame: changed }] }, current, 'profile-log'), protocolLog);
+  }
+  assert.throws(() => decodeProfileIndex({ ...next, samples: [{ ...sample, target_ns: '151' }] }, current, 'profile-log'), protocolLog);
+  assert.equal(decodeProfileIndex(indexValue(), result(), 'profile-log').frame_kind, 'sampled_screenshot');
+});
+
+test('scrcpy画面不可用与Root栈捕获相互独立，零帧不会改成缺Root', () => {
+  const current: ProfileResult = { ...result(), frame_kind: 'scrcpy_sampled_frame', frame_status: 'unavailable', frame_reason: 'media_unavailable', frame_count: 0 };
+  const value = indexValue(); const row = value.samples[0]; assert.ok(row);
+  const next = { ...value, frame_kind: 'scrcpy_sampled_frame', frame_status: 'unavailable', frame_reason: 'media_unavailable',
+    samples: [{ ...row, begin_ns: '100', end_ns: '200', target_ns: '150', frame: null }] };
+  const published = decodeProfileResult({ ...envelope(), result: current }, 'profile-log', device, packageId);
+  assert.equal(published.result.stack_status, 'captured'); assert.equal(published.result.frame_status, 'unavailable');
+  const timeline = buildProfileTimeline(decodeProfileIndex(next, current, 'profile-log'), [stack('130'), stack('160'), stack('201')], 'profile-log');
+  assert.equal(timeline.frameStatus, 'unavailable'); assert.equal(timeline.frameReason, 'media_unavailable'); assert.equal(timeline.stackStatus, 'captured');
+  assert.throws(() => decodeProfileResult({ ...envelope(), result: { ...current, frame_status: 'captured', frame_reason: null } }, 'profile-log', device, packageId), protocolLog);
+});

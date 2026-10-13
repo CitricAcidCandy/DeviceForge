@@ -5,7 +5,7 @@ use std::{path::PathBuf, sync::atomic::Ordering};
 use tokio::time::Instant;
 
 impl Session {
-    pub(super) async fn create_directory(&self, scratch: PathBuf) -> Result<PathBuf> {
+    pub(crate) async fn create_directory(&self, scratch: PathBuf) -> Result<PathBuf> {
         let lease = self.control.lease.clone();
         self.work(move |check| {
             check()?;

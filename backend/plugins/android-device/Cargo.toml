@@ -16,6 +16,7 @@ tokio-util.workspace = true
 thiserror.workspace = true
 sha2 = "0.10"
 tempfile = "3"
+zip = { version = "8.6", default-features = false }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util"] }

@@ -8,11 +8,16 @@
     "sample_operation": "performance.sample",
     "fps": true,
     "device_observation": true,
-    "device_capability": {"id":"performance.sample","version":1}
+    "device_capability": {
+      "id": "performance.sample",
+      "version": 1
+    }
   },
   "artifacts": {
     "input_fields": [],
-    "input_pointers": ["/input/artifact_id"],
+    "input_pointers": [
+      "/input/artifact_id"
+    ],
     "outputs": true
   },
   "devices": {
@@ -20,8 +25,22 @@
     "platform": "android",
     "discover_operation": "discover",
     "capabilities": [
-      {"id":"performance.sample","version":1,"operation":"performance.sample","scope":"device","access":"read","execution_timeout_ms":10000},
-      {"id":"app.install_apks","version":1,"operation":"app.install_apks","scope":"device","access":"write","execution_timeout_ms":120000},
+      {
+        "id": "performance.sample",
+        "version": 1,
+        "operation": "performance.sample",
+        "scope": "device",
+        "access": "read",
+        "execution_timeout_ms": 10000
+      },
+      {
+        "id": "app.install_apks",
+        "version": 1,
+        "operation": "app.install_apks",
+        "scope": "device",
+        "access": "write",
+        "execution_timeout_ms": 120000
+      },
       {
         "id": "app.install",
         "version": 1,
@@ -93,53 +112,124 @@
         "scope": "device",
         "access": "write",
         "execution_timeout_ms": 30000
+      },
+      {
+        "id": "stack.probe",
+        "version": 1,
+        "operation": "stack.probe",
+        "scope": "device",
+        "access": "write",
+        "execution_timeout_ms": 120000
       }
     ]
   },
   "operations": [
     {
-      "name": "performance.sample", "title": "读取Android主进程计数、游戏帧与设备环境",
+      "name": "performance.sample",
+      "title": "读取Android主进程计数、游戏帧与设备环境",
       "input_schema": {
-        "type": "object", "additionalProperties": false,
+        "type": "object",
+        "additionalProperties": false,
         "properties": {
           "device_id": {
-            "type":"string","minLength":1,"maxLength":200,"pattern":"^[^-]",
-            "not":{"anyOf":[{"pattern":"^\\s*$"},{"pattern":"[\\u0000-\\u001F\\u007F-\\u009F]"}]},
-            "description":"保留原文；运行时另校最多200个UTF-8字节"
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "pattern": "^[^-]",
+            "not": {
+              "anyOf": [
+                {
+                  "pattern": "^\\s*$"
+                },
+                {
+                  "pattern": "[\\u0000-\\u001F\\u007F-\\u009F]"
+                }
+              ]
+            },
+            "description": "保留原文；运行时另校最多200个UTF-8字节"
           },
           "input": {
-            "type":"object","additionalProperties":false,
-            "properties":{"package":{"type":"string","minLength":3,"maxLength":200,"pattern":"^[A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-9_]*)+$"}},
-            "required":["package"]
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "package": {
+                "type": "string",
+                "minLength": 3,
+                "maxLength": 200,
+                "pattern": "^[A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-9_]*)+$"
+              }
+            },
+            "required": [
+              "package"
+            ]
           }
         },
-        "required":["device_id","input"]
+        "required": [
+          "device_id",
+          "input"
+        ]
       }
     },
     {
-      "name": "app.install_apks", "title": "匹配指定设备并安装APKS",
+      "name": "app.install_apks",
+      "title": "匹配指定设备并安装APKS",
       "input_schema": {
-        "type": "object", "additionalProperties": false,
+        "type": "object",
+        "additionalProperties": false,
         "properties": {
           "device_id": {
-            "type":"string","minLength":1,"maxLength":200,"pattern":"^[^-]",
-            "not":{"anyOf":[{"pattern":"^\\s*$"},{"pattern":"[\\u0000-\\u001F\\u007F-\\u009F]"}]},
-            "description":"保留原文；运行时另校最多200个UTF-8字节"
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "pattern": "^[^-]",
+            "not": {
+              "anyOf": [
+                {
+                  "pattern": "^\\s*$"
+                },
+                {
+                  "pattern": "[\\u0000-\\u001F\\u007F-\\u009F]"
+                }
+              ]
+            },
+            "description": "保留原文；运行时另校最多200个UTF-8字节"
           },
           "input": {
-            "type":"object","additionalProperties":false,
-            "properties":{
-              "artifact_id":{"type":"string","minLength":36,"maxLength":36,"pattern":"^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$"},
-              "modules":{
-                "type":["array","null"],"minItems":1,"maxItems":128,"uniqueItems":true,
-                "items":{"type":"string","minLength":1,"maxLength":80,"pattern":"^[A-Za-z][A-Za-z0-9_]*$"},
-                "description":"省略或null沿原默认匹配；ALL必须单独选择，运行时另校混用"
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "artifact_id": {
+                "type": "string",
+                "minLength": 36,
+                "maxLength": 36,
+                "pattern": "^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$"
+              },
+              "modules": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "minItems": 1,
+                "maxItems": 128,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 80,
+                  "pattern": "^[A-Za-z][A-Za-z0-9_]*$"
+                },
+                "description": "省略或null沿原默认匹配；ALL必须单独选择，运行时另校混用"
               }
             },
-            "required":["artifact_id"]
+            "required": [
+              "artifact_id"
+            ]
           }
         },
-        "required":["device_id","input"]
+        "required": [
+          "device_id",
+          "input"
+        ]
       }
     },
     {
@@ -150,33 +240,79 @@
         "additionalProperties": false,
         "properties": {
           "device_id": {
-            "type": "string", "minLength": 1, "maxLength": 200, "pattern": "^[^-]",
-            "not": {"anyOf": [{"pattern": "^\\s*$"}, {"pattern": "[\\u0000-\\u001F\\u007F-\\u009F]"}]},
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "pattern": "^[^-]",
+            "not": {
+              "anyOf": [
+                {
+                  "pattern": "^\\s*$"
+                },
+                {
+                  "pattern": "[\\u0000-\\u001F\\u007F-\\u009F]"
+                }
+              ]
+            },
             "description": "保留原文；运行时另校最多200个UTF-8字节"
           },
           "input": {
-            "type": "object", "additionalProperties": false,
-            "properties": {"artifact_id": {"type": "string", "minLength": 36, "maxLength": 36, "pattern": "^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$"}},
-            "required": ["artifact_id"]
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "artifact_id": {
+                "type": "string",
+                "minLength": 36,
+                "maxLength": 36,
+                "pattern": "^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$"
+              }
+            },
+            "required": [
+              "artifact_id"
+            ]
           }
         },
-        "required": ["device_id", "input"]
+        "required": [
+          "device_id",
+          "input"
+        ]
       }
     },
     {
       "name": "screenshot",
       "title": "保存Android截图",
       "input_schema": {
-        "type": "object", "additionalProperties": false,
+        "type": "object",
+        "additionalProperties": false,
         "properties": {
           "device_id": {
-            "type": "string", "minLength": 1, "maxLength": 200, "pattern": "^[^-]",
-            "not": {"anyOf": [{"pattern": "^\\s*$"}, {"pattern": "[\\u0000-\\u001F\\u007F-\\u009F]"}]},
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "pattern": "^[^-]",
+            "not": {
+              "anyOf": [
+                {
+                  "pattern": "^\\s*$"
+                },
+                {
+                  "pattern": "[\\u0000-\\u001F\\u007F-\\u009F]"
+                }
+              ]
+            },
             "description": "保留原文；运行时另校最多200个UTF-8字节"
           },
-          "input": {"type": "object", "additionalProperties": false, "properties": {}, "required": []}
+          "input": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {},
+            "required": []
+          }
         },
-        "required": ["device_id", "input"]
+        "required": [
+          "device_id",
+          "input"
+        ]
       }
     },
     {
@@ -576,6 +712,52 @@
             },
             "required": [
               "action"
+            ]
+          }
+        },
+        "required": [
+          "device_id",
+          "input"
+        ]
+      }
+    },
+    {
+      "name": "stack.probe",
+      "title": "探测Android调用栈资格",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "device_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "pattern": "^[^-]",
+            "not": {
+              "anyOf": [
+                {
+                  "pattern": "^\\s*$"
+                },
+                {
+                  "pattern": "[\\u0000-\\u001F\\u007F-\\u009F]"
+                }
+              ]
+            },
+            "description": "保留原文；运行时另校最多200个UTF-8字节"
+          },
+          "input": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "package": {
+                "type": "string",
+                "minLength": 3,
+                "maxLength": 200,
+                "pattern": "^[A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-9_]*)+$"
+              }
+            },
+            "required": [
+              "package"
             ]
           }
         },

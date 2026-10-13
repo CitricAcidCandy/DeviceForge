@@ -4,10 +4,16 @@ import type { PublishedResult } from '../../shared/jobs/index.ts';
 import { PROFILE_LIMITS, deviceId, boundedText, integer, invalidProfile, nullableText, packageName } from './rules.ts';
 import type { ProbeResult, ProfileIdentity, ProfileResult } from './types.ts';
 
+function validFrameStatus(value: Record<string, unknown>): boolean {
+  if (value.frame_status === undefined && value.frame_reason === undefined) return value.frame_kind === 'sampled_screenshot';
+  return value.frame_status === 'captured' && value.frame_reason === null
+    || value.frame_status === 'unavailable' && boundedText(value.frame_reason) && value.frame_reason.length > 0
+    || value.frame_status === 'disabled' && nullableText(value.frame_reason);
+}
 export function isProfileIdentity(value: unknown): value is ProfileIdentity {
   return isRecord(value) && value.format_version === 1 && deviceId(value.device_id) && packageName(value.package)
     && integer(value.pid, 1, 4294967295) && decimalU64(value.process_start_ticks) && value.clock === 'boottime'
-    && value.frame_kind === 'sampled_screenshot' && value.display_frame_complete === false
+    && (value.frame_kind === 'sampled_screenshot' || value.frame_kind === 'scrcpy_sampled_frame') && value.display_frame_complete === false && validFrameStatus(value)
     && (value.root_access === 'none' || value.root_access === 'adbd_root' || value.root_access === 'su')
     && (value.stack_status === 'captured' && value.root_access !== 'none' && value.stack_reason === null
       || value.stack_status === 'unavailable' && boundedText(value.stack_reason) && value.stack_reason.length > 0);
@@ -27,11 +33,13 @@ export function decodeProfileResult(value: unknown, logId: string | null, device
   const envelope = decodeArtifactEnvelope(value, 'Android 堆栈录制', logId);
   const result = envelope.result;
   if (!isRecord(result) || !isProfileIdentity(result)
-    || !onlyKeys(result, ['format_version', 'device_id', 'package', 'pid', 'process_start_ticks', 'clock', 'frame_kind', 'display_frame_complete', 'root_access', 'stack_status', 'stack_reason', 'sample_count', 'stack_sample_count', 'lost_count', 'frame_count', 'index_filename', 'archive_filename'])
+    || !onlyKeys(result, ['format_version', 'device_id', 'package', 'pid', 'process_start_ticks', 'clock', 'frame_kind', 'display_frame_complete', 'root_access', 'stack_status', 'stack_reason', 'frame_status', 'frame_reason', 'sample_count', 'stack_sample_count', 'lost_count', 'frame_count', 'index_filename', 'archive_filename'])
     || result.device_id !== device || result.package !== packageId || !integer(result.sample_count, 1, PROFILE_LIMITS.samples)
     || !integer(result.stack_sample_count, 0, PROFILE_LIMITS.stacks) || !decimalU64(result.lost_count)
     || result.stack_status === 'unavailable' && (result.stack_sample_count !== 0 || result.lost_count !== '0')
-    || !integer(result.frame_count, 0, result.sample_count) || result.index_filename !== 'profile-index.json' || result.archive_filename !== 'profile.zip') throw invalidProfile(logId);
+    || !integer(result.frame_count, 0, result.sample_count)
+    || result.frame_status === 'captured' && result.frame_count === 0
+    || (result.frame_status === 'unavailable' || result.frame_status === 'disabled') && result.frame_count !== 0 || result.index_filename !== 'profile-index.json' || result.archive_filename !== 'profile.zip') throw invalidProfile(logId);
   requireArtifactNames(envelope, ['profile-index.json', 'profile.zip'], 'Android 堆栈录制', logId);
   for (const artifact of envelope.artifacts) {
     const index = artifact.filename === 'profile-index.json';

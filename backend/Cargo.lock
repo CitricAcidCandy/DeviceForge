@@ -496,6 +496,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "tokio-util",
+ "zip 8.6.0",
 ]
 
 [[package]]

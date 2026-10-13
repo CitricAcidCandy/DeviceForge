@@ -35,6 +35,7 @@ async fn context_with_budget(budget: u64) -> InvocationContext {
 
 async fn session() -> Session {
     Session {
+        profile_root: None,
         control: Control::new(context().await, "unused-ADB".into()),
     }
 }
@@ -259,6 +260,7 @@ async fn cancellation_after_success_cleanup_removes_only_owned_output_at_same_po
 #[tokio::test]
 async fn timeout_after_success_cleanup_cannot_leave_output_with_complete_error() {
     let session = Session {
+        profile_root: None,
         control: Control::new(
             context_with_budget(1_000_000_000).await,
             "unused-ADB".into(),

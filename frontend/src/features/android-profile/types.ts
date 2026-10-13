@@ -11,8 +11,9 @@ export interface ProbeResult {
 export interface ProfileIdentity {
   readonly format_version: 1; readonly device_id: string; readonly package: string;
   readonly pid: number; readonly process_start_ticks: string; readonly clock: 'boottime';
-  readonly frame_kind: 'sampled_screenshot'; readonly display_frame_complete: false;
+  readonly frame_kind: 'sampled_screenshot' | 'scrcpy_sampled_frame'; readonly display_frame_complete: false;
   readonly root_access: 'none' | 'adbd_root' | 'su'; readonly stack_status: 'captured' | 'unavailable'; readonly stack_reason: string | null;
+  readonly frame_status?: 'captured' | 'unavailable' | 'disabled'; readonly frame_reason?: string | null;
 }
 export interface ProfileResult extends ProfileIdentity {
   readonly sample_count: number; readonly stack_sample_count: number; readonly lost_count: string; readonly frame_count: number;
@@ -25,9 +26,13 @@ export interface ProfileMetrics {
   readonly frame_window?: { readonly frames: number; readonly duration_ms: number; readonly source: string } | null;
   readonly device_observation?: DeviceObservation | null;
 }
-export interface ProfileFrame { readonly index: number; readonly filename: string; readonly begin_ns: string; readonly end_ns: string }
+export interface ProfileFrame {
+  readonly index: number; readonly filename: string; readonly begin_ns: string; readonly end_ns: string;
+  readonly source?: 'scrcpy'; readonly epoch?: number; readonly video_frame_index?: number; readonly pts_us?: string;
+  readonly device_time_ns?: string; readonly selection_delta_ns?: string; readonly clock_error_ns?: string;
+}
 export interface ProfileSample {
-  readonly index: number; readonly begin_ns: string; readonly end_ns: string; readonly metrics: ProfileMetrics;
+  readonly index: number; readonly begin_ns: string; readonly end_ns: string; readonly target_ns?: string; readonly metrics: ProfileMetrics;
   readonly frame: ProfileFrame | null; readonly stack_sample_indices: readonly number[];
 }
 export interface ProfileIndex extends ProfileIdentity {
@@ -45,7 +50,8 @@ export interface StackSample {
 }
 export interface ProfileTimeline {
   readonly rootAccess: ProfileIdentity['root_access']; readonly stackStatus: ProfileIdentity['stack_status']; readonly stackReason: string | null;
-  readonly clock: 'boottime'; readonly frameKind: 'sampled_screenshot'; readonly displayFrameComplete: false;
+  readonly frameStatus: 'captured' | 'unavailable' | 'disabled'; readonly frameReason: string | null;
+  readonly clock: 'boottime'; readonly frameKind: ProfileIdentity['frame_kind']; readonly displayFrameComplete: false;
   readonly symbolication: 'reported_symbols_only';
   readonly samples: readonly { readonly sample: ProfileSample; readonly stacks: readonly ProfileFrameAssociation[]; readonly frameStacks: readonly ProfileFrameAssociation[] }[];
   readonly unassociated: readonly ProfileFrameAssociation[]; readonly withoutFrame: readonly ProfileFrameAssociation[];

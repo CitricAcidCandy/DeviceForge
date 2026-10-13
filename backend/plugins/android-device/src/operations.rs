@@ -51,6 +51,10 @@ pub(crate) enum Input {
         device_id: String,
         package: String,
     },
+    StackProbe {
+        device_id: String,
+        package: String,
+    },
 }
 
 pub(crate) fn parse(operation: &str, input: &Value) -> Result<Input> {
@@ -71,8 +75,9 @@ pub(crate) fn parse(operation: &str, input: &Value) -> Result<Input> {
             | "app.install_apks"
             | "screenshot"
             | "performance.sample"
+            | "stack.probe"
     ) {
-        return Err(Error::Invalid("设备插件只接受本批十二个短贡献名"));
+        return Err(Error::Invalid("设备插件只接受已声明的短贡献名"));
     }
     if input.get("device_id").is_none() || input.get("input").is_none() {
         return Err(Error::Invalid("设备动作封套必须显式提供device_id和input"));
@@ -101,6 +106,11 @@ pub(crate) fn parse(operation: &str, input: &Value) -> Result<Input> {
         .to_owned();
     rules::serial(&device_id)?;
     match operation {
+        "stack.probe" => {
+            let value: models::Package = decode(&envelope.input)?;
+            rules::performance::package(&value.package)?;
+            Ok(Input::StackProbe { device_id, package: value.package })
+        }
         "performance.sample" => {
             let value: models::Package = decode(&envelope.input)?;
             rules::performance::package(&value.package)?;
@@ -187,7 +197,8 @@ pub(crate) async fn execute(control: &Control, config: &Config, input: Input) ->
         Input::Install { .. }
         | Input::InstallApks { .. }
         | Input::Screenshot { .. }
-        | Input::Performance { .. } => {
+        | Input::Performance { .. }
+        | Input::StackProbe { .. } => {
             return Err(Error::Invalid("产物设备动作必须进入独立资源流程"));
         }
         Input::Discover => {

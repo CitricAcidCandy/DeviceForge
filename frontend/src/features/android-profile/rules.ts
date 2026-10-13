@@ -3,7 +3,7 @@ import { isRecord } from '../../shared/api/validation.ts';
 import { decimalU64, onlyKeys } from '../../shared/jobs/index.ts';
 import type { ProfileRequest, ProfileReference } from './types.ts';
 
-export const PROFILE_LIMITS = Object.freeze({ indexBytes: 1024 * 1024, samples: 16, indicesPerSample: 4096, stacks: 100000, chain: 256, jsonlBytes: 32 * 1024 * 1024, lineBytes: 512 * 1024, archiveBytes: 64 * 1024 * 1024 });
+export const PROFILE_LIMITS = Object.freeze({ indexBytes: 1024 * 1024, samples: 16, indicesPerSample: 4096, stacks: 100000, chain: 256, jsonlBytes: 32 * 1024 * 1024, lineBytes: 512 * 1024, frameBytes: 4 * 1024 * 1024, archiveBytes: 64 * 1024 * 1024 });
 export const integer = (value: unknown, minimum = 0, maximum = Number.MAX_SAFE_INTEGER): value is number => typeof value === 'number' && Number.isSafeInteger(value) && value >= minimum && value <= maximum;
 export const packageName = (value: unknown): value is string => typeof value === 'string' && value.length <= 200 && /^[a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)+$/.test(value);
 export const deviceId = (value: unknown): value is string => typeof value === 'string' && value.length > 0 && value.length <= 200 && /^[a-zA-Z0-9._:\[\]][a-zA-Z0-9._:\[\]-]*$/.test(value);

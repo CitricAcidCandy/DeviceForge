@@ -30,6 +30,6 @@ export function buildProfileTimeline(index: ProfileIndex, stacks: readonly Stack
     if (!associated.has(position)) unassociated.push({ index: position, sample });
     if (!framed.has(position)) withoutFrame.push({ index: position, sample });
   });
-  return { rootAccess: index.root_access, stackStatus: index.stack_status, stackReason: index.stack_reason, clock: 'boottime', frameKind: 'sampled_screenshot', displayFrameComplete: false,
+  return { rootAccess: index.root_access, stackStatus: index.stack_status, stackReason: index.stack_reason, frameStatus: index.frame_status ?? (index.samples.some((sample) => sample.frame !== null) ? 'captured' : 'unavailable'), frameReason: index.frame_reason ?? null, clock: 'boottime', frameKind: index.frame_kind, displayFrameComplete: false,
     symbolication: 'reported_symbols_only', samples, unassociated, withoutFrame };
 }

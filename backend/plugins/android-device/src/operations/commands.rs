@@ -65,7 +65,8 @@ pub(super) fn plan(input: &Input) -> Option<Command> {
         | Input::Install { .. }
         | Input::InstallApks { .. }
         | Input::Screenshot { .. }
-        | Input::Performance { .. } => return None,
+        | Input::Performance { .. }
+        | Input::StackProbe { .. } => return None,
     };
     Some(Command {
         args,
