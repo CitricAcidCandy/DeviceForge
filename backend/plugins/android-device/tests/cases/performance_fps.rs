@@ -95,7 +95,7 @@ fn valid_owner_window_has_fourteen_fixed_commands_and_real_new_frame_count() {
     let quoted = format!("'{LAYER}'");
     for (index, tail) in [
         (4, vec!["cat", "/proc/123/status"]),
-        (5, vec!["dumpsys", "--proto", "SurfaceFlinger"]),
+        (5, vec!["dumpsys", "SurfaceFlinger", "--proto"]),
         (
             6,
             vec!["dumpsys", "SurfaceFlinger", "--latency", quoted.as_str()],
@@ -104,7 +104,7 @@ fn valid_owner_window_has_fourteen_fixed_commands_and_real_new_frame_count() {
             7,
             vec!["dumpsys", "SurfaceFlinger", "--latency", quoted.as_str()],
         ),
-        (8, vec!["dumpsys", "--proto", "SurfaceFlinger"]),
+        (8, vec!["dumpsys", "SurfaceFlinger", "--proto"]),
         (9, vec!["cat", "/sys/class/power_supply/battery/uevent"]),
         (10, vec!["dumpsys", "battery"]),
         (11, vec!["dumpsys", "thermalservice"]),
@@ -112,7 +112,11 @@ fn valid_owner_window_has_fourteen_fixed_commands_and_real_new_frame_count() {
         (13, vec!["cat", "/proc/123/status"]),
         (14, vec!["cat", "/proc/stat"]),
     ] {
-        let mut expected = vec!["-s", SERIAL, "shell", "-T"];
+        let mut expected = if tail == ["dumpsys", "SurfaceFlinger", "--proto"] {
+            vec!["-s", SERIAL, "exec-out"]
+        } else {
+            vec!["-s", SERIAL, "shell", "-T"]
+        };
         expected.extend(tail);
         assert_eq!(
             fixture.argv(index),
@@ -282,4 +286,84 @@ fn actual_timestamp_precision_and_pending_frames_are_preserved() {
     let reply = performance::complete(&fixture, performance::request(&fixture), count);
     assert_eq!(success(&reply)["frame_window"]["frames"], json!(1));
     assert_eq!(success(&reply)["frame_window"]["duration_ms"], json!(16));
+}
+
+const ANDROID11_WINDOW: &str = "  Window #0 Window{ab12 u0 com.failed.example/.Game}:\n    mSession=Session{cafe 123:u0a10001}\n    mOwnerUid=10001 package=com.failed.example\n    mAppDied=false\n    mViewVisibility=0x0\n    mHasSurface=true isReadyForDisplay()=true\n      mSurface=Surface(name=com.failed.example/.Game$_123)/@0x1234\n      mDrawState=HAS_DRAWN mLastHidden=false\n    isOnScreen=true\n    isVisible=true\n";
+fn android11_proto() -> Vec<u8> {
+    let record = |id: i32, name: &str, parent: i32, uid: Option<u32>| {
+        let mut data = integer(1, i64::from(id));
+        data.extend(blob(2, name.as_bytes()));
+        data.extend(integer(25, i64::from(parent)));
+        if let Some(uid) = uid {
+            let mut item = integer(1, 1);
+            item.extend(blob(2, &uid.to_le_bytes()));
+            data.extend(blob(42, &item));
+        }
+        blob(1, &data)
+    };
+    [
+        record(17, LAYER, 7, None),
+        record(7, "com.failed.example/.Game$_123#0", 3, Some(10001)),
+        record(3, "ab12 com.failed.example/.Game#0", 1, None),
+        record(1, "Root#0", -1, None),
+    ]
+    .concat()
+}
+fn android11_optional() -> Vec<Vec<u8>> {
+    vec![
+        status(10001),
+        android11_proto(),
+        ANDROID11_WINDOW.as_bytes().to_vec(),
+        BEFORE.to_vec(),
+        AFTER.to_vec(),
+        android11_proto(),
+        ANDROID11_WINDOW.as_bytes().to_vec(),
+    ]
+}
+#[test]
+fn android11_exact_window_owner_uses_raw_proto_and_two_additional_bounded_witness_reads() {
+    let fixture = Fixture::new("fps-android11-window-sixteen-commands");
+    let count = plan(&fixture, android11_optional(), true);
+    assert_eq!(count, 16);
+    let reply = performance::complete(&fixture, performance::request(&fixture), count);
+    let result = success(&reply);
+    assert_eq!(result["frame_window"]["frames"], 2);
+    assert_eq!(result["frame_window"]["duration_ms"], 32);
+    for index in [5, 9] {
+        assert_eq!(
+            fixture.argv(index),
+            [
+                "-s",
+                SERIAL,
+                "exec-out",
+                "dumpsys",
+                "SurfaceFlinger",
+                "--proto"
+            ]
+            .map(str::to_owned)
+        );
+    }
+    for index in [6, 10] {
+        assert_eq!(
+            fixture.argv(index),
+            ["-s", SERIAL, "shell", "-T", "dumpsys", "window", "windows"].map(str::to_owned)
+        );
+    }
+}
+#[test]
+fn android11_recheck_rejects_surface_loss_same_uid_other_pid_and_window_generation_change() {
+    for changed in [
+        ANDROID11_WINDOW.replace("mHasSurface=true", "mHasSurface=false"),
+        ANDROID11_WINDOW.replace("123:u0a10001", "124:u0a10001"),
+        ANDROID11_WINDOW.replace("/@0x1234", "/@0x5678"),
+    ] {
+        let fixture = Fixture::new("fps-android11-window-rechecked");
+        let mut values = android11_optional();
+        values[6] = changed.into_bytes();
+        let count = plan(&fixture, values, true);
+        let reply = performance::complete(&fixture, performance::request(&fixture), count);
+        let result = success(&reply);
+        assert!(result.get("frame_window").is_none());
+        assert_eq!(result["process_ticks"], 30);
+    }
 }

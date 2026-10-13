@@ -30,7 +30,7 @@ function metrics(access) {
     command('process', ['cat', '/proc/2468/stat'], Array.from({ length: 64 }, (_, index) => stat(targetPid, 900, 100 + index * 10)), access),
     command('status', ['cat', '/proc/2468/status'], [status(targetUid)], access),
     command('memory', ['dumpsys', 'meminfo', '-s', '2468'], ['** MEMINFO in pid 2468 [' + packageName + '] **\nTOTAL PSS: 2048 TOTAL RSS: 4096\n'], access),
-    command('surface-proto', ['dumpsys', '--proto', 'SurfaceFlinger'], [Buffer.alloc(0)], access),
+    { category: 'surface-proto', argv: ['-s', deviceId, 'exec-out', 'dumpsys', 'SurfaceFlinger', '--proto'], outputs: [output(Buffer.alloc(0))] },
     command('system', ['cat', '/proc/stat'], Array.from({ length: 64 }, (_, index) => 'cpu ' + (10000 + index * 100) + ' 0 0 1000\ncpu0 1 0 0 1\ncpu1 1 0 0 1\n'), access),
     command('uevent', ['cat', '/sys/class/power_supply/battery/uevent'], [''], access),
     command('battery', ['dumpsys', 'battery'], ['Current Battery Service state:\n  (UPDATES STOPPED -- use reset to restart)\n'], access),

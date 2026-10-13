@@ -25,8 +25,19 @@ function stat(start, ticks) { const fields = Array(20).fill('0'); fields[0] = 'R
 const status = uid => 'Name:\tfps game\nPid:\t2468\nUid:\t' + [uid, uid, uid, uid].join('\t') + '\n';
 const process = command('process', ['cat', '/proc/2468/stat'], Array.from({ length: 64 }, (_, i) => stat(900, 100 + i * 10)));
 const uid = command('status', ['cat', '/proc/2468/status'], [status(10123)]);
-const proto = outputs => command('surface-proto', ['dumpsys', '--proto', 'SurfaceFlinger'], outputs);
+const proto = outputs => ({ category: 'surface-proto', argv: ['-s', deviceId, 'exec-out', 'dumpsys', 'SurfaceFlinger', '--proto'], outputs });
 const latency = outputs => ({ category: 'latency', argv: latencyArgv, outputs });
+const windowTitle = packageName + '/MainActivity';
+const windowLayers = layers([{ id: 1, name: 'Root#0', parent: -1 },
+  { id: 7, name: 'ab12 ' + windowTitle + '#0', parent: 1 },
+  { id: 10, name: windowTitle + '$_2468#0', parent: 7, uid: 10123 }, candidate()]);
+const windowWitness = '  Window #0 Window{ab12 u0 ' + windowTitle + '}:\n' +
+  '    mSession=Session{cafe 2468:u0a10123}\n    mOwnerUid=10123 package=' + packageName + '\n' +
+  '    mAppDied=false\n    mViewVisibility=0x0\n    mHasSurface=true isReadyForDisplay()=true\n' +
+  '      mSurface=Surface(name=' + windowTitle + '$_2468)/@0x1234\n' +
+  '      mDrawState=HAS_DRAWN mLastHidden=false\n    isOnScreen=true\n    isVisible=true\n';
+const windowCommand = outputs => command('window-owner', ['dumpsys', 'window', 'windows'], outputs);
+
 const count = { fps: 60, frame_window: { frames: 3, duration_ms: 50 } }, missing = { fps: null };
 function scenario(id, title, protoOutputs, expected = missing, custom = []) {
   const replacements = new Map(custom.map(spec => [spec.category, spec]));
@@ -35,9 +46,11 @@ function scenario(id, title, protoOutputs, expected = missing, custom = []) {
 }
 export const contract = {
   frozen: true,
-  source: ['https://android.googlesource.com/platform/frameworks/native/+/refs/tags/android-12.0.0_r1/services/surfaceflinger/layerproto/layers.proto',
+  source: ['https://android.googlesource.com/platform/frameworks/base/+/refs/tags/android-11.0.0_r1/services/core/java/com/android/server/wm/WindowState.java',
+    'https://android.googlesource.com/platform/frameworks/base/+/refs/tags/android-11.0.0_r1/services/core/java/com/android/server/wm/WindowSurfaceController.java',
+    'https://android.googlesource.com/platform/frameworks/native/+/refs/tags/android-12.0.0_r1/services/surfaceflinger/layerproto/layers.proto',
     'https://android.googlesource.com/platform/external/perfetto/+/refs/heads/main/protos/perfetto/trace/android/surfaceflinger_layers.proto'],
-  route: ['dumpsys', '--proto', 'SurfaceFlinger'],
+  route: ['exec-out', 'dumpsys', 'SurfaceFlinger', '--proto'],
   schema: { bare_layers: 1, layer_id: 1, name: 2, parent: 25, metadata: 42, owner_uid: 53,
     metadata_key: 1, metadata_bytes: 2, owner_uid_key: 1, owner_pid_key: 6, metadata_integer: 'int32_le',
     wrapper_magic_fixed64: '4c59525452414345', wrapper_entry: 2, snapshot_layers: 3 },
@@ -51,6 +64,10 @@ export const contract = {
     command('thermal', ['dumpsys', 'thermalservice'], ['HAL Ready: false\n']),
   ],
   cases: [
+    { ...scenario('android11-window', 'Android11精确Window Session身份与数值SF父链60FPS', [windowLayers], count),
+      commands: [process, uid, proto([windowLayers]), windowCommand([windowWitness]), latency(alternate(before, after))] },
+    { ...scenario('android11-other-pid', 'Android11同UID其他Session PID不能桥接FPS', [windowLayers]),
+      commands: [process, uid, proto([windowLayers]), windowCommand([windowWitness.replace('2468:u0a10123', '2470:u0a10123')]), latency(alternate(before, after))] },
     scenario('valid-bare', '裸LayersProto真实父链PID/UID归属与展示3帧/50ms=60FPS', [valid], count),
     scenario('valid-wrapper', '精确magic的单snapshot包装身份与同窗口60FPS', [wrapped([root(), candidate()])], count),
     scenario('initial-status-unavailable', '初始进程status不可用只缺FPS不补0', [valid], missing, [command('status', ['cat', '/proc/2468/status'], [''])]),

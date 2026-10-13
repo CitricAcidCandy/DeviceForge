@@ -1,13 +1,14 @@
 import { isRecord } from '../../shared/api/validation.ts';
 import { decimalU64, onlyKeys } from '../../shared/jobs/index.ts';
 import { decodeProfileFrame } from './frame-results.ts';
+import { decodeProfileDerived, hasProfileCpuBaseline } from './derived.ts';
 import { isProfileMetrics } from './metrics.ts';
 import { isProfileIdentity } from './results.ts';
 import { PROFILE_LIMITS, integer, invalidProfile, nanosecondRange } from './rules.ts';
 import type { ProfileIndex, ProfileResult, ProfileSample } from './types.ts';
 
 function decodeSample(value: unknown, identity: ProfileResult, logId: string | null): ProfileSample {
-  if (!isRecord(value) || !onlyKeys(value, ['index', 'begin_ns', 'end_ns', 'target_ns', 'metrics', 'frame', 'stack_sample_indices'])
+  if (!isRecord(value) || !onlyKeys(value, ['index', 'begin_ns', 'end_ns', 'target_ns', 'metrics', 'derived', 'frame', 'stack_sample_indices'])
     || !integer(value.index, 0, PROFILE_LIMITS.samples - 1) || !decimalU64(value.begin_ns) || !decimalU64(value.end_ns)
     || !nanosecondRange(value.begin_ns, value.end_ns) || !isProfileMetrics(value.metrics, identity.device_id)
     || value.metrics.pid !== identity.pid || String(value.metrics.process_start_ticks) !== identity.process_start_ticks
@@ -23,6 +24,7 @@ function decodeSample(value: unknown, identity: ProfileResult, logId: string | n
     indices.push(entry); unique.add(entry);
   }
   return { index: value.index, begin_ns: value.begin_ns, end_ns: value.end_ns, metrics: value.metrics,
+    ...(value.derived === undefined ? {} : { derived: decodeProfileDerived(value.derived, value.metrics, logId) }),
     ...(target === undefined ? {} : { target_ns: target }), frame: decodeProfileFrame(value.frame, identity.frame_kind, target, logId), stack_sample_indices: indices };
 }
 export function decodeProfileIndex(value: unknown, identity: ProfileResult, logId: string | null): ProfileIndex {
@@ -41,8 +43,9 @@ export function decodeProfileIndex(value: unknown, identity: ProfileResult, logI
   for (let position = 0; position < samples.length; position += 1) {
     const sample = samples[position]; const previous = samples[position - 1];
     if (!sample || sample.index !== position || previous && BigInt(sample.begin_ns) < BigInt(previous.begin_ns)) throw invalidProfile(logId);
+    if (sample.derived && sample.derived.cpu_share_percent !== null && !hasProfileCpuBaseline(sample.metrics, previous?.metrics)) throw invalidProfile(logId);
     if (sample.frame) {
-      if (frames.has(sample.frame.index) || sample.frame.index !== frames.size) throw invalidProfile(logId);
+      if (frames.has(sample.frame.index) || sample.frame.index !== sample.index) throw invalidProfile(logId);
       frames.add(sample.frame.index);
     }
   }

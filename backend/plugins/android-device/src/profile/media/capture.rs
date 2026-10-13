@@ -1,5 +1,5 @@
 //! H264帧持续接收，保存编码原字节及PTS；不按采样点重新截图。
-use super::rules::Packet;
+use super::rules::{self, Packet};
 use crate::{Error, Result};
 use std::path::PathBuf;
 use tokio::{
@@ -15,25 +15,12 @@ pub(super) struct Captured {
 }
 pub(super) async fn run(
     mut socket: TcpStream,
+    header: [u8; 12],
     path: PathBuf,
     stop: CancellationToken,
     deadline: tokio::time::Instant,
 ) -> Result<Captured> {
-    let mut header = [0; 12];
-    tokio::select! {biased;_=tokio::time::sleep_until(deadline)=>return Err(Error::Timeout),_=stop.cancelled()=>return Err(Error::Cancelled),r=socket.read_exact(&mut header)=>{r.map_err(|_|Error::Dependency("scrcpy视频配置不完整"))?;}}
-    let width = u32::from_be_bytes(
-        header[4..8]
-            .try_into()
-            .map_err(|_| Error::Dependency("scrcpy视频宽度无效"))?,
-    );
-    let height = u32::from_be_bytes(
-        header[8..12]
-            .try_into()
-            .map_err(|_| Error::Dependency("scrcpy视频高度无效"))?,
-    );
-    if &header[..4] != b"h264" || width == 0 || height == 0 || width > 1280 || height > 1280 {
-        return Err(Error::Dependency("scrcpy视频编码或尺寸不支持"));
-    }
+    let (width, height) = rules::video_dimensions(&header)?;
     let mut file = tokio::fs::OpenOptions::new()
         .create_new(true)
         .write(true)

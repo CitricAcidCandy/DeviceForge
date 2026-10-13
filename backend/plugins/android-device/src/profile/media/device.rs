@@ -5,11 +5,10 @@ use super::{
 };
 use crate::{Error, Result, config::profile::Profile, session::Session};
 use deviceforge_tool_process::{
-    Environment, ExecutionOptions, StreamOptions, StreamingProcess, ToolCommand,
-    spawn_stream_with_lease,
+    Environment, ExecutionOptions, StreamOptions, StreamingProcess, ToolCommand, spawn_stream,
 };
 use std::time::Duration;
-use tokio::net::TcpStream;
+use tokio::{io::AsyncReadExt, net::TcpStream};
 pub(super) struct Device {
     pub directory: String,
     pub nonce: String,
@@ -112,11 +111,10 @@ impl Device {
                 .filter(|p| *p > 0)
                 .ok_or(Error::Dependency("视频独占端口回执无效"))?,
         );
+        let arguments = rules::server_arguments(&self.scid)?;
         let script = format!(
-            "cat /proc/$$/stat > {dir}/owner.stat && CLASSPATH={dir}/server.jar exec app_process / --nice-name=df_profile_video_{nonce} com.genymobile.scrcpy.Server 3.3.1 scid={scid} tunnel_forward=true video=true audio=false control=false video_codec=h264 max_size=640 max_fps=30 video_bit_rate=2000000 video_codec_options=max-bframes=0 send_device_meta=false send_dummy_byte=false send_codec_meta=true send_frame_meta=true cleanup=false power_on=false",
-            dir = self.directory,
-            nonce = self.nonce,
-            scid = self.scid
+            "cat /proc/$$/stat > {dir}/owner.stat && CLASSPATH={dir}/server.jar exec {arguments}",
+            dir = self.directory
         );
         let mut args = vec!["-s".into(), device.into()];
         args.extend(tools::script_args(&script));
@@ -124,13 +122,12 @@ impl Device {
         cmd.environment = Environment::Restricted;
         self.launched = true;
         self.server = Some(
-            spawn_stream_with_lease(
+            spawn_stream(
                 cmd,
                 StreamOptions::new(ExecutionOptions::new(
                     session.control.context.deadline().into(),
                 )),
                 session.control.context.cancellation(),
-                session.control.lease.clone(),
             )
             .await
             .map_err(|_| Error::Dependency("scrcpy视频服务启动失败"))?,
@@ -151,24 +148,51 @@ impl Device {
             std::str::from_utf8(&text).map_err(|_| Error::Dependency("视频时钟回执不是UTF-8"))?,
         )
     }
-    pub async fn connect(&self, session: &Session) -> Result<TcpStream> {
+    pub async fn connect(&self, session: &Session) -> Result<(TcpStream, [u8; 12])> {
         let port = self.port.ok_or(Error::Dependency("视频转发尚未创建"))?;
         let until = tokio::time::Instant::from_std(session.control.context.deadline())
             .min(tokio::time::Instant::now() + Duration::from_secs(5));
         loop {
             session.control.context.check()?;
             let cancel = session.control.context.cancellation();
-            let connected = tokio::select! {biased;_=cancel.cancelled()=>return Err(Error::Cancelled),_=tokio::time::sleep_until(until)=>return Err(Error::Dependency("scrcpy视频连接失败")),r=TcpStream::connect((std::net::Ipv4Addr::LOCALHOST,port))=>r};
+            let connected = tokio::select! {biased;_=cancel.cancelled()=>return Err(Error::Cancelled),_=tokio::time::sleep_until(until)=>{session.control.check()?;return Err(Error::Dependency("scrcpy视频连接失败"))},r=TcpStream::connect((std::net::Ipv4Addr::LOCALHOST,port))=>r};
             match connected {
-                Ok(socket) => return Ok(socket),
-                Err(_) if tokio::time::Instant::now() < until => {
-                    tokio::time::sleep_until(
-                        until.min(tokio::time::Instant::now() + Duration::from_millis(25)),
-                    )
-                    .await
+                Ok(mut socket) => {
+                    // ADB转发能先接受TCP，远端scrcpy尚未监听时会立即关闭；读完协议头才算就绪。
+                    let mut header = [0; 12];
+                    let read = tokio::select! {biased;_=cancel.cancelled()=>return Err(Error::Cancelled),_=tokio::time::sleep_until(until)=>{session.control.check()?;return Err(Error::Dependency("scrcpy视频连接失败"))},r=socket.read_exact(&mut header)=>r};
+                    match read {
+                        Ok(_) => {
+                            session.control.check()?;
+                            rules::video_dimensions(&header)?;
+                            return Ok((socket, header));
+                        }
+                        Err(_) if tokio::time::Instant::now() < until => {}
+                        Err(_) => {
+                            session.control.check()?;
+                            return Err(Error::Dependency("scrcpy视频连接失败"));
+                        }
+                    }
+                    retry_delay(session, until).await?;
                 }
-                Err(_) => return Err(Error::Dependency("scrcpy视频连接失败")),
+                Err(_) if tokio::time::Instant::now() < until => {
+                    retry_delay(session, until).await?
+                }
+                Err(_) => {
+                    session.control.check()?;
+                    return Err(Error::Dependency("scrcpy视频连接失败"));
+                }
             }
         }
     }
 }
+
+async fn retry_delay(session: &Session, until: tokio::time::Instant) -> Result<()> {
+    let stop = session.control.context.cancellation();
+    let next = until.min(tokio::time::Instant::now() + Duration::from_millis(25));
+    tokio::select! {biased;_=stop.cancelled()=>Err(Error::Cancelled),_=tokio::time::sleep_until(next)=>{session.control.check()?;Ok(())}}
+}
+
+#[cfg(test)]
+#[path = "readiness_tests.rs"]
+mod readiness_tests;

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { copyFile, mkdir, open, readFile, rename, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileIdentity } from '../unified-discovery-smoke/evidence.mjs';
+import { canonicalMediaArgv } from './media-identity.mjs';
 export { deviceId } from './probe-route.mjs';
 export { packageName } from './protocol.mjs';
 export function encodeArgv(args) {
@@ -23,7 +24,7 @@ export async function prepareFixture(directory, binary, contract, report) {
   const commands = [...contract.shared, ...contract.cases.flatMap(value => value.commands)];
   for (const scenario of contract.cases) {
     assert.match(scenario.id, /^[a-z][a-z0-9-]{0,47}$/); const folder = join(root, 'inputs', scenario.id); await mkdir(folder, { recursive: true });
-    const specs = [...contract.shared, ...scenario.commands]; assert.ok(specs.length <= 32);
+    const specs = [...contract.shared, ...scenario.commands]; assert.ok(specs.length <= 64);
     const unique = new Set();
     for (const [index, spec] of specs.entries()) {
       const key = encodeArgv(spec.argv).toString('hex'); assert.ok(!unique.has(key), 'PROFILE-FIXTURE-ARGV-UNIQUE'); unique.add(key);
@@ -62,10 +63,10 @@ export function canonicalArgv(args, fixture, mode) {
       assert.match(token, /^[a-f0-9]{64}$/, 'PROFILE-REMOTE-TOKEN'); tokens.add(token); cursor = begin + 64;
     }
   }
-  if (!tokens.size) return args; assert.equal(tokens.size, 1, 'PROFILE-REMOTE-SAME-TOKEN');
+  if (!tokens.size) return canonicalMediaArgv(args, fixture, mode); assert.equal(tokens.size, 1, 'PROFILE-REMOTE-SAME-TOKEN');
   const token = [...tokens][0];
   fixture.remoteTokens ??= new Map();
   if (fixture.remoteTokens.has(mode)) assert.equal(token, fixture.remoteTokens.get(mode), 'PROFILE-REMOTE-FIXED-TOKEN');
   else fixture.remoteTokens.set(mode, token);
-  return args.map(arg => arg.replaceAll(token, '@TOKEN@'));
+  return canonicalMediaArgv(args.map(arg => arg.replaceAll(token, '@TOKEN@')), fixture, mode);
 }

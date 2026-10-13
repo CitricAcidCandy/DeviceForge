@@ -62,6 +62,8 @@ pub(crate) struct Sample {
     pub end_ns: String,
     pub target_ns: String,
     pub metrics: Value,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub derived: Option<super::derived::Derived>,
     pub frame: Option<Frame>,
     pub stack_sample_indices: Vec<usize>,
 }

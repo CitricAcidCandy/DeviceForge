@@ -37,7 +37,11 @@ impl Session {
         let mut media = if options.capture_frames {
             match super::media::start(self, &device, &config.profile, &root).await {
                 Ok(value) => value,
-                Err(Error::Dependency(_) | Error::Io(_) | Error::Invalid(_)) => {
+                Err(Error::Dependency(reason)) => {
+                    media_reason = Some(reason);
+                    None
+                }
+                Err(Error::Io(_) | Error::Invalid(_)) => {
                     media_reason = Some("持续画面采集未取得工具或设备资格");
                     None
                 }
@@ -66,12 +70,15 @@ impl Session {
                         frame_status = status.status;
                         frame_reason = status.reason;
                     }
-                    Err(Error::Dependency(_) | Error::Io(_) | Error::Invalid(_)) => {
+                    Err(error @ (Error::Dependency(_) | Error::Io(_) | Error::Invalid(_))) => {
                         for sample in &mut samples {
                             sample.frame = None;
                         }
                         frame_status = "unavailable";
-                        frame_reason = Some("持续画面或媒体时钟未通过完整性资格");
+                        frame_reason = Some(match error {
+                            Error::Dependency(reason) => reason,
+                            _ => "持续画面或媒体时钟未通过完整性资格",
+                        });
                     }
                     Err(error) => return Err(error),
                 }
@@ -344,6 +351,7 @@ mod tests {
             end_ns: "200".into(),
             target_ns: "150".into(),
             metrics: serde_json::Value::Null,
+            derived: None,
             frame: None,
             stack_sample_indices: Vec::new(),
         }

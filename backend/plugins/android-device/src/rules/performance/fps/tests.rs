@@ -13,6 +13,7 @@ fn layer() -> Layer {
         name: LAYER.into(),
         pid: 123,
         uid: 10001,
+        window: None,
         chain: vec![owner::Record {
             id: 17,
             name: LAYER.into(),

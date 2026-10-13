@@ -46,7 +46,7 @@ pub(crate) async fn start(
         Ok::<_, Error>((anchor, socket))
     }
     .await;
-    let (before, socket) = match prepared {
+    let (before, (socket, header)) = match prepared {
         Ok(value) => value,
         Err(error) => {
             let terminal = matches!(
@@ -64,7 +64,8 @@ pub(crate) async fn start(
     let stop = session.control.context.cancellation().child_token();
     let signal = stop.clone();
     let deadline = session.control.context.deadline().into();
-    let reader = tokio::spawn(async move { capture::run(socket, path, signal, deadline).await });
+    let reader =
+        tokio::spawn(async move { capture::run(socket, header, path, signal, deadline).await });
     Ok(Some(Media {
         device,
         device_id: device_id.into(),

@@ -940,3 +940,12 @@
 - 用户要求以后切换开发方向先询问；当前授权Android指标、Root堆栈与采样点画面，已确认每指标采样点对应当时画面。su与无Root兼容、真机/模拟器；无符号包不承诺完整函数或源码恢复。REA MCP+Agent操作插件仅后续计划，先不做。
 - FPS owner链补齐定点库/协议与Clippy、host/plugin build通过；前端FPS 6/6。独立新服务报告 artifacts/android-game-fps-service-debug-ecddefa9-1065-41c2-a08c-e255ac72e928/report.json passed=true，17检查/15会话/194工具；driver/host均0，原句柄/端口清理证据齐。两次驱动失败原件保留；合成文本/协议不转记真机或FPS精度。
 - Root录制与截图正在并行实现，前端独立消费9项源码已冻结未计当前门禁；纯Simpleperf parser已落盘待接线/验证。全部业务完成后才性能专项，不做压测。
+
+## 2026-10-13 Android Root录制与真机功能增量
+
+- stack.probe/profile.record已接公开设备插件，支持固定adbd_root/su_c/auto；无Root保留指标。Simpleperf boottime报告解析、未知符号/晚符号表/丢样、Stored ZIP双产物、独立前端归档消费已接线。REA MCP与Agent操作插件继续仅计划，不切换其他业务。
+- 新版独立debug资格服务8检查/6Job/20工具通过；Root录制4检查/2Job/76工具、无Root及缺工具降级5检查/3Job/63工具、取消/卸载/重载4检查/3Job/94工具分批通过。原OS句柄253份已核对，报告见artifacts/android-profile-{probe,record}-service-debug-*，失败原件保留；合成simpleperf不计真实Root栈。
+- 后端完整架构27模块/规则6项、fmt、workspace Clippy、1714测试/137组及workspace build退出0（artifacts/android-profile-workspace-gates-fixed.log）。其后的媒体租约窄修定点Clippy/132库+142协议/build通过；最新reason精细化尚在重建。前端生成及完整check/test/build退出0，67测试文件/208模块，采样归档定点22项。
+- 时钟helper可复用Node构建入口已新增并真实javac/D8/JAR退出0，min-api21；产物artifacts/android-profile-clock-reusable/profile-clock.jar。
+- SM_G991U Android11当前游戏com.ChillyRoom.DungeonShooter真实probe无Root；无Root指标record已成功，CPU原始计数、PSS/RSS、热传感器返回，JSON/ZIP原字节SHA通过（artifacts/android-profile-device-f61e3208-b5c0-42cf-acb0-f115836d014a/report.json）。scrcpy持续视频已清理自有目录/forward，但画面目前unavailable，正在定位固定原因，不计画面完成。
+- 当前设备窗口无游戏Surface且OEM SurfaceFlinger proto输出待兼容；已请用户保持亮屏解锁并打开实际游戏画面。FPS仍须精确进程归属见证，不用名字/UID猜。功率/CPU百分比派生及完整当前游戏画面仍待真机证据；全部业务完成后才性能专项。

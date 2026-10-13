@@ -32,7 +32,7 @@ export function observeTools(fixture, probeBinary, pluginBinary, report) {
         const probe = await startProbe(probeBinary, pid, join(directory, 'process'), pluginBinary);
         const held = category === holdCategory;
         if (held) holdCategory = null;
-        const entry = { name, directory, pid, category, argv, mode, ordinal, planned_exit: planned.exit, held, probe_ready: probe.ready };
+        const entry = { name, directory, pid, category, argv, mode, ordinal, streaming: category === 'media-server', planned_exit: planned.exit, held, probe_ready: probe.ready };
         observed.set(name, { probe, entry }); report.tools.push(entry);
         if (!held) await writeFile(join(directory, 'release'), '1', { flag: 'wx' });
       }
@@ -51,7 +51,8 @@ export function observeTools(fixture, probeBinary, pluginBinary, report) {
         assert.equal(entry.process.exit.test_kill, false);
         assert.equal(entry.process.exit.target.state, 'exited');
         assert.equal(entry.process.exit.parent.state, 'exited'); assert.equal(entry.process.exit.parent.exit_code, 0);
-        if (!entry.held) assert.equal(entry.process.exit.target.exit_code, entry.planned_exit, 'PROFILE-OS-EXPECTED-TOOL-EXIT');
+        if (entry.streaming) assert.ok([0, 1].includes(entry.process.exit.target.exit_code), 'PROFILE-MEDIA-SERVER-OWNED-EXIT');
+        if (!entry.held && !entry.streaming) assert.equal(entry.process.exit.target.exit_code, entry.planned_exit, 'PROFILE-OS-EXPECTED-TOOL-EXIT');
       }
     },
     async stop() { stopped = true; await worker; },

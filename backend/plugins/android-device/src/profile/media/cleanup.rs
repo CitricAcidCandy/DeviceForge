@@ -10,6 +10,27 @@ impl Device {
             session.control.context.deadline().into()
         };
         let mut ok = true;
+        if self.created {
+            let await_owner = if self.launched {
+                format!(
+                    "i=0; while [ ! -f {}/owner.stat ]; do i=$((i+1)); [ $i -le 10 ] || exit 81; sleep 0.05; done; ",
+                    self.directory
+                )
+            } else {
+                String::new()
+            };
+            let script = format!(
+                r#"if [ -e {dir} ]; then [ -d {dir} ] || exit 82; [ "$(cat {dir}/owner.token)" = {nonce} ] || exit 92; {await_owner}if [ -f {dir}/owner.stat ]; then saved=$(cat {dir}/owner.stat) || exit 83; p=$(echo "$saved" | cut -d ' ' -f 1); case $p in ''|*[!0-9]*) exit 84;; esac; saved_tail="${{saved##*) }}"; set -- $saved_tail; shift 19; expected=$1; owned_state() {{ if [ ! -e /proc/$p/stat ]; then return 1; fi; now=$(cat /proc/$p/stat 2>/dev/null) || {{ [ ! -e /proc/$p/stat ] && return 1; return 2; }}; now_tail="${{now##*) }}"; set -- $now_tail; [ "${{20}}" = "$expected" ] || return 2; [ "$1" = Z ] && return 1; return 0; }}; owned_state; state=$?; [ $state -ne 2 ] || exit 86; if [ $state -eq 0 ]; then name=$(tr '\000' '\n' < /proc/$p/cmdline 2>/dev/null | head -n 1); if [ "$name" != dfv_{scid} ]; then owned_state; [ $? -eq 1 ] || exit 87; else kill -TERM $p || {{ owned_state; [ $? -eq 1 ] || exit 88; }}; fi; fi; i=0; while :; do owned_state; state=$?; [ $state -eq 1 ] && break; [ $state -eq 0 ] || exit 86; i=$((i+1)); [ $i -le 20 ] || exit 89; sleep 0.05; done; fi; rm -rf {dir} || exit 90; [ ! -e {dir} ] || exit 91; fi; echo DFPC_VIDEO_CLEAN"#,
+                dir = self.directory,
+                nonce = self.nonce,
+                scid = self.scid
+            );
+            if !matches!(self.cleanup_adb(session,device,tools::script_args(&script),deadline).await,Ok(ref v) if v==b"DFPC_VIDEO_CLEAN\n"||v==b"DFPC_VIDEO_CLEAN\r\n")
+            {
+                ok = false;
+            }
+        }
+        // 先核验并终止原远端进程，再回收ADB句柄，避免由客户端退出制造身份读取竞争。
         let mut server_closed = true;
         if let Some(server) = self.server.as_mut() {
             server.cancel();
@@ -24,25 +45,6 @@ impl Device {
         }
         if server_closed {
             self.server = None;
-        }
-        if self.created {
-            let await_owner = if self.launched {
-                format!(
-                    "i=0; while [ ! -f {}/owner.stat ]; do i=$((i+1)); [ $i -le 10 ] || exit 81; sleep 0.05; done; ",
-                    self.directory
-                )
-            } else {
-                String::new()
-            };
-            let script = format!(
-                "if [ -e {dir} ]; then [ -d {dir} ] || exit 82; [ \"$(cat {dir}/owner.token)\" = {nonce} ] || exit 92; {await_owner}if [ -f {dir}/owner.stat ]; then saved=$(cat {dir}/owner.stat) || exit 83; p=$(echo \"$saved\" | cut -d ' ' -f 1); case $p in ''|*[!0-9]*) exit 84;; esac; if [ -e /proc/$p/stat ]; then now=$(cat /proc/$p/stat) || exit 85; saved_tail=\"${{saved##*) }}\"; now_tail=\"${{now##*) }}\"; set -- $saved_tail; shift 19; expected=$1; set -- $now_tail; shift 19; [ \"$1\" = \"$expected\" ] || exit 86; name=$(tr '\\000' '\\n' < /proc/$p/cmdline | head -n 1); [ \"$name\" = df_profile_video_{nonce} ] || exit 87; kill -TERM $p || exit 88; i=0; while [ -e /proc/$p ]; do i=$((i+1)); [ $i -le 20 ] || exit 89; sleep 0.05; done; fi; fi; rm -rf {dir} || exit 90; [ ! -e {dir} ] || exit 91; fi; echo DFPC_VIDEO_CLEAN",
-                dir = self.directory,
-                nonce = self.nonce
-            );
-            if !matches!(self.cleanup_adb(session,device,tools::script_args(&script),deadline).await,Ok(ref v) if v==b"DFPC_VIDEO_CLEAN\n"||v==b"DFPC_VIDEO_CLEAN\r\n")
-            {
-                ok = false;
-            }
         }
         if self.forwarded {
             match self

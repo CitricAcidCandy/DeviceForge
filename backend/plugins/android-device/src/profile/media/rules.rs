@@ -146,3 +146,66 @@ mod tests {
         );
     }
 }
+
+// 已有三星Android11报告显示完整app_process参数达到255字节可触发原生栈损坏。
+pub(super) fn server_arguments(scid: &str) -> Result<String> {
+    if scid.len() != 8 || !scid.bytes().all(|b| b.is_ascii_hexdigit()) {
+        return Err(Error::Invalid("视频会话标识无效"));
+    }
+    let value = format!(
+        "app_process / --nice-name=dfv_{scid} com.genymobile.scrcpy.Server 3.3.1 scid={scid} tunnel_forward=true audio=false control=false max_size=640 max_fps=30 video_bit_rate=2000000 send_device_meta=false send_dummy_byte=false cleanup=false"
+    );
+    if value.len() >= 255 {
+        return Err(Error::Invalid("视频启动参数超出设备兼容上限"));
+    }
+    Ok(value)
+}
+
+#[cfg(test)]
+mod command_tests {
+    use super::*;
+    #[test]
+    fn fixed_server_command_stays_below_samsung_native_limit() {
+        let command = server_arguments("7fffffff").unwrap();
+        assert!(command.len() < 255);
+        assert!(command.contains("control=false"));
+        assert!(command.contains("audio=false"));
+        assert!(server_arguments("7fffffff;id").is_err());
+    }
+}
+
+// 编码配置头由连接就绪阶段消费；接收任务复用同一规则，不重复读取socket。
+pub(super) fn video_dimensions(header: &[u8; 12]) -> Result<(u32, u32)> {
+    let width = u32::from_be_bytes(
+        header[4..8]
+            .try_into()
+            .map_err(|_| Error::Dependency("scrcpy视频宽度无效"))?,
+    );
+    let height = u32::from_be_bytes(
+        header[8..12]
+            .try_into()
+            .map_err(|_| Error::Dependency("scrcpy视频高度无效"))?,
+    );
+    if &header[..4] != b"h264" || width == 0 || height == 0 || width > 1280 || height > 1280 {
+        return Err(Error::Dependency("scrcpy视频编码或尺寸不支持"));
+    }
+    Ok((width, height))
+}
+#[cfg(test)]
+mod header_tests {
+    use super::*;
+    #[test]
+    fn codec_header_requires_h264_and_bounded_dimensions() {
+        let mut header = [0; 12];
+        header[..4].copy_from_slice(b"h264");
+        header[4..8].copy_from_slice(&640_u32.to_be_bytes());
+        header[8..12].copy_from_slice(&288_u32.to_be_bytes());
+        assert_eq!(video_dimensions(&header).unwrap(), (640, 288));
+        header[8..12].copy_from_slice(&0_u32.to_be_bytes());
+        assert!(video_dimensions(&header).is_err());
+        header[8..12].copy_from_slice(&1281_u32.to_be_bytes());
+        assert!(video_dimensions(&header).is_err());
+        header[..4].copy_from_slice(b"h265");
+        assert!(video_dimensions(&header).is_err());
+    }
+}

@@ -30,26 +30,50 @@ impl Session {
         let args = [
             "-s",
             device_id,
-            "shell",
-            "-T",
+            "exec-out",
             "dumpsys",
-            "--proto",
             "SurfaceFlinger",
+            "--proto",
         ]
         .into_iter()
         .map(str::to_owned)
         .collect::<Vec<_>>();
         let captured = self.control.capture_scoped(&args).await?;
         let package = package.to_owned();
-        self.work(move |check| {
-            check()?;
-            // 原二进制只从stdout解码；stderr非空表示接口未给出可靠归属。
-            if !captured.stderr.iter().all(u8::is_ascii_whitespace) {
-                return Ok(None);
+        let qualification = self
+            .work(move |check| {
+                check()?;
+                // 原二进制只从stdout解码；stderr非空表示接口未给出可靠归属。
+                if !captured.stderr.iter().all(u8::is_ascii_whitespace) {
+                    return Ok(None);
+                }
+                fps::owned_layer(&captured.stdout, &package, pid, uid, check)
+            })
+            .await?;
+        match qualification {
+            Some(fps::Qualification::Owned(layer)) => Ok(Some(layer)),
+            Some(fps::Qualification::Window(directory)) => {
+                let args = [
+                    "-s", device_id, "shell", "-T", "dumpsys", "window", "windows",
+                ]
+                .into_iter()
+                .map(str::to_owned)
+                .collect::<Vec<_>>();
+                let captured = self.control.capture_scoped(&args).await?;
+                self.work(move |check| {
+                    check()?;
+                    if !captured.stderr.iter().all(u8::is_ascii_whitespace) {
+                        return Ok(None);
+                    }
+                    let Ok(output) = std::str::from_utf8(&captured.stdout) else {
+                        return Ok(None);
+                    };
+                    directory.window_layer(output, check)
+                })
+                .await
             }
-            fps::owned_layer(&captured.stdout, &package, pid, uid, check)
-        })
-        .await
+            None => Ok(None),
+        }
     }
     async fn read_frame_window(
         &self,

@@ -9,10 +9,11 @@ import { consume } from './record-results.mjs';
 
 const operation = 'plugin.android-device.profile.record';
 async function submit(host, report, scenario, transport) {
-  const input = { device_id: deviceId, input: { package: packageName, duration_ms: 1000, interval_ms: 1000, capture_frames: false } };
+  const input = { device_id: deviceId, input: { package: packageName, duration_ms: 1000, interval_ms: 1000, capture_frames: scenario.capture_frames ?? false } };
   const submitted = transport === 'mcp' ? await host.client.tool(operation, input) : await host.client.post('/api/v2/jobs', { operation, input }, { status: 202 });
   const entry = { case_id: scenario.id, job_id: submitted.id, operation, transport, submit_log_id: report.last_request.log_id,
-    expected_status: ['cancel', 'unload'].includes(scenario.kind) ? 'cancelled' : 'succeeded', plugin_call_required: true };
+    expected_end_code: scenario.kind === 'failed' ? 'cleanup_failed' : undefined,
+    expected_status: ['cancel', 'unload'].includes(scenario.kind) ? 'cancelled' : scenario.kind === 'failed' ? 'failed' : 'succeeded', plugin_call_required: true };
   report.jobs.push(entry); return entry;
 }
 async function waitJob(host, observer, entry) {
@@ -34,12 +35,22 @@ export async function recordBusiness(host, fixture, observer, loaded, report, di
     assert.ok(tools.length > 0 && tools.every(value => value.mode === scenario.id), 'PROFILE-RECORD-TOOL-MODE');
     const cleanup = tools.filter(value => value.category === 'remote-cleanup');
     assert.equal(cleanup.length, scenario.expected.stack_status === 'captured' ? 1 : 0, 'PROFILE-RECORD-CLEANUP-COUNT');
+    if (scenario.capture_frames) await mediaClean(fixture, observer, report, baseline, scenario);
     Object.assign(entry, { history: job, tools: tools.map(value => value.name), source_generation: loaded.generation });
     await consume(host, downloads, report, scenario, job.result, frontend); report.history.push(job);
     report.checks.push({ name: scenario.id + '真实指标/官方报告晚表和原下载SHA/前端归档消费', passed: true });
   }
+  for (const scenario of fixture.cases.filter(value => value.kind === 'failed')) {
+    await setMode(fixture, scenario.id); const baseline = report.tools.length; const entry = await submit(host, report, scenario, 'http');
+    const job = await waitJob(host, observer, entry); assert.equal(job.result, null); assert.ok(job.error);
+    await mediaClean(fixture, observer, report, baseline, scenario); Object.assign(entry, {history:job, tools:report.tools.slice(baseline).map(value=>value.name)}); report.history.push(job);
+    report.checks.push({name:scenario.id+'公开Job清理失败且未删除别人的转发',passed:true});
+  }
   if (!fixture.cases.some(value => value.kind === 'cancel')) {
-    assert.equal((await host.client.post('/api/v2/plugins/android-device/unload')).state, 'unloaded');
+    if (fixture.cases.some(value => value.kind === 'failed')) {
+      await host.client.post('/api/v2/plugins/android-device/unload', undefined, {status:409,code:'cleanup_failed'});
+      report.checks.push({name:'未确认媒体转发清理保留cleanup_failed隔离，普通卸载返回409',passed:true});
+    } else assert.equal((await host.client.post('/api/v2/plugins/android-device/unload')).state, 'unloaded');
     for (const previous of report.history) {
       assert.deepEqual(await host.client.job(previous.id), previous, 'PROFILE-FALLBACK-STABLE-HTTP-HISTORY');
       assert.deepEqual(await host.client.tool('deviceforge.get_job', { id: previous.id }), previous, 'PROFILE-FALLBACK-STABLE-MCP-HISTORY');
@@ -64,6 +75,7 @@ export async function recordBusiness(host, fixture, observer, loaded, report, di
       catch (error) { if (error.code === 'ENOENT') return false; throw error; }
     }, Boolean, '远端固定清理实际回执', 5000);
     const tools = report.tools.slice(baseline); assert.equal(tools.filter(value => value.category === 'remote-cleanup').length, 1, 'PROFILE-CANCEL-REMOTE-CLEANUP');
+    if (scenario.capture_frames) await mediaClean(fixture, observer, report, baseline, scenario);
     Object.assign(entry, { history: job, tools: tools.map(value => value.name), held_tool: held.name, source_generation: loaded.generation });
     report.history.push(job); report.checks.push({ name: scenario.id + '在途取消/卸载、远端固定身份清理与无半产物', passed: true });
   }
@@ -71,7 +83,9 @@ export async function recordBusiness(host, fixture, observer, loaded, report, di
   assert.ok((await host.client.tools()).includes(operation), 'PROFILE-RECORD-NEW-GENERATION-MCP');
   await host.client.post('/api/v2/device-providers/android-device/refresh', { generation: reloaded.generation });
   const scenario = fixture.cases.find(value => value.kind === 'reloaded'); await setMode(fixture, scenario.id);
+  const baseline = report.tools.length;
   const entry = await submit(host, report, scenario, 'http'), job = await waitJob(host, observer, entry); assert.equal(job.error, null);
+  if (scenario.capture_frames) await mediaClean(fixture, observer, report, baseline, scenario);
   Object.assign(entry, { history: job, source_generation: reloaded.generation }); await consume(host, downloads, report, scenario, job.result, frontend); report.history.push(job);
   assert.equal((await host.client.post('/api/v2/plugins/android-device/unload')).state, 'unloaded');
   for (const previous of report.history) {
@@ -80,4 +94,21 @@ export async function recordBusiness(host, fixture, observer, loaded, report, di
   }
   report.lifecycle = { old_generation: loaded.generation, new_generation: reloaded.generation };
   report.checks.push({ name: '新代Root录制产物与旧Job/原下载历史不改写', passed: true });
+}
+
+async function mediaClean(fixture, observer, report, baseline, scenario) {
+  const wanted = 2; const cleanupCount = scenario.foreign_forward ? 2 : 1;
+  await poll(async () => {
+    observer.assertHealthy(); const tools=report.tools.slice(baseline); const cleanups=tools.filter(value=>value.category==='media-cleanup');
+    const lists=tools.filter(value=>value.category==='media-forward-list');
+    if(cleanups.length!==cleanupCount || lists.length!==wanted) return false;
+    try {for(const cleanup of cleanups) assert.deepEqual(await readFile(join(cleanup.directory,'stdout.bin')),Buffer.from('DFPC_VIDEO_CLEAN\n'),'PROFILE-MEDIA-ALL-CLEANUP-RECEIPTS'); return await readFile(join(lists.at(-1).directory,'completed'),'utf8')==='1';}
+    catch(error){if(error.code==='ENOENT')return false;throw error;}
+  },Boolean,'媒体固定所有权清理原回执',5000);
+  const tools=report.tools.slice(baseline), removed=tools.filter(value=>value.category==='media-forward-remove');
+  assert.equal(removed.length,scenario.foreign_forward?0:1,'PROFILE-MEDIA-FORWARD-OWNED-REMOVE');
+  const server=tools.find(value=>value.category==='media-server'); assert.ok(server,'PROFILE-MEDIA-ORIGINAL-SERVER');
+  const bytes=await readFile(join(fixture.root,'inputs',scenario.id,'media.bin'));
+  assert.deepEqual(await readFile(join(server.directory,'media.sent.bin')),bytes,'PROFILE-MEDIA-ORIGINAL-TCP-BYTES');
+  report.media_checks??=[];report.media_checks.push({case_id:scenario.id,server_call:server.name,cleanup_calls:tools.filter(value=>value.category.startsWith('media-')).map(value=>value.name),foreign_forward_preserved:scenario.foreign_forward});
 }

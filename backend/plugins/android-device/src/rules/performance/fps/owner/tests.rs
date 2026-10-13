@@ -17,18 +17,18 @@ fn varint(mut value: u64) -> Vec<u8> {
     }
     bytes
 }
-fn integer(key: u32, value: i64) -> Vec<u8> {
+pub(super) fn integer(key: u32, value: i64) -> Vec<u8> {
     let mut bytes = varint(u64::from(key) << 3);
     bytes.extend(varint(value as u64));
     bytes
 }
-fn blob(key: u32, value: &[u8]) -> Vec<u8> {
+pub(super) fn blob(key: u32, value: &[u8]) -> Vec<u8> {
     let mut bytes = varint((u64::from(key) << 3) | 2);
     bytes.extend(varint(value.len() as u64));
     bytes.extend(value);
     bytes
 }
-fn metadata(key: i32, value: u32) -> Vec<u8> {
+pub(super) fn metadata(key: i32, value: u32) -> Vec<u8> {
     let mut data = integer(1, i64::from(key));
     data.extend(blob(2, &value.to_le_bytes()));
     blob(42, &data)
@@ -55,7 +55,10 @@ fn wrapper(data: &[u8]) -> Vec<u8> {
     result
 }
 fn selected(data: &[u8]) -> Option<Layer> {
-    layer(data, PACKAGE, 123, 10001, &check).unwrap()
+    match layer(data, PACKAGE, 123, 10001, &check).unwrap() {
+        Some(Qualification::Owned(layer)) => Some(layer),
+        Some(Qualification::Window(_)) | None => None,
+    }
 }
 #[test]
 fn bare_and_exact_single_snapshot_use_app_layer_and_system_creator_witness() {

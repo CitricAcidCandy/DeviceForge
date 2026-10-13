@@ -51,7 +51,11 @@ pub(super) async fn extract(
         512 * 1024,
         &session.control.unresolved,
     )
-    .await?;
+    .await
+    .map_err(|error| match error {
+        Error::Dependency(_) => Error::Dependency("视频帧核验工具执行失败"),
+        other => other,
+    })?;
     let expected = captured.packets.len();
     session
         .work(move |check| {
@@ -129,7 +133,11 @@ pub(super) async fn extract(
         1024,
         &session.control.unresolved,
     )
-    .await?;
+    .await
+    .map_err(|error| match error {
+        Error::Dependency(_) => Error::Dependency("视频PNG抽帧工具执行失败"),
+        other => other,
+    })?;
     let order: Vec<_> = indices.into_iter().collect();
     let mut count = 0usize;
     for (sample, selection) in samples.iter_mut().zip(selections) {

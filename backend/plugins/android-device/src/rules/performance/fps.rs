@@ -3,7 +3,7 @@ mod owner;
 use super::Check;
 use crate::{Error, Result};
 use apk_plugin_sdk::FrameWindow;
-pub(crate) use owner::{layer as owned_layer, uid};
+pub(crate) use owner::{Qualification, layer as owned_layer, uid};
 use sha2::{Digest, Sha256};
 
 const MAX_FRAME_ROWS: usize = 256;
@@ -15,6 +15,7 @@ pub(crate) struct Layer {
     pid: u32,
     uid: u32,
     chain: Vec<owner::Record>,
+    window: Option<owner::Witness>,
 }
 
 impl Layer {
@@ -35,6 +36,18 @@ impl Layer {
             for value in [record.uid, record.metadata_uid, record.metadata_pid] {
                 hash.update([u8::from(value.is_some())]);
                 hash.update(value.unwrap_or_default().to_le_bytes());
+            }
+        }
+        if let Some(window) = &self.window {
+            for value in [
+                &window.token,
+                &window.title,
+                &window.session,
+                &window.surface,
+                &window.surface_handle,
+            ] {
+                hash.update((value.len() as u32).to_le_bytes());
+                hash.update(value.as_bytes());
             }
         }
         let digest = hash.finalize();

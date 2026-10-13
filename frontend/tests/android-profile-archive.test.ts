@@ -162,3 +162,14 @@ test('scrcpy终态归档直接提供选择时差、原PTS和对应PNG，不改�
   assert.equal(opened.frames[0]?.reference.selection_delta_ns, '-20'); assert.equal(opened.frames[0]?.reference.pts_us, '90071992547409930');
   assert.equal(opened.timeline.frameKind, 'scrcpy_sampled_frame'); assert.equal(opened.timeline.samples[0]?.frameStacks[0]?.index, 0);
 });
+
+test('稀疏采样画面沿sample编号交付，前一个无近邻不会拒绝后续PNG', () => {
+  const value = index(); const row = value.samples[0]; assert.ok(row);
+  const current: ProfileResult = { ...result(), sample_count: 2, frame_count: 1 };
+  const later = { ...row, index: 1, begin_ns: '210', end_ns: '300', frame: { ...row.frame, index: 1, filename: 'frames/000001.png', begin_ns: '230', end_ns: '260' }, stack_sample_indices: [] };
+  const sparse = { ...value, samples: [{ ...row, frame: null }, later] };
+  const archived = zip(files().map((file) => file.name === 'profile-index.json' ? { ...file, bytes: json(sparse) } : file.name.startsWith('frames/') ? { ...file, name: 'frames/000001.png' } : file));
+  const opened = openProfileArchive(archived.bytes, current, 'archive-log');
+  assert.equal(opened.frames.length, 1); assert.equal(opened.frames[0]?.reference.index, 1);
+  assert.equal(opened.frames[0]?.reference.filename, 'frames/000001.png'); assert.equal(opened.timeline.samples[0]?.sample.frame, null);
+});

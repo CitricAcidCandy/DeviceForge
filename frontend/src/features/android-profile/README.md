@@ -6,6 +6,7 @@
 
 - types/rules：独立插件业务模型、输入和资源边界；任务、产物及设备观测引用共享公开契约。
 - observations/metrics：原 PerformanceSample 与设备观测严格校验，不补 sequence、CPU 百分比或 FPS。
+- derived：可选第一版派生结果的范围、缺测原因、CPU 基线资格、FPS 窗口和净电池功率一致性校验。
 - results/index-results：unknown 结果、产物名单、进程身份及录制索引校验。
 - index：公开设备调用与共享 Job runner 的薄适配；恢复只查询原任务，取消等待不自动取消或重提服务器任务。
 - frame-results：兼容旧采样截图，严格校验 scrcpy 帧的原 PTS、设备时间映射、误差区间与选择时差。
@@ -36,4 +37,12 @@ scrcpy_sampled_frame 保留原 pts_us 和视频序号。指标窗口中点 targe
 
 生产路线是持续录制后抽取 PNG，本模块消费终态归档，不承诺实时输出或零延时。旧 sampled_screenshot 字段继续兼容读取，不借旧路径的测试证明 scrcpy 真机时间准确性。
 
-reported_sample_count 可选保留 LostSituation 的报告计数十进制原值，与实际解析 stack_sample_count 和 lost_count 分别记录，不假定三者相等或自行补算。当前后端仅任务结果带此字段，旧结果与索引缺省继续读取；索引若携带该字段须与任务结果一致，不把当前结果计数反填到旧索引。
+reported_sample_count 可选保留 LostSituation 的报告计数十进制原值，与实际解析 stack_sample_count 和 lost_count 分别记录，不假定三者相等或自行补算。当前后端任务结果与索引均保留该字段，旧结果与索引缺省继续读取；索引若携带该字段须与任务结果一致，不把当前结果计数反填到旧索引。
+
+## 可选派生指标
+
+每个采样点可携带独立 derived 对象，api_version 固定 1，不向原 metrics 混入百分比、FPS 或功率。旧索引缺少 derived 仍原样读取，不根据原计数或当前设备能力补值。CPU 两项须同时有值或同时为 null；整机占比为 0–100，单核归一化为 0–logical_cpus×100，核数关系保持一致。有值时仅核相邻样本的身份、时间、核数及差分资格，不在前端重新派生 CPU。
+
+FPS 有值须与原 frame_window 的帧数和窗口时长一致；battery_net_power_mw 有值须有有效设备电池观测和已知电流极性，按 µV×充电正向 µA÷10^9 核对有符号 mW。正值表示充电、负值表示放电，是整机净电池侧功率，不能归因给目标游戏或作为外部供电时整机负载功率。字段按后端返回原样保留，浮点一致性容差为相对 10^-9。
+
+CPU、FPS 和电池功率分别携带 cpu_reason、fps_reason、battery_reason。有值时对应 reason 必须为 null；缺值时必须为不超过 4096 UTF-8 字节的非空原因。原因不使用设备白名单，不将缺测转成零。定点回归在 tests/android-profile-derived.test.ts；本模块不新增产品界面，真实指标准确性与完整前端门禁由主代理独立验证。

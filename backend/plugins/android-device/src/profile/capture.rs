@@ -1,5 +1,6 @@
 //! 原进程代际、真实计数和设备boottime采样；媒体由独立持续流模块补齐。
 use super::{
+    derived,
     models::{Identity, Options, Sample},
     rules,
 };
@@ -51,6 +52,7 @@ impl Session {
             .ok_or(Error::TooLarge)?;
         let mut next = started;
         let mut samples = Vec::new();
+        let mut previous = None;
         loop {
             self.profile_wait(next).await?;
             if samples.len() >= 16 {
@@ -71,12 +73,25 @@ impl Session {
                 return Err(Error::Dependency("录制期间应用进程已换代"));
             }
             let end = rules::end(begin, self.profile_uptime(device).await?)?;
+            let (metrics, derived_value, current) = self
+                .work(move |check| {
+                    check()?;
+                    let current: apk_plugin_sdk::PerformanceSample =
+                        serde_json::from_value(metrics.clone())
+                            .map_err(|_| Error::Invalid("性能原始采样无法按公开契约解析"))?;
+                    let value = derived::from_sample(&current, previous.as_ref());
+                    check()?;
+                    Ok((metrics, value, current))
+                })
+                .await?;
+            previous = Some(current);
             samples.push(Sample {
                 index: samples.len(),
                 begin_ns: begin.to_string(),
                 end_ns: end.to_string(),
                 target_ns: (begin + (end - begin) / 2).to_string(),
                 metrics,
+                derived: Some(derived_value),
                 frame: None,
                 stack_sample_indices: Vec::new(),
             });

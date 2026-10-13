@@ -31,8 +31,12 @@ export interface ProfileFrame {
   readonly source?: 'scrcpy'; readonly epoch?: number; readonly video_frame_index?: number; readonly pts_us?: string;
   readonly device_time_ns?: string; readonly selection_delta_ns?: string; readonly clock_error_ns?: string;
 }
+export interface ProfileDerived {
+  readonly api_version: 1; readonly cpu_share_percent: number | null; readonly cpu_core_percent: number | null; readonly cpu_reason: string | null;
+  readonly fps: number | null; readonly fps_reason: string | null; readonly battery_net_power_mw: number | null; readonly battery_reason: string | null;
+}
 export interface ProfileSample {
-  readonly index: number; readonly begin_ns: string; readonly end_ns: string; readonly target_ns?: string; readonly metrics: ProfileMetrics;
+  readonly index: number; readonly begin_ns: string; readonly end_ns: string; readonly target_ns?: string; readonly metrics: ProfileMetrics; readonly derived?: ProfileDerived;
   readonly frame: ProfileFrame | null; readonly stack_sample_indices: readonly number[];
 }
 export interface ProfileIndex extends ProfileIdentity {

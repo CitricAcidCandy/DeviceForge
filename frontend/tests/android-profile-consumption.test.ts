@@ -220,3 +220,14 @@ test('报告计数独立保留LostSituation原值，旧索引缺省不补值，�
   }
   assert.throws(() => decodeProfileIndex({ ...indexValue(), reported_sample_count: '4' }, accepted.result, 'profile-log'), protocolLog);
 });
+
+test('缺少近邻的采样点保留空画面，后续稀疏帧按采样编号取用', () => {
+  const value = indexValue(); const row = value.samples[0]; assert.ok(row);
+  const current = { ...result(), sample_count: 2, frame_count: 1 };
+  const later = { ...row, index: 1, begin_ns: '90071992547409940', end_ns: '90071992547409949',
+    frame: { ...row.frame, index: 1, filename: 'frames/000001.png', begin_ns: '90071992547409943', end_ns: '90071992547409945' }, stack_sample_indices: [2] };
+  const accepted = decodeProfileIndex({ ...value, samples: [{ ...row, frame: null }, later] }, current, 'profile-log');
+  assert.equal(accepted.samples[0]?.frame, null); assert.equal(accepted.samples[1]?.frame?.index, 1);
+  assert.equal(accepted.samples[1]?.frame?.filename, 'frames/000001.png');
+  assert.throws(() => decodeProfileIndex({ ...value, samples: [{ ...row, frame: later.frame }, { ...later, frame: null }] }, current, 'profile-log'), protocolLog);
+});

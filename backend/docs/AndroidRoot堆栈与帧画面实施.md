@@ -48,10 +48,26 @@ SIMPLEPERF格式：magic10字节SIMPLEPERF，u16le version1，u32le记录长度+
 
 媒体模块profile/media.rs及media/**负责独立scrcpy目录/forward/server/socket、时钟helper、frame选取和解码。Root remote模块保持simpleperf监督器所有权。两者各自记录原PID/starttime；正常收口沿原deadline，取消/错误同一次cleanup_point，远端/直接进程/forward不确认则cleanup_failed。设备写锁覆盖整个profile.record。
 
-部署profile平铺可选字段 {scrcpy_server:绝对路径,server_version:"3.3.1",clock_helper:绝对DEX/JAR路径,ffmpeg:固定入口,ffprobe:固定入口}；当前采集固定640px、30fps、2Mbps；业务不能选择程序/脚本。无配置或明确不支持画面时保留指标，frame_status=unavailable及固定frame_reason；capture_frames=false为disabled。media累计32MiB、frame记录≤2000、单包4MiB、输出归档64MiB、PNG最多16张和每张4MiB。取消清理不因普通unsupported被吞掉。
+部署profile平铺可选字段 {scrcpy_server:绝对路径,server_version:"3.3.1",clock_helper:绝对DEX/JAR路径,ffmpeg:固定入口,ffprobe:固定入口}；当前采集固定640px、30fps、2Mbps；完整app_process启动参数少于255字符，control=false时按官方默认省略power_on参数；业务不能选择程序/脚本。无配置或明确不支持画面时保留指标，frame_status=unavailable及固定frame_reason；capture_frames=false为disabled。media累计32MiB、frame记录≤2000、单包4MiB、输出归档64MiB、PNG最多16张和每张4MiB。取消清理不因普通unsupported被吞掉。
 
 设备时钟helper一次读取System.nanoTime→elapsedRealtimeNanos→System.nanoTime，输出monotonic/boottime对应区间；前后两个校时锚限制误差和offset变化。原媒体PTS与monotonic锚实际范围必须符合，boottime offset变动或落界外保持无关联，不凭MediaCodec字段默认推测。helper由本项目最小Java入口生成，纯读时钟，不修改游戏。各采样窗口由/proc/uptime原百分秒文本给10ms量化边界；target_ns为begin/end中点。
 
 新frame_kind=scrcpy_sampled_frame。frame既有字段保留，增 {source:"scrcpy",epoch:1,video_frame_index:u32,pts_us:string,device_time_ns:string,selection_delta_ns:有符号十进制字符串,clock_error_ns:string}。frame.begin_ns/end_ns为选中视频帧映射时间的误差区间，不伪装指标采集瞬间；距离target_ns超过250ms不补过期画面。index/result增frame_status=captured|unavailable|disabled、frame_reason=null|固定字符串；frame_status与stack_status相互独立。旧sampled_screenshot仅前端兼容保留，不作为当前生产主采集路线。下载归档能够取得每样本对应PNG并消费时间差。
 
 必要验证：命令/字节/PTS/时钟不同域、无B帧及帧数量、过期拒配、取消远端原进程退出及forward、ZIP原字节；真实设备画面/延时与FPS精度独立，性能专项仍待全部业务完成。
+
+## 录制派生指标增量
+
+实施模式architecture-first，复用现有采集数据，在每个samples条目增加可选derived对象，旧索引缺省兼容；metrics保留原PerformanceSample累计计数语义。派生纯规则属于Android独立插件，不引用宿主domain、不增加宿主平台分支，前端只校验与消费。
+
+derived第一版固定为{api_version:1,cpu_share_percent:number|null,cpu_core_percent:number|null,cpu_reason:string|null,fps:number|null,fps_reason:string|null,battery_net_power_mw:number|null,battery_reason:string|null}。CPU两百分比同有值或同缺测；有值时reason=null，缺测必须带非空中文原因。首个采样没有差分基线时不可计算，不能报告虚假零。相邻PID、启动计数与逻辑核数相同，captured_at递增，计数无回退且系统差分大于0、进程差分不大于系统差分才计算；share=进程差分/系统差分×100，是整机CPU容量占比；core=share×逻辑核数，是单核归一化占比，可大于100。两者只代表目标主进程。
+
+FPS仅从通过归属资格的frame_window派生，frames×1000/duration_ms；缺窗口保持null与原因，真实零帧保持0。电气值保留设备来源、权限、原单位和极性，净电池功率复用公开SDK的极性规则，单位mW；正为充电、负为放电。该值归属整台设备的电池侧，不代表游戏独占消耗，也不等于外部供电时整机负载功率。设备缺电压/电流或极性未知时保持null，不推测数值。
+
+职责：profile/derived负责纯派生及固定原因；profile/capture负责本录制相邻基线；models只承载可选字段；frontend/features/android-profile/derived负责版本、范围和原数据资格校验。采用Hybrid，先核首样/真实零/回退与核数变化/功率正负，再执行录制归档及前端联合消费。底层CPU/PSS部分失败合同与所有逐传感器缺测原因仍需独立增量，不用本对象冒充已覆盖。
+
+## 设备就绪与退出竞争修补
+
+三星Android11功能诊断：239字节的完整app_process参数、固定2Mbps与短nice-name已收到h264配置和真实编码帧，原编码器栈损坏未复现；完整采样归档仍需修后真机复验。ADB forward的TCP连接成功不等于远端服务就绪：首次连接可直接EOF，随后相同会话重连才取得协议头。连接预算统一min(原总截止点,入口+5秒)，配置头完整且h264/尺寸合法才交给reader，reader不重复读取；早EOF受同一预算重试，取消与总超时保留原错误语义。
+
+媒体清理先处理有token证明的远端原PID/starttime，再收口本地ADB；外部取消仍可能先终止ADB，因此远端读取必须兼容进程退出竞争。同代stat状态Z或进程消失均表示不再运行，不读空cmdline、不杀僵尸；活态必须匹配固定dfv_scid才TERM。cmdline/TERM期间退出需复读stat，不以空字符串猜确认；PID复用、身份冲突或未知状态保留cleanup_failed。远端失败仍继续回收本地直接进程和精确forward，汇总清理资格。

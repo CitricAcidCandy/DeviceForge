@@ -24,7 +24,7 @@ fn canonical(args: &[String], root: &Path) -> io::Result<Vec<String>> {
             token = Some(candidate.to_owned());
         }
     }
-    let Some(token) = token else { return Ok(args.to_vec()); };
+    let Some(token) = token else { return canonical_media(args, root); };
     let mode = fs::read_to_string(root.join("mode"))?;
     if mode.is_empty() || mode.len()>48 || !mode.bytes().all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b==b'-') { return Err(io::Error::other("token场景名称非法")); }
     let anchor = root.join("inputs").join(mode).join("remote-token");
@@ -35,7 +35,41 @@ fn canonical(args: &[String], root: &Path) -> io::Result<Vec<String>> {
         },
         Err(error) => return Err(error),
     }
-    Ok(args.iter().map(|value| value.replace(&token,"@TOKEN@")).collect())
+    canonical_media(&args.iter().map(|value| value.replace(&token,"@TOKEN@")).collect::<Vec<_>>(), root)
+}
+fn media_scid(nonce: &str) -> io::Result<String> {
+    let value=u32::from_str_radix(&nonce[..8],16).map_err(|_|io::Error::other("视频nonce非法"))? & 0x7fff_ffff;
+    Ok(format!("{:08x}",value.max(1)))
+}
+fn canonical_media(args: &[String], root: &Path) -> io::Result<Vec<String>> {
+    let mut nonce: Option<String>=None;
+    for arg in args { for (position,_) in arg.match_indices("df_profile_video_") {
+        let begin=position+"df_profile_video_".len(); let found=arg.get(begin..begin+64).ok_or_else(||io::Error::other("视频nonce长度无效"))?;
+        if !found.bytes().all(|b|b.is_ascii_digit()||(b'a'..=b'f').contains(&b)) { return Err(io::Error::other("视频nonce不是小写SHA256")); }
+        if nonce.as_ref().is_some_and(|value|value!=found) { return Err(io::Error::other("同命令视频nonce不一致")); } nonce=Some(found.to_owned());
+    }}
+    let mode=fs::read_to_string(root.join("mode"))?; let anchor=root.join("inputs").join(&mode).join("media-token");
+    if let Some(value)=nonce.as_ref() { match fs::OpenOptions::new().write(true).create_new(true).open(&anchor) {
+        Ok(mut file)=>file.write_all(value.as_bytes())?, Err(error) if error.kind()==io::ErrorKind::AlreadyExists=>{if fs::read_to_string(&anchor)?!=*value {return Err(io::Error::other("本轮视频nonce变化"));}},Err(error)=>return Err(error),
+    }} else if anchor.exists() { nonce=Some(fs::read_to_string(&anchor)?); }
+    let Some(nonce)=nonce else {return Ok(args.to_vec());}; let scid=media_scid(&nonce)?;
+    for arg in args {for prefix in ["scid=","localabstract:scrcpy_"] {for (position,_) in arg.match_indices(prefix) {if arg.get(position+prefix.len()..position+prefix.len()+8)!=Some(scid.as_str()) {return Err(io::Error::other("视频scid与nonce不一致"));}}}}
+    Ok(args.iter().map(|arg|arg.replace(&nonce,"@VIDEO_TOKEN@").replace(&scid,"@SCID@")).collect())
+}
+fn media_socket(folder: &Path, call: &Path) -> io::Result<i32> {
+    use std::net::{TcpListener, Shutdown};
+    let port:u16=fs::read_to_string(folder.join("media-port"))?.parse().map_err(|_|io::Error::other("媒体端口无效"))?;
+    let listener=TcpListener::bind(("127.0.0.1",port))?;listener.set_nonblocking(true)?;fs::write(call.join("listening"),port.to_string())?;
+    let until=Instant::now()+Duration::from_secs(10);
+    let mut stream=loop {match listener.accept(){Ok((stream,peer))=>{if !peer.ip().is_loopback(){return Err(io::Error::other("只允许本机媒体连接"));}break stream;},Err(error) if error.kind()==io::ErrorKind::WouldBlock=>{if Instant::now()>=until{return Err(io::Error::other("媒体连接超时"));}thread::sleep(Duration::from_millis(5));},Err(error)=>return Err(error)}};
+    drop(listener);stream.set_nodelay(true)?;stream.set_write_timeout(Some(Duration::from_secs(2)))?;stream.set_read_timeout(Some(Duration::from_millis(20)))?;
+    let bytes=fs::read(folder.join("media.bin"))?;if bytes.len()>1024*1024{return Err(io::Error::other("媒体夹具输出超限"));}
+    let sizes=[1,2,5,3,17,1,7,11];let mut offset=0;let mut index=0;
+    while offset<bytes.len(){let end=(offset+sizes[index%sizes.len()]).min(bytes.len());stream.write_all(&bytes[offset..end])?;offset=end;index+=1;}
+    stream.flush()?;fs::write(call.join("media.sent.bin"),bytes)?;fs::write(call.join("media-sent"),"1")?;
+    let mut buffer=[0_u8;1];let until=Instant::now()+Duration::from_secs(30);
+    loop {match stream.peek(&mut buffer){Ok(0)=>break,Ok(_)=>return Err(io::Error::other("媒体连接不接受客户端写入")),Err(error) if matches!(error.kind(),io::ErrorKind::WouldBlock|io::ErrorKind::TimedOut)=>{if Instant::now()>=until{return Err(io::Error::other("媒体关闭超时"));}},Err(error) if matches!(error.kind(),io::ErrorKind::ConnectionReset|io::ErrorKind::ConnectionAborted)=>break,Err(error)=>return Err(error)}}
+    let _=stream.shutdown(Shutdown::Both);fs::write(call.join("peer-closed"),"1")?;fs::write(call.join("stdout.bin"),b"")?;fs::write(call.join("stderr.bin"),b"")?;fs::write(call.join("completed"),"1")?;Ok(0)
 }
 fn run() -> io::Result<i32> {
     let root = env::current_exe()?.parent().ok_or_else(|| io::Error::other("工具须有父目录"))?.to_owned();
@@ -47,7 +81,7 @@ fn run() -> io::Result<i32> {
     if mode.is_empty() || mode.len() > 48 || !mode.bytes().all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-') { return Err(io::Error::other("场景名称非法")); }
     let folder = root.join("inputs").join(mode.trim());
     let mut selected = None;
-    for index in 1..=32 {
+    for index in 1..=64 {
         let path = folder.join(format!("spec-{index:03}")); if !path.exists() { break; }
         if fs::read(path.join("argv.bin"))? == canonical_argv { if selected.is_some() { return Err(io::Error::other("固定argv重复")); } selected = Some(path); }
     }
@@ -55,12 +89,13 @@ fn run() -> io::Result<i32> {
     let category = fs::read_to_string(spec.join("category"))?;
     let (call, _) = slot(&root, "call", 256)?;
     fs::write(call.join("argv.bin"), argv)?; fs::write(call.join("pid"), std::process::id().to_string())?;
-    fs::write(call.join("category"), category)?; fs::write(call.join("mode"), mode)?;
+    fs::write(call.join("category"), &category)?; fs::write(call.join("mode"), &mode)?;
     let (_, ordinal) = slot(&spec, "used", 256)?;
     let mut output = None;
     let mut output_number = 0;
     for number in 1..=64 { let file = spec.join(format!("stdout-{number:03}.bin")); if !file.exists() { break; } output = Some(file); output_number = number; if number == ordinal { break; } }
-    let bytes = fs::read(output.ok_or_else(|| io::Error::other("缺少冻结输出"))?)?;
+    let mut bytes = fs::read(output.ok_or_else(|| io::Error::other("缺少冻结输出"))?)?;
+    if category == "media-forward-list" { let nonce=fs::read_to_string(folder.join("media-token"))?; let scid=media_scid(&nonce)?; bytes=String::from_utf8(bytes).map_err(|_|io::Error::other("转发回执须UTF-8"))?.replace("@SCID@", &scid).into_bytes(); }
     if bytes.len() > 1024 * 1024 { return Err(io::Error::other("固定输出超过1MiB")); }
     let status_file = spec.join(format!("exit-{output_number:03}.txt"));
     let code: i32 = if status_file.exists() { fs::read_to_string(status_file)?.parse().map_err(|_| io::Error::other("退出码不是整数"))? } else { 0 };
@@ -75,6 +110,7 @@ fn run() -> io::Result<i32> {
         if Instant::now() >= deadline { return Err(io::Error::new(io::ErrorKind::TimedOut, "原OS探针门闩超时")); }
         thread::sleep(Duration::from_millis(5));
     }
+    if category == "media-server" { return media_socket(&folder, &call); }
     fs::write(call.join("stdout.bin"), &bytes)?; io::stdout().write_all(&bytes)?; io::stdout().flush()?;
     fs::write(call.join("stderr.bin"), &error_bytes)?; io::stderr().write_all(&error_bytes)?; io::stderr().flush()?;
     fs::write(call.join("completed"), "1")?; Ok(code)

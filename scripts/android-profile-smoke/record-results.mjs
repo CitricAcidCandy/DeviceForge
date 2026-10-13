@@ -18,12 +18,14 @@ export async function consume(host, directory, report, scenario, published, fron
   const archiveBytes = await download(host, directory, report, archiveArtifact, scenario.id);
   const files = storedEntries(archiveBytes); assert.deepEqual(files.get('profile-index.json'), indexBytes, 'PROFILE-ZIP-INDEX-EXACT-BYTES');
   const captured = scenario.expected.stack_status === 'captured';
-  assert.deepEqual([...files.keys()].sort(), (captured ? ['perf.bin', 'profile-index.json', 'stacks.jsonl'] : ['profile-index.json', 'stacks.jsonl']).sort(), 'PROFILE-ZIP-EXACT-ENTRIES');
+  assert.deepEqual([...files.keys()].sort(), [...(captured ? ['perf.bin', 'profile-index.json', 'stacks.jsonl'] : ['profile-index.json', 'stacks.jsonl']), ...(scenario.frame ? ['frames/000000.png'] : [])].sort(), 'PROFILE-ZIP-EXACT-ENTRIES');
+  if (scenario.frame) assert.deepEqual(files.get('frames/000000.png'), scenario.frame_bytes, 'PROFILE-MEDIA-GOLDEN-SELECTED-FRAME-BYTES');
   if (captured) assert.deepEqual(files.get('perf.bin'), rawPerfBytes, 'PROFILE-RAW-TRACE-ORIGINAL-BYTES');
   const index = JSON.parse(new TextDecoder('utf8', { fatal: true }).decode(indexBytes));
   assert.equal(index.samples.length, 1); const sample = index.samples[0];
+  if (scenario.expected_derived) assert.deepEqual(sample.derived, scenario.expected_derived, 'PROFILE-DERIVED-EXACT-FIRST-SAMPLE');
   assert.equal(sample.index, 0); assert.equal(sample.begin_ns, '10000000000'); assert.equal(sample.end_ns, '10110000000');
-  assert.equal(sample.target_ns, '10055000000'); assert.equal(sample.frame, null);
+  assert.equal(sample.target_ns, '10055000000'); assert.deepEqual(sample.frame, scenario.frame ?? null, 'PROFILE-MEDIA-EXACT-PTS-ASSOCIATION');
   assert.equal(sample.metrics.pid, targetPid); assert.equal(sample.metrics.process_start_ticks, 900);
   assert.equal(sample.metrics.pss_kib, 2048); assert.equal(sample.metrics.rss_kib, 4096);
   assert.equal(sample.metrics.logical_cpus, 2); assert.ok(sample.metrics.frame_window == null);
@@ -44,7 +46,8 @@ export async function consume(host, directory, report, scenario, published, fron
   } }, validated, AbortSignal.timeout(10000));
   assert.deepEqual(opened.data.index, index, 'PROFILE-ACTUAL-FRONTEND-INDEX');
   assert.deepEqual(opened.data.stacks, stacks, 'PROFILE-ACTUAL-FRONTEND-STACKS');
-  assert.equal(opened.data.frames.length, 0); assert.equal(opened.data.perf !== null, captured);
+  assert.equal(opened.data.frames.length, scenario.frame ? 1 : 0);
+  if (scenario.frame) { const frame = opened.data.frames[0]; assert.deepEqual(Buffer.from(await frame.content.arrayBuffer()), scenario.frame_bytes, 'PROFILE-MEDIA-ACTUAL-FRONTEND-FRAME'); } assert.equal(opened.data.perf !== null, captured);
   if (captured) assert.deepEqual(Buffer.from(await opened.data.perf.arrayBuffer()), rawPerfBytes);
   assert.deepEqual(opened.data.timeline.samples[0].stacks.map(value => value.index), captured ? [0, 1] : []);
   assert.deepEqual(opened.data.timeline.unassociated.map(value => value.index), captured ? [2, 3] : []);
