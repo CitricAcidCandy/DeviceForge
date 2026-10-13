@@ -1,5 +1,5 @@
 mod directory;
-mod files;
+pub(crate) mod files;
 mod input;
 mod install_apks;
 #[cfg(test)]
@@ -18,7 +18,8 @@ use std::sync::{Arc, atomic::Ordering};
 pub(crate) const FILE_LIMIT: u64 = 64 * 1024 * 1024;
 
 pub(crate) struct Session {
-    control: Control,
+    pub(crate) control: Control,
+    pub(crate) profile_root: Option<crate::profile::root::Access>,
 }
 
 impl Session {
@@ -28,12 +29,12 @@ impl Session {
         request: &Request,
         input: Input,
     ) -> Execution {
-        let session = Self { control };
+        let mut session = Self { control, profile_root: None };
         let result = session.run(config, request, input).await;
         session.finish(result).await
     }
 
-    async fn run(&self, config: Config, request: &Request, input: Input) -> Result<Output> {
+    async fn run(&mut self, config: Config, request: &Request, input: Input) -> Result<Output> {
         self.control.check()?;
         let input = match input {
             Input::Performance { device_id, package } => {

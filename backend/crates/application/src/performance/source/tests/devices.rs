@@ -103,6 +103,7 @@ impl Executor for DeviceSource {
             api_version: 2,
             operation: "plugin.source.sample".into(),
             fps: false,
+            device_observation: false,
             device_capability: Some(PerformanceDeviceCapability {
                 id: "performance.sample".into(),
                 version: 1,

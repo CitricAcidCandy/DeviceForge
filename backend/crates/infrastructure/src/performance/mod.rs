@@ -57,6 +57,7 @@ impl PerformanceProbe for AndroidPerformance {
         apk_domain::performance::ProbeCapabilities {
             source: "android_adb".into(),
             fps: false,
+            device_observation: false,
         }
     }
     async fn sample(
@@ -127,6 +128,7 @@ impl PerformanceProbe for AndroidPerformance {
             pss_kib,
             rss_kib,
             frame_window: None,
+            device_observation: None,
         };
         raw.validate()?;
         Ok(raw)

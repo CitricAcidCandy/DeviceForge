@@ -28,6 +28,7 @@ fn manifest(mode: &str, fps: bool) -> Manifest {
             api_version: 1,
             sample_operation: "sample".into(),
             fps,
+            device_observation: false,
             device_capability: None,
         }),
         operations: vec![Contribution {

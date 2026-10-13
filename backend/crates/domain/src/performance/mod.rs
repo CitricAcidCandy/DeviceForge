@@ -2,7 +2,12 @@ use crate::{Error, Result, identifier};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use tokio_util::sync::CancellationToken;
+mod observation;
 mod source;
+pub use observation::{
+    BatteryElectricalObservation, BatteryStatus, BatterySupplyState, CurrentPolarity,
+    DeviceObservation, DeviceTemperature, ObservationAccess, ObservationScope, TemperatureKind,
+};
 pub use source::{PerformanceDeviceCapability, PerformanceSourceDefinition, PerformanceSourceRef};
 
 #[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
@@ -137,6 +142,8 @@ impl FrameWindow {
 pub struct ProbeCapabilities {
     pub source: String,
     pub fps: bool,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub device_observation: bool,
 }
 /// 累计 CPU 计数只在同进程、同启动时间及同核数的相邻样本间比较。
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -152,6 +159,8 @@ pub struct RawPerformance {
     pub rss_kib: Option<u64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub frame_window: Option<FrameWindow>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub device_observation: Option<DeviceObservation>,
 }
 impl RawPerformance {
     pub fn validate(&self) -> Result<()> {
@@ -164,6 +173,11 @@ impl RawPerformance {
         }
         if let Some(window) = &self.frame_window {
             window.validate()?;
+        }
+        if let Some(observation) = &self.device_observation {
+            observation
+                .validate(self.captured_at)
+                .map_err(|message| Error::Dependency(message.into()))?;
         }
         Ok(())
     }
@@ -182,6 +196,10 @@ pub struct PerformanceReading {
     pub rss_kib: Option<u64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub frame_window: Option<FrameWindow>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub device_observation: Option<DeviceObservation>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub battery_net_power_mw: Option<f64>,
 }
 impl PerformanceReading {
     pub fn from_raw(
@@ -217,6 +235,12 @@ impl PerformanceReading {
             pss_kib: current.pss_kib,
             rss_kib: current.rss_kib,
             frame_window: current.frame_window.clone(),
+            device_observation: current.device_observation.clone(),
+            battery_net_power_mw: current
+                .device_observation
+                .as_ref()
+                .and_then(|observation| observation.battery.as_ref())
+                .and_then(BatteryElectricalObservation::net_power_mw),
         }
     }
 }
@@ -260,6 +284,7 @@ pub trait PerformanceProbe: Send + Sync {
         ProbeCapabilities {
             source: "custom".into(),
             fps: false,
+            device_observation: false,
         }
     }
     async fn sample(

@@ -4,7 +4,7 @@
 
 `capture_private` 为 APKS 指定部署 Java 与固定 argv，将 cwd 和 TEMP/TMP/TMPDIR 设为本次私有目录；复用 `capture_scoped_command` 的 Restricted 环境、两流各 1 MiB、直接进程租约、原业务截止点和固定清理点。普通 ADB 的 `capture_scoped` 行为保持原合同，私有入口不构造平台参数。
 
-性能五命令直接复用 `capture_scoped`，每笔保持Restricted、两流各1MiB、相同原业务截止点与真实直接PID退出确认，不建立另一套进程控制或阶段计时。解析由Session的既有单槽worker处理，工具控制层不解析性能文本或声明产物。
+性能基础命令及可选展示帧读取直接复用 `capture_scoped`，每笔保持Restricted、两流各1MiB、相同原业务截止点与真实直接PID退出确认，不建立另一套进程控制或阶段计时。解析由Session的既有单槽worker处理，工具控制层不解析性能文本或声明产物。
 
 `file.rs`用独占任务持实际截图文件和目录租约，经公开capture_to_file_with_lease完成捕获，再flush、into_std等待内部I/O排空并关闭真实句柄。等待被丢弃只通知取消和标记未确认，不abort文件任务或自动删除工作目录。
 

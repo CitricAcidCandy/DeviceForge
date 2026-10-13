@@ -36,6 +36,7 @@ pub(super) fn definition(
         api_version: access.api_version,
         operation: format!("plugin.{}.{}", manifest.id, access.sample_operation),
         fps: access.fps,
+        device_observation: access.device_observation,
         device_capability: access.device_capability.as_ref().map(|binding| {
             PerformanceDeviceCapability {
                 id: binding.id.clone(),

@@ -1,6 +1,7 @@
 //! 设备标识与业务参数的纯资格规则，不读取配置或启动进程。
 pub(crate) mod apks;
 pub(crate) mod artifacts;
+pub(crate) mod environment;
 mod input;
 mod output;
 pub(crate) mod performance;

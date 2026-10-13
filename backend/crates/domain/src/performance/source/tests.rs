@@ -88,6 +88,7 @@ fn device_definition() -> (
         api_version: 2,
         operation: operation.id.clone(),
         fps: false,
+        device_observation: false,
         device_capability: Some(super::PerformanceDeviceCapability {
             id: "sample".into(),
             version: 1,

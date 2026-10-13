@@ -51,6 +51,7 @@ impl Executor for Source {
             api_version: 1,
             operation: "plugin.source.sample".into(),
             fps: false,
+            device_observation: false,
             device_capability: None,
         })
     }

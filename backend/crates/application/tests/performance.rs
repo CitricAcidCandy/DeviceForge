@@ -36,6 +36,7 @@ impl PerformanceProbe for Probe {
             pss_kib: 1024,
             rss_kib: Some(2048),
             frame_window: None,
+            device_observation: None,
         })
     }
 }
@@ -235,6 +236,7 @@ impl PerformanceProbe for LateProbe {
             pss_kib: 10,
             rss_kib: None,
             frame_window: None,
+            device_observation: None,
         })
     }
 }

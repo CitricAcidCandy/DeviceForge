@@ -4,6 +4,7 @@ use std::{io::Write, time::Duration};
 mod shell_words;
 #[path = "../../performance/fixtures/probe.rs"]
 mod performance_probe;
+mod harmony_input_probe;
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     if args == ["devices", "-l"] {
@@ -19,6 +20,7 @@ fn main() {
     assert!(args[0] == "-s" || args[0] == "-t");
     let mode = &args[1];
     if mode.starts_with("perf.") { performance_probe::run(&args); return; }
+    if harmony_input_probe::run(&args) { return; }
     if mode == "sleep" {
         std::thread::sleep(Duration::from_secs(10));
     }

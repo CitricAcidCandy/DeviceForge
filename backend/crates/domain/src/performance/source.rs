@@ -15,6 +15,7 @@ pub struct PerformanceSourceDefinition {
     pub api_version: u32,
     pub operation: String,
     pub fps: bool,
+    pub device_observation: bool,
     pub device_capability: Option<PerformanceDeviceCapability>,
 }
 

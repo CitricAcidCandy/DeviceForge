@@ -1,4 +1,4 @@
-//! 五命令真实进程、独立内核文本与原帧；不复用生产解析器，不代表真机。
+//! 基础五命令与展示、环境接口真实进程；不复用生产解析器，不代表真机。
 use crate::support::{
     self, CANCELLED, Fixture, PACKAGE, SERIAL, TOTAL_TIMEOUT, failure, performance, success,
 };
@@ -19,7 +19,8 @@ fn now() -> u64 {
 }
 
 #[test]
-fn sample_has_exact_five_argv_raw_counters_zero_artifacts_and_restricted_environment() {
+fn sample_has_exact_base_and_optional_argv_raw_counters_zero_artifacts_and_restricted_environment()
+{
     let mut fixture = Fixture::new("performance-normal");
     // 不存在的scratch_root与省略Java/JAR，证明纯采样不借安装资源或私有文件。
     let scratch = fixture.root.join("must-not-create-scratch");
@@ -27,7 +28,7 @@ fn sample_has_exact_five_argv_raw_counters_zero_artifacts_and_restricted_environ
     fixture.save_config();
     performance::plan(&fixture, &performance::outputs());
     let before = now();
-    let reply = performance::complete(&fixture, performance::request(&fixture), 5);
+    let reply = performance::complete(&fixture, performance::request(&fixture), 9);
     let result = success(&reply);
     let captured_at = result["captured_at"].as_u64().unwrap();
     assert!((before..=now()).contains(&captured_at));
@@ -35,12 +36,23 @@ fn sample_has_exact_five_argv_raw_counters_zero_artifacts_and_restricted_environ
         "system_ticks":137,"logical_cpus":2,"pss_kib":42,"rss_kib":84});
     expected["captured_at"] = json!(captured_at);
     assert_eq!(result, &expected);
-    let commands: [&[&str]; 5] = [
+    let commands: [&[&str]; 9] = [
         &["-s", SERIAL, "shell", "-T", "pidof", "-s", PACKAGE],
         &["-s", SERIAL, "shell", "-T", "cat", "/proc/123/stat"],
         &[
             "-s", SERIAL, "shell", "-T", "dumpsys", "meminfo", "-s", "123",
         ],
+        &["-s", SERIAL, "shell", "-T", "cat", "/proc/123/status"],
+        &[
+            "-s",
+            SERIAL,
+            "shell",
+            "-T",
+            "cat",
+            "/sys/class/power_supply/battery/uevent",
+        ],
+        &["-s", SERIAL, "shell", "-T", "dumpsys", "battery"],
+        &["-s", SERIAL, "shell", "-T", "dumpsys", "thermalservice"],
         &["-s", SERIAL, "shell", "-T", "cat", "/proc/123/stat"],
         &["-s", SERIAL, "shell", "-T", "cat", "/proc/stat"],
     ];
@@ -74,7 +86,7 @@ fn sample_preserves_optional_rss_and_lossy_comm_without_inventing_fps() {
     let name = outputs[1].iter().position(|byte| *byte == b'a').unwrap();
     outputs[1][name] = 0xff;
     performance::plan(&fixture, &outputs);
-    let reply = performance::complete(&fixture, performance::request(&fixture), 5);
+    let reply = performance::complete(&fixture, performance::request(&fixture), 9);
     assert_eq!(success(&reply)["rss_kib"], Value::Null);
     assert!(success(&reply).get("frame_window").is_none());
 }
@@ -86,7 +98,7 @@ fn sample_accepts_absent_artifact_context_and_legacy_underscore_package() {
     let mut request = performance::request(&fixture);
     request.as_object_mut().unwrap().remove("artifacts");
     request["input"]["input"]["package"] = json!("_app._worker");
-    let reply = performance::complete(&fixture, request, 5);
+    let reply = performance::complete(&fixture, request, 9);
     success(&reply);
     assert_eq!(fixture.argv(1).last().unwrap(), "_app._worker");
 }
@@ -205,17 +217,17 @@ fn sample_identity_and_counter_errors_stop_without_partial_sample_or_next_call()
             "工具依赖失败：内存汇总互相矛盾",
         ),
         (
-            4,
+            8,
             performance::stat(123, 22, 901),
             "工具依赖失败：采样期间应用进程已重启",
         ),
         (
-            5,
+            9,
             b"cpu 1 2 3 4\ncpu0 0\ncpu0 0\n".to_vec(),
             "工具依赖失败：CPU核编号重复或数量超限",
         ),
         (
-            5,
+            9,
             b"cpu 18446744073709551615 1 0 0\ncpu0 0\n".to_vec(),
             "工具依赖失败：系统CPU计数溢出",
         ),
@@ -314,13 +326,13 @@ fn sample_exact_one_mib_per_stream_is_accepted_without_a_combined_limit() {
     success(&performance::complete(
         &fixture,
         performance::request(&fixture),
-        5,
+        9,
     ));
 }
 
 #[test]
-fn sample_cancel_at_each_of_five_tools_confirms_direct_pid_and_no_late_result() {
-    for stage in 1..=5 {
+fn sample_cancel_at_each_base_or_optional_tool_confirms_direct_pid_and_no_late_result() {
+    for stage in 1..=9 {
         let fixture = Fixture::new("performance-cancel-stage");
         performance::plan(&fixture, &performance::outputs());
         let mut running = fixture.begin_request(performance::request(&fixture));

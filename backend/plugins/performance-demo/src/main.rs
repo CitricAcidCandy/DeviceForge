@@ -44,6 +44,8 @@ fn run(request: &Request) -> Result<serde_json::Value, String> {
             duration_ms: 1000,
             source: "synthetic_demo".into(),
         }),
+
+        device_observation: None,
     };
     let mut value = serde_json::to_value(sample).map_err(|_| "示例样本序列化失败".to_owned())?;
     match mode.as_str() {

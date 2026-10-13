@@ -1,5 +1,6 @@
 import { HostError } from '../../plugin-sdk/index.ts';
 import { isRecord } from '../../shared/api/validation.ts';
+import { isReadingDeviceObservation } from './device-observation.ts';
 import type { PerformanceAction, PerformanceCapabilities, PerformancePage, PerformanceSession, PerformanceSessions, PerformanceStart } from './types.ts';
 
 export const performanceOperation = (action: PerformanceAction) => `android.performance.${action}`;
@@ -36,13 +37,15 @@ export function isPerformanceSession(value: unknown): value is PerformanceSessio
     && integer(value.started_at) && integer(value.updated_at) && value.updated_at >= value.started_at
     && (value.error === undefined || value.error === null || typeof value.error === 'string') && validSource(value.source, value.request.target.device_id);
 }
-function validReading(value: unknown): boolean {
+function validReading(value: unknown, deviceId: string): boolean {
   if (!isRecord(value) || !integer(value.sequence, 1, 3600) || !integer(value.captured_at)
     || !integer(value.pid, 1, 4294967295) || !integer(value.logical_cpus, 1, 4096) || !integer(value.pss_kib)
     || !numberOrMissing(value.cpu_share_percent) || !numberOrMissing(value.cpu_core_percent)
     || !(value.rss_kib === undefined || value.rss_kib === null || integer(value.rss_kib)) || !numberOrMissing(value.fps)) return false;
   if (value.cpu_share_percent !== undefined && value.cpu_share_percent !== null
     && typeof value.cpu_share_percent === 'number' && value.cpu_share_percent > 100) return false;
+  if (typeof value.fps === 'number' && value.fps > 1000) return false;
+  if (!isReadingDeviceObservation(value.device_observation, value.battery_net_power_mw, deviceId, value.captured_at)) return false;
   const window = value.frame_window;
   return window === undefined || window === null || isRecord(window) && integer(window.duration_ms, 1, 60000)
     && integer(window.frames, 0, window.duration_ms) && text(window.source) && window.source.length <= 80 && /^[a-zA-Z0-9._-]+$/.test(window.source);
@@ -52,7 +55,7 @@ export function isPerformancePage(value: unknown): value is PerformancePage {
     || value.readings.length > 100 || !integer(value.next_after)) return false;
   let previous = 0;
   for (const reading of value.readings) {
-    if (!validReading(reading) || !isRecord(reading) || !integer(reading.sequence)
+    if (!validReading(reading, value.session.request.target.device_id) || !isRecord(reading) || !integer(reading.sequence)
       || reading.sequence <= previous || reading.sequence > value.session.samples) return false;
     previous = reading.sequence;
   }
@@ -71,13 +74,14 @@ export function isPerformanceSessions(value: unknown): value is PerformanceSessi
 }
 export function decodePerformanceCapabilities(value: unknown, logId: string | null): PerformanceCapabilities {
   if (!isRecord(value) || !Array.isArray(value.metrics) || !value.metrics.every(text)
-    || typeof value.fps !== 'boolean' || !text(value.source) || value.scope !== 'main_process'
+    || typeof value.fps !== 'boolean' || !(value.device_observation === undefined || typeof value.device_observation === 'boolean') || !text(value.source) || value.scope !== 'main_process'
     || value.max_samples !== 3600 || value.sample_timeout_ms !== 10000) throw invalidResult(logId);
   const metrics: unknown[] = value.metrics;
   const names = metrics.filter(text);
-  const expected = ['cpu_share_percent', 'cpu_core_percent', 'pss_kib', 'rss_kib', ...(value.fps ? ['fps'] : [])];
+  const deviceObservation = value.device_observation === true;
+  const expected = ['cpu_share_percent', 'cpu_core_percent', 'pss_kib', 'rss_kib', ...(value.fps ? ['fps'] : []), ...(deviceObservation ? ['device_observation', 'battery_net_power_mw'] : [])];
   if (names.length !== expected.length || !expected.every((metric) => names.includes(metric))) throw invalidResult(logId);
-  return { metrics: names, fps: value.fps, sourceLabel: value.source, scope: 'main_process', maxSamples: value.max_samples, sampleTimeoutMs: value.sample_timeout_ms };
+  return { metrics: names, fps: value.fps, deviceObservation, sourceLabel: value.source, scope: 'main_process', maxSamples: value.max_samples, sampleTimeoutMs: value.sample_timeout_ms };
 }
 export function invalidResult(logId: string | null): HostError {
   return new HostError('protocol', 'invalid_performance_result', '性能操作返回了不兼容的业务结果', logId);

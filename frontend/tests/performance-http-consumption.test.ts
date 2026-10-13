@@ -4,6 +4,7 @@ import { createHttpPerformance, PerformanceJobFailure, PerformanceWaitFailure } 
 import { ApiError, createApiClient } from '../src/shared/api/index.ts';
 import { HostError } from '../src/plugin-sdk/index.ts';
 import { deferred, failure, requestUrl, signal, success } from './fixtures.ts';
+import { deviceObservation, observationReading } from './performance-observation-fixtures.ts';
 
 const sessionId = '11111111-1111-4111-8111-111111111111';
 const startInput = { target: { device_id: 'emulator-5554', package: 'com.example.app' }, interval_ms: 1000, duration_secs: 60 };
@@ -82,4 +83,31 @@ test('HTTP性能等待取消保留已提交任务，销毁不发cancel或stop且
   assert.equal(performance.snapshot().session, null);
   assert.deepEqual(methods, ['POST /api/v2/jobs', 'GET /api/v2/jobs/performance-job']);
   await assert.rejects(performance.start(startInput, signal()), (error: unknown) => error instanceof HostError && error.kind === 'cancelled');
+});
+
+test('HTTP样本消费保留设备观测、整机净电池功率与历史null，非法观测不推进快照', async () => {
+  let invalid = false;
+  const current = { ...session, samples: 2 };
+  const { device_observation, battery_net_power_mw, ...legacyReading } = observationReading();
+  assert.ok(device_observation); assert.equal(battery_net_power_mw, -8000);
+  const readings = [observationReading(), { ...legacyReading, sequence: 2, device_observation: null, battery_net_power_mw: null }];
+  const performance = createHttpPerformance(createApiClient({ baseUrl: 'http://localhost:7031', transport: async (_request, init) => {
+    const input: unknown = JSON.parse(String(init?.body));
+    assert.ok(typeof input === 'object' && input !== null && 'operation' in input && typeof input.operation === 'string');
+    const result = input.operation.endsWith('.samples') ? { session: current,
+      readings: invalid ? [{ ...observationReading(), device_observation: { ...deviceObservation(), api_version: 2 } }] : readings, next_after: invalid ? 1 : 2 } : current;
+    return success(task(input.operation, result), 'device-reading-log');
+  } }));
+  try {
+    await performance.select(sessionId, signal());
+    const outcome = await performance.samples(sessionId, { after: 0, limit: 2 }, signal());
+    assert.equal(outcome.logId, 'device-reading-log'); assert.deepEqual(outcome.data.readings, readings);
+    assert.equal(performance.snapshot().readings[0]?.device_observation?.battery?.current_ua, -2000000);
+    assert.equal(performance.snapshot().readings[0]?.battery_net_power_mw, -8000);
+    assert.equal(performance.snapshot().readings[1]?.device_observation, null);
+    invalid = true;
+    await assert.rejects(performance.samples(sessionId, { after: 0, limit: 2 }, signal()), (error: unknown) => error instanceof HostError
+      && error.code === 'invalid_performance_result' && error.logId === 'device-reading-log');
+    assert.equal(performance.snapshot().nextAfter, 2); assert.deepEqual(performance.snapshot().readings, readings);
+  } finally { performance.dispose(); }
 });

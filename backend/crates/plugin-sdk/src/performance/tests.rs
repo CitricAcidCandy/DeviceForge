@@ -137,6 +137,7 @@ fn programmatic_declaration_uses_the_same_version_binding_rules() {
         api_version: 1,
         sample_operation: "sample".into(),
         fps: false,
+        device_observation: false,
         device_capability: None,
     };
     assert!(access.validate().is_ok());

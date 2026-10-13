@@ -7,6 +7,12 @@ mod install_apks;
 #[path = "cases/performance.rs"]
 mod performance;
 
+#[path = "cases/performance_fps.rs"]
+mod performance_fps;
+
+#[path = "cases/performance_environment.rs"]
+mod performance_environment;
+
 #[path = "cases/artifact_lifetime.rs"]
 mod artifact_lifetime;
 #[path = "cases/artifact_validation.rs"]

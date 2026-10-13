@@ -5,7 +5,7 @@ use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 
 impl Session {
-    pub(super) async fn work<T: Send + 'static>(
+    pub(crate) async fn work<T: Send + 'static>(
         &self,
         work: impl FnOnce(&(dyn Fn() -> Result<()> + Sync)) -> Result<T> + Send + 'static,
     ) -> Result<T> {

@@ -1,5 +1,10 @@
 //! 性能声明的纯版本与绑定资格；协议、提供者和贡献关联由宿主装载层校验。
 use serde::{Deserialize, Serialize};
+mod observation;
+pub use observation::{
+    BatteryElectricalObservation, BatteryStatus, BatterySupplyState, CurrentPolarity,
+    DeviceObservation, DeviceTemperature, ObservationAccess, ObservationScope, TemperatureKind,
+};
 
 pub const LEGACY_PERFORMANCE_API_VERSION: u32 = 1;
 pub const DEVICE_PERFORMANCE_API_VERSION: u32 = 2;
@@ -36,6 +41,8 @@ pub struct PerformanceAccess {
     pub api_version: u32,
     pub sample_operation: String,
     pub fps: bool,
+    #[serde(default, skip_serializing_if = "false_observation")]
+    pub device_observation: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub device_capability: Option<PerformanceDeviceCapability>,
 }
@@ -62,6 +69,8 @@ struct Declaration {
     #[serde(default)]
     fps: bool,
     #[serde(default)]
+    device_observation: bool,
+    #[serde(default)]
     device_capability: Option<PerformanceDeviceCapability>,
 }
 
@@ -73,6 +82,7 @@ impl TryFrom<Declaration> for PerformanceAccess {
             api_version: value.api_version,
             sample_operation: value.sample_operation,
             fps: value.fps,
+            device_observation: value.device_observation,
             device_capability: value.device_capability,
         };
         access.validate()?;
@@ -90,3 +100,7 @@ fn legacy_version(value: &u32) -> bool {
 
 #[cfg(test)]
 mod tests;
+
+fn false_observation(value: &bool) -> bool {
+    !*value
+}

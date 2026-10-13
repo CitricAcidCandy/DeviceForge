@@ -125,6 +125,7 @@ mod tests {
                 api_version: 1,
                 operation: "plugin.test.sample".into(),
                 fps: false,
+                device_observation: false,
                 device_capability: None,
             })
         }

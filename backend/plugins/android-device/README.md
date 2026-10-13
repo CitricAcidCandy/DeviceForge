@@ -2,6 +2,9 @@
 
 独立 `android-device` 通过公开设备 API3、协议4 和工具执行库接入宿主；生产不依赖宿主四层模块。首批部署目标为 Windows x64，源码及元数据落盘不代表编译、真实ADB或真机验收已通过。
 
+
+电气与温度在FPS后、最终应用身份核对前，固定读取battery/uevent、dumpsys battery和dumpsys thermalservice。uevent必须同源TYPE=Battery；保留µV及signed µA，缺测/矛盾电流极性unknown，不合并跨来源电压/电流。备用dumpsys电压mV乘1000，不使用Max charging current；UPDATES STOPPED缺测。HAL只读Ready=true且完整当前区段，类型0..3决定CPU/GPU/电池/机身；缓存、BCL与非有限记录排除。公开观测最多32温度、固定来源和宿主读取时点，原device_id完整保留；无数据省略。宿主派生正充电、负放电的整机净电池功率，详细规则与证据见[电气温度实施记录](../../docs/Android游戏电气温度采集实施.md)。
+
 ## 名字与部署
 
 十二贡献为 `discover`、`connect`、`disconnect`、`packages`、`app.start`、`app.stop`、`app.uninstall`、`input`、`app.install`、`app.install_apks`、`screenshot`、`performance.sample`。贡献和真实 Request.operation 仅接受短名；对外完整ID由宿主映射为 `plugin.android-device.<短名>`，误发完整名被拒绝。发现不算能力，其余十一项能力版本均为1。两个清单逐字节一致；便携包只包含清单、原生二进制和说明，配置不随公共包分发。
@@ -46,25 +49,19 @@ Java 固定 argv 为 `-Xmx256m -jar <JAR> install-apks --apks=<私有input.apks>
 
 ## 单次性能采样
 
-`performance.sample` 严格接收 `{device_id,input:{package}}`，不接受工具路径、自由参数、来源或采样间隔。性能目标保持旧规则：最多200字节、至少两个点分ASCII段，每段首字符为字母或下划线，其余为字母、数字或下划线；这项规则独立于普通应用动作的包名校验。
+`performance.sample` 严格接收 `{device_id,input:{package}}`，不接受工具路径、自由参数、来源或采样间隔。性能目标保持旧规则：最多200字节、至少两个点分ASCII段，每段首字符为字母或下划线，其余为字母、数字或下划线；这项规则独立于普通应用动作。
 
-清单性能声明为API2，协议4、设备API3，精确引用本插件 `performance.sample@1` 的device/read能力，预算10000毫秒，`fps=false`。插件其它动作的产物声明继续有效，采样的有效权限必须为空：`inputs=[]`、`output_directory=null`，也接受缺省ArtifactContext；非空输入或输出授权在读取部署配置前拒绝。采样不创建私有目录或文件，不返回新产物，不依赖Java或bundletool。
+清单性能声明为API2，协议4、设备API3，引用 `performance.sample@1` 的device/read能力，预算10000毫秒，`fps=true` 表示支持合格游戏层的可选展示窗口。采样要求 `inputs=[]`、`output_directory=null`，也接受缺省ArtifactContext；非空授权在读取部署配置前拒绝。采样不创建目录或文件、不返回产物、不依赖Java或bundletool。
 
-同一次调用依序执行五笔固定ADB命令，serial保留原文，package只来自严格业务字段：
+基础流程为 pidof →第一次 /proc/pid/stat →dumpsys meminfo →可选游戏帧→第二次 /proc/pid/stat 身份复核→/proc/stat。可选流程用 SF --list 选精确包名的唯一 SurfaceView/BLAST 层，再用两个 --latency 快照和二次同层确认取得实际展示时间；不执行全局 --latency-clear。无层路径共六笔，有效窗口共九笔；80毫秒观察等待和全部工具/解析沿同一原绝对期限，不能续期。最后starttime变化使整次失败。
 
-1. `-s serial shell -T pidof -s package`
-2. `-s serial shell -T cat /proc/pid/stat`
-3. `-s serial shell -T dumpsys meminfo -s pid`
-4. `-s serial shell -T cat /proc/pid/stat`
-5. `-s serial shell -T cat /proc/stat`
+基础计数仍要求唯一非零u32 PID、stat原始CPU计数/starttime、匹配PID的TOTAL PSS及可选RSS、无重复且1–4096逻辑核并检查溢出。每笔客户端复用Restricted环境、两流各1MiB及真实退出确认，继续 lossy 合并及八类固定失败诊断，不回传原输出。
 
-每笔直接客户端都复用Restricted环境、两流各1MiB、原截止点与真实退出确认。保留旧探针的UTF-8 lossy双流合并，以及 `permission denied`、`permission denial`、`no such file`、`error:`、`exception`、`not found`、`device offline`、`unauthorized` 八个失败子串；不回传原诊断。解析要求唯一非零u32 PID、stat的原始CPU计数与starttime、匹配PID的TOTAL PSS及可选RSS、无重复且1–4096个逻辑核；计数累计检查溢出。第四笔starttime变化时立即失败，不执行第五笔或返回部分样本。
-
-成功只返回既有原始样本：采完后的毫秒时间戳、PID、进程start_ticks/CPU ticks、系统CPU ticks、逻辑核数、PSS与可选RSS，不填FrameWindow或FPS。CPU百分比差分、会话调度和历史仍由宿主计算与保存，直接sample调用不建立会话。纯解析占既有单槽受限worker，共用Session排空及清理收口，不新增进程框架或逐阶段预算。
+游戏窗口只数第二快照中保留锚后的新且不同的实际展示；0/INT64_MAX、重复、时间回退、丢锚、层歧义/切换、未知格式或无新展示不造零帧。跨度最多60秒，source带层摘要，保持既有 FrameWindow 合同；宿主计算FPS、CPU差分与历史。固定调试接口依赖失败允许FPS缺测，取消、到期、输出/结构超限和未确认清理仍失败。细节与验证见 [FPS实施记录](../../docs/Android游戏FPS采集实施.md)。
 
 ## 期限和清理资格
 
-发现与七项普通能力总30000毫秒，app.uninstall、app.install 与 app.install_apks 总120000毫秒，performance.sample总10000毫秒；排队、握手、配置、准备副本、归档校验、工具、输出复制及结果处理共用宿主原D及协议4本地D_L。connect工具短点为min(D_L,启动前时间+5000ms)，其余直接同D_L，多笔input及性能五命令不刷新期限。短点先到且总期限未到时，接受既有宿主字符串失败映射dependency_failed。每笔工具、复制分块及成功交付前复核上下文。
+发现与七项普通能力总30000毫秒，app.uninstall、app.install 与 app.install_apks 总120000毫秒，performance.sample总10000毫秒；排队、握手、配置、准备副本、归档校验、工具、输出复制及结果处理共用宿主原D及协议4本地D_L。connect工具短点为min(D_L,启动前时间+5000ms)，其余直接同D_L，多笔input及性能采样全部命令不刷新期限。短点先到且总期限未到时，接受既有宿主字符串失败映射dependency_failed。每笔工具、复制分块及成功交付前复核上下文。
 
 直接客户端进程由公开capture_with_lease/capture_to_file_with_lease管理，真实PID退出才释放工具租约；未确认清理为粘性cleanup=failed。三项产物动作和性能采样每调用最多一个活动阻塞闭包，闭包持许可/lease至真实返回；APKS 公共校验、性能逐行解析沿原截止点和只读取消回调，采样不建立目录。截图文件由独占任务拥有，捕获后flush和into_std等待内部文件I/O排空并关闭真实句柄，再释放文件lease。取消或丢弃等待只通知取消，不提前删除仍在使用的目录。
 
@@ -78,4 +75,4 @@ APKS 的确认范围仅为本次直接 Java 进程、文件与目录。bundletoo
 
 `app.install_apks@1`的嵌套输入新增可选modules，缺省保持原安装argv及结果；不接提取instant或请求自选设备规格。模块规则归公共核心apks模块，真实设备匹配仍归bundletool。本批新增4项所属回归尚未运行，详见[APKS高级匹配插件实施裁定](../../docs/APKS高级匹配插件实施裁定.md)。
 
-本批性能声明、采样源码、纯解析和独立协议/假ADB/PID测试已实施，编写者未运行Cargo、格式化、构建或服务；当前十二贡献版本尚无本批运行通过证据。前批APKS十一贡献版本已由主代理单独冻结元数据并完成测试与构建，详见 [性能采样迁出裁定](../../docs/性能采样迁出最小实施裁定.md)，该证据不转计性能改动。宿主装配、统一门禁与debug/release/npx由主代理串行验证。真实Java/bundletool/ADB、默认共享server、真机设备匹配、CPU/PSS/RSS数值及暂停/停止/卸载、派生树、其它系统、真实FPS和常驻采集仍需独立验收。
+本轮 FPS 接线已通过包级库89/89、完整协议133/133、定点格式和全目标Clippy，实际日志见 [FPS实施记录](../../docs/Android游戏FPS采集实施.md)。该证据包括独立假ADB与真实直接PID，不计真机或服务通过。宿主装配、HTTP/MCP、统一门禁与Release/npx继续由主代理协调；真实Java/bundletool/ADB、共享server、真机匹配、CPU/PSS/RSS和游戏FPS准确性、派生树、其它系统与常驻采集仍独立验收。电气与温度私有采集已按公开合同接线，当前源码冻结待主代理定点门禁；它们属于设备观测，不能据此宣称单游戏功耗。调用栈本批未接，性能专项延后。

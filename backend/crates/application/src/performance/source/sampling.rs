@@ -51,6 +51,10 @@ impl SourceBinding {
                 value,
                 self.registered.executor.result_format(),
                 self.capabilities.fps,
+                self.capabilities.device_observation,
+                self.input["device_id"]
+                    .as_str()
+                    .ok_or_else(|| Error::Dependency("性能采样缺少固定设备标识".into()))?,
             )?;
             crate::operation_budget::check(Some(deadline), Some(&cancel))?;
             Ok(raw)
@@ -71,7 +75,13 @@ impl SourceBinding {
     }
 }
 
-fn decode(value: Value, format: ExecutorResultFormat, fps: bool) -> Result<RawPerformance> {
+fn decode(
+    value: Value,
+    format: ExecutorResultFormat,
+    fps: bool,
+    device_observation: bool,
+    device_id: &str,
+) -> Result<RawPerformance> {
     let sample = match format {
         ExecutorResultFormat::Json => value,
         ExecutorResultFormat::PublishedArtifacts => {
@@ -88,6 +98,13 @@ fn decode(value: Value, format: ExecutorResultFormat, fps: bool) -> Result<RawPe
     raw.validate()?;
     if raw.frame_window.is_some() && !fps {
         return Err(Error::Dependency("插件未声明 FPS 能力却返回帧数据".into()));
+    }
+    if let Some(observation) = &raw.device_observation
+        && (!device_observation || observation.device_id != device_id)
+    {
+        return Err(Error::Dependency(
+            "设备观测未声明或不属于固定采样设备".into(),
+        ));
     }
     let time = apk_domain::now();
     if raw.captured_at < time.saturating_sub(60000) || raw.captured_at > time.saturating_add(5000) {
@@ -106,21 +123,95 @@ mod tests {
     #[test]
     fn decoding_uses_declared_format_and_never_guesses_a_wrapper() {
         let value = json!({"result":raw(),"artifacts":[]});
-        assert!(decode(value.clone(), ExecutorResultFormat::Json, false).is_err());
-        assert!(decode(value, ExecutorResultFormat::PublishedArtifacts, false).is_ok());
-        assert!(decode(raw(), ExecutorResultFormat::Json, false).is_ok());
+        assert!(
+            decode(
+                value.clone(),
+                ExecutorResultFormat::Json,
+                false,
+                false,
+                "device"
+            )
+            .is_err()
+        );
+        assert!(
+            decode(
+                value,
+                ExecutorResultFormat::PublishedArtifacts,
+                false,
+                false,
+                "device"
+            )
+            .is_ok()
+        );
+        assert!(decode(raw(), ExecutorResultFormat::Json, false, false, "device").is_ok());
     }
     #[test]
     fn invalid_counts_wall_clock_and_undeclared_frames_are_rejected() {
         let mut value = raw();
         value["logical_cpus"] = json!(0);
-        assert!(decode(value, ExecutorResultFormat::Json, false).is_err());
+        assert!(decode(value, ExecutorResultFormat::Json, false, false, "device").is_err());
         let mut value = raw();
         value["captured_at"] = json!(apk_domain::now().saturating_add(60000));
-        assert!(decode(value, ExecutorResultFormat::Json, false).is_err());
+        assert!(decode(value, ExecutorResultFormat::Json, false, false, "device").is_err());
         let mut value = raw();
         value["frame_window"] = json!({"frames":30,"duration_ms":1000,"source":"fixture"});
-        assert!(decode(value.clone(), ExecutorResultFormat::Json, false).is_err());
-        assert!(decode(value, ExecutorResultFormat::Json, true).is_ok());
+        assert!(
+            decode(
+                value.clone(),
+                ExecutorResultFormat::Json,
+                false,
+                false,
+                "device"
+            )
+            .is_err()
+        );
+        assert!(decode(value, ExecutorResultFormat::Json, true, false, "device").is_ok());
+    }
+    #[test]
+    fn observations_require_declaration_identity_version_and_current_time() {
+        let mut value = raw();
+        let time = value["captured_at"].as_u64().unwrap();
+        value["device_observation"] = json!({"api_version":1,"scope":"device","device_id":"device",
+            "battery":{"observed_at":time,"source":"linux_power_supply.battery","access":"adb_shell","voltage_uv":4000000,
+                "current_ua":-500000,"current_polarity":"positive_charging","status":"discharging","supply_state":"battery"},"temperatures":[]});
+        assert!(
+            decode(
+                value.clone(),
+                ExecutorResultFormat::Json,
+                false,
+                true,
+                "device"
+            )
+            .is_ok()
+        );
+        assert!(
+            decode(
+                value.clone(),
+                ExecutorResultFormat::Json,
+                false,
+                false,
+                "device"
+            )
+            .is_err()
+        );
+        assert!(
+            decode(
+                value.clone(),
+                ExecutorResultFormat::Json,
+                false,
+                true,
+                "other"
+            )
+            .is_err()
+        );
+        let mut bad = value.clone();
+        bad["device_observation"]["api_version"] = json!(2);
+        assert!(decode(bad, ExecutorResultFormat::Json, false, true, "device").is_err());
+        let mut bad = value.clone();
+        bad["device_observation"]["battery"]["observed_at"] = json!(time + 1);
+        assert!(decode(bad, ExecutorResultFormat::Json, false, true, "device").is_err());
+        let mut bad = value;
+        bad["device_observation"]["battery"]["current_ua"] = json!(500000);
+        assert!(decode(bad, ExecutorResultFormat::Json, false, true, "device").is_err());
     }
 }

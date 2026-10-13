@@ -109,9 +109,14 @@ impl Executor for PerformanceService {
                 if capability.fps {
                     metrics.push("fps");
                 }
-                return Ok(
-                    json!({"metrics":metrics,"fps":capability.fps,"source":capability.source,"scope":"main_process","max_samples":3600,"sample_timeout_ms":10000}),
-                );
+                if capability.device_observation {
+                    metrics.extend(["device_observation", "battery_net_power_mw"]);
+                }
+                let mut result = json!({"metrics":metrics,"fps":capability.fps,"source":capability.source,"scope":"main_process","max_samples":3600,"sample_timeout_ms":10000});
+                if capability.device_observation {
+                    result["device_observation"] = json!(true);
+                }
+                return Ok(result);
             }
             _ => return Err(Error::NotFound(operation.into())),
         };

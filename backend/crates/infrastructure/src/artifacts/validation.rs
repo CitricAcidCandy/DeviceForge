@@ -170,6 +170,9 @@ pub fn validate_png(path: &Path) -> Result<()> {
 /// 按文件类型执行同一内容门禁，上传和插件输出共同使用。
 pub fn validate_content(path: &Path, media_type: &str) -> apk_domain::Result<()> {
     use apk_domain::Error;
+    if super::spreadsheet::is_supported(media_type) {
+        return super::spreadsheet::validate(path, media_type);
+    }
     if super::stream_content::limit(media_type).is_some() {
         return super::stream_content::validate(path, media_type);
     }

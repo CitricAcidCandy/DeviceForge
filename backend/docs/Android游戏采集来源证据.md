@@ -34,7 +34,7 @@
 | [Android Studio Power Profiler](https://developer.android.com/studio/profile/power-profiler?hl=en) | 官方 ODPM 支持说明列 Android 10/API 29+、Pixel 6 及后续 Pixel；可视化设备子系统用电并与应用行为关联。 | 系统版本合格不等于设备具备电源轨；root 也不能生成不存在的硬件观测。 |
 | [Perfetto FrameTimeline](https://perfetto.dev/docs/data-sources/frametimeline) | 要求 Android 12+；该页面仍注明 SurfaceView 暂不支持。 | 不能直接替代本阶段游戏 SF 展示窗口，也不能仅凭 Android 12 宣称所有游戏帧已覆盖。 |
 
-电压与电流具备已核单位、方向和同批观测资格时，可计算净电池侧功率：`mW = -current_ua × voltage_mv / 1_000_000`，保留符号和外部供电状态。该值表示电池净输出估算，充电时可能为负；不能对充电值取绝对值后声称整机负载或游戏功耗。外供电信息不完整、方向未知或时间不一致时省略功率。温度按传感器原始单位做受检转换，未知单位不猜测。
+电压与电流具备已核单位、方向和同批观测资格时，可计算净电池侧功率：`mW = normalized_current_ua × voltage_uv / 1_000_000_000`，归一化为正充电、负放电，保留外部供电状态。该值表示整机净电池侧估算，充电为正、放电为负；不能对充电值取绝对值后声称整机负载或游戏功耗。外供电信息不完整、方向未知或时间不一致时省略功率。温度按传感器原始单位做受检转换，未知单位不猜测。Thermal HAL 报告值还可能是厂商校准或策略值，并非可直接比较的物理温度；该扩展的具体口径以 [公共实施裁定](Android游戏指标Rust采集实施.md) 为准。
 
 ## 原生与 ART 调用栈
 
@@ -49,8 +49,23 @@ root 只可能改变访问资格，不能补出被剥离的原生符号、缺失
 
 基础采样保持现有 performance.sample 打开参数、十秒原绝对截止点、只读固定 ADB 入口及受限 worker。CPU/PSS/RSS 的原字段与单位保留；FPS 使用现有 FrameWindow，source 带固定长度层摘要，同层两快照必须保留前一锚点。多个游戏层、层切换、时间回退、丢锚、无新展示和未知输出均省略，不能填零。SF --latency-clear 不进入命令表。
 
-设备观测作为 root 拟定的可选 device_observation 扩展：保留传感器来源、单位、充放电方向和外部供电信息，老插件省略时继续兼容。具体字段、默认值及单位以公共合同裁定为准，本取证文件不改 SDK。不可用指标缺测；取消、到期、输出超限和未确认清理必须传播，不能被可选采集吞掉。
+设备观测已按主代理冻结的可选 device_observation 合同实现私有采集：保留传感器来源、单位、充放电方向和外部供电信息，老插件省略时继续兼容。具体字段、默认值及单位以公共合同裁定为准，本取证文件不改 SDK。不可用指标缺测；取消、到期、输出超限和未确认清理必须传播，不能被可选采集吞掉。
 
 栈采样独立任务贡献、预算和产物，候选输入为设备、包名、有界持续时间/频率、已确认采样方式；输出为 perf.data 或 pftrace 及资格/符号状态元信息。采样器仅选已合格设备系统 Perfetto/simpleperf；SAS 完全不参与运行。任务不自动 su、不修改 SELinux/内核限制、不重装应用、不启用持久权限或修改电池供电设置。获取 root、设备操作与真机执行由明确授权及实际能力决定。
 
-本轮只完成公开来源读取、合同建议与私有规则准备。真机游戏 FPS、CPU/内存、放电与 USB 充电电气观测、各类传感器、ARM/ARM64 栈及符号化仍须分别验收。
+FPS 私有规则与 I/O 已接入，实际包级库 89/89、协议 133/133 及全目标 Clippy 退出 0，详见 [FPS实施记录](Android游戏FPS采集实施.md)。这些证据不等同真机通过；真实游戏 FPS、CPU/内存、放电与 USB 充电电气观测、各类传感器、ARM/ARM64 栈及符号化仍须分别验收。
+
+
+## 电气与温度固定官方实现口径（2026年10月13日）
+
+本批实际读取 Android 15 固定标签与 Linux ABI；SAS 不含这些实现，Rust 私有解析和映射独立编写。
+
+| 来源 | 固定实现证据 | 本批采用与限制 |
+|---|---|---|
+| [BatteryService.java](https://android.googlesource.com/platform/frameworks/base/+/refs/tags/android-15.0.0_r1/services/core/java/com/android/server/BatteryService.java) | 1233–1255行输出 Current Battery Service state、AC/USB/Wireless/Dock供电、present/status、mV电压、0.1°C温度；调试覆盖有UPDATES STOPPED。 | 四供电字段全false才判battery，任一true判external，缺字段unknown；不把Max charging current作为实际电流，不读冻结值。 |
+| [ThermalManagerService.java](https://android.googlesource.com/platform/frameworks/base/+/refs/tags/android-15.0.0_r1/services/core/java/com/android/server/power/ThermalManagerService.java) | 659–679行区分缓存、HAL Ready、Current temperatures from HAL与当前cooling区段。 | 只读Ready=true且完整当前温度段；缓存、静态阈值与headroom均排除。 |
+| [Temperature.java](https://android.googlesource.com/platform/frameworks/base/+/refs/tags/android-15.0.0_r1/core/java/android/os/Temperature.java) | 182–184行使用Temperature{mValue, mType, mName, mStatus}；值可NaN。 | 单条非有限/非法记录缺测，不吞其他合格当前传感器；记录类型、原名称与状态。 |
+| [TemperatureType.aidl](https://android.googlesource.com/platform/hardware/interfaces/+/refs/tags/android-15.0.0_r1/thermal/aidl/android/hardware/thermal/TemperatureType.aidl) | 类型0 CPU、1 GPU、2 BATTERY、3 SKIN；6/7/8为BCL量。 | 首批只采0..3，不按名称猜类别；BCL不转温度。 |
+| [Linux 6.6电源类](https://docs.kernel.org/6.6/power/power_supply_class.html)与[sysfs-class-power ABI](https://www.kernel.org/doc/Documentation/ABI/testing/sysfs-class-power) | µV、µA、0.1°C；ABI的current_now条目约定Battery IBAT负放电、正充电，而USB为IBUS。 | 先核同一uevent的NAME=battery及TYPE=Battery；保留有符号current_now，拒绝把任意供电节点当电池或取绝对值。状态或供电矛盾降unknown，不派生功率。 |
+
+Android电气/温度实施与本轮证据见[电气温度实施记录](Android游戏电气温度采集实施.md)。旧FPS的89/133证据不覆盖本轮新增接线；OEM节点差异、真机读权限、充放电与传感器准确性另行验收，性能专项延后。

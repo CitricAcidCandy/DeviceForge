@@ -9,6 +9,9 @@ export type PerformancePage = components['schemas']['PerformancePage'];
 export type PerformanceSessions = components['schemas']['PerformanceSessions'];
 export type PerformanceStart = PerformanceSession['request'];
 export type PerformanceReading = PerformancePage['readings'][number];
+export type PerformanceDeviceObservation = NonNullable<PerformanceReading['device_observation']>;
+export type PerformanceBatteryObservation = NonNullable<PerformanceDeviceObservation['battery']>;
+export type PerformanceTemperature = PerformanceDeviceObservation['temperatures'][number];
 export type PerformanceGateway = Pick<HostContext, 'submit' | 'getJob'>;
 export type PerformanceAction = 'start' | 'inspect' | 'pause' | 'resume' | 'stop' | 'samples' | 'list' | 'capabilities';
 
@@ -16,6 +19,7 @@ export type PerformanceAction = 'start' | 'inspect' | 'pause' | 'resume' | 'stop
 export interface PerformanceCapabilities {
   readonly metrics: readonly string[];
   readonly fps: boolean;
+  readonly deviceObservation: boolean;
   readonly sourceLabel: string;
   readonly scope: 'main_process';
   readonly maxSamples: number;

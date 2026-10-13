@@ -101,6 +101,11 @@ impl SourceAccess {
             Ok(ProbeCapabilities {
                 source: format!("plugin.{}", owner.info().id),
                 fps: owner.performance.as_ref().expect("已验证来源").fps,
+                device_observation: owner
+                    .performance
+                    .as_ref()
+                    .expect("已验证来源")
+                    .device_observation,
             })
         })
     }
@@ -149,6 +154,7 @@ impl SourceAccess {
             capabilities: ProbeCapabilities {
                 source: format!("plugin.{}", info.id),
                 fps: definition.fps,
+                device_observation: definition.device_observation,
             },
             owner,
             registered,

@@ -29,7 +29,6 @@ async function probeBrowser(module: SinkModule): Promise<BrowserResult> {
   const drawing = canvas.getContext('2d'); if (!drawing) throw new Error('无法创建真实画布');
   let sink: ReturnType<typeof module.createBrowserMirroringSink> | null = null;
   let context: AudioContext | null = null;
-  let encoder: VideoEncoder | null = null;
   try {
     try {
     if (capabilities.videoEncoder && capabilities.videoDecoder) {
@@ -41,13 +40,17 @@ async function probeBrowser(module: SinkModule): Promise<BrowserResult> {
       capabilities.h264EncoderConfiguration = supported;
       if (supported) {
         const encoded: { bytes: Uint8Array; timestamp: number; keyFrame: boolean }[] = [];
-        encoder = new VideoEncoder({ output: (chunk) => { const bytes = new Uint8Array(chunk.byteLength); chunk.copyTo(bytes); encoded.push({ bytes, timestamp: chunk.timestamp, keyFrame: chunk.type === 'key' }); }, error: (error) => errors.push(error.message) });
-        encoder.configure(supported);
-        for (let index = 0; index < 3; ++index) {
-          drawing.fillStyle = index === 0 ? '#e02020' : '#20d020'; drawing.fillRect(0, 0, 64, 64);
-          const frame = new VideoFrame(canvas, { timestamp: index * 33333 }); encoder.encode(frame, { keyFrame: index === 0 }); frame.close();
+        const encoder = new VideoEncoder({ output: (chunk) => { const bytes = new Uint8Array(chunk.byteLength); chunk.copyTo(bytes); encoded.push({ bytes, timestamp: chunk.timestamp, keyFrame: chunk.type === 'key' }); }, error: (error) => errors.push(error.message) });
+        try {
+          encoder.configure(supported);
+          for (let index = 0; index < 3; ++index) {
+            drawing.fillStyle = index === 0 ? '#e02020' : '#20d020'; drawing.fillRect(0, 0, 64, 64);
+            const frame = new VideoFrame(canvas, { timestamp: index * 33333 }); encoder.encode(frame, { keyFrame: index === 0 }); frame.close();
+          }
+          await encoder.flush();
+        } finally {
+          if (encoder.state !== 'closed') encoder.close();
         }
-        await encoder.flush(); encoder.close(); encoder = null;
         check('原生H264编码器输出关键帧与差分帧', encoded.length === 3 && encoded[0]?.keyFrame === true, encoded.map((entry) => ({ bytes: entry.bytes.length, timestamp: entry.timestamp, keyFrame: entry.keyFrame })));
         const first = encoded[0]; if (!first) throw new Error('原生编码器未输出首帧');
         const units: { start: number; end: number; type: number }[] = [];
@@ -106,7 +109,7 @@ async function probeBrowser(module: SinkModule): Promise<BrowserResult> {
         video.spsPps = Array.from(configurationBytes); video.codec = codec; video.actualDecoded = true;
       } else { video.actualDecoded = false; video.reason = '当前真实Edge未提供可用H264 AnnexB编码配置'; }
     } else { video.actualDecoded = false; video.reason = '当前真实浏览器缺少WebCodecs编码或解码入口'; }
-    } catch (error) { video.actualDecoded = false; video.failure = error instanceof Error ? error.message : '原生视频验证失败'; if (encoder && encoder.state !== 'closed') encoder.close(); encoder = null; sink?.dispose?.(); sink = null; }
+    } catch (error) { video.actualDecoded = false; video.failure = error instanceof Error ? error.message : '原生视频验证失败'; sink?.dispose?.(); sink = null; }
     if (capabilities.audioContext) {
       context = new AudioContext({ sampleRate: 48000 });
       capabilities.audioInitialState = context.state;
@@ -154,7 +157,7 @@ async function probeBrowser(module: SinkModule): Promise<BrowserResult> {
     audio.actualScheduled = false; audio.failure = error instanceof Error ? error.message : '原生音频验证失败';
     return { passed: false, checks, capabilities, video, audio };
   } finally {
-    if (encoder && encoder.state !== 'closed') encoder.close(); sink?.dispose?.(); if (context && context.state !== 'closed') await context.close();
+    sink?.dispose?.(); if (context && context.state !== 'closed') await context.close();
   }
 }
 

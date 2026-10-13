@@ -122,6 +122,13 @@ impl PerformanceStore for SqlitePerformance {
         if session.state != PerformanceState::Running || session.revision != revision {
             return Ok(false);
         }
+        if raw
+            .device_observation
+            .as_ref()
+            .is_some_and(|observation| observation.device_id != session.request.target.device_id)
+        {
+            return Err(Error::Dependency("设备观测不属于会话的固定设备".into()));
+        }
         if session.samples >= 3600 {
             return Err(Error::Conflict("会话已达到 3600 个样本上限".into()));
         }

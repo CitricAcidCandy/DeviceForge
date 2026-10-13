@@ -45,3 +45,7 @@ ZIP 解析前读取最多 65557 字节尾部，先限制条目数及目录范围
 ZIP 中央目录声明条目数必须与解析后的条目数一致，避免库合并同名文件导致精确条目选择歧义；因此重复条目会被拒绝。
 
 JSON/MessagePack 使用 data-codec 共同验证，限制 64 层与 100000 节点。JSON 拒绝重复键与越界整数；MessagePack 先扫描长度和节点，再允许转换库分配。结构验证允许标准 binary/ext，是否可以转普通 JSON 由编解码插件另外判断。`cargo test -p apk-infrastructure --test data_artifacts` 覆盖新类型下载、非法数据、ZIP 预览拒绝和提前体积拒绝。
+
+## 电子表格产物最低资格
+
+XLSX、XLS、UTF-8 CSV分别使用标准MIME，上传和插件输出共用16MiB流式上限。XLSX仅核ZIP边界、512条目/64MiB总展开/32MiB单条目、安全路径与三个必要成员；XLS仅核复合文件头/扇区资格；CSV核UTF-8及无NUL。真实工作簿、BIFF坐标、字段映射、公式缓存语义由独立spreadsheet插件处理，不把最低容器资格当完整解析。三类格式不开放普通ZIP预览；下载保留原字节。

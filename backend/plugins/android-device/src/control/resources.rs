@@ -13,6 +13,7 @@ use tokio_util::sync::CancellationToken;
 pub(crate) struct Lease {
     pub directory: Mutex<Option<PathBuf>>,
     pub output: Mutex<Option<PathBuf>>,
+    pub profile_outputs: Mutex<Vec<PathBuf>>,
     pub slots: Arc<Semaphore>,
     cleanup_until: Mutex<Option<Instant>>,
 }
@@ -22,6 +23,7 @@ impl Default for Lease {
         Self {
             directory: Mutex::new(None),
             output: Mutex::new(None),
+            profile_outputs: Mutex::new(Vec::new()),
             slots: Arc::new(Semaphore::new(1)),
             cleanup_until: Mutex::new(None),
         }

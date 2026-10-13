@@ -6,7 +6,8 @@
   "performance": {
     "api_version": 2,
     "sample_operation": "performance.sample",
-    "fps": false,
+    "fps": true,
+    "device_observation": true,
     "device_capability": {"id":"performance.sample","version":1}
   },
   "artifacts": {
@@ -97,7 +98,7 @@
   },
   "operations": [
     {
-      "name": "performance.sample", "title": "读取Android主进程CPU与内存累计样本",
+      "name": "performance.sample", "title": "读取Android主进程计数、游戏帧与设备环境",
       "input_schema": {
         "type": "object", "additionalProperties": false,
         "properties": {

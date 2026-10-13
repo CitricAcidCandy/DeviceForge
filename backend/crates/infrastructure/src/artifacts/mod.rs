@@ -1,5 +1,6 @@
 mod config;
 mod maintenance;
+mod spreadsheet;
 mod stream_content;
 pub(crate) mod validation;
 use apk_domain::artifacts::{
@@ -87,13 +88,16 @@ pub(crate) fn media_type(filename: &str) -> Result<&'static str> {
         "json" => Ok("application/json"),
         "msgpack" => Ok("application/msgpack"),
         "dex" => Ok("application/vnd.android.dex"),
+        "xlsx" => Ok(spreadsheet::XLSX),
+        "xls" => Ok(spreadsheet::XLS),
+        "csv" => Ok(spreadsheet::CSV),
         "bin" => Ok("application/octet-stream"),
         "js" => Ok("text/javascript"),
         "log" => Ok("text/plain"),
         "jsonl" => Ok("application/x-ndjson"),
         "mp4" => Ok("video/mp4"),
         _ => Err(Error::Invalid(
-            "仅支持 APK、APKS、AAB、HAP、ZIP、PNG、JPEG、JSON、MSGPACK、DEX、BIN、JS、LOG、JSONL 和 MP4 产物".into(),
+            "仅支持 APK、APKS、AAB、HAP、ZIP、PNG、JPEG、JSON、MSGPACK、DEX、XLSX、XLS、CSV、BIN、JS、LOG、JSONL 和 MP4 产物".into(),
         )),
     }
 }
@@ -312,6 +316,9 @@ impl FileArtifacts {
                 .max_size
                 .min(deviceforge_data_codec::jpeg::MAX_BYTES),
             "application/vnd.android.dex" => self.config.max_size.min(validation::DEX_LIMIT),
+            value if spreadsheet::is_supported(value) => {
+                self.config.max_size.min(spreadsheet::MAX_BYTES)
+            }
             _ => self
                 .config
                 .max_size

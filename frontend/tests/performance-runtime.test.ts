@@ -5,6 +5,7 @@ import { PerformanceJobFailure } from '../src/features/performance/index.ts';
 import { HostError } from '../src/plugin-sdk/index.ts';
 import type { HostContext, JsonValue } from '../src/plugin-sdk/index.ts';
 import { deferred, failure, requestUrl, signal, success } from './fixtures.ts';
+import { deviceObservation, observationReading } from './performance-observation-fixtures.ts';
 
 const sessionId = '11111111-1111-4111-8111-111111111111';
 const startInput = { target: { device_id: 'emulator-5554', package: 'com.example.app' }, interval_ms: 1000, duration_secs: 60 };
@@ -45,7 +46,7 @@ test('runtime性能服务登记版本1，八操作按严格参数调用且不自
   for (const action of actions) {
     const response = await invocation(instance, action === 'capabilities' ? { action } : { action, input: input(action) });
     assert.equal(response.logId, 'service-log');
-    if (action === 'capabilities') assert.deepEqual(response.data, { metrics: ['cpu_share_percent', 'cpu_core_percent', 'pss_kib', 'rss_kib'], fps: false, sourceLabel: 'plugin.synthetic', scope: 'main_process', maxSamples: 3600, sampleTimeoutMs: 10000 });
+    if (action === 'capabilities') assert.deepEqual(response.data, { metrics: ['cpu_share_percent', 'cpu_core_percent', 'pss_kib', 'rss_kib'], fps: false, deviceObservation: false, sourceLabel: 'plugin.synthetic', scope: 'main_process', maxSamples: 3600, sampleTimeoutMs: 10000 });
     else if (action === 'samples') assert.deepEqual(response.data, { session, readings: [], next_after: 0 });
     else if (action === 'list') assert.deepEqual(response.data, { sessions: [session], next_after_id: sessionId });
     else assert.deepEqual(response.data, session);
@@ -140,4 +141,35 @@ test('runtime关闭取消性能在途请求并撤销服务，关闭和晚到结�
   await Promise.resolve(); await Promise.resolve();
   assert.deepEqual(calls, ['POST /api/v2/jobs', 'GET /api/v2/jobs/closing-performance-job']);
   assert.equal(instance.performance.snapshot().session, null);
+});
+
+test('公开性能服务原样交付设备观测和净电池功率，拒绝缺少派生资格的样本', async () => {
+  let invalid = false;
+  const current = { ...session, samples: 1 };
+  const declared = { metrics: ['cpu_share_percent', 'cpu_core_percent', 'pss_kib', 'rss_kib', 'fps', 'device_observation', 'battery_net_power_mw'],
+    fps: true, device_observation: true, source: 'plugin.android-device', scope: 'main_process', max_samples: 3600, sample_timeout_ms: 10000 };
+  const instance = runtime(async (_request, init) => {
+    const body: unknown = JSON.parse(String(init?.body));
+    assert.ok(typeof body === 'object' && body !== null && 'operation' in body && typeof body.operation === 'string');
+    const battery = deviceObservation().battery; assert.ok(battery);
+    const reading = invalid ? { ...observationReading(), device_observation: { ...deviceObservation(),
+      battery: { ...battery, current_polarity: 'unknown' } } } : observationReading();
+    const result = body.operation.endsWith('.samples') ? { session: current, readings: [reading], next_after: 1 }
+      : body.operation.endsWith('.capabilities') ? declared : current;
+    return success({ id: 'observation-service-job', operation: body.operation, input: {}, created_at: 1, status: 'succeeded', result }, 'observation-service-log');
+  });
+  try {
+    await instance.performance.select(sessionId, signal());
+    const response = await invocation(instance, { action: 'samples', input: { session_id: sessionId, after: 0, limit: 1 } });
+    assert.equal(response.logId, 'observation-service-log');
+    assert.deepEqual(response.data, { session: current, readings: [observationReading()], next_after: 1 });
+    assert.equal(instance.performance.snapshot().readings[0]?.battery_net_power_mw, -8000);
+    const capabilities = await invocation(instance, { action: 'capabilities' });
+    assert.deepEqual(capabilities.data, { metrics: declared.metrics, fps: true, deviceObservation: true, sourceLabel: declared.source,
+      scope: 'main_process', maxSamples: 3600, sampleTimeoutMs: 10000 });
+    invalid = true;
+    await assert.rejects(invocation(instance, { action: 'samples', input: { session_id: sessionId, after: 0, limit: 1 } }),
+      (error: unknown) => error instanceof HostError && error.code === 'invalid_performance_result' && error.logId === 'observation-service-log');
+    assert.equal(instance.performance.snapshot().nextAfter, 1); assert.deepEqual(instance.performance.snapshot().readings, [observationReading()]);
+  } finally { await instance.dispose(); }
 });

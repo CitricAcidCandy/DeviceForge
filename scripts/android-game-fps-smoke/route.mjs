@@ -1,0 +1,69 @@
+import { deviceId, packageName } from './fixtures.mjs';
+// 独立按主代理冻结的AOSP字段手工编码，禁止导入生产解析器或其测试编码器。
+const varint = value => { let number = BigInt(value), bytes = []; if (number < 0) number += 1n << 64n; do { let next = Number(number & 127n); number >>= 7n; if (number) next |= 128; bytes.push(next); } while (number); return Buffer.from(bytes); };
+const integer = (field, value) => Buffer.concat([varint(field * 8), varint(value)]);
+const bytesField = (field, bytes) => Buffer.concat([varint(field * 8 + 2), varint(bytes.length), bytes]);
+const textField = (field, value) => bytesField(field, Buffer.from(value));
+const metadata = (key, value) => { const bytes = Buffer.alloc(4); bytes.writeInt32LE(value); return bytesField(42, Buffer.concat([integer(1, key), bytesField(2, bytes)])); };
+export const layerName = 'SurfaceView[' + packageName + '/MainActivity](BLAST)#42';
+function layer({ id, name, parent, ownerUid, uid, pid }) {
+  return Buffer.concat([integer(1, id), textField(2, name), ...(parent === undefined ? [] : [integer(25, parent)]),
+    ...(ownerUid === undefined ? [] : [integer(53, ownerUid)]), ...(uid === undefined ? [] : [metadata(1, uid)]), ...(pid === undefined ? [] : [metadata(6, pid)])]);
+}
+const root = overrides => ({ id: 10, name: '游戏父节点', parent: -1, ownerUid: 1000, uid: 10123, pid: 2468, ...overrides });
+const candidate = overrides => ({ id: 42, name: layerName, parent: 10, ownerUid: 10123, ...overrides });
+function layers(values) { return Buffer.concat(values.map(value => bytesField(1, layer(value)))); }
+function wrapped(values) { const magic = Buffer.concat([Buffer.from([0x09]), Buffer.from('4c59525452414345', 'hex')]); return Buffer.concat([magic, bytesField(2, bytesField(3, layers(values)))]); }
+const valid = layers([root(), candidate()]);
+const shell = tail => ['-s', deviceId, 'shell', '-T', ...tail];
+const latencyArgv = shell(['dumpsys', 'SurfaceFlinger', '--latency', "'" + layerName + "'"]);
+const snapshot = timestamps => '16666667\n' + timestamps.map(value => '1 ' + value + ' 1').join('\n') + '\n';
+const before = snapshot([950000000, 1000000000]), after = snapshot([950000000, 1000000000, 1016666667, 1033333334, 1050000000]);
+const alternate = (a, b) => Array.from({ length: 64 }, (_, i) => i % 2 ? b : a);
+const command = (category, tail, outputs) => ({ category, argv: shell(tail), outputs });
+function stat(start, ticks) { const fields = Array(20).fill('0'); fields[0] = 'R'; fields[11] = String(ticks); fields[19] = String(start); return '2468 (fps game) ' + fields.join(' ') + '\n'; }
+const status = uid => 'Name:\tfps game\nPid:\t2468\nUid:\t' + [uid, uid, uid, uid].join('\t') + '\n';
+const process = command('process', ['cat', '/proc/2468/stat'], Array.from({ length: 64 }, (_, i) => stat(900, 100 + i * 10)));
+const uid = command('status', ['cat', '/proc/2468/status'], [status(10123)]);
+const proto = outputs => command('surface-proto', ['dumpsys', '--proto', 'SurfaceFlinger'], outputs);
+const latency = outputs => ({ category: 'latency', argv: latencyArgv, outputs });
+const count = { fps: 60, frame_window: { frames: 3, duration_ms: 50 } }, missing = { fps: null };
+function scenario(id, title, protoOutputs, expected = missing, custom = []) {
+  const replacements = new Map(custom.map(spec => [spec.category, spec]));
+  const specs = [process, uid, proto(protoOutputs), latency(alternate(before, after))].map(spec => replacements.get(spec.category) ?? spec);
+  return { id, title, kind: 'sample', expected: [expected], commands: specs };
+}
+export const contract = {
+  frozen: true,
+  source: ['https://android.googlesource.com/platform/frameworks/native/+/refs/tags/android-12.0.0_r1/services/surfaceflinger/layerproto/layers.proto',
+    'https://android.googlesource.com/platform/external/perfetto/+/refs/heads/main/protos/perfetto/trace/android/surfaceflinger_layers.proto'],
+  route: ['dumpsys', '--proto', 'SurfaceFlinger'],
+  schema: { bare_layers: 1, layer_id: 1, name: 2, parent: 25, metadata: 42, owner_uid: 53,
+    metadata_key: 1, metadata_bytes: 2, owner_uid_key: 1, owner_pid_key: 6, metadata_integer: 'int32_le',
+    wrapper_magic_fixed64: '4c59525452414345', wrapper_entry: 2, snapshot_layers: 3 },
+  shared: [
+    { category: 'discover', argv: ['devices', '-l'], outputs: ['List of devices attached\nfps-0001 device product:golden model:FPS黄金设备 transport_id:1\n'] },
+    command('pid', ['pidof', '-s', packageName], ['2468\n']),
+    command('memory', ['dumpsys', 'meminfo', '-s', '2468'], ['** MEMINFO in pid 2468 [' + packageName + '] **\nTOTAL PSS: 2048 TOTAL RSS: 4096\n']),
+    command('system', ['cat', '/proc/stat'], Array.from({ length: 64 }, (_, i) => 'cpu ' + (10000 + i * 100) + ' 0 0 1000\ncpu0 1 0 0 1\ncpu1 1 0 0 1\n')),
+    command('uevent', ['cat', '/sys/class/power_supply/battery/uevent'], ['']),
+    command('battery', ['dumpsys', 'battery'], ['Current Battery Service state:\n  (UPDATES STOPPED -- use reset to restart)\n']),
+    command('thermal', ['dumpsys', 'thermalservice'], ['HAL Ready: false\n']),
+  ],
+  cases: [
+    scenario('valid-bare', '裸LayersProto真实父链PID/UID归属与展示3帧/50ms=60FPS', [valid], count),
+    scenario('valid-wrapper', '精确magic的单snapshot包装身份与同窗口60FPS', [wrapped([root(), candidate()])], count),
+    scenario('initial-status-unavailable', '初始进程status不可用只缺FPS不补0', [valid], missing, [command('status', ['cat', '/proc/2468/status'], [''])]),
+    scenario('unknown-owner', '同名层缺metadata身份不得当作游戏FPS', [layers([{ id: 10, name: '未知父层', parent: -1, ownerUid: 1000 }, candidate()])]),
+    scenario('wrong-pid', '父链OWNER_PID不符时FPS缺测', [layers([root({ pid: 9876 }), candidate()])]),
+    scenario('wrong-uid', '候选creator UID不符时FPS缺测', [layers([root(), candidate({ ownerUid: 10124 })])]),
+    scenario('conflicting-chain', '整父链已声明metadata互相冲突时FPS缺测', [layers([{ id: 9, name: '冲突祖先', parent: -1, ownerUid: 1000, uid: 10123, pid: 9999 }, root({ parent: 9 }), candidate()])]),
+    scenario('multiple-layers', '两有效候选不靠包名猜前台，FPS缺测', [layers([root(), candidate(), candidate({ id: 43, name: layerName + '(第二层)' })])]),
+    scenario('changed-chain', '前后祖先ID与身份链变化不沿旧层锚计算', alternate(valid, layers([root({ id: 11 }), candidate({ parent: 11 })]))),
+    scenario('no-new-frame', '无新真实展示不补0FPS', [valid], missing, [latency(alternate(before, before))]),
+    scenario('lost-anchor', '环形展示窗口丢失原锚时FPS缺测', [valid], missing, [latency(alternate(before, snapshot([1016666667, 1033333334, 1050000000])))]),
+    { ...scenario('starttime-reused', '采样期间同PID的starttime换代拒绝整样本', [valid]), kind: 'failure', commands: [command('process', ['cat', '/proc/2468/stat'], alternate(stat(900, 100), stat(901, 110))), uid, proto([valid]), latency(alternate(before, after))] },
+    { ...scenario('uid-reused', '采样期间Uid换代拒绝整样本', [valid]), kind: 'failure', commands: [process, command('status', ['cat', '/proc/2468/status'], alternate(status(10123), status(10124))), proto([valid]), latency(alternate(before, after))] },
+    { ...scenario('lifecycle', '暂停继续及在途卸载', [valid], count), kind: 'lifecycle', hold_category: 'surface-proto' },
+  ],
+};

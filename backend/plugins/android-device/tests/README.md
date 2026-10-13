@@ -1,6 +1,6 @@
 # 安卓设备插件独立原帧验收
 
-状态：独立测试源码共124项，保留前批89项及APKS19项，新增性能采样16项；其中Windows文件锁清理失败1项仅在Windows编译。该数量来自源码的 `#[test]` 统计，不表示本批性能已实跑。性能编写者未执行Cargo、rustc、Node、npm、测试或服务，验证由主代理统一进行。前批APKS测试/构建使用十一贡献冻结元数据，本批十二贡献版本须重新验证，详见 [性能采样迁出裁定](../../../docs/性能采样迁出最小实施裁定.md)。测试入口 `protocol.rs` 使用serde_json、sha2与标准库，无新增dev依赖；主代理执行测试时，通过PATH的rustc一次编译 `fixtures/adb.rs`，再复制至每个场景的独立工具目录。假工具识别固定ADB及APKS Java argv，不创建派生进程。
+状态：FPS冻结版本曾通过Windows完整协议133/133；本批新增电气/温度协议8项，迁移9/12笔固定链与能力声明。当前源码共141项（含Windows文件锁清理失败1项），由主代理统一执行本轮门禁；旧133通过不覆盖本轮环境接线。详见 [性能采样迁出裁定](../../../docs/性能采样迁出最小实施裁定.md)。测试入口 `protocol.rs` 使用serde_json、sha2与标准库，无新增dev依赖；主代理执行测试时，通过PATH的rustc一次编译 `fixtures/adb.rs`，再复制至每个场景的独立工具目录。假工具识别固定ADB及APKS Java argv，不创建派生进程。
 
 ## 覆盖与固定期望
 
@@ -17,7 +17,10 @@
 | screenshots | 固定 screencap argv、PNG 45 字节/IHDR/尺寸资格、64MiB stdout 与1MiB stderr、目标 create_new、授权目录和输出记录 |
 | artifact_lifetime | 安装/截图工具取消、EOF、总期限、延迟 Start、私有文件与目录清理；Windows 锁定清理失败证据 |
 | install_apks | 七项固定 Java argv、绝对 ADB、带空格 JAR 路径、私有原字节及源保留、cwd/TEMP/TMP/TMPDIR、禁继承变量存在性；空/普通/UTF-8 lossy 成功；九失败子串在两流均拒绝；非零退出/两流各1MiB；Java/JAR 配置、唯一pointer/ID/扩展名/size/SHA256、64MiB正边界；坏ZIP、缺空toc、缺APK、坏标识、重复、危险路径、真实CRC坏和10001成员均零工具；在途取消/EOF/原总期限和Start零预算/延迟Start |
-| performance | 五笔固定ADB argv、原serial、毫秒时间戳与原始CPU/PSS/RSS、无FPS/FrameWindow、Restricted及零产物/私有文件；严格封套、首下划线包名、缺省上下文及空输出授权；未知工具/args/source/间隔与外部完整名先于配置拒绝；PID/stat/meminfo身份、汇总矛盾、溢出、核重复、进程重启均停止后续命令；八失败子串、lossy进程名、非零退出、各流1MiB边界；五阶段取消、meminfo EOF、原总期限、Start0/预取消/延迟Start及真实PID退出 |
+| performance | 基础五笔加缺省游戏层查询和三环境命令的九笔ADB argv、原serial、毫秒时间戳与原始CPU/PSS/RSS、合法缺测FrameWindow、Restricted及零产物/私有文件；严格封套、首下划线包名、缺省上下文及空输出授权；未知工具/args/source/间隔与外部完整名先于配置拒绝；PID/stat/meminfo身份、汇总矛盾、溢出、核重复、进程重启均停止后续命令；八失败子串、lossy进程名、非零退出、各流1MiB边界；九个基础/可选阶段取消、meminfo EOF、原总期限、Start0/预取消/延迟Start及真实PID退出 |
+
+| performance_environment | signed µA/µV与mV备用倍率、原device_id、当前HAL类别/名称/状态和宿主读取时点；无跨来源电流或Max charging current；charging/冲突unknown、缺TYPE/权限/冻结值/NaN/cache缺测、HAL电池抑制备用、总32项限额；三环境工具双流1MiB超限、原D、应用换代；逐工具取消由performance九阶段真实PID回归覆盖 |
+| performance_fps | 有效窗口十二笔固定argv、同层双快照、不clear、真实新展示/去重/纳秒精度；无层/歧义/层切换/丢锚/未知文本/依赖失败缺测；两流超限、四可选阶段取消、原期限和FPS期间进程换代 |
 
 旧动作默认手工 Request **始终带 Some 空 ArtifactContext**，有值 `output_directory` 不作产物配置或额外副作用。另有 None、空inputs/null输出目录正对照；非空inputs独立反例即使配置坏也应先报“该设备动作不接受输入产物”。安装独立提供唯一 `/input/artifact_id` 行、真实源文件与 SHA256；截图独立提供空 inputs 和实际授权输出根。因此真实宿主协议4上下文接缝直接进入本组，不能仅靠 artifacts:None 宣称 P1 已覆盖。是否通过以主代理实际结果为准。
 
@@ -39,7 +42,7 @@ Start0/预取消不建立任何call目录；零启动不是仅检查stdout为空
 
 APKS 另记录 Java 三项环境覆盖的存在性，确认 `JAVA_TOOL_OPTIONS`、`_JAVA_OPTIONS`、`JDK_JAVA_OPTIONS` 没有继承，不保存值。cwd 和 TEMP/TMP/TMPDIR 的观测只证明这些固定设置，不证明真实 JVM 所有内部临时文件都受其控制。
 
-性能依次放行五笔真实直接客户端，每笔取得PID等待句柄并确认退出；任一阶段解析失败、取消或EOF后核对没有下一call目录。第三笔hold的总期限测试共用初始5秒，不为后续命令刷新；五阶段取消分别保持当前客户端在途。采样不声明产物、不建私有文件目录，但仍经Session的真实工具/worker租约与两秒清理点收口。该组不证明后台会话调度、owner撤销、宿主提交资格、CPU差分或device/read与write并行接缝。
+性能缺省路径依次放行九笔、有效游戏窗口十二笔真实直接客户端，每笔取得PID等待句柄并确认退出；任一阶段解析失败、取消或EOF后核对没有下一call目录。第三笔hold的总期限测试共用初始5秒，不为后续命令刷新；九个基础/可选阶段取消分别保持当前客户端在途。采样不声明产物、不建私有文件目录，但仍经Session的真实工具/worker租约与两秒清理点收口。该组不证明后台会话调度、owner撤销、宿主提交资格、CPU差分或device/read与write并行接缝。
 
 ## 本组不关闭的边界与主代理执行
 

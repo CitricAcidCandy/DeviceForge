@@ -1,4 +1,6 @@
 //! 固定性能工具输出的纯规则；不访问设备、时钟、文件或会话存储。
+pub(crate) mod fps;
+
 use crate::{Error, Result};
 use std::collections::HashSet;
 

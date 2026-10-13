@@ -1,6 +1,7 @@
 //! 部署配置模型与工具资格；业务请求不能选择工具入口。
 mod apks;
 mod paths;
+pub(crate) mod profile;
 mod reading;
 
 use crate::{Error, Result};
@@ -32,6 +33,8 @@ pub(crate) struct Config {
     pub unicode_input: Option<UnicodeInput>,
     #[serde(default)]
     pub scratch_root: Option<PathBuf>,
+    #[serde(default)]
+    pub profile: profile::Profile,
 }
 
 #[derive(Deserialize)]
@@ -50,6 +53,7 @@ impl Default for Config {
             tools: Tools::default(),
             unicode_input: None,
             scratch_root: None,
+            profile: profile::Profile::default(),
         }
     }
 }
@@ -120,6 +124,7 @@ impl Config {
         if let Some(Bundletool::JavaJar { jar }) = &self.tools.bundletool {
             absolute(jar)?;
         }
+        self.profile.validate()?;
         if let Some(scratch) = &self.scratch_root {
             absolute(scratch)?;
         }

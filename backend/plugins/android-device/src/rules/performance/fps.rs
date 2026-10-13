@@ -1,16 +1,20 @@
 //! 游戏展示帧的纯规则；不清空全局计数，不访问设备、时钟或会话。
+mod owner;
+pub(crate) use owner::{layer as owned_layer, uid};
 use super::Check;
 use crate::{Error, Result};
 use apk_plugin_sdk::FrameWindow;
 use sha2::{Digest, Sha256};
 
-const MAX_LAYER_ROWS: usize = 4096;
 const MAX_FRAME_ROWS: usize = 256;
 const MAX_SPAN_NS: u64 = 60_000_000_000;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct Layer {
     name: String,
+    pid: u32,
+    uid: u32,
+    chain: Vec<owner::Record>,
 }
 
 impl Layer {
@@ -20,7 +24,20 @@ impl Layer {
     }
 
     fn source(&self) -> String {
-        let digest = Sha256::digest(self.name.as_bytes());
+        let mut hash = Sha256::new();
+        hash.update(self.pid.to_le_bytes());
+        hash.update(self.uid.to_le_bytes());
+        for record in &self.chain {
+            hash.update(record.id.to_le_bytes());
+            hash.update(record.parent.to_le_bytes());
+            hash.update((record.name.len() as u32).to_le_bytes());
+            hash.update(record.name.as_bytes());
+            for value in [record.uid, record.metadata_uid, record.metadata_pid] {
+                hash.update([u8::from(value.is_some())]);
+                hash.update(value.unwrap_or_default().to_le_bytes());
+            }
+        }
+        let digest = hash.finalize();
         let mut source = String::from("sf_present_");
         for byte in &digest[..8] {
             source.push_str(&format!("{byte:02x}"));
@@ -37,7 +54,10 @@ pub(crate) struct Snapshot {
 fn belongs_to_package(name: &str, package: &str) -> bool {
     name.match_indices(package).any(|(index, _)| {
         let before = index == 0
-            || matches!(name.as_bytes().get(index - 1), Some(b'[' | b' ' | b'(' | b'='));
+            || matches!(
+                name.as_bytes().get(index - 1),
+                Some(b'[' | b' ' | b'(' | b'=')
+            );
         let after = matches!(
             name.as_bytes().get(index + package.len()),
             None | Some(b'/' | b' ' | b']' | b')' | b'#' | b'(')
@@ -46,41 +66,15 @@ fn belongs_to_package(name: &str, package: &str) -> bool {
     })
 }
 
-pub(crate) fn unique_layer(
-    output: &str,
-    package: &str,
-    check: Check<'_>,
-) -> Result<Option<Layer>> {
-    super::package(package)?;
-    let mut selected = None;
-    for (index, line) in output.lines().enumerate() {
-        check()?;
-        if index >= MAX_LAYER_ROWS {
-            return Err(Error::TooLarge);
-        }
-        let name = line.trim();
-        if !(name.contains("SurfaceView") || name.contains("BLAST"))
-            || !belongs_to_package(name, package)
-        {
-            continue;
-        }
-        if name.len() > 1024
-            || name.chars().any(char::is_control)
-            || name.contains('\u{fffd}')
-            || selected.is_some()
-        {
-            return Ok(None);
-        }
-        selected = Some(Layer { name: name.into() });
-    }
-    Ok(selected)
-}
 
 fn nanoseconds(value: &str) -> Option<u64> {
     if value.is_empty() || !value.bytes().all(|byte| byte.is_ascii_digit()) {
         return None;
     }
-    value.parse::<u64>().ok().filter(|value| *value <= i64::MAX as u64)
+    value
+        .parse::<u64>()
+        .ok()
+        .filter(|value| *value <= i64::MAX as u64)
 }
 
 pub(crate) fn snapshot(output: &str, check: Check<'_>) -> Result<Option<Snapshot>> {

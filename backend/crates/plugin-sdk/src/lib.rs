@@ -10,7 +10,11 @@ pub mod session;
 pub mod session_access;
 pub use context::{CONTEXT_PROTOCOL_VERSION, ReadyCommand, ReadyFrame, StartCommand, StartFrame};
 pub use execution::ExecutionBudget;
-pub use performance::{PerformanceAccess, PerformanceDeviceCapability};
+pub use performance::{
+    BatteryElectricalObservation, BatteryStatus, BatterySupplyState, CurrentPolarity,
+    DeviceObservation, DeviceTemperature, ObservationAccess, ObservationScope, PerformanceAccess,
+    PerformanceDeviceCapability, TemperatureKind,
+};
 pub use session_access::SessionAccess;
 pub const PROTOCOL_VERSION: u32 = 1;
 pub const ARTIFACT_PROTOCOL_VERSION: u32 = 2;
@@ -84,6 +88,8 @@ pub struct PerformanceSample {
     pub rss_kib: Option<u64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub frame_window: Option<FrameWindow>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub device_observation: Option<DeviceObservation>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]

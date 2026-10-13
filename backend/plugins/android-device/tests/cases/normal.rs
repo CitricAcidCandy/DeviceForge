@@ -409,7 +409,7 @@ fn public_metadata_is_api3_protocol4_with_twelve_short_names_and_eleven_capabili
     );
     assert_eq!(
         manifest["performance"],
-        json!({"api_version":2,"sample_operation":"performance.sample","fps":false,"device_capability":{"id":"performance.sample","version":1}})
+        json!({"api_version":2,"sample_operation":"performance.sample","fps":true,"device_observation":true,"device_capability":{"id":"performance.sample","version":1}})
     );
     let aliases: serde_json::Value =
         serde_json::from_slice(&fs::read(root.join("aliases.example.json")).unwrap()).unwrap();

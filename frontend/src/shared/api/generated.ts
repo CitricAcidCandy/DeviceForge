@@ -8200,11 +8200,53 @@ export interface components {
             next_after: number;
             readings: {
 
+                battery_net_power_mw?: number | null;
+
                 captured_at: number;
 
                 cpu_core_percent?: number | null;
 
                 cpu_share_percent?: number | null;
+                device_observation?: {
+
+                    api_version: number;
+                    battery?: {
+
+                        access: "adb_shell" | "root_shell";
+
+                        current_polarity: "positive_charging" | "positive_discharging" | "unknown";
+
+                        current_ua?: number | null;
+
+                        observed_at: number;
+                        source: string;
+
+                        status?: "unknown" | "charging" | "discharging" | "not_charging" | "full" | null;
+
+                        supply_state: "battery" | "external" | "unknown";
+
+                        voltage_uv: number;
+                    } | null;
+                    device_id: string;
+
+                    scope: "device";
+                    temperatures: {
+
+                        access: "adb_shell" | "root_shell";
+
+                        observed_at: number;
+
+                        sensor_kind: "cpu" | "gpu" | "battery" | "skin" | "other";
+                        sensor_name: string;
+
+                        sensor_type?: number | null;
+                        source: string;
+
+                        status?: number | null;
+
+                        temperature_celsius: number;
+                    }[];
+                } | null;
 
                 fps?: number | null;
                 frame_window?: {

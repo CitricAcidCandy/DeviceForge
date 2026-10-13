@@ -79,6 +79,20 @@ fn cleanup_paths(lease: &Lease, until: Instant, failed: bool) -> Result<()> {
             *lease.output.lock().map_err(|_| Error::CleanupFailed)? = None;
         }
     }
+    if failed {
+        loop {
+            let path = lease.profile_outputs.lock().map_err(|_| Error::CleanupFailed)?.last().cloned();
+            let Some(path) = path else { break; };
+            if Instant::now() >= until { return Err(Error::CleanupFailed); }
+            files::regular(&path, false)?;
+            std::fs::remove_file(&path).map_err(|_| Error::CleanupFailed)?;
+            match std::fs::symlink_metadata(&path) {
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                _ => return Err(Error::CleanupFailed),
+            }
+            lease.profile_outputs.lock().map_err(|_| Error::CleanupFailed)?.pop();
+        }
+    }
     let Some(path) = lease.directory()? else {
         return Ok(());
     };

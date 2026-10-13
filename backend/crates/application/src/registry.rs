@@ -520,6 +520,7 @@ mod tests {
                 }
                 .into(),
                 fps: false,
+                device_observation: false,
                 device_capability: None,
             })
         }

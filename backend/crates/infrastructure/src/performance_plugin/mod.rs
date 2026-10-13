@@ -1,3 +1,4 @@
+mod device_observation;
 use crate::plugins::ProcessPlugin;
 use apk_domain::{
     Error, Executor, PluginArtifactResult, Result, now,
@@ -35,6 +36,7 @@ impl PluginPerformance {
         let capabilities = ProbeCapabilities {
             source: format!("plugin.{}", manifest.id),
             fps: access.fps,
+            device_observation: access.device_observation,
         };
         Ok(Self {
             plugin,
@@ -81,6 +83,13 @@ impl PerformanceProbe for PluginPerformance {
         if sample.frame_window.is_some() && !self.capabilities.fps {
             return Err(Error::Dependency("插件未声明 FPS 能力却返回帧数据".into()));
         }
+        if let Some(observation) = &sample.device_observation
+            && (!self.capabilities.device_observation || observation.device_id != target.device_id)
+        {
+            return Err(Error::Dependency(
+                "设备观测未声明或不属于固定采样设备".into(),
+            ));
+        }
         let time = now();
         if sample.captured_at < time.saturating_sub(60000)
             || sample.captured_at > time.saturating_add(5000)
@@ -101,6 +110,7 @@ impl PerformanceProbe for PluginPerformance {
                 duration_ms: window.duration_ms,
                 source: window.source,
             }),
+            device_observation: sample.device_observation.map(device_observation::map),
         };
         raw.validate()?;
         Ok(raw)

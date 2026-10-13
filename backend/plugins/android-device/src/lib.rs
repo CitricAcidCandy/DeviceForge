@@ -44,3 +44,5 @@ pub async fn execute(request: Request, context: InvocationContext) -> Execution 
     let result = operations::execute(&control, &config, input).await;
     control.finish(result)
 }
+
+mod profile;

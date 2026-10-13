@@ -1,16 +1,46 @@
 # DeviceForge 开发与验收记录
 
+## 2026-10-13 表格任务范围纠正与停止
+
+用户明确未要求用例业务，并指出表格可由前端处理；主代理承认本批选项扩大了范围，三个代理已停止。草稿保留不删除不提交；已撤销主代理刚追加的spreadsheet workspace成员，避免把缺模块的后端草稿加入构建。Cargo.lock仍保留本轮解析变化，未恢复；前端草稿也未纳入当前通过证据。基础设施表格最低资格4/4仅为局部结果，不算正式业务完成。两次Cargo依赖获取exit101，未集成/未服务验收；临时registry bridge已关闭，自有活动进程0。当前仅按用户要求汇报，不继续开发或测试。
+
+
+## 2026-10-13 Excel 导入业务并行实施
+
+- 架构门禁已完成，公开合同见 backend/docs/Excel导入插件实施裁定.md；新增独立spreadsheet协议4插件的inspect/read，三格式XLSX/XLS/UTF-8 CSV，分页/表选择/字段映射；尚未计为实现完成。
+- 主代理/交付总监负责三格式产物准入、workspace/锁文件和集成；后端独占backend/plugins/spreadsheet，前端独占features/spreadsheet与所属测试/文档，测试独占scripts/spreadsheet-smoke驱动。开发与测试准备并行，生成器/构建/服务由主代理协调。
+- 基础设施已新增三MIME、16MiB流式限制及容器/UTF-8最低资格，独立4项功能验证已exit0；本批随后因用户范围纠正停止，不计业务交付。工作簿语义归独立插件，不把XLS最低头部夹具当真实解析证据。
+- root调用栈仍仅设计；具体页面、GM真实服务/用例执行引擎、真机与正式分发继续留缺口，全部业务完成后才做性能专项。
+
+
+## 2026-10-13 Android 设备观测集成与 root 分析范围
+
+- [x] 可选设备观测第一版已冻结并实现：SDK/领域独立类型、宿主显式映射与声明/设备/版本/时效准入、SQLite 原值和派生净功率持久化；旧 JSON 缺省兼容。电流 µA、电压 µV、温度 °C；净功率 mW，正充电负放电，为整机净电池侧，不是游戏耗电。
+- [x] Android 环境固定三命令已接入；本轮 SDK/领域各 28 项、应用性能 12 项、存储性能 12 项、Android 库 105/105 与协议 141/141 通过。日志前缀 `artifacts/device-observation-gates-fa19a3a7-d2a8-4ecb-8c2d-fd975475880c`，库与协议原结果不重复运行。
+- [x] 新公共代码四处 Clippy 可合并条件已最小修；SDK/领域受影响规则 11 项修后通过，应用/适配各 12 项修后回归通过。修后相关包全目标 Clippy、新宿主/插件 debug 构建、假 ADB 和生成器均退出 0，日志前缀 `artifacts/device-observation-resume-a98e035f-fa4e-4eb0-9d0f-dfca8dc6e221`。
+- [x] 前端设备观测严格消费与 HTTP/runtime 原值保留已完成，原定点 30/30 通过；补拒传感器 U+FFFD 替换字符，受影响文件 8/8 通过。新生成后完整check/test/build均0（191源码/Svelte零错误警告/63文件/208模块），日志目录 `artifacts/frontend-gates-2026-10-13T05-58-18-301Z`。
+- [x] 新debug独立服务 `artifacts/android-device-observation-service-debug-03a1812b-453f-4d40-849b-f72fe8f6565d/report.json` 为 passed=true，6检查/4会话/45工具、313响应日志ID/7插件调用配对；宿主exit0、端口释放、直接工具/插件原句柄退出、热卸载Interrupted与新UUID代次重载已验证，输入/副本SHA稳定。使用原生假ADB，不证明真机。冻结根 `artifacts/android-device-observation-debug-frozen-1d628d04-2f8d-43c3-9c76-187ab45c9974`；阶段门禁前缀 `artifacts/device-observation-stage-04ba5c93-840e-47d4-a85d-f49275599246`，架构/架构测试/fmt/workspace Clippy/workspace build各0；workspace test在基础设施两旧超时/取消用例失败，runtime两模式在Harmony发现cleanup_failed失败，原件保留，不能称全量通过。
+- [ ] 真机/OEM 准确性、FPS ownerPid/UID、root 栈采样实现、匹配游戏符号、正式分发与跨平台仍待。root 可支持 CPU 栈/火焰图、调度关联和原生分配栈；Mono C# 栈另需运行时支持，root 不能创造缺失符号或硬件功率轨。全部业务完成后再做性能专项和压测。
+
+
+### 2026-10-13 功能缺陷窄修结果
+
+旧runtime两模式的Harmony发现cleanup_failed已用独立协议4原帧复现为假HDC缺终端回执，生产清理规则保持不变；夹具仅对严格固定版本探测返回完整status127不支持回执，不虚构输入支持。夹具3/3、新runtime两模式、两个原超时/取消用例单独复验均exit0，日志前缀 `artifacts/device-observation-functional-repair-d56a9c1d-1178-49bd-bf3d-04bb62822d13`。默认并行全量两失败原件仍保留，不能以单独复验宣称间歇性已根治。
+
+主代理唯一 `liveRuns.get('device-observation-workspace-final')` 已终态exit0，PID49832，`cargo test --locked --workspace -- --test-threads=4` 共1682项通过（136结果组，含零项文档组），前缀 `artifacts/device-observation-workspace-final-c809c4d6-a7da-4acd-9549-520df7cbd098`，汇总为同前缀-report.json。默认并行首失败仍保留，不宣称已根治。所有本批自有构建/门禁句柄均终态，不重启。root调用栈只读设计已附所属实施文档，未添加生产代码或清单贡献。
+
 ## 2026-10-13 投屏直播集成与业务接续
 
-- [x] 用户完成精确沙箱目录所有权修复，外部 CLI 两次 `sandbox-probe-ok`；当前主代理 managed 执行器仍为 `helper_unknown_error: setup refresh had errors`。备用 Node 可读写工作区并执行命令，开发继续。
-- [x] 公共输出策略已实现：默认完整保留、显式尾部窗口与过期游标 Conflict；SDK 8、运行库 24、缓存 3、交互 15 项实际通过，四份公共 README 已补策略与边界。
-- [x] 投屏首冻结后端库 13/13、Clippy、宿主 check 与 debug build 通过；副本位于 `artifacts/mirroring-live-debug-frozen-ea223604-2dc0-4af6-a72c-04988fdadf96`，首轮 10/12 失败原件保留。
-- [x] 前端实时媒体、控制 epoch、`readPackets` 与 `host.mirroring.stream` v1 已完成；33 项定点通过。主代理 `generate:api`、`check`（190 源码、Svelte 0/0、tsc）、默认 `npm test` 62/62 文件及 `build` 207 模块退出 0。全量首轮 61/62 的旧服务目录断言已窄修，原件保留；生产工厂未改。
-- [x] 新常驻服务 OS 句柄夹具资格 3 项通过，报告 `artifacts/mirroring-streaming-fixture-self-check-ca662704-53d6-4982-a65a-6dae156090c3/report.json`；旧资格另留原件。
-- [ ] 新真实服务报告 `artifacts/mirroring-streaming-service-debug-0f72d0fb-8a08-4d08-b647-885636a13cbe/report.json` 为失败：宿主空产物上下文被直播误拒绝，零工具/媒体输出。主代理已修为仅拒绝非空输入产物并补 2 项回归；备用 Node 首编译因缺 `link.exe` 退出 101，修后编译与新冻结交后端复用可用环境，尚未计通过。
-- [ ] 独立服务继续验证 HTTP/MCP、实际前端工厂、重连、取消/卸载/代际和缺 PID、外来 forward 清理失败。浏览器实际 H264/PCM 播放、真实 ADB/scrcpy、真机、Release 与正式分发仍待。
-- [ ] 后端接续 Android FPS 实际展示时间戳适配；复用已有 FrameWindow，不伪造帧数或填零，CPU/PSS/RSS 与原截止点保持。源码仍实施，不计通过。
-- [x] 所有业务完成后再做性能测试；当前只并行业务开发与必要功能检查，具体页面等待设计稿。
+- [x] 用户外部 CLI 两次 `sandbox-probe-ok`；当前 managed 执行器仍 `helper_unknown_error: setup refresh had errors`。备用 Node 可读写与执行，开发继续；不据外部探针宣称桌面执行器已恢复。
+- [x] 公共输出策略已实现：默认完整保留、显式尾部窗口与过期游标 Conflict；SDK 8、运行库 24、缓存 3、交互 15 项通过，四份公共 README 已补边界。
+- [x] 投屏两项阻断已修：仅拒绝实际输入产物；已知端口的设备/SCID 归属不符保留外来映射并报告清理失败。修后库 16/16、Clippy、宿主和插件 debug 构建通过；冻结副本 `artifacts/mirroring-live-debug-frozen-bcd0487a-d92f-4199-9816-f7ed140ba112` 五份 SHA 一致，旧失败原件保留。
+- [x] 前端直播、控制 epoch、readPackets 与 host.mirroring.stream v1 已接线；此前 33 定点、生成接口、190 源码严格检查、62/62 文件及 207 模块构建通过。浏览器探针编码器改局部所有权；修后架构 190、Svelte 0 错误/警告和 tsc 分别退出 0。
+- [x] 真实服务三轮均 passed=true：正常6检查/4会话/40工具，缺PID3检查/8工具，外来forward3检查/6工具。报告分别 `artifacts/mirroring-streaming-service-debug-fb13d2c0-73c1-40d6-81bc-a7f32c252e49/report.json`、`artifacts/mirroring-streaming-resource-missing-pid-b2dfb218-7d13-4206-a5d5-6901b66ac781/report.json`、`artifacts/mirroring-streaming-resource-foreign-forward-e06098ad-a25a-49d2-9178-53cbed624bd2/report.json`；实际前端工厂、原字节、HTTP/MCP、重连、旧epoch拒绝、卸载及清理失败已覆盖。
+- [ ] 真实 Edge 在媒体 JS 执行前 Target crashed，默认 GPU 进程拒绝访问、进程内 GPU 也失败；H264 解码和 PCM 调度未执行。真实 ADB/scrcpy、真机、Release 和正式分发仍待。正常服务驱动 Node 外壳退出码未独立读取，不补称退出0或优雅FIN。
+- [ ] 投屏阶段架构、6架构测试、fmt、workspace Clippy 已0；workspace test 在 Harmony 原期限墙钟2750ms断言失败（该协议127/128），原件保留，不能称全量通过。原单用例定点复验1/1及workspace build均0，日志前缀 `artifacts/mirroring-gates-resume-eee5058c-d4e4-45bc-8e92-8292ffb5ec47`。
+- [x] Android FPS 已接线并声明能力，保持现有 FrameWindow；唯一游戏层两快照、不清零、第二列展示时间、丢锚/回退/冲突缺测，最终stat复核进程身份。库89/89（新9）、完整protocol133/133（新7）、格式和全目标Clippy均0；真实工具进程夹具覆盖命令链、缺测、取消、超限、原截止点和进程换代，日志前缀 artifacts/android-fps-d6290c07-8441-4e37-b812-953b0b3e4760。
+- [ ] FPS独立只读审核未发现代码阻断；当前层归属基于名称的包名边界及唯一候选，未核SurfaceFlinger ownerPid/UID。新版宿主HTTP/MCP、前端、Android shell/OEM输出及真机游戏准确性尚待；80ms等待有取消分支但无专门协议用例。电气/温度公共字段尚未冻结，root调用栈未实施。方案与能力边界见backend/docs/Android游戏指标Rust采集实施.md。
+- [x] 功能研发与必要验证并行；全部业务完成后再执行性能专项和压测，具体页面等待设计稿。
 
 ## 2026-10-13 性能消费接线与缓存故障并行批次
 
@@ -904,3 +934,9 @@
 
 - 新增 `backend/crates/server/tests/artifact_storage_coordination.rs`：真实 `apk-server` 子进程竞争同一产物目录时第二实例非零退出，首实例退出后锁可重新取得；同文件路由测试覆盖摘要损坏重启不计配额、替代上传和保留期过期清理。
 - 定向命令 `cargo test -p apk-server --test artifact_storage_coordination -- --nocapture` 退出 0，2/2 通过。该证据覆盖同目录排他和单实例重启矩阵，不代表跨主机/跨进程共享回收、生产持续负载、release/npx 或真机验收。
+
+## 2026-10-13 Android Root与采样画面继续
+
+- 用户要求以后切换开发方向先询问；当前授权Android指标、Root堆栈与采样点画面，已确认每指标采样点对应当时画面。su与无Root兼容、真机/模拟器；无符号包不承诺完整函数或源码恢复。REA MCP+Agent操作插件仅后续计划，先不做。
+- FPS owner链补齐定点库/协议与Clippy、host/plugin build通过；前端FPS 6/6。独立新服务报告 artifacts/android-game-fps-service-debug-ecddefa9-1065-41c2-a08c-e255ac72e928/report.json passed=true，17检查/15会话/194工具；driver/host均0，原句柄/端口清理证据齐。两次驱动失败原件保留；合成文本/协议不转记真机或FPS精度。
+- Root录制与截图正在并行实现，前端独立消费9项源码已冻结未计当前门禁；纯Simpleperf parser已落盘待接线/验证。全部业务完成后才性能专项，不做压测。

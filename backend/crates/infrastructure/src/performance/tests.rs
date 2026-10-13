@@ -56,6 +56,7 @@ fn raw(ticks: u64, total: u64) -> RawPerformance {
         pss_kib: 2048,
         rss_kib: Some(4096),
         frame_window: None,
+        device_observation: None,
     }
 }
 fn session(id: String) -> PerformanceSession {
@@ -233,3 +234,5 @@ fn durable_sessions_reject_late_samples_reset_baselines_and_recover_all_pages() 
     assert!(store.samples(&id, u64::MAX, 1).is_err());
     assert!(store.list(None, 101).is_err());
 }
+
+mod observations;
