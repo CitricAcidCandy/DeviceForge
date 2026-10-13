@@ -18,8 +18,8 @@ export { openProfileArchive, downloadAndOpenProfileArchive } from './archive.ts'
 export type { OpenedProfileArchive, OpenedProfileFrame } from './archive.ts';
 export { JobFailure, JobWaitFailure } from '../../shared/jobs/index.ts';
 
-const probeOperation = 'android-device.stack.probe';
-const recordOperation = 'android-device.profile.record';
+const probeOperation = 'plugin.android-device.stack.probe';
+const recordOperation = 'plugin.android-device.profile.record';
 async function publicCall<T>(call: Promise<T>): Promise<T> {
   try { return await call; } catch (error) {
     if (error instanceof HostError) throw new ApiError(error.kind, error.code, error.message, error.status, error.logId, error.retryAfter);

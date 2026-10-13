@@ -3,7 +3,7 @@ import { packageName } from './protocol.mjs';
 export const deviceId = 'profile-0001';
 export const defaultProfile = Object.freeze({ root_access: 'auto', simpleperf: '/system/bin/simpleperf', su: 'su' });
 const quote = value => String(value).replace(/'/g, '\'\\\'\'');
-const shellQuote = value => '\'' + quote(value) + '\'';
+export const shellQuote = value => '\'' + quote(value) + '\'';
 // 与后端冻结合同独立构造：每项单引号后拼脚本，再整体单引号传给固定解释器。
 export function rootArgv(tail, access = 'adbd_root') {
   const script = tail.map(shellQuote).join(' ');
@@ -28,7 +28,7 @@ export const probeContract = { frozen: true, route: '冻结Root资格探测固�
       commands: [command('root-id', ['id', '-u'], '2000\n'), command('su-id', ['id', '-u'], '2000\n', 'su')] },
     { id: 'probe-no-simpleperf', expected: { root_access: 'adbd_root', supported: false, simpleperf_available: false, reason: noToolReason },
       commands: [command('root-id', ['id', '-u'], '0\n'), command('simpleperf-version', ['/system/bin/simpleperf', '--version'], '', 'adbd_root', 1)] },
-    { id: 'probe-missing-required-help', expected: { root_access: 'adbd_root', supported: false, simpleperf_available: false, reason: noToolReason },
+    { id: 'probe-missing-required-help', expected: { root_access: 'adbd_root', supported: false, simpleperf_available: true, reason: noToolReason },
       commands: [command('root-id', ['id', '-u'], '0\n'), command('simpleperf-version', ['/system/bin/simpleperf', '--version'], 'simpleperf fixture-v1\n'),
         command('simpleperf-record-help', ['/system/bin/simpleperf', 'record', '--help'], '--clockid\n'),
         command('simpleperf-report-help', ['/system/bin/simpleperf', 'report-sample', '--help'], '--protobuf --show-callchain\n')] },

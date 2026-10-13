@@ -173,7 +173,7 @@ fn sample_rejects_external_operation_name_before_config_or_tools() {
     fs::write(&fixture.config_path, b"must-not-read-invalid-config").unwrap();
     failure(
         &performance::complete(&fixture, request, 0),
-        "输入无效：设备插件只接受本批十二个短贡献名",
+        "输入无效：设备插件只接受已声明的短贡献名",
     );
 }
 

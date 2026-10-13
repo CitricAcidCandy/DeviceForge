@@ -9,10 +9,19 @@ fn check() -> Result<()> {
 }
 
 fn layer() -> Layer {
-    Layer { name: LAYER.into(), pid: 123, uid: 10001, chain: vec![owner::Record {
-        id: 17, name: LAYER.into(), parent: -1, uid: Some(10001),
-        metadata_uid: Some(10001), metadata_pid: Some(123),
-    }] }
+    Layer {
+        name: LAYER.into(),
+        pid: 123,
+        uid: 10001,
+        chain: vec![owner::Record {
+            id: 17,
+            name: LAYER.into(),
+            parent: -1,
+            uid: Some(10001),
+            metadata_uid: Some(10001),
+            metadata_pid: Some(123),
+        }],
+    }
 }
 
 fn text(points: &[u64]) -> String {
@@ -29,9 +38,12 @@ fn points(points: &[u64]) -> Snapshot {
 
 #[test]
 fn package_boundary_is_only_a_candidate_filter() {
-    assert!(belongs_to_package(LAYER,PACKAGE));
-    for name in ["SurfaceView[com.example.games/.Main]#1", "SurfaceView[org.other/com.example.game.Main]#1"] {
-        assert!(!belongs_to_package(name,PACKAGE));
+    assert!(belongs_to_package(LAYER, PACKAGE));
+    for name in [
+        "SurfaceView[com.example.games/.Main]#1",
+        "SurfaceView[org.other/com.example.game.Main]#1",
+    ] {
+        assert!(!belongs_to_package(name, PACKAGE));
     }
 }
 #[test]

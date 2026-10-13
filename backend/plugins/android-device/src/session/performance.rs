@@ -92,9 +92,11 @@ impl Session {
 
     async fn performance_uid(&self, device_id: &str, pid: u32) -> Result<Option<u32>> {
         let path = format!("/proc/{pid}/status");
-        let result = self.performance_read(device_id,&["cat",&path],move |output,check| {
-            performance::fps::uid(output,pid,check)
-        }).await;
+        let result = self
+            .performance_read(device_id, &["cat", &path], move |output, check| {
+                performance::fps::uid(output, pid, check)
+            })
+            .await;
         self.control.check()?;
         match result {
             Err(Error::Dependency(_)) => Ok(None),

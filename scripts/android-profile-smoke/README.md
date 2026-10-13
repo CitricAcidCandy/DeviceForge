@@ -1,6 +1,6 @@
 # Android Root 与采样画面独立验收
 
-本目录是独立真实服务驱动的准备写集。已通过的 FPS、设备电气/温度验收不重跑，不修改其入口、生产源码或证据。当前尚未冻结远端命令和画面媒体合同，未编译本批假 ADB、未启动本批实服，不计业务验收完成。
+本目录是独立真实服务驱动的准备写集。已通过的 FPS、设备电气/温度验收不重跑，不修改其入口、生产源码或证据。当前仅 probe 资格命令已冻结，远端命令和画面媒体合同仍待冻结，已编译本批 std-only 假 ADB、尚未启动本批实服，不计业务验收完成。
 
 ## 已准备
 
@@ -19,3 +19,9 @@
 ## 证据边界
 
 合成原字节和原生假 ADB 不替代 Root 真机、Android/OEM、实际游戏、scrcpy 实际采集、符号包或页面视觉验收。PNG 黄金只核原字节与关联，不据此作视觉结论。功能验收不提供容量、采集开销、压测或性能优化结论；性能专项按用户要求延后。
+
+## Root 资格阶段准备
+
+入口 `scripts/android-profile-smoke.mjs --phase=probe` 已实现六类资格场景、HTTP/MCP 动态贡献、共享 Job 历史、卸载重载与原 OS 句柄退出计划。实际外部操作由主代理核定为 `plugin.android-device.stack.probe`，录制为 `plugin.android-device.profile.record`，短设备能力不变。资格每步 750ms，plain/su 解释器 argv 和嵌套单引号已由后端确认。
+
+原生假 ADB 编译退出 0，`artifacts/android-profile-adb-fixture.exe` SHA-256 为 `4d7fe7d30fe647b1b1e81b0fea9dff71916416e5bf1e56964b56fb6e1bb61881`。`artifacts/android-profile-fixture-check-14432adf-f643-4871-b91f-34271dec5f97/report.json` 保留两项实际夹具自查：adbd Root 原字节/退出 0，su 拒绝退出 1；两进程均已实际 close。该自查无服务且不提供插件/远端原句柄结论。主入口语法与帮助通过，尚待主构建冻结包再运行本批服务。

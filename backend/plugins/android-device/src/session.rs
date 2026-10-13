@@ -29,7 +29,10 @@ impl Session {
         request: &Request,
         input: Input,
     ) -> Execution {
-        let mut session = Self { control, profile_root: None };
+        let mut session = Self {
+            control,
+            profile_root: None,
+        };
         let result = session.run(config, request, input).await;
         session.finish(result).await
     }
@@ -54,6 +57,10 @@ impl Session {
             )
             .await?;
         match input {
+            Input::ProfileRecord { device_id, options } => {
+                self.record_profile(&config, request, device_id, options, root)
+                    .await
+            }
             Input::Install {
                 device_id,
                 artifact_id,
@@ -206,16 +213,18 @@ pub(crate) fn validate_context(request: &Request, input: &Input) -> Result<()> {
         _ if !inputs.is_empty() => return Err(Error::Invalid("该设备动作不接受输入产物")),
         _ => {}
     }
-    if matches!(input, Input::Screenshot { .. })
-        && request
-            .artifacts
-            .as_ref()
-            .and_then(|artifacts| artifacts.output_directory.as_ref())
-            .is_none()
+    if matches!(
+        input,
+        Input::Screenshot { .. } | Input::ProfileRecord { .. }
+    ) && request
+        .artifacts
+        .as_ref()
+        .and_then(|artifacts| artifacts.output_directory.as_ref())
+        .is_none()
     {
         return Err(Error::Invalid("截图缺少宿主输出授权"));
     }
-    if matches!(input, Input::Performance { .. } | Input::StackProbe { .. })
+    if matches!(input, Input::Performance { .. })
         && request
             .artifacts
             .as_ref()
@@ -318,5 +327,51 @@ mod tests {
         value.artifacts.as_mut().unwrap().output_directory =
             Some("unused-before-configuration".into());
         assert!(validate_context(&value, &screenshot).is_ok());
+    }
+}
+
+#[cfg(test)]
+mod profile_context_tests {
+    use super::*;
+    use apk_plugin_sdk::ArtifactContext;
+    #[test]
+    fn probe_accepts_host_granted_empty_output_but_never_accepts_input_artifacts() {
+        let mut request = Request {
+            protocol_version: 4,
+            request_id: "probe-output-context".into(),
+            operation: "stack.probe".into(),
+            input: serde_json::Value::Null,
+            artifacts: Some(ArtifactContext {
+                inputs: Vec::new(),
+                output_directory: Some("host-output-only".into()),
+            }),
+        };
+        let input = Input::StackProbe {
+            device_id: "serial".into(),
+            package: "com.example.game".into(),
+        };
+        assert!(validate_context(&request, &input).is_ok());
+        let performance = Input::Performance {
+            device_id: "serial".into(),
+            package: "com.example.game".into(),
+        };
+        assert!(validate_context(&request, &performance).is_err());
+        request
+            .artifacts
+            .as_mut()
+            .unwrap()
+            .inputs
+            .push(apk_plugin_sdk::ArtifactInput {
+                field: "/input/package".into(),
+                artifact_id: "independent".into(),
+                filename: "input.apk".into(),
+                size: 1,
+                sha256: "0".repeat(64),
+                path: "unused".into(),
+            });
+        assert!(matches!(
+            validate_context(&request, &input),
+            Err(Error::Invalid("该设备动作不接受输入产物"))
+        ));
     }
 }

@@ -16,7 +16,7 @@ export interface ProfileIdentity {
   readonly frame_status?: 'captured' | 'unavailable' | 'disabled'; readonly frame_reason?: string | null;
 }
 export interface ProfileResult extends ProfileIdentity {
-  readonly sample_count: number; readonly stack_sample_count: number; readonly lost_count: string; readonly frame_count: number;
+  readonly sample_count: number; readonly stack_sample_count: number; readonly lost_count: string; readonly reported_sample_count?: string; readonly frame_count: number;
   readonly index_filename: 'profile-index.json'; readonly archive_filename: 'profile.zip';
 }
 export type DeviceObservation = NonNullable<components['schemas']['PerformancePage']['readings'][number]['device_observation']>;
@@ -36,7 +36,7 @@ export interface ProfileSample {
   readonly frame: ProfileFrame | null; readonly stack_sample_indices: readonly number[];
 }
 export interface ProfileIndex extends ProfileIdentity {
-  readonly samples: readonly ProfileSample[]; readonly stack_sample_count: number; readonly lost_count: string;
+  readonly samples: readonly ProfileSample[]; readonly stack_sample_count: number; readonly lost_count: string; readonly reported_sample_count?: string;
   readonly symbolication: 'reported_symbols_only';
 }
 export interface StackFrame {

@@ -16,7 +16,7 @@
 
 ## 第一版固定合同
 
-设备能力stack.probe v1、profile.record v1；实际短贡献同名，外部操作android-device.stack.probe、android-device.profile.record。输入仍是公开设备封套 {device_id,input}。
+设备能力stack.probe v1、profile.record v1；实际短贡献同名，外部操作plugin.android-device.stack.probe、plugin.android-device.profile.record。输入仍是公开设备封套 {device_id,input}。
 
 stack.probe业务输入 {package}。结果 {format_version:1,device_id,package,root_access:none|adbd_root|su,simpleperf_available,clock:"boottime",supported,reason}；未取得UID0/工具不可用只说明实际资格，不自动提权。
 
@@ -24,9 +24,9 @@ profile.record业务输入 {package,duration_ms,interval_ms,capture_frames}；du
 
 录制使用simpleperf record -p PID -e cpu-clock -f 99 -g --clockid boottime --duration 秒数 -o 自有远端文件。report-sample --protobuf --show-callchain生成报告；自有远端进程PID/starttime与目标PID/starttime/UID均需复核。单录制一个受控远端监督单元，每阶段最多一个simpleperf；监督器和simpleperf原PID/starttime及退出回执均须核验，有原绝对期限；取消/退出不仅回收ADB客户端，还要确认远端原PID退出和自有目录清理，否则cleanup_failed。文件/解析不阻塞异步调度线程。
 
-profile.record结果 {format_version:1,device_id,package,pid,process_start_ticks:string,clock:"boottime",frame_kind:"sampled_screenshot",display_frame_complete:false,sample_count,stack_sample_count,lost_count:string,frame_count,root_access,stack_status,stack_reason,index_filename:"profile-index.json",archive_filename:"profile.zip"}。详细数据放产物，响应不复制大数组。
+profile.record结果 {format_version:1,device_id,package,pid,process_start_ticks:string,clock:"boottime",frame_kind:"scrcpy_sampled_frame",display_frame_complete:false,sample_count,stack_sample_count,reported_sample_count:string,lost_count:string,frame_count,root_access,stack_status,stack_reason,frame_status,frame_reason,index_filename:"profile-index.json",archive_filename:"profile.zip"}。详细数据放产物，响应不复制大数组。
 
-索引profile-index.json {format_version:1,device_id,package,pid,process_start_ticks:string,clock:"boottime",frame_kind:"sampled_screenshot",display_frame_complete:false,samples:[{index,begin_ns:string,end_ns:string,metrics:原PerformanceSample,frame: null|{index,filename,begin_ns:string,end_ns:string},stack_sample_indices:number[]}],stack_sample_count,lost_count:string,root_access,stack_status,stack_reason,symbolication:"reported_symbols_only"}。每样本及截图前后读取/proc/uptime，时间区间含其10ms文本量化误差；不把区间当精确瞬间。样本最多16、栈索引最多4096/样本，超过不截断为完整关联，须明确限制失败。关联只有堆栈时间在样本区间内才写indices，区间外保持未关联；不按宿主墙钟猜配。截图属于采样时的设备画面，不能宣称是目标游戏独占窗口或实际每个显示帧；目标PID换代整录制失败。
+索引profile-index.json {format_version:1,device_id,package,pid,process_start_ticks:string,clock:"boottime",frame_kind:"scrcpy_sampled_frame",display_frame_complete:false,samples:[{index,begin_ns:string,end_ns:string,target_ns:string,metrics:原PerformanceSample,frame: null|{index,filename,begin_ns:string,end_ns:string},stack_sample_indices:number[]}],stack_sample_count,reported_sample_count:string,lost_count:string,root_access,stack_status,stack_reason,frame_status,frame_reason,symbolication:"reported_symbols_only"}。每指标样本前后读取/proc/uptime，时间区间含其10ms文本量化误差；不把区间当精确瞬间。样本最多16、栈索引最多4096/样本，超过不截断为完整关联，须明确限制失败。关联只有堆栈时间在样本区间内才写indices，区间外保持未关联；不按宿主墙钟猜配。截图属于采样时的设备画面，不能宣称是目标游戏独占窗口或实际每个显示帧；目标PID换代整录制失败。
 
 归档profile.zip使用Stored，包含profile-index.json、stacks.jsonl和frames/000000.png等采样画面；仅实际成功堆栈录制时包含非空perf.bin，无Root省略perf.bin并保留空stacks.jsonl。原trace及报告各64MiB上限；栈样本最多100000，链深256，表/文本有界，解析取消检查；JSONL最多32MiB，ZIP不压缩膨胀的raw录制结果，整体64MiB，不写任意产物格式。索引最多1MiB，宿主现有JSON/ZIP准入复用。
 
@@ -34,7 +34,7 @@ SIMPLEPERF格式：magic10字节SIMPLEPERF，u16le version1，u32le记录长度+
 
 ## 验证与缺口
 
-立即实施真实probe/record、报告解析、采样截图及对应索引，前端消费并行；必要功能门禁和独立服务不等待整批开发。用户已选择采样点画面模式，设备可为真机或模拟器，su权限需探测且无Root兼容；完整编码视频帧与实际显示帧不属于本批承诺。当前不进行性能专项/压测。正式真机、OEM、符号包和完整显示帧覆盖独立验收，不能由合成工具通过替代。
+实施真实probe/record、报告解析、持续视频抽帧及对应索引，前端消费并行；必要功能门禁和独立服务不等待整批开发。用户已选择采样点画面模式，设备可为真机或模拟器，su权限需探测且无Root兼容；完整编码视频帧与实际显示帧不属于本批承诺。当前不进行性能专项/压测。正式真机、OEM、符号包和完整显示帧覆盖独立验收，不能由合成工具通过替代。
 
 ## 用户确认与权限增量
 
@@ -48,7 +48,7 @@ SIMPLEPERF格式：magic10字节SIMPLEPERF，u16le version1，u32le记录长度+
 
 媒体模块profile/media.rs及media/**负责独立scrcpy目录/forward/server/socket、时钟helper、frame选取和解码。Root remote模块保持simpleperf监督器所有权。两者各自记录原PID/starttime；正常收口沿原deadline，取消/错误同一次cleanup_point，远端/直接进程/forward不确认则cleanup_failed。设备写锁覆盖整个profile.record。
 
-部署profile可选media {scrcpy_server:绝对路径,server_version:"3.3.1",clock_helper:绝对DEX/JAR路径,ffmpeg:固定入口,ffprobe:固定入口,max_size:640,max_fps:30}；业务不能选择程序/脚本。无配置或明确不支持画面时保留指标，frame_status=unavailable及固定frame_reason；capture_frames=false为disabled。media累计32MiB、frame记录≤2000、单包4MiB、输出归档64MiB、PNG最多16张和每张4MiB。取消清理不因普通unsupported被吞掉。
+部署profile平铺可选字段 {scrcpy_server:绝对路径,server_version:"3.3.1",clock_helper:绝对DEX/JAR路径,ffmpeg:固定入口,ffprobe:固定入口}；当前采集固定640px、30fps、2Mbps；业务不能选择程序/脚本。无配置或明确不支持画面时保留指标，frame_status=unavailable及固定frame_reason；capture_frames=false为disabled。media累计32MiB、frame记录≤2000、单包4MiB、输出归档64MiB、PNG最多16张和每张4MiB。取消清理不因普通unsupported被吞掉。
 
 设备时钟helper一次读取System.nanoTime→elapsedRealtimeNanos→System.nanoTime，输出monotonic/boottime对应区间；前后两个校时锚限制误差和offset变化。原媒体PTS与monotonic锚实际范围必须符合，boottime offset变动或落界外保持无关联，不凭MediaCodec字段默认推测。helper由本项目最小Java入口生成，纯读时钟，不修改游戏。各采样窗口由/proc/uptime原百分秒文本给10ms量化边界；target_ns为begin/end中点。
 

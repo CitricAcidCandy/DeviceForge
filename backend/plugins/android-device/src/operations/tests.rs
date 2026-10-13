@@ -357,3 +357,36 @@ fn apks_install_rejects_instant_device_specs_and_invalid_module_selection() {
         );
     }
 }
+
+#[test]
+fn profile_record_has_bounded_strict_business_fields_and_default_frames() {
+    let value = json!({"device_id":"serial","input":{"package":"com.example.game","duration_ms":1000,"interval_ms":1000}});
+    let Input::ProfileRecord { options, .. } = parse("profile.record", &value).unwrap() else {
+        panic!("录制输入类型不符");
+    };
+    assert!(options.capture_frames);
+    assert_eq!(options.duration_ms, 1000);
+    for input in [
+        json!({"package":"com.example.game","duration_ms":999,"interval_ms":1000}),
+        json!({"package":"com.example.game","duration_ms":15001,"interval_ms":1000}),
+        json!({"package":"com.example.game","duration_ms":1000,"interval_ms":1001}),
+        json!({"package":"com.example.game","duration_ms":1000,"interval_ms":999}),
+        json!({"package":"com.example.game","duration_ms":1000,"interval_ms":1000,"simpleperf":"other"}),
+        json!({"package":"com.example.game","duration_ms":1000,"interval_ms":1000,"root_access":"su_c"}),
+        json!({"package":"com.example.game","duration_ms":1000,"interval_ms":1000,"args":["-a"]}),
+    ] {
+        assert!(
+            parse(
+                "profile.record",
+                &json!({"device_id":"serial","input":input})
+            )
+            .is_err()
+        );
+    }
+    assert!(parse("plugin.android-device.profile.record", &value).is_err());
+    let disabled = json!({"device_id":"serial","input":{"package":"com.example.game","duration_ms":15000,"interval_ms":15000,"capture_frames":false}});
+    let Input::ProfileRecord { options, .. } = parse("profile.record", &disabled).unwrap() else {
+        panic!("录制输入类型不符");
+    };
+    assert!(!options.capture_frames);
+}

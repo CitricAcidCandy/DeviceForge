@@ -85,6 +85,7 @@ test('输入规范UUID并保留省略默认，显式undefined及无效参数拒�
     { artifact_id: artifact, limit: 501 }, { artifact_id: artifact, sheet: '中'.repeat(171) }]) assert.throws(() => normalizeRead(input), ApiError);
   const nullable = JSON.parse('{"artifact_id":"' + artifact + '","sheet":null}');
   assert.throws(() => normalizeRead(nullable), ApiError);
-  const undefinedInput = { artifact_id: artifact, offset: undefined };
+  const undefinedInput = { artifact_id: artifact };
+  Object.defineProperty(undefinedInput, 'offset', { value: undefined, enumerable: true });
   assert.throws(() => normalizeRead(undefinedInput), ApiError);
 });

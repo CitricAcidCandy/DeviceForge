@@ -55,6 +55,10 @@ pub(crate) enum Input {
         device_id: String,
         package: String,
     },
+    ProfileRecord {
+        device_id: String,
+        options: crate::profile::models::Options,
+    },
 }
 
 pub(crate) fn parse(operation: &str, input: &Value) -> Result<Input> {
@@ -76,6 +80,7 @@ pub(crate) fn parse(operation: &str, input: &Value) -> Result<Input> {
             | "screenshot"
             | "performance.sample"
             | "stack.probe"
+            | "profile.record"
     ) {
         return Err(Error::Invalid("设备插件只接受已声明的短贡献名"));
     }
@@ -106,10 +111,18 @@ pub(crate) fn parse(operation: &str, input: &Value) -> Result<Input> {
         .to_owned();
     rules::serial(&device_id)?;
     match operation {
+        "profile.record" => {
+            let options: crate::profile::models::Options = decode(&envelope.input)?;
+            options.validate()?;
+            Ok(Input::ProfileRecord { device_id, options })
+        }
         "stack.probe" => {
             let value: models::Package = decode(&envelope.input)?;
             rules::performance::package(&value.package)?;
-            Ok(Input::StackProbe { device_id, package: value.package })
+            Ok(Input::StackProbe {
+                device_id,
+                package: value.package,
+            })
         }
         "performance.sample" => {
             let value: models::Package = decode(&envelope.input)?;
@@ -198,7 +211,8 @@ pub(crate) async fn execute(control: &Control, config: &Config, input: Input) ->
         | Input::InstallApks { .. }
         | Input::Screenshot { .. }
         | Input::Performance { .. }
-        | Input::StackProbe { .. } => {
+        | Input::StackProbe { .. }
+        | Input::ProfileRecord { .. } => {
             return Err(Error::Invalid("产物设备动作必须进入独立资源流程"));
         }
         Input::Discover => {

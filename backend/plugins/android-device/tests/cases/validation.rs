@@ -19,11 +19,7 @@ fn full_external_names_and_unknown_short_names_are_not_accepted() {
         "android.packages",
         "install",
     ] {
-        reject(
-            name,
-            json!({}),
-            "输入无效：设备插件只接受本批十二个短贡献名",
-        );
+        reject(name, json!({}), "输入无效：设备插件只接受已声明的短贡献名");
     }
 }
 

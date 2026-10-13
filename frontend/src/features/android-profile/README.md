@@ -1,6 +1,6 @@
 # Android Root 堆栈与采样画面消费
 
-本模块采用 plan-and-build，消费冻结的 stack.probe v1 与 profile.record v1，不创建产品页面，也不改变宿主 SDK 或 runtime。通过公开 host.devices.invoke 携带完整设备引用；宿主负责转换为 {device_id,input} 封套。外部任务操作为 android-device.stack.probe 与 android-device.profile.record。
+本模块采用 plan-and-build，消费冻结的 stack.probe v1 与 profile.record v1，不创建产品页面，也不改变宿主 SDK 或 runtime。通过公开 host.devices.invoke 携带完整设备引用；宿主负责转换为 {device_id,input} 封套。外部任务操作为 plugin.android-device.stack.probe 与 plugin.android-device.profile.record。
 
 ## 职责
 
@@ -35,3 +35,5 @@ scrcpy_sampled_frame 保留原 pts_us 和视频序号。指标窗口中点 targe
 每张 PNG 最大 4 MiB，最多 16 张；容器校验宽高最大 16384、总像素最大 67108864、最多 65536 个块。Stored ZIP 全部输入与条目总输出不超过 64 MiB，拒绝重复、路径扩展、隐藏或重叠局部记录、data descriptor、加密、多磁盘、Zip64 与 Deflate。校验 PNG 签名、IHDR、块边界/CRC、IDAT 顺序和最终 IEND；这些校验不替代实际视觉或浏览器解码验收。
 
 生产路线是持续录制后抽取 PNG，本模块消费终态归档，不承诺实时输出或零延时。旧 sampled_screenshot 字段继续兼容读取，不借旧路径的测试证明 scrcpy 真机时间准确性。
+
+reported_sample_count 可选保留 LostSituation 的报告计数十进制原值，与实际解析 stack_sample_count 和 lost_count 分别记录，不假定三者相等或自行补算。当前后端仅任务结果带此字段，旧结果与索引缺省继续读取；索引若携带该字段须与任务结果一致，不把当前结果计数反填到旧索引。

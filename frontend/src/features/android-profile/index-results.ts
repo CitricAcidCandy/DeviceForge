@@ -27,11 +27,12 @@ function decodeSample(value: unknown, identity: ProfileResult, logId: string | n
 }
 export function decodeProfileIndex(value: unknown, identity: ProfileResult, logId: string | null): ProfileIndex {
   if (!isRecord(value) || !isProfileIdentity(value)
-    || !onlyKeys(value, ['format_version', 'device_id', 'package', 'pid', 'process_start_ticks', 'clock', 'frame_kind', 'display_frame_complete', 'root_access', 'stack_status', 'stack_reason', 'frame_status', 'frame_reason', 'samples', 'stack_sample_count', 'lost_count', 'symbolication'])
+    || !onlyKeys(value, ['format_version', 'device_id', 'package', 'pid', 'process_start_ticks', 'clock', 'frame_kind', 'display_frame_complete', 'root_access', 'stack_status', 'stack_reason', 'frame_status', 'frame_reason', 'samples', 'stack_sample_count', 'lost_count', 'reported_sample_count', 'symbolication'])
     || value.device_id !== identity.device_id || value.package !== identity.package || value.pid !== identity.pid
     || value.frame_kind !== identity.frame_kind || value.frame_status !== identity.frame_status || value.frame_reason !== identity.frame_reason
     || value.process_start_ticks !== identity.process_start_ticks || value.root_access !== identity.root_access
     || value.stack_status !== identity.stack_status || value.stack_reason !== identity.stack_reason || value.symbolication !== 'reported_symbols_only'
+    || !(value.reported_sample_count === undefined || decimalU64(value.reported_sample_count) && value.reported_sample_count === identity.reported_sample_count)
     || value.stack_status === 'unavailable' && (value.stack_sample_count !== 0 || value.lost_count !== '0')
     || value.stack_sample_count !== identity.stack_sample_count || value.lost_count !== identity.lost_count
     || !Array.isArray(value.samples) || value.samples.length !== identity.sample_count) throw invalidProfile(logId);
@@ -46,5 +47,5 @@ export function decodeProfileIndex(value: unknown, identity: ProfileResult, logI
     }
   }
   if (frames.size !== identity.frame_count) throw invalidProfile(logId);
-  return { ...value, samples, stack_sample_count: identity.stack_sample_count, lost_count: identity.lost_count, symbolication: 'reported_symbols_only' };
+  return { ...value, samples, stack_sample_count: identity.stack_sample_count, lost_count: identity.lost_count, ...(value.reported_sample_count === undefined ? {} : { reported_sample_count: value.reported_sample_count }), symbolication: 'reported_symbols_only' };
 }

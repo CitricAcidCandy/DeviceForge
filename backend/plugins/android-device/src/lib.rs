@@ -39,6 +39,7 @@ pub async fn execute(request: Request, context: InvocationContext) -> Execution 
             | operations::Input::Screenshot { .. }
             | operations::Input::Performance { .. }
             | operations::Input::StackProbe { .. }
+            | operations::Input::ProfileRecord { .. }
     ) {
         return session::Session::execute(control, config, &request, input).await;
     }

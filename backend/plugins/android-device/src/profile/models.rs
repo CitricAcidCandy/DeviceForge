@@ -12,13 +12,16 @@ pub(crate) struct Options {
     #[serde(default = "capture_default")]
     pub capture_frames: bool,
 }
-fn capture_default() -> bool { true }
+fn capture_default() -> bool {
+    true
+}
 impl Options {
     pub(crate) fn validate(&self) -> Result<()> {
         rules::performance::package(&self.package)?;
         if !(1000..=15000).contains(&self.duration_ms)
             || !(1000..=15000).contains(&self.interval_ms)
-            || self.interval_ms > self.duration_ms {
+            || self.interval_ms > self.duration_ms
+        {
             return Err(Error::Invalid("Root录制时长或采样间隔超出范围"));
         }
         Ok(())
@@ -43,10 +46,13 @@ pub(crate) struct Index {
     pub display_frame_complete: bool,
     pub samples: Vec<Sample>,
     pub stack_sample_count: usize,
+    pub reported_sample_count: String,
     pub lost_count: String,
     pub stack_status: &'static str,
     pub stack_reason: Option<&'static str>,
     pub root_access: &'static str,
+    pub frame_status: &'static str,
+    pub frame_reason: Option<&'static str>,
     pub symbolication: &'static str,
 }
 #[derive(Serialize)]
@@ -54,6 +60,7 @@ pub(crate) struct Sample {
     pub index: usize,
     pub begin_ns: String,
     pub end_ns: String,
+    pub target_ns: String,
     pub metrics: Value,
     pub frame: Option<Frame>,
     pub stack_sample_indices: Vec<usize>,
@@ -64,4 +71,11 @@ pub(crate) struct Frame {
     pub filename: String,
     pub begin_ns: String,
     pub end_ns: String,
+    pub source: &'static str,
+    pub epoch: u32,
+    pub video_frame_index: u32,
+    pub pts_us: String,
+    pub device_time_ns: String,
+    pub selection_delta_ns: String,
+    pub clock_error_ns: String,
 }

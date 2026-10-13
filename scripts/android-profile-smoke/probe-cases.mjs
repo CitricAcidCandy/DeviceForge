@@ -4,7 +4,7 @@ import { deviceId, probeContract } from './probe-route.mjs';
 import { packageName } from './protocol.mjs';
 import { setMode } from './fixtures.mjs';
 
-const operation = 'android-device.stack.probe';
+const operation = 'plugin.android-device.stack.probe';
 async function submit(host, report, scenario, transport) {
   const input = { device_id: deviceId, input: { package: packageName } };
   const submitted = transport === 'mcp'

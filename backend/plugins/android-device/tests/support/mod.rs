@@ -231,6 +231,8 @@ pub fn expected_device(
         "app.install_apks",
         "screenshot",
         "performance.sample",
+        "stack.probe",
+        "profile.record",
     ]
     .into_iter()
     .map(|id| {

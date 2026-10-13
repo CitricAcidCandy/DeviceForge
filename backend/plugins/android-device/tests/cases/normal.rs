@@ -324,7 +324,7 @@ fn unicode_text_uses_real_pm_path_and_fixed_adb_keyboard_argv() {
 }
 
 #[test]
-fn public_metadata_is_api3_protocol4_with_twelve_short_names_and_eleven_capabilities() {
+fn public_metadata_is_api3_protocol4_with_fourteen_short_names_and_thirteen_capabilities() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
     let bytes = fs::read(root.join("manifest.json")).unwrap();
     assert_eq!(bytes, fs::read(root.join("manifest.example.json")).unwrap());
@@ -354,7 +354,9 @@ fn public_metadata_is_api3_protocol4_with_twelve_short_names_and_eleven_capabili
             "input",
             "packages",
             "performance.sample",
-            "screenshot"
+            "profile.record",
+            "screenshot",
+            "stack.probe"
         ]
     );
     assert!(
@@ -365,7 +367,7 @@ fn public_metadata_is_api3_protocol4_with_twelve_short_names_and_eleven_capabili
             .all(|entry| entry.get("execution").is_none())
     );
     let capabilities = manifest["devices"]["capabilities"].as_array().unwrap();
-    assert_eq!(capabilities.len(), 11);
+    assert_eq!(capabilities.len(), 13);
     for name in names.iter().filter(|name| **name != "discover") {
         let matches: Vec<_> = capabilities
             .iter()
@@ -380,7 +382,14 @@ fn public_metadata_is_api3_protocol4_with_twelve_short_names_and_eleven_capabili
             capability["execution_timeout_ms"],
             if *name == "performance.sample" {
                 10000
-            } else if matches!(*name, "app.uninstall" | "app.install" | "app.install_apks") {
+            } else if matches!(
+                *name,
+                "app.uninstall"
+                    | "app.install"
+                    | "app.install_apks"
+                    | "stack.probe"
+                    | "profile.record"
+            ) {
                 120000
             } else {
                 30000
@@ -425,15 +434,22 @@ fn public_metadata_is_api3_protocol4_with_twelve_short_names_and_eleven_capabili
         json!({"kind":"device_discovery","plugin_id":"android-device"})
     );
     assert!(
-        bindings
-            .iter()
-            .all(|binding| { binding["operation"]["id"] != "android.performance.sample" }),
+        bindings.iter().all(|binding| {
+            !matches!(
+                binding["operation"]["id"].as_str(),
+                Some(
+                    "android.performance.sample" | "android.stack.probe" | "android.profile.record"
+                )
+            )
+        }),
         "采样只通过插件贡献或公开设备动作调用，不添加内置别名"
     );
-    for name in names
-        .iter()
-        .filter(|name| !matches!(**name, "discover" | "performance.sample"))
-    {
+    for name in names.iter().filter(|name| {
+        !matches!(
+            **name,
+            "discover" | "performance.sample" | "stack.probe" | "profile.record"
+        )
+    }) {
         let id = format!("android.{name}");
         let matches: Vec<_> = bindings
             .iter()

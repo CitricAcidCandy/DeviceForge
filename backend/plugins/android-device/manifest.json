@@ -120,6 +120,14 @@
         "scope": "device",
         "access": "write",
         "execution_timeout_ms": 120000
+      },
+      {
+        "id": "profile.record",
+        "version": 1,
+        "operation": "profile.record",
+        "scope": "device",
+        "access": "write",
+        "execution_timeout_ms": 120000
       }
     ]
   },
@@ -758,6 +766,68 @@
             },
             "required": [
               "package"
+            ]
+          }
+        },
+        "required": [
+          "device_id",
+          "input"
+        ]
+      }
+    },
+    {
+      "name": "profile.record",
+      "title": "录制Android指标、调用栈与采样画面",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "device_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "pattern": "^[^-]",
+            "not": {
+              "anyOf": [
+                {
+                  "pattern": "^\\s*$"
+                },
+                {
+                  "pattern": "[\\u0000-\\u001F\\u007F-\\u009F]"
+                }
+              ]
+            },
+            "description": "保留原文；运行时另校最多200个UTF-8字节"
+          },
+          "input": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "package": {
+                "type": "string",
+                "minLength": 3,
+                "maxLength": 200,
+                "pattern": "^[A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-9_]*)+$"
+              },
+              "duration_ms": {
+                "type": "integer",
+                "minimum": 1000,
+                "maximum": 15000
+              },
+              "interval_ms": {
+                "type": "integer",
+                "minimum": 1000,
+                "maximum": 15000
+              },
+              "capture_frames": {
+                "type": "boolean",
+                "default": true
+              }
+            },
+            "required": [
+              "package",
+              "duration_ms",
+              "interval_ms"
             ]
           }
         },

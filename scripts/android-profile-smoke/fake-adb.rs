@@ -12,18 +12,44 @@ fn encode(args: &[String]) -> Vec<u8> {
     for arg in args { bytes.extend_from_slice(&(arg.len() as u32).to_le_bytes()); bytes.extend_from_slice(arg.as_bytes()); }
     bytes
 }
+fn canonical(args: &[String], root: &Path) -> io::Result<Vec<String>> {
+    const PREFIX: &str = "/data/local/tmp/deviceforge-profile-";
+    let mut token: Option<String> = None;
+    for arg in args {
+        for (position, _) in arg.match_indices(PREFIX) {
+            let start = position + PREFIX.len();
+            let candidate = arg.get(start..start+64).ok_or_else(|| io::Error::other("远端token长度无效"))?;
+            if !candidate.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b)) { return Err(io::Error::other("远端token不是小写SHA256")); }
+            if token.as_ref().is_some_and(|saved| saved != candidate) { return Err(io::Error::other("同命令远端token不一致")); }
+            token = Some(candidate.to_owned());
+        }
+    }
+    let Some(token) = token else { return Ok(args.to_vec()); };
+    let mode = fs::read_to_string(root.join("mode"))?;
+    if mode.is_empty() || mode.len()>48 || !mode.bytes().all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b==b'-') { return Err(io::Error::other("token场景名称非法")); }
+    let anchor = root.join("inputs").join(mode).join("remote-token");
+    match fs::OpenOptions::new().write(true).create_new(true).open(&anchor) {
+        Ok(mut file) => file.write_all(token.as_bytes())?,
+        Err(error) if error.kind() == io::ErrorKind::AlreadyExists => {
+            if fs::read_to_string(&anchor)? != token { return Err(io::Error::other("本轮远端token变化")); }
+        },
+        Err(error) => return Err(error),
+    }
+    Ok(args.iter().map(|value| value.replace(&token,"@TOKEN@")).collect())
+}
 fn run() -> io::Result<i32> {
     let root = env::current_exe()?.parent().ok_or_else(|| io::Error::other("工具须有父目录"))?.to_owned();
     let args: Vec<String> = env::args().skip(1).collect();
     if args.len() > 16 || args.iter().any(|a| a.len() > 4096) { return Err(io::Error::other("参数超限")); }
     let argv = encode(&args);
+    let canonical_argv = encode(&canonical(&args,&root)?);
     let mode = fs::read_to_string(root.join("mode"))?;
     if mode.is_empty() || mode.len() > 48 || !mode.bytes().all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-') { return Err(io::Error::other("场景名称非法")); }
     let folder = root.join("inputs").join(mode.trim());
     let mut selected = None;
     for index in 1..=32 {
         let path = folder.join(format!("spec-{index:03}")); if !path.exists() { break; }
-        if fs::read(path.join("argv.bin"))? == argv { if selected.is_some() { return Err(io::Error::other("固定argv重复")); } selected = Some(path); }
+        if fs::read(path.join("argv.bin"))? == canonical_argv { if selected.is_some() { return Err(io::Error::other("固定argv重复")); } selected = Some(path); }
     }
     let spec = selected.ok_or_else(|| io::Error::other("拒绝未冻结的固定argv"))?;
     let category = fs::read_to_string(spec.join("category"))?;

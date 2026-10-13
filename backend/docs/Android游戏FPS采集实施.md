@@ -80,3 +80,7 @@ ADB 继续使用固定部署入口、`-s serial shell -T`、Restricted 环境、
 - [dumpsys参数](https://android.googlesource.com/platform/frameworks/native/+/refs/heads/main/cmds/dumpsys/dumpsys.cpp)与[SurfaceFlinger导出](https://android.googlesource.com/platform/frameworks/native/+/refs/heads/main/services/surfaceflinger/SurfaceFlinger.cpp)：--proto显式传给服务；AOSP12为裸图层，当前主线导出带魔数的一次快照。shell在AOSP可执行DUMP，不代表所有OEM ROM都会保留该接口或元数据。
 
 实际ROM、元数据继承和游戏多窗口兼容仍待真实设备验证。缺少可信见证只能缺测，不能重回层名归属。当前尚未完成共享门禁、独立HTTP/MCP及前端服务证据；本批不包含root堆栈实现，也不作为性能专项测试。
+
+## Android 11 图层字段兼容
+
+Android 11图层不保证提供owner_uid字段53。此字段缺失时仍必须由真实同层metadata键1的UID与键6的PID成对匹配目标/proc身份，祖先链中任何PID/UID声明冲突均拒绝，不能跨层拼见证。若候选存在owner_uid声明，该声明仍须等于目标UID。层名仅用于选择SurfaceView/BLAST和对应latency条目，不作为归属证明。无有效同层见证时FPS保持缺失；旧版纯夹具不能替代真实手机metadata验收。

@@ -50,3 +50,22 @@ export async function setMode(fixture, mode) {
   assert.ok(fixture.cases.some(value => value.id === mode)); const pending = join(fixture.root, 'mode.tmp'); await writeFile(pending, mode); await rename(pending, join(fixture.root, 'mode'));
 }
 export async function verifyFixture(fixture, report) { assert.deepEqual(await fileIdentity(fixture.adb), report.fixture.executable); }
+
+// 只替换已经核定的小写SHA256目录token；其余脚本须完整匹配固定计划。
+export function canonicalArgv(args, fixture, mode) {
+  const prefix = '/data/local/tmp/deviceforge-profile-', tokens = new Set();
+  for (const arg of args) {
+    let cursor = 0;
+    while (true) {
+      const found = arg.indexOf(prefix, cursor); if (found < 0) break;
+      const begin = found + prefix.length, token = arg.slice(begin, begin + 64);
+      assert.match(token, /^[a-f0-9]{64}$/, 'PROFILE-REMOTE-TOKEN'); tokens.add(token); cursor = begin + 64;
+    }
+  }
+  if (!tokens.size) return args; assert.equal(tokens.size, 1, 'PROFILE-REMOTE-SAME-TOKEN');
+  const token = [...tokens][0];
+  fixture.remoteTokens ??= new Map();
+  if (fixture.remoteTokens.has(mode)) assert.equal(token, fixture.remoteTokens.get(mode), 'PROFILE-REMOTE-FIXED-TOKEN');
+  else fixture.remoteTokens.set(mode, token);
+  return args.map(arg => arg.replaceAll(token, '@TOKEN@'));
+}

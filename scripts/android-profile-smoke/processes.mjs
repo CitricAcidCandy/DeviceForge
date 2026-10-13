@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { finishPendingProbes, finishProbe, startProbe } from '../harmony-screenshot-smoke/fixtures.mjs';
 import { decodeArgv, readIfExists } from '../mirroring-streaming-smoke/fixtures.mjs';
+import { canonicalArgv } from './fixtures.mjs';
 export { finishPendingProbes };
 
 // 每个直接工具先门闩，取得当次工具与父插件OS句柄后放行，不查历史PID。
@@ -22,7 +23,7 @@ export function observeTools(fixture, probeBinary, pluginBinary, report) {
         const argv = decodeArgv(await readFile(join(directory, 'argv.bin')));
         const mode = await readFile(join(directory, 'mode'), 'utf8');
         const scenario = fixture.cases.find(value => value.id === mode); assert.ok(scenario, 'PROFILE-OS-KNOWN-MODE');
-        const matches = [...fixture.shared, ...scenario.commands].filter(spec => JSON.stringify(spec.argv) === JSON.stringify(argv));
+        const matches = [...fixture.shared, ...scenario.commands].filter(spec => JSON.stringify(spec.argv) === JSON.stringify(canonicalArgv(argv, fixture, mode)));
         assert.equal(matches.length, 1, 'PROFILE-OS-FROZEN-ARGV'); assert.equal(matches[0].category, category, 'PROFILE-OS-CATEGORY');
         const key = mode + ':' + JSON.stringify(argv), ordinal = ordinals.get(key) ?? 0; ordinals.set(key, ordinal + 1);
         const planned = matches[0].outputs[Math.min(ordinal, matches[0].outputs.length - 1)];

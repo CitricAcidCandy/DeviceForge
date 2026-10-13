@@ -33,10 +33,11 @@ export function decodeProfileResult(value: unknown, logId: string | null, device
   const envelope = decodeArtifactEnvelope(value, 'Android 堆栈录制', logId);
   const result = envelope.result;
   if (!isRecord(result) || !isProfileIdentity(result)
-    || !onlyKeys(result, ['format_version', 'device_id', 'package', 'pid', 'process_start_ticks', 'clock', 'frame_kind', 'display_frame_complete', 'root_access', 'stack_status', 'stack_reason', 'frame_status', 'frame_reason', 'sample_count', 'stack_sample_count', 'lost_count', 'frame_count', 'index_filename', 'archive_filename'])
+    || !onlyKeys(result, ['format_version', 'device_id', 'package', 'pid', 'process_start_ticks', 'clock', 'frame_kind', 'display_frame_complete', 'root_access', 'stack_status', 'stack_reason', 'frame_status', 'frame_reason', 'sample_count', 'stack_sample_count', 'lost_count', 'reported_sample_count', 'frame_count', 'index_filename', 'archive_filename'])
     || result.device_id !== device || result.package !== packageId || !integer(result.sample_count, 1, PROFILE_LIMITS.samples)
     || !integer(result.stack_sample_count, 0, PROFILE_LIMITS.stacks) || !decimalU64(result.lost_count)
-    || result.stack_status === 'unavailable' && (result.stack_sample_count !== 0 || result.lost_count !== '0')
+    || !(result.reported_sample_count === undefined || decimalU64(result.reported_sample_count))
+    || result.stack_status === 'unavailable' && (result.stack_sample_count !== 0 || result.lost_count !== '0' || result.reported_sample_count !== undefined && result.reported_sample_count !== '0')
     || !integer(result.frame_count, 0, result.sample_count)
     || result.frame_status === 'captured' && result.frame_count === 0
     || (result.frame_status === 'unavailable' || result.frame_status === 'disabled') && result.frame_count !== 0 || result.index_filename !== 'profile-index.json' || result.archive_filename !== 'profile.zip') throw invalidProfile(logId);
@@ -47,5 +48,5 @@ export function decodeProfileResult(value: unknown, logId: string | null, device
       || artifact.media_type !== (index ? 'application/json' : 'application/zip')) throw invalidProfile(logId);
   }
   return { result: { ...result, sample_count: result.sample_count, stack_sample_count: result.stack_sample_count,
-    lost_count: result.lost_count, frame_count: result.frame_count, index_filename: result.index_filename, archive_filename: result.archive_filename }, artifacts: envelope.artifacts };
+    lost_count: result.lost_count, ...(result.reported_sample_count === undefined ? {} : { reported_sample_count: result.reported_sample_count }), frame_count: result.frame_count, index_filename: result.index_filename, archive_filename: result.archive_filename }, artifacts: envelope.artifacts };
 }

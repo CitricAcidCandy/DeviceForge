@@ -10,7 +10,7 @@ import { deferred, signal } from './fixtures.ts';
 
 const device = 'emulator-5554'; const packageId = 'com.example.game';
 const reference = { providerId: 'android-device', generation: 'generation-1', localId: device };
-const operation = 'android-device.profile.record';
+const operation = 'plugin.android-device.profile.record';
 function result(): ProfileResult {
   return { format_version: 1, device_id: device, package: packageId, pid: 42, process_start_ticks: '900', clock: 'boottime',
     frame_kind: 'sampled_screenshot', display_frame_complete: false, root_access: 'su', stack_status: 'captured', stack_reason: null, sample_count: 1, stack_sample_count: 3, lost_count: '0', frame_count: 1,
@@ -205,4 +205,18 @@ test('scrcpy画面不可用与Root栈捕获相互独立，零帧不会改成缺R
   const timeline = buildProfileTimeline(decodeProfileIndex(next, current, 'profile-log'), [stack('130'), stack('160'), stack('201')], 'profile-log');
   assert.equal(timeline.frameStatus, 'unavailable'); assert.equal(timeline.frameReason, 'media_unavailable'); assert.equal(timeline.stackStatus, 'captured');
   assert.throws(() => decodeProfileResult({ ...envelope(), result: { ...current, frame_status: 'captured', frame_reason: null } }, 'profile-log', device, packageId), protocolLog);
+});
+
+test('报告计数独立保留LostSituation原值，旧索引缺省不补值，非法原值与错配拒绝', () => {
+  const value = { ...result(), reported_sample_count: '18446744073709551615' };
+  const accepted = decodeProfileResult({ ...envelope(), result: value }, 'profile-log', device, packageId);
+  assert.equal(accepted.result.reported_sample_count, '18446744073709551615');
+  const legacy = decodeProfileIndex(indexValue(), accepted.result, 'profile-log');
+  assert.equal(Object.hasOwn(legacy, 'reported_sample_count'), false);
+  const reported = decodeProfileIndex({ ...indexValue(), reported_sample_count: value.reported_sample_count }, accepted.result, 'profile-log');
+  assert.equal(reported.reported_sample_count, value.reported_sample_count);
+  for (const invalid of ['04', '-1', '18446744073709551616', 4, null]) {
+    assert.throws(() => decodeProfileResult({ ...envelope(), result: { ...result(), reported_sample_count: invalid } }, 'profile-log', device, packageId), protocolLog);
+  }
+  assert.throws(() => decodeProfileIndex({ ...indexValue(), reported_sample_count: '4' }, accepted.result, 'profile-log'), protocolLog);
 });

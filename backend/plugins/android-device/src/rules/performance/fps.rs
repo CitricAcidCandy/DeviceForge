@@ -1,9 +1,9 @@
 //! 游戏展示帧的纯规则；不清空全局计数，不访问设备、时钟或会话。
 mod owner;
-pub(crate) use owner::{layer as owned_layer, uid};
 use super::Check;
 use crate::{Error, Result};
 use apk_plugin_sdk::FrameWindow;
+pub(crate) use owner::{layer as owned_layer, uid};
 use sha2::{Digest, Sha256};
 
 const MAX_FRAME_ROWS: usize = 256;
@@ -65,7 +65,6 @@ fn belongs_to_package(name: &str, package: &str) -> bool {
         before && after
     })
 }
-
 
 fn nanoseconds(value: &str) -> Option<u64> {
     if value.is_empty() || !value.bytes().all(|byte| byte.is_ascii_digit()) {
