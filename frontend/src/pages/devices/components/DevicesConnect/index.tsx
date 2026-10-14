@@ -35,17 +35,25 @@ interface DisconnectTarget {
   readonly address: string;
 }
 
-export function DevicesConnect({ services }: { services: ProductServices }) {
+export function DevicesConnect({
+  services,
+  initialProvider = null,
+}: {
+  services: ProductServices;
+  initialProvider?: DeviceProviderInfo | null;
+}) {
   const snapshot = useSnapshot(services.runtime.devices);
   const catalog = useSnapshot(services.runtime.operations);
   const action = useAction();
-  const [selection, setSelection] = useState('');
+  const [selection, setSelection] = useState(initialProvider ? providerKey(initialProvider) : '');
+  const [actionKey, setActionKey] = useState('');
   const [address, setAddress] = useState('');
   const [confirmation, setConfirmation] = useState<DisconnectTarget | null>(null);
   const [report, setReport] = useState<{
     key: string;
     title: string;
     data: DeviceBusinessResult;
+    observed: boolean;
   } | null>(null);
   const provider = snapshot.providers.find((item) => providerKey(item) === selection) ?? null;
   const key = provider ? providerKey(provider) : '';
@@ -63,6 +71,8 @@ export function DevicesConnect({ services }: { services: ProductServices }) {
   const run = (id: 'connect' | 'disconnect', target: DeviceProviderInfo, targetAddress: string) => {
     const gate = capabilityGate(services.runtime.devices.snapshot(), operations, id, target);
     if (!gate.capability) return;
+    setActionKey(providerKey(target));
+    setReport(null);
     void action.run(async (signal) => {
       const response = await executeDeviceTask(
         services,
@@ -88,15 +98,28 @@ export function DevicesConnect({ services }: { services: ProductServices }) {
           key: providerKey(target),
           title: id === 'connect' ? '连接任务完成' : '断开任务完成',
           data: response.data,
+          observed: false,
         });
-      return response;
+      const discovered = await services.runtime.devices.refreshProvider(
+        target.id,
+        target.generation,
+        signal,
+      );
+      if (!signal.aborted)
+        setReport({
+          key: providerKey(target),
+          title: id === 'connect' ? '连接任务完成' : '断开任务完成',
+          data: response.data,
+          observed: true,
+        });
+      return { ...response, logId: discovered.logId ?? response.logId };
     });
   };
   return (
     <div className="workspace-section" data-product-section="devices-connect">
       <h2>连接设备提供者</h2>
       <p className="muted">
-        提供者连接能力不依赖已有设备目录。连接后在提供者列表重新发现设备；地址格式由所选提供者校验。
+        选择提供者并填写连接地址，任务完成后自动重新发现设备。地址格式由提供者校验。
       </p>
       {snapshot.providers.length ? (
         <>
@@ -157,11 +180,15 @@ export function DevicesConnect({ services }: { services: ProductServices }) {
           description="先加载支持设备能力的服务器插件并刷新目录。"
         />
       )}
-      <ActionFeedback {...action} />
+      {actionKey === key && <ActionFeedback {...action} />}
       {report?.key === key && (
         <div className="result-row">
           <h3>{report.title}</h3>
-          <p className="muted">重新发现设备以取得当前观测；任务成功不代表旧目录已经刷新。</p>
+          <p className="muted">
+            {report.observed
+              ? '已重新发现并更新设备目录。'
+              : '连接任务已经完成，设备发现尚未完成；可关闭对话框后重新发现。'}
+          </p>
           <JsonResult value={report.data.result} />
         </div>
       )}

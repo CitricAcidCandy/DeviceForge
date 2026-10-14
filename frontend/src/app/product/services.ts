@@ -18,6 +18,7 @@ import type { JobGateway } from '../../shared/jobs/index.ts';
 import type { RuntimeOptions } from '../runtime.ts';
 import { createFrontendRuntime } from '../runtime.ts';
 import { createMediaDisplay } from './media-display.ts';
+import { createPluginDefaults } from '../../features/plugin-defaults/index.ts';
 
 export interface ProductConnection {
   readonly baseUrl: string;
@@ -32,6 +33,12 @@ export function createProductServices(
   const runtime = createFrontendRuntime({
     ...options,
     mirroringSink: options.mirroringSink ?? mediaDisplay.sink,
+  });
+  const pluginDefaults = createPluginDefaults({
+    packages: runtime.pluginPackages,
+    serverPlugins: runtime.serverPlugins,
+    browserPlugins: runtime.webPlugins,
+    signal: runtime.host.signal,
   });
   const client = createApiClient(options);
   const gateway: JobGateway = {
@@ -59,6 +66,7 @@ export function createProductServices(
   let closing: Promise<void> | null = null;
   return {
     runtime,
+    pluginDefaults,
     client,
     mediaDisplay,
     connection: options.connection ?? null,
@@ -79,6 +87,7 @@ export function createProductServices(
     dispose(): Promise<void> {
       if (closing) return closing;
       closing = (async () => {
+        pluginDefaults.dispose();
         packageAnalysis.dispose();
         frida.dispose();
         automation.dispose();

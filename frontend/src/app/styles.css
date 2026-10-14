@@ -27,28 +27,28 @@
 }
 
 :root {
-  color-scheme: dark;
+  color-scheme: light;
   font-family: 'Microsoft YaHei', 'PingFang SC', system-ui, sans-serif;
   color: var(--foreground);
   background: var(--background);
   line-height: 1.6;
   font-synthesis: none;
-  --background: #12181d;
-  --foreground: #edf0ed;
-  --card: #171e24;
-  --popover: #1e272e;
-  --primary: #f4b742;
-  --primary-foreground: #20201d;
-  --secondary: #26332e;
-  --muted: #252e35;
-  --muted-foreground: #a4adb4;
-  --accent: #2b343a;
-  --destructive: #f18579;
-  --border: #36424a;
-  --input: #46545f;
-  --ring: #f4b742;
+  --background: #e6dcc7;
+  --foreground: #2e372b;
+  --card: #f8f4e7;
+  --popover: #fcf9ef;
+  --primary: #606d43;
+  --primary-foreground: #fffdf5;
+  --secondary: #e0e5d1;
+  --muted: #eee9db;
+  --muted-foreground: #5c634d;
+  --accent: #e5e8d8;
+  --destructive: #a53c2e;
+  --border: #c9c6ae;
+  --input: #83896f;
+  --ring: #606d43;
   --workshop-paper: var(--card);
-  --workshop-green: #5ec594;
+  --workshop-green: #456a45;
 }
 
 * {
@@ -72,6 +72,19 @@ summary {
 }
 a {
   color: inherit;
+}
+[data-slot='button'][data-variant='default'] {
+  color: var(--primary-foreground);
+}
+.device-workspace-page .page-heading {
+  padding: 18px 20px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--card);
+}
+.device-page-feedback:not(:empty) {
+  border-radius: 10px;
+  background: var(--card);
 }
 svg {
   flex-shrink: 0;
@@ -154,7 +167,7 @@ details + details {
 }
 
 .product-shell {
-  --workspace-sidebar-width: 240px;
+  --workspace-sidebar-width: 208px;
   min-height: 100dvh;
   position: relative;
   isolation: isolate;
@@ -168,13 +181,14 @@ details + details {
   position: fixed;
   inset: 0;
   z-index: -2;
-  background: #181f24 url('./product/assets/workshop-background.png') center top / cover no-repeat;
+  background: var(--background) url('./product/assets/workshop-background.png') center top / cover
+    no-repeat;
 }
 .workshop-scene::after {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, #10161a25, #10161a80 60%, #10161ad9);
+  background: color-mix(in srgb, var(--background) 10%, transparent);
 }
 .workspace-sidebar {
   position: sticky;
@@ -183,7 +197,7 @@ details + details {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  background: color-mix(in srgb, var(--background) 93%, transparent);
+  background: color-mix(in srgb, var(--card) 95%, transparent);
   border-right: 1px solid var(--border);
   backdrop-filter: blur(18px);
   z-index: 35;
@@ -348,7 +362,7 @@ details + details {
   justify-content: space-between;
   gap: 16px;
   padding: 12px 24px;
-  background: color-mix(in srgb, var(--background) 84%, transparent);
+  background: color-mix(in srgb, var(--card) 90%, transparent);
   border-bottom: 1px solid var(--border);
   backdrop-filter: blur(18px);
   position: sticky;
@@ -425,7 +439,7 @@ details + details {
   padding: 13px 18px;
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: color-mix(in srgb, var(--background) 88%, transparent);
+  background: color-mix(in srgb, var(--card) 95%, transparent);
   backdrop-filter: blur(12px);
 }
 .device-context-selector {
@@ -487,7 +501,7 @@ details + details {
 }
 .workspace-content {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 256px;
+  grid-template-columns: minmax(0, 1fr) 260px;
   align-items: start;
   gap: 16px;
   padding: 20px 24px 28px;
@@ -497,15 +511,22 @@ details + details {
 .workplane {
   width: 100%;
   min-width: 0;
-  min-height: calc(100dvh - 209px);
-  height: calc(100dvh - 209px);
+  min-height: calc(100dvh - 292px);
+  height: calc(100dvh - 292px);
   overflow: auto;
-  padding: 26px 28px 34px;
+  padding: 24px 24px 30px;
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 10px;
   outline: none;
-  box-shadow: 0 8px 28px #00000010;
+  box-shadow: 0 5px 20px #554c2c0a;
+}
+.workplane:has(> [data-route='devices']:not([hidden])) {
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
 }
 .device-summary {
   min-width: 0;
@@ -513,7 +534,7 @@ details + details {
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--card);
-  min-height: calc(100dvh - 209px);
+  min-height: calc(100dvh - 292px);
 }
 .device-summary h2 {
   font-size: 0.9rem;
@@ -530,11 +551,7 @@ details + details {
   width: 84px;
   height: 112px;
   border-radius: 14px;
-  background: linear-gradient(
-    150deg,
-    color-mix(in srgb, var(--primary) 10%, var(--card)),
-    var(--background)
-  );
+  background: var(--secondary);
   border: 1px solid var(--border);
   color: var(--primary);
 }
@@ -569,6 +586,45 @@ details + details {
 .device-summary > button {
   margin-top: 20px;
   width: 100%;
+}
+.device-summary-capabilities {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.device-summary-capabilities span {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  padding: 3px 8px;
+  border-radius: 4px;
+  color: var(--primary);
+  background: var(--secondary);
+  font-size: 0.68rem;
+}
+.workspace-taskbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 24px 24px;
+  padding: 14px 20px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--card);
+  font-size: 0.8rem;
+}
+.workspace-taskbar > div {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.workspace-taskbar small {
+  color: var(--muted-foreground);
+}
+.workspace-taskbar > button {
+  flex-shrink: 0;
 }
 .device-summary-hint {
   display: flex;
@@ -1253,9 +1309,9 @@ details + details {
     padding-inline: 20px;
   }
 }
-@media (max-width: 1360px) {
+@media (max-width: 1279px) {
   .product-shell {
-    --workspace-sidebar-width: 220px;
+    --workspace-sidebar-width: 200px;
   }
   .workspace-content {
     grid-template-columns: minmax(0, 1fr);
@@ -1303,6 +1359,10 @@ details + details {
     grid-row: 2 / 5;
     margin-top: 0;
     width: auto;
+  }
+  .device-summary-capabilities {
+    grid-column: 2;
+    margin-top: 12px;
   }
   .device-summary-hint {
     display: none;
@@ -1407,6 +1467,16 @@ details + details {
   .workspace-content {
     padding: 14px 12px 20px;
     gap: 14px;
+  }
+  .workspace-taskbar {
+    margin: 0 12px 20px;
+    padding: 12px;
+  }
+  .workspace-taskbar small {
+    display: none;
+  }
+  .workspace-taskbar > button {
+    min-height: 44px;
   }
   .workplane {
     padding: 22px 18px 28px;

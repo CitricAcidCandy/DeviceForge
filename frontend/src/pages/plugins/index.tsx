@@ -31,6 +31,18 @@ export function PluginsPage({ services }: { services: ProductServices }) {
   const [kind, setKind] = useState<PackageKind>('server');
   const [file, setFile] = useState<File | null>(null);
   const action = useAction();
+  const defaults = useSnapshot(services.pluginDefaults);
+  const defaultFailures = defaults.results.filter((entry) => entry.status === 'failed');
+  const defaultEnabled = defaults.results.filter((entry) => entry.status !== 'failed');
+  const [defaultCopy, setDefaultCopy] = useState('');
+  async function copyDefaultLog(value: string) {
+    try {
+      await navigator.clipboard.writeText(value);
+      setDefaultCopy('日志 ID 已复制');
+    } catch {
+      setDefaultCopy('复制失败，请手动选择日志 ID');
+    }
+  }
   const server = useSnapshot(services.runtime.serverPlugins);
   const directorySource = useMemo(
     () => ({
@@ -69,6 +81,8 @@ export function PluginsPage({ services }: { services: ProductServices }) {
     );
   }
   async function refresh(signal: AbortSignal) {
+    // 自动启用复用目录资源；页面读取等待本轮结束，避免彼此撤销请求。
+    if (services.pluginDefaults.snapshot().phase === 'running') return;
     await Promise.all([
       services.runtime.pluginPackages.refresh(kind, signal),
       services.runtime.serverPlugins.refresh(signal),
@@ -76,8 +90,12 @@ export function PluginsPage({ services }: { services: ProductServices }) {
     if (!signal.aborted) syncExtensions();
   }
   useEffect(() => {
+    if (defaults.phase === 'running') return;
     void action.run(refresh);
-  }, [services, kind]);
+  }, [services, kind, defaults.phase]);
+  useEffect(() => {
+    if (defaults.phase !== 'running') syncExtensions();
+  }, [defaults.phase, defaults.round]);
   const manage = (run: (signal: AbortSignal) => Promise<unknown>) =>
     action.run(async (signal) => {
       try {
@@ -124,7 +142,7 @@ export function PluginsPage({ services }: { services: ProductServices }) {
       >
         <Button
           variant="outline"
-          disabled={action.pending}
+          disabled={action.pending || defaults.phase === 'running'}
           onClick={() => {
             void action.run(refresh);
           }}
@@ -133,6 +151,99 @@ export function PluginsPage({ services }: { services: ProductServices }) {
           刷新目录
         </Button>
       </PageTitle>
+      <section
+        className="workspace-section"
+        aria-label="已安装插件默认启用"
+        data-plugin-defaults={defaults.phase}
+        data-phase={defaults.phase}
+      >
+        <div className="section-heading">
+          <div>
+            <h2>已安装插件默认启用</h2>
+            <p className="muted">
+              启动时启用本轮已安装插件；本实例手动停用后保持停用。
+              {defaults.phase === 'running'
+                ? ' 正在核对并启用…'
+                : defaults.phase === 'completed'
+                  ? ` 本轮 ${defaultEnabled.length} 项已启用${defaultFailures.length ? `，${defaultFailures.length} 项失败` : ''}。`
+                  : defaults.phase === 'cancelled'
+                    ? ' 本轮等待已取消，可重新执行。'
+                    : ' 等待启动核对。'}
+            </p>
+          </div>
+          <div className="page-actions">
+            {defaultFailures.length > 0 && (
+              <Button
+                variant="outline"
+                disabled={action.pending || defaults.phase === 'running'}
+                onClick={() => {
+                  void manage(services.pluginDefaults.retryFailures);
+                }}
+              >
+                重试失败项
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              disabled={action.pending || defaults.phase === 'running'}
+              onClick={() => {
+                void manage(services.pluginDefaults.restart);
+              }}
+            >
+              重新执行默认启用
+            </Button>
+          </div>
+        </div>
+        {defaultFailures.map((entry) => (
+          <div
+            className="result-row"
+            key={JSON.stringify([entry.kind, entry.id])}
+            data-default-plugin-id={entry.id ?? ''}
+            data-default-plugin-kind={entry.kind}
+            data-default-plugin-status={entry.status}
+          >
+            <span>
+              {entry.kind === 'server' ? '服务器' : '浏览器'} · {entry.id ?? '安装或运行目录'}
+            </span>
+            <span className={entry.status === 'failed' ? 'text-danger' : 'muted'}>
+              启用失败：{entry.message}
+            </span>
+            {entry.status === 'failed' && entry.logId && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  void copyDefaultLog(entry.logId ?? '');
+                }}
+              >
+                复制日志 ID：{entry.logId}
+              </Button>
+            )}
+          </div>
+        ))}
+        {defaultEnabled.length > 0 && (
+          <details>
+            <summary>本轮已启用 {defaultEnabled.length} 项 · 查看启动核对结果</summary>
+            {defaultEnabled.map((entry) => (
+              <div
+                className="result-row"
+                key={JSON.stringify([entry.kind, entry.id])}
+                data-default-plugin-id={entry.id ?? ''}
+                data-default-plugin-kind={entry.kind}
+                data-default-plugin-status={entry.status}
+              >
+                <span>
+                  {entry.kind === 'server' ? '服务器' : '浏览器'} · {entry.id}
+                </span>
+                <span className="muted">
+                  {entry.status === 'enabled' ? '本轮已启用' : '启动核对时已在运行'}
+                </span>
+              </div>
+            ))}
+          </details>
+        )}
+        <span role="status">{defaultCopy}</span>
+      </section>
       <div className="plugin-upload form-row">
         <div className="form-field">
           <Label htmlFor="plugin-kind">部署到</Label>
@@ -237,7 +348,7 @@ export function PluginsPage({ services }: { services: ProductServices }) {
                   <div className="row-actions">
                     <Button
                       variant={running ? 'outline' : 'default'}
-                      disabled={action.pending}
+                      disabled={action.pending || defaults.phase === 'running'}
                       onClick={() => {
                         void manage((signal) =>
                           running
@@ -327,7 +438,12 @@ export function PluginsPage({ services }: { services: ProductServices }) {
               </div>
               <Button
                 variant="outline"
-                disabled={action.pending || plugin.protected || plugin.state === 'draining'}
+                disabled={
+                  action.pending ||
+                  defaults.phase === 'running' ||
+                  plugin.protected ||
+                  plugin.state === 'draining'
+                }
                 onClick={() => {
                   void manage((signal) =>
                     plugin.state === 'loaded'

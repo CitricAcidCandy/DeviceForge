@@ -7,6 +7,8 @@ import { createProductServices } from './product/services.ts';
 import type { ProductServices } from './product/services.ts';
 import { createNamedSlotAdapter } from '../plugins/index.ts';
 import { productServiceOrigin, probeProductConnection } from './product/connection.ts';
+import { createInstalledPackageImporter } from './installed-package-importer.ts';
+import { ApiError } from '../services/api/index.ts';
 
 export async function startFrontendApp(documentRef: Document, windowRef: Window) {
   const target = documentRef.getElementById('app');
@@ -65,6 +67,7 @@ export async function startFrontendApp(documentRef: Document, windowRef: Window)
       services = createProductServices({
         baseUrl: origin,
         transport: windowRef.fetch.bind(windowRef),
+        esmImporter: createInstalledPackageImporter(origin),
         tokenProvider: () => token || null,
         panelTarget: () => panel,
         componentTarget: () => component,
@@ -74,6 +77,11 @@ export async function startFrontendApp(documentRef: Document, windowRef: Window)
         connection: { baseUrl: origin, reconnect: connect },
       });
       root.render(createElement(App, { services }));
+      // 产品启动默认启用已安装插件；独立工厂的构造和静态渲染保持无网络副作用。
+      void services.pluginDefaults.start(lifetime.signal).catch((error) => {
+        if (!lifetime.signal.aborted && !(error instanceof ApiError && error.kind === 'cancelled'))
+          console.error('默认启用插件失败', error instanceof Error ? error.message : '未知原因');
+      });
     } finally {
       switching = false;
     }

@@ -69,6 +69,13 @@ export function ProductShell({
   const selectedDevice = available.find(
     (device) => JSON.stringify(device.reference) === selectionKey,
   );
+  const selectedDirectory = devices.directories.find(
+    (directory) =>
+      directory.provider.id === selectedDevice?.reference.providerId &&
+      directory.provider.generation === selectedDevice.reference.generation,
+  );
+  const usableCapabilities = selectedDevice?.capabilities.filter((item) => item.available) ?? [];
+  const capabilityTitles = new Map(operations.result?.data.map((item) => [item.id, item.title]));
   const connectionText = operations.pending
     ? '正在连接'
     : operations.error
@@ -314,13 +321,34 @@ export function ProductShell({
                   {selectedState}
                 </p>
                 <dl className="device-summary-details">
+                  <dt>平台</dt>
+                  <dd>{selectedDirectory?.provider.definition.platform ?? '未知'}</dd>
                   <dt>设备 ID</dt>
                   <dd>{selectedDevice.reference.localId}</dd>
                   <dt>提供者</dt>
                   <dd>{selectedDevice.reference.providerId}</dd>
                   <dt>状态</dt>
                   <dd>{selectedState}</dd>
+                  <dt>可用能力</dt>
+                  <dd>{usableCapabilities.length} 项</dd>
                 </dl>
+                <div className="device-summary-capabilities" aria-label="设备可用能力">
+                  {usableCapabilities.slice(0, 4).map((capability) => {
+                    const definition = selectedDirectory?.provider.definition.capabilities.find(
+                      (item) => item.id === capability.id && item.version === capability.version,
+                    );
+                    return (
+                      <span
+                        key={capability.id + ':' + capability.version}
+                        title={capability.id + '@' + capability.version}
+                      >
+                        {definition
+                          ? (capabilityTitles.get(definition.operation) ?? capability.id)
+                          : capability.id}
+                      </span>
+                    );
+                  })}
+                </div>
                 <Button variant="outline" onClick={() => navigate('devices')}>
                   进入设备工作台
                 </Button>
@@ -340,6 +368,16 @@ export function ProductShell({
             </div>
           </aside>
         </div>
+        <footer className="workspace-taskbar" aria-label="共享任务记录">
+          <div>
+            <ListChecks aria-hidden="true" />
+            <span>任务记录</span>
+            <small>查看服务器任务、运行日志与产物</small>
+          </div>
+          <Button variant="ghost" size="sm" onClick={() => navigate('tasks')}>
+            查看全部 <ChevronRight aria-hidden="true" />
+          </Button>
+        </footer>
       </div>
     </div>
   );

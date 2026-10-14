@@ -1,5 +1,15 @@
 # DeviceForge 开发与验收记录
 
+## 2026-10-14 设备工作台、暖色背景与默认插件
+
+- 已完成设备页目录/详情布局、搜索与来源筛选、完整设备引用、真实状态/观测/能力说明。读取目录与实际重新发现分开；连接和断开等待任务终态后再发现，失败保留日志与重试。仍使用公开runtime和生成类型，无新增后端生产业务或DTO。
+- 保留电子设备背景原字节，替换黑色遮罩和表面为暖米白、深橄榄与鼠尾草绿色。参考图绝对路径可读。子代理亲审1536×1024桌面与390×844目录/详情，设备12/12行为、0浏览器错误、无整页横向溢出；两项P2复验通过。证据`artifacts/device-workspace/2026-10-14T09-11-31-781Z-59e77334/report.json`。
+- 新服务实例显式默认启用已安装两类插件，已运行跳过、逐包失败隔离、失败项重试。手动停用在本实例保持；新上传包仍显式启用。生产main注入当前服务公开运行资源的原生ESM导入适配器；正常取消不报失败，自动处理期间禁用启停以避免竞争。
+- 生成API退出0、生成文件无实际变化；最终331源码架构及全部维护TS/TSX严格检查退出0，全量测试77文件/683项通过，失败/取消/跳过0，生产build退出0。日志`artifacts/device-workspace-final-20261014-165350/`，初失败保留。生产入口真实浏览器默认启用仍在收口，不能用Node导入失败隔离替代实际成功加载。
+- 当前Rust受控设备接口5检查通过，宿主及6次插件进程退出、端口释放；报告`artifacts/device-workspace-service-31b580b9-499c-487e-a312-e7961156f0f4/report.json`。根在线插件真实Rust+最终dist回归17:21退出0，`artifacts/browser-plugin-smoke-debug.json`为passed=true，旧报告另存本轮`online-plugins-previous.json`。
+- 保留预览`http://127.0.0.1:5173/#devices`，原Vite PID43336，当前Rust7031/PID3204，13业务插件loaded，Android/Harmony提供者可经代理查询。数据与部署报告位于`artifacts/device-workspace-preview-20261014/`；不修改根data目录，不自动设备发现或模型请求。
+- 本轮不操作真机或模拟器，不重跑Root，不计真实ADB/HDC、工具/模型、另一台LAN设备、Release/npx或性能完成。详见`frontend/docs/verification/设备工作台与默认插件验收-20261014.md`；没有自动提交或恢复、删除无关改动。
+
 ## 2026-10-14 React 产品界面本轮交付
 
 - 用户选定电子设备背景并批准 React/React DOM 19.3.0、Tailwind 4.3.3、官方 shadcn/ui 16项组件及 Lucide。已接入14个业务路由，展示品牌 FORGE，工程/SDK 保持 DeviceForge。复用既有工厂、真实操作目录、任务钩子、完整 DeviceRef、独立插件 DOM 根、草稿与长会话保存、内存令牌和文档根主题；未新增后端业务或自动提交。

@@ -57,6 +57,12 @@ export async function checkArchitecture(root = fileURLToPath(new URL('../', impo
         continue;
       }
       for (const issue of inspection.issues) {
+        // 已安装包的唯一宿主导入适配器使用运行代次 URL；其余位置仍要求字面量。
+        if (
+          from === 'app/installed-package-importer.ts' &&
+          issue === '动态导入必须使用可检查的字面量'
+        )
+          continue;
         if (issue === 'network' && from.startsWith('services/api/')) continue;
         // 生成模式可能包含 any；此文件只由 Rust 导出器生成，仍检查其导入。
         if (from === 'services/api/generated.ts' && issue.includes('any')) continue;
