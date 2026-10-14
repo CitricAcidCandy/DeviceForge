@@ -1,2 +1,2 @@
-export { createMcpClient } from './infrastructure/client.ts';
-export type { McpClient, McpJsonObject, McpJsonValue, McpSnapshot, McpSubscriptionHandlers, McpTool } from './domain/types.ts';
+export { createMcpClient } from './services/client.ts';
+export type { McpClient, McpJsonObject, McpJsonValue, McpSnapshot, McpSubscriptionHandlers, McpTool } from './types/index.ts';

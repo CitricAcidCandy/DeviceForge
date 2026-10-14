@@ -1,17 +1,16 @@
 # Android Root 堆栈与采样画面消费
 
-## 当前目录分层
+## 当前目录结构
 
-根目录仅保留本说明与 `index.ts` 公开门面，外部应用按门面消费。原用例实现从根索引迁入 `application/`，原导出保持兼容。已有算法行为与协议保持，内部文件路径已按职责整理。
+2026-10-14按用户最新约束采用 Ant Design Pro 风格的功能组织。此前 domain/application/infrastructure/ui 方案已被覆盖，不再作为当前目录约束。根 `index.ts` 保留核心公开API且不加载TSX，目录仅按实际职责创建。
 
-- `application/`：用例、状态、目录与生命周期编排；HTTP装配工厂也放在此层，基础设施不反向依赖用例。
-- `domain/`：纯业务规则、输入及结果验证、数据模型与转换；不依赖其他内部层。
-- `infrastructure/`：宿主网关、字节流解码、媒体与浏览器适配；依赖纯规则和模型。
-- `ui/`：本功能专用的React组件与展示计算；不承担网络和设备动作。
+- `models/`：用例、状态、订阅、轮询与会话控制；HTTP工厂在此组合注入的服务。
+- `services/`：网关、归档IO、字节解码与浏览器适配，不反向引用models。
+- `utils/`：纯规则、转换、结果验证和计算，不依赖models、services或components。
+- `types/`：业务模型与端口类型；保留已有共享契约类型。
+- `components/`：功能专用的具名React组件；通过props接入功能模型。
 
-允许依赖为 application → domain/infrastructure，infrastructure → domain，ui → application/domain；domain 不依赖用例、适配或界面。纯规则现有共享API类型和错误保留过渡，不新增HTTP调用。
-
-本模块采用 plan-and-build，消费冻结的 stack.probe v1 与 profile.record v1，不创建产品页面，也不改变宿主 SDK 或 runtime。通过公开 host.devices.invoke 携带完整设备引用；宿主负责转换为 {device_id,input} 封套。外部任务操作为 plugin.android-device.stack.probe 与 plugin.android-device.profile.record。
+专用火焰图为 `components/ProfileFlamegraph/index.tsx`，同目录放 `layout.ts` 和 `interval.ts`；界面消费者走 `components/index.ts`，纯归档消费者仍走核心门面。
 
 ## 职责
 

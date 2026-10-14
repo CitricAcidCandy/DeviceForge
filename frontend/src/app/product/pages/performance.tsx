@@ -19,7 +19,7 @@ import { BlobDownload, PerformanceReadings, ProfileArchiveView } from './profile
 
 function capabilityReason(devices: DeviceSnapshot, capability: string, versions: readonly number[], operation?: string): string | null {
   const selected = devices.selected;
-  if (!selected) return '先在底边选择设备。';
+  if (!selected) return '先在顶部选择设备。';
   if (selected.state !== 'online') return selected.state === 'unauthorized' ? '当前设备尚未授权。' : '当前设备不在线，保留历史读取。';
   const provider = devices.providers.find(item => item.id === selected.reference.providerId && item.generation === selected.reference.generation);
   if (!provider) return '设备提供者已移除或换代，请刷新目录。';

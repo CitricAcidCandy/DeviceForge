@@ -1,19 +1,12 @@
 # Frida 业务用例
 
-## 当前目录分层
+## 当前目录结构
 
-根目录仅保留本说明与 `index.ts` 公开门面，外部应用按门面消费。原用例实现从根索引迁入 `application/`，原导出保持兼容。已有算法行为与协议保持，内部文件路径已按职责整理。
+2026-10-14按用户最新约束采用 Ant Design Pro 风格的功能组织。此前 domain/application/infrastructure/ui 方案已被覆盖，不再作为当前目录约束。根 `index.ts` 保留核心公开API且不加载TSX，目录仅按实际职责创建。
 
-- `application/`：用例、状态、目录与生命周期编排；HTTP装配工厂也放在此层，基础设施不反向依赖用例。
-- `domain/`：纯业务规则、输入及结果验证、数据模型与转换；不依赖其他内部层。
-
-允许依赖为 application → domain/infrastructure，infrastructure → domain，ui → application/domain；domain 不依赖用例、适配或界面。纯规则现有共享API类型和错误保留过渡，不新增HTTP调用。
-
-本模块消费六个真实贡献：`plugin.frida.server.deploy/server.status/server.run/processes/script.run/permissions.analyze`。`rules.ts` 校验设备、产物身份、100–120000 毫秒时长和结构化 Hook；`results.ts` 区分部署、观测、受控运行、进程枚举和脚本结果；`index.ts` 负责任务组合、上传、下载、恢复等待和显式取消。
-
-`createFrida(gateway, artifacts, options)` 保留公开宿主三个任务方法与 `ArtifactAccess` 的既有注入语义。`createHttpFrida(client, options)` 新增真实生成端点装配，显式映射上传产物的 HTTP 字段与 SDK 元数据，不修改公开 SDK。六个业务方法仍使用原签名：deploy、status、runServer、processes、runScript、analyzePermissions。
-
-业务请求固定为 `{device_id,input:{业务字段}}`，上传以产物 ID 引用，浏览器不传服务端路径或任意工具命令。脚本上传检查 UTF-8、空字节和 64 MiB 上限。任务成功结果严格消费 `{result,artifacts}`，拒绝未知顶层结果字段，校验 `operation.json`、`frida.log` 及脚本/通知文件、单个产物 64 MiB 上限；下载保持原字节，并核对大小和 SHA-256。
+- `models/`：用例、状态、订阅、轮询与会话控制；HTTP工厂在此组合注入的服务。
+- `utils/`：纯规则、转换、结果验证和计算，不依赖models、services或components。
+- `types/`：业务模型与端口类型；保留已有共享契约类型。
 
 ## 动态目录与生命周期
 

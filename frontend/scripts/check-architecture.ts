@@ -57,10 +57,22 @@ export async function checkArchitecture(root = fileURLToPath(new URL('../', impo
     }
   }
   await scan(sourceRoot);
+  async function checkComponentEntries(directory: string): Promise<void> {
+    if (!existsSync(directory)) return;
+    for (const entry of await readdir(directory, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue;
+      const path = join(directory, entry.name);
+      if (!/^[A-Z][A-Za-z0-9]*$/.test(entry.name)) failures.push(portable(path) + ': 组件目录必须使用 PascalCase 名称');
+      else if (!existsSync(join(path, 'index.tsx'))) failures.push(portable(path) + ': 组件目录必须保留 index.tsx 入口');
+    }
+  }
+  await checkComponentEntries(join(sourceRoot, 'components'));
   const featureRoot = join(sourceRoot, 'features');
   if (existsSync(featureRoot)) {
     for (const entry of await readdir(featureRoot, { withFileTypes: true })) {
-      if (entry.isDirectory() && !existsSync(join(featureRoot, entry.name, 'README.md'))) failures.push('features/' + entry.name + ': 功能模块必须保留 README.md 职责说明');
+      if (!entry.isDirectory()) continue;
+      if (!existsSync(join(featureRoot, entry.name, 'README.md'))) failures.push('features/' + entry.name + ': 功能模块必须保留 README.md 职责说明');
+      await checkComponentEntries(join(featureRoot, entry.name, 'components'));
     }
   }
 

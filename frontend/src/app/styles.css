@@ -141,6 +141,7 @@ details + details { border-top: 1px solid var(--border); }
 .navigation-drawer { width: min(310px, 86vw); gap: 0; background: var(--background); }
 .navigation-drawer .tool-navigation { padding-top: 4px; }
 .navigation-drawer [data-slot="sheet-header"] { padding-bottom: 20px; }
+.navigation-drawer > button, .navigation-drawer button[data-slot="sheet-close"] { min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
 .is-focused { --workspace-sidebar-width: 0px !important; grid-template-columns: minmax(0, 1fr); }
 .is-focused .workspace-sidebar, .is-focused .navigation-collapse, .is-focused .navigation-mobile-trigger, .is-focused .device-summary { display: none; }
 .is-focused .workspace-content { grid-template-columns: minmax(0, 1fr); }

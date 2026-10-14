@@ -1,24 +1,13 @@
 # AI 助手业务用例
 
-## 当前目录分层
+## 当前目录结构
 
-根目录仅保留本说明与 `index.ts` 公开门面，外部应用按门面消费。原用例实现从根索引迁入 `application/`，原导出保持兼容。已有算法行为与协议保持，内部文件路径已按职责整理。
+2026-10-14按用户最新约束采用 Ant Design Pro 风格的功能组织。此前 domain/application/infrastructure/ui 方案已被覆盖，不再作为当前目录约束。根 `index.ts` 保留核心公开API且不加载TSX，目录仅按实际职责创建。
 
-- `application/`：用例、状态、目录与生命周期编排；HTTP装配工厂也放在此层，基础设施不反向依赖用例。
-- `domain/`：纯业务规则、输入及结果验证、数据模型与转换；不依赖其他内部层。
-- `infrastructure/`：宿主网关、字节流解码、媒体与浏览器适配；依赖纯规则和模型。
-
-允许依赖为 application → domain/infrastructure，infrastructure → domain，ui → application/domain；domain 不依赖用例、适配或界面。纯规则现有共享API类型和错误保留过渡，不新增HTTP调用。
-
-`createAiAssistant` 通过真实任务消费 `plugin.ai-assistant.runtime.status/cli.single/cli.turn`。`rules.ts` 校验公开项目 ID、131072 字节提示词上限和规范 UUID 线程；`results.ts` 校验项目、线程、原始 JSON 事件、回答及完成事件，拒绝部分回答或失败事件；`index.ts` 负责运行、原任务恢复和显式取消。
-
-`session.get/session.close` 管理本插件已登记的会话，保留规范十进制轮数、`closed` 和 `uncertain`。关闭只撤销本地恢复资格，不代表删除提供者历史；不确定轮次不可自动重放。读取和关闭仍等待真实任务终态，并可查询恢复管理操作，不能用当前目录推断旧会话状态。
-
-创建入口是首次 `turn({project_id,prompt}, signal)`：不携带 `thread_id`，对应正式 `cli.turn`，后端完成首次 CLI 轮次后持久登记真实线程归属。后续轮次带该线程 ID；`single` 是不携带已有线程的单次调用。正式 manifest 没有独立 `session.create`，前端不新增或映射这个操作。`query` 读取真实 Job 状态，`resumeTurn` 只恢复原任务查询，不重新提交提示词；会话 `get/close` 和任务查询是两类不同操作。
-
-提示词保持原文本，项目工作目录、CLI 程序和环境配置由后端部署映射，前端不提交本机路径。单次请求不允许携带已有线程；UUID 输入和返回统一为小写，轮次消费服务器真实非空线程身份，事件内部出现线程开始标识时必须与返回线程一致。结果保留事件与任务日志，不在文档或诊断中记录提示词内容。
-
-当前只实现后台任务型 CLI 单次与轮次消费；实时流、SDK 提供者、会话工作台、具体页面和真实模型运行没有以此模块替代验收。
+- `models/`：用例、状态、订阅、轮询与会话控制；HTTP工厂在此组合注入的服务。
+- `services/`：网关、归档IO、字节解码与浏览器适配，不反向引用models。
+- `utils/`：纯规则、转换、结果验证和计算，不依赖models、services或components。
+- `types/`：业务模型与端口类型；保留已有共享契约类型。
 
 ## 已知任务的状态与事件观测
 

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { ProfileFlamegraphView } from '../../../features/android-profile/index.ts';
-import { closedFlameInterval } from '../../../features/android-profile/index.ts';
+import { ProfileFlamegraphView } from '../../../features/android-profile/ui/index.ts';
+import { closedFlameInterval } from '../../../features/android-profile/ui/index.ts';
 import { Button } from '../../../components/ui/button.tsx';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../components/ui/table.tsx';
 import type { OpenedProfileArchive, ProfileFrameAssociation, ProfileSample } from '../../../features/android-profile/index.ts';

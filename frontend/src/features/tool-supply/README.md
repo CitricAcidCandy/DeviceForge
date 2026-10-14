@@ -1,21 +1,12 @@
 # 工具供应业务用例
 
-## 当前目录分层
+## 当前目录结构
 
-根目录仅保留本说明与 `index.ts` 公开门面，外部应用按门面消费。原用例实现从根索引迁入 `application/`，原导出保持兼容。已有算法行为与协议保持，内部文件路径已按职责整理。
+2026-10-14按用户最新约束采用 Ant Design Pro 风格的功能组织。此前 domain/application/infrastructure/ui 方案已被覆盖，不再作为当前目录约束。根 `index.ts` 保留核心公开API且不加载TSX，目录仅按实际职责创建。
 
-- `application/`：用例、状态、目录与生命周期编排；HTTP装配工厂也放在此层，基础设施不反向依赖用例。
-- `domain/`：纯业务规则、输入及结果验证、数据模型与转换；不依赖其他内部层。
-
-允许依赖为 application → domain/infrastructure，infrastructure → domain，ui → application/domain；domain 不依赖用例、适配或界面。纯规则现有共享API类型和错误保留过渡，不新增HTTP调用。
-
-`createToolSupply` 消费 `plugin.tool-supply.catalog/plan/install/remove`。`rules.ts` 校验业务模块 ID 和不重复的有界选择；`results.ts` 校验已安装与可用版本、计划下载量、安装摘要和移除结果；`index.ts` 负责真实任务执行、各操作恢复及显式取消。
-
-目录查询保留 `source_error` 和本地 `local_only` 项，使清单不可用时仍可展示已安装工具。计划校验每个选中模块、版本与动作关系、入口状态及真实下载总量；空选择表示规划清单全部模块。点分数字版本以 u64 精度比较，缺失段补零。安装不会自动覆盖 `local_newer` 或重放失败任务；`changed:true/false` 都必须消费实际返回的版本与 SHA-256。产物源、程序和安装位置由后端部署配置决定，业务输入只有模块身份，前端不接收服务器路径。
-
-事务观测以 `query(ticket, signal)` 返回的真实 Job 为准，安装成功以 `install/resumeInstall` 返回的实际结果为准。没有独立事务状态操作，也不生成回滚成功标志；`failed/cancelled` 和事务收尾失败原文保留，不推断安装目录已经恢复。`cancel` 返回仍为 `running` 时继续查询或恢复原任务，不能重新安装来代替状态确认。
-
-宿主注入公开三个任务方法或共享 HTTP 任务适配器。所有结果保留任务和日志。取消等待与显式服务器取消分别操作；取消响应未到终态时需要恢复查询。当前是框架无关业务用例，不代表真实网络下载、回滚、产品页面或视觉验收通过。
+- `models/`：用例、状态、订阅、轮询与会话控制；HTTP工厂在此组合注入的服务。
+- `utils/`：纯规则、转换、结果验证和计算，不依赖models、services或components。
+- `types/`：业务模型与端口类型；保留已有共享契约类型。
 
 ## 运行时功能查询与准备
 

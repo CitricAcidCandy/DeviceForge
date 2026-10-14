@@ -1,17 +1,8 @@
 # 操作基础用例
 
-## 当前目录分层
+## 当前目录结构
 
-根目录仅保留本说明与 `index.ts` 公开门面，外部应用按门面消费。原用例实现从根索引迁入 `application/`，原导出保持兼容。已有算法行为与协议保持，内部文件路径已按职责整理。
+2026-10-14按用户最新约束采用 Ant Design Pro 风格的功能组织。此前 domain/application/infrastructure/ui 方案已被覆盖，不再作为当前目录约束。根 `index.ts` 保留核心公开API且不加载TSX，目录仅按实际职责创建。
 
-- `application/`：用例、状态、目录与生命周期编排；HTTP装配工厂也放在此层，基础设施不反向依赖用例。
+- `models/`：用例、状态、订阅、轮询与会话控制；HTTP工厂在此组合注入的服务。
 
-允许依赖为 application → domain/infrastructure，infrastructure → domain，ui → application/domain；domain 不依赖用例、适配或界面。纯规则现有共享API类型和错误保留过渡，不新增HTTP调用。
-
-公开入口 `index.ts` 提供独立 list 与目录 refresh/snapshot/subscribe/invalidate/dispose。list 不改目录快照；refresh 只发布最新请求结果。两类查询都绑定当前目录观测和功能生命周期，失效或销毁后取消旧等待，即使下游忽略信号也不能交付旧结果。
-
-`state.ts` 管理本功能的刷新代次、快照、失效和订阅，不改共享 createLatestResource。invalidate 同步清空当前操作列表、撤销刷新并通知订阅；空目录是本地撤销，logId 为 null。订阅重入导致失效时，旧通知及旧请求不能继续交付。坏订阅不影响其他订阅；dispose 取消请求并释放全部订阅。
-
-app 的本地服务器管理收敛回调先失效操作目录和目标设备缓存，再重查。管理成功、失败或取消都可能走此回调；失效后重查失败/取消保留空目录与错误，新成功查询恢复列表。不按操作名称推断提供者，不硬编码平台，不导入其他功能，不自动重放管理或写任务。管理等待尚未收敛时没有提前撤销承诺，远端变更仍显式刷新，没有推送服务或 UI。
-
-行为回归源码位于 tests/operation-migration.test.ts，覆盖旧刷新/独立 list 晚到、重查失败/取消、SDK 撤销通知、在线包停用、恢复及订阅重入。本轮未运行测试或构建，主代理统一执行门禁；假传输不证明服务端锁或真机。

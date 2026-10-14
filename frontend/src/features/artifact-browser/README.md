@@ -1,15 +1,12 @@
 # 产物元数据与 ZIP 目录浏览
 
-## 当前目录分层
+## 当前目录结构
 
-根目录仅保留本说明与 `index.ts` 公开门面，外部应用按门面消费。原用例实现从根索引迁入 `application/`，原导出保持兼容。已有算法行为与协议保持，内部文件路径已按职责整理。
+2026-10-14按用户最新约束采用 Ant Design Pro 风格的功能组织。此前 domain/application/infrastructure/ui 方案已被覆盖，不再作为当前目录约束。根 `index.ts` 保留核心公开API且不加载TSX，目录仅按实际职责创建。
 
-- `application/`：用例、状态、目录与生命周期编排；HTTP装配工厂也放在此层，基础设施不反向依赖用例。
-- `domain/`：纯业务规则、输入及结果验证、数据模型与转换；不依赖其他内部层。
-
-允许依赖为 application → domain/infrastructure，infrastructure → domain，ui → application/domain；domain 不依赖用例、适配或界面。纯规则现有共享API类型和错误保留过渡，不新增HTTP调用。
-
-本模块提供选择产物、读取元数据、分页预览 ZIP 目录、上传、原字节下载和删除产物的基础用例，不提供具体业务界面。实际列表、配额管理和下载后的文件保存由各自能力负责；本批不新增产物列表或管理接口，不扩展浏览器 SDK。
+- `models/`：用例、状态、订阅、轮询与会话控制；HTTP工厂在此组合注入的服务。
+- `utils/`：纯规则、转换、结果验证和计算，不依赖models、services或components。
+- `types/`：业务模型与端口类型；保留已有共享契约类型。
 
 ## 职责与装配
 
