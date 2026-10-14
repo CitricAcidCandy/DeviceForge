@@ -2,9 +2,9 @@
 
 `bootstrap.ts` 提供无界面装配入口 `createFrontendBootstrap`。它接收宿主根节点、API 传输和可选挂载目标，构造公开 runtime，并把主题目标默认绑定到该根节点；它不加载插件、不发起业务请求，也不创建产品页面。返回值的 `dispose` 具备幂等等待语义，适合测试和宿主自行管理生命周期。
 
-`main.ts` 只在浏览器启动时挂载现有基础外壳并创建 bootstrap，API 默认使用当前页面 origin；页面离开时通过一次性 `pagehide` 监听释放 runtime。产品页面和具体业务入口继续由插件及后续设计稿提供。
+`main.ts` 在浏览器启动时创建 React 产品根和独立插件根，通过 `product/services.ts` 装配公开工厂，API 默认使用当前页面 origin。插件不能替换 React 私有工作区，只能使用已登记的 `workshop.extensions` 或独立面板/模块根。页面离开时释放实例、媒体、插件槽位与 React 根，清理失败保留错误。
 
-main/App 保留基础外壳。runtime.ts 公开 createFrontendRuntime，装配 API、各功能公开入口、SDK 宿主、扩展注册表与插件运行管理；host-context.ts 装配公开操作/任务及可选设备、产物和任务历史访问，不执行 HTTP 或业务规则。
+`product/App.tsx` 管理产品路由与已访问页面，隐藏切页保留草稿与长会话。runtime.ts 公开 createFrontendRuntime，装配 API、各功能公开入口、SDK 宿主、扩展注册表与插件运行管理；host-context.ts 装配公开操作/任务及可选设备、产物和任务历史访问，不执行 HTTP 或业务规则。
 
 工厂必须传 baseUrl、transport、panelTarget，tokenProvider 可选；组件/模块目标及包 importer/resolver 按需注入。beforeTaskSubmit 接入 tasks 真实提交用例，服务器管理后同步操作与设备目录。dispose 幂等地取消整个宿主、释放插件及功能订阅；清理失败返回聚合错误。
 

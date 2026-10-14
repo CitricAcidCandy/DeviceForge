@@ -1,4 +1,4 @@
-//! Android 11 窗口身份见证；Java 对象标识只作代际复核，绝不当作原生图层 ID。
+//! Android 9/11 窗口身份见证；Java 对象标识只作代际复核，绝不当作原生图层 ID。
 use super::super::super::Check;
 use super::Record;
 use crate::{Error, Result};
@@ -210,6 +210,7 @@ pub(super) fn bind(
     chain: &[Record],
     windows: &[Witness],
     uid: u32,
+    legacy: bool,
     check: Check<'_>,
 ) -> Result<Option<Witness>> {
     let mut selected = None;
@@ -222,11 +223,12 @@ pub(super) fn bind(
             if !named_layer(&parent.name, &container) {
                 continue;
             }
-            // Android 11 官方窗口 buffer 以声明的 Surface 名称直接挂在该窗口容器下。
+            // 声明的 Surface 必须通过数值父链直接挂在完整窗口容器下。
+            // API 28 仅在全目录无 UID/metadata 且完整窗口会话身份成立时使用该桥。
             // 数值 parent ID 与完整名称须同时成立；同 UID 或名称前缀不能作为见证。
-            if buffer.parent != parent.id
+            if buffer.parent != Some(parent.id)
                 || !named_layer(&buffer.name, &window.surface)
-                || buffer.metadata_uid != Some(uid)
+                || (!legacy && buffer.metadata_uid != Some(uid))
             {
                 return Ok(None);
             }
@@ -238,7 +240,8 @@ pub(super) fn bind(
                 || records
                     .iter()
                     .filter(|record| {
-                        record.parent == parent.id && named_layer(&record.name, &window.surface)
+                        record.parent == Some(parent.id)
+                            && named_layer(&record.name, &window.surface)
                     })
                     .count()
                     != 1

@@ -1,4 +1,4 @@
-//! 图层归属规则：候选真实UID与整条父链上的PID/UID见证共同成立。
+//! 图层归属规则：原生身份声明与父链共同成立；API 28 使用完整窗口会话桥。
 mod proto;
 mod window;
 mod wire;
@@ -12,8 +12,9 @@ pub(super) use window::Witness;
 pub(super) struct Record {
     pub id: i32,
     pub name: String,
-    pub parent: i32,
+    pub parent: Option<i32>,
     pub uid: Option<u32>,
+    pub has_metadata: bool,
     pub metadata_uid: Option<u32>,
     pub metadata_pid: Option<u32>,
 }
@@ -72,6 +73,8 @@ pub(crate) enum Qualification {
 #[derive(Debug)]
 pub(crate) struct Directory {
     records: Vec<Record>,
+    sdk: u32,
+    legacy: bool,
     package: String,
     pid: u32,
     uid: u32,
@@ -82,6 +85,7 @@ pub(crate) fn layer(
     package: &str,
     pid: u32,
     uid: u32,
+    sdk: u32,
     check: Check<'_>,
 ) -> Result<Option<Qualification>> {
     super::super::package(package)?;
@@ -89,8 +93,19 @@ pub(crate) fn layer(
         Err(Error::Dependency(_)) => return Ok(None),
         other => other?,
     };
+    // API 28 缺少图层 UID/metadata；仅完整无声明目录允许精确窗口桥。
+    // 混合目录不能把缺少声明的图层补成已知归属。
+    let legacy = sdk == 28
+        && records
+            .iter()
+            .all(|record| record.uid.is_none() && !record.has_metadata);
+    if sdk == 28 && !legacy {
+        return Ok(None);
+    }
     let directory = Directory {
         records,
+        sdk,
+        legacy,
         package: package.to_owned(),
         pid,
         uid,
@@ -114,11 +129,13 @@ impl Directory {
     fn select(&self, windows: &[Witness], check: Check<'_>) -> Result<(Option<Layer>, bool)> {
         let Self {
             records,
+            sdk,
+            legacy,
             package,
             pid,
             uid,
         } = self;
-        let (pid, uid) = (*pid, *uid);
+        let (pid, uid, sdk, legacy) = (*pid, *uid, *sdk, *legacy);
         let by_id: BTreeMap<_, _> = records.iter().map(|record| (record.id, record)).collect();
         let mut needs_window = false;
         let mut selected = None;
@@ -159,10 +176,15 @@ impl Directory {
                     witnessed = true;
                 }
                 chain.push(current.clone());
-                if current.parent == -1 {
+                // API 28 原件根层不写 parent；不能把字段缺省误读为 ID 0。
+                // 显式 ID 0 及任何失联父 ID 仍按真实引用检查，其他版本保持原资格。
+                if current.parent == Some(-1) || (legacy && current.parent.is_none()) {
                     break;
                 }
-                let Some(parent) = by_id.get(&current.parent) else {
+                let Some(parent_id) = current.parent else {
+                    return Ok((None, false));
+                };
+                let Some(parent) = by_id.get(&parent_id) else {
                     return Ok((None, false));
                 };
                 current = parent;
@@ -171,11 +193,13 @@ impl Directory {
                 None
             } else {
                 if windows.is_empty() {
-                    needs_window |= chain.iter().any(|record| record.metadata_uid == Some(uid))
-                        && chain.iter().all(|record| record.metadata_pid.is_none());
+                    needs_window |= legacy
+                        || (chain.iter().any(|record| record.metadata_uid == Some(uid))
+                            && chain.iter().all(|record| record.metadata_pid.is_none()));
                     continue;
                 }
-                let Some(witness) = window::bind(records, &chain, windows, uid, check)? else {
+                let Some(witness) = window::bind(records, &chain, windows, uid, legacy, check)?
+                else {
                     continue;
                 };
                 Some(witness)
@@ -185,6 +209,7 @@ impl Directory {
             }
             selected = Some(Layer {
                 name: candidate.name.clone(),
+                sdk,
                 pid,
                 uid,
                 chain,

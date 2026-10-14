@@ -27,7 +27,7 @@ export async function checkArchitecture(root = fileURLToPath(new URL('../', impo
       const path = join(directory, entry.name);
       if (entry.isSymbolicLink()) { failures.push(`${portable(path)}: 源码目录不得通过链接跨工程引用`); continue; }
       if (entry.isDirectory()) { await scan(path); continue; }
-      if (!/\.(?:ts|js|mjs|svelte)$/.test(entry.name)) continue;
+      if (!/\.(?:ts|tsx|js|mjs)$/.test(entry.name)) continue;
       const from = portable(path); const edges: string[] = [];
       if (/\.(?:js|mjs)$/.test(entry.name)) failures.push(`${from}: 维护源码必须使用 TypeScript`);
       let inspection;
@@ -43,7 +43,7 @@ export async function checkArchitecture(root = fileURLToPath(new URL('../', impo
         let target = ts.resolveModuleName(dependency.value, path, parsed.options, ts.sys).resolvedModule?.resolvedFileName;
         if (!target && dependency.value.startsWith('.')) {
           const direct = resolve(dirname(path), dependency.value);
-          target = [direct, `${direct}.ts`, `${direct}.js`, `${direct}/index.ts`].find(existsSync);
+          target = [direct, `${direct}.ts`, `${direct}.tsx`, `${direct}.js`, `${direct}/index.ts`, `${direct}/index.tsx`].find(existsSync);
         }
         if (!target) { failures.push(`${from}:${dependency.line}: 无法解析导入 ${dependency.value}`); continue; }
         if (/(?:^|[\\/])node_modules(?:[\\/])/.test(target)) continue;

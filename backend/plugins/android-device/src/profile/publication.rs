@@ -1,5 +1,5 @@
 //! 固定Stored归档与授权双文件发布；失败撤销只操作本任务创建的路径。
-use super::{models::Index, report::Report};
+use super::{flamegraph, models::Index, quality, report::Report};
 use crate::{
     Error, Result,
     session::{FILE_LIMIT, Session, files},
@@ -50,6 +50,31 @@ pub(crate) fn prepare(
         .flush()
         .map_err(|_| Error::Io("调用栈文件无法刷新"))?;
     drop(stacks);
+    if raw {
+        let summary = quality::summarize(report, check)?;
+        let bytes =
+            serde_json::to_vec(&summary).map_err(|_| Error::Dependency("堆栈质量汇总无法编码"))?;
+        if bytes.len() > 1024 * 1024 {
+            return Err(Error::TooLarge);
+        }
+        let mut quality_file = files::create(&root.join("stack-quality.json"))?;
+        quality_file
+            .write_all(&bytes)
+            .map_err(|_| Error::Io("堆栈质量汇总无法写入"))?;
+        quality_file
+            .flush()
+            .map_err(|_| Error::Io("堆栈质量汇总无法刷新"))?;
+    }
+    if raw {
+        let folded = flamegraph::folded(report, &flamegraph::Options::default(), check)?;
+        let mut folded_file = files::create(&root.join("flamegraph.folded"))?;
+        folded_file
+            .write_all(folded.text.as_bytes())
+            .map_err(|_| Error::Io("火焰图折叠栈无法写入"))?;
+        folded_file
+            .flush()
+            .map_err(|_| Error::Io("火焰图折叠栈无法刷新"))?;
+    }
     let archive = files::create(&root.join("profile.zip"))?;
     let mut writer = ZipWriter::new(archive);
     let options = SimpleFileOptions::default()
@@ -58,6 +83,8 @@ pub(crate) fn prepare(
     let mut names = vec!["profile-index.json".to_owned(), "stacks.jsonl".to_owned()];
     if raw {
         names.push("perf.bin".into());
+        names.push("stack-quality.json".into());
+        names.push("flamegraph.folded".into());
     }
     for sample in &index.samples {
         if let Some(frame) = &sample.frame {

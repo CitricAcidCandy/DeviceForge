@@ -9,15 +9,17 @@ import { decodeProfileIndex } from './index-results.ts';
 import { validateProfilePng } from './png.ts';
 import { invalidProfile } from './rules.ts';
 import { decodeStackJsonLines } from './stacks.ts';
+import { decodeStackQuality } from './quality.ts';
+import { decodeProfileFolded } from './folded.ts';
 import { buildProfileTimeline } from './timeline.ts';
 import { archiveError, decodeStoredProfileZip } from './zip.ts';
 import type { StoredFile } from './zip.ts';
-import type { ProfileFrame, ProfileIndex, ProfileResult, ProfileTimeline, StackSample } from './types.ts';
+import type { ProfileFrame, ProfileIndex, ProfileResult, ProfileTimeline, StackQuality, StackSample } from './types.ts';
 
 export interface OpenedProfileFrame { readonly reference: ProfileFrame; readonly content: Blob; readonly width: number; readonly height: number }
 export interface OpenedProfileArchive {
   readonly index: ProfileIndex; readonly stacks: readonly StackSample[]; readonly timeline: ProfileTimeline;
-  readonly frames: readonly OpenedProfileFrame[]; readonly perf: Blob | null;
+  readonly frames: readonly OpenedProfileFrame[]; readonly perf: Blob | null; readonly quality: StackQuality | null; readonly folded: Blob | null;
 }
 function requiredFile(files: readonly StoredFile[], filename: string, logId: string | null): StoredFile {
   const file = files.find((entry) => entry.filename === filename);
@@ -34,6 +36,12 @@ function openProfileFiles(files: readonly StoredFile[], result: ProfileResult, l
   const index = parseIndex(requiredFile(files, 'profile-index.json', logId).bytes, result, logId);
   const stacks = decodeStackJsonLines(requiredFile(files, 'stacks.jsonl', logId).bytes, logId, signal);
   const expected = new Set(['profile-index.json', 'stacks.jsonl']);
+  const qualityFile = files.find(file => file.filename === 'stack-quality.json');
+  const quality = qualityFile ? decodeStackQuality(qualityFile.bytes, result, stacks, logId, signal) : null;
+  if (qualityFile) expected.add('stack-quality.json');
+  const foldedFile = files.find(file => file.filename === 'flamegraph.folded');
+  const folded = foldedFile ? decodeProfileFolded(foldedFile.bytes, result, stacks, logId, signal) : null;
+  if (foldedFile) expected.add('flamegraph.folded');
   let perf: Blob | null = null;
   if (result.stack_status === 'captured') {
     const trace = requiredFile(files, 'perf.bin', logId);
@@ -49,7 +57,7 @@ function openProfileFiles(files: readonly StoredFile[], result: ProfileResult, l
   }
   if (files.length !== expected.size || files.some((file) => !expected.has(file.filename))) throw archiveError('unexpected_profile_archive_entry', logId);
   const timeline = buildProfileTimeline(index, stacks, logId);
-  checkArchiveCancellation(signal, logId); return { index, stacks, timeline, frames, perf };
+  checkArchiveCancellation(signal, logId); return { index, stacks, timeline, frames, perf, quality, folded };
 }
 export function openProfileArchive(bytes: Uint8Array, result: ProfileResult, logId: string | null = null, signal?: AbortSignal): OpenedProfileArchive {
   return openProfileFiles(decodeStoredProfileZip(bytes, logId, signal), result, logId, signal);

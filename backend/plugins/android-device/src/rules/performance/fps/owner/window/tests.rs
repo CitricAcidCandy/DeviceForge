@@ -30,7 +30,10 @@ fn data() -> Vec<u8> {
     .concat()
 }
 fn selected(data: &[u8], output: &str) -> Option<super::super::super::Layer> {
-    match layer(data, PACKAGE, 123, 10001, &check).unwrap() {
+    selected_at_sdk(data, output, 30)
+}
+fn selected_at_sdk(data: &[u8], output: &str, sdk: u32) -> Option<super::super::super::Layer> {
+    match layer(data, PACKAGE, 123, 10001, sdk, &check).unwrap() {
         Some(Qualification::Window(directory)) => directory.window_layer(output, &check).unwrap(),
         Some(Qualification::Owned(layer)) => Some(layer),
         None => None,
@@ -164,7 +167,7 @@ fn window_limits_and_original_context_failures_are_preserved() {
     ));
     let timed_out = || Err(Error::Timeout);
     let Some(Qualification::Window(directory)) =
-        layer(&data(), PACKAGE, 123, 10001, &check).unwrap()
+        layer(&data(), PACKAGE, 123, 10001, 30, &check).unwrap()
     else {
         panic!("必须需要窗口见证");
     };
@@ -172,4 +175,168 @@ fn window_limits_and_original_context_failures_are_preserved() {
         directory.window_layer(WINDOW, &timed_out),
         Err(Error::Timeout)
     ));
+}
+
+// Android 9 手工夹具与真实原件同形；不是设备实测结果。
+const ANDROID9_FRAME: &str = "SurfaceView - com.example.game/.Game#0";
+fn android9_data() -> Vec<u8> {
+    [
+        record(17, ANDROID9_FRAME, 7, None),
+        record(7, &format!("{TITLE}#0"), 3, None),
+        record(3, &format!("ab12 {TITLE}#0"), 1, None),
+        record(1, "Root#0", -1, None),
+    ]
+    .concat()
+}
+fn android9_window() -> String {
+    WINDOW.replace("$_123", "")
+}
+#[test]
+fn android9_wholly_undeclared_directory_requires_exact_sdk_and_window_identity() {
+    let bytes = android9_data();
+    let output = android9_window();
+    let result = selected_at_sdk(&bytes, &output, 28).unwrap();
+    assert_eq!(result.sdk, 28);
+    assert_eq!(
+        result
+            .chain
+            .iter()
+            .map(|record| record.id)
+            .collect::<Vec<_>>(),
+        [17, 7, 3, 1]
+    );
+    assert_eq!(result.window.as_ref().unwrap().session, "cafe 123:u0a10001");
+    for sdk in [27, 29, 30] {
+        assert!(selected_at_sdk(&bytes, &output, sdk).is_none());
+    }
+    for (old, new) in [
+        ("123:u0a10001", "124:u0a10001"),
+        ("mOwnerUid=10001", "mOwnerUid=10002"),
+        ("Window{ab12", "Window{ab13"),
+        ("mHasSurface=true", "mHasSurface=false"),
+        ("isVisible=true", "isVisible=false"),
+        ("mSurface=Surface", "unknownSurface=Surface"),
+    ] {
+        assert!(
+            selected_at_sdk(&bytes, &output.replace(old, new), 28).is_none(),
+            "{old}"
+        );
+    }
+    assert!(selected_at_sdk(&bytes, "", 28).is_none());
+}
+
+#[test]
+fn android9_mixed_uid_or_any_metadata_and_ambiguous_or_detached_chain_are_rejected() {
+    let output = android9_window();
+    let mut metadata_elsewhere = android9_data();
+    metadata_elsewhere.extend(record(20, "unrelated#0", -1, Some(10001)));
+    let mut unknown_metadata = integer(1, 20);
+    unknown_metadata.extend(blob(2, b"unrelated#0"));
+    unknown_metadata.extend(integer(25, -1));
+    unknown_metadata.extend(metadata(7, 0));
+    let mut metadata_unknown_elsewhere = android9_data();
+    metadata_unknown_elsewhere.extend(blob(1, &unknown_metadata));
+    let mut uid_elsewhere = integer(1, 20);
+    uid_elsewhere.extend(blob(2, b"unrelated#0"));
+    uid_elsewhere.extend(integer(25, -1));
+    uid_elsewhere.extend(integer(53, 10001));
+    let mut declared_uid_elsewhere = android9_data();
+    declared_uid_elsewhere.extend(blob(1, &uid_elsewhere));
+    let mut duplicate_container = android9_data();
+    duplicate_container.extend(record(4, &format!("ab12 {TITLE}#1"), 1, None));
+    let mut duplicate_buffer = android9_data();
+    duplicate_buffer.extend(record(8, &format!("{TITLE}#1"), 3, None));
+    let detached = [
+        record(17, ANDROID9_FRAME, 7, None),
+        record(7, &format!("{TITLE}#0"), 4, None),
+        record(4, "other-window#0", 1, None),
+        record(3, &format!("ab12 {TITLE}#0"), 1, None),
+        record(1, "Root#0", -1, None),
+    ]
+    .concat();
+    for bytes in [
+        metadata_elsewhere,
+        metadata_unknown_elsewhere,
+        declared_uid_elsewhere,
+        duplicate_container,
+        duplicate_buffer,
+        detached,
+    ] {
+        assert!(selected_at_sdk(&bytes, &output, 28).is_none());
+    }
+}
+
+#[test]
+fn android9_omitted_root_parent_is_not_an_explicit_missing_parent_id() {
+    let mut root = integer(1, 1);
+    root.extend(blob(2, b"Root#0"));
+    let bytes = [
+        record(17, ANDROID9_FRAME, 7, None),
+        record(7, &format!("{TITLE}#0"), 3, None),
+        record(3, &format!("ab12 {TITLE}#0"), 1, None),
+        blob(1, &root),
+    ]
+    .concat();
+    let result = selected_at_sdk(&bytes, &android9_window(), 28).unwrap();
+    assert_eq!(result.chain.last().unwrap().parent, None);
+    let explicit_missing = [
+        record(17, ANDROID9_FRAME, 7, None),
+        record(7, &format!("{TITLE}#0"), 3, None),
+        record(3, &format!("ab12 {TITLE}#0"), 1, None),
+        record(1, "Root#0", 0, None),
+    ]
+    .concat();
+    assert!(selected_at_sdk(&explicit_missing, &android9_window(), 28).is_none());
+    for sdk in [27, 29, 30] {
+        assert!(selected_at_sdk(&bytes, &android9_window(), sdk).is_none());
+    }
+}
+
+#[test]
+fn captured_api28_native_directory_and_full_window_bind_the_actual_surfaceview() {
+    // 2026-10-14 原始只读采集：34 层、无 UID/metadata，根 parent 未声明。
+    // 夹具保留原字节，不从生产解析器生成期望，不代表全部 Android 9 兼容。
+    let bytes = include_bytes!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/fixtures/performance_fps/api28-layers.bin"
+    ));
+    let output = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/fixtures/performance_fps/api28-window.txt"
+    ));
+    let Some(Qualification::Window(directory)) = layer(
+        bytes,
+        "com.ChillyRoom.DungeonShooter",
+        13339,
+        10092,
+        28,
+        &check,
+    )
+    .unwrap() else {
+        panic!("原件须进入完整窗口身份复核");
+    };
+    let result = directory.window_layer(output, &check).unwrap().unwrap();
+    assert_eq!(
+        result.name(),
+        "SurfaceView - com.ChillyRoom.DungeonShooter/com.chillyroomsdk.sdkbridge.BasePlayerActivity#0"
+    );
+    assert_eq!(
+        result
+            .chain
+            .iter()
+            .map(|record| record.id)
+            .collect::<Vec<_>>(),
+        [901, 900, 899, 898, 888, 886, 4, 1]
+    );
+    assert_eq!(result.chain.last().unwrap().parent, None);
+    assert_eq!(
+        result.window.as_ref().unwrap().session,
+        "e855834 13339:u0a10092"
+    );
+    assert!(
+        directory
+            .window_layer(&output.replace("13339:u0a10092", "13340:u0a10092"), &check)
+            .unwrap()
+            .is_none()
+    );
 }

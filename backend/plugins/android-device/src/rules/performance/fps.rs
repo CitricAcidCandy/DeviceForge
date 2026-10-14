@@ -12,6 +12,7 @@ const MAX_SPAN_NS: u64 = 60_000_000_000;
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct Layer {
     name: String,
+    sdk: u32,
     pid: u32,
     uid: u32,
     chain: Vec<owner::Record>,
@@ -19,18 +20,21 @@ pub(crate) struct Layer {
 }
 
 impl Layer {
-    /// ADB shell 会合并参数，因此层名必须作为一个受检的单引号参数。
-    pub(crate) fn shell_argument(&self) -> String {
-        format!("'{}'", self.name.replace('\'', "'\\''"))
+    /// 返回原始层名；会话统一引用一次，避免 Root 路径双重引用。
+    pub(crate) fn name(&self) -> &str {
+        &self.name
     }
 
     fn source(&self) -> String {
         let mut hash = Sha256::new();
+        hash.update(self.sdk.to_le_bytes());
         hash.update(self.pid.to_le_bytes());
         hash.update(self.uid.to_le_bytes());
         for record in &self.chain {
             hash.update(record.id.to_le_bytes());
-            hash.update(record.parent.to_le_bytes());
+            hash.update([u8::from(record.parent.is_some())]);
+            hash.update(record.parent.unwrap_or_default().to_le_bytes());
+            hash.update([u8::from(record.has_metadata)]);
             hash.update((record.name.len() as u32).to_le_bytes());
             hash.update(record.name.as_bytes());
             for value in [record.uid, record.metadata_uid, record.metadata_pid] {
@@ -62,6 +66,16 @@ impl Layer {
 #[derive(Debug)]
 pub(crate) struct Snapshot {
     present_ns: Vec<u64>,
+}
+
+/// 版本资格来自本次设备读取；未知或损坏属性不能启用旧版窗口桥。
+pub(crate) fn sdk(output: &str, check: Check<'_>) -> Result<Option<u32>> {
+    check()?;
+    let value = output.trim();
+    if value.is_empty() || !value.bytes().all(|byte| byte.is_ascii_digit()) {
+        return Ok(None);
+    }
+    Ok(value.parse::<u32>().ok().filter(|value| *value > 0))
 }
 
 fn belongs_to_package(name: &str, package: &str) -> bool {
@@ -137,6 +151,7 @@ pub(crate) fn window(
     layer: &Layer,
     before: &Snapshot,
     after: &Snapshot,
+    elapsed_ns: u64,
     check: Check<'_>,
 ) -> Result<Option<FrameWindow>> {
     check()?;
@@ -155,23 +170,18 @@ pub(crate) fn window(
         // 环形缓存覆盖了原锚时不能猜测丢失了多少帧。
         return Ok(None);
     };
-    let Some(last) = after.present_ns.last() else {
-        return Ok(None);
-    };
-    let Some(span_ns) = last.checked_sub(*anchor) else {
-        return Ok(None);
-    };
-    if span_ns == 0 || span_ns > MAX_SPAN_NS {
+    // 分母使用会话单调时钟；有限帧历史的首尾差不能替代采样时长。
+    if elapsed_ns == 0 || elapsed_ns > MAX_SPAN_NS {
         return Ok(None);
     }
     let Some(frames) = after.present_ns.len().checked_sub(position + 1) else {
         return Ok(None);
     };
-    let Some(frames) = u64::try_from(frames).ok().filter(|frames| *frames > 0) else {
+    let Some(frames) = u64::try_from(frames).ok() else {
         return Ok(None);
     };
     // 公共窗口只有整数毫秒；向上取整避免缩短真实跨度后夸大 FPS。
-    let Some(duration_ms) = span_ns
+    let Some(duration_ms) = elapsed_ns
         .checked_add(999_999)
         .map(|span| span / 1_000_000)
         .and_then(|span| u32::try_from(span).ok())

@@ -1,5 +1,5 @@
 //! Simpleperf官方报告解析；不依赖宿主或官方工具的运行输出文本格式。
-mod model;
+pub(super) mod model;
 mod sample;
 mod tables;
 mod wire;

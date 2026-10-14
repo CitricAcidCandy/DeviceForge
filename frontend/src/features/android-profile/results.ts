@@ -25,7 +25,9 @@ export function decodeProbe(value: unknown, logId: string | null, device: string
     || !onlyKeys(result, ['format_version', 'device_id', 'package', 'root_access', 'simpleperf_available', 'clock', 'supported', 'reason'])
     || result.format_version !== 1 || result.device_id !== device || result.package !== packageId || result.clock !== 'boottime'
     || !(result.root_access === 'none' || result.root_access === 'adbd_root' || result.root_access === 'su') || typeof result.simpleperf_available !== 'boolean' || typeof result.supported !== 'boolean'
-    || result.supported !== (result.root_access !== 'none' && result.simpleperf_available) || !nullableText(result.reason, 4096)) throw invalidProfile(logId);
+    || !nullableText(result.reason, 4096)
+    || (result.supported ? result.root_access === 'none' || !result.simpleperf_available || result.reason !== null
+      : !boundedText(result.reason, 4096) || result.reason.length === 0)) throw invalidProfile(logId);
   return { format_version: 1, device_id: device, package: packageId, root_access: result.root_access,
     simpleperf_available: result.simpleperf_available, clock: 'boottime', supported: result.supported, reason: result.reason };
 }

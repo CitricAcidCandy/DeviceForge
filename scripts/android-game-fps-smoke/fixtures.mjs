@@ -49,6 +49,11 @@ export function assertReading(reading, expected) {
   assert.equal(reading.pid, expected.pid ?? 2468); assert.ok(Number.isSafeInteger(reading.captured_at));
   if (expected.fps === null) { assert.ok(reading.fps == null, 'FPS-MISSING-NOT-ZERO'); assert.ok(reading.frame_window == null, 'FPS-MISSING-WINDOW'); }
   else { assert.ok(reading.frame_window, 'FPS-EXACT-PRESENT-WINDOW');
-    assert.equal(reading.frame_window.frames, expected.frame_window.frames); assert.equal(reading.frame_window.duration_ms, expected.frame_window.duration_ms);
-    assert.match(reading.frame_window.source, /^sf_present_[a-f0-9]{16}$/);  assert.equal(reading.fps, expected.fps, 'FPS-EXACT-DOMAIN-RATE'); }
+    assert.equal(reading.frame_window.frames, expected.frame_window.frames, 'FPS-EXACT-NEW-PRESENT-COUNT');
+    const duration = reading.frame_window.duration_ms;
+    assert.ok(Number.isSafeInteger(duration) && duration >= expected.frame_window.min_duration_ms
+      && duration <= expected.frame_window.max_duration_ms, 'FPS-HOST-MONOTONIC-WINDOW-RANGE');
+    assert.match(reading.frame_window.source, /^sf_present_[a-f0-9]{16}$/);
+    const rate = reading.frame_window.frames * 1000 / duration;
+    assert.ok(Number.isFinite(reading.fps) && Math.abs(reading.fps - rate) <= 1e-9, 'FPS-DERIVED-FROM-RAW-WINDOW'); }
 }

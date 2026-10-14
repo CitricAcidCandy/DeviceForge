@@ -1,5 +1,46 @@
 # DeviceForge 开发与验收记录
 
+## 2026-10-14 React 产品界面本轮交付
+
+- 用户选定电子设备背景并批准 React/React DOM 19.3.0、Tailwind 4.3.3、官方 shadcn/ui 16项组件及 Lucide。已接入14个业务路由，展示品牌 FORGE，工程/SDK 保持 DeviceForge。复用既有工厂、真实操作目录、任务钩子、完整 DeviceRef、独立插件 DOM 根、草稿与长会话保存、内存令牌和文档根主题；未新增后端业务或自动提交。
+- 完整门禁均退出0：generate:api、check（271源码及严格类型）、test（73文件/662项，零失败/取消/跳过）、build。原始及最终日志 `artifacts/product-final-20261014-1339/`；源码/资产按小批记录 SHA，不把并行 Android 测试通过外推该后端批次完成。
+- 产品真实 DOM/受控 API 22/22：应用与包、提供者连接/完整引用、产物/ZIP、MessagePack/表格、工具、任务文件和焦点。报告 `artifacts/product-browser-e77360c4-0bba-4999-ac2c-91141773d69f/report.json`。
+- 会话产品48/48：终端 UTF-8、输入/EOF/暂停/恢复、CLI/SDK 独立模式与线程、MCP订阅、Frida专用结果、自动化步骤/停止与桌面确认；报告 `artifacts/browser-session-903ff92d-ea0b-40a0-8abd-342aefd164ef/report.json`。没有真实桌面副作用。
+- 原生媒体12/12：当前 MediaPage/ProductServices + 原生 H.264画布像素/PTS、WebAudio产品destination、暂停/恢复、控制原字节、旧设备引用拒绝、PNG摘要与原生MP4元数据/保存；报告 `artifacts/browser-media-a264448c-222b-4d5b-9e3b-35ec892989cb/report.json`。不证明设备采集、扬声器听觉或MP4连续播放。
+- 插件/配置45/45：模块/组件挂载与撤销、命令/服务、主题与草稿、CAS冲突零自动覆盖、远端来源/备份、停用重启首次挂载与删除。报告 `artifacts/browser-product-extensions-6046c8c3-ea94-4402-8603-ca4bca266115/report.json`。挂载状态已按贡献ID和插件代次同步。
+- 最终真实 Rust 在线插件门禁14:09退出0、passed=true；`artifacts/browser-plugin-smoke-debug.json` 受检公开宿主 SHA `bf0a20ba7ee01e2ff43d2c9c6a6ed60d1ae2770e4761a9e3fb15bc2f0d37ac72` 与最终构建一致。两类包、ESM相对依赖、公开贡献/任务钩子、停用恢复与原字节产物通过；不外推正式Release/npx或真机。
+- 全页隔离实服11/11，最新 `artifacts/product-ui/2026-10-14T05-58-31-156Z-2fa8c882/report.json`。视觉子代理亲审旧批41张、修订批12张，覆盖范围视觉通过；14页无整页横滚，电子设备辨识与商标遮盖成立，210条窄屏目标高度≥44px，Dialog两按钮308×44、关闭44×44。保留终端空态次要说明对比优化及开关标签点击域未独立测量边界。
+- 已修复输出读取128超过合同上限100、删除Dialog焦点、Radix Slot/portal触控区和停用重启挂载标记。所有失败原件保留；Headless端口失败已在串行复验后收敛。本轮自有服务、浏览器和临时目录已清理，未连接或唤醒设备，不恢复/删除无关修改。
+- 背景源与产品副本 SHA 均 `a02c30d2c4db5dfa76cd8a80800592f6efd1e4e0617923cd0f5e779c9c2f013d`。实施、来源与实际边界见 `frontend/docs/产品界面验收.md` 和视觉报告；Root真机、外部工具/模型、正式分发、局域网实机及性能专项继续独立待验。新开发方向由用户指明，本轮不扩大为整体迁移完成。
+
+## 2026-10-14 电子设备背景新生成
+
+- 用户明确批准重新生成一张同风格背景，沿用 gpt-image-2.5，通过 bundled CLI 的 generate 分支完成 1 张 high、1536×1024 PNG；另存 frontend/docs/design/2026-10-14/refinement-v3/workshop-background-devices-v4.png，不覆盖历史图片。原进程退出0，临时凭据映射已清理。
+- 独立视觉审核与 PNG 解码通过：电子设备齐全，无明显维修工具或设备畸形；手机有品牌标记，指定静区仍经过柜体及桌沿横线，因此仅作为本轮候选，不标全部要求通过。原生文件2,093,597字节，SHA256 a02c30d2c4db5dfa76cd8a80800592f6efd1e4e0617923cd0f5e779c9c2f013d；提示词及 visual-audit-v4.md 随图保存。
+- 本轮未重提旧编辑请求、未改产品代码、未运行前后端构建或业务测试。首页及内页维修语义、镜头一致性和真实控件可读性仍待修订及验证。
+
+## 2026-10-14 纯背景定位纠正
+
+- 用户指出设备工坊应陈列各种电子设备，不能画成维修工坊。历史背景v2的工具墙退出推荐；首页和内页初稿中的维修语义也列为待纠正，不因无UI检查通过而声称产品语义正确。
+- 当前只编辑纯背景，移除机械维修工具，改为手机、平板、掌机、显示器、迷你主机、开发板与扩展坞；保留暖光、绿植、材质及中央操作静区。gpt-image-2.5编辑请求于12:23:21退出1、HTTP524，原输出不存在，服务端结果未知；没有自动重发或更改模式，已请求用户选择重新生成同风格背景或明确重提编辑。无本轮生图进程遗留；未改组件或业务源码。
+
+## 2026-10-14 选定第3张后的精修与内页
+
+- 用户选择独立站第3张风格，要求优化标题名字与位置，考虑英文，并设计进入工坊后的界面和背景。展示名称建议FORGE、完整名称DeviceForge次级保留，仅视觉提案，不改项目或插件身份。
+- 工坊内页初稿已生成于frontend/docs/design/2026-10-14/refinement-v3/workshop-ui-v1.png，1536×1024 PNG可解码，CLI退出0。独立视觉审查指出大面板仍偏管理页面、环境画法差异、手机比例／来源、任务取消和入口缺口等，标为需改进，不能算定稿或功能验收。
+- 用户轮换服务后，原模型编辑返回404；经用户明确批准改用gpt-image-2.5，首页v5／v6／v7均保存但场景漂移，蒙版外复原合成稿因接缝淘汰。最新home-layout-proposal-v7.png只作排版提案，不认定为选定原图的保真精修完成。旧403／404不再作为当前余额阻塞。
+- 内页v3返回524，退出1、无本地图片，服务器结果及计费未知；恢复核对后用户批准再提交一次，v4仍524。允许的CLI重提已用完；SDK默认有2次自动重试，不能把一次CLI视为恰好一个HTTP请求。背景从现有v1编辑，已保存workshop-background-v2.png；独立审查确认无UI及中央静区可用，但房间构图改变，只作独立背景提案。
+- 精修方案与图审意见见frontend/docs/design/2026-10-14/refinement-v3/首页精修与工坊内页.md。当前内页进一步修订、首页保真精修和两稿镜头一致性仍未完成；未编写组件、安装依赖或进行前端构建／产品验收。已核对用户提供教程：服务地址一致，精修正确使用images/edits，教程generate对应images/generations；输出参数差异与具体超时原因仍保留边界。用户再次明确继续gpt-image-2.5，模型不变。生图CLI全终态，临时映射清理，git diff --check通过。
+
+## 2026-10-14 独立站界面设计
+
+- 用户要求参考异环与星布谷地，采用 React、Tailwind CSS、严格 TS、Vite、React Bits，使用成熟官方组件，未经审批不自编组件；平台主题、组件和模块继续支持热拔插。
+- 首批三张工作台布局被用户否定，原因是仍像中后台；保留历史并退出推荐。新版三张全屏独立站稿位于 frontend/docs/design/2026-10-14/site-study-v2-{a,b,c}.png，只按展示顺序编号，不给方案增加概念名。
+- 新版三张 PNG 可解码、均为 1536×1024；独立视觉子代理确认无中后台面板骨架，导航与主入口可辨。局部热点小字、重复标签和品牌等需选定后修正，用户尚未选择，不计最终视觉验收。
+- 已保存 frontend/docs/design/2026-10-14/独立站新版设计与交互方案.md，包含创意动效、安静模式、公开主题／组件／模块接入、生命周期清理与官方组件审批范围。模型已按用户选择固定 gpt-image-2.5-sunburst。
+- 当前工作树实际入口、依赖与 Vite 配置仍是 Svelte，与用户记忆的 React 版本有差异；没有找到其他工作树。设计按新要求 React，未擅自迁移或改公开宿主 SDK。
+- 本轮仅设计图片、中文文档与模型约束；没有编写 UI、安装依赖或运行前端构建／测试。静图不证明动效、可访问性、热拔插、真实设备或完整产品交付。
+
 ## 2026-10-14 Root 实设备验证延期
 
 用户明确“先跳过root，实现就好，验证晚点，延后，我方便了再测”。真实 Root 真机/模拟器验证不再作为本轮前置条件，不要求当前连接设备或唤醒手机；已有 Root 资格探测、受控 simpleperf 录制、堆栈解析、归档、采样画面和无 Root 降级实现保留，合成工具功能证据仍与实际设备资格分开。本轮只读设备报告 artifacts/android-root-qualification-5fa7d46b-b16b-4dd9-93c0-b6f08b970986/report.json 已标 deferred_by_user / implementation_failure=false，十四次 ADB 调用均终态，始末息屏。
@@ -1076,3 +1117,58 @@ Android环境观测已随实际Root读取通道标记权限；普通无Root不�
 用户恢复后仅继续 Android Root 实设备验证，主题、温度增量、性能专项与 REA Agent 插件不恢复。模拟器 emulator-5554 为 Android 9/API 28、x86_64，固定 su 返回 UID0；官方本地 NDK r27 的 Simpleperf 已部署至独占临时目录，实际版本和必需参数通过，公开 stack.probe 及当前前端解码通过。用户打开游戏后核对 com.knight.union.wdj，PID3540、启动计数146565、UID10082。
 
 首录制 Job 5f851bc4-06cc-419a-b5d8-867ecc15df9b 返回 cleanup_failed，未发布产物。同生产目录脚本复现 ready/clean 的 CRLF 回执；远端监督文本原仅接受 LF，已窄修文本换行兼容，二进制下载、身份、期限及 token 规则未变。原现场当前未见采集目录或相关进程，不反推原 PID 退出。证据目录 artifacts/android-root-emulator-live-UcCxJn，真实非空堆栈、采样画面和修后完整门禁尚待验证，不计完成。
+
+
+## 2026-10-14 模拟器 Root 真实采集与修复收口
+
+本轮仅恢复Android Root实设备验证。emulator-5554为Android9/API28/x86_64，普通UID2000、su UID0；前台com.knight.union.wdj，PID3540/启动计数146565/UID10082始末同代。官方本地NDK r27 Simpleperf已完成版本、参数及公开stack.probe资格。最终成功Job b73c8a34-a259-4df6-97e4-6dd983e45cdd：4个指标采样、4张scrcpy PNG、437条非空调用链，最大深37，报告lost0。ZIP/index下载与内嵌索引原字节及SHA一致，44份冻结前端消费和独立视觉通过。
+
+画面均为元气骑士账号登录页，不是关卡内实玩；CPU/PSS取得有效值，但本模拟器展示帧窗口与电池电流缺测，FPS和净电池功率为null。360条栈关联指标区间，77条区间外；画面距采样中点约1至19ms。严格画面区间均0栈，只能说明采样点附近画面，不是精确单帧非空栈。1297链帧中482符号为空，420条栈携带展开错误，资格仍为reported_symbols_only；record stderr451条和report437条差14原因未知。
+
+真实设备发现并修复3项：su监督文本CRLF仅归一完整换行；su/普通shell的二进制换行腐蚀改为Root确认自有文件并限域chmod后普通exec-out cat原字节读取；Android9 TOTAL摘要按目标身份/App Summary/Pss(KB)/节边界解析，未知节关闭并拒绝重复。最后PSS上下文收窄晚于成功实录冻包，不借实录证明最终新二进制；修后必要门禁和新包合成工具验证另列。原失败回执和诊断完整保留，未以删除CR修复二进制。
+
+实录受检冻包host064a4408…/plugin60162f12…/manifest238cb8cd…。5个远端原录制/报告/媒体PID逐一确认消失，录制报告exit0；自有目录、forward、Simpleperf部署按精确身份清理。host61560/driver57564均exit0、55497端口释放。模拟器调试后固定KEYCODE_SLEEP223，emulator-screen-final.json确认Asleep/OFF及非交互；三星未操作。证据artifacts/android-root-emulator-live-UcCxJn。
+
+
+修后源码门禁全通过：架构27模块/Node6、fmt、workspace Clippy -Dwarnings、完整workspace测试1776通过0失败、debug build，7阶段exit0；AI嵌套1通过32筛除和Harmony定点1通过均另列，1226维护输入门禁前后delta0。首轮Harmony exact64MiB夹具8秒ready失败保留，定点及最终完整用例通过，不改生产期限、不推断系统负载；旧call05当前PID缺席，历史退出码仍未知。
+
+最终新freeze hostf5d72517…/plugin ee1f076a…/manifest238cb8cd…通过runtime两功能模式、日志、插件生命周期、合作取消及Root/fallback/record生命周期三批服务回归；Root4检查/2Job/82工具，无Root等降级5检查/3Job/64工具，末项4检查/3Job/99工具。全部原OS工具及宿主退出、端口释放和冻结输入稳定分别核验。su夹具用真实Android9七行PSS摘要CRLF，结果PSS2048/RSSnull，跨Objects的TOTAL9999不覆盖。首分类名含点被夹具拒绝及清理poll只认LF两失败原件保留，后者只接受clean LF/完整CRLF精确回执后复验，不放宽生产逻辑。公共--performance-plugin是功能路由模式，没有性能测量/压测。
+
+本轮Root实设备验证、必要窄修与门禁收口完成，不表示整体Android业务或项目完成。匹配符号、完整调用栈展开、关卡实玩FPS/功率资格、游戏独占功耗、正式Release/npx与产品UI仍独立待验。温度增量取消、性能专项延后、REA MCP+Agent只列计划，主题不在本轮恢复；换下一开发方向先由用户指明。最终报告report.json及独立审计、functional-final/resolution.json保留新旧二进制边界，全部本轮自有驱动终态。
+
+
+## 2026-10-14 FPS 缺测与 Root 质量增量
+
+- [x] 按用户指定PerfDog研究资料核SurfaceFlinger实际呈现历史、相等锚点和单调采样时窗，不以刷新率/scrcpy帧率替代；区分合法0与缺测。
+- [x] 修普通/Root完整图层名引用；API28全无UID/metadata目录用完整WMS PID/UID加数值父链，保留缺省parent存在性，真实34层原件回归通过。
+- [x] Root显式DWARF与关闭report去隙；同旧perf官方437→451差14原因闭合，恢复14条全部有展开错误。可选stack-quality.json与前端同stacks严格核对、旧归档兼容、无Root/缺参数降级通过。
+- [x] 最终源码门禁全部0：后端顶层1787测试、前端69文件629测试/209构建模块；FPS定点31/协议11。1577维护输入门禁前后delta0，两份新增原件夹具另核精确SHA/字节。
+- [x] 最终host1d8a3e5e…/plugin88001015…包通用五功能阶段及Root/降级/生命周期/FPS四批全通过，32检查/492原OS记录；宿主/驱动退出、端口释放、冻结身份稳定。
+- [x] 最终模拟器实际关卡普通58.14/60.44FPS；Root751非空栈/2指标/2PNG，Root47.17/43.92FPS、PSS约1140.8MiB、第二CPU27.38%整机占比/109.53%单核归一。45冻结前端消费及子代理新PNG关卡视觉通过。641栈关联指标区间，严格画面区间0栈，不扩大成逐帧非空栈。
+- [x] 采集已停止，Simpleperf自有部署精确清理，forward清理时为空；用户指出模拟器息屏不当后已恢复Awake/ON，不再自动息屏或输入，三星未操作。
+- [ ] 完整Root栈仍未解决：本录721样本展开错误、30缺元数据、959链帧缺符号，目标架构/BuildID仍unavailable。
+- [ ] 游戏独占功耗、有效电流、OEM精度、正式Release/npx及产品界面另待；温度增量取消、性能专项延后、REA MCP/Agent仅计划，新方向由用户选择。
+
+本轮总报告：artifacts/android-fps-stack-quality-35ac48dc-dfba-406e-9164-fb0fd961ccef/report.json。详细实施与边界见backend/docs/AndroidRoot堆栈与帧画面实施.md末尾；失败原件与旧包证据分别保留，不自动提交、不回退用户设计文件。
+
+补充当前并行边界（本轮收尾时核对）：前端 package 与门禁工具正在切换 React，source-dependencies.ts 仍引用 Svelte，当前架构检查及其定点回归因找不到 svelte 退出1，原日志存本轮证据目录 current-frontend-architecture.log / current-frontend-architecture-tests.log。并行改动原样保留，未回退或安装旧依赖。本轮前端629项及209模块构建仅覆盖此前冻结受检版本和45份冻结实录消费者，不能证明最新React工作区；Android归档质量消费本轮写集未出现受检后漂移。该门禁缺口随前端迁移处理，不把旧成功转计新框架。
+
+## 2026-10-14 无符号火焰图授权与实施中
+
+- [x] 用户已接受缺符号，明确继续火焰图；缺符号不再作为本阶段阻塞项，现阶段不追符号包、不启动 REA。有符号显示函数名，无符号保留模块及地址，历史缺符号记录保持。
+- [ ] 按进程、线程和设备时间区间聚合现有 Root 调用链，接入公开归档消费者及插件接口；正确转换叶到根顺序，保留模块身份、整数精度、原始数据和质量标记。实现及必要功能测试正在进行，未计交付。
+- [ ] 用已有751条实际关卡栈原件验证聚合与无符号消费；721样本展开错误、30缺元数据、959链帧缺符号继续展示为质量边界，不宣称完整调用关系或精确CPU耗时。
+- [ ] 产品火焰图界面按当前前端实施方案衔接；最新React工作区门禁与UI验收独立，不转计此前冻结Svelte结果。
+- [ ] 性能专项继续延后至全部业务完成；温度增量取消、REA MCP与Agent操作插件仅计划。模拟器保持亮屏，本次复用已有原件，不自动息屏或发送设备输入。
+
+最新授权覆盖前节“完整Root栈仍未解决”中缺符号的阻塞解释；缺符号事实和展开错误仍保留为已知数据边界，不因此重新开启符号追索。实现和验收结果待本批补录，整体项目未完成。
+
+
+## 2026-10-14 Android 无符号火焰图交付
+- [x] Rust纯folded导出与Root ZIP接线；精确累计、根到叶、递归/重名隔离、转义、限额和取消。
+- [x] 前端原栈火焰树、筛选/搜索/键盘缩放、指标端点转换、旧归档兼容和严格folded比对；接入React性能归档报告，提供折叠栈下载。
+- [x] 751条真实关卡数据离线浏览器8检查、子代理6张PNG图审；729节点、641区间内/110区间外，模块/地址可用。
+- [x] 后端架构/fmt/Clippy/build、Android库187/协议149；当前React生成/架构/类型/73文件662测试/2246模块构建；新冻结Root归档4检查2任务84工具记录。
+- [ ] 整体workspace门禁仍有既有Harmony 64MiB截图ready失败，串行复核也失败；保留原件，不算整体测试通过，不扩展本轮修复方向。
+- [ ] 完整产品页面视觉、采集准确性与性能专项独立验收；缺符号已接受，不阻塞本轮火焰图。
+- 证据及可直接打开的HTML：artifacts/android-flamegraph-87329586-8375-4f8c-8cf8-8181a7102ac0/report.json、viewer/index.html。65个本轮输入SHA未变，无活跃本轮驱动，未操作设备；后续方向先由用户指定。

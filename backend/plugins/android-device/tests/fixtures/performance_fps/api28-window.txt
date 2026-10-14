@@ -1,0 +1,222 @@
+WINDOW MANAGER WINDOWS (dumpsys window windows)
+  Window #0 Window{668a5e1 u0 StatusBar}:
+    mDisplayId=0 stackId=0 mSession=Session{b7c90cf 1735:u0a10014} mClient=android.os.BinderProxy@8ebe93a
+    mOwnerUid=10014 mShowToOwnerOnly=false package=com.android.systemui appop=NONE
+    mAttrs={(0,0)(fillx36) gr=TOP CENTER_VERTICAL sim={adjust=resize} layoutInDisplayCutoutMode=always ty=STATUS_BAR fmt=TRANSLUCENT
+      fl=NOT_FOCUSABLE TOUCHABLE_WHEN_WAKING WATCH_OUTSIDE_TOUCH SPLIT_TOUCH HARDWARE_ACCELERATED DRAWS_SYSTEM_BAR_BACKGROUNDS}
+    Requested w=1280 h=36 mLayoutSeq=1175
+    mBaseLayer=171000 mSubLayer=0 mAnimLayer=0+=0 mLastLayer=0
+    mToken=WindowToken{19fa348 android.os.BinderProxy@a5e29eb}
+    mViewVisibility=0x0 mHaveFrame=true mObscured=false
+    mSeq=0 mSystemUiVisibility=0x0
+    mPolicyVisibility=false mPolicyVisibilityAfterAnim=false mAppOpVisibility=true parentHidden=false mPermanentlyHidden=false mHiddenWhileSuspended=false mForceHideNonSystemOverlayWindow=false
+    mGivenContentInsets=[0,0][0,0] mGivenVisibleInsets=[0,0][0,0]
+    mFullConfiguration={1.0 460mcc65535mnc [zh_CN] ldltr sw480dp w853dp h456dp 240dpi lrg long land finger qwerty/v/v -nav/h winConfig={ mBounds=Rect(0, 0 - 1280, 720) mAppBounds=Rect(0, 0 - 1280, 720) mWindowingMode=fullscreen mActivityType=undefined} s.7}
+    mLastReportedConfiguration={1.0 460mcc65535mnc [zh_CN] ldltr sw480dp w853dp h456dp 240dpi lrg long land finger qwerty/v/v -nav/h winConfig={ mBounds=Rect(0, 0 - 1280, 720) mAppBounds=Rect(0, 0 - 1280, 720) mWindowingMode=fullscreen mActivityType=undefined} s.7}
+    mHasSurface=true isReadyForDisplay()=false mWindowRemovalAllowed=false
+    mFrame=[0,0][1280,36] last=[0,0][1280,36]
+    Frames: containing=[0,0][1280,720] parent=[0,0][1280,720]
+        display=[0,0][1280,720] overscan=[0,0][1280,720]
+        content=[0,0][1280,36] visible=[0,0][1280,36]
+        decor=[0,0][0,0]
+        outset=[0,0][1280,720]
+    Cur insets: overscan=[0,0][0,0] content=[0,0][0,0] visible=[0,0][0,0] stable=[0,0][0,0] surface=[0,0][0,0] outsets=[0,0][0,0] cutout=DisplayCutout{insets=Rect(0, 0 - 0, 0) boundingRect=Rect(0, 0 - 0, 0)}
+    Lst insets: overscan=[0,0][0,0] content=[0,0][0,0] visible=[0,0][0,0] stable=[0,0][0,0] physical=[0,0][0,0] outset=[0,0][0,0] cutout=com.android.server.wm.utils.WmDisplayCutout@3c1
+    WindowStateAnimator{9804505 StatusBar}:
+      mSurface=Surface(name=StatusBar)/@0x783195a
+      Surface: shown=false layer=0 alpha=1.0 rect=(0.0,0.0) 1280 x 36 transform=(1.0, 0.0, 1.0, 0.0)
+      mDrawState=HAS_DRAWN       mLastHidden=true
+      mSystemDecorRect=[0,0][1280,36] mLastClipRect=[0,0][1280,36]
+    mLastFreezeDuration=+19s380ms
+    isOnScreen=false
+    isVisible=false
+  Window #1 Window{5e7eb41 u0 AssistPreviewPanel}:
+    mDisplayId=0 stackId=0 mSession=Session{b7c90cf 1735:u0a10014} mClient=android.os.BinderProxy@12cd51a
+    mOwnerUid=10014 mShowToOwnerOnly=true package=com.android.systemui appop=NONE
+    mAttrs={(0,0)(fillx375) gr=BOTTOM START CENTER sim={state=unchanged adjust=nothing} ty=VOICE_INTERACTION_STARTING fmt=TRANSLUCENT
+      fl=NOT_FOCUSABLE NOT_TOUCHABLE LAYOUT_IN_SCREEN HARDWARE_ACCELERATED
+      vsysui=LAYOUT_STABLE LAYOUT_HIDE_NAVIGATION LAYOUT_FULLSCREEN}
+    Requested w=0 h=0 mLayoutSeq=83
+    mBaseLayer=41000 mSubLayer=0 mAnimLayer=0+=0 mLastLayer=0
+    mToken=WindowToken{5e52228 android.os.BinderProxy@520d84b}
+    mViewVisibility=0x8 mHaveFrame=true mObscured=false
+    mSeq=0 mSystemUiVisibility=0x700
+    mGivenContentInsets=[0,0][0,0] mGivenVisibleInsets=[0,0][0,0]
+    mFullConfiguration={1.0 460mcc65535mnc [zh_CN] ldltr sw480dp w853dp h456dp 240dpi lrg long land finger qwerty/v/v -nav/h winConfig={ mBounds=Rect(0, 0 - 1280, 720) mAppBounds=Rect(0, 0 - 1280, 720) mWindowingMode=fullscreen mActivityType=undefined} s.7}
+    mLastReportedConfiguration={0.0 ?mcc?mnc ?localeList ?layoutDir ?swdp ?wdp ?hdp ?density ?lsize ?long ?ldr ?wideColorGamut ?orien ?uimode ?night ?touch ?keyb/?/? ?nav/? winConfig={ mBounds=Rect(0, 0 - 0, 0) mAppBounds=null mWindowingMode=undefined mActivityType=undefined}}
+    mHasSurface=false isReadyForDisplay()=false mWindowRemovalAllowed=false
+    mFrame=[0,720][1280,720] last=[0,0][0,0]
+    Frames: containing=[0,0][1280,720] parent=[0,0][1280,720]
+        display=[0,0][1280,720] overscan=[0,0][1280,720]
+        content=[0,720][1280,720] visible=[0,720][1280,720]
+        decor=[0,0][1280,720]
+        outset=[0,0][0,0]
+    Cur insets: overscan=[0,0][0,0] content=[0,0][0,0] visible=[0,0][0,0] stable=[0,0][0,0] surface=[0,0][0,0] outsets=[0,0][0,0] cutout=DisplayCutout{insets=Rect(0, 0 - 0, 0) boundingRect=Rect(0, 0 - 0, 0)}
+    Lst insets: overscan=[0,0][0,0] content=[0,0][0,0] visible=[0,0][0,0] stable=[0,0][0,0] physical=[0,0][0,0] outset=[0,0][0,0] cutout=com.android.server.wm.utils.WmDisplayCutout@3c1
+    WindowStateAnimator{3c97126 AssistPreviewPanel}:
+      mDrawState=NO_SURFACE       mLastHidden=false
+      mSystemDecorRect=[0,0][0,0] mLastClipRect=[0,0][0,0]
+      mShownAlpha=0.0 mAlpha=1.0 mLastAlpha=0.0
+    isOnScreen=false
+    isVisible=false
+  Window #2 Window{a06fa7d u0 DockedStackDivider}:
+    mDisplayId=0 stackId=0 mSession=Session{b7c90cf 1735:u0a10014} mClient=android.os.BinderProxy@2b328e6
+    mOwnerUid=10014 mShowToOwnerOnly=false package=com.android.systemui appop=NONE
+    mAttrs={(0,0)(72xfill) sim={adjust=pan} layoutInDisplayCutoutMode=always ty=DOCK_DIVIDER fmt=TRANSLUCENT
+      fl=NOT_FOCUSABLE NOT_TOUCH_MODAL WATCH_OUTSIDE_TOUCH SPLIT_TOUCH HARDWARE_ACCELERATED FLAG_SLIPPERY
+      pfl=NO_MOVE_ANIMATION
+      vsysui=LAYOUT_STABLE LAYOUT_HIDE_NAVIGATION LAYOUT_FULLSCREEN}
+    Requested w=72 h=684 mLayoutSeq=1175
+    mBaseLayer=21000 mSubLayer=0 mAnimLayer=0+=0 mLastLayer=0
+    mToken=WindowToken{37e38d4 android.os.BinderProxy@4a2ae27}
+    mViewVisibility=0x4 mHaveFrame=true mObscured=false
+    mSeq=0 mSystemUiVisibility=0x700
+    mPolicyVisibility=false mPolicyVisibilityAfterAnim=false mAppOpVisibility=true parentHidden=false mPermanentlyHidden=false mHiddenWhileSuspended=false mForceHideNonSystemOverlayWindow=false
+    mGivenContentInsets=[0,0][0,0] mGivenVisibleInsets=[0,0][0,0]
+    mTouchableInsets=3 mGivenInsetsPending=false
+    touchable region=SkRegion((0,-72,72,72))
+    mFullConfiguration={1.0 460mcc65535mnc [zh_CN] ldltr sw480dp w853dp h456dp 240dpi lrg long land finger qwerty/v/v -nav/h winConfig={ mBounds=Rect(0, 0 - 1280, 720) mAppBounds=Rect(0, 0 - 1280, 720) mWindowingMode=fullscreen mActivityType=undefined} s.7}
+    mLastReportedConfiguration={0.0 ?mcc?mnc ?localeList ?layoutDir ?swdp ?wdp ?hdp ?density ?lsize ?long ?ldr ?wideColorGamut ?orien ?uimode ?night ?touch ?keyb/?/? ?nav/? winConfig={ mBounds=Rect(0, 0 - 0, 0) mAppBounds=null mWindowingMode=undefined mActivityType=undefined}}
+    mHasSurface=false isReadyForDisplay()=false mWindowRemovalAllowed=false
+    mFrame=[0,0][0,0] last=[0,0][0,0]
+    Frames: containing=[0,0][1280,720] parent=[0,0][1280,720]
+        display=[0,0][1280,720] overscan=[0,0][1280,720]
+        content=[0,0][0,0] visible=[0,0][1280,720]
+        decor=[0,0][1280,720]
+        outset=[0,0][0,0]
+    Cur insets: overscan=[0,0][0,0] content=[0,0][0,0] visible=[0,0][0,0] stable=[0,36][0,0] surface=[0,0][0,0] outsets=[0,0][0,0] cutout=DisplayCutout{insets=Rect(0, 0 - 0, 0) boundingRect=Rect(0, 0 - 0, 0)}
+    Lst insets: overscan=[0,0][0,0] content=[0,0][0,0] visible=[0,0][0,0] stable=[0,36][0,0] physical=[0,0][0,0] outset=[0,0][0,0] cutout=com.android.server.wm.utils.WmDisplayCutout@3c1
+    WindowStateAnimator{6a2f167 DockedStackDivider}:
+      mDrawState=NO_SURFACE       mLastHidden=false
+      mSystemDecorRect=[0,0][0,0] mLastClipRect=[0,0][0,0]
+      mShownAlpha=0.0 mAlpha=1.0 mLastAlpha=0.0
+    isOnScreen=false
+    isVisible=false
+  Window #3 Window{c42edfc u0 com.ChillyRoom.DungeonShooter/com.chillyroomsdk.sdkbridge.BasePlayerActivity}:
+    mDisplayId=0 stackId=3 mSession=Session{e855834 13339:u0a10092} mClient=android.os.BinderProxy@671deef
+    mOwnerUid=10092 mShowToOwnerOnly=true package=com.ChillyRoom.DungeonShooter appop=NONE
+    mAttrs={(0,0)(fillxfill) sim={adjust=pan} layoutInDisplayCutoutMode=always ty=BASE_APPLICATION fmt=TRANSLUCENT wanim=0x10302f8
+      fl=KEEP_SCREEN_ON LAYOUT_IN_SCREEN FULLSCREEN LAYOUT_INSET_DECOR SPLIT_TOUCH HARDWARE_ACCELERATED TRANSLUCENT_NAVIGATION DRAWS_SYSTEM_BAR_BACKGROUNDS
+      pfl=FORCE_DRAW_STATUS_BAR_BACKGROUND
+      vsysui=LOW_PROFILE HIDE_NAVIGATION FULLSCREEN LAYOUT_STABLE LAYOUT_HIDE_NAVIGATION LAYOUT_FULLSCREEN IMMERSIVE_STICKY}
+    Requested w=1280 h=720 mLayoutSeq=1175
+    mBaseLayer=21000 mSubLayer=0 mAnimLayer=0+=0 mLastLayer=0
+    mToken=AppWindowToken{6e38d82 token=Token{616d0cd ActivityRecord{f493664 u0 com.ChillyRoom.DungeonShooter/com.chillyroomsdk.sdkbridge.BasePlayerActivity t5}}}
+    mAppToken=AppWindowToken{6e38d82 token=Token{616d0cd ActivityRecord{f493664 u0 com.ChillyRoom.DungeonShooter/com.chillyroomsdk.sdkbridge.BasePlayerActivity t5}}}
+     isAnimatingWithSavedSurface()= mAppDied=false    drawnStateEvaluated=true    mightAffectAllDrawn=true
+    mViewVisibility=0x0 mHaveFrame=true mObscured=false
+    mSeq=0 mSystemUiVisibility=0x1707
+    mGivenContentInsets=[0,0][0,0] mGivenVisibleInsets=[0,0][0,0]
+    mFullConfiguration={1.0 460mcc65535mnc [zh_CN] ldltr sw480dp w853dp h456dp 240dpi lrg long land finger qwerty/v/v -nav/h winConfig={ mBounds=Rect(0, 0 - 1280, 720) mAppBounds=Rect(0, 0 - 1280, 720) mWindowingMode=fullscreen mActivityType=standard} s.7}
+    mLastReportedConfiguration={1.0 460mcc65535mnc [zh_CN] ldltr sw480dp w853dp h456dp 240dpi lrg long land finger qwerty/v/v -nav/h winConfig={ mBounds=Rect(0, 0 - 1280, 720) mAppBounds=Rect(0, 0 - 1280, 720) mWindowingMode=fullscreen mActivityType=standard} s.7}
+    mHasSurface=true isReadyForDisplay()=true mWindowRemovalAllowed=false
+    mFrame=[0,0][1280,720] last=[0,0][1280,720]
+    Frames: containing=[0,0][1280,720] parent=[0,0][1280,720]
+        display=[0,0][1280,720] overscan=[0,0][1280,720]
+        content=[0,0][1280,720] visible=[0,0][1280,720]
+        decor=[0,0][1280,720]
+        outset=[0,0][1280,720]
+    Cur insets: overscan=[0,0][0,0] content=[0,0][0,0] visible=[0,0][0,0] stable=[0,36][0,0] surface=[0,0][0,0] outsets=[0,0][0,0] cutout=DisplayCutout{insets=Rect(0, 0 - 0, 0) boundingRect=Rect(0, 0 - 0, 0)}
+    Lst insets: overscan=[0,0][0,0] content=[0,0][0,0] visible=[0,0][0,0] stable=[0,36][0,0] physical=[0,0][0,0] outset=[0,0][0,0] cutout=com.android.server.wm.utils.WmDisplayCutout@3c1
+    WindowStateAnimator{54a41c1 com.ChillyRoom.DungeonShooter/com.chillyroomsdk.sdkbridge.BasePlayerActivity}:
+      mSurface=Surface(name=com.ChillyRoom.DungeonShooter/com.chillyroomsdk.sdkbridge.BasePlayerActivity)/@0xcecfd66
+      Surface: shown=true layer=0 alpha=1.0 rect=(0.0,0.0) 1280 x 720 transform=(1.0, 0.0, 1.0, 0.0)
+      mDrawState=HAS_DRAWN       mLastHidden=false
+      mSystemDecorRect=[0,0][1280,720] mLastClipRect=[0,0][1280,720]
+    isOnScreen=true
+    isVisible=true
+  Window #4 Window{c96d242 u0 com.android.launcher3/com.android.launcher3.Launcher}:
+    mDisplayId=0 stackId=0 mSession=Session{45be051 2233:u0a10043} mClient=android.os.BinderProxy@4ad308d
+    mOwnerUid=10043 mShowToOwnerOnly=true package=com.android.launcher3 appop=NONE
+    mAttrs={(0,0)(fillxfill) sim={adjust=pan forwardNavigation} ty=BASE_APPLICATION fmt=TRANSPARENT wanim=0x10302f8
+      fl=LAYOUT_IN_SCREEN LAYOUT_INSET_DECOR SHOW_WALLPAPER SPLIT_TOUCH HARDWARE_ACCELERATED DRAWS_SYSTEM_BAR_BACKGROUNDS
+      vsysui=LAYOUT_HIDE_NAVIGATION LAYOUT_FULLSCREEN}
+    Requested w=1280 h=720 mLayoutSeq=1145
+    mBaseLayer=21000 mSubLayer=0 mAnimLayer=0+=0 mLastLayer=0
+    mToken=AppWindowToken{9f102a3 token=Token{7c451d2 ActivityRecord{c9b45d u0 com.android.launcher3/.Launcher t2}}}
+    mAppToken=AppWindowToken{9f102a3 token=Token{7c451d2 ActivityRecord{c9b45d u0 com.android.launcher3/.Launcher t2}}}
+     isAnimatingWithSavedSurface()= mAppDied=false    drawnStateEvaluated=true    mightAffectAllDrawn=true
+    mViewVisibility=0x8 mHaveFrame=true mObscured=false
+    mSeq=0 mSystemUiVisibility=0x600
+    mGivenContentInsets=[0,0][0,0] mGivenVisibleInsets=[0,0][0,0]
+    mFullConfiguration={1.0 460mcc65535mnc [zh_CN] ldltr sw480dp w853dp h456dp 240dpi lrg long land finger qwerty/v/v -nav/h winConfig={ mBounds=Rect(0, 0 - 1280, 720) mAppBounds=Rect(0, 0 - 1280, 720) mWindowingMode=fullscreen mActivityType=home} s.7}
+    mLastReportedConfiguration={1.0 460mcc65535mnc [zh_CN] ldltr sw480dp w853dp h456dp 240dpi lrg long land finger qwerty/v/v -nav/h winConfig={ mBounds=Rect(0, 0 - 1280, 720) mAppBounds=Rect(0, 0 - 1280, 720) mWindowingMode=fullscreen mActivityType=home} s.7}
+    mHasSurface=false isReadyForDisplay()=false mWindowRemovalAllowed=false
+    mFrame=[0,0][1280,720] last=[0,0][1280,720]
+    Frames: containing=[0,0][1280,720] parent=[0,0][1280,720]
+        display=[0,0][1280,720] overscan=[0,0][1280,720]
+        content=[0,36][1280,720] visible=[0,36][1280,720]
+        decor=[0,0][1280,720]
+        outset=[0,0][0,0]
+    Cur insets: overscan=[0,0][0,0] content=[0,36][0,0] visible=[0,36][0,0] stable=[0,36][0,0] surface=[0,0][0,0] outsets=[0,0][0,0] cutout=DisplayCutout{insets=Rect(0, 0 - 0, 0) boundingRect=Rect(0, 0 - 0, 0)}
+    Lst insets: overscan=[0,0][0,0] content=[0,36][0,0] visible=[0,36][0,0] stable=[0,36][0,0] physical=[0,0][0,0] outset=[0,0][0,0] cutout=com.android.server.wm.utils.WmDisplayCutout@3c1
+    WindowStateAnimator{5985b14 com.android.launcher3/com.android.launcher3.Launcher}:
+      mDrawState=NO_SURFACE       mLastHidden=true
+      mSystemDecorRect=[0,0][1280,720] mLastClipRect=[0,0][1280,720]
+    mLastFreezeDuration=+1h45m15s213ms
+    mWallpaperX=0.0 mWallpaperY=0.5
+    isOnScreen=false
+    isVisible=false
+  Window #5 Window{342fea u0 com.android.systemui.ImageWallpaper}:
+    mDisplayId=0 stackId=0 mSession=Session{b7c90cf 1735:u0a10014} mClient=android.os.BinderProxy@709688c
+    mOwnerUid=10014 mShowToOwnerOnly=true package=com.android.systemui appop=NONE
+    mAttrs={(0,0)(1280x720) gr=TOP START CENTER layoutInDisplayCutoutMode=always ty=WALLPAPER fmt=RGBX_8888 wanim=0x1030308
+      fl=NOT_FOCUSABLE NOT_TOUCHABLE LAYOUT_IN_SCREEN LAYOUT_NO_LIMITS LAYOUT_INSET_DECOR}
+    Requested w=1280 h=720 mLayoutSeq=1155
+    mIsImWindow=false mIsWallpaper=true mIsFloatingLayer=true mWallpaperVisible=false
+    mBaseLayer=11000 mSubLayer=0 mAnimLayer=0+=0 mLastLayer=0
+    mToken=WallpaperWindowToken{b5269bf token=android.os.Binder@814b3de}
+    mViewVisibility=0x0 mHaveFrame=true mObscured=false
+    mSeq=0 mSystemUiVisibility=0x0
+    mGivenContentInsets=[0,0][0,0] mGivenVisibleInsets=[0,0][0,0]
+    mFullConfiguration={1.0 460mcc65535mnc [zh_CN] ldltr sw480dp w853dp h456dp 240dpi lrg long land finger qwerty/v/v -nav/h winConfig={ mBounds=Rect(0, 0 - 1280, 720) mAppBounds=Rect(0, 0 - 1280, 720) mWindowingMode=fullscreen mActivityType=undefined} s.7}
+    mLastReportedConfiguration={1.0 460mcc65535mnc [zh_CN] ldltr sw480dp w853dp h456dp 240dpi lrg long land finger qwerty/v/v -nav/h winConfig={ mBounds=Rect(0, 0 - 1280, 720) mAppBounds=Rect(0, 0 - 1280, 720) mWindowingMode=fullscreen mActivityType=undefined} s.7}
+    mHasSurface=true isReadyForDisplay()=false mWindowRemovalAllowed=false
+    mFrame=[0,0][1280,720] last=[0,0][1280,720]
+    Frames: containing=[0,0][1280,720] parent=[0,0][1280,720]
+        display=[-10000,-10000][10000,10000] overscan=[0,0][1280,720]
+        content=[0,0][1280,720] visible=[0,0][1280,720]
+        decor=[0,0][0,0]
+        outset=[0,0][1280,720]
+    Cur insets: overscan=[0,0][0,0] content=[0,0][0,0] visible=[0,0][0,0] stable=[0,36][0,0] surface=[0,0][0,0] outsets=[0,0][0,0] cutout=DisplayCutout{insets=Rect(0, 0 - 0, 0) boundingRect=Rect(0, 0 - 0, 0)}
+    Lst insets: overscan=[0,0][0,0] content=[0,0][0,0] visible=[0,36][0,0] stable=[0,36][0,0] physical=[0,0][0,0] outset=[0,0][0,0] cutout=com.android.server.wm.utils.WmDisplayCutout@3c1
+    WindowStateAnimator{cb79b2 com.android.systemui.ImageWallpaper}:
+       mAnimationIsEntrance=true      mSurface=Surface(name=com.android.systemui.ImageWallpaper)/@0x7633d03
+      Surface: shown=false layer=0 alpha=1.0 rect=(0.0,0.0) 1280 x 720 transform=(1.0, 0.0, 1.0, 0.0)
+      mDrawState=HAS_DRAWN       mLastHidden=true
+      mSystemDecorRect=[0,0][0,0] mLastClipRect=[0,0][0,0]
+    mWallpaperX=0.0 mWallpaperY=0.5
+    isOnScreen=true
+    isVisible=false
+
+  mGlobalConfiguration={1.0 460mcc65535mnc [zh_CN] ldltr sw480dp w853dp h456dp 240dpi lrg long land finger qwerty/v/v -nav/h winConfig={ mBounds=Rect(0, 0 - 1280, 720) mAppBounds=Rect(0, 0 - 1280, 720) mWindowingMode=fullscreen mActivityType=undefined} s.7}
+  mHasPermanentDpad=false
+  mCurrentFocus=Window{c42edfc u0 com.ChillyRoom.DungeonShooter/com.chillyroomsdk.sdkbridge.BasePlayerActivity}
+  mFocusedApp=AppWindowToken{6e38d82 token=Token{616d0cd ActivityRecord{f493664 u0 com.ChillyRoom.DungeonShooter/com.chillyroomsdk.sdkbridge.BasePlayerActivity t5}}}
+  mInTouchMode=false
+  mLastDisplayFreezeDuration=0 due to Window{c96d242 u0 com.android.launcher3/com.android.launcher3.Launcher}
+  mLastWakeLockHoldingWindow=Window{c42edfc u0 com.ChillyRoom.DungeonShooter/com.chillyroomsdk.sdkbridge.BasePlayerActivity} mLastWakeLockObscuringWindow=null
+  InputConsumers:
+    name=pip_input_consumer pid=1735 user=UserHandle{0}
+  SnapshotCache
+  mSystemDecorLayer=0 mScreenRect=[0,0][1280,720]
+  mLastStatusBarVisibility=0x170f
+  mTraversalScheduled=false
+  mHoldScreenWindow=Window{c42edfc u0 com.ChillyRoom.DungeonShooter/com.chillyroomsdk.sdkbridge.BasePlayerActivity}
+  mObscuringWindow=null
+  mWallpaperTarget=null
+  mLastWallpaperX=0.0 mLastWallpaperY=0.5
+  mSystemBooted=true mDisplayEnabled=true
+  mTransactionSequence=1875
+  mDisplayFrozen=false windows=0 client=false apps=0 waitingForConfig=false
+  mRotation=0 mAltOrientation=false
+  mLastWindowForcedOrientation=-1 mLastOrientation=0
+  mDeferredRotationPauseCount=0
+  Animation settings: disabled=false window=0.25 transition=0.25 animator=1.0
+  mSkipAppTransitionAnimation=false
+  mLayoutToAnim:
+    mNextAppTransition=TRANSIT_UNSET
+    mAppTransitionState=APP_STATE_IDLE
+    mLastUsedAppTransition=TRANSIT_ACTIVITY_OPEN
+    mLastOpeningApp=AppWindowToken{6e38d82 token=Token{616d0cd ActivityRecord{f493664 u0 com.ChillyRoom.DungeonShooter/com.chillyroomsdk.sdkbridge.BasePlayerActivity t5}}}
+    mLastClosingApp=AppWindowToken{bf1d641 token=Token{587d928 ActivityRecord{d500b4b u0 com.ChillyRoom.DungeonShooter/com.chillyroomsdk.sdkbridge.privacy.BasePrivacyActivity t5}}}

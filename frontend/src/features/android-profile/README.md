@@ -46,3 +46,20 @@ reported_sample_count 可选保留 LostSituation 的报告计数十进制原值�
 FPS 有值须与原 frame_window 的帧数和窗口时长一致；battery_net_power_mw 有值须有有效设备电池观测和已知电流极性，按 µV×充电正向 µA÷10^9 核对有符号 mW。正值表示充电、负值表示放电，是整机净电池侧功率，不能归因给目标游戏或作为外部供电时整机负载功率。字段按后端返回原样保留，浮点一致性容差为相对 10^-9。
 
 CPU、FPS 和电池功率分别携带 cpu_reason、fps_reason、battery_reason。有值时对应 reason 必须为 null；缺值时必须为不超过 4096 UTF-8 字节的非空原因。原因不使用设备白名单，不将缺测转成零。定点回归在 tests/android-profile-derived.test.ts；本模块不新增产品界面，真实指标准确性与完整前端门禁由主代理独立验证。
+
+
+## 独立堆栈质量文件
+
+新 captured 归档增加可选 stack-quality.json，旧归档缺省返回 quality=null。消费者将有界质量文件与同一 stacks.jsonl 逐项核对：解析/报告/丢样数、总链帧、空链/单帧/最大深度、深度分布、原始错误码配对、缺符号帧和样本。新文件矛盾或未知模式失败时不交付部分归档；unavailable 不接受质量文件。quality 经 OpenedProfileArchive 返回，具体产品页面不在本批实现。
+
+capture 声明本轮固定 cpu-clock/99Hz/DWARF/boottime 和关闭报告去隙；不证明完整展开。展开元数据缺失、携带非零错误和有元数据且错误为空/零分别计数，不将最后一种称为成功展开。空字符串或 null 符号均属缺符号；不补函数名。protobuf 没有目标 ELF 架构或 Build ID，汇总明确 unavailable，保留原始 perf.bin 供后续有资格的离线分析。
+
+## 火焰图纯数据模型
+
+用户接受缺符号作为当前边界。buildProfileFlamegraph 直接消费已解码 stacks；旧归档无需增加字段即可计算。事件→进程→线程→根到叶帧分别聚合，原叶到根数组不修改。已知函数按模块、执行类型与完整函数名合并地址；未知函数按模块、执行类型与规范化地址保留热点，标签使用模块及地址，不补函数名。递归函数保留不同深度，空栈计入线程自权重，不插入虚构调用帧。
+
+默认权重为每条样本 1；可选 event_count 使用原 u64 事件计数，事件类型分别置于顶层，不能将不同事件混成 CPU 耗时。所有累计权重及布局坐标输出十进制字符串，经 BigInt 精确累计，累计可超过 u64。nodes 提供父节点 ID、深度及 startWeight/endWeight，坐标相对全图，children 提供树形结构；展示层自行映射到屏幕像素。节点按聚合身份确定顺序，ID 只在本次模型内有效。
+
+processIds 支持精确筛选未知进程 null；threadIds 筛选线程 ID；beginNs/endNs 为 boottime 半开区间 [beginNs,endNs)，未指定端点不设边界。空筛选集合或相等端点得到空树，未知进程不会自动归属于录制 PID。quality 保留每个聚合节点及全图的展开错误、展开元数据缺失与缺符号样本数；这些标记不表示完整展开。筛选后的空栈和原零事件计数分别保留。
+
+模型最多消费 100000 条原栈，每条最多 256 层，筛选 ID 最多 100000 个，聚合节点最多 200000 个；超范围失败，不静默截断。可传 AbortSignal，中止时不交付部分模型。tests/android-profile-flamegraph.test.ts 覆盖精度、半开筛选、函数身份、未知符号、递归、空栈、质量、自权重及资源/取消边界。具体图表组件及浏览器验收由主代理独立集成。

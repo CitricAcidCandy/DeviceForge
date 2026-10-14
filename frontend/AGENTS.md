@@ -1,8 +1,8 @@
-# Svelte 前端开发要求
+# React 前端开发要求
 
 ## 范围与落点
-- 当前项目为 `G:\Rust\DeviceForge\frontend`，采用 Svelte 5 + TypeScript 严格模式。旧 renderer 仅作取证，不复制 Electron、preload 或本机全局状态。
-- 本阶段已交付生成 API 类型、真实后端通信、模块基础用例、公开宿主上下文、可热装卸插件框架及设备第一阶段目录/选择/离散动作。具体业务界面、视觉设计和新增 UI 框架等待用户设计稿。
+- 当前项目为 `G:\Rust\DeviceForge\frontend`，采用用户于2026-10-14批准的 React 19.3.0、严格 TypeScript、Tailwind 4.3.3 与官方 shadcn/ui 清单。旧 renderer 仅作取证，不复制 Electron、preload 或本机全局状态。
+- 用户已选电子设备背景并授权实现业务页面；原基础工厂、生成类型、公开宿主上下文及插件生命周期继续复用。图像和页面截图只由子代理审核；主代理集成结论，不能用构建代替业务、视觉或真机验收。
 - 前端文档只放 `docs/`。注释、README 和文档使用中文与 UTF-8。开发前阅读架构与开发约束及插件开发文档。
 
 ## 依赖与文件职责
@@ -22,7 +22,7 @@
 
 ## 类型与行为
 - 保持 strict、noUncheckedIndexedAccess、exactOptionalPropertyTypes，不得以 any、类型断言或关闭检查绕过接口边界。
-- 前端维护的源码、开发脚本及测试使用 `.ts`；Svelte 组件脚本使用 `lang="ts"`。`scripts/**/*.ts`、`tests/**/*.ts` 与配置均纳入同一严格检查，不保留并行维护的 `.js/.mjs` 实现。
+- 前端维护的源码、开发脚本及测试使用 `.ts`，React 页面与展示组件使用 `.tsx`。两者及配置均纳入同一严格类型和架构检查，不保留并行维护的 `.js/.mjs` 实现。
 - Node 工具及测试要求 Node 22.18 以上，直接执行 TypeScript；浏览器只能载入构建后的 JavaScript。独立插件验收源码为 `scripts/browser-plugin-harness.ts`，稳定浏览器产物为 `dist/assets/browser-plugin-harness.js`，依赖既有公开 `plugin-host.js`。
 - HTTP 类型由 generate:api 生成，禁止手改 generated.ts 或手写重复 DTO；公开 SDK 独立版本化，由适配器映射。
 - 异步调用显式传 AbortSignal，处理失败、取消、销毁和晚到结果；插件卸载释放事件、订阅和 DOM。
@@ -36,7 +36,7 @@
 ## 必须执行的门禁
 在前端目录执行并确认退出码：
 1. `npm run generate:api`
-2. `npm run check`（包含架构、Svelte 与 TypeScript 检查，覆盖维护脚本与所有测试）
+2. `npm run check`（包含 TS/TSX 架构与 TypeScript 检查，覆盖维护脚本与所有测试）
 3. `npm test`（包含架构拒绝用例、插件契约及外壳测试）
 4. `npm run build`
 

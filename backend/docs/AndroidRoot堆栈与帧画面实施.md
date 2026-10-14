@@ -139,3 +139,78 @@ FPS仅从通过归属资格的frame_window派生，frames×1000/duration_ms；�
 Android 9 模拟器固定监督脚本实测返回 ready/clean 的 CRLF 回执，原严格 LF 判定产生假清理失败。文本监督通道仅将完整 CRLF 对归一为 LF，保留额外内容、独立回车、诊断、限额和所有权/期限检查，清理回执精确接受 LF/CRLF；二进制下载不做换行替换。新增回归及插件库162项通过，修后真实录制仍待完成。
 
 另用固定二进制 printf 诊断发现 shell -T 路径会把 00 0a 0d ff 转成 00 0d 0a 0d ff；因此该设备原二进制下载尚未取得资格，正在核验 exec-out 原始输出通道，不能通过删 CR 修复 perf 原字节。原件位于 artifacts/android-root-emulator-live-UcCxJn，未把工具帮助或文本回执通过计为真实调用链完成。
+
+
+## 2026-10-14 模拟器 Root 真实采集与修复收口
+
+本轮仅恢复Android Root实设备验证。emulator-5554为Android9/API28/x86_64，普通UID2000、su UID0；前台com.knight.union.wdj，PID3540/启动计数146565/UID10082始末同代。官方本地NDK r27 Simpleperf已完成版本、参数及公开stack.probe资格。最终成功Job b73c8a34-a259-4df6-97e4-6dd983e45cdd：4个指标采样、4张scrcpy PNG、437条非空调用链，最大深37，报告lost0。ZIP/index下载与内嵌索引原字节及SHA一致，44份冻结前端消费和独立视觉通过。
+
+画面均为元气骑士账号登录页，不是关卡内实玩；CPU/PSS取得有效值，但本模拟器展示帧窗口与电池电流缺测，FPS和净电池功率为null。360条栈关联指标区间，77条区间外；画面距采样中点约1至19ms。严格画面区间均0栈，只能说明采样点附近画面，不是精确单帧非空栈。1297链帧中482符号为空，420条栈携带展开错误，资格仍为reported_symbols_only；record stderr451条和report437条差14原因未知。
+
+真实设备发现并修复3项：su监督文本CRLF仅归一完整换行；su/普通shell的二进制换行腐蚀改为Root确认自有文件并限域chmod后普通exec-out cat原字节读取；Android9 TOTAL摘要按目标身份/App Summary/Pss(KB)/节边界解析，未知节关闭并拒绝重复。最后PSS上下文收窄晚于成功实录冻包，不借实录证明最终新二进制；修后必要门禁和新包合成工具验证另列。原失败回执和诊断完整保留，未以删除CR修复二进制。
+
+实录受检冻包host064a4408…/plugin60162f12…/manifest238cb8cd…。5个远端原录制/报告/媒体PID逐一确认消失，录制报告exit0；自有目录、forward、Simpleperf部署按精确身份清理。host61560/driver57564均exit0、55497端口释放。模拟器调试后固定KEYCODE_SLEEP223，emulator-screen-final.json确认Asleep/OFF及非交互；三星未操作。证据artifacts/android-root-emulator-live-UcCxJn。
+
+
+修后源码门禁全通过：架构27模块/Node6、fmt、workspace Clippy -Dwarnings、完整workspace测试1776通过0失败、debug build，7阶段exit0；AI嵌套1通过32筛除和Harmony定点1通过均另列，1226维护输入门禁前后delta0。首轮Harmony exact64MiB夹具8秒ready失败保留，定点及最终完整用例通过，不改生产期限、不推断系统负载；旧call05当前PID缺席，历史退出码仍未知。
+
+最终新freeze hostf5d72517…/plugin ee1f076a…/manifest238cb8cd…通过runtime两功能模式、日志、插件生命周期、合作取消及Root/fallback/record生命周期三批服务回归；Root4检查/2Job/82工具，无Root等降级5检查/3Job/64工具，末项4检查/3Job/99工具。全部原OS工具及宿主退出、端口释放和冻结输入稳定分别核验。su夹具用真实Android9七行PSS摘要CRLF，结果PSS2048/RSSnull，跨Objects的TOTAL9999不覆盖。首分类名含点被夹具拒绝及清理poll只认LF两失败原件保留，后者只接受clean LF/完整CRLF精确回执后复验，不放宽生产逻辑。公共--performance-plugin是功能路由模式，没有性能测量/压测。
+
+本轮Root实设备验证、必要窄修与门禁收口完成，不表示整体Android业务或项目完成。匹配符号、完整调用栈展开、关卡实玩FPS/功率资格、游戏独占功耗、正式Release/npx与产品UI仍独立待验。温度增量取消、性能专项延后、REA MCP+Agent只列计划，主题不在本轮恢复；换下一开发方向先由用户指明。最终报告report.json及独立审计、functional-final/resolution.json保留新旧二进制边界，全部本轮自有驱动终态。
+
+
+## 2026-10-14 FPS 与 Root 质量增量裁定
+
+用户选择继续游戏 FPS 采集和 Root 堆栈质量，并指定参考 G:\Android\逆向\PerfDog\research\docs。采用 architecture-first / Hybrid：先核当前 API28 设备原件，再并行修复；不启动 REA，不恢复温度、功耗增量、产品 UI 或性能压测。参考资料为静态恢复，不能作为 DeviceForge 设备精度证据。
+
+FPS 继续使用 SurfaceFlinger 呈现历史，不使用 scrcpy 编码率、刷新周期倒数或采集 APK 的 Choreographer 冒充游戏 FPS。保持现有 FrameWindow SDK 契约，采集模块使用同一宿主单调时钟的两次快照时长；纯规则以第二列相等锚点统计新增，有限缓存丢锚、无有效历史和资格变化保持缺测，有效无新增可返回零。图层名必须是实际目录中的完整名称；API28 兼容需要窗口身份和父链证据，不能仅包名相似就授予 PID/UID 归属。参数引用由 FPS 采集适配器完成一次，Root 和普通 shell 两路线均需验证。
+
+Root 保持 cpu-clock / 99Hz / boottime，显式选择 DWARF；关闭 report-sample 的默认 gap 删除需先验证官方工具 --remove-gaps 0 的语义，资格不足继续指标及画面降级，不静默改变记录内容。逐样本原始回栈错误、库、地址和缺符号保留。质量汇总采用可选独立 stack-quality.json，归档消费者兼容旧归档缺省，校验新汇总与同一 stacks.jsonl 一致；不修改 v1 index/result，未知设备/应用 ELF 架构和 Build ID 不伪造。匹配符号包与 Houdini 跨架构展开仍独立说明。
+
+文件职责：FPS 代理独占 session/performance/fps 与 rules/performance/fps；Root 代理独占 profile/record、root、report、quality；主代理负责 publication、前端归档质量消费、公开类型生成及统一构建、文档。测试代理保留当前模拟器只读原件并在新冻包后执行真实服务；图片审核由子代理完成。主代理串行 Cargo -j1，独立研发和原件采集并行。必要测试覆盖零/缺测/丢锚、引用/同代、默认与关闭过滤、缺符号及错误汇总、旧归档兼容和新汇总矛盾拒绝；源码门禁和实设备结果分别记录。结束本轮采集后清理会话并息屏，三星不操作。
+
+
+## 2026-10-14 FPS 缺测与 Root 质量增量最终验证
+
+用户批准继续游戏 FPS 与 Root 堆栈质量两项，并指定参考 `G:\Android\逆向\PerfDog\research\docs`。研究资料属于静态恢复；本轮只采用已核数据源、时间窗口及采栈阶段划分，不宣称复制完整 PerfDog 或取得其精度。温度增量取消，性能专项延后，REA MCP 与 Agent 操作插件仍只列计划，产品界面未扩入本轮。
+
+FPS 保留原 `FrameWindow` 公共合同，使用 SurfaceFlinger 第二列实际呈现时间的相等锚点统计新增；分母改为同一宿主单调时钟两次快照完成时差。合格历史无新增返回零，空历史、丢锚或归属不明保留缺测。普通与 Root 路线统一引用实际完整图层名，未清空系统帧历史。API28 仅全目录无 UID/metadata 时，以完整 WMS Session 的 PID/UID、可见状态、精确窗口/Surface 名称及原生数值父链建立归属；真实根层未声明 parent，解析保留 Option 存在性，缺省根与显式父 ID 分开。显式 ID 0 按真实引用追踪，不当作缺省根；失联父与环继续拒绝。
+
+真实 API28 原件的 34 层目录与完整窗口输出新增为两份逐字节夹具，精确绑定父链 901→900→899→898→888→886→4→1。两份夹具分别为 12857/18772 字节，原件相等性和 SHA 单独记录；不属于本轮 1577 份维护输入冻结清单，不能把门禁 delta0 外推到夹具。FPS 库定点 31 项、独立进程协议定点 11 项均通过。
+
+Root 显式使用 cpu-clock/99Hz/DWARF/boottime，report-sample 使用 --remove-gaps 0。同一旧 perf 原件由官方 NDK r27 工具离线重报，默认 437 条，关闭去隙 451 条；原 437 条语义全部保留，恢复的 14 条全部有展开错误。差异来自官方报告默认去隙，不是 DeviceForge 解析删样，也不是展开成功率提高。归档新增可选 stack-quality.json，逐项报告深度、错误、缺元数据及缺符号；前端与同一 stacks.jsonl 重算核对，旧归档无质量文件仍兼容，无 Root 或工具/参数不足保留明确降级。目标架构与 Build ID 无报告证据时明确 unavailable，不补函数名。
+
+最终源码门禁：后端架构、6 项架构测试、fmt、全目标 workspace Clippy、完整 workspace test、debug build 全部退出 0；顶层 136 组/1787 项通过，AI 嵌套 1 项/32 筛除单列。前端架构、Svelte、严格 TypeScript、69 个测试文件/629 项及 209 模块构建全部通过，生成器退出 0。维护输入 1577 份在最终门禁前后 delta0。最终冻包 host 1d8a3e5e…、plugin 88001015…、manifest 238cb8cd…；通用 runtime 两功能模式、日志、插件生命周期、合作取消全通过，--performance-plugin 仅功能模式，未执行压测。新包 Root/降级/生命周期/FPS 四批共 32 检查、8 个 Profile Job、17 个 FPS 会话通过，492 份原 OS ready/exit 独立核对，驱动及宿主正常退出、端口释放，包身份前后一致。
+
+本轮新包实际关卡录制：Android9/API28 模拟器 emulator-5554，su，游戏 com.ChillyRoom.DungeonShooter，PID17064/启动计数863106。普通 ADB 两窗口为 10帧/172ms、11帧/182ms，对应 58.14/60.44 FPS；Root 录制 Job 68e77a57-6eaf-4620-9305-a22bc9f99a17 为 751 条非空栈、2 个指标点、2 张 scrcpy PNG，reported751/lost0。Root 两点为 47.17/43.92 FPS，PSS1168184/1168260 KiB；首点 CPU 缺相邻基线，第二点整机 CPU 计数占比27.38%、单核归一109.53%。RSS 和电池电流缺测，净电池功率仍为空。普通与 Root 窗口并非同时测量，未将差异归因为采集开销或给出精度结论。
+
+45 份冻结前端公开消费者验证归档、索引 SHA、质量汇总和时间关联通过。641 条栈落在指标区间，110 条保留为区间外；两张画面距指标中点约 -3.03/-2.24ms，映射时钟误差4236ns。严格画面时间误差区间关联栈为0，不能写每张PNG已有非空栈直接关联、逐显示帧或因果关系。子代理审核两张新 PNG 确认实际地牢关卡/战斗，未见明显全局偏色或黑屏。质量为1983链帧、最大深33、402单帧、721展开错误、30元数据缺失、959缺符号帧/655含缺符号样本，完整展开和构建匹配符号仍未解决。
+
+采集宿主65348/驱动19232、前端消费驱动51432均由原句柄观察退出0，51991端口释放。Simpleperf自有部署目录核owner及SHA后精确删除，清理时forward为空；插件成功保留清理确认，但本轮独立审计未取得全部内部远端PID/token，不外推逐PID独立证明。主代理误将手机息屏要求应用到模拟器，用户指出后已恢复：2026-10-14 12:45:26(+08:00)报告Awake/ON/interactive=true。模拟器不再自动息屏，不再发送设备输入；手机调试结束息屏要求保持，三星本轮未操作。
+
+证据总入口：artifacts/android-fps-stack-quality-35ac48dc-dfba-406e-9164-fb0fd961ccef/report.json；其内分别引用final-gates、functional-sdk28-final、stack-replay、live-sdk28-final及独立视觉/清理/亮屏修正报告。首轮夹具、配置及环境失败原件保留，不转计旧包成绩。本轮只收口FPS功能及质量可见性增量，不表示完整调用栈、游戏独占功耗、OEM精度、正式Release/npx、产品界面或整体项目完成；后续方向先由用户选择。
+
+补充当前并行边界（本轮收尾时核对）：前端 package 与门禁工具正在切换 React，source-dependencies.ts 仍引用 Svelte，当前架构检查及其定点回归因找不到 svelte 退出1，原日志存本轮证据目录 current-frontend-architecture.log / current-frontend-architecture-tests.log。并行改动原样保留，未回退或安装旧依赖。本轮前端629项及209模块构建仅覆盖此前冻结受检版本和45份冻结实录消费者，不能证明最新React工作区；Android归档质量消费本轮写集未出现受检后漂移。该门禁缺口随前端迁移处理，不把旧成功转计新框架。
+
+## 2026-10-14 无符号火焰图实施边界
+
+用户已接受当前缺符号状态，明确可以继续火焰图。本阶段不追符号包，匹配构建符号和 REA 对接不作为火焰图前置；原报告已有符号使用原名称，无符号按模块与地址显示，保留原始值和缺符号事实。Root 权限、能取得采样和能完整展开仍为不同资格，火焰图不能消除采样链的展开错误或证明完整调用关系。
+
+火焰图消费已有归档和公开数据，不改变采集器、v1 profile-index/result 或 stacks.jsonl 原始语义。原始链为叶到根顺序，聚合时须明确转为根到叶；按进程、线程、设备时间区间筛选，并以包含模块的稳定身份区分同名函数。纳秒时间和事件计数为十进制 u64，消费须保持整数精度。cpu-clock/99Hz 的采样数量、事件权重和估算时长分别说明，不把样本数量直接称为精确 CPU 时间。
+
+展开错误、缺展开元数据和截断链须在结果中保持质量标记；未知符号可以绘制，但不能补成已解析函数。空结果、递归、模块重名、超出结构限额及取消须有明确行为。产品绘制层与纯聚合、归档校验分别负责，插件通过公开入口消费，不引用宿主内部实现。具体实现和必要测试正在进行，本节不计完成证据。
+
+离线验证优先复用当前实际关卡 ZIP 原件：751 条非空栈、1983 链帧、最大深33；721 样本有展开错误、30 缺元数据、959 链帧缺符号。沿用原证据时间关联边界：641 栈在指标区间，严格画面误差区间关联栈为0，火焰图不能据此声称采样 PNG 与非空栈逐帧对应。产品 UI 与当前 React 门禁独立验收，性能专项仍延后，不额外启动设备采集或输入。
+
+
+## 2026-10-14 火焰图发布与当前验收
+
+无符号火焰图已完成。本轮在 profile/flamegraph.rs 及子模块生成 sample-count 的 flamegraph.folded，前缀区分事件、PID和TID，原叶到根链反转，帧键固定JSON元组并转义分号/百分号/换行；已知函数按模块、执行类型和符号合并，未知函数保留模块与原地址。纯规则允许事件计数权重、进程/线程和半开时间筛选，累计使用u128；生产ZIP只使用默认样本数权重，最大32MiB，保留取消检查，不补造空栈或截断部分。
+
+publication在Root captured归档中附加该成员，既有采集及索引/结果v1不变。前端旧归档仍可由stacks.jsonl直接生成图；新成员必须由同一原栈重建并逐字节一致，禁止无Root携带folded。React报告已接入原栈火焰图与folded下载，组件独立于采集业务。
+
+后端架构、架构测试、fmt、Clippy与workspace build退出0；Android库187项（新增火焰图8项）和协议149项通过。新冻结debug宿主/插件的adbd-root及su-root功能验收4检查2任务84工具记录通过，两份folded各540字节/3聚合行/4样本，已由冻结前端消费。原件：artifacts/android-profile-record-service-debug-cfd46a2c-4f86-4ca9-a664-33f0f61e0cce/report.json。
+
+真实关卡751条原栈的离线图表生成729节点，8项浏览器行为和子代理6张PNG图审通过；可直接打开 artifacts/android-flamegraph-87329586-8375-4f8c-8cf8-8181a7102ac0/viewer/index.html。最新React生成/架构/类型/73文件662测试/2246模块构建通过。完整报告位于同目录report.json，65个本轮输入SHA始末一致。
+
+整体后端workspace test仍失败：初轮Harmony预算及64MiB截图用例失败，串行复核预算用例通过，截图仍HDC未到ready；日志保留，不计整体测试通过，未修改本轮方向以外的Harmony代码。完整展开和采样耗时精度未宣称；缺符号由用户接受，不阻塞当前图表。性能专项继续延后，本轮未操作设备，所有本轮驱动已终态。

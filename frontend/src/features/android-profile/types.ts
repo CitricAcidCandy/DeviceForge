@@ -66,3 +66,19 @@ export type ProfileHost = Pick<HostContext, 'devices' | 'getJob' | 'cancelJob' |
 export type ProfileReference = DeviceRef;
 
 export interface ProfileFrameAssociation { readonly index: number; readonly sample: StackSample }
+
+export interface StackQualityCounts {
+  readonly reported_sample_count: string; readonly parsed_sample_count: string; readonly lost_count: string;
+  readonly callchain_frame_count: number; readonly empty_callchain_sample_count: number; readonly single_frame_sample_count: number; readonly max_callchain_depth: number;
+  readonly unwinding_error_sample_count: number; readonly unwinding_without_error_sample_count: number; readonly unwinding_metadata_missing_sample_count: number;
+  readonly missing_symbol_frame_count: number; readonly missing_symbol_sample_count: number;
+}
+export interface StackQuality {
+  readonly format_version: 1;
+  readonly capture: { readonly mode: 'dwarf'; readonly event: 'cpu-clock'; readonly frequency_hz: 99; readonly clock: 'boottime'; readonly report_filter: 'disabled'; readonly remove_gaps: 0 };
+  readonly counts: StackQualityCounts;
+  readonly depth_histogram: readonly { readonly depth: number; readonly count: number }[];
+  readonly unwinding_error_histogram: readonly { readonly raw_error_code: number | null; readonly error_code: number | null; readonly count: number }[];
+  readonly architecture: { readonly status: 'unavailable'; readonly device_arch: null; readonly target_process_arch: null; readonly reason: string };
+  readonly symbolication: { readonly status: 'reported_symbols_only'; readonly build_id_status: 'unavailable'; readonly reason: string };
+}

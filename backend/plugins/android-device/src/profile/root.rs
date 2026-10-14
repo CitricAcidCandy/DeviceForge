@@ -42,6 +42,18 @@ pub(crate) fn argv(device: &str, access: Option<&Access>, tail: &[&str]) -> Vec<
     let script = tail.iter().map(|x| quote(x)).collect::<Vec<_>>().join(" ");
     command(device, access, &script)
 }
+fn supports_help(record: Option<&str>, report: Option<&str>) -> bool {
+    record.is_some_and(|help| {
+        help.contains("--call-graph")
+            && help.contains("dwarf")
+            && help.contains("--clockid")
+            && help.contains("--keep-failed-unwinding-result")
+    }) && report.is_some_and(|help| {
+        help.contains("--protobuf")
+            && help.contains("--show-callchain")
+            && help.contains("--remove-gaps")
+    })
+}
 impl Session {
     async fn root_try(
         &self,
@@ -129,11 +141,7 @@ impl Session {
         } else {
             None
         };
-        let supported = record.as_ref().is_some_and(|x| {
-            x.contains("--clockid") && x.contains("--keep-failed-unwinding-result")
-        }) && report
-            .as_ref()
-            .is_some_and(|x| x.contains("--protobuf") && x.contains("--show-callchain"));
+        let supported = supports_help(record.as_deref(), report.as_deref());
         let execution_type = report
             .as_ref()
             .is_some_and(|x| x.contains("--show-execution-type"));
@@ -167,6 +175,30 @@ impl Session {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn qualification_requires_explicit_dwarf_and_disabling_gap_removal() {
+        let record = "--call-graph fp | dwarf --clockid --keep-failed-unwinding-result";
+        let report = "--protobuf --show-callchain --remove-gaps";
+        assert!(supports_help(Some(record), Some(report)));
+        for missing in [
+            "--call-graph",
+            "dwarf",
+            "--clockid",
+            "--keep-failed-unwinding-result",
+        ] {
+            assert!(!supports_help(
+                Some(&record.replace(missing, "")),
+                Some(report)
+            ));
+        }
+        for missing in ["--protobuf", "--show-callchain", "--remove-gaps"] {
+            assert!(!supports_help(
+                Some(record),
+                Some(&report.replace(missing, ""))
+            ));
+        }
+        assert!(!supports_help(None, Some(report)));
+    }
     #[test]
     fn fixed_su_c_preserves_script_as_one_shell_argument() {
         let args = argv(

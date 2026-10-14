@@ -55,7 +55,7 @@ fn wrapper(data: &[u8]) -> Vec<u8> {
     result
 }
 fn selected(data: &[u8]) -> Option<Layer> {
-    match layer(data, PACKAGE, 123, 10001, &check).unwrap() {
+    match layer(data, PACKAGE, 123, 10001, 30, &check).unwrap() {
         Some(Qualification::Owned(layer)) => Some(layer),
         Some(Qualification::Window(_)) | None => None,
     }
@@ -163,7 +163,7 @@ fn layer_name_metadata_and_total_byte_caps_are_hard_failures() {
     }
     for data in [huge_name, many, blob(1, &data), vec![0; 1024 * 1024 + 1]] {
         assert!(matches!(
-            layer(&data, PACKAGE, 123, 10001, &check),
+            layer(&data, PACKAGE, 123, 10001, 30, &check),
             Err(Error::TooLarge)
         ));
     }
@@ -221,7 +221,7 @@ fn deadline_and_cancellation_survive_optional_owner_parser() {
             }
         };
         assert!(matches!(
-            layer(&valid(), PACKAGE, 123, 10001, &stop),
+            layer(&valid(), PACKAGE, 123, 10001, 30, &stop),
             Err(Error::Cancelled) | Err(Error::Timeout)
         ));
         assert!(matches!(

@@ -77,7 +77,12 @@ export async function recordBusiness(host, fixture, observer, loaded, report, di
     await poll(async () => {
       observer.assertHealthy(); const cleanups = report.tools.slice(baseline).filter(value => value.category === 'remote-cleanup');
       if (cleanups.length !== 1) return false;
-      try { return (await readFile(join(cleanups[0].directory, 'stdout.bin'))).equals(Buffer.from('clean\n')) && await readFile(join(cleanups[0].directory, 'completed'), 'utf8') === '1'; }
+      try {
+        const receipt = await readFile(join(cleanups[0].directory, 'stdout.bin'));
+        // 固定成功回执只接受LF或完整CRLF，不trim或忽略额外内容。
+        return (receipt.equals(Buffer.from('clean\n')) || receipt.equals(Buffer.from('clean\r\n')))
+          && await readFile(join(cleanups[0].directory, 'completed'), 'utf8') === '1';
+      }
       catch (error) { if (error.code === 'ENOENT') return false; throw error; }
     }, Boolean, '远端固定清理实际回执', 5000);
     const tools = report.tools.slice(baseline); assert.equal(tools.filter(value => value.category === 'remote-cleanup').length, 1, 'PROFILE-CANCEL-REMOTE-CLEANUP');

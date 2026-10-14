@@ -135,6 +135,28 @@ fn set(value: &mut Option<u64>, next: u64) -> Result<()> {
     Ok(())
 }
 
+// Android 9的单列PSS摘要只保留已知条目，未知节标题不能沿用当前列含义。
+fn app_summary_row(line: &str) -> Result<bool> {
+    let Some((label, count)) = line.split_once(':') else {
+        return Ok(false);
+    };
+    if !matches!(
+        label,
+        "Java Heap" | "Native Heap" | "Code" | "Stack" | "Graphics" | "Private Other" | "System"
+    ) {
+        return Ok(false);
+    }
+    let mut fields = count.split_whitespace();
+    let Some(count) = fields.next() else {
+        return Err(Error::Dependency("内存摘要条目缺少数值"));
+    };
+    integer(count)?;
+    if fields.next().is_some() {
+        return Err(Error::Dependency("内存摘要条目包含未知列"));
+    }
+    Ok(true)
+}
+
 pub(crate) fn memory(
     output: &str,
     expected_pid: u32,
@@ -143,7 +165,14 @@ pub(crate) fn memory(
     let mut pss = None;
     let mut rss = None;
     let mut identity = false;
-    let mut app_summary = false;
+    enum AppSummary {
+        Closed,
+        Heading,
+        PssRows,
+        Consumed,
+    }
+    let mut app_summary = AppSummary::Closed;
+    let mut summary_total_seen = false;
     for line in output.lines() {
         check()?;
         if let Some(header) = line.trim().strip_prefix("** MEMINFO in pid ") {
@@ -155,18 +184,38 @@ pub(crate) fn memory(
                 return Err(Error::Dependency("内存进程编号不匹配或重复"));
             }
             identity = true;
+            app_summary = AppSummary::Closed;
         }
-        if line.trim() == "App Summary" {
-            app_summary = true;
-        }
-        // Android 9的摘要使用TOTAL:，其数值是PSS而非RSS或交换内存。
-        if app_summary && let Some(total) = line.trim().strip_prefix("TOTAL:") {
-            let count = total
-                .split_whitespace()
-                .next()
-                .ok_or(Error::Dependency("内存汇总缺少数值"))?;
-            set(&mut pss, integer(count)?)?;
-        }
+        let trimmed = line.trim();
+        // 目标身份、摘要标题和PSS列头必须按序出现，TOTAL消费后不跨节读取。
+        app_summary = match app_summary {
+            _ if trimmed == "App Summary" && identity => AppSummary::Heading,
+            AppSummary::Heading if trimmed.is_empty() => AppSummary::Heading,
+            AppSummary::Heading if trimmed == "Pss(KB)" => AppSummary::PssRows,
+            AppSummary::PssRows
+                if trimmed.is_empty() || trimmed.bytes().all(|byte| byte == b'-') =>
+            {
+                AppSummary::PssRows
+            }
+            AppSummary::PssRows if trimmed.starts_with("TOTAL:") => {
+                if summary_total_seen {
+                    return Err(Error::Dependency("内存PSS摘要TOTAL重复"));
+                }
+                let count = trimmed["TOTAL:".len()..]
+                    .split_whitespace()
+                    .next()
+                    .ok_or(Error::Dependency("内存汇总缺少数值"))?;
+                set(&mut pss, integer(count)?)?;
+                summary_total_seen = true;
+                AppSummary::Consumed
+            }
+            AppSummary::PssRows if app_summary_row(trimmed)? => AppSummary::PssRows,
+            AppSummary::Consumed if trimmed.is_empty() => AppSummary::Consumed,
+            AppSummary::Consumed if trimmed.starts_with("TOTAL:") => {
+                return Err(Error::Dependency("内存PSS摘要TOTAL重复"));
+            }
+            _ => AppSummary::Closed,
+        };
         for (label, value) in [("TOTAL PSS:", &mut pss), ("TOTAL RSS:", &mut rss)] {
             if let Some(index) = line.find(label) {
                 let count = line[index + label.len()..]

@@ -11,8 +11,8 @@ export function rootArgv(tail, access = 'adbd_root') {
 }
 const command = (category, tail, value, access = 'adbd_root', exit = 0) => ({ category, argv: rootArgv(tail, access), outputs: [{ stdout: Buffer.from(value), stderr: Buffer.alloc(0), exit }] });
 const qualify = access => [command('simpleperf-version', ['/system/bin/simpleperf', '--version'], 'simpleperf fixture-v1\n', access),
-  command('simpleperf-record-help', ['/system/bin/simpleperf', 'record', '--help'], '--clockid --keep-failed-unwinding-result\n', access),
-  command('simpleperf-report-help', ['/system/bin/simpleperf', 'report-sample', '--help'], '--protobuf --show-callchain --show-execution-type\n', access)];
+  command('simpleperf-record-help', ['/system/bin/simpleperf', 'record', '--help'], '--call-graph dwarf --clockid --keep-failed-unwinding-result\n', access),
+  command('simpleperf-report-help', ['/system/bin/simpleperf', 'report-sample', '--help'], '--protobuf --show-callchain --show-execution-type --remove-gaps\n', access)];
 const noRootReason = '设备未取得Root权限，已保留指标与采样画面能力';
 const noToolReason = '设备Simpleperf入口或所需报告参数不可用，已保留指标与采样画面能力';
 export const probeContract = { frozen: true, route: '冻结Root资格探测固定解释器与受检argv', source: '后端2026-10-13阶段交接',

@@ -11,7 +11,8 @@ fn main() {
     let root: PathBuf = env::current_exe().unwrap().parent().unwrap().to_owned();
     let mut index = 1;
     let call = loop {
-        assert!(index <= 16, "假ADB调用必须有界");
+        // 完整 FPS 双窗口见证含一次 SDK 读取，固定调用上限为 17。
+        assert!(index <= 17, "假ADB调用必须有界");
         let directory = root.join(format!("call-{index:02}"));
         match fs::create_dir(&directory) {
             Ok(()) => break directory,
@@ -32,11 +33,17 @@ fn main() {
         fs::copy(&args[3], call.join("install-input.bin")).unwrap();
     }
     if args.len() == 7 && args[0] == "-Xmx256m" && args[1] == "-jar" && args[3] == "install-apks" {
-        let source = args[4].strip_prefix("--apks=").expect("APKS参数必须为固定前缀");
+        let source = args[4]
+            .strip_prefix("--apks=")
+            .expect("APKS参数必须为固定前缀");
         assert!(args[5].starts_with("--device-id="));
         assert!(args[6].starts_with("--adb="));
         fs::copy(source, call.join("install-apks-input.bin")).unwrap();
-        fs::write(call.join("cwd.txt"), env::current_dir().unwrap().to_str().unwrap()).unwrap();
+        fs::write(
+            call.join("cwd.txt"),
+            env::current_dir().unwrap().to_str().unwrap(),
+        )
+        .unwrap();
         for key in ["TEMP", "TMP", "TMPDIR"] {
             // 只记录本次明确设置的私有临时目录，不采集任意环境变量。
             fs::write(call.join(format!("{key}.txt")), env::var(key).unwrap()).unwrap();

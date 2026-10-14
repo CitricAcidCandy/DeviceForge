@@ -21,7 +21,7 @@ function hasZip64Extra(view: DataView, start: number, size: number, logId: strin
 function filename(bytes: Uint8Array, logId: string | null): string {
   let value: string;
   try { value = new TextDecoder('utf-8', { fatal: true }).decode(bytes); } catch { throw archiveError('invalid_profile_zip_name', logId); }
-  if (!['profile-index.json', 'stacks.jsonl', 'perf.bin'].includes(value) && !/^frames\/[0-9]{6}\.png$/.test(value)) throw archiveError('invalid_profile_zip_name', logId);
+  if (!['profile-index.json', 'stacks.jsonl', 'perf.bin', 'stack-quality.json', 'flamegraph.folded'].includes(value) && !/^frames\/[0-9]{6}\.png$/.test(value)) throw archiveError('invalid_profile_zip_name', logId);
   return value;
 }
 // 仅支持本批 seekable 文件发布的 Stored ZIP；data descriptor、Deflate、ZIP64 与分卷明确拒绝。
@@ -36,7 +36,7 @@ export function decodeStoredProfileZip(bytes: Uint8Array, logId: string | null =
   if (end < 0) throw archiveError('invalid_profile_zip_end', logId);
   const count = view.getUint16(end + 10, true); const size = view.getUint32(end + 12, true); const start = view.getUint32(end + 16, true);
   if (view.getUint16(end + 4, true) !== 0 || view.getUint16(end + 6, true) !== 0 || view.getUint16(end + 8, true) !== count
-    || count < 2 || count > PROFILE_LIMITS.samples + 3 || start + size !== end || start > end) throw archiveError('unsupported_profile_zip_layout', logId);
+    || count < 2 || count > PROFILE_LIMITS.samples + 5 || start + size !== end || start > end) throw archiveError('unsupported_profile_zip_layout', logId);
   const entries: Entry[] = []; const names = new Set<string>(); let total = 0; let cursor = start;
   for (let index = 0; index < count; index += 1) {
     checkArchiveCancellation(signal, logId);
@@ -53,7 +53,7 @@ export function decodeStoredProfileZip(bytes: Uint8Array, logId: string | null =
     if (names.has(name)) throw archiveError('duplicate_profile_zip_entry', logId);
     if (((view.getUint32(cursor + 38, true) >>> 16) & 0xf000) === 0xa000 || (view.getUint32(cursor + 38, true) & 0x10) !== 0) throw archiveError('invalid_profile_zip_entry_type', logId);
     total += uncompressed;
-    const maximum = name === 'profile-index.json' ? PROFILE_LIMITS.indexBytes : name === 'stacks.jsonl' ? PROFILE_LIMITS.jsonlBytes : name.startsWith('frames/') ? PROFILE_LIMITS.frameBytes : PROFILE_LIMITS.archiveBytes;
+    const maximum = name === 'profile-index.json' || name === 'stack-quality.json' ? PROFILE_LIMITS.indexBytes : name === 'stacks.jsonl' || name === 'flamegraph.folded' ? PROFILE_LIMITS.jsonlBytes : name.startsWith('frames/') ? PROFILE_LIMITS.frameBytes : PROFILE_LIMITS.archiveBytes;
     if (uncompressed > maximum || total > PROFILE_LIMITS.archiveBytes) throw archiveError('invalid_profile_zip_size', logId);
     names.add(name); entries.push({ filename: name, flags, size: uncompressed, crc: view.getUint32(cursor + 16, true), offset }); cursor = next;
   }

@@ -379,3 +379,123 @@ fn android9_app_summary_total_keeps_pss_and_does_not_infer_rss_or_swap() {
         .is_err()
     );
 }
+
+#[test]
+fn android9_summary_accepts_only_the_target_pss_column_and_known_numeric_rows() {
+    let output = "** MEMINFO in pid 3540 [com.example.game] **\r\n\
+ App Summary\r\n\
+                       Pss(KB)\r\n\
+                        ------\r\n\
+           Java Heap:    19408\r\n\
+         Native Heap:    53052\r\n\
+                Code:   107388\r\n\
+               Stack:       52\r\n\
+            Graphics:        0\r\n\
+       Private Other:   522548\r\n\
+              System:     8245\r\n\
+ \r\n\
+               TOTAL:   710693       TOTAL SWAP PSS:        0\r\n\
+ Objects\r\n Views: 31\r\n";
+    assert_eq!(memory(output, 3540, &|| Ok(())).unwrap(), (710693, None));
+    let maximum = format!(
+        "** MEMINFO in pid 3540 [app] **\nApp Summary\nPss(KB)\nSystem: {}\nTOTAL: {}\n",
+        u64::MAX,
+        u64::MAX
+    );
+    assert_eq!(
+        memory(&maximum, 3540, &|| Ok(())).unwrap(),
+        (u64::MAX, None)
+    );
+}
+
+#[test]
+fn android9_summary_closes_on_missing_or_other_column_and_unknown_sections() {
+    let header = "** MEMINFO in pid 123 [app] **\nApp Summary\n";
+    for body in [
+        "TOTAL: 42\n",
+        "Rss(KB)\nTOTAL: 42\n",
+        "Pss(KB) Rss(KB)\nTOTAL: 42\n",
+        "Pss(Kb)\nTOTAL: 42\n",
+        "Pss(KB)\nObjects\nTOTAL: 42\n",
+        "Pss(KB)\nJava Heap: 1\nObjects\nTOTAL: 42\n",
+        "Pss(KB)\nUnknown Summary\nTOTAL: 42\n",
+        "Pss(KB)\nUnknown: 1\nTOTAL: 42\n",
+        "Pss(KB)\nJava Heap: 1\nRss(KB)\nTOTAL: 42\n",
+        "Objects\nPss(KB)\nTOTAL: 42\n",
+    ] {
+        assert!(memory(&format!("{header}{body}"), 123, &|| Ok(())).is_err());
+    }
+}
+
+#[test]
+fn android9_summary_must_follow_the_target_identity_and_exact_title() {
+    for output in [
+        "App Summary\nPss(KB)\n** MEMINFO in pid 123 [app] **\nTOTAL: 42\n",
+        "App Summary\n** MEMINFO in pid 123 [app] **\nPss(KB)\nTOTAL: 42\n",
+        "** MEMINFO in pid 123 [app] **\nApp Summary extra\nPss(KB)\nTOTAL: 42\n",
+        "** MEMINFO in pid 123 [app] **\napp summary\nPss(KB)\nTOTAL: 42\n",
+    ] {
+        assert!(memory(output, 123, &|| Ok(())).is_err());
+    }
+}
+
+#[test]
+fn android9_summary_rejects_invalid_known_numeric_rows_and_total_counts() {
+    let header = "** MEMINFO in pid 123 [app] **\nApp Summary\nPss(KB)\n";
+    for row in [
+        "Java Heap:",
+        "Native Heap: -1",
+        "Code: +1",
+        "Stack: 1.5",
+        "Graphics: unknown",
+        "Private Other: 18446744073709551616",
+        "System: 1 2",
+    ] {
+        assert!(memory(&format!("{header}{row}\nTOTAL: 42\n"), 123, &|| Ok(())).is_err());
+    }
+    for count in ["", "-1", "+1", "1.5", "18446744073709551616"] {
+        assert!(memory(&format!("{header}TOTAL: {count}\n"), 123, &|| Ok(())).is_err());
+    }
+}
+
+#[test]
+fn android9_summary_rejects_repeated_total_instead_of_overwriting_the_value() {
+    let header = "** MEMINFO in pid 123 [app] **\nApp Summary\nPss(KB)\n";
+    for next in [
+        "TOTAL: 42\n",
+        "TOTAL: 43\n",
+        "\nTOTAL: 42\n",
+        "\nTOTAL: 43\n",
+        "App Summary\nPss(KB)\nTOTAL: 42\n",
+        "App Summary\nPss(KB)\nTOTAL: 43\n",
+    ] {
+        let output = format!("{header}TOTAL: 42\n{next}");
+        assert!(memory(&output, 123, &|| Ok(())).is_err());
+    }
+}
+
+#[test]
+fn android9_consumed_summary_never_reads_a_later_sections_total() {
+    let header = "** MEMINFO in pid 123 [app] **\nApp Summary\nPss(KB)\nTOTAL: 42\n";
+    for next in [
+        "Objects\nTOTAL: 99\n",
+        "Unknown Summary\nTOTAL: 99\n",
+        "Rss(KB)\nTOTAL: 99\n",
+        "Java Heap: 7\nTOTAL: 99\n",
+    ] {
+        assert_eq!(
+            memory(&format!("{header}{next}"), 123, &|| Ok(())).unwrap(),
+            (42, None)
+        );
+    }
+    assert_eq!(
+        memory(
+            &format!("{header}TOTAL PSS: 42 TOTAL RSS: 84\n"),
+            123,
+            &|| Ok(())
+        )
+        .unwrap(),
+        (42, Some(84))
+    );
+    assert!(memory(&format!("{header}TOTAL PSS: 43\n"), 123, &|| Ok(())).is_err());
+}

@@ -23,11 +23,14 @@ test('解析器识别重导出、动态导入和类型引用，并忽略注释�
   assert.deepEqual(result.issues, []);
   assert.match(inspectSource('import(variable); const x: any = globalThis.fetch("/");', 'sample.ts').issues.join(), /字面量.*any.*network/);
 });
-test('Svelte 模板与脚本使用同一网络和类型门禁', () => {
-  const result = inspectSource('<script lang="ts">import type {X} from "../x"; let value: any;</script><button onclick={() => fetch("/")}>点击</button>', 'App.svelte');
-  assert.equal(result.dependencies[0]?.value, '../x');
+test('TSX 事件与泛型组件使用同一导入、网络和类型门禁', () => {
+  const result = inspectSource('import type { X } from "../x"; export * from "../shared/a"; const load = () => import("../features/b"); type T = import("../types").T; const View = <T,>(value: T) => <button onClick={() => globalThis.fetch("/")}>{String(value)}</button>; let unchecked: any;', 'View.tsx');
+  assert.deepEqual(result.dependencies.map((entry) => entry.value), ['../x', '../shared/a', '../features/b', '../types']);
   assert.ok(result.issues.some((issue) => issue.includes('any')));
   assert.ok(result.issues.includes('network'));
+  const safe = inspectSource('const text = "fetch() any"; export const View = () => <button title={text}>{/* fetch() any */}安全</button>;', 'Safe.tsx');
+  assert.deepEqual(safe.issues, []);
+  assert.match(inspectSource('export const View = () => <button onClick={() => import(variable)}>加载</button>;', 'Dynamic.tsx').issues.join(), /字面量/);
 });
 test('循环检测包含重导出和类型依赖', () => {
   assert.equal(findCycles(new Map([['a',['b']],['b',['c']],['c',['a']]])).length, 1);
@@ -47,5 +50,23 @@ test('实际文件门禁拒绝跨层导入及路径别名绕过', async () => {
     await mkdir(join(directory, 'scripts'));
     await writeFile(join(directory, 'scripts/untyped.mjs'), 'export const value = 1;');
     await assert.rejects(checkArchitecture(directory), /维护脚本与测试必须使用 TypeScript/);
+  } finally { await rm(directory, { recursive: true, force: true }); }
+});
+test('实际 TSX 文件解析组件与目录入口，并拒绝跨层、网络及 any 绕过', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'deviceforge-architecture-tsx-'));
+  try {
+    await mkdir(join(directory, 'src/app'), { recursive: true });
+    await mkdir(join(directory, 'src/shared/ui/controls'), { recursive: true });
+    await writeFile(join(directory, 'tsconfig.json'), JSON.stringify({ compilerOptions: { jsx: 'react-jsx', baseUrl: '.', paths: { '@app/*': ['src/app/*'] } } }));
+    await writeFile(join(directory, 'src/shared/ui/Panel.tsx'), 'export const Panel = () => <section>面板</section>;');
+    await writeFile(join(directory, 'src/shared/ui/controls/index.tsx'), 'export const Control = () => <button>操作</button>;');
+    await writeFile(join(directory, 'src/app/View.tsx'), 'import { Panel } from "../shared/ui/Panel"; import { Control } from "../shared/ui/controls"; export const View = () => <Panel><Control /></Panel>;');
+    await checkArchitecture(directory);
+    await writeFile(join(directory, 'src/shared/ui/Panel.tsx'), 'export { View } from "@app/View";');
+    await assert.rejects(checkArchitecture(directory), /禁止依赖 app\/View.tsx/);
+    await writeFile(join(directory, 'src/shared/ui/Panel.tsx'), 'export const Panel = () => <section onClick={() => globalThis.fetch("/")}>面板</section>;');
+    await assert.rejects(checkArchitecture(directory), /网络调用只能位于 shared\/api 适配器/);
+    await writeFile(join(directory, 'src/shared/ui/Panel.tsx'), 'const unchecked: any = null; export const Panel = () => <section>{unchecked}</section>;');
+    await assert.rejects(checkArchitecture(directory), /不得使用 any 绕过类型边界/);
   } finally { await rm(directory, { recursive: true, force: true }); }
 });

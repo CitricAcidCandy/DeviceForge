@@ -11,14 +11,16 @@ fn check() -> Result<()> {
 fn layer() -> Layer {
     Layer {
         name: LAYER.into(),
+        sdk: 30,
         pid: 123,
         uid: 10001,
         window: None,
         chain: vec![owner::Record {
             id: 17,
             name: LAYER.into(),
-            parent: -1,
+            parent: Some(-1),
             uid: Some(10001),
+            has_metadata: true,
             metadata_uid: Some(10001),
             metadata_pid: Some(123),
         }],
@@ -48,13 +50,18 @@ fn package_boundary_is_only_a_candidate_filter() {
     }
 }
 #[test]
-fn shell_quote_keeps_layer_name_as_one_data_argument() {
+fn layer_name_is_raw_data_for_the_shared_transport_boundary() {
     let mut selected = layer();
     selected.name.push_str(" 'quoted'; $(data)");
-    let quoted = selected.shell_argument();
-    assert!(quoted.starts_with('\''));
-    assert!(quoted.ends_with('\''));
-    assert!(quoted.contains("'\\''"));
+    assert_eq!(selected.name(), format!("{LAYER} 'quoted'; $(data)"));
+}
+
+#[test]
+fn sdk_requires_one_positive_decimal_device_property() {
+    assert_eq!(sdk("28\r\n", &check).unwrap(), Some(28));
+    for value in ["", "0", "unknown", "28 30", "28\n30", "-28", "4294967296"] {
+        assert!(sdk(value, &check).unwrap().is_none(), "{value}");
+    }
 }
 
 #[test]
@@ -84,11 +91,14 @@ fn unknown_or_malformed_latency_never_becomes_zero_fps() {
 }
 
 #[test]
-fn window_counts_only_new_distinct_presents_and_has_stable_bounded_source() {
+fn window_counts_only_new_presents_using_monotonic_sampling_duration() {
     let before = points(&[1_000_000_000, 1_016_000_000]);
     let after = points(&[1_000_000_000, 1_016_000_000, 1_032_000_000, 1_048_000_000]);
-    let result = window(&layer(), &before, &after, &check).unwrap().unwrap();
-    assert_eq!((result.frames, result.duration_ms), (2, 32));
+    let result = window(&layer(), &before, &after, 80_000_000, &check)
+        .unwrap()
+        .unwrap();
+    // 历史跨度只有 32ms；分母必须保留调用者真实采样的 80ms。
+    assert_eq!((result.frames, result.duration_ms), (2, 80));
     assert_eq!(result.source.len(), "sf_present_".len() + 16);
     assert!(
         result
@@ -101,64 +111,78 @@ fn window_counts_only_new_distinct_presents_and_has_stable_bounded_source() {
     assert_eq!(result.source, layer().source());
     let mut other = layer();
     other.chain[0].id = 18;
-    other.chain[0].name = LAYER.replace("#17", "#18");
+    assert_ne!(result.source, other.source());
+    other = layer();
+    other.sdk = 28;
     assert_ne!(result.source, other.source());
 }
 
 #[test]
-fn missing_anchor_no_new_present_and_empty_history_are_absent() {
+fn missing_anchor_rollback_and_empty_history_remain_absent() {
     let before = points(&[1_000_000_000, 1_016_000_000]);
     for after in [
         points(&[1_032_000_000, 1_048_000_000]),
-        points(&[1_000_000_000, 1_016_000_000]),
+        points(&[1_000_000_000]),
         points(&[]),
-        points(&[1_016_000_000, 1_016_000_000]),
     ] {
-        assert!(window(&layer(), &before, &after, &check).unwrap().is_none());
+        assert!(
+            window(&layer(), &before, &after, 80_000_000, &check)
+                .unwrap()
+                .is_none()
+        );
     }
     assert!(
-        window(&layer(), &points(&[]), &points(&[1]), &check)
+        window(&layer(), &points(&[]), &points(&[1]), 80_000_000, &check)
             .unwrap()
             .is_none()
     );
 }
 
 #[test]
-fn span_and_integer_millisecond_public_bounds_are_checked() {
-    let before = points(&[1_000_000_000]);
-    let exact = window(
-        &layer(),
-        &before,
-        &points(&[1_000_000_000, 61_000_000_000]),
-        &check,
-    )
-    .unwrap()
-    .unwrap();
-    assert_eq!((exact.frames, exact.duration_ms), (1, 60_000));
+fn unchanged_valid_history_is_zero_fps_but_pending_or_empty_is_missing() {
+    let before = points(&[1_000_000_000, 1_016_000_000]);
+    for after in [
+        points(&[1_000_000_000, 1_016_000_000]),
+        points(&[1_016_000_000, 1_016_000_000]),
+    ] {
+        let result = window(&layer(), &before, &after, 80_000_000, &check)
+            .unwrap()
+            .unwrap();
+        assert_eq!((result.frames, result.duration_ms), (0, 80));
+    }
+    let unavailable = points(&[0, i64::MAX as u64]);
     assert!(
-        window(
-            &layer(),
-            &before,
-            &points(&[1_000_000_000, 61_000_000_001]),
-            &check
-        )
-        .unwrap()
-        .is_none()
+        window(&layer(), &unavailable, &unavailable, 80_000_000, &check)
+            .unwrap()
+            .is_none()
     );
-    let rounded = window(
-        &layer(),
-        &before,
-        &points(&[1_000_000_000, 1_001_000_001]),
-        &check,
-    )
-    .unwrap()
-    .unwrap();
+}
+
+#[test]
+fn elapsed_and_integer_millisecond_public_bounds_are_checked() {
+    let before = points(&[1_000_000_000]);
+    let after = points(&[1_000_000_000, 1_016_000_000]);
+    let exact = window(&layer(), &before, &after, 60_000_000_000, &check)
+        .unwrap()
+        .unwrap();
+    assert_eq!((exact.frames, exact.duration_ms), (1, 60_000));
+    for elapsed in [0, 60_000_000_001, u64::MAX] {
+        assert!(
+            window(&layer(), &before, &after, elapsed, &check)
+                .unwrap()
+                .is_none()
+        );
+    }
+    let rounded = window(&layer(), &before, &after, 1_000_001, &check)
+        .unwrap()
+        .unwrap();
     assert_eq!(rounded.duration_ms, 2);
     assert!(
         window(
             &layer(),
             &before,
             &points(&[1_000_000_000, 1_000_000_001, 1_000_000_002]),
+            1,
             &check
         )
         .unwrap()
@@ -171,8 +195,10 @@ fn nanosecond_ticks_keep_integer_precision_near_signed_limit() {
     let anchor = i64::MAX as u64 - 20_000_000;
     let before = points(&[anchor]);
     let after = points(&[anchor, anchor + 16_000_000, i64::MAX as u64]);
-    let result = window(&layer(), &before, &after, &check).unwrap().unwrap();
-    assert_eq!((result.frames, result.duration_ms), (1, 16));
+    let result = window(&layer(), &before, &after, 80_000_000, &check)
+        .unwrap()
+        .unwrap();
+    assert_eq!((result.frames, result.duration_ms), (1, 80));
 }
 
 #[test]
@@ -190,7 +216,13 @@ fn row_limits_and_context_failures_propagate() {
         Err(Error::Cancelled)
     ));
     assert!(matches!(
-        window(&layer(), &points(&[1]), &points(&[1, 2]), &cancelled),
+        window(
+            &layer(),
+            &points(&[1]),
+            &points(&[1, 2]),
+            80_000_000,
+            &cancelled
+        ),
         Err(Error::Cancelled)
     ));
 }

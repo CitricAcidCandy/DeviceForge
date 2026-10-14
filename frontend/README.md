@@ -1,21 +1,21 @@
 # DeviceForge 浏览器工程
 
 ## 作用与范围
-Svelte 5、TypeScript 和 Vite 的独立浏览器工程。已实现 v2 客户端、操作/任务/服务器插件与设备第一阶段基础用例、两类在线包部署及热装卸、公开宿主与开放扩展注册表；保留开发阶段外壳，具体业务页面等待设计稿。
+采用用户于2026-10-14批准的 React 19.3.0、严格 TypeScript、Vite、Tailwind 4.3.3 和官方 shadcn/ui 组件。已选电子设备工坊背景用于环境层，14个业务路由复用既有 v2 客户端、功能工厂、设备能力、任务与在线插件。界面、浏览器行为和真实设备资格分别验收；本轮范围见[产品界面实施方案](docs/产品界面实施方案.md)。
 
 ## 快速开始
 使用 Node.js 22.18 或更高版本，执行 `npm ci`、`npm run dev`。开发代理将 `/api` 与 `/mcp` 转发至本机 7031。生产部署将静态产物和服务器配置为同源，避免在前端代码写死服务器地址。
 
 统一 npx 运行包携带构建后的静态资源，对外默认前端/API 地址为 `http://服务器地址:7030`；可通过 CLI `--ip`、`--port` 修改。前端分发边界见 [静态分发与访问](docs/静态分发与访问.md)。本轮设备版本已重建 release runtime，并通过真实浏览器及 npx 验收。
 
-验证：`npm run generate:api`、`npm run check`、`npm test`、`npm run build`。生成器由主代理与 Cargo 验证串行协调。依赖锁文件提交到源码管理，CI 使用 npm ci。TypeScript 使用 5.9 兼容当前接口生成器和 Svelte 检查器，不通过忽略 peer 依赖强行升级。
+验证：`npm run generate:api`、`npm run check`、`npm test`、`npm run build`。生成器由主代理与 Cargo 验证串行协调。依赖锁文件提交到源码管理，CI 使用 npm ci。TypeScript 使用 5.9；准确依赖版本及组件来源见[依赖记录](docs/产品界面依赖与组件来源.md)。
 
-前端维护源码、开发脚本与测试使用 TypeScript，Svelte 组件使用 `lang="ts"`；三项严格类型选项同时覆盖脚本、测试和 Vite 配置。Node 22.18 以上直接执行 `.ts` 工具及测试。浏览器插件验收源码为 `scripts/browser-plugin-harness.ts`，`npm run build` 输出 `dist/assets/browser-plugin-harness.js`，根驱动读取此 JavaScript 构建产物并连接公开生产宿主。空 Svelte 配置已移除，工具使用默认行为与 `vite.config.ts`。
+维护源码、开发脚本与测试使用 TypeScript，React 页面使用 TSX；三项严格类型选项同时覆盖源码、脚本、测试和 Vite 配置。Node 22.18 以上直接执行 `.ts` 工具。浏览器插件验收源码为 `scripts/browser-plugin-harness.ts`，构建输出稳定 `dist/assets/browser-plugin-harness.js`，根驱动连接公开生产宿主。
 
 ## API 与参数
 `src/app/index.ts` 公开 `createFrontendRuntime`；传入 baseUrl、fetch 传输及挂载目标，tokenProvider 可选，缺省不发送鉴权头。请求显式传 AbortSignal，返回 data/logId，错误受控分类；产物上传为 octet-stream，下载保留原字节。令牌不保存到 localStorage 或 URL。
 
-构建公开生产入口 `/assets/plugin-host.js`，以原生 ESM 导出 `createFrontendRuntime` 和 `createNamedSlotAdapter`。宿主可从该入口装配传输、挂载目标/默认 renderer 和 ESM importer；包加载默认使用已安装资源的运行 UUID 路径。此入口独立于产品外壳：`main.ts` 尚未装配产品 runtime，不会自动连接服务、安装插件或生成业务页面。
+公开生产入口 `/assets/plugin-host.js` 以原生 ESM 导出 `createFrontendRuntime` 和 `createNamedSlotAdapter`。产品 `main.ts` 已装配 runtime，默认连接同源服务，复用插件任务钩子，并为插件面板、组件和模块提供独立 DOM 根；React 不管理插件子树。包加载沿用运行 UUID 路径，安装与启用均由用户显式操作。
 
 SDK v2 在 `src/plugin-sdk/index.ts`，独立于生成 DTO。v1 插件须更新 apiVersion、显式信号与 HostResult。插件可贡献面板、具名组件槽（append/replace）、模块、命令、版本化服务及 beforeTaskSubmit 钩子；插件专属上下文提供事件/状态和动态贡献登记。HostContext 提供 listOperations/submit/getJob/cancelJob、操作目录订阅及可选 devices；插件 SDK 没有服务器插件管理、在线包管理或产物上传下载适配。`runtime.serverPlugins/pluginPackages/artifacts` 是宿主 app 用例入口，不会自动授予插件。
 
@@ -32,11 +32,11 @@ SDK v2 在 `src/plugin-sdk/index.ts`，独立于生成 DTO。v1 插件须更新 
 ## 文档
 当前实现与文件职责见 [前端运行架构](docs/前端运行架构.md)，在线扩展边界见 [在线插件与开放扩展](docs/在线插件与开放扩展.md)，签名与生命周期见 [插件开发](docs/插件开发.md)。后端文档独立存于 backend/docs。
 
-设备提供者第一阶段的目录、选择、能力准入与离散动作已实现，见 [前端实施](docs/设备提供者第一阶段实施.md)。[设备能力与插件面板](docs/设备能力与插件面板.md) 中的具体工作台交互仍待设计；本阶段不代表常驻设备热拔插、平台工具迁出或真机验收完成。
+设备目录、选择、能力准入和离散动作见[前端实施](docs/设备提供者第一阶段实施.md)。本轮产品工作台按实际公开目录开放操作，并持有完整设备引用；常驻设备热拔插、平台工具迁出与真机资格保持独立验收。
 
 平台迁出的前端消费、设备引用、长安装与性能会话审核要求见 [平台适配器迁出边界](docs/平台适配器迁出边界.md)。公共工具库由后端使用，不新增浏览器本机命令接口；本步不修改前端类型或产品界面。
 
-客户端默认只消费 v2，生成类型保留 v1；日志复制 UI 尚未实施。关联 ID 与原字节约束见 `docs/日志ID与接口消费.md`。
+客户端默认消费 v2，生成类型保留 v1。产品错误界面支持复制真实日志 ID；关联 ID 与原字节约束见[日志约束](docs/日志ID与接口消费.md)。
 
 本端独立开发规则见 [AGENTS.md](AGENTS.md)，包含完整职责、严格类型、异步资源与检查要求。
 

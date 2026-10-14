@@ -34,6 +34,7 @@ fn record(data: &[u8], budget: &mut Budget, check: Check<'_>) -> Result<Record> 
     let (mut id, mut name, mut parent, mut uid) = (None, None, None, None);
     let (mut metadata_uid, mut metadata_pid) = (None, None);
     let mut keys = std::collections::BTreeSet::new();
+    let mut has_metadata = false;
     while let Some(field) = cursor.next(budget, check)? {
         match field.number {
             1 => wire::once(&mut id, wire::signed(wire::integer(field.value)?)?)?,
@@ -57,6 +58,7 @@ fn record(data: &[u8], budget: &mut Budget, check: Check<'_>) -> Result<Record> 
                 u32::try_from(wire::integer(field.value)?).map_err(|_| bad())?,
             )?,
             42 => {
+                has_metadata = true;
                 if keys.len() >= 64 {
                     return Err(Error::TooLarge);
                 }
@@ -78,8 +80,7 @@ fn record(data: &[u8], budget: &mut Budget, check: Check<'_>) -> Result<Record> 
         }
     }
     let id = id.ok_or_else(bad)?;
-    let parent = parent.unwrap_or(0);
-    if id < 0 || parent < -1 {
+    if id < 0 || parent.is_some_and(|value| value < -1) {
         return Err(bad());
     }
     Ok(Record {
@@ -87,6 +88,7 @@ fn record(data: &[u8], budget: &mut Budget, check: Check<'_>) -> Result<Record> 
         name: name.ok_or_else(bad)?,
         parent,
         uid,
+        has_metadata,
         metadata_uid,
         metadata_pid,
     })

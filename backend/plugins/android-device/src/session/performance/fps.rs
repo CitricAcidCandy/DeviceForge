@@ -2,7 +2,7 @@
 use super::super::Session;
 use crate::{Error, Result, rules::performance::fps};
 use apk_plugin_sdk::FrameWindow;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 impl Session {
     pub(super) async fn frame_window(
@@ -19,12 +19,31 @@ impl Session {
             other => other,
         }
     }
+    /// FPS 只接受原始参数；普通和 Root 路径共同通过一次安全引用。
+    async fn frame_read<T: Send + 'static>(
+        &self,
+        device_id: &str,
+        tail: &[&str],
+        parse: impl FnOnce(&str, crate::rules::performance::Check<'_>) -> Result<T> + Send + 'static,
+    ) -> Result<T> {
+        self.control.check()?;
+        let args = crate::profile::root::argv(device_id, self.profile_root.as_ref(), tail);
+        let captured = self.control.capture_scoped(&args).await?;
+        self.work(move |check| {
+            check()?;
+            let output = crate::rules::performance::output(&captured.stdout, &captured.stderr)?;
+            parse(&output, check)
+        })
+        .await
+    }
+
     async fn owned_frame_layer(
         &self,
         device_id: &str,
         package: &str,
         pid: u32,
         uid: u32,
+        sdk: u32,
     ) -> Result<Option<fps::Layer>> {
         self.control.check()?;
         let args = [
@@ -47,7 +66,7 @@ impl Session {
                 if !captured.stderr.iter().all(u8::is_ascii_whitespace) {
                     return Ok(None);
                 }
-                fps::owned_layer(&captured.stdout, &package, pid, uid, check)
+                fps::owned_layer(&captured.stdout, &package, pid, uid, sdk, check)
             })
             .await?;
         match qualification {
@@ -82,20 +101,30 @@ impl Session {
         pid: u32,
         uid: u32,
     ) -> Result<Option<FrameWindow>> {
-        let Some(layer) = self.owned_frame_layer(device_id, package, pid, uid).await? else {
+        let Some(sdk) = self
+            .frame_read(device_id, &["getprop", "ro.build.version.sdk"], fps::sdk)
+            .await?
+        else {
             return Ok(None);
         };
-        let argument = layer.shell_argument();
+        let Some(layer) = self
+            .owned_frame_layer(device_id, package, pid, uid, sdk)
+            .await?
+        else {
+            return Ok(None);
+        };
+        let argument = layer.name();
         let Some(before) = self
-            .performance_read(
+            .frame_read(
                 device_id,
-                &["dumpsys", "SurfaceFlinger", "--latency", &argument],
+                &["dumpsys", "SurfaceFlinger", "--latency", argument],
                 fps::snapshot,
             )
             .await?
         else {
             return Ok(None);
         };
+        let before_completed = Instant::now();
         let cancellation = self.control.context.cancellation();
         tokio::select! {
             biased;
@@ -105,20 +134,29 @@ impl Session {
         }
         self.control.check()?;
         let Some(after) = self
-            .performance_read(
+            .frame_read(
                 device_id,
-                &["dumpsys", "SurfaceFlinger", "--latency", &argument],
+                &["dumpsys", "SurfaceFlinger", "--latency", argument],
                 fps::snapshot,
             )
             .await?
         else {
             return Ok(None);
         };
-        let confirmed = self.owned_frame_layer(device_id, package, pid, uid).await?;
+        let after_completed = Instant::now();
+        let Some(elapsed_ns) = after_completed
+            .checked_duration_since(before_completed)
+            .and_then(|elapsed| u64::try_from(elapsed.as_nanos()).ok())
+        else {
+            return Ok(None);
+        };
+        let confirmed = self
+            .owned_frame_layer(device_id, package, pid, uid, sdk)
+            .await?;
         if confirmed.as_ref() != Some(&layer) {
             return Ok(None);
         }
-        self.work(move |check| fps::window(&layer, &before, &after, check))
+        self.work(move |check| fps::window(&layer, &before, &after, elapsed_ns, check))
             .await
     }
 }

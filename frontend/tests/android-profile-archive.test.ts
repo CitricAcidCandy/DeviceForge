@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { deflateSync } from 'node:zlib';
-import { openProfileArchive, downloadAndOpenProfileArchive, PROFILE_LIMITS } from '../src/features/android-profile/index.ts';
+import { openProfileArchive, downloadAndOpenProfileArchive, buildProfileFolded, decodeProfileFolded, PROFILE_FOLDED_LIMITS, PROFILE_LIMITS } from '../src/features/android-profile/index.ts';
 import type { ProfileResult, StackSample } from '../src/features/android-profile/index.ts';
 import { ApiError } from '../src/shared/api/index.ts';
 import type { ArtifactDto } from '../src/shared/api/index.ts';
@@ -76,6 +76,7 @@ function expectedCode(code: string) { return (error: unknown) => error instanceo
 
 test('Stored归档联合交付同录制索引、未知符号堆栈、PNG与trace，画面可直接取用', async () => {
   const opened = openProfileArchive(zip(files()).bytes, result(), 'archive-log');
+  assert.equal(opened.folded, null);
   assert.equal(opened.index.pid, 42); assert.equal(opened.stacks[0]?.callchain[0]?.symbol, null);
   assert.equal(opened.timeline.samples[0]?.frameStacks[0]?.index, 0);
   assert.equal(opened.frames[0]?.width, 1); assert.equal(opened.frames[0]?.height, 1); assert.equal(opened.frames[0]?.content.type, 'image/png');
@@ -129,6 +130,8 @@ test('无Root归档保留空stacks与可取画面，不要求perf也不允许伪
   const noRootIndex = { ...value, root_access: 'none', stack_status: 'unavailable', stack_reason: 'root_unavailable', stack_sample_count: 0, samples: [{ ...row, stack_sample_indices: [] }] };
   const noRootFiles = files().filter((file) => file.name !== 'perf.bin').map((file) => file.name === 'profile-index.json' ? { ...file, bytes: json(noRootIndex) } : file.name === 'stacks.jsonl' ? { ...file, bytes: new Uint8Array() } : file);
   const opened = openProfileArchive(zip(noRootFiles).bytes, unavailable, 'archive-log');
+  assert.equal(opened.folded, null);
+  assert.throws(() => openProfileArchive(zip([...noRootFiles, { name: 'flamegraph.folded', bytes: new Uint8Array() }]).bytes, unavailable, 'archive-log'), expectedCode('unexpected_profile_folded'));
   assert.equal(opened.perf, null); assert.equal(opened.frames.length, 1); assert.equal(opened.stacks.length, 0); assert.equal(opened.timeline.stackStatus, 'unavailable');
   assert.throws(() => openProfileArchive(zip([...noRootFiles, { name: 'perf.bin', bytes: new Uint8Array([1]) }]).bytes, unavailable, 'archive-log'), expectedCode('unexpected_profile_archive_entry'));
 });
@@ -172,4 +175,89 @@ test('稀疏采样画面沿sample编号交付，前一个无近邻不会拒绝�
   const opened = openProfileArchive(archived.bytes, current, 'archive-log');
   assert.equal(opened.frames.length, 1); assert.equal(opened.frames[0]?.reference.index, 1);
   assert.equal(opened.frames[0]?.reference.filename, 'frames/000001.png'); assert.equal(opened.timeline.samples[0]?.sample.frame, null);
+});
+
+function qualityFixture() {
+  return { format_version: 1, capture: { mode: 'dwarf', event: 'cpu-clock', frequency_hz: 99, clock: 'boottime', report_filter: 'disabled', remove_gaps: 0 },
+    counts: { reported_sample_count: '1', parsed_sample_count: '1', lost_count: '0', callchain_frame_count: 1, empty_callchain_sample_count: 0, single_frame_sample_count: 1, max_callchain_depth: 1, unwinding_error_sample_count: 0, unwinding_without_error_sample_count: 0, unwinding_metadata_missing_sample_count: 1, missing_symbol_frame_count: 1, missing_symbol_sample_count: 1 },
+    depth_histogram: [{ depth: 1, count: 1 }], unwinding_error_histogram: [],
+    architecture: { status: 'unavailable', device_arch: null, target_process_arch: null, reason: '报告没有目标架构证据' },
+    symbolication: { status: 'reported_symbols_only', build_id_status: 'unavailable', reason: '报告没有构建标识' } };
+}
+test('可选质量文件保留缺符号与缺错误元数据，旧归档缺省兼容', () => {
+  assert.equal(openProfileArchive(zip(files()).bytes, result(), 'archive-log').quality, null);
+  const quality = qualityFixture();
+  const opened = openProfileArchive(zip([...files(), { name: 'stack-quality.json', bytes: json(quality) }]).bytes, result(), 'archive-log');
+  assert.deepEqual(opened.quality, quality);
+});
+test('质量汇总与原栈矛盾、重复直方图、未知模式及过限质量文件全部拒绝', () => {
+  const quality = qualityFixture();
+  const invalid = [
+    { ...quality, counts: { ...quality.counts, missing_symbol_frame_count: 0 } },
+    { ...quality, counts: { ...quality.counts, parsed_sample_count: '2' } },
+    { ...quality, depth_histogram: [{ depth: 1, count: 1 }, { depth: 1, count: 1 }] },
+    { ...quality, capture: { ...quality.capture, report_filter: 'default' } },
+    { ...quality, unwinding_error_histogram: [{ raw_error_code: 0, error_code: null, count: 1 }] },
+  ];
+  for (const value of invalid) assert.throws(() => openProfileArchive(zip([...files(), { name: 'stack-quality.json', bytes: json(value) }]).bytes, result(), 'archive-log'), expectedCode('invalid_android_profile_result'));
+  assert.throws(() => openProfileArchive(zip([...files(), { name: 'stack-quality.json', bytes: new Uint8Array(PROFILE_LIMITS.indexBytes + 1) }]).bytes, result(), 'archive-log'), expectedCode('invalid_profile_zip_size'));
+});
+test('错误质量直方图保留原码并且不能把错误样本声明为完整展开', () => {
+  const quality = qualityFixture();
+  const value = { ...quality, counts: { ...quality.counts, unwinding_error_sample_count: 1, unwinding_metadata_missing_sample_count: 0 }, unwinding_error_histogram: [{ raw_error_code: 7, error_code: 0, count: 1 }] };
+  const inputs = files().map(file => file.name === 'stacks.jsonl' ? { ...file, bytes: json({ ...stack(), unwinding: { raw_error_code: 7, error_code: 0, error_address: '0x1234' } }) } : file);
+  const opened = openProfileArchive(zip([...inputs, { name: 'stack-quality.json', bytes: json(value) }]).bytes, result(), 'archive-log');
+  assert.equal(opened.quality?.unwinding_error_histogram[0]?.raw_error_code, 7);
+  assert.throws(() => openProfileArchive(zip([...inputs, { name: 'stack-quality.json', bytes: json(quality) }]).bytes, result(), 'archive-log'), expectedCode('invalid_android_profile_result'));
+});
+
+const foldedFixtureText = 'event="cpu-clock";pid=42;tid=43;["native","libgame.so",null,"0x1234"] 1\n';
+const textBytes = (text: string) => new TextEncoder().encode(text);
+test('可选folded与同一原栈严格一致后交付原字节Blob，旧Root归档仍兼容', async () => {
+  assert.equal(buildProfileFolded([stack()]), foldedFixtureText);
+  const opened = openProfileArchive(zip([...files(), { name: 'flamegraph.folded', bytes: textBytes(foldedFixtureText) }]).bytes, result(), 'archive-log');
+  assert.ok(opened.folded);
+  assert.equal(opened.folded.type, 'text/plain;charset=utf-8');
+  assert.deepEqual(new Uint8Array(await opened.folded.arrayBuffer()), textBytes(foldedFixtureText));
+  const emptyStack = { ...stack(), callchain: [] };
+  const emptyInputs = files().map(file => file.name === 'stacks.jsonl' ? { ...file, bytes: json(emptyStack) } : file);
+  const empty = openProfileArchive(zip([...emptyInputs, { name: 'flamegraph.folded', bytes: new Uint8Array() }]).bytes, result(), 'archive-log');
+  assert.equal(empty.folded?.size, 0);
+});
+
+test('folded拒绝错计数、漏换行、额外路径、未知符号改大小写与非规范UTF8', () => {
+  for (const text of [foldedFixtureText.replace(' 1\n', ' 2\n'), foldedFixtureText.trimEnd(),
+    foldedFixtureText + foldedFixtureText, foldedFixtureText.replace('0x1234', '0x001234'),
+    '\ufeff' + foldedFixtureText]) {
+    assert.throws(() => openProfileArchive(zip([...files(), { name: 'flamegraph.folded', bytes: textBytes(text) }]).bytes, result(), 'archive-log'), expectedCode('profile_folded_mismatch'));
+  }
+  assert.throws(() => openProfileArchive(zip([...files(), { name: 'flamegraph.folded', bytes: new Uint8Array([255]) }]).bytes, result(), 'archive-log'), expectedCode('invalid_profile_folded_utf8'));
+});
+
+test('folded采用后端原地址文本、逐标签转义、根到叶顺序与已知函数合并地址', () => {
+  const first: StackSample = { ...stack(), event_type: 'cpu;%clock', process_id: null, thread_id: 9, callchain: [
+    { file: 'x;y%z', symbol: '', address: '0x00Aa', execution_type: 'native' },
+    { file: 'root.so', symbol: 'root;%fn', address: '0x1', execution_type: 'art' }] };
+  const second: StackSample = { ...first, callchain: [first.callchain[0] ?? stack().callchain[0] ?? { file: null, symbol: null, address: '0x0', execution_type: 'native' },
+    { file: 'root.so', symbol: 'root;%fn', address: '0x2', execution_type: 'art' }] };
+  const expected = 'event="cpu%3B%25clock";pid=null;tid=9;["art","root.so","root%3B%25fn",null];["native","x%3By%25z",null,"0x00Aa"] 2\n';
+  assert.equal(buildProfileFolded([first, second, { ...stack(), callchain: [] }]), expected);
+});
+
+test('folded完整key采用UTF8字节顺序，补充平面符号不按UTF16顺序排列', () => {
+  const known = (symbol: string): StackSample => ({ ...stack(), callchain: [{ file: 'same.so', symbol, address: '0x1', execution_type: 'native' }] });
+  const expected = 'event="cpu-clock";pid=42;tid=43;["native","same.so","\ue000",null] 1\n'
+    + 'event="cpu-clock";pid=42;tid=43;["native","same.so","\ud800\udc00",null] 1\n';
+  assert.equal(buildProfileFolded([known('\ud800\udc00'), known('\ue000')]), expected);
+});
+
+test('folded输出及ZIP声明限制为32MiB，取消保留归档日志且不交付部分结果', () => {
+  assert.throws(() => decodeProfileFolded(new Uint8Array(PROFILE_FOLDED_LIMITS.bytes + 1), result(), [stack()], 'archive-log'), expectedCode('invalid_profile_folded_size'));
+  const archive = zip([...files(), { name: 'flamegraph.folded', bytes: new Uint8Array() }]); const folded = archive.entries.find(entry => entry.name === 'flamegraph.folded'); assert.ok(folded);
+  const declared = Uint8Array.from(archive.bytes); const view = new DataView(declared.buffer);
+  view.setUint32(folded.central + 20, PROFILE_FOLDED_LIMITS.bytes + 1, true); view.setUint32(folded.central + 24, PROFILE_FOLDED_LIMITS.bytes + 1, true);
+  assert.throws(() => openProfileArchive(declared, result(), 'archive-log'), expectedCode('invalid_profile_zip_size'));
+  const cancelled = new AbortController(); cancelled.abort();
+  assert.throws(() => decodeProfileFolded(textBytes(foldedFixtureText), result(), [stack()], 'archive-log', cancelled.signal),
+    (error: unknown) => error instanceof ApiError && error.kind === 'cancelled' && error.logId === 'archive-log');
 });

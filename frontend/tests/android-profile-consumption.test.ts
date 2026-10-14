@@ -231,3 +231,11 @@ test('缺少近邻的采样点保留空画面，后续稀疏帧按采样编号�
   assert.equal(accepted.samples[1]?.frame?.filename, 'frames/000001.png');
   assert.throws(() => decodeProfileIndex({ ...value, samples: [{ ...row, frame: later.frame }, { ...later, frame: null }] }, current, 'profile-log'), protocolLog);
 });
+
+test('Root和工具存在但缺少必需采栈能力时允许明确降级，拒绝矛盾资格', () => {
+  const probe = { format_version: 1, device_id: device, package: packageId, root_access: 'su', simpleperf_available: true, clock: 'boottime', supported: false, reason: '工具不支持关闭报告去隙，保留指标与画面' };
+  assert.deepEqual(decodeProbe({ result: probe, artifacts: [] }, 'profile-log', device, packageId), probe);
+  for (const reason of [null, '', undefined]) assert.throws(() => decodeProbe({ result: { ...probe, reason }, artifacts: [] }, 'profile-log', device, packageId), protocolLog);
+  assert.equal(decodeProbe({ result: { ...probe, supported: true, reason: null }, artifacts: [] }, 'profile-log', device, packageId).supported, true);
+  assert.throws(() => decodeProbe({ result: { ...probe, supported: true }, artifacts: [] }, 'profile-log', device, packageId), protocolLog);
+});
