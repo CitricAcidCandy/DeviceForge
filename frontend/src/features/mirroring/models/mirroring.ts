@@ -1,5 +1,5 @@
-import { ApiError } from '../../../shared/api/index.ts';
-import { abortable } from '../../../shared/api/abort.ts';
+import { ApiError } from '../../../services/api/index.ts';
+import { abortable } from '../../../services/api/abort.ts';
 import { createJobRunner, downloadPublishedArtifact, requireJson } from '../../../shared/jobs/index.ts';
 import type { ArtifactReader, JobGateway, JobTicket, PublishedResult } from '../../../shared/jobs/index.ts';
 import { frozenMirroringCopy, isMp4Header, requireMirroringRequest } from '../utils/rules.ts';

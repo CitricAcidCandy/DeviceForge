@@ -1,6 +1,6 @@
 # 终端业务插件
 
-通过公开协议5打开一个部署profile，使用同一真实工具进程持续收发原字节。当前没有PTY和resize，不把重复普通Job当作交互。完整合同见 [终端业务插件实施裁定](../../docs/终端业务插件实施裁定.md)。
+通过公开协议5打开一个部署profile，使用同一真实工具进程持续收发原字节。当前没有PTY和resize，不把重复普通Job当作交互。完整合同见 [终端业务插件实施裁定](../../docs/implementation/终端业务插件实施裁定.md)。
 
 `manifest.json`声明唯一会话贡献 `plugin.terminal.open`，普通operations为空。打开业务为 `{"profile":"python"}`；profile只选择部署者定义的程序、固定argv及可选工作目录。默认旁置 `terminal.config.json`，可使用 `--config`绝对路径；示例配置见 `terminal.config.example.json`。
 

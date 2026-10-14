@@ -1,6 +1,6 @@
 import { HostError } from '../../../plugin-sdk/index.ts';
-import { ApiError } from '../../../shared/api/index.ts';
-import { isRecord } from '../../../shared/api/validation.ts';
+import { ApiError } from '../../../services/api/index.ts';
+import { isRecord } from '../../../services/api/validation.ts';
 import { createJobRunner, jsonObject, onlyKeys } from '../../../shared/jobs/index.ts';
 import type { JobGateway, JobOptions, JobTicket } from '../../../shared/jobs/index.ts';
 import { decodeProbe, decodeProfileResult } from '../utils/results.ts';

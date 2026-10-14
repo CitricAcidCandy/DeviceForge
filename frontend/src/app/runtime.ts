@@ -1,5 +1,5 @@
-import { browserPackageEntryUrl, createApiClient, createMcpTransport, uploadEndpoint } from '../shared/api/index.ts';
-import type { ClientOptions } from '../shared/api/index.ts';
+import { browserPackageEntryUrl, createApiClient, createMcpTransport, uploadEndpoint } from '../services/api/index.ts';
+import type { ClientOptions } from '../services/api/index.ts';
 import { createOperations } from '../features/operations/index.ts';
 import { createTasks } from '../features/tasks/index.ts';
 import { createServerPlugins } from '../features/server-plugins/index.ts';

@@ -1,4 +1,4 @@
-import { ApiError } from '../../../shared/api/index.ts';
+import { ApiError } from '../../../services/api/index.ts';
 import { jsonObject, naturalNumber, onlyKeys } from '../../../shared/jobs/index.ts';
 
 export function frozenAutomationCopy<T>(value: T): T {

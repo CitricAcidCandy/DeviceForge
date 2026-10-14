@@ -5,4 +5,4 @@ extract.rs 编排提取，packing.rs 通过独立 android-package-core 的 Split
 
 工具与在飞树监测共享一次两秒并发清理点，CleanupFailed 优先返回并禁止打包 / 发布。工具 Future 丢弃标记持久保留；后台同步闭包持有许可和目录至真实退出，不能用外层超时推断资源已清理。安装继续旧请求、DTO、设备锁与调用链，其 120 秒预算和完整清理仍独立验收；同实例 extract 的持久风险会影响后续 install 的用例收口诊断，不宣称安装全行为不变。失败诊断使用固定说明，工具环境剥离凭据。输出目录 64 MiB / 1000 条目 / 128 层，最终 ZIP 64 MiB；轮询不是硬磁盘配额。
 
-cargo test -p apk-infrastructure splits 验证独立模拟工具、规格匹配、安装、错误输出、体积、取消、期限与设备锁。真实包 / 真机、高级匹配维度、全局设备互斥及完整进程树回收仍待验收或实现。完整契约见 backend/docs/APKS设备匹配接口.md。
+cargo test -p apk-infrastructure splits 验证独立模拟工具、规格匹配、安装、错误输出、体积、取消、期限与设备锁。真实包 / 真机、高级匹配维度、全局设备互斥及完整进程树回收仍待验收或实现。完整契约见 backend/docs/contracts/APKS设备匹配接口.md。

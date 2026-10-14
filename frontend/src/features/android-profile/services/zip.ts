@@ -1,4 +1,4 @@
-import { ApiError } from '../../../shared/api/index.ts';
+import { ApiError } from '../../../services/api/index.ts';
 import { PROFILE_LIMITS } from '../utils/rules.ts';
 import { checkArchiveCancellation, crc32 } from './crc.ts';
 

@@ -1,5 +1,5 @@
 import type { DeviceRef, HostContext } from '../../../plugin-sdk/index.ts';
-import type { components } from '../../../shared/api/generated.ts';
+import type { components } from '../../../services/api/generated.ts';
 
 // 插件业务结果尚无 OpenAPI 模型；任务和产物继续引用共享生成契约。
 export interface ProfileRequest { readonly package: string; readonly duration_ms: number; readonly interval_ms: number; readonly capture_frames?: boolean }

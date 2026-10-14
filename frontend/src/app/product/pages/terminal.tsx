@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Button } from '../../../components/ui/button.tsx';
-import { Field, PageTitle, EmptyState, JsonResult } from '../../../components/common/index.ts';
+import { Button } from '../../../components/Button/index.tsx';
+import { Field, PageTitle, EmptyState, JsonResult } from '../../../components/index.ts';
 import { ActionFeedback } from '../feedback.tsx';
 import { useAction, useSnapshot } from '../hooks.ts';
 import type { ProductServices } from '../services.ts';

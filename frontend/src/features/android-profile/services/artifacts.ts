@@ -1,6 +1,6 @@
-import { ApiError } from '../../../shared/api/index.ts';
-import type { ApiResult } from '../../../shared/api/index.ts';
-import { abortable } from '../../../shared/api/abort.ts';
+import { ApiError } from '../../../services/api/index.ts';
+import type { ApiResult } from '../../../services/api/index.ts';
+import { abortable } from '../../../services/api/abort.ts';
 import { downloadPublishedArtifact } from '../../../shared/jobs/index.ts';
 import type { ArtifactReader, PublishedResult } from '../../../shared/jobs/index.ts';
 import { decodeProfileIndex } from '../utils/index-results.ts';

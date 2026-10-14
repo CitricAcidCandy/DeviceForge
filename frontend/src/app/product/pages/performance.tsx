@@ -1,21 +1,23 @@
 import { useEffect, useRef, useState } from 'react';
-import { Button } from '../../../components/ui/button.tsx';
-import { Checkbox } from '../../../components/ui/checkbox.tsx';
-import { Label } from '../../../components/ui/label.tsx';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../../components/ui/tabs.tsx';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../components/ui/table.tsx';
+import { Button } from '../../../components/Button/index.tsx';
+import { Checkbox } from '../../../components/Checkbox/index.tsx';
+import { Label } from '../../../components/Label/index.tsx';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../../components/Tabs/index.tsx';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../components/Table/index.tsx';
 import { downloadAndOpenProfileArchive, downloadProfileArchive, JobFailure, JobWaitFailure } from '../../../features/android-profile/index.ts';
 import type { AndroidProfile, OpenedProfileArchive, ProbeResult, ProfileReference, ProfileResult } from '../../../features/android-profile/index.ts';
 import type { PerformanceCapabilities, PerformanceSession } from '../../../features/performance/index.ts';
 import { PerformanceJobFailure, PerformanceWaitFailure } from '../../../features/performance/index.ts';
 import type { PublishedResult } from '../../../shared/jobs/index.ts';
 import type { DeviceSnapshot } from '../../../plugin-sdk/index.ts';
-import { EmptyState, Field, JsonResult, PageTitle } from '../../../components/common/index.ts';
+import { EmptyState, Field, JsonResult, PageTitle } from '../../../components/index.ts';
 import { OperationNotice, useOperationAvailable } from '../capabilities.tsx';
 import { ActionFeedback, ErrorNotice } from '../feedback.tsx';
 import { useAction, useSnapshot } from '../hooks.ts';
 import type { ProductServices } from '../services.ts';
-import { BlobDownload, PerformanceReadings, ProfileArchiveView } from './profile-view.tsx';
+import { BlobDownload } from './profile-view.tsx';
+import { ProfileArchiveView } from '../../../features/android-profile/components/index.ts';
+import { PerformanceReadings } from '../../../features/performance/components/index.ts';
 
 function capabilityReason(devices: DeviceSnapshot, capability: string, versions: readonly number[], operation?: string): string | null {
   const selected = devices.selected;

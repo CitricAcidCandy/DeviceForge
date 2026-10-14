@@ -1,4 +1,4 @@
-import { isRecord } from '../../../shared/api/validation.ts';
+import { isRecord } from '../../../services/api/validation.ts';
 import { decimalU64, onlyKeys } from '../../../shared/jobs/index.ts';
 import { decodeProfileFrame } from './frame-results.ts';
 import { decodeProfileDerived, hasProfileCpuBaseline } from './derived.ts';

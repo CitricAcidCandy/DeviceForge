@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { ApiError, createApiClient } from '../src/shared/api/index.ts';
-import type { ApiResult } from '../src/shared/api/types.ts';
+import { ApiError, createApiClient } from '../src/services/api/index.ts';
+import type { ApiResult } from '../src/services/api/types.ts';
 import { createLatestResource } from '../src/shared/lifecycle/latest.ts';
 import { createTasks } from '../src/features/tasks/index.ts';
 import { deferred, job, requestUrl, signal, success } from './fixtures.ts';

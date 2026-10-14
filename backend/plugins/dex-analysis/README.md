@@ -1,6 +1,6 @@
 # DEX直接分析插件
 
-独立公开协议4插件，提供`plugin.dex-analysis.inspect`和`plugin.dex-analysis.scan_sdks`。输入仅为宿主授权单一`.dex`产物；SDK扫描另传有界规则。输出为统计、摘要观测及已定义类证据，不发布产物。完整合同见[DEX直接分析插件实施裁定](../../docs/DEX直接分析插件实施裁定.md)。
+独立公开协议4插件，提供`plugin.dex-analysis.inspect`和`plugin.dex-analysis.scan_sdks`。输入仅为宿主授权单一`.dex`产物；SDK扫描另传有界规则。输出为统计、摘要观测及已定义类证据，不发布产物。完整合同见[DEX直接分析插件实施裁定](../../docs/implementation/DEX直接分析插件实施裁定.md)。
 
 支持035、037、038、039、040单一标准DEX、112字节头、little-endian和空链接区。明确拒绝041容器、Compact DEX、reverse-endian。核对宿主SHA256、内部SHA-1与Adler32，检查表/映射/引用和MUTF-8名称；不解释全部代码指令、注解或编码数组，不把摘要一致视为Android完整验证器通过。
 

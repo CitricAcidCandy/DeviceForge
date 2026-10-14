@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Button } from '../../../components/ui/button.tsx';
-import { Label } from '../../../components/ui/label.tsx';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../components/ui/select.tsx';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../../components/ui/dialog.tsx';
+import { Button } from '../../../components/Button/index.tsx';
+import { Label } from '../../../components/Label/index.tsx';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../components/Select/index.tsx';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../../components/Dialog/index.tsx';
 import type { DeviceProviderInfo } from '../../../plugin-sdk/index.ts';
-import { EmptyState, Field, JsonResult } from '../../../components/common/index.ts';
+import { EmptyState, Field, JsonResult } from '../../../components/index.ts';
 import { ActionFeedback } from '../feedback.tsx';
 import { useAction, useSnapshot } from '../hooks.ts';
 import type { ProductServices } from '../services.ts';

@@ -1,5 +1,5 @@
-import { loadPluginEndpoint, pluginsEndpoint, unloadPluginEndpoint } from '../../../shared/api/index.ts';
-import type { ApiClient, ApiResult, PluginInfo } from '../../../shared/api/index.ts';
+import { loadPluginEndpoint, pluginsEndpoint, unloadPluginEndpoint } from '../../../services/api/index.ts';
+import type { ApiClient, ApiResult, PluginInfo } from '../../../services/api/index.ts';
 import { createLatestResource } from '../../../shared/lifecycle/latest.ts';
 
 export function createServerPlugins(client: ApiClient, refreshPublished: (signal: AbortSignal, id: string) => Promise<unknown>) {

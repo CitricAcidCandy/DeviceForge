@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createSettings } from '../src/features/settings/index.ts';
-import type { RemoteSettingsWrite } from '../src/features/settings/application/remote.ts';
-import type { SettingsWrite } from '../src/features/settings/domain/types.ts';
-import { ApiError } from '../src/shared/api/index.ts';
-import type { ApiResult } from '../src/shared/api/index.ts';
+import type { RemoteSettingsWrite } from '../src/features/settings/models/remote.ts';
+import type { SettingsWrite } from '../src/features/settings/types/index.ts';
+import { ApiError } from '../src/services/api/index.ts';
+import type { ApiResult } from '../src/services/api/index.ts';
 import { JobWaitFailure } from '../src/shared/jobs/index.ts';
 import type { JobGateway, JobTicket, JsonData, TaskRecord } from '../src/shared/jobs/index.ts';
 import { deferred, signal } from './fixtures.ts';

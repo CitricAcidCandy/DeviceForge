@@ -4,9 +4,19 @@
   "description": "DeviceForge 设备工坊的前后端启动与服务器插件安装入口",
   "type": "module",
   "license": "MIT",
-  "engines": { "node": ">=22.18.0" },
-  "bin": { "deviceforge": "cli/bin/deviceforge.mjs" },
-  "files": ["cli/bin", "cli/src", "cli/README.md", "runtime", "README.md"],
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "bin": {
+    "deviceforge": "cli/bin/deviceforge.mjs"
+  },
+  "files": [
+    "cli/bin",
+    "cli/src",
+    "cli/README.md",
+    "runtime",
+    "README.md"
+  ],
   "scripts": {
     "test": "node --test cli/tests/*.test.mjs scripts/tests/*.test.mjs",
     "prepare:runtime": "node scripts/prepare-runtime.mjs",
@@ -15,6 +25,11 @@
     "pack:plugins": "node scripts/pack-native-plugins.mjs",
     "smoke:cli": "node scripts/cli-smoke.mjs",
     "smoke:discovery": "node scripts/unified-discovery-smoke.mjs",
-    "smoke:discovery:browser": "node scripts/unified-discovery-browser-smoke.mjs"
+    "smoke:discovery:browser": "node scripts/unified-discovery-browser-smoke.mjs",
+    "format": "prettier --write \"frontend/src/**/*.{ts,tsx,css}\" \"frontend/scripts/**/*.ts\" \"frontend/tests/**/*.ts\" \"cli/**/*.{js,mjs,ts,json,md}\" \"scripts/**/*.{js,mjs,ts,json,md}\"",
+    "format:check": "prettier --check \"frontend/src/**/*.{ts,tsx,css}\" \"frontend/scripts/**/*.ts\" \"frontend/tests/**/*.ts\" \"cli/**/*.{js,mjs,ts,json,md}\" \"scripts/**/*.{js,mjs,ts,json,md}\""
+  },
+  "devDependencies": {
+    "prettier": "3.6.2"
   }
 }

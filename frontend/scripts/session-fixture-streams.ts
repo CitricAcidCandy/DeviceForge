@@ -1,4 +1,4 @@
-import type { SessionInfo, SessionOutputPage } from '../src/shared/api/index.ts';
+import type { SessionInfo, SessionOutputPage } from '../src/services/api/index.ts';
 
 export const fixtureReply = (data: unknown, status = 200) => Response.json({log_id: 'session-fixture-log', data}, {status, headers: {'x-deviceforge-log-id': 'session-fixture-log'}});
 export const fixtureObject = (value: unknown): value is Record<string, unknown> => value !== null && typeof value === 'object' && !Array.isArray(value);

@@ -1,4 +1,4 @@
-import { ApiError } from '../../../shared/api/index.ts';
+import { ApiError } from '../../../services/api/index.ts';
 import type { createJobRunner, JobTicket } from '../../../shared/jobs/index.ts';
 import { decodeRuntimeFeaturePreparation, decodeRuntimeFeatureStatus } from '../utils/feature-results.ts';
 import { requireRuntimeFeatureKey } from '../utils/feature-rules.ts';

@@ -1,5 +1,5 @@
-import { ApiError } from '../../../shared/api/index.ts';
-import type { OperationDto } from '../../../shared/api/index.ts';
+import { ApiError } from '../../../services/api/index.ts';
+import type { OperationDto } from '../../../services/api/index.ts';
 import { createJobRunner, jsonObject } from '../../../shared/jobs/index.ts';
 import type { JsonData } from '../../../shared/jobs/index.ts';
 import type { DeviceAction, DeviceCapability, DeviceProviderInfo, DeviceRef, DeviceSnapshot } from '../../../plugin-sdk/index.ts';

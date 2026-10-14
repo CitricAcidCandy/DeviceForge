@@ -1,5 +1,5 @@
-import { ApiError } from '../../../shared/api/index.ts';
-import { isRecord } from '../../../shared/api/validation.ts';
+import { ApiError } from '../../../services/api/index.ts';
+import { isRecord } from '../../../services/api/validation.ts';
 import { decimalU64, onlyKeys } from '../../../shared/jobs/index.ts';
 import type { ProfileRequest, ProfileReference } from '../types/index.ts';
 

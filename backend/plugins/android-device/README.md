@@ -3,7 +3,7 @@
 独立 `android-device` 通过公开设备 API3、协议4 和工具执行库接入宿主；生产不依赖宿主四层模块。首批部署目标为 Windows x64，源码及元数据落盘不代表编译、真实ADB或真机验收已通过。
 
 
-电气与温度在FPS后、最终应用身份核对前，固定读取battery/uevent、dumpsys battery和dumpsys thermalservice。uevent必须同源TYPE=Battery；保留µV及signed µA，缺测/矛盾电流极性unknown，不合并跨来源电压/电流。备用dumpsys电压mV乘1000，不使用Max charging current；UPDATES STOPPED缺测。HAL只读Ready=true且完整当前区段，类型0..3决定CPU/GPU/电池/机身；缓存、BCL与非有限记录排除。公开观测最多32温度、固定来源和宿主读取时点，原device_id完整保留；无数据省略。宿主派生正充电、负放电的整机净电池功率，详细规则与证据见[电气温度实施记录](../../docs/Android游戏电气温度采集实施.md)。
+电气与温度在FPS后、最终应用身份核对前，固定读取battery/uevent、dumpsys battery和dumpsys thermalservice。uevent必须同源TYPE=Battery；保留µV及signed µA，缺测/矛盾电流极性unknown，不合并跨来源电压/电流。备用dumpsys电压mV乘1000，不使用Max charging current；UPDATES STOPPED缺测。HAL只读Ready=true且完整当前区段，类型0..3决定CPU/GPU/电池/机身；缓存、BCL与非有限记录排除。公开观测最多32温度、固定来源和宿主读取时点，原device_id完整保留；无数据省略。宿主派生正充电、负放电的整机净电池功率，详细规则与证据见[电气温度实施记录](../../docs/implementation/Android游戏电气温度采集实施.md)。
 
 ## 名字与部署
 
@@ -57,7 +57,7 @@ Java 固定 argv 为 `-Xmx256m -jar <JAR> install-apks --apks=<私有input.apks>
 
 基础计数仍要求唯一非零u32 PID、stat原始CPU计数/starttime、匹配PID的TOTAL PSS及可选RSS、无重复且1–4096逻辑核并检查溢出。每笔客户端复用Restricted环境、两流各1MiB及真实退出确认，继续 lossy 合并及八类固定失败诊断，不回传原输出。
 
-游戏窗口只数第二快照中保留锚后的新且不同的实际展示；0/INT64_MAX、重复、时间回退、丢锚、层歧义/切换、未知格式或无新展示不造零帧。跨度最多60秒，source带层摘要，保持既有 FrameWindow 合同；宿主计算FPS、CPU差分与历史。固定调试接口依赖失败允许FPS缺测，取消、到期、输出/结构超限和未确认清理仍失败。细节与验证见 [FPS实施记录](../../docs/Android游戏FPS采集实施.md)。
+游戏窗口只数第二快照中保留锚后的新且不同的实际展示；0/INT64_MAX、重复、时间回退、丢锚、层歧义/切换、未知格式或无新展示不造零帧。跨度最多60秒，source带层摘要，保持既有 FrameWindow 合同；宿主计算FPS、CPU差分与历史。固定调试接口依赖失败允许FPS缺测，取消、到期、输出/结构超限和未确认清理仍失败。细节与验证见 [FPS实施记录](../../docs/implementation/Android游戏FPS采集实施.md)。
 
 ## 期限和清理资格
 
@@ -73,6 +73,6 @@ APKS 的确认范围仅为本次直接 Java 进程、文件与目录。bundletoo
 
 ## 交付边界
 
-`app.install_apks@1`的嵌套输入新增可选modules，缺省保持原安装argv及结果；不接提取instant或请求自选设备规格。模块规则归公共核心apks模块，真实设备匹配仍归bundletool。本批新增4项所属回归尚未运行，详见[APKS高级匹配插件实施裁定](../../docs/APKS高级匹配插件实施裁定.md)。
+`app.install_apks@1`的嵌套输入新增可选modules，缺省保持原安装argv及结果；不接提取instant或请求自选设备规格。模块规则归公共核心apks模块，真实设备匹配仍归bundletool。本批新增4项所属回归尚未运行，详见[APKS高级匹配插件实施裁定](../../docs/implementation/APKS高级匹配插件实施裁定.md)。
 
-本轮 FPS 接线已通过包级库89/89、完整协议133/133、定点格式和全目标Clippy，实际日志见 [FPS实施记录](../../docs/Android游戏FPS采集实施.md)。该证据包括独立假ADB与真实直接PID，不计真机或服务通过。宿主装配、HTTP/MCP、统一门禁与Release/npx继续由主代理协调；真实Java/bundletool/ADB、共享server、真机匹配、CPU/PSS/RSS和游戏FPS准确性、派生树、其它系统与常驻采集仍独立验收。电气与温度私有采集已按公开合同接线，当前源码冻结待主代理定点门禁；它们属于设备观测，不能据此宣称单游戏功耗。Root调用栈与持续画面已另接stack.probe/profile.record，最新证据见[Root与画面实施](../../docs/AndroidRoot堆栈与帧画面实施.md)和根todo；Root真机/游戏画面颜色/精度仍独立验收，性能专项延后。
+本轮 FPS 接线已通过包级库89/89、完整协议133/133、定点格式和全目标Clippy，实际日志见 [FPS实施记录](../../docs/implementation/Android游戏FPS采集实施.md)。该证据包括独立假ADB与真实直接PID，不计真机或服务通过。宿主装配、HTTP/MCP、统一门禁与Release/npx继续由主代理协调；真实Java/bundletool/ADB、共享server、真机匹配、CPU/PSS/RSS和游戏FPS准确性、派生树、其它系统与常驻采集仍独立验收。电气与温度私有采集已按公开合同接线，当前源码冻结待主代理定点门禁；它们属于设备观测，不能据此宣称单游戏功耗。Root调用栈与持续画面已另接stack.probe/profile.record，最新证据见[Root与画面实施](../../docs/implementation/AndroidRoot堆栈与帧画面实施.md)和根todo；Root真机/游戏画面颜色/精度仍独立验收，性能专项延后。

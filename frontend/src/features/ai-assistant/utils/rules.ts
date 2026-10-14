@@ -1,4 +1,4 @@
-import { ApiError } from '../../../shared/api/index.ts';
+import { ApiError } from '../../../services/api/index.ts';
 import { jsonObject, onlyKeys } from '../../../shared/jobs/index.ts';
 
 export const aiProjectId = (value: unknown): value is string => typeof value === 'string' && /^[A-Za-z0-9_-]{1,80}$/.test(value);

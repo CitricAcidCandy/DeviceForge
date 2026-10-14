@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createToolSupply } from '../src/features/tool-supply/index.ts';
-import { ApiError } from '../src/shared/api/index.ts';
+import { ApiError } from '../src/services/api/index.ts';
 import { JobFailure, JobWaitFailure } from '../src/shared/jobs/index.ts';
 import type { JobGateway, JsonData, TaskRecord } from '../src/shared/jobs/index.ts';
-import type { ApiResult } from '../src/shared/api/index.ts';
+import type { ApiResult } from '../src/services/api/index.ts';
 import { deferred, signal } from './fixtures.ts';
 
 const module = { module_id: 'frida', kind: 'tool', required: true, feature_key: null, available_version: '17.1.0', installed_version: null, entry_present: false, action: 'install', size: 40 };

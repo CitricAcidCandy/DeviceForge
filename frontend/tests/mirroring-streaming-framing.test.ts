@@ -1,13 +1,13 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createMirroringFramer } from '../src/features/mirroring-streaming/infrastructure/framing.ts';
-import { createMirroringStream } from '../src/features/mirroring-streaming/infrastructure/stream.ts';
-import { encodeMirroringControl, normalizeStreamInput } from '../src/features/mirroring-streaming/domain/rules.ts';
-import { mirroringH264Codec } from '../src/features/mirroring-streaming/infrastructure/h264.ts';
-import { decodeMirroringPcm } from '../src/features/mirroring-streaming/infrastructure/audio.ts';
-import { createMirroringVideoDecoder } from '../src/features/mirroring-streaming/infrastructure/video.ts';
-import type { MirroringVideoEnvironment } from '../src/features/mirroring-streaming/infrastructure/video.ts';
-import { ApiError } from '../src/shared/api/index.ts';
+import { createMirroringFramer } from '../src/features/mirroring-streaming/services/framing.ts';
+import { createMirroringStream } from '../src/features/mirroring-streaming/services/stream.ts';
+import { encodeMirroringControl, normalizeStreamInput } from '../src/features/mirroring-streaming/utils/rules.ts';
+import { mirroringH264Codec } from '../src/features/mirroring-streaming/services/h264.ts';
+import { decodeMirroringPcm } from '../src/features/mirroring-streaming/services/audio.ts';
+import { createMirroringVideoDecoder } from '../src/features/mirroring-streaming/services/video.ts';
+import type { MirroringVideoEnvironment } from '../src/features/mirroring-streaming/services/video.ts';
+import { ApiError } from '../src/services/api/index.ts';
 import { deferred, signal } from './fixtures.ts';
 
 function frame(kind: number, data: unknown, flags = 0, epoch = 1, timestamp = 0n): number[] {

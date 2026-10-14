@@ -1,6 +1,6 @@
 import type { ArtifactAccess } from '../../../plugin-sdk/index.ts';
-import { abortable } from '../../../shared/api/abort.ts';
-import { ApiError } from '../../../shared/api/index.ts';
+import { abortable } from '../../../services/api/abort.ts';
+import { ApiError } from '../../../services/api/index.ts';
 import { createJobRunner, downloadPublishedArtifact, requireJson } from '../../../shared/jobs/index.ts';
 import type { JobGateway, JobTicket, PublishedResult } from '../../../shared/jobs/index.ts';
 import { fridaDuration, frozenFridaCopy, requireFridaBusinessInput, requireFridaInput } from '../utils/rules.ts';

@@ -1,6 +1,6 @@
 import { HostError } from '../../../plugin-sdk/index.ts';
 import type { HostResult, Job } from '../../../plugin-sdk/index.ts';
-import type { ApiClient, ApiResult } from '../../../shared/api/index.ts';
+import type { ApiClient, ApiResult } from '../../../services/api/index.ts';
 import { createHttpJobGateway, isJsonData } from '../../../shared/jobs/index.ts';
 import type { TaskRecord } from '../../../shared/jobs/index.ts';
 import type { PerformanceGateway } from '../types/index.ts';

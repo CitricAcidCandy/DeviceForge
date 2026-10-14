@@ -1,4 +1,4 @@
-import { isRecord } from '../../../shared/api/validation.ts';
+import { isRecord } from '../../../services/api/validation.ts';
 import { decodeEmptyArtifactResult, invalidBusinessResult, naturalNumber, nonemptyText } from '../../../shared/jobs/index.ts';
 import type { ToolCatalog, ToolInstallResult, ToolModule, ToolPlan, ToolRemoval } from '../types/index.ts';
 import { compareToolVersions, toolModuleId, toolVersion } from './rules.ts';

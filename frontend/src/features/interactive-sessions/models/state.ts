@@ -1,5 +1,5 @@
-import { ApiError } from '../../../shared/api/index.ts';
-import type { SessionOutputPage } from '../../../shared/api/index.ts';
+import { ApiError } from '../../../services/api/index.ts';
+import type { SessionOutputPage } from '../../../services/api/index.ts';
 import { mergeInfo } from '../utils/rules.ts';
 import type { InteractiveSessionSnapshot, SessionAction, SessionInfoView } from '../types/index.ts';
 

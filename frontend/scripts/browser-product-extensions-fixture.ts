@@ -1,5 +1,5 @@
 import type { CommandContribution, JsonValue, WebPlugin } from '../src/plugin-sdk/index.ts';
-import type { JobDto, OperationDto, PackageInfo } from '../src/shared/api/index.ts';
+import type { JobDto, OperationDto, PackageInfo } from '../src/services/api/index.ts';
 import { createSettingsBrowserFixture } from './browser-product-extensions-settings-fixture.ts';
 
 export const extensionPluginId = 'fixture.product';

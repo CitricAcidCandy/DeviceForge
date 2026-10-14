@@ -1,4 +1,4 @@
-import { ApiError } from '../../../shared/api/index.ts';
+import { ApiError } from '../../../services/api/index.ts';
 import type { MirroringStreamAction, MirroringStreamingSnapshot } from '../types/index.ts';
 
 type Lane = 'definitions' | 'observe' | 'input' | 'cancel';

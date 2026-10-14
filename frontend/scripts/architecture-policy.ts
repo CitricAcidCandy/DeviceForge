@@ -37,7 +37,7 @@ function featureDependency(origin: readonly string[], target: readonly string[])
   const from = origin[2] ?? '';
   if (target[0] === 'components') return from === 'components' && publicComponentEntry(target);
   if (target[0] === 'utils') return true;
-  if (target[0] !== 'features') return ['shared', 'plugin-sdk'].includes(target[0] ?? '');
+  if (target[0] !== 'features') return ['shared', 'services', 'plugin-sdk'].includes(target[0] ?? '');
   if (origin[1] !== target[1]) return false;
   const to = target[2] ?? '';
   if (coreEntry(origin)) return coreEntry(target) || ['models', 'services', 'types', 'utils'].includes(to);
@@ -52,14 +52,15 @@ export function allowedDependency(from: string, to: string): boolean {
   const targetRoot = target[0] ?? '';
   switch (origin[0]) {
     case 'app': return targetRoot === 'features' ? coreEntry(target) || featureViewEntry(target)
-      : targetRoot === 'components' ? publicComponentEntry(target) : ['app', 'utils', 'plugins', 'shared', 'plugin-sdk'].includes(targetRoot);
+      : targetRoot === 'components' ? publicComponentEntry(target) : ['app', 'utils', 'plugins', 'shared', 'services', 'plugin-sdk'].includes(targetRoot);
     case 'features': return featureDependency(origin, target);
     case 'components': return componentDependency(origin, target);
+    case 'services': return ['services', 'shared', 'utils', 'plugin-sdk'].includes(targetRoot);
     case 'utils': return targetRoot === 'utils';
     case 'plugins': return ['plugins', 'plugin-sdk'].includes(targetRoot);
     case 'plugin-sdk': return targetRoot === 'plugin-sdk';
-    case 'shared': return targetRoot === 'utils' || targetRoot === 'shared' && (origin[1] !== 'ui' || target[1] === 'ui');
-    case 'tests': return ['app', 'features', 'components', 'utils', 'plugins', 'shared', 'plugin-sdk'].includes(targetRoot);
+    case 'shared': return targetRoot === 'utils' || targetRoot === 'services' || targetRoot === 'shared' && (origin[1] !== 'ui' || target[1] === 'ui');
+    case 'tests': return ['app', 'features', 'components', 'utils', 'plugins', 'shared', 'services', 'plugin-sdk'].includes(targetRoot);
     default: return false;
   }
 }

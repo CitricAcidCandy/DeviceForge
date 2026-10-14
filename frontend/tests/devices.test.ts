@@ -3,8 +3,8 @@ import test from 'node:test';
 import { createFrontendRuntime } from '../src/app/index.ts';
 import { HostError } from '../src/plugin-sdk/index.ts';
 import type { DeviceAccess, DeviceAction } from '../src/plugin-sdk/index.ts';
-import { ApiError, createApiClient, deviceDirectoriesEndpoint, deviceProvidersEndpoint, refreshDeviceProviderEndpoint } from '../src/shared/api/index.ts';
-import type { DeviceDirectoryDto } from '../src/shared/api/index.ts';
+import { ApiError, createApiClient, deviceDirectoriesEndpoint, deviceProvidersEndpoint, refreshDeviceProviderEndpoint } from '../src/services/api/index.ts';
+import type { DeviceDirectoryDto } from '../src/services/api/index.ts';
 import { directory, provider } from './device-fixtures.ts';
 import { deferred, failure, job, plugin, requestUrl, signal, success } from './fixtures.ts';
 

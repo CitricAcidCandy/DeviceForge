@@ -2,7 +2,7 @@ import { HostError } from '../plugin-sdk/index.ts';
 import type { HostContext, JsonValue } from '../plugin-sdk/index.ts';
 import { normalizeMirroringControl, normalizeStreamInput } from '../features/mirroring-streaming/index.ts';
 import type { createMirroringStreaming, MirroringOutputOptions, MirroringPacketOutputResult, MirroringStreamingSnapshot } from '../features/mirroring-streaming/index.ts';
-import type { ApiError, ApiResult } from '../shared/api/index.ts';
+import type { ApiError, ApiResult } from '../services/api/index.ts';
 import { isJsonData } from '../shared/jobs/index.ts';
 import type { ExtensionRegistry } from '../plugins/extensions/registry.ts';
 import { publicCall } from './public-api.ts';

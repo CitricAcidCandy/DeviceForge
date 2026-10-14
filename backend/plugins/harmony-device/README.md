@@ -14,4 +14,4 @@ HDC 使用固定独立参数。安装前校验唯一 `/input/artifact_id`、HAP 
 
 `config` 管配置资格与沿原期限的有界读取；`operations` 管严格设备/提供者封套与动作委派；`applications` 管完整详情、启停、重置与首模块推导；`network` 管连接地址、响应和固定命令；`rules` 管纯业务资格与 HDC 文本；`discovery` 管整份发现解析；`control` 管进程和阻塞工作租约、固定清理点与未确认标记；`session` 管私有 HAP 目录、副本与文件工作；`screenshot` 管远端独占截图、帧回执、流式解码及授权交付。新增业务不进入通用宿主路由。
 
-源码、清单和测试落盘不代表 Cargo、服务、分发或真机通过。请按 `backend/docs/Harmony核心设备插件实施裁定.md`、`backend/docs/Harmony应用启停与重置插件实施裁定.md`、`backend/docs/Harmony应用详情插件实施裁定.md`、`backend/docs/Harmony连接与断开插件实施裁定.md` 与 `backend/docs/Harmony截图插件实施裁定.md` 分层执行验证。
+源码、清单和测试落盘不代表 Cargo、服务、分发或真机通过。请按 `backend/docs/implementation/Harmony核心设备插件实施裁定.md`、`backend/docs/implementation/Harmony应用启停与重置插件实施裁定.md`、`backend/docs/implementation/Harmony应用详情插件实施裁定.md`、`backend/docs/implementation/Harmony连接与断开插件实施裁定.md` 与 `backend/docs/implementation/Harmony截图插件实施裁定.md` 分层执行验证。

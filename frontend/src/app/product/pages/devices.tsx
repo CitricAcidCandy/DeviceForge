@@ -1,9 +1,9 @@
 import { RefreshCw, Smartphone, Check, ArrowUpRight, PlugZap } from 'lucide-react';
-import { Button } from '../../../components/ui/button.tsx';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../components/ui/table.tsx';
+import { Button } from '../../../components/Button/index.tsx';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../components/Table/index.tsx';
 import type { ProductServices } from '../services.ts';
 import { useAction, useSnapshot } from '../hooks.ts';
-import { EmptyState, JsonResult, PageTitle } from '../../../components/common/index.ts';
+import { EmptyState, JsonResult, PageTitle } from '../../../components/index.ts';
 import { ActionFeedback } from '../feedback.tsx';
 import { DevicesConnect } from './devices-connect.tsx';
 

@@ -1,6 +1,6 @@
 import { HostError } from '../plugin-sdk/index.ts';
 import type { DeviceAccess, Dispose, HostContext, Operation } from '../plugin-sdk/index.ts';
-import type { OperationDto } from '../shared/api/index.ts';
+import type { OperationDto } from '../services/api/index.ts';
 import type { Operations } from '../features/operations/index.ts';
 import type { Tasks } from '../features/tasks/index.ts';
 import { publicCall, publicJob, publicOperation } from './public-api.ts';

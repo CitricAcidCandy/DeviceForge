@@ -1,4 +1,4 @@
-import type { ApiError, SessionDefinitions, SessionInfo, SessionOutputPage, SessionOutputQuery } from '../../../shared/api/index.ts';
+import type { ApiError, SessionDefinitions, SessionInfo, SessionOutputPage, SessionOutputQuery } from '../../../services/api/index.ts';
 
 export type SessionAction = 'definitions' | 'records' | 'open' | 'resume' | 'query' | 'output' | 'input' | 'eof' | 'cancel' | 'remove';
 export type SessionInfoView = Readonly<SessionInfo>;

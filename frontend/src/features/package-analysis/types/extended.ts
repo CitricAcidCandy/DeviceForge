@@ -1,4 +1,4 @@
-import type { components } from '../../../shared/api/generated.ts';
+import type { components } from '../../../services/api/generated.ts';
 import type { PublishedResult } from '../../../shared/jobs/index.ts';
 import type { PackageArtifactInput } from './index.ts';
 

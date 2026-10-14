@@ -7,7 +7,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
 import { createServer } from 'vite';
-import type { createBrowserMirroringSink } from '../src/features/mirroring-streaming/infrastructure/browser-sink.ts';
+import type { createBrowserMirroringSink } from '../src/features/mirroring-streaming/services/browser-sink.ts';
 
 interface Check { readonly name: string; readonly passed: boolean; readonly detail: unknown }
 interface BrowserResult { readonly passed: boolean; readonly checks: readonly Check[]; readonly capabilities: Record<string, unknown>; readonly video: Record<string, unknown>; readonly audio: Record<string, unknown> }

@@ -1,4 +1,4 @@
-import type { ApiError, ApiResult, OperationDto } from '../../../shared/api/index.ts';
+import type { ApiError, ApiResult, OperationDto } from '../../../services/api/index.ts';
 import type { JobOptions } from '../../../shared/jobs/index.ts';
 
 export type AiSdkAction = 'runtime.status' | 'sdk.single' | 'sdk.turn' | 'session.get' | 'session.close' | 'assistant.run';

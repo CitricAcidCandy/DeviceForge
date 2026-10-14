@@ -1,4 +1,4 @@
-import { isRecord } from '../../../shared/api/validation.ts';
+import { isRecord } from '../../../services/api/validation.ts';
 import { onlyKeys } from '../../../shared/jobs/index.ts';
 import { boundedText, invalidProfile } from './rules.ts';
 import type { ProfileDerived, ProfileMetrics } from '../types/index.ts';

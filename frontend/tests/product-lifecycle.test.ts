@@ -4,7 +4,7 @@ import { createMediaControlQueue } from '../src/app/product/media-controls.ts';
 import { probeProductConnection, productServiceOrigin } from '../src/app/product/connection.ts';
 import { createProductServices } from '../src/app/product/services.ts';
 import { withSelectedDevice } from '../src/app/product/device-target.ts';
-import { ApiError } from '../src/shared/api/index.ts';
+import { ApiError } from '../src/services/api/index.ts';
 import type { MirroringControl } from '../src/features/mirroring-streaming/index.ts';
 import { directory, provider } from './device-fixtures.ts';
 import { deferred, failure, requestUrl, signal, success } from './fixtures.ts';

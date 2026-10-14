@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createAutomation } from '../src/features/automation/index.ts';
-import { ApiError } from '../src/shared/api/index.ts';
+import { ApiError } from '../src/services/api/index.ts';
 import type { JobGateway, JsonData } from '../src/shared/jobs/index.ts';
 import { signal } from './fixtures.ts';
 

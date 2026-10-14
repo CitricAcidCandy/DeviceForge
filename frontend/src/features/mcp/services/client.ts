@@ -1,6 +1,6 @@
-import { ApiError } from '../../../shared/api/index.ts';
-import { abortable } from '../../../shared/api/abort.ts';
-import type { McpTransport } from '../../../shared/api/index.ts';
+import { ApiError } from '../../../services/api/index.ts';
+import { abortable } from '../../../services/api/abort.ts';
+import type { McpTransport } from '../../../services/api/index.ts';
 import { readSse } from './sse.ts';
 import { decodeAcknowledgement, decodeNotification, decodeRpc, decodeToolsPage } from './protocol.ts';
 import type { McpClient, McpSnapshot, McpSubscriptionHandlers, McpTool } from '../types/index.ts';

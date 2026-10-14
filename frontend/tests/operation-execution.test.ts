@@ -4,9 +4,9 @@ import { createFrontendRuntime } from '../src/app/index.ts';
 import { publicCall, publicOperation } from '../src/app/public-api.ts';
 import { HostError } from '../src/plugin-sdk/index.ts';
 import type { Operation } from '../src/plugin-sdk/index.ts';
-import { ApiError, createApiClient, operationsEndpoint } from '../src/shared/api/index.ts';
-import { isOperationExecution } from '../src/shared/api/operation-execution-validation.ts';
-import { isOperation } from '../src/shared/api/validation.ts';
+import { ApiError, createApiClient, operationsEndpoint } from '../src/services/api/index.ts';
+import { isOperationExecution } from '../src/services/api/operation-execution-validation.ts';
+import { isOperation } from '../src/services/api/validation.ts';
 import { job, requestUrl, signal, success } from './fixtures.ts';
 
 // 夹具先作为未知响应消费，不复制生成 DTO，也不把预算放入提交参数。

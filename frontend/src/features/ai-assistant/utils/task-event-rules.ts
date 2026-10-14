@@ -1,6 +1,6 @@
-import { ApiError } from '../../../shared/api/index.ts';
-import type { EventQuery, JobEventDto } from '../../../shared/api/index.ts';
-import { isJobEvent, isRecord } from '../../../shared/api/validation.ts';
+import { ApiError } from '../../../services/api/index.ts';
+import type { EventQuery, JobEventDto } from '../../../services/api/index.ts';
+import { isJobEvent, isRecord } from '../../../services/api/validation.ts';
 import type { JobTicket } from '../../../shared/jobs/index.ts';
 
 const operations = new Set(['runtime.status', 'cli.single', 'cli.turn', 'session.get', 'session.close'].map((action) => `plugin.ai-assistant.${action}`));

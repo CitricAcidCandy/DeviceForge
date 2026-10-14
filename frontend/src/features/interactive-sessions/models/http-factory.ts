@@ -1,5 +1,5 @@
-import { createHttpSessionGateway } from '../../../shared/api/index.ts';
-import type { ApiClient } from '../../../shared/api/index.ts';
+import { createHttpSessionGateway } from '../../../services/api/index.ts';
+import type { ApiClient } from '../../../services/api/index.ts';
 import type { InteractiveSessionOptions } from '../types/index.ts';
 import { createInteractiveSessions } from './interactive-sessions.ts';
 

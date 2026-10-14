@@ -5,4 +5,4 @@ build.rs 负责副本、工具、监测和发布；validation.rs 薄层消费独
 
 build_with_context 的 Some(D) 从准备至发布复用同一绝对点，不另加工具 120 秒上限；None 保留整个流程 120 秒。with_capacity 由服务器共享容量，但风险观测归本实例。工具与输出监测并发收口，共用一次两秒窗口；CleanupFailed 优先返回，禁止继续校验与发布。丢弃 Future 的工具未确认标记持久保留，之后成功不能清零；同步工作仍持许可和目录至实际闭包退出。
 
-关键测试：cargo test -p apk-infrastructure bundles。fixtures/bundletool.rs 是独立模拟工具，真实 argv 和取消测试不代表真实 AAB 构建及真机验收。详细契约见 backend/docs/AAB构建接口.md。
+关键测试：cargo test -p apk-infrastructure bundles。fixtures/bundletool.rs 是独立模拟工具，真实 argv 和取消测试不代表真实 AAB 构建及真机验收。详细契约见 backend/docs/contracts/AAB构建接口.md。

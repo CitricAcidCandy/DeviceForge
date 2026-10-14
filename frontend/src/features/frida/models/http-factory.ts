@@ -1,6 +1,6 @@
 import type { ArtifactAccess } from '../../../plugin-sdk/index.ts';
-import { operationsEndpoint, uploadEndpoint } from '../../../shared/api/index.ts';
-import type { ApiClient } from '../../../shared/api/index.ts';
+import { operationsEndpoint, uploadEndpoint } from '../../../services/api/index.ts';
+import type { ApiClient } from '../../../services/api/index.ts';
 import { createHttpJobGateway } from '../../../shared/jobs/index.ts';
 import type { FridaOptions } from '../types/index.ts';
 import { createFrida } from './frida.ts';

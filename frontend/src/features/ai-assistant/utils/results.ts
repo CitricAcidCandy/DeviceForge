@@ -1,4 +1,4 @@
-import { isRecord } from '../../../shared/api/validation.ts';
+import { isRecord } from '../../../services/api/validation.ts';
 import { decimalU64, decodeEmptyArtifactResult, invalidBusinessResult, isJsonData, jsonObject } from '../../../shared/jobs/index.ts';
 import type { AiRuntimeStatus, AiSessionInput, AiSessionResult, AiTurnResult } from '../types/index.ts';
 import { aiProjectId, aiThreadId } from './rules.ts';

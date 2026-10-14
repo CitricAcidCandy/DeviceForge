@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createSettings } from '../src/features/settings/index.ts';
-import { ApiError } from '../src/shared/api/index.ts';
+import { ApiError } from '../src/services/api/index.ts';
 import { createJobRunner, downloadPublishedArtifact, JobFailure, JobWaitFailure, requireJson } from '../src/shared/jobs/index.ts';
 import type { JobGateway, JsonData, TaskRecord } from '../src/shared/jobs/index.ts';
 import type { HostResult } from '../src/plugin-sdk/index.ts';

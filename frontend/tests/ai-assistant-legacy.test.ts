@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { convertLegacyAiSingleRequest, createAiAssistant } from '../src/features/ai-assistant/index.ts';
 import type { AiLegacySingleOptions, AiSingleInput } from '../src/features/ai-assistant/index.ts';
-import { convertLegacyAiSingleRequest as directConverter } from '../src/features/ai-assistant/domain/legacy.ts';
-import { ApiError } from '../src/shared/api/index.ts';
+import { convertLegacyAiSingleRequest as directConverter } from '../src/features/ai-assistant/utils/legacy.ts';
+import { ApiError } from '../src/services/api/index.ts';
 import type { JobGateway, JsonData } from '../src/shared/jobs/index.ts';
 
 const projectRoot = String.raw`C:\Projects\项目示例`;

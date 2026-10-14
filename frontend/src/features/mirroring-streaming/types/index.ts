@@ -1,4 +1,4 @@
-import type { ApiError, SessionDefinitions, SessionInfo, SessionOutputQuery } from '../../../shared/api/index.ts';
+import type { ApiError, SessionDefinitions, SessionInfo, SessionOutputQuery } from '../../../services/api/index.ts';
 
 export interface MirroringStreamInput {
   readonly device_id: string;

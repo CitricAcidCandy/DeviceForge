@@ -1,6 +1,6 @@
 import { HostError } from '../../../plugin-sdk/index.ts';
 import type { HostResult, Job, JsonValue } from '../../../plugin-sdk/index.ts';
-import { abortable } from '../../../shared/api/abort.ts';
+import { abortable } from '../../../services/api/abort.ts';
 import { performanceOperation } from '../utils/results.ts';
 import type { PerformanceAction, PerformanceGateway, PerformanceOptions, PerformanceOutcome } from '../types/index.ts';
 

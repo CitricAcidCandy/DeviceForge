@@ -1,4 +1,4 @@
-import { ApiError } from '../../../shared/api/index.ts';
+import { ApiError } from '../../../services/api/index.ts';
 import { createJobRunner, requireJson } from '../../../shared/jobs/index.ts';
 import type { ArtifactReader, JobGateway, JobTicket } from '../../../shared/jobs/index.ts';
 import { createDesktopAutomation } from './desktop.ts';

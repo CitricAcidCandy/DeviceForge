@@ -1,7 +1,7 @@
 import { HostError } from '../plugin-sdk/index.ts';
 import type { HostContext, JsonValue } from '../plugin-sdk/index.ts';
 import type { createAiSdkStreaming, AiSdkStreamInput, AiSdkStreamOwner, AiSdkStreamingSnapshot, AiSdkStreamReadOptions } from '../features/ai-sdk-streaming/index.ts';
-import type { ApiError, ApiResult } from '../shared/api/index.ts';
+import type { ApiError, ApiResult } from '../services/api/index.ts';
 import { isJsonData } from '../shared/jobs/values.ts';
 import type { ExtensionRegistry } from '../plugins/extensions/registry.ts';
 import { publicCall } from './public-api.ts';

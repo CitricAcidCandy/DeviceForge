@@ -1,4 +1,4 @@
-import { ApiError } from '../../../shared/api/index.ts';
+import { ApiError } from '../../../services/api/index.ts';
 import { decimalU64 } from '../../../shared/jobs/index.ts';
 import { integer, PROFILE_LIMITS } from './rules.ts';
 import type { StackFrame, StackSample } from '../types/index.ts';

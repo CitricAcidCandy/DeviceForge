@@ -3,7 +3,7 @@ import test from 'node:test';
 import { createFrontendRuntime } from '../src/app/index.ts';
 import { HostError } from '../src/plugin-sdk/index.ts';
 import type { DeviceAccess, DeviceAction } from '../src/plugin-sdk/index.ts';
-import type { DeviceDirectoryDto, DeviceProviderDto } from '../src/shared/api/index.ts';
+import type { DeviceDirectoryDto, DeviceProviderDto } from '../src/services/api/index.ts';
 import { directory, provider } from './device-fixtures.ts';
 import { deferred, job, requestUrl, signal, success } from './fixtures.ts';
 

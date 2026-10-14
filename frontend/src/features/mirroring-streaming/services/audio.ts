@@ -1,4 +1,4 @@
-import { ApiError } from '../../../shared/api/index.ts';
+import { ApiError } from '../../../services/api/index.ts';
 import type { MirroringAudioConfig } from '../types/index.ts';
 
 export interface MirroringAudioOptions {

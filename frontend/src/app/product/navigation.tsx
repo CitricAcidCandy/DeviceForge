@@ -1,4 +1,4 @@
-import { Button } from '../../components/ui/button.tsx';
+import { Button } from '../../components/Button/index.tsx';
 import { PRODUCT_ROUTES } from './routes.ts';
 import type { ProductRoute } from './routes.ts';
 

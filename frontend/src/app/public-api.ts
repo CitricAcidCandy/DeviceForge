@@ -1,9 +1,9 @@
 import { HostError } from '../plugin-sdk/index.ts';
 import type { HostResult, Job, Operation } from '../plugin-sdk/index.ts';
-import { ApiError } from '../shared/api/index.ts';
-import type { JobDto, OperationDto } from '../shared/api/index.ts';
+import { ApiError } from '../services/api/index.ts';
+import type { JobDto, OperationDto } from '../services/api/index.ts';
 import { isJsonValue } from '../plugin-sdk/json.ts';
-import { isOperationExecution } from '../shared/api/operation-execution-validation.ts';
+import { isOperationExecution } from '../services/api/operation-execution-validation.ts';
 
 export function publicOperation(dto: OperationDto): Operation {
   if (!isJsonValue(dto.input_schema)) throw new HostError('protocol', 'invalid_schema', '操作模式不是 JSON 值');

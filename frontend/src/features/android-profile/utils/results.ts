@@ -1,4 +1,4 @@
-import { isRecord } from '../../../shared/api/validation.ts';
+import { isRecord } from '../../../services/api/validation.ts';
 import { decimalU64, decodeArtifactEnvelope, onlyKeys, requireArtifactNames } from '../../../shared/jobs/index.ts';
 import type { PublishedResult } from '../../../shared/jobs/index.ts';
 import { PROFILE_LIMITS, deviceId, boundedText, integer, invalidProfile, nullableText, packageName } from './rules.ts';

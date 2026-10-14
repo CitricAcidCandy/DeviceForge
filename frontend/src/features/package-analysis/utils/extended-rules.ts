@@ -1,4 +1,4 @@
-import { ApiError } from '../../../shared/api/index.ts';
+import { ApiError } from '../../../services/api/index.ts';
 import { jsonObject, naturalNumber, onlyKeys } from '../../../shared/jobs/index.ts';
 import type { PackageBuildInput, PackageDeviceSpec, PackageScanInput, PackageSdkRule, PackageSplitsInput } from '../types/extended.ts';
 import { normalizeArtifact } from './rules.ts';

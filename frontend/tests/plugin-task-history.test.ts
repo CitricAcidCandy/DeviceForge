@@ -10,8 +10,8 @@ import { createTasks } from '../src/features/tasks/index.ts';
 import { HostError } from '../src/plugin-sdk/index.ts';
 import type { HostContext, HostResult, TaskHistoryAccess } from '../src/plugin-sdk/index.ts';
 import { createPluginScope } from '../src/plugins/scope.ts';
-import { ApiError, createApiClient } from '../src/shared/api/index.ts';
-import type { ApiResult, JobDto, JobEventDto } from '../src/shared/api/index.ts';
+import { ApiError, createApiClient } from '../src/services/api/index.ts';
+import type { ApiResult, JobDto, JobEventDto } from '../src/services/api/index.ts';
 import { deferred, failure, job, plugin, requestUrl, signal, success } from './fixtures.ts';
 
 const runtimeOptions = { baseUrl: 'http://localhost:7031', panelTarget: () => null };

@@ -1,4 +1,4 @@
-import { PageTitle } from '../../../components/common/index.ts';
+import { PageTitle } from '../../../components/index.ts';
 import type { ProductServices } from '../services.ts';
 import { DeviceAutomation } from './automation-device.tsx';
 import { DesktopAutomation } from './automation-desktop.tsx';

@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createFrida } from '../src/features/frida/index.ts';
-import { ApiError } from '../src/shared/api/index.ts';
+import { ApiError } from '../src/services/api/index.ts';
 import type { ArtifactAccess } from '../src/plugin-sdk/index.ts';
-import type { ArtifactDto } from '../src/shared/api/index.ts';
+import type { ArtifactDto } from '../src/services/api/index.ts';
 import type { JobGateway, JsonData } from '../src/shared/jobs/index.ts';
 import { signal } from './fixtures.ts';
 

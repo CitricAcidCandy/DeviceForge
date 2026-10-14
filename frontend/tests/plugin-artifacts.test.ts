@@ -9,7 +9,7 @@ import { createTasks } from '../src/features/tasks/index.ts';
 import { HostError } from '../src/plugin-sdk/index.ts';
 import type { ArtifactAccess, HostContext, HostResult } from '../src/plugin-sdk/index.ts';
 import { createPluginScope } from '../src/plugins/scope.ts';
-import { createApiClient } from '../src/shared/api/index.ts';
+import { createApiClient } from '../src/services/api/index.ts';
 import { deferred, failure, requestUrl, signal, success } from './fixtures.ts';
 
 // 响应夹具仅作为未知 HTTP 数据消费，不手写生成 DTO 或调用真实服务。

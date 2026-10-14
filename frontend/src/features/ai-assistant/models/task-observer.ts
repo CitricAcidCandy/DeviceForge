@@ -1,8 +1,8 @@
 import type { AiTaskGateway, AiTaskObservation, AiTaskSnapshot } from '../types/task-events.ts';
 export type { AiTaskGateway, AiTaskObservation, AiTaskSnapshot } from '../types/task-events.ts';
-import { ApiError } from '../../../shared/api/index.ts';
-import type { ApiResult, EventQuery, JobEventDto } from '../../../shared/api/index.ts';
-import { abortable } from '../../../shared/api/abort.ts';
+import { ApiError } from '../../../services/api/index.ts';
+import type { ApiResult, EventQuery, JobEventDto } from '../../../services/api/index.ts';
+import { abortable } from '../../../services/api/abort.ts';
 import { createJobRunner } from '../../../shared/jobs/index.ts';
 import type { JobTicket } from '../../../shared/jobs/index.ts';
 import { createLatestResource } from '../../../shared/lifecycle/latest.ts';

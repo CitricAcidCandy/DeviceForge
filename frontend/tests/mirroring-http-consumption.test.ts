@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createHttpMirroring, createMirroring } from '../src/features/mirroring/index.ts';
-import { ApiError, createApiClient } from '../src/shared/api/index.ts';
-import type { ArtifactDto, OperationDto } from '../src/shared/api/index.ts';
+import { ApiError, createApiClient } from '../src/services/api/index.ts';
+import type { ArtifactDto, OperationDto } from '../src/services/api/index.ts';
 import type { ArtifactReader, JobGateway, JsonData, TaskRecord } from '../src/shared/jobs/index.ts';
 import { JobWaitFailure } from '../src/shared/jobs/index.ts';
-import { decodeMirroringRecording, decodeMirroringStatus } from '../src/features/mirroring/domain/results.ts';
-import { requireMirroringRequest } from '../src/features/mirroring/domain/rules.ts';
+import { decodeMirroringRecording, decodeMirroringStatus } from '../src/features/mirroring/utils/results.ts';
+import { requireMirroringRequest } from '../src/features/mirroring/utils/rules.ts';
 import { deferred, requestUrl, signal, success } from './fixtures.ts';
 
 const request = { device_id: 'emulator-5554', duration_ms: 1100 };

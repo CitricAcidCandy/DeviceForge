@@ -1,6 +1,6 @@
 import { HostError } from '../plugin-sdk/index.ts';
 import type { Artifact, ArtifactAccess, HostResult } from '../plugin-sdk/index.ts';
-import type { ApiResult, ArtifactDto } from '../shared/api/index.ts';
+import type { ApiResult, ArtifactDto } from '../services/api/index.ts';
 import { publicCall } from './public-api.ts';
 
 // 接收 runtime 已有传输端口；生成 DTO 只在宿主内部使用。

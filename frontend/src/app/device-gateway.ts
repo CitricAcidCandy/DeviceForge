@@ -1,7 +1,7 @@
 import type { DeviceAction, DeviceCapability, DeviceDirectory, DeviceProviderInfo, DeviceRef } from '../plugin-sdk/index.ts';
 import type { DeviceGateway } from '../features/devices/index.ts';
-import { deviceActionEndpoint, deviceDirectoriesEndpoint, deviceProvidersEndpoint, refreshDeviceProviderEndpoint } from '../shared/api/index.ts';
-import type { ApiClient, DeviceActionDto, DeviceDirectoryDto, DeviceProviderDto, DeviceRefDto } from '../shared/api/index.ts';
+import { deviceActionEndpoint, deviceDirectoriesEndpoint, deviceProvidersEndpoint, refreshDeviceProviderEndpoint } from '../services/api/index.ts';
+import type { ApiClient, DeviceActionDto, DeviceDirectoryDto, DeviceProviderDto, DeviceRefDto } from '../services/api/index.ts';
 import { publicCall, publicJob } from './public-api.ts';
 
 function capability(dto: DeviceProviderDto['definition']['capabilities'][number]): DeviceCapability {

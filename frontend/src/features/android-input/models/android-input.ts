@@ -1,6 +1,6 @@
 import { HostError } from '../../../plugin-sdk/index.ts';
-import { ApiError } from '../../../shared/api/index.ts';
-import { abortable } from '../../../shared/api/abort.ts';
+import { ApiError } from '../../../services/api/index.ts';
+import { abortable } from '../../../services/api/abort.ts';
 import { androidInputAction, normalizeAndroidInput } from '../utils/rules.ts';
 import { decodeAndroidInputResult } from '../utils/results.ts';
 import type { AndroidInputDevices, AndroidInputResult, AndroidUnicodeInput } from '../types/index.ts';

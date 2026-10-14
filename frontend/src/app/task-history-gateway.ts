@@ -1,8 +1,8 @@
 import { HostError } from '../plugin-sdk/index.ts';
 import type { HistoricalJob, HostResult, Job, JobEvent, TaskEventQuery, TaskHistoryAccess, TaskHistoryQuery } from '../plugin-sdk/index.ts';
 import { isJsonValue } from '../plugin-sdk/json.ts';
-import type { ApiResult, EventQuery, JobDto, JobEventDto, JobQuery } from '../shared/api/index.ts';
-import { abortable } from '../shared/api/abort.ts';
+import type { ApiResult, EventQuery, JobDto, JobEventDto, JobQuery } from '../services/api/index.ts';
+import { abortable } from '../services/api/abort.ts';
 import { publicCall, publicJob } from './public-api.ts';
 
 // 注入现有任务端口；生成类型只在宿主适配层使用，不复制 HTTP 或持久化业务。

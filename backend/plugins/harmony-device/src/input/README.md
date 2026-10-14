@@ -1,6 +1,6 @@
 # Harmony 离散输入
 
-本模块使用固定OpenHarmony `uitest 5.0.1.1` 档案；官方不可变源码、私有模式和当前验收边界见 [实施裁定](../../../../docs/Harmony输入插件实施裁定.md#10-官方取证后的私有实现合同)。它不依赖Android插件、宿主内部模块、HTTP DTO或设备端常驻辅助程序。
+本模块使用固定OpenHarmony `uitest 5.0.1.1` 档案；官方不可变源码、私有模式和当前验收边界见 [实施裁定](../../../../docs/implementation/Harmony输入插件实施裁定.md#10-官方取证后的私有实现合同)。它不依赖Android插件、宿主内部模块、HTTP DTO或设备端常驻辅助程序。
 
 - `models/rules`严格解析 `{action}`，坐标为1至32767，滑动采用200至40000像素每秒的 `velocity_pps`，不接受Android `duration_ms` 或按键长按标志。
 - 文本必须提供 `x/y`，支持最多1024个UTF-8字节，拒绝控制符；设备工具先点击定位，随后逐键输入或通过剪贴板粘贴，剪贴板可能改变。可选enter发送Harmony原生码2054。

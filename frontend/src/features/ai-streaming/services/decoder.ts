@@ -1,4 +1,4 @@
-import { isSessionBytes, normalizeSessionId } from '../../../shared/api/index.ts';
+import { isSessionBytes, normalizeSessionId } from '../../../services/api/index.ts';
 import { jsonObject, naturalNumber, onlyKeys } from '../../../shared/jobs/values.ts';
 import { copyFrozen, decodeResult, invalidStream, utf8Length, validUnicode } from '../utils/rules.ts';
 import type { AiItemKind, AiObservedEvent, AiObservedItem, AiStreamChunk, AiStreamEvent, AiStreamItem, AiStreamView } from '../types/index.ts';

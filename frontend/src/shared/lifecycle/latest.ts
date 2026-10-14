@@ -1,5 +1,5 @@
-import { ApiError } from '../api/errors.ts';
-import type { ApiResult } from '../api/types.ts';
+import { ApiError } from '../../services/api/errors.ts';
+import type { ApiResult } from '../../services/api/types.ts';
 
 export interface ResourceSnapshot<T> {
   readonly pending: boolean;

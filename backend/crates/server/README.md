@@ -10,7 +10,7 @@ API：`router(app, token, requests_per_second)` 使用默认 MCP 安全配置；
 
 最外层 correlation 生成可信 UUID，v2 业务成功/失败返回日志 ID，原始产物不改字节；MCP 装饰器传播任务上下文并写标准元数据。response_stream 记录响应结束与字节数。完整契约见后端日志文档。`router_with_runtime` 注入日志统计与停止令牌；这两个管理入口均鉴权。
 
-产物服务：router_with_artifacts 注入领域 ArtifactStore。启动程序默认装配文件适配器，提供上传、元数据、流式下载和 ZIP 目录预览；未注入存储时产物接口返回 503。详见 docs/产物接口.md。
+产物服务：router_with_artifacts 注入领域 ArtifactStore。启动程序默认装配文件适配器，提供上传、元数据、流式下载和 ZIP 目录预览；未注入存储时产物接口返回 503。详见 docs/contracts/产物接口.md。
 
 ## 动态目录与管理边界
 

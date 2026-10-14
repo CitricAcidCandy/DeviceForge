@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import type { PointerEvent } from 'react';
 import { Camera, Play, Square, Download } from 'lucide-react';
-import { Button } from '../../../components/ui/button.tsx';
-import { Switch } from '../../../components/ui/switch.tsx';
-import { Label } from '../../../components/ui/label.tsx';
+import { Button } from '../../../components/Button/index.tsx';
+import { Switch } from '../../../components/Switch/index.tsx';
+import { Label } from '../../../components/Label/index.tsx';
 import { createJobRunner, decodeArtifactEnvelope, downloadPublishedArtifact } from '../../../shared/jobs/index.ts';
-import { Field, PageTitle, EmptyState, JsonResult } from '../../../components/common/index.ts';
+import { Field, PageTitle, EmptyState, JsonResult } from '../../../components/index.ts';
 import { useOperationAvailable } from '../capabilities.tsx';
 import { ActionFeedback, ErrorNotice } from '../feedback.tsx';
 import { useAction, useSnapshot } from '../hooks.ts';

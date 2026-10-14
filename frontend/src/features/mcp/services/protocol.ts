@@ -1,6 +1,6 @@
-import { abortable } from '../../../shared/api/abort.ts';
-import { ApiError } from '../../../shared/api/index.ts';
-import type { McpHttpResponse } from '../../../shared/api/index.ts';
+import { abortable } from '../../../services/api/abort.ts';
+import { ApiError } from '../../../services/api/index.ts';
+import type { McpHttpResponse } from '../../../services/api/index.ts';
 import type { McpJsonObject, McpJsonValue, McpTool } from '../types/index.ts';
 
 export interface McpListPage {

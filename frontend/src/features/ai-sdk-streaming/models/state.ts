@@ -1,5 +1,5 @@
-import { ApiError } from '../../../shared/api/index.ts';
-import type { SessionInfo } from '../../../shared/api/index.ts';
+import { ApiError } from '../../../services/api/index.ts';
+import type { SessionInfo } from '../../../services/api/index.ts';
 import { AiSdkStreamDecoder } from '../services/decoder.ts';
 import { copyFrozen, invalidStream } from '../utils/rules.ts';
 import type { AiSdkStreamAction, AiSdkStreamingSnapshot, AiSdkStreamOwner } from '../types/index.ts';

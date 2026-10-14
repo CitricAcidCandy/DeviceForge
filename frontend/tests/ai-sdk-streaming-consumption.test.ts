@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createAiSdkStreaming, createHttpAiSdkStreaming } from '../src/features/ai-sdk-streaming/index.ts';
-import { AiSdkStreamDecoder } from '../src/features/ai-sdk-streaming/infrastructure/decoder.ts';
-import { ApiError, createApiClient } from '../src/shared/api/index.ts';
-import type { ApiResult, SessionDefinitions, SessionGateway, SessionInfo, SessionOutputPage } from '../src/shared/api/index.ts';
+import { AiSdkStreamDecoder } from '../src/features/ai-sdk-streaming/services/decoder.ts';
+import { ApiError, createApiClient } from '../src/services/api/index.ts';
+import type { ApiResult, SessionDefinitions, SessionGateway, SessionInfo, SessionOutputPage } from '../src/services/api/index.ts';
 import { deferred, requestUrl, signal, success } from './fixtures.ts';
 
 const sessionId = '12345678-1234-1234-1234-123456789abc';

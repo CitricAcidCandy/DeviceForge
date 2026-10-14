@@ -1,5 +1,5 @@
-import { ApiError, isSessionDefinitions, isSessionInfo, isSessionOutputPage, normalizeSessionId } from '../../../shared/api/index.ts';
-import type { SessionDefinitions, SessionInfo, SessionOutputPage } from '../../../shared/api/index.ts';
+import { ApiError, isSessionDefinitions, isSessionInfo, isSessionOutputPage, normalizeSessionId } from '../../../services/api/index.ts';
+import type { SessionDefinitions, SessionInfo, SessionOutputPage } from '../../../services/api/index.ts';
 import { decimalU64, jsonObject, naturalNumber, onlyKeys } from '../../../shared/jobs/values.ts';
 import type { AiSdkStreamInput, AiSdkStreamOwner, AiSdkStreamReadOptions, AiSdkStreamResult } from '../types/index.ts';
 

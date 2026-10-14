@@ -1,4 +1,4 @@
-import type { ApiError, ApiResult, ArchiveEntries, ArchiveEntryQuery, ArtifactDto, ArtifactMetadata } from '../../../shared/api/index.ts';
+import type { ApiError, ApiResult, ArchiveEntries, ArchiveEntryQuery, ArtifactDto, ArtifactMetadata } from '../../../services/api/index.ts';
 
 export interface ArtifactBrowserGateway {
   readonly metadata: (id: string, signal: AbortSignal) => Promise<ApiResult<ArtifactMetadata>>;

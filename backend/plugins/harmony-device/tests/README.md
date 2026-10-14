@@ -33,7 +33,7 @@ cargo test -p deviceforge-harmony-device-plugin --test protocol
 
 ## 截图夹具准备与独占边界
 
-实施模式为 `plan-and-build`，仅修改本插件测试层。合同为[截图实施裁定](../../../docs/Harmony截图插件实施裁定.md)，当前冻结 SHA256 为 `B4590901C0128E0813C65FC9A9D39F92CC4B4C15C9F98CCA1A5013792C65CE83`。共享 JPEG 与宿主接缝由主代理先验证；截图生产实现由后端开发负责，协议测试不导入生产模板、Base64、JPEG 或回执解析器。
+实施模式为 `plan-and-build`，仅修改本插件测试层。合同为[截图实施裁定](../../../docs/implementation/Harmony截图插件实施裁定.md)，当前冻结 SHA256 为 `B4590901C0128E0813C65FC9A9D39F92CC4B4C15C9F98CCA1A5013792C65CE83`。共享 JPEG 与宿主接缝由主代理先验证；截图生产实现由后端开发负责，协议测试不导入生产模板、Base64、JPEG 或回执解析器。
 
 | 单元 | 责任 | 输入、输出及副作用 | 不承担 |
 | --- | --- | --- | --- |

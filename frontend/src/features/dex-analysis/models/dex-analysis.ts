@@ -1,4 +1,4 @@
-import { ApiError } from '../../../shared/api/index.ts';
+import { ApiError } from '../../../services/api/index.ts';
 import { createJobRunner } from '../../../shared/jobs/index.ts';
 import type { JobGateway, JobOptions, JobTicket } from '../../../shared/jobs/index.ts';
 import { createDexCatalog, dexOperation } from './catalog.ts';

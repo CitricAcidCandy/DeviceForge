@@ -1,6 +1,6 @@
-import { ApiError, normalizeSessionId } from '../../../shared/api/index.ts';
-import type { ApiResult, SessionGateway } from '../../../shared/api/index.ts';
-import { abortable } from '../../../shared/api/abort.ts';
+import { ApiError, normalizeSessionId } from '../../../services/api/index.ts';
+import type { ApiResult, SessionGateway } from '../../../services/api/index.ts';
+import { abortable } from '../../../services/api/abort.ts';
 import { aiSdkStreamOperation, decodeDefinitions, decodeInfo, decodePage, decodeRecords, invalidStream, normalizeInput, normalizeOwner, pollInterval, readLimit, streamError } from '../utils/rules.ts';
 import { createAiSdkStreamState } from './state.ts';
 import type { AiSdkStreamRequest } from './state.ts';

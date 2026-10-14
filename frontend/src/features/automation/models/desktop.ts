@@ -1,4 +1,4 @@
-import { ApiError } from '../../../shared/api/index.ts';
+import { ApiError } from '../../../services/api/index.ts';
 import { createJobRunner, downloadPublishedArtifact, requireJson } from '../../../shared/jobs/index.ts';
 import type { ArtifactReader, JobGateway, JobOptions, JobTicket, PublishedResult } from '../../../shared/jobs/index.ts';
 import { requireDesktopClick, requireInputTrace } from '../utils/desktop-rules.ts';

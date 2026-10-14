@@ -1,4 +1,4 @@
-import { createApiClient, operationsEndpoint } from '../../shared/api/index.ts';
+import { createApiClient, operationsEndpoint } from '../../services/api/index.ts';
 
 export function productServiceOrigin(value: string): string {
   const parsed = new URL(value.trim());

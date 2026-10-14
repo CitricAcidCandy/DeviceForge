@@ -1,4 +1,4 @@
-import type { DeviceDirectoryDto, DeviceProviderDto, OperationDto, SessionInfo } from '../src/shared/api/index.ts';
+import type { DeviceDirectoryDto, DeviceProviderDto, OperationDto, SessionInfo } from '../src/services/api/index.ts';
 import { dfml, dfmlChunks, digest, pcm } from './browser-media-stream.ts';
 import type { MediaMaterial } from './browser-media-stream.ts';
 

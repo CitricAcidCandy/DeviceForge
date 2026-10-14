@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createFrontendRuntime } from '../src/app/index.ts';
-import { ApiError, createApiClient, deviceDirectoriesEndpoint, deviceProvidersEndpoint } from '../src/shared/api/index.ts';
-import { isDeviceDirectory, isDeviceProvider } from '../src/shared/api/device-validation.ts';
+import { ApiError, createApiClient, deviceDirectoriesEndpoint, deviceProvidersEndpoint } from '../src/services/api/index.ts';
+import { isDeviceDirectory, isDeviceProvider } from '../src/services/api/device-validation.ts';
 import { directory, provider } from './device-fixtures.ts';
 import { job, requestUrl, signal, success } from './fixtures.ts';
 

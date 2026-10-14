@@ -1172,3 +1172,9 @@ Android环境观测已随实际Root读取通道标记权限；普通无Root不�
 - [ ] 整体workspace门禁仍有既有Harmony 64MiB截图ready失败，串行复核也失败；保留原件，不算整体测试通过，不扩展本轮修复方向。
 - [ ] 完整产品页面视觉、采集准确性与性能专项独立验收；缺符号已接受，不阻塞本轮火焰图。
 - 证据及可直接打开的HTML：artifacts/android-flamegraph-87329586-8375-4f8c-8cf8-8181a7102ac0/report.json、viewer/index.html。65个本轮输入SHA未变，无活跃本轮驱动，未操作设备；后续方向先由用户指定。
+
+## 2026-10-14 根目录代码格式化配置
+
+- [x] 根目录安装并锁定 Prettier 3.6.2；新增 `.prettierrc.json`、`.prettierignore`、`.editorconfig`、VS Code 格式化设置与扩展建议。`package.json` 提供 `npm run format` 和 `npm run format:check`。
+- [x] Prettier 配置文件检查通过；前端 TSX 可发现根配置，生成的 `src/services/api/generated.ts` 被忽略。Rust 继续使用 rust-analyzer/rustfmt。
+- [ ] 现有源码未进行整库格式化；格式检查不列为当前业务门禁。

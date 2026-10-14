@@ -36,10 +36,10 @@ export async function checkArchitecture(root = fileURLToPath(new URL('../', impo
       try { inspection = inspectSource(await readFile(path, 'utf8'), path); }
       catch (error) { failures.push(`${from}: 语法解析失败：${error instanceof Error ? error.message : String(error)}`); continue; }
       for (const issue of inspection.issues) {
-        if (issue === 'network' && from.startsWith('shared/api/')) continue;
+        if (issue === 'network' && from.startsWith('services/api/')) continue;
         // 生成模式可能包含 any；此文件只由 Rust 导出器生成，仍检查其导入。
-        if (from === 'shared/api/generated.ts' && issue.includes('any')) continue;
-        failures.push(`${from}: ${issue === 'network' ? '网络调用只能位于 shared/api 适配器' : issue}`);
+        if (from === 'services/api/generated.ts' && issue.includes('any')) continue;
+        failures.push(`${from}: ${issue === 'network' ? '网络调用只能位于 services/api 适配器' : issue}`);
       }
       for (const dependency of inspection.dependencies) {
         let target = ts.resolveModuleName(dependency.value, path, parsed.options, ts.sys).resolvedModule?.resolvedFileName;

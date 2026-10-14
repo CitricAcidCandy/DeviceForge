@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createFrontendRuntime } from '../src/app/index.ts';
 import type { HostContext } from '../src/plugin-sdk/index.ts';
-import { ApiError } from '../src/shared/api/index.ts';
+import { ApiError } from '../src/services/api/index.ts';
 import { deferred, failure, installedPackage, plugin, requestUrl, signal, success } from './fixtures.ts';
 
 test('两类包经 app 用例上传原字节与必填 format，仅更新部署目录，不隐式启用', async () => {

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { ApiError, createApiClient } from '../src/shared/api/index.ts';
-import type { ApiClient } from '../src/shared/api/index.ts';
+import { ApiError, createApiClient } from '../src/services/api/index.ts';
+import type { ApiClient } from '../src/services/api/index.ts';
 import { createTasks } from '../src/features/tasks/index.ts';
 import { createServerPlugins } from '../src/features/server-plugins/index.ts';
 import { createPluginPackages } from '../src/features/plugin-packages/index.ts';

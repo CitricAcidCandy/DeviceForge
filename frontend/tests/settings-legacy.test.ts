@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { ApiError } from '../src/shared/api/index.ts';
+import { ApiError } from '../src/services/api/index.ts';
 import type { JobGateway, JsonData } from '../src/shared/jobs/index.ts';
 import { convertLegacyFiles, createSettings, parseLegacyEditorText } from '../src/features/settings/index.ts';
 import { signal } from './fixtures.ts';

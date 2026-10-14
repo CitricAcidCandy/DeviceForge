@@ -3,8 +3,8 @@ import test from 'node:test';
 import { deflateSync } from 'node:zlib';
 import { openProfileArchive, downloadAndOpenProfileArchive, buildProfileFolded, decodeProfileFolded, PROFILE_FOLDED_LIMITS, PROFILE_LIMITS } from '../src/features/android-profile/index.ts';
 import type { ProfileResult, StackSample } from '../src/features/android-profile/index.ts';
-import { ApiError } from '../src/shared/api/index.ts';
-import type { ArtifactDto } from '../src/shared/api/index.ts';
+import { ApiError } from '../src/services/api/index.ts';
+import type { ArtifactDto } from '../src/services/api/index.ts';
 import { signal } from './fixtures.ts';
 
 interface FixtureFile { readonly name: string; readonly bytes: Uint8Array }

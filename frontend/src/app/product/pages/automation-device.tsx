@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { Button } from '../../../components/ui/button.tsx';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../components/ui/select.tsx';
-import { EmptyState, Field, JsonResult } from '../../../components/common/index.ts';
+import { Button } from '../../../components/Button/index.tsx';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../components/Select/index.tsx';
+import { EmptyState, Field, JsonResult } from '../../../components/index.ts';
 import { useOperationAvailable } from '../capabilities.tsx';
 import { ActionFeedback, ErrorNotice } from '../feedback.tsx';
 import { useAction, useSnapshot } from '../hooks.ts';

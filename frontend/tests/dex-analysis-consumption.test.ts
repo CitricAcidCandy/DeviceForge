@@ -2,9 +2,9 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createDexAnalysis, createHttpDexAnalysis } from '../src/features/dex-analysis/index.ts';
 import type { DexOperationReader, DexScanInput } from '../src/features/dex-analysis/index.ts';
-import { ApiError, createApiClient } from '../src/shared/api/index.ts';
+import { ApiError, createApiClient } from '../src/services/api/index.ts';
 import { JobWaitFailure } from '../src/shared/jobs/index.ts';
-import type { ApiResult, OperationDto } from '../src/shared/api/index.ts';
+import type { ApiResult, OperationDto } from '../src/services/api/index.ts';
 import type { JobGateway, TaskRecord } from '../src/shared/jobs/index.ts';
 import { deferred, requestUrl, signal, success } from './fixtures.ts';
 

@@ -1,4 +1,4 @@
-import type { DeviceDirectoryDto, DeviceProviderDto } from '../src/shared/api/index.ts';
+import type { DeviceDirectoryDto, DeviceProviderDto } from '../src/services/api/index.ts';
 
 export function provider(id = 'example', generation = 'g1'): DeviceProviderDto {
   return { id, generation, version: '1.0', definition: { api_version: 1, platform: '模拟平台', discover_operation: `${id}.discover`, capabilities: [

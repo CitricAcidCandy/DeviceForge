@@ -1,5 +1,5 @@
-import { createHttpSessionGateway } from '../../../shared/api/index.ts';
-import type { ApiClient } from '../../../shared/api/index.ts';
+import { createHttpSessionGateway } from '../../../services/api/index.ts';
+import type { ApiClient } from '../../../services/api/index.ts';
 import type { MirroringStreamingOptions } from '../types/index.ts';
 import { createMirroringStreaming } from './mirroring-streaming.ts';
 

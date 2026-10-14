@@ -1,5 +1,5 @@
-import { artifactDeleteEndpoint, artifactEntriesEndpoint, artifactMetadataEndpoint, uploadEndpoint } from '../../../shared/api/index.ts';
-import type { ApiClient } from '../../../shared/api/index.ts';
+import { artifactDeleteEndpoint, artifactEntriesEndpoint, artifactMetadataEndpoint, uploadEndpoint } from '../../../services/api/index.ts';
+import type { ApiClient } from '../../../services/api/index.ts';
 import { createArtifactBrowser } from './artifact-browser.ts';
 
 export function createHttpArtifactBrowser(client: ApiClient) {

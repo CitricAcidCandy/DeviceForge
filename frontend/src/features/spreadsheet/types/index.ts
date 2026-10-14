@@ -1,4 +1,4 @@
-import type { ApiError, ApiResult, OperationDto } from '../../../shared/api/index.ts';
+import type { ApiError, ApiResult, OperationDto } from '../../../services/api/index.ts';
 
 // 本业务是插件的未知结果契约；宿主任务与操作DTO沿shared索引。
 export type SpreadsheetArtifactInput = { readonly artifact_id: string };

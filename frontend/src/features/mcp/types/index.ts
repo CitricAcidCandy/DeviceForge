@@ -1,4 +1,4 @@
-import type { ApiError } from '../../../shared/api/index.ts';
+import type { ApiError } from '../../../services/api/index.ts';
 
 export type McpJsonValue = null | boolean | number | string | readonly McpJsonValue[] | { readonly [key: string]: McpJsonValue };
 export type McpJsonObject = { readonly [key: string]: McpJsonValue };

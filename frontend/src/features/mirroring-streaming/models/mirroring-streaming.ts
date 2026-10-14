@@ -1,6 +1,6 @@
-import { ApiError, normalizeSessionId } from '../../../shared/api/index.ts';
-import type { ApiResult, SessionGateway, SessionInfo } from '../../../shared/api/index.ts';
-import { abortable } from '../../../shared/api/abort.ts';
+import { ApiError, normalizeSessionId } from '../../../services/api/index.ts';
+import type { ApiResult, SessionGateway, SessionInfo } from '../../../services/api/index.ts';
+import { abortable } from '../../../services/api/abort.ts';
 import { createMirroringState } from './state.ts';
 import type { MirroringRequest } from './state.ts';
 import { createMirroringStream } from '../services/stream.ts';

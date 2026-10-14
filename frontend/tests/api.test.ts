@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { ApiError, createApiClient, installPackageEndpoint, jobEndpoint, operationsEndpoint, pluginsEndpoint, submitEndpoint, uploadEndpoint } from '../src/shared/api/index.ts';
+import { ApiError, createApiClient, installPackageEndpoint, jobEndpoint, operationsEndpoint, pluginsEndpoint, submitEndpoint, uploadEndpoint } from '../src/services/api/index.ts';
 import { deferred, failure, job, plugin, requestUrl, signal, success } from './fixtures.ts';
 
 test('在线包上传按生成契约发送唯一必填 format，原始 Blob 和媒体类型保持一致', () => {

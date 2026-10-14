@@ -1,4 +1,4 @@
-import { isRecord } from '../../../shared/api/validation.ts';
+import { isRecord } from '../../../services/api/validation.ts';
 import { decimalU64, onlyKeys } from '../../../shared/jobs/index.ts';
 import { PROFILE_LIMITS, integer, invalidProfile, nullableText } from '../utils/rules.ts';
 import type { StackFrame, StackSample } from '../types/index.ts';

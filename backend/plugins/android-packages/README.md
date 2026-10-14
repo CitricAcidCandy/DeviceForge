@@ -87,7 +87,7 @@ manifest/signature/scan_sdks 使用 `value(wrapped=true)`，保持原值字段�
 
 ## 错误与验收状态
 
-`extract_splits`新增可选device_features/gl_extensions/codename/device_tier及modules/instant，缺省保持旧四字段规格与argv。规则归公共核心apks模块，匹配仍归bundletool；高级输入通过完整插件贡献提交，旧别名未扩写。本批新增6项所属回归尚未运行，详见[APKS高级匹配插件实施裁定](../../docs/APKS高级匹配插件实施裁定.md)。
+`extract_splits`新增可选device_features/gl_extensions/codename/device_tier及modules/instant，缺省保持旧四字段规格与argv。规则归公共核心apks模块，匹配仍归bundletool；高级输入通过完整插件贡献提交，旧别名未扩写。本批新增6项所属回归尚未运行，详见[APKS高级匹配插件实施裁定](../../docs/implementation/APKS高级匹配插件实施裁定.md)。
 
 当前公开 Response.error 为字符串。插件内部坏包/配置/工具错误沿通用插件失败通道，不能按文案还原原宿主 Invalid/Storage/TooLarge 分类；宿主 schema 仍负责提交阶段 invalid_input，取消/到期和未确认清理由公开期限及资源通道处理。错误消息采用有界中文固定诊断，不公开工具原文或签名参数。非零退出拒绝；离线分包另保留旧失败诊断关键词检查；清单、签名、构建和反编译按各自完整核心资格检查。
 

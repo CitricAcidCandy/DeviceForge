@@ -1,4 +1,4 @@
-import type { ApiClient } from '../../../shared/api/index.ts';
+import type { ApiClient } from '../../../services/api/index.ts';
 import { createHttpPerformanceGateway } from '../services/http.ts';
 import type { PerformanceOptions } from '../types/index.ts';
 import { createPerformance } from './performance.ts';

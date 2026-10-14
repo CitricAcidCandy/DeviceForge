@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { buildProfileFlamegraph, PROFILE_FLAMEGRAPH_LIMITS, PROFILE_LIMITS } from '../src/features/android-profile/index.ts';
 import type { ProfileFlamegraph, ProfileFlameNode, StackFrame, StackSample } from '../src/features/android-profile/index.ts';
-import { ApiError } from '../src/shared/api/index.ts';
+import { ApiError } from '../src/services/api/index.ts';
 
 function frame(symbol: string | null, address = '0x1', file: string | null = 'libgame.so', execution_type: StackFrame['execution_type'] = 'native'): StackFrame {
   return { symbol, address, file, execution_type };

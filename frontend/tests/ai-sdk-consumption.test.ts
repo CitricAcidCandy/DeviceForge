@@ -2,12 +2,12 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createAiSdk, createHttpAiSdk } from '../src/features/ai-sdk/index.ts';
 import type { AiSdkAction } from '../src/features/ai-sdk/index.ts';
-import { ApiError, createApiClient } from '../src/shared/api/index.ts';
-import type { OperationDto } from '../src/shared/api/index.ts';
+import { ApiError, createApiClient } from '../src/services/api/index.ts';
+import type { OperationDto } from '../src/services/api/index.ts';
 import { JobWaitFailure } from '../src/shared/jobs/index.ts';
 import type { JobGateway, JobTicket, JsonData, TaskRecord } from '../src/shared/jobs/index.ts';
-import { normalizeAiSdkAssistant, normalizeAiSdkThread, normalizeAiSdkTurn } from '../src/features/ai-sdk/domain/rules.ts';
-import { decodeAiSdkAssistant, decodeAiSdkStatus, decodeAiSdkThread, decodeAiSdkTurn } from '../src/features/ai-sdk/domain/results.ts';
+import { normalizeAiSdkAssistant, normalizeAiSdkThread, normalizeAiSdkTurn } from '../src/features/ai-sdk/utils/rules.ts';
+import { decodeAiSdkAssistant, decodeAiSdkStatus, decodeAiSdkThread, decodeAiSdkTurn } from '../src/features/ai-sdk/utils/results.ts';
 import { deferred, requestUrl, signal, success } from './fixtures.ts';
 
 const actions: readonly AiSdkAction[] = ['runtime.status', 'sdk.single', 'sdk.turn', 'session.get', 'session.close', 'assistant.run'];

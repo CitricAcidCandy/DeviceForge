@@ -1,4 +1,4 @@
-import type { components } from '../../../shared/api/generated.ts';
+import type { components } from '../../../services/api/generated.ts';
 import type { HostContext, Job } from '../../../plugin-sdk/index.ts';
 
 // HTTP 会话模型只索引生成契约；公开 SDK 不因此依赖生成类型。

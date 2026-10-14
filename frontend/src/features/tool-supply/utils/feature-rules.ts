@@ -1,4 +1,4 @@
-import { ApiError } from '../../../shared/api/index.ts';
+import { ApiError } from '../../../services/api/index.ts';
 
 export function runtimeFeatureKey(value: unknown): value is string {
   return typeof value === 'string' && value.length > 0 && value.length <= 128

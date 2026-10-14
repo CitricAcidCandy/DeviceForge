@@ -1,5 +1,5 @@
-import { ApiError, isArchiveEntries, isArtifactMetadata } from '../../../shared/api/index.ts';
-import type { ArchiveEntryQuery } from '../../../shared/api/index.ts';
+import { ApiError, isArchiveEntries, isArtifactMetadata } from '../../../services/api/index.ts';
+import type { ArchiveEntryQuery } from '../../../services/api/index.ts';
 import { jsonObject, naturalNumber, onlyKeys } from '../../../shared/jobs/index.ts';
 import type { ArtifactEntriesView, ArtifactMetadataView } from '../types/index.ts';
 

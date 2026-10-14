@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createHttpPerformance, PerformanceJobFailure, PerformanceWaitFailure } from '../src/features/performance/index.ts';
-import { ApiError, createApiClient } from '../src/shared/api/index.ts';
+import { ApiError, createApiClient } from '../src/services/api/index.ts';
 import { HostError } from '../src/plugin-sdk/index.ts';
 import { deferred, failure, requestUrl, signal, success } from './fixtures.ts';
 import { deviceObservation, observationReading } from './performance-observation-fixtures.ts';

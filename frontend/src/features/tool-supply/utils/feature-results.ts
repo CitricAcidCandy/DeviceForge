@@ -1,4 +1,4 @@
-import { isRecord } from '../../../shared/api/validation.ts';
+import { isRecord } from '../../../services/api/validation.ts';
 import { decodeEmptyArtifactResult, invalidBusinessResult, nonemptyText, onlyKeys } from '../../../shared/jobs/index.ts';
 import { runtimeFeatureKey } from './feature-rules.ts';
 import { isToolModule } from './results.ts';

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createApiClient, ApiError } from '../src/shared/api/index.ts';
+import { createApiClient, ApiError } from '../src/services/api/index.ts';
 import { createLatestResource } from '../src/shared/lifecycle/latest.ts';
 import { createOperations } from '../src/features/operations/index.ts';
 import { createTasks } from '../src/features/tasks/index.ts';

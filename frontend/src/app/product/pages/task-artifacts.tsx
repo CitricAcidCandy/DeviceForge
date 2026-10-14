@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
 import { Download } from 'lucide-react';
-import { Button } from '../../../components/ui/button.tsx';
+import { Button } from '../../../components/Button/index.tsx';
 import { decodeArtifactEnvelope, downloadPublishedArtifact } from '../../../shared/jobs/index.ts';
-import { isRecord } from '../../../shared/api/validation.ts';
+import { isRecord } from '../../../services/api/validation.ts';
 import type { ProductServices } from '../services.ts';
 import { useAction } from '../hooks.ts';
 import { ActionFeedback, ErrorNotice } from '../feedback.tsx';

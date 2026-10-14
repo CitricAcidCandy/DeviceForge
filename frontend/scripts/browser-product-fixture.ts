@@ -1,5 +1,5 @@
 import type { DeviceCapability } from '../src/plugin-sdk/index.ts';
-import type { DeviceDirectoryDto, DeviceProviderDto, OperationDto } from '../src/shared/api/index.ts';
+import type { DeviceDirectoryDto, DeviceProviderDto, OperationDto } from '../src/services/api/index.ts';
 
 export const fixtureArtifact = '12345678-1234-4234-8234-123456789abc';
 export const fixtureTaskFiles = [

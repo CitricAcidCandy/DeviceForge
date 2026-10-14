@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../components/ui/select.tsx';
-import { PageTitle } from '../../../components/common/index.ts';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../components/Select/index.tsx';
+import { PageTitle } from '../../../components/index.ts';
 import type { ProductServices } from '../services.ts';
 import { AiProviderPanel } from './ai-provider.tsx';
 

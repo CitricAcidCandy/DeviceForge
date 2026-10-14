@@ -4,7 +4,7 @@
 
 235321新版后端六门禁和438项工作区测试通过，本目录22项全部通过，报告artifacts/long-backend-gates-20261009-235321.txt，实际输入前后零变化；两项Drop原触发失败原件仍保留于artifacts/long-drop-regression-before-20261009-234826.txt。真实进程跨61秒、HTTP/MCP、生产浏览器与新分发仍独立待验，暂停时钟结果不替代它们。
 
-首次交接状态：LONG-TEST独立测试源码当时尚未编译或执行。冻结输入为 `backend/docs/普通操作总期限第一批契约.md`，SHA-256 `6CBE0F61F84D52617AE6939C3FE630303251F44CC37D9777733D8A0336A40914`。实际门禁由主代理串行执行，源码写入不构成验证通过。
+首次交接状态：LONG-TEST独立测试源码当时尚未编译或执行。冻结输入为 `backend/docs/contracts/普通操作总期限第一批契约.md`，SHA-256 `6CBE0F61F84D52617AE6939C3FE630303251F44CC37D9777733D8A0336A40914`。实际门禁由主代理串行执行，源码写入不构成验证通过。
 
 首次交接含17个测试函数；当前22项。`executor.rs`记录实际首poll的操作、原输入、单调时钟、取消token和`ExecutionContext.deadline`；预算由公开`Operation.execution`声明。它不自行计时或消费取消token，宿主必须控制外围Future。后增夹具可在放行时返回类型化清理失败，或仅在未正常返回的真实Drop中留下粘性未确认风险；ended只证明Future返回/丢弃，不证明外部资源清理。默认预算与显式120秒的对照均核对公开目录和实际上下文，推进到61秒的场景只证明宿主暂停时钟规则。
 
@@ -18,4 +18,4 @@
 
 主代理接收冻结版本后可在 `backend` 执行 `cargo test -p apk-application --test ordinary_deadline`，随后执行所属完整门禁。本角色未执行 Cargo、fmt、Node、npm、生成器或服务。父截止点注入没有公开 Application 入口，依主代理内部 `operation_budget` / `submit_registered_until` 测试补证；成功提交失败复位和 shutdown 资格竞争同样由主代理负责。
 
-逐场景时间点与后续真实进程、HTTP/MCP、npx 分层计划见 `backend/docs/普通操作总期限第一批验收矩阵.md`。本套件不证明传输、输入副本、逐产物发布、进程退出、协议 3 外部资源确认或真实墙钟跨旧 60 秒。
+逐场景时间点与后续真实进程、HTTP/MCP、npx 分层计划见 `backend/docs/verification/普通操作总期限第一批验收矩阵.md`。本套件不证明传输、输入副本、逐产物发布、进程退出、协议 3 外部资源确认或真实墙钟跨旧 60 秒。

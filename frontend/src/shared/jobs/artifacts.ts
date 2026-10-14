@@ -1,7 +1,7 @@
-import type { ApiResult, ArtifactDto } from '../api/index.ts';
-import { ApiError } from '../api/errors.ts';
-import { abortable } from '../api/abort.ts';
-import { isRecord } from '../api/validation.ts';
+import type { ApiResult, ArtifactDto } from '../../services/api/index.ts';
+import { ApiError } from '../../services/api/errors.ts';
+import { abortable } from '../../services/api/abort.ts';
+import { isRecord } from '../../services/api/validation.ts';
 import { invalidBusinessResult, naturalNumber, nonemptyText, onlyKeys } from './values.ts';
 
 export interface ArtifactEnvelope { readonly result: unknown; readonly artifacts: readonly ArtifactDto[] }

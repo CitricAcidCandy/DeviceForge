@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { Button } from '../../../components/ui/button.tsx';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../components/ui/select.tsx';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../../components/ui/dialog.tsx';
-import { Field, JsonResult } from '../../../components/common/index.ts';
+import { Button } from '../../../components/Button/index.tsx';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../components/Select/index.tsx';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../../components/Dialog/index.tsx';
+import { Field, JsonResult } from '../../../components/index.ts';
 import { useOperationAvailable } from '../capabilities.tsx';
 import { ActionFeedback } from '../feedback.tsx';
 import { useAction } from '../hooks.ts';

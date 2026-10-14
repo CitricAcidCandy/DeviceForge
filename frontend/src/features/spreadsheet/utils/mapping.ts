@@ -1,4 +1,4 @@
-import { ApiError } from '../../../shared/api/index.ts';
+import { ApiError } from '../../../services/api/index.ts';
 import { jsonObject, onlyKeys } from '../../../shared/jobs/index.ts';
 import { copySpreadsheetPage } from './results.ts';
 import { boundedText, frozenCopy } from './rules.ts';

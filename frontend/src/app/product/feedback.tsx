@@ -1,6 +1,6 @@
 import { LoaderCircle } from 'lucide-react';
-import { Button } from '../../components/ui/button.tsx';
-import { ErrorNotice as ErrorMessage } from '../../components/common/error-notice.tsx';
+import { Button } from '../../components/Button/index.tsx';
+import { ErrorNotice as ErrorMessage } from '../../components/ErrorNotice/index.tsx';
 import { errorLogId } from './hooks.ts';
 
 export function ErrorNotice({ error }: { error: unknown }) {

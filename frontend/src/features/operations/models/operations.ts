@@ -1,6 +1,6 @@
-import { ApiError, operationsEndpoint } from '../../../shared/api/index.ts';
-import type { ApiClient } from '../../../shared/api/index.ts';
-import { abortable } from '../../../shared/api/abort.ts';
+import { ApiError, operationsEndpoint } from '../../../services/api/index.ts';
+import type { ApiClient } from '../../../services/api/index.ts';
+import { abortable } from '../../../services/api/abort.ts';
 import { createOperationState } from './state.ts';
 
 export function createOperations(client: ApiClient) {

@@ -1,4 +1,4 @@
-import type { ApiResult, EventQuery, JobEventDto } from '../../../shared/api/index.ts';
+import type { ApiResult, EventQuery, JobEventDto } from '../../../services/api/index.ts';
 import type { JobGateway, JobTicket, TaskRecord } from '../../../shared/jobs/index.ts';
 import type { ResourceSnapshot } from '../../../shared/lifecycle/latest.ts';
 

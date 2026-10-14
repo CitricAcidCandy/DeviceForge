@@ -1,7 +1,7 @@
-import { ApiError } from '../../../shared/api/index.ts';
-import type { OperationDto } from '../../../shared/api/index.ts';
-import { abortable } from '../../../shared/api/abort.ts';
-import { isOperation } from '../../../shared/api/validation.ts';
+import { ApiError } from '../../../services/api/index.ts';
+import type { OperationDto } from '../../../services/api/index.ts';
+import { abortable } from '../../../services/api/abort.ts';
+import { isOperation } from '../../../services/api/validation.ts';
 import { frozenCopy, isDefinitionSchema } from '../utils/rules.ts';
 import type { DexCatalogSnapshot, DexOperationReader } from '../types/index.ts';
 

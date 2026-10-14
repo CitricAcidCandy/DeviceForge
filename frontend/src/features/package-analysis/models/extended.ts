@@ -1,4 +1,4 @@
-import { ApiError } from '../../../shared/api/index.ts';
+import { ApiError } from '../../../services/api/index.ts';
 import { downloadPublishedArtifact } from '../../../shared/jobs/index.ts';
 import type { createJobRunner } from '../../../shared/jobs/index.ts';
 import type { ArtifactReader, JobTicket, PublishedResult } from '../../../shared/jobs/index.ts';

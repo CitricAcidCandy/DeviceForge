@@ -1,6 +1,6 @@
 import type { ProductServices } from './services.ts';
 import type { DeviceRef } from '../../plugin-sdk/index.ts';
-import { ApiError } from '../../shared/api/index.ts';
+import { ApiError } from '../../services/api/index.ts';
 
 // 旧独立插件只接收本地设备 ID；产品组合层仍绑定完整引用并撤销换代后的等待。
 export async function withSelectedDevice<T>(services: ProductServices, signal: AbortSignal, run: (reference: DeviceRef, active: AbortSignal) => Promise<T>) {

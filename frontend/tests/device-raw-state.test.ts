@@ -4,9 +4,9 @@ import { createFrontendRuntime } from '../src/app/index.ts';
 import { HostError } from '../src/plugin-sdk/index.ts';
 import type { DeviceSnapshot } from '../src/plugin-sdk/index.ts';
 import { createPluginScope } from '../src/plugins/scope.ts';
-import { ApiError, createApiClient, deviceDirectoriesEndpoint, refreshDeviceProviderEndpoint } from '../src/shared/api/index.ts';
-import type { DeviceDirectoryDto } from '../src/shared/api/index.ts';
-import { isDeviceDirectory, isDeviceProvider } from '../src/shared/api/device-validation.ts';
+import { ApiError, createApiClient, deviceDirectoriesEndpoint, refreshDeviceProviderEndpoint } from '../src/services/api/index.ts';
+import type { DeviceDirectoryDto } from '../src/services/api/index.ts';
+import { isDeviceDirectory, isDeviceProvider } from '../src/services/api/device-validation.ts';
 import { directory, provider } from './device-fixtures.ts';
 import { deferred, failure, job, requestUrl, signal, success } from './fixtures.ts';
 

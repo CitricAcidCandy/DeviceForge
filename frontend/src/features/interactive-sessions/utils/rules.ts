@@ -1,6 +1,6 @@
-import { ApiError, isSessionBytes, isSessionDefinitions, isSessionInfo, isSessionOutputPage, isSessionReceipt, isSessionRemoved, normalizeSessionId } from '../../../shared/api/index.ts';
-import type { SessionInfo, SessionOpenInput, SessionOutputPage, SessionOutputQuery, SessionReceipt, SessionRemoved } from '../../../shared/api/index.ts';
-import { isRecord } from '../../../shared/api/validation.ts';
+import { ApiError, isSessionBytes, isSessionDefinitions, isSessionInfo, isSessionOutputPage, isSessionReceipt, isSessionRemoved, normalizeSessionId } from '../../../services/api/index.ts';
+import type { SessionInfo, SessionOpenInput, SessionOutputPage, SessionOutputQuery, SessionReceipt, SessionRemoved } from '../../../services/api/index.ts';
+import { isRecord } from '../../../services/api/validation.ts';
 import { jsonObject, naturalNumber, onlyKeys } from '../../../shared/jobs/index.ts';
 import type { SessionDefinitionsView, SessionInfoView, SessionReadOptions } from '../types/index.ts';
 

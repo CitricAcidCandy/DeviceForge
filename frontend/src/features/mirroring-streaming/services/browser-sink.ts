@@ -1,4 +1,4 @@
-import { ApiError } from '../../../shared/api/index.ts';
+import { ApiError } from '../../../services/api/index.ts';
 import { createMirroringVideoDecoder } from './video.ts';
 import type { MirroringVideoEnvironment } from './video.ts';
 import { createMirroringAudioPlayer } from './audio.ts';

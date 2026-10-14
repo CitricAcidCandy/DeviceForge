@@ -1,4 +1,4 @@
-import { createApiClient } from '../../shared/api/index.ts';
+import { createApiClient } from '../../services/api/index.ts';
 import { createPackageAnalysis } from '../../features/package-analysis/index.ts';
 import { createFrida } from '../../features/frida/index.ts';
 import { createAutomation } from '../../features/automation/index.ts';

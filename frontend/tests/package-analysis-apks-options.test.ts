@@ -2,10 +2,10 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createPackageAnalysis, prepareApksInstallInput } from '../src/features/package-analysis/index.ts';
 import type { PackageDeviceSpec } from '../src/features/package-analysis/index.ts';
-import { ApiError } from '../src/shared/api/index.ts';
+import { ApiError } from '../src/services/api/index.ts';
 import type { JobGateway, JsonData } from '../src/shared/jobs/index.ts';
 import { deferred, signal } from './fixtures.ts';
-import type { ApiResult } from '../src/shared/api/index.ts';
+import type { ApiResult } from '../src/services/api/index.ts';
 import type { TaskRecord } from '../src/shared/jobs/index.ts';
 
 const source = '12345678-1234-1234-1234-123456789abc';

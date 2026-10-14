@@ -10,7 +10,7 @@ PluginDevice 增加可选 raw_state，缺失或 null 反序列化为 None，None
 
 state 的 online/offline/unauthorized/unknown 枚举保持原义；未知合法 raw_state 可保留，但 recovery/sideload/bootloader 等原文不放宽动作准入。设备声明 API、Manifest 顶层版本、任务协议 1/2/3、浏览器 SDK 2、HTTP v2 和操作绑定版本分别校验，不能互相推导。
 
-本契约复用现有每任务独立进程与协议 1/2/3，不表示常驻连接、设备监测或流媒体已经实现。数量、声明引用、发现结果、取消与热装卸由宿主验证；完整实施边界见后端 docs/设备提供者第一阶段实施.md。
+本契约复用现有每任务独立进程与协议 1/2/3，不表示常驻连接、设备监测或流媒体已经实现。数量、声明引用、发现结果、取消与热装卸由宿主验证；完整实施边界见后端 docs/implementation/设备提供者第一阶段实施.md。
 
 发现操作接收空对象；能力操作使用标准封套 `{device_id:null|string,input:object}`。业务 input 可以包含必填字段及其他 JSON Schema 约束，设备 ID 可限定 pattern/enum；注册不要求空业务参数或固定假设备 ID 合法，真正提交时验证实际输入。能力范围和读写属性由清单决定，业务输入不能覆盖。
 

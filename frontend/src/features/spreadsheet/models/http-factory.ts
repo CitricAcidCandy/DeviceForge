@@ -1,5 +1,5 @@
-import { operationsEndpoint } from '../../../shared/api/index.ts';
-import type { ApiClient } from '../../../shared/api/index.ts';
+import { operationsEndpoint } from '../../../services/api/index.ts';
+import type { ApiClient } from '../../../services/api/index.ts';
 import { createHttpJobGateway } from '../../../shared/jobs/index.ts';
 import type { JobOptions } from '../../../shared/jobs/index.ts';
 import { createSpreadsheet } from './spreadsheet.ts';

@@ -4,7 +4,7 @@ export type MirroringStatus = { readonly available: true; readonly version: stri
   | { readonly live_stream: true; readonly live_configured: boolean }
 );
 export interface MirroringRecording { readonly device_id: string; readonly duration_ms: number; readonly codec: 'h264'; readonly filename: 'screen.mp4'; readonly size: number; readonly live_stream: false }
-import type { ApiError, ApiResult, OperationDto } from '../../../shared/api/index.ts';
+import type { ApiError, ApiResult, OperationDto } from '../../../services/api/index.ts';
 import type { JobOptions } from '../../../shared/jobs/index.ts';
 
 export type MirroringAction = 'runtime.status' | 'record';

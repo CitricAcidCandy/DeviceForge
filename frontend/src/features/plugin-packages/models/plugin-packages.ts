@@ -1,5 +1,5 @@
-import { ApiError, deletePackageEndpoint, installPackageEndpoint, packagesEndpoint } from '../../../shared/api/index.ts';
-import type { ApiClient, ApiResult, PackageInfo, PackageKind, PackageMediaType, PluginInfo } from '../../../shared/api/index.ts';
+import { ApiError, deletePackageEndpoint, installPackageEndpoint, packagesEndpoint } from '../../../services/api/index.ts';
+import type { ApiClient, ApiResult, PackageInfo, PackageKind, PackageMediaType, PluginInfo } from '../../../services/api/index.ts';
 import { createLatestResource } from '../../../shared/lifecycle/latest.ts';
 import type { WebPluginRuntimeInfo } from '../../../plugin-sdk/index.ts';
 

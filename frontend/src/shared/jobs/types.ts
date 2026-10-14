@@ -1,4 +1,4 @@
-import type { ApiResult, JobDto } from '../api/index.ts';
+import type { ApiResult, JobDto } from '../../services/api/index.ts';
 import type { JsonData } from './values.ts';
 
 // 任务字段直接索引生成契约；公开 SDK 的精简任务也能结构化消费。

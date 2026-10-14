@@ -1,5 +1,5 @@
-import { ApiError } from '../../../shared/api/index.ts';
-import type { ApiResult, OperationDto } from '../../../shared/api/index.ts';
+import { ApiError } from '../../../services/api/index.ts';
+import type { ApiResult, OperationDto } from '../../../services/api/index.ts';
 import type { ResourceSnapshot } from '../../../shared/lifecycle/latest.ts';
 
 type OperationSnapshot = ResourceSnapshot<OperationDto[]>;

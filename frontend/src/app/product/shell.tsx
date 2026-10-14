@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Expand, Minimize2, Menu, Smartphone, RefreshCw, ListChecks, Ellipsis, PanelLeftClose, PanelLeftOpen, ChevronRight, Radio, Unplug } from 'lucide-react';
-import { Button } from '../../components/ui/button.tsx';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuCheckboxItem } from '../../components/ui/dropdown-menu.tsx';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select.tsx';
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '../../components/ui/sheet.tsx';
+import { Button } from '../../components/Button/index.tsx';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuCheckboxItem } from '../../components/DropdownMenu/index.tsx';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/Select/index.tsx';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '../../components/Sheet/index.tsx';
 import type { ProductServices } from './services.ts';
 import type { ProductRoute } from './routes.ts';
 import { PRODUCT_ROUTES } from './routes.ts';

@@ -1,5 +1,5 @@
-import { ApiError } from '../api/errors.ts';
-import { isRecord } from '../api/validation.ts';
+import { ApiError } from '../../services/api/errors.ts';
+import { isRecord } from '../../services/api/validation.ts';
 
 export type JsonData = null | boolean | number | string | JsonData[] | { [key: string]: JsonData };
 // 拒绝循环、非有限数值和非 JSON 对象，避免发送时丢字段或改变值。

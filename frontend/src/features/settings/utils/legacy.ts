@@ -1,4 +1,4 @@
-import { ApiError } from '../../../shared/api/index.ts';
+import { ApiError } from '../../../services/api/index.ts';
 import { jsonObject, onlyKeys, requireJson } from '../../../shared/jobs/index.ts';
 import type { JsonData } from '../../../shared/jobs/index.ts';
 import type { SettingsOwner } from '../types/index.ts';

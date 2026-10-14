@@ -1,6 +1,6 @@
-import { ApiError, normalizeSessionId } from '../../../shared/api/index.ts';
-import type { ApiResult, SessionGateway, SessionOpenInput } from '../../../shared/api/index.ts';
-import { abortable } from '../../../shared/api/abort.ts';
+import { ApiError, normalizeSessionId } from '../../../services/api/index.ts';
+import type { ApiResult, SessionGateway, SessionOpenInput } from '../../../services/api/index.ts';
+import { abortable } from '../../../services/api/abort.ts';
 import { cloneFrozen, copyBytes, decodeDefinitions, decodeInfo, decodePage, decodeReceipt, decodeRecords, decodeRemoved, normalizeOpen, normalizeRead, pollInterval, sessionError } from '../utils/rules.ts';
 import { createSessionState } from './state.ts';
 import type { SessionRequest } from './state.ts';

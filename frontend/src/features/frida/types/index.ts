@@ -1,4 +1,4 @@
-import type { ApiError, ApiResult, OperationDto } from '../../../shared/api/index.ts';
+import type { ApiError, ApiResult, OperationDto } from '../../../services/api/index.ts';
 import type { JsonData, JobOptions } from '../../../shared/jobs/index.ts';
 
 export type FridaAction = 'server.deploy' | 'server.status' | 'server.run' | 'processes' | 'script.run' | 'permissions.analyze';

@@ -1,5 +1,5 @@
-import { abortable } from '../../../shared/api/abort.ts';
-import { ApiError } from '../../../shared/api/index.ts';
+import { abortable } from '../../../services/api/abort.ts';
+import { ApiError } from '../../../services/api/index.ts';
 
 const maxEventBytes = 1024 * 1024;
 

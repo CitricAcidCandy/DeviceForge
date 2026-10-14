@@ -1,6 +1,6 @@
-import { ApiError } from '../../../shared/api/index.ts';
-import type { ArchiveEntryQuery } from '../../../shared/api/index.ts';
-import { abortable } from '../../../shared/api/abort.ts';
+import { ApiError } from '../../../services/api/index.ts';
+import type { ArchiveEntryQuery } from '../../../services/api/index.ts';
+import { abortable } from '../../../services/api/abort.ts';
 import { decodeEntries, decodeMetadata, decodeUpload, normalizeArtifactFilename, normalizeArtifactId, normalizeEntryQuery, requireArtifactBlob } from '../utils/rules.ts';
 import { createArtifactBrowserState } from './state.ts';
 import type { ArtifactBrowserGateway } from '../types/index.ts';

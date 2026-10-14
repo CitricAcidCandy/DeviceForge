@@ -1,4 +1,4 @@
-import { ApiError } from '../../../shared/api/index.ts';
+import { ApiError } from '../../../services/api/index.ts';
 
 export function waitForPoll(interval: number, signal: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {

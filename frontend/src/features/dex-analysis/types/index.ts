@@ -1,4 +1,4 @@
-import type { ApiError, ApiResult, OperationDto } from '../../../shared/api/index.ts';
+import type { ApiError, ApiResult, OperationDto } from '../../../services/api/index.ts';
 
 export type DexArtifactInput = { readonly artifact_id: string };
 export type DexSdkRule = { readonly name: string; readonly package_path: string; readonly class_name?: string | null };

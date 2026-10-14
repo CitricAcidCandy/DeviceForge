@@ -1,6 +1,6 @@
-import { abortable } from '../api/abort.ts';
-import { ApiError } from '../api/errors.ts';
-import type { ApiResult } from '../api/index.ts';
+import { abortable } from '../../services/api/abort.ts';
+import { ApiError } from '../../services/api/errors.ts';
+import type { ApiResult } from '../../services/api/index.ts';
 import { JobFailure, JobWaitFailure } from './errors.ts';
 import type { JobGateway, JobOptions, JobOutcome, JobTicket, TaskRecord } from './types.ts';
 import type { JsonData } from './values.ts';

@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createAiTaskObserver, createHttpAiTaskGateway } from '../src/features/ai-assistant/index.ts';
 import type { AiTaskGateway, AiTaskObservation } from '../src/features/ai-assistant/index.ts';
-import { ApiError, createApiClient } from '../src/shared/api/index.ts';
-import type { ApiResult, JobEventDto } from '../src/shared/api/index.ts';
+import { ApiError, createApiClient } from '../src/services/api/index.ts';
+import type { ApiResult, JobEventDto } from '../src/services/api/index.ts';
 import type { JobTicket, TaskRecord } from '../src/shared/jobs/index.ts';
 import { deferred, requestUrl, signal, success } from './fixtures.ts';
 

@@ -1,6 +1,6 @@
 import { HostError } from '../../../plugin-sdk/index.ts';
-import { isReadingMetricValues } from '../../../shared/api/metric-missing.ts';
-import { isRecord } from '../../../shared/api/validation.ts';
+import { isReadingMetricValues } from '../../../services/api/metric-missing.ts';
+import { isRecord } from '../../../services/api/validation.ts';
 import { isReadingDeviceObservation } from './device-observation.ts';
 import type { PerformanceAction, PerformanceCapabilities, PerformancePage, PerformanceSession, PerformanceSessions, PerformanceStart } from '../types/index.ts';
 

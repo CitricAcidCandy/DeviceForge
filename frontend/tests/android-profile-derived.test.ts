@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { decodeProfileIndex } from '../src/features/android-profile/index.ts';
 import type { ProfileDerived, ProfileMetrics, ProfileResult, ProfileSample } from '../src/features/android-profile/index.ts';
-import { ApiError } from '../src/shared/api/index.ts';
+import { ApiError } from '../src/services/api/index.ts';
 
 const device = 'emulator-5554';
 function metrics(overrides: Partial<ProfileMetrics> = {}): ProfileMetrics {

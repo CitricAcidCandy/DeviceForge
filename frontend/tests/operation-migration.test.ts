@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createFrontendRuntime } from '../src/app/index.ts';
 import { createOperations } from '../src/features/operations/index.ts';
-import { ApiError, createApiClient } from '../src/shared/api/index.ts';
-import type { OperationDto } from '../src/shared/api/index.ts';
+import { ApiError, createApiClient } from '../src/services/api/index.ts';
+import type { OperationDto } from '../src/services/api/index.ts';
 import { HostError } from '../src/plugin-sdk/index.ts';
 import { deferred, failure, installedPackage, plugin, requestUrl, signal, success } from './fixtures.ts';
 

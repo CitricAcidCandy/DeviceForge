@@ -1,4 +1,4 @@
-import type { JobDto, PackageInfo, PackageKind, PluginInfo } from '../src/shared/api/index.ts';
+import type { JobDto, PackageInfo, PackageKind, PluginInfo } from '../src/services/api/index.ts';
 
 export function deferred<T>() {
   let resolve: (value: T | PromiseLike<T>) => void = () => { throw new Error('承诺尚未初始化'); };

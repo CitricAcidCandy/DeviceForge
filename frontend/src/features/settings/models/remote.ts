@@ -1,4 +1,4 @@
-import { ApiError } from '../../../shared/api/index.ts';
+import { ApiError } from '../../../services/api/index.ts';
 import { decodeEmptyArtifactResult, decimalU64, invalidBusinessResult, jsonObject, onlyKeys, requireJson } from '../../../shared/jobs/index.ts';
 import type { createJobRunner, JsonData, JobTicket } from '../../../shared/jobs/index.ts';
 import type { SettingsDelete, SettingsWrite } from '../types/index.ts';

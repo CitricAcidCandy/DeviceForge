@@ -1,4 +1,4 @@
-import { ApiError } from '../../../shared/api/index.ts';
+import { ApiError } from '../../../services/api/index.ts';
 import { decimalU64 } from '../../../shared/jobs/index.ts';
 
 export const toolModuleId = (value: unknown): value is string => typeof value === 'string' && /^[a-z][a-z0-9_-]{0,63}$/.test(value) && !/^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])$/.test(value);

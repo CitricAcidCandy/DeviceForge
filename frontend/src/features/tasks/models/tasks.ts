@@ -1,5 +1,5 @@
-import { cancelEndpoint, eventsEndpoint, jobEndpoint, jobsEndpoint, submitEndpoint } from '../../../shared/api/index.ts';
-import type { ApiClient, EventQuery, JobDto, JobQuery } from '../../../shared/api/index.ts';
+import { cancelEndpoint, eventsEndpoint, jobEndpoint, jobsEndpoint, submitEndpoint } from '../../../services/api/index.ts';
+import type { ApiClient, EventQuery, JobDto, JobQuery } from '../../../services/api/index.ts';
 import { createLatestResource } from '../../../shared/lifecycle/latest.ts';
 import type { TaskSubmission } from '../../../plugin-sdk/index.ts';
 

@@ -1,5 +1,5 @@
-import { isRawMetricValues } from '../../../shared/api/metric-missing.ts';
-import { isRecord } from '../../../shared/api/validation.ts';
+import { isRawMetricValues } from '../../../services/api/metric-missing.ts';
+import { isRecord } from '../../../services/api/validation.ts';
 import { onlyKeys } from '../../../shared/jobs/index.ts';
 import { isDeviceObservation } from './observations.ts';
 import { integer } from './rules.ts';

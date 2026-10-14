@@ -2,7 +2,7 @@
 
 普通总期限批次接入每任务终态资格后，主代理将原“成功存储之前”用例精确拆成资格前取消与资格后取消，当前 25 项。Store 的 BeforeSuccess 门闩位于 transition 已进入之后，代表应用已取得资格；该窗口中取消立即拒绝发现候选，历史返回须等实际事务放行，不能一边等待取消返回一边不释放事务。资格前取消另行断言 Cancelled 历史与零成功事件。原整包失败报告 artifacts/long-application-20261009-230857.txt 保留，以下为初次交接记录，最新结果见根队列。
 
-状态：9个测试文件已写完并冻结，共24个测试函数，尚未编译或执行。测试函数数量不等于P/C/T/H/B/N合计24组验收矩阵的完成数量。契约为 `backend/docs/统一发现第二批契约.md` 的 RAW-02，包括主代理随后冻结的 F03 `begin_execution` 开始门禁。只写本目录与 `tests/unified_discovery.rs`，不引用或修改已有测试夹具、生产内部模块和根 smoke。
+状态：9个测试文件已写完并冻结，共24个测试函数，尚未编译或执行。测试函数数量不等于P/C/T/H/B/N合计24组验收矩阵的完成数量。契约为 `backend/docs/contracts/统一发现第二批契约.md` 的 RAW-02，包括主代理随后冻结的 F03 `begin_execution` 开始门禁。只写本目录与 `tests/unified_discovery.rs`，不引用或修改已有测试夹具、生产内部模块和根 smoke。
 
 本套使用公开 Application、DeviceService、PluginService 与领域 JobStore/Executor。Store 是内存任务端口，保留实际终态不可覆盖及事件；同步门闩位于 create、Running、成功 transition 前、成功写入后但 transition 返回前。Executor 只记录首次业务 poll 与传入绝对期限，不启动 Node 或宿主，不代表协议传输、实际 PID、外部资源、真机、HTTP/MCP、浏览器或 npx 验收。
 

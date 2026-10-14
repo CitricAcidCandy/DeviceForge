@@ -1,4 +1,4 @@
-import { ApiError } from '../../../shared/api/index.ts';
+import { ApiError } from '../../../services/api/index.ts';
 import { jsonObject, onlyKeys } from '../../../shared/jobs/index.ts';
 import { aiProjectId, requireAiInput } from './rules.ts';
 import type { AiSingleInput } from '../types/index.ts';

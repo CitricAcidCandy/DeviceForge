@@ -1,8 +1,8 @@
 import { createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { decodeStackJsonLines, buildProfileFlamegraph } from '../src/features/android-profile/index.ts';
-import { ProfileFlamegraphView } from '../src/features/android-profile/ui/index.ts';
-import type { FlameInterval } from '../src/features/android-profile/ui/index.ts';
+import { ProfileFlamegraphView } from '../src/features/android-profile/components/index.ts';
+import type { FlameInterval } from '../src/features/android-profile/components/index.ts';
 
 // 验收入口只消费已取得的离线原栈，不连接设备或自动派发业务。
 export function mountFlamegraphReview(target: HTMLElement | null, jsonl: string, intervals: readonly FlameInterval[] = []) {

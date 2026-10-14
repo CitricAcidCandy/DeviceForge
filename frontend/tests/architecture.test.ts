@@ -31,12 +31,12 @@ test('公共组件统一按PascalCase入口组织，组件私有实现不反向�
   const rejected: readonly (readonly [string, string])[] = [
     ['components/Button/index.tsx', 'components/index.ts'],
     ['components/Button/index.tsx', 'components/Panel/types.ts'],
-    ['components/Widget/index.tsx', 'shared/api/client.ts'],
+    ['components/Widget/index.tsx', 'services/api/client.ts'],
     ['components/Widget/index.tsx', 'features/tasks/index.ts'],
     ['components/Widget/index.tsx', 'app/runtime.ts'],
     ['components/Widget/index.tsx', 'plugin-sdk/index.ts'],
     ['utils/classnames.ts', 'components/Button/index.tsx'],
-    ['utils/classnames.ts', 'shared/api/client.ts'],
+    ['utils/classnames.ts', 'services/api/client.ts'],
     ['plugins/example.ts', 'app/runtime.ts'],
   ];
   for (const [from, to] of rejected) assert.equal(allowedDependency(from, to), false, from + ' 不应依赖 ' + to);

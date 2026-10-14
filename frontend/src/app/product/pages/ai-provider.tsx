@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { Button } from '../../../components/ui/button.tsx';
-import { Textarea } from '../../../components/ui/textarea.tsx';
-import { Label } from '../../../components/ui/label.tsx';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../components/ui/select.tsx';
-import { Field, EmptyState, JsonResult } from '../../../components/common/index.ts';
+import { Button } from '../../../components/Button/index.tsx';
+import { Textarea } from '../../../components/Textarea/index.tsx';
+import { Label } from '../../../components/Label/index.tsx';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../components/Select/index.tsx';
+import { Field, EmptyState, JsonResult } from '../../../components/index.ts';
 import { useOperationAvailable } from '../capabilities.tsx';
 import { ActionFeedback, ErrorNotice } from '../feedback.tsx';
 import { useAction, useSnapshot } from '../hooks.ts';

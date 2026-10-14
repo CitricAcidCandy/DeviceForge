@@ -1,4 +1,4 @@
-import { ApiError } from '../../../shared/api/index.ts';
+import { ApiError } from '../../../services/api/index.ts';
 import { createJobRunner, jsonObject, nonemptyText, onlyKeys, requireJson } from '../../../shared/jobs/index.ts';
 import type { JobGateway, JobTicket } from '../../../shared/jobs/index.ts';
 import { aiSdkOperation, createAiSdkCatalog, isAiSdkOperation } from './catalog.ts';

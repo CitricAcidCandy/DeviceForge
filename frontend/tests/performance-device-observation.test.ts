@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { isDeviceObservation, isReadingDeviceObservation } from '../src/features/performance/domain/device-observation.ts';
-import { decodePerformanceCapabilities, isPerformancePage } from '../src/features/performance/domain/results.ts';
+import { isDeviceObservation, isReadingDeviceObservation } from '../src/features/performance/utils/device-observation.ts';
+import { decodePerformanceCapabilities, isPerformancePage } from '../src/features/performance/utils/results.ts';
 import { HostError } from '../src/plugin-sdk/index.ts';
 import { deviceObservation, observationReading } from './performance-observation-fixtures.ts';
 

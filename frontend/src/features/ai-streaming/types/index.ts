@@ -1,4 +1,4 @@
-import type { ApiError, SessionDefinitions, SessionInfo, SessionOutputPage, SessionOutputQuery } from '../../../shared/api/index.ts';
+import type { ApiError, SessionDefinitions, SessionInfo, SessionOutputPage, SessionOutputQuery } from '../../../services/api/index.ts';
 
 export interface AiStreamInput {
   readonly project_id: string;

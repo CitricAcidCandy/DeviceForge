@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createMcpClient } from '../src/features/mcp/index.ts';
-import { ApiError, createMcpTransport } from '../src/shared/api/index.ts';
+import { ApiError, createMcpTransport } from '../src/services/api/index.ts';
 import { signal } from './fixtures.ts';
 
 const tool = (name: string) => ({ name, description: '工具描述', inputSchema: { type: 'object', additionalProperties: false } });

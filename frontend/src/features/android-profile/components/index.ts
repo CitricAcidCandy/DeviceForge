@@ -5,3 +5,6 @@ export { closedFlameInterval } from './ProfileFlamegraph/interval.ts';
 export type { FlameInterval } from './ProfileFlamegraph/interval.ts';
 export { flameColor, flamePercent, layoutFlamegraph } from './ProfileFlamegraph/layout.ts';
 export type { FlameBar, FlameLayout } from './ProfileFlamegraph/layout.ts';
+export { ProfileArchiveView } from './ProfileArchiveView/index.tsx';
+export { ProfileFrameView } from './ProfileFrameView/index.tsx';
+export { ProfileStackList } from './ProfileStackList/index.tsx';

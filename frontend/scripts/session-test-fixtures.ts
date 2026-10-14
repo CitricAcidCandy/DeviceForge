@@ -1,4 +1,4 @@
-import type { DeviceDirectoryDto, DeviceProviderDto, OperationDto } from '../src/shared/api/index.ts';
+import type { DeviceDirectoryDto, DeviceProviderDto, OperationDto } from '../src/services/api/index.ts';
 import { createSessionStreamFixture, fixtureObject, fixtureReply } from './session-fixture-streams.ts';
 import { createSessionJobFixture } from './session-fixture-jobs.ts';
 

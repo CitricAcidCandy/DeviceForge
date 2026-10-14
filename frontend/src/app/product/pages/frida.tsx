@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { Button } from '../../../components/ui/button.tsx';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../components/ui/select.tsx';
-import { Input } from '../../../components/ui/input.tsx';
-import { Label } from '../../../components/ui/label.tsx';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../components/ui/table.tsx';
+import { Button } from '../../../components/Button/index.tsx';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../components/Select/index.tsx';
+import { Input } from '../../../components/Input/index.tsx';
+import { Label } from '../../../components/Label/index.tsx';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../components/Table/index.tsx';
 import { RefreshCw, Download, FileCode2, Play } from 'lucide-react';
-import { Field, PageTitle, EmptyState, JsonResult } from '../../../components/common/index.ts';
+import { Field, PageTitle, EmptyState, JsonResult } from '../../../components/index.ts';
 import { useOperationAvailable } from '../capabilities.tsx';
 import { ActionFeedback } from '../feedback.tsx';
 import { useAction, useSnapshot } from '../hooks.ts';

@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createHttpMirroringStreaming, createMirroringStreaming } from '../src/features/mirroring-streaming/index.ts';
 import type { MirroringPacket } from '../src/features/mirroring-streaming/index.ts';
-import { ApiError, createApiClient } from '../src/shared/api/index.ts';
-import type { SessionGateway, SessionInfo, SessionOutputPage } from '../src/shared/api/index.ts';
+import { ApiError, createApiClient } from '../src/services/api/index.ts';
+import type { SessionGateway, SessionInfo, SessionOutputPage } from '../src/services/api/index.ts';
 import { deferred, requestUrl, signal, success } from './fixtures.ts';
 
 const id = '12345678-1234-1234-1234-123456789abc';

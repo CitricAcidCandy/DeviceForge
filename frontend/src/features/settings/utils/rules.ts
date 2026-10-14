@@ -1,4 +1,4 @@
-import { ApiError } from '../../../shared/api/index.ts';
+import { ApiError } from '../../../services/api/index.ts';
 import { decimalU64, isJsonData, jsonObject, onlyKeys } from '../../../shared/jobs/index.ts';
 import type { SettingsAction } from '../types/index.ts';
 

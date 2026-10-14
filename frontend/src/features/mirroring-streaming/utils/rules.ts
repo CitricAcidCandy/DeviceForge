@@ -1,5 +1,5 @@
-import { ApiError, isSessionDefinitions, isSessionInfo, isSessionOutputPage, isSessionReceipt, normalizeSessionId } from '../../../shared/api/index.ts';
-import type { SessionInfo, SessionOutputPage, SessionReceipt } from '../../../shared/api/index.ts';
+import { ApiError, isSessionDefinitions, isSessionInfo, isSessionOutputPage, isSessionReceipt, normalizeSessionId } from '../../../services/api/index.ts';
+import type { SessionInfo, SessionOutputPage, SessionReceipt } from '../../../services/api/index.ts';
 import { jsonObject, naturalNumber, onlyKeys } from '../../../shared/jobs/index.ts';
 import type { MirroringControl, MirroringDefinitionsView, MirroringOutputOptions, MirroringStreamInput } from '../types/index.ts';
 import { invalidStream } from './errors.ts';

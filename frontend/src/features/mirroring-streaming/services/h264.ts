@@ -1,4 +1,4 @@
-import { ApiError } from '../../../shared/api/index.ts';
+import { ApiError } from '../../../services/api/index.ts';
 
 export function mirroringH264Codec(bytes: Uint8Array): string {
   for (let offset = 0; offset + 6 < bytes.length; ++offset) {
