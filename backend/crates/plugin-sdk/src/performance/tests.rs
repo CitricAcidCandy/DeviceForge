@@ -138,6 +138,7 @@ fn programmatic_declaration_uses_the_same_version_binding_rules() {
         sample_operation: "sample".into(),
         fps: false,
         device_observation: false,
+        partial_metrics: false,
         device_capability: None,
     };
     assert!(access.validate().is_ok());
@@ -151,5 +152,25 @@ fn programmatic_declaration_uses_the_same_version_binding_rules() {
     access.api_version = 1;
     assert!(access.validate().is_err());
     access.api_version = 3;
+    assert!(access.validate().is_err());
+}
+
+#[test]
+fn partial_metrics_is_opt_in_and_requires_device_api_two() {
+    let old: PerformanceAccess =
+        serde_json::from_value(json!({"sample_operation":"sample"})).unwrap();
+    assert!(!old.partial_metrics);
+    for value in [
+        json!({"sample_operation":"sample","partial_metrics":true}),
+        json!({"api_version":1,"sample_operation":"sample","partial_metrics":true}),
+    ] {
+        assert!(serde_json::from_value::<PerformanceAccess>(value).is_err());
+    }
+    let value = json!({"api_version":2,"sample_operation":"sample","fps":false,"partial_metrics":true,"device_capability":{"id":"sample","version":1}});
+    let mut access: PerformanceAccess = serde_json::from_value(value.clone()).unwrap();
+    assert!(access.partial_metrics);
+    assert_eq!(serde_json::to_value(&access).unwrap(), value);
+    access.api_version = 1;
+    access.device_capability = None;
     assert!(access.validate().is_err());
 }

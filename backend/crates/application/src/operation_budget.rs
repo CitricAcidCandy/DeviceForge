@@ -126,6 +126,7 @@ mod tests {
                 operation: "plugin.test.sample".into(),
                 fps: false,
                 device_observation: false,
+                partial_metrics: false,
                 device_capability: None,
             })
         }

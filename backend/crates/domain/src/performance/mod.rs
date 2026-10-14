@@ -2,7 +2,9 @@ use crate::{Error, Result, identifier};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use tokio_util::sync::CancellationToken;
+mod metric_missing;
 mod observation;
+pub use metric_missing::{MetricMissing, MetricUnavailableReason, UnavailableMetric};
 mod source;
 pub use observation::{
     BatteryElectricalObservation, BatteryStatus, BatterySupplyState, CurrentPolarity,
@@ -144,18 +146,22 @@ pub struct ProbeCapabilities {
     pub fps: bool,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub device_observation: bool,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub partial_metrics: bool,
 }
 /// 累计 CPU 计数只在同进程、同启动时间及同核数的相邻样本间比较。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct RawPerformance {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub metric_missing: Option<MetricMissing>,
     pub captured_at: u64,
     pub pid: u32,
     pub process_start_ticks: u64,
     pub process_ticks: u64,
-    pub system_ticks: u64,
-    pub logical_cpus: u32,
-    pub pss_kib: u64,
+    pub system_ticks: Option<u64>,
+    pub logical_cpus: Option<u32>,
+    pub pss_kib: Option<u64>,
     pub rss_kib: Option<u64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub frame_window: Option<FrameWindow>,
@@ -164,13 +170,17 @@ pub struct RawPerformance {
 }
 impl RawPerformance {
     pub fn validate(&self) -> Result<()> {
-        if self.pid == 0
-            || self.logical_cpus == 0
-            || self.logical_cpus > 4096
-            || self.system_ticks == 0
-        {
-            return Err(Error::Dependency("性能采样计数无效".into()));
+        if self.pid == 0 {
+            return Err(Error::Dependency("性能采样进程编号无效".into()));
         }
+        metric_missing::validate_counts(
+            self.system_ticks,
+            self.logical_cpus,
+            self.pss_kib,
+            self.rss_kib,
+            self.metric_missing.as_ref(),
+        )
+        .map_err(|message| Error::Dependency(message.into()))?;
         if let Some(window) = &self.frame_window {
             window.validate()?;
         }
@@ -185,14 +195,16 @@ impl RawPerformance {
 #[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct PerformanceReading {
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub metric_missing: Option<MetricMissing>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub fps: Option<f64>,
     pub sequence: u64,
     pub captured_at: u64,
     pub pid: u32,
-    pub logical_cpus: u32,
+    pub logical_cpus: Option<u32>,
     pub cpu_share_percent: Option<f64>,
     pub cpu_core_percent: Option<f64>,
-    pub pss_kib: u64,
+    pub pss_kib: Option<u64>,
     pub rss_kib: Option<u64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub frame_window: Option<FrameWindow>,
@@ -215,13 +227,14 @@ impl PerformanceReading {
             })
             .and_then(|old| {
                 let process = current.process_ticks.checked_sub(old.process_ticks)?;
-                let system = current.system_ticks.checked_sub(old.system_ticks)?;
+                let system = current.system_ticks?.checked_sub(old.system_ticks?)?;
                 if system == 0 || process > system {
                     return None;
                 }
                 Some(process as f64 / system as f64 * 100.0)
             });
         Self {
+            metric_missing: current.metric_missing.clone(),
             fps: current
                 .frame_window
                 .as_ref()
@@ -231,7 +244,8 @@ impl PerformanceReading {
             pid: current.pid,
             logical_cpus: current.logical_cpus,
             cpu_share_percent: share,
-            cpu_core_percent: share.map(|share| share * f64::from(current.logical_cpus)),
+            cpu_core_percent: share
+                .and_then(|share| current.logical_cpus.map(|cpus| share * f64::from(cpus))),
             pss_kib: current.pss_kib,
             rss_kib: current.rss_kib,
             frame_window: current.frame_window.clone(),
@@ -285,6 +299,7 @@ pub trait PerformanceProbe: Send + Sync {
             source: "custom".into(),
             fps: false,
             device_observation: false,
+            partial_metrics: false,
         }
     }
     async fn sample(

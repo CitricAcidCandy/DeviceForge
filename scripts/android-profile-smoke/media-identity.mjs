@@ -5,7 +5,7 @@ export function canonicalMediaArgv(args, fixture, mode) {
   const nonces = new Set(), scids = new Set();
   for (const arg of args) {
     for (const match of arg.matchAll(/df_profile_video_([a-f0-9]{64})/g)) nonces.add(match[1]);
-    for (const match of arg.matchAll(/(?:scid=|localabstract:scrcpy_|dfv_)([a-f0-9]{8})/g)) scids.add(match[1]);
+    for (const match of arg.matchAll(/(?:scid=|localabstract:scrcpy_|--nice-name=)([a-f0-9]{8})/g)) scids.add(match[1]);
   }
   fixture.mediaNonces ??= new Map();
   let nonce = fixture.mediaNonces.get(mode);

@@ -8,6 +8,7 @@
     "sample_operation": "performance.sample",
     "fps": true,
     "device_observation": true,
+    "partial_metrics": true,
     "device_capability": {
       "id": "performance.sample",
       "version": 1

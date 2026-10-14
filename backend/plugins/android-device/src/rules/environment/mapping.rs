@@ -1,9 +1,18 @@
 //! 私有原始观测到公开合同的纯映射；不合并跨来源电压/电流，不计算功率。
-use super::{BatteryState, Check, EnvironmentObservation, Observed, Result, UeventBattery};
+use super::{
+    BatteryState, Check, EnvironmentObservation, Observed, ReadAccess, Result, UeventBattery,
+};
 use apk_plugin_sdk::{
     BatteryElectricalObservation, BatteryStatus, BatterySupplyState, CurrentPolarity,
     DeviceObservation, DeviceTemperature, ObservationAccess, ObservationScope, TemperatureKind,
 };
+
+fn access(value: ReadAccess) -> ObservationAccess {
+    match value {
+        ReadAccess::AdbShell => ObservationAccess::AdbShell,
+        ReadAccess::RootShell => ObservationAccess::RootShell,
+    }
+}
 
 fn status(state: Option<BatteryState>) -> Option<BatteryStatus> {
     state.map(|state| match state {
@@ -75,7 +84,7 @@ fn sysfs_battery(
     Some(BatteryElectricalObservation {
         observed_at: observed.observed_at,
         source: "battery_sysfs_uevent".into(),
-        access: ObservationAccess::AdbShell,
+        access: access(raw.access),
         voltage_uv,
         current_ua,
         current_polarity: polarity(current_ua, value.state, external),
@@ -101,7 +110,7 @@ fn battery(raw: &EnvironmentObservation) -> Option<BatteryElectricalObservation>
     Some(BatteryElectricalObservation {
         observed_at: observed.observed_at,
         source: "battery_dumpsys".into(),
-        access: ObservationAccess::AdbShell,
+        access: access(raw.access),
         voltage_uv,
         current_ua: None,
         current_polarity: CurrentPolarity::Unknown,
@@ -110,7 +119,12 @@ fn battery(raw: &EnvironmentObservation) -> Option<BatteryElectricalObservation>
     })
 }
 
-fn temperature(observed_at: u64, source: &str, decicelsius: i64) -> Option<DeviceTemperature> {
+fn temperature(
+    observed_at: u64,
+    source: &str,
+    decicelsius: i64,
+    read_access: ReadAccess,
+) -> Option<DeviceTemperature> {
     let temperature_celsius = decicelsius as f64 / 10.0;
     if !(-273.15..=400.0).contains(&temperature_celsius) {
         return None;
@@ -118,7 +132,7 @@ fn temperature(observed_at: u64, source: &str, decicelsius: i64) -> Option<Devic
     Some(DeviceTemperature {
         observed_at,
         source: source.into(),
-        access: ObservationAccess::AdbShell,
+        access: access(read_access),
         sensor_kind: TemperatureKind::Battery,
         sensor_name: "battery".into(),
         sensor_type: None,
@@ -133,9 +147,14 @@ fn battery_temperature(raw: &EnvironmentObservation) -> Option<DeviceTemperature
         (value.present != Some(false)
             && value.fields.get("POWER_SUPPLY_TYPE").map(String::as_str) == Some("Battery"))
         .then(|| {
-            value
-                .temperature_decicelsius
-                .and_then(|value| temperature(observed.observed_at, "battery_sysfs_uevent", value))
+            value.temperature_decicelsius.and_then(|value| {
+                temperature(
+                    observed.observed_at,
+                    "battery_sysfs_uevent",
+                    value,
+                    raw.access,
+                )
+            })
         })
         .flatten()
     }) {
@@ -149,6 +168,7 @@ fn battery_temperature(raw: &EnvironmentObservation) -> Option<DeviceTemperature
         observed.observed_at,
         "battery_dumpsys",
         observed.value.temperature_decicelsius?,
+        raw.access,
     )
 }
 
@@ -176,7 +196,7 @@ pub(crate) fn observation(
         temperatures.push(DeviceTemperature {
             observed_at: observed.observed_at,
             source: "thermal_hal_current".into(),
-            access: ObservationAccess::AdbShell,
+            access: access(raw.access),
             sensor_kind,
             sensor_name: value.name.clone(),
             sensor_type: Some(value.sensor_type),

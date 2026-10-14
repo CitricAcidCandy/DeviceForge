@@ -159,11 +159,17 @@ impl Device {
             match connected {
                 Ok(mut socket) => {
                     // ADB转发能先接受TCP，远端scrcpy尚未监听时会立即关闭；读完协议头才算就绪。
-                    let mut header = [0; 12];
-                    let read = tokio::select! {biased;_=cancel.cancelled()=>return Err(Error::Cancelled),_=tokio::time::sleep_until(until)=>{session.control.check()?;return Err(Error::Dependency("scrcpy视频连接失败"))},r=socket.read_exact(&mut header)=>r};
+                    let mut wire = [0; 13];
+                    let read = tokio::select! {biased;_=cancel.cancelled()=>return Err(Error::Cancelled),_=tokio::time::sleep_until(until)=>{session.control.check()?;return Err(Error::Dependency("scrcpy视频连接失败"))},r=socket.read_exact(&mut wire)=>r};
                     match read {
                         Ok(_) => {
                             session.control.check()?;
+                            if wire[0] != 0 {
+                                return Err(Error::Dependency("scrcpy视频连接标识无效"));
+                            }
+                            let header: [u8; 12] = wire[1..]
+                                .try_into()
+                                .map_err(|_| Error::Dependency("scrcpy视频配置不完整"))?;
                             rules::video_dimensions(&header)?;
                             return Ok((socket, header));
                         }

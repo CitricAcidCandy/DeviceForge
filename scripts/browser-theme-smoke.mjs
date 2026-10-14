@@ -6,7 +6,8 @@ import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createServer } from '../frontend/node_modules/vite/dist/node/index.js';
 import { themeFixtures } from './browser-theme-smoke/fixtures.mjs';
-import { runBrowser } from './browser-driver.mjs';
+import { runBrowser } from './browser-theme-smoke/driver.mjs';
+import { themeArguments, themeInputs } from './browser-theme-smoke/inputs.mjs';
 import { prepareHost, reservePort } from './android-packages-smoke/host.mjs';
 import { retainTheme } from './browser-theme-smoke/evidence.mjs';
 import { mountBuiltBrowserAssets } from './browser-built-assets.mjs';
@@ -14,15 +15,15 @@ import { fileIdentity } from './unified-discovery-smoke/evidence.mjs';
 import { bounded } from './unified-discovery-browser/lifecycle.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
-assert.ok(process.argv.slice(2).length <= 1 && process.argv.slice(2).every(value => value === '--release'), '仅支持单个 --release');
-const profile = process.argv.includes('--release') ? 'release' : 'debug';
-const binary = resolve(root, 'backend/target', profile, process.platform === 'win32' ? 'apk-server.exe' : 'apk-server');
+const options = themeArguments(process.argv.slice(2));
+const { profile } = options;
+let binary; let assetsDirectory; let frozenInputs;
 const report = { timestamp: new Date().toISOString(), run_id: randomUUID(), profile, passed: false, requests: [], checks: [], jobs: [],
   scope: '真实浏览器在线主题包、公开ThemeAccess、owner-generation、样式基线恢复与激活失败回滚；不含产品UI视觉、真机或生产容量' };
-const hostPath = resolve(root, 'frontend/dist/assets/plugin-host.js');
-const harnessPath = resolve(root, 'frontend/dist/assets/browser-theme-harness.js');
-const inputPaths = [binary, fileURLToPath(import.meta.url),
-  resolve(root, 'scripts/browser-theme-smoke/fixtures.mjs'), resolve(root, 'scripts/browser-driver.mjs'),
+let hostPath; let harnessPath;
+const inputPaths = [fileURLToPath(import.meta.url),
+  resolve(root, 'scripts/browser-theme-smoke/fixtures.mjs'), resolve(root, 'scripts/browser-theme-smoke/driver.mjs'),
+  resolve(root, 'scripts/browser-theme-smoke/cdp.mjs'), resolve(root, 'scripts/browser-theme-smoke/inputs.mjs'),
   resolve(root, 'scripts/browser-theme-smoke/evidence.mjs'),
   resolve(root, 'scripts/browser-built-assets.mjs'),
   resolve(root, 'frontend/scripts/browser-theme-harness.ts')];
@@ -32,7 +33,13 @@ async function closeProxy() {
   current.httpServer?.closeAllConnections(); await bounded(current.close(), 5000, '本次主题验收代理关闭超时');
 }
 try {
-  report.stage = '冻结输入'; report.inputs_before = await Promise.all(inputPaths.map(fileIdentity));
+  report.stage = '冻结输入'; frozenInputs = await themeInputs(root, options);
+  ({ binary, assetsDirectory } = frozenInputs);
+  hostPath = join(assetsDirectory, 'plugin-host.js'); harnessPath = join(assetsDirectory, 'browser-theme-harness.js');
+  inputPaths.push(binary, ...frozenInputs.extraPaths.filter(path => path !== binary));
+  report.input_mode = frozenInputs.manifestPath ?? '当前构建目录'; report.driver_pid = process.pid;
+  report.browser_launch_mode = options.inProcessGpu ? 'headless进程内GPU；仅功能资格，不含GPU或性能验收' : '原默认headless参数';
+  report.browser_process = {}; report.inputs_before = await Promise.all(inputPaths.map(fileIdentity));
   temporary = await mkdtemp(join(tmpdir(), 'deviceforge-theme-')); report.temporary_root = temporary;
   report.stage = '启动自有空宿主';
   host = await prepareHost({ root, binary, directory: join(temporary, 'data'), report, port: await reservePort() });
@@ -43,7 +50,7 @@ try {
   for (const [kind, fixture] of Object.entries(fixtures)) await writeFile(join(temporary, kind + '.tgz'), fixture.archive, { flag: 'wx' });
   vite = await createServer({ root: resolve(root, 'frontend'), configFile: false, appType: 'custom', logLevel: 'error',
     server: { host: '127.0.0.1', port: 0, hmr: false, proxy: { '/api': host.client.base } } });
-  builtAssets = await mountBuiltBrowserAssets(vite, resolve(root, 'frontend/dist/assets')); report.built_assets = builtAssets.inputs;
+  builtAssets = await mountBuiltBrowserAssets(vite, assetsDirectory); report.built_assets = builtAssets.inputs;
   const productionHost = await readFile(hostPath);
   report.harness = await fileIdentity(harnessPath); report.host = await fileIdentity(hostPath);
   vite.middlewares.use('/__production_host__', (_request, response) => { response.setHeader('content-type', 'text/javascript; charset=utf-8'); response.end(productionHost); });
@@ -56,7 +63,8 @@ try {
   report.stage = '真实浏览器主题行为';
   report.browser = await runBrowser(`http://127.0.0.1:${address.port}/__theme_verification__`,
     `(async()=>{ const harness=await import('/assets/browser-theme-harness.js'); return await harness.verifyThemes(); })()`,
-    join(temporary, 'browser-profile'), runtime => { report.browser_runtime = runtime; });
+    join(temporary, 'browser-profile'), runtime => { report.browser_runtime = runtime; },
+    { evidence: report.browser_process, inProcessGpu: options.inProcessGpu });
   assert.equal(report.browser.passed, true); assert.ok(report.browser.checks.length >= 8);
   assert.ok(report.browser.checks.every(check => check.passed === true));
   report.stage = '正常退出与输入复核'; await closeProxy(); await host.shutdown(); await host.verifyIdentity(); await builtAssets.verify();

@@ -29,6 +29,7 @@ fn manifest(mode: &str, fps: bool) -> Manifest {
             sample_operation: "sample".into(),
             fps,
             device_observation: false,
+            partial_metrics: false,
             device_capability: None,
         }),
         operations: vec![Contribution {
@@ -57,7 +58,7 @@ async fn real_plugin_sample_maps_public_sdk_to_domain_and_persists_fps() {
         .sample(&target(), CancellationToken::new())
         .await
         .unwrap();
-    assert_eq!(raw.pss_kib, 2048);
+    assert_eq!(raw.pss_kib, Some(2048));
     let reading = PerformanceReading::from_raw(1, &raw, None);
     assert_eq!(reading.fps, Some(60.0));
     assert_eq!(reading.frame_window.unwrap().source, "synthetic_demo");

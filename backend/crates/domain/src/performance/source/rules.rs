@@ -22,6 +22,9 @@ pub(super) fn definition(
     if operation.execution.is_some() {
         return Err(Error::Invalid("性能采样贡献不得重复声明普通预算".into()));
     }
+    if source.partial_metrics && source.api_version != 2 {
+        return Err(Error::Invalid("部分缺测能力要求设备性能API2".into()));
+    }
     match (source.api_version, &source.device_capability) {
         (1, None) => Ok(()),
         (2, Some(binding)) => {

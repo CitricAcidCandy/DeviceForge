@@ -153,3 +153,229 @@ fn merged_lossy_output_keeps_eight_failure_markers_in_either_stream() {
         assert!(output(b"123", marker.as_bytes()).is_err());
     }
 }
+
+#[test]
+fn metric_missing_requires_full_diagnostics_and_only_nonzero_one() {
+    use apk_plugin_sdk::MetricUnavailableReason::{PermissionDenied, Unsupported};
+    use deviceforge_tool_process::Error as Tool;
+    use missing::Metric::{Cpu, Memory};
+    for (metric, text, reason) in [
+        (Cpu, "cat: /proc/stat: Permission denied", PermissionDenied),
+        (Cpu, "cat: /proc/stat: Operation not supported", Unsupported),
+        (
+            Memory,
+            "dumpsys: meminfo: Permission denied",
+            PermissionDenied,
+        ),
+        (Memory, "dumpsys: meminfo: not supported", Unsupported),
+        (
+            Memory,
+            "Permission Denial: can't dump meminfo from from pid=123, uid=2000 without permission android.permission.DUMP",
+            PermissionDenied,
+        ),
+        (
+            Memory,
+            "Permission Denial: can't dump ActivityManager from from pid=123, uid=2000 due to missing android.permission.DUMP permission",
+            PermissionDenied,
+        ),
+    ] {
+        assert_eq!(
+            missing::diagnostic(metric, text.as_bytes(), b""),
+            Some(reason)
+        );
+        assert_eq!(
+            missing::diagnostic(metric, b"", text.as_bytes()),
+            Some(reason)
+        );
+        assert_eq!(
+            missing::nonzero(
+                metric,
+                &Tool::NonZeroExit {
+                    code: Some(1),
+                    stderr: text.as_bytes().to_vec(),
+                }
+            ),
+            Some(reason)
+        );
+        for code in [None, Some(2), Some(7), Some(-1)] {
+            assert_eq!(
+                missing::nonzero(
+                    metric,
+                    &Tool::NonZeroExit {
+                        code,
+                        stderr: text.as_bytes().to_vec(),
+                    }
+                ),
+                None
+            );
+        }
+    }
+    for text in [
+        "",
+        "Permission Denied",
+        "permission denial",
+        "unsupported",
+        "cat: /proc/123/stat: Permission denied",
+        "cat: /proc/stat: No such file or directory",
+        "cat: /proc/stat: Permission denied and unknown detail",
+        "device offline",
+        "unauthorized",
+        "Permission Denial: can't dump meminfo from from pid=x, uid=2000 without permission android.permission.DUMP",
+        "Permission Denial: can't dump meminfo from from pid=123, uid=4294967296 without permission android.permission.DUMP",
+        "Permission Denial: can't dump meminfo from from pid=123, uid=2000 without permission android.permission.DUMP extra",
+    ] {
+        for metric in [Cpu, Memory] {
+            assert_eq!(missing::diagnostic(metric, text.as_bytes(), b""), None);
+            assert_eq!(
+                missing::nonzero(
+                    metric,
+                    &Tool::NonZeroExit {
+                        code: Some(1),
+                        stderr: text.as_bytes().to_vec(),
+                    }
+                ),
+                None
+            );
+        }
+    }
+    assert_eq!(
+        missing::diagnostic(Cpu, b"cat: /proc/stat: Permission denied\xff", b""),
+        None
+    );
+    assert_eq!(
+        missing::diagnostic(Cpu, b"cat: /proc/stat: Permission denied", b"unknown"),
+        None
+    );
+}
+
+#[test]
+fn metric_diagnostics_mixed_with_data_or_conflicting_reasons_are_hard_failures() {
+    use missing::Metric::{Cpu, Memory};
+    let cpu = b"cpu 1 2 3 4\ncpu0 0\n";
+    let memory = b"** MEMINFO in pid 123 [app] **\nTOTAL PSS: 42\n";
+    for (metric, data, diagnostic) in [
+        (Cpu, cpu.as_slice(), "cat: /proc/stat: Permission denied"),
+        (
+            Cpu,
+            cpu.as_slice(),
+            "cat: /proc/stat: Operation not supported",
+        ),
+        (Cpu, cpu.as_slice(), "cat: /proc/stat: unknown failure"),
+        (Cpu, cpu.as_slice(), "Operation not supported: /proc/stat"),
+        (Cpu, cpu.as_slice(), "Unsupported interface: /proc/stat"),
+        (Cpu, cpu.as_slice(), "Interface /proc/stat is unsupported"),
+        (
+            Memory,
+            memory.as_slice(),
+            "dumpsys: meminfo: Permission denied",
+        ),
+        (Memory, memory.as_slice(), "dumpsys: meminfo: not supported"),
+        (
+            Memory,
+            memory.as_slice(),
+            "Function not implemented: meminfo",
+        ),
+        (Memory, memory.as_slice(), "meminfo=unsupported"),
+        (Memory, memory.as_slice(), "Not supported: meminfo"),
+        (
+            Memory,
+            memory.as_slice(),
+            "dumpsys: meminfo: unknown failure",
+        ),
+    ] {
+        assert!(missing::output(metric, data, diagnostic.as_bytes()).is_err());
+        assert!(missing::output(metric, diagnostic.as_bytes(), data).is_err());
+        let mut same_stream = data.to_vec();
+        same_stream.extend_from_slice(diagnostic.as_bytes());
+        assert!(missing::output(metric, &same_stream, b"").is_err());
+        assert!(missing::output(metric, b"", &same_stream).is_err());
+        // 硬拒绝识别扩大，不等于允许未知诊断降级缺测。
+        if !diagnostic.starts_with("cat:") && !diagnostic.starts_with("dumpsys:") {
+            assert_eq!(
+                missing::diagnostic(metric, diagnostic.as_bytes(), b""),
+                None
+            );
+        }
+    }
+    assert!(
+        missing::output(
+            Cpu,
+            b"cat: /proc/stat: Permission denied\ncat: /proc/stat: Operation not supported",
+            b""
+        )
+        .is_err()
+    );
+    let valid_package = b"** MEMINFO in pid 123 [com.unsupported.example] **\nTOTAL PSS: 42\n";
+    let missing::Value::Available(valid_output) =
+        missing::output(Memory, valid_package, b"").unwrap()
+    else {
+        panic!("包名中的unsupported不是拒绝诊断");
+    };
+    assert_eq!(
+        super::memory(&valid_output, 123, &|| Ok(())).unwrap(),
+        (42, None)
+    );
+    for text in [
+        "** MEMINFO in pid 124 [app] **\nTOTAL PSS: 42\n",
+        "** MEMINFO in pid 123 [app] **\n** MEMINFO in pid 123 [app] **\nTOTAL PSS: 42\n",
+        "** MEMINFO in pid 123 [app] **\nTOTAL PSS: -1\n",
+    ] {
+        let missing::Value::Available(output) =
+            missing::output(Memory, text.as_bytes(), b"").unwrap()
+        else {
+            panic!("无拒绝诊断的正文不得降级缺测");
+        };
+        assert!(super::memory(&output, 123, &|| Ok(())).is_err());
+    }
+}
+
+#[test]
+fn metric_missing_never_reclassifies_control_or_cleanup_errors() {
+    use deviceforge_tool_process::{Error as Tool, OutputStream};
+    let errors = [
+        Tool::Cancelled,
+        Tool::Timeout,
+        Tool::InvalidOptions("配置错误"),
+        Tool::Spawn(std::io::Error::from(std::io::ErrorKind::PermissionDenied)),
+        Tool::ProcessIo(std::io::Error::from(std::io::ErrorKind::BrokenPipe)),
+        Tool::OutputTooLarge {
+            stream: OutputStream::Stderr,
+            limit: 1,
+        },
+        Tool::CleanupFailed {
+            cause: Box::new(Tool::NonZeroExit {
+                code: Some(1),
+                stderr: b"cat: /proc/stat: Permission denied".to_vec(),
+            }),
+        },
+    ];
+    for error in errors {
+        assert_eq!(missing::nonzero(missing::Metric::Cpu, &error), None);
+        assert_eq!(missing::nonzero(missing::Metric::Memory, &error), None);
+    }
+}
+
+#[test]
+fn android9_app_summary_total_keeps_pss_and_does_not_infer_rss_or_swap() {
+    let output = "Applications Memory Usage (in Kilobytes):\r\n** MEMINFO in pid 3540 [com.example.game] **\r\n App Summary\r\n Pss(KB)\r\n TOTAL: 712749 TOTAL SWAP PSS: 90\r\n";
+    assert_eq!(memory(output, 3540, &|| Ok(())).unwrap(), (712749, None));
+    assert!(memory(output, 3541, &|| Ok(())).is_err());
+    assert!(
+        memory(
+            &output.replace("App Summary", "Unknown Summary"),
+            3540,
+            &|| Ok(())
+        )
+        .is_err()
+    );
+    assert!(memory(&format!("{output}TOTAL PSS: 712748\n"), 3540, &|| Ok(())).is_err());
+    assert!(memory(&output.replace("712749", "-1"), 3540, &|| Ok(())).is_err());
+    assert!(
+        memory(
+            &output.replace("712749", "18446744073709551616"),
+            3540,
+            &|| Ok(())
+        )
+        .is_err()
+    );
+}

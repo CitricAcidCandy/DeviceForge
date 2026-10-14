@@ -69,3 +69,48 @@ fake-adb.rs 只接受精确冻结 argv。远端 SHA256 token 每场景独占且�
 本轮只回归新命令与清理影响范围，未重跑未变化的时钟异常规则；旧时钟通过证据保留原版本边界。派生指标 derived 尚未落入此冻结包，不借本轮通过宣称 derived 完成。
 
 - 新归属冲突批：artifacts/android-profile-media-service-debug-d6a6e40a-9184-4c1b-b7e5-1c27ff4ddbd4/report.json。4 检查、1 Job、50 工具、263 响应日志 ID。Job failed/result=null、结束码 cleanup_failed，两次媒体清理/list 均保留 foreign port、无 remove；普通卸载 409 cleanup_failed，历史不变。逐份原 OS：49 target=0、一媒体服务生产取消 target=1；50 parent/probe=0、test_kill=false；driver/host 0，端口释放。新包三批均无驱动失败，全部进程已收口。
+
+## 派生指标、编码头就绪与同代僵尸清理最终新包
+
+最终新包 artifacts/android-profile-derived-ready-frozen-b2a390b6-b9ad-4da4-a584-661ed9ab2902：host SHA eefc4e7660213b3206938ceeb286677c8d20a5a053477705953342816dd8b7a0；plugin SHA 33d1eefbbfec3aeac2a4997132ed4f7e27f72e3ed7e108a72adb02c4b868a38e；manifest SHA 403216f07e8f06eefc0689ba0f26331d1beaa65e64fd4517412d20635256e0c4。
+
+该包 Device.connect 读完并核验 12 字节编码头才返回，固定 5 秒内早 EOF 可重试；capture 使用已读取编码头。远端 owned_state 先核原 PID/starttime，再读取活动进程 cmdline；同代 Z/消失可收口，PID 复用不接受；远端步骤先于本地 ADB 回收。自有夹具编码头原字节不变，清理脚本逐字同步。驱动 18 输入和 native SHA 已在启动前逐份核冻结身份，记录见媒体黄金目录 final-driver-freeze.json/final-golden-differences.json。
+
+- 最终正常批：artifacts/android-profile-media-service-debug-76d02c06-1a96-4122-915a-131db1c3b6b2/report.json。4 检查、2 Job、82 工具、433 响应日志 ID、4 下载。Root 与无 Root 首样 derived 精确八字段通过：api_version=1，CPU 两值/FPS/电池净功率均 null，原因分别为“首个采样缺少相邻 CPU 计数”“未取得主进程展示帧窗口”“未取得设备电池观测”。画面 PTS/选帧原字节及实际前端整个 index/PNG 联合消费通过。82 原 OS 逐份核全部 target/parent/probe=0、test_kill=false；driver/host 0、graceful、端口 52108 释放。
+
+本目录合成原字节只证明新协议和控制流程，不把空 SF/电池样本当真实 FPS/功率数值证明；真实零、功率极性和多样本 CPU 另依后端纯规则及真机证据。这里也不证明早 EOF 重试或真实 Android 僵尸过程，分别按连接规则测试和主代理真机记录验收。
+
+- 最终生命周期批：artifacts/android-profile-media-service-debug-675b5ce3-b9b6-447b-b496-277eb79a7dfd/report.json。4 检查、3 Job、128 工具、282 响应日志 ID、2 下载。cancel/unload 固定 owned_state 清理/实际 clean 回执、自有 forward 删除与复核，新代 derived/PNG 实际前端联合消费及旧历史保持通过。128 原 OS 逐份核：124 target=0，两次取消/卸载各媒体服务和 held receipt 共 4 target=1；128 parent/probe=0、test_kill=false；driver/host 0、端口释放。
+- 最终归属冲突批：artifacts/android-profile-media-service-debug-a8ada9cb-beb4-4638-87d8-0ea64a2af6a7/report.json。4 检查、1 Job、50 工具、238 响应日志 ID。Job failed/result=null，结束码 cleanup_failed；两次媒体清理/list 保留 foreign forward，未执行 remove，普通卸载 409 cleanup_failed，历史保持。50 原 OS 逐份核全部 target/parent/probe=0、test_kill=false；driver/host 0、端口释放。
+
+最终三批的 260 份 process.ready.json 及 process.exit.json 已逐份回读，与报告原件相等，target/parent 的原创建时间从 ready 到 exit 一致。原件审核记录见各目录 os-audit.json、os-ready-audit.json；driver-exit.json 保存真实 close、完整输出与报告 SHA。所有驱动/工具/probe/host 已收口。本轮不重跑未修改时钟异常，不以历史包通过外推新包；新包只有必要三批成功，无驱动失败。
+
+## YCgCo 颜色修正的验收边界
+
+2026-10-13，media-golden.mjs 的 FFprobe show_entries 同步为 frame=pict_type:stream=color_space，普通 PNG 转换参数保持原值。真实三帧黄金通过，帧型仍为 I/P/P，三 PNG 字节身份各异，编码、探帧、解码工具实际 close 均 exit 0，语法检查 exit 0。证据位于 artifacts/android-profile-color-golden-256a62e4-af97-41a5-ba72-8e755144281c/ordinary-golden-report.json 和 driver-freeze.json。与上轮冻结比较，仅 media-golden.mjs 一项 SHA 改变；旧 final-driver-freeze.json 保留上轮证据，不再代表当前驱动身份。
+
+主代理已收到真机 YCgCo 的 zscale 抽帧可解码证据，但视觉子代理判定色彩未通过，不能记录为颜色正确或业务完成。当前不运行 colorfreeze 新包，也不重跑生命周期、转发归属、时钟和性能专项；等生产颜色路线修正后再按新冻结包进行必要普通 Root/无 Root 小批。之前 14 个自有媒体驱动均已 close，本次三个黄金工具和语法检查也全部收口。
+
+2026-10-13 后续官方源头编码路线已同步：服务参数 254 ASCII 字符，nice-name 为 scid，追加 video_codec_options=color-standard:int=1，并使用默认 dummy=true。TCP 黄金发送值为 0 的 dummy 后跟原 12 字节编码头；清理 cmdline 按 scid 比较，FFprobe 恢复 frame=pict_type。三项语法与真实普通三帧编码/探帧/解码均 exit 0，dummy/编码头/首包偏移 13 已核。新驱动冻结及差异见 artifacts/android-profile-official-golden-400c799f-77f8-4184-acaa-b4a191ef279d/driver-freeze.json；等待主代理新包后只回归正常、生命周期和转发归属，不执行旧包，真机颜色由视觉子代独立审核。
+
+## 官方 BT709 源头设置最终必要回归
+
+新包 artifacts/android-profile-bt709-frozen-6fb10754-451e-4d50-9241-e7d7630445c6：host SHA eefc4e7660213b3206938ceeb286677c8d20a5a053477705953342816dd8b7a0；plugin SHA 2531842a339a9d8ed385bc9bd468b11799786e61d324a0f100105d5634be00e8；manifest SHA 403216f07e8f06eefc0689ba0f26331d1beaa65e64fd4517412d20635256e0c4。源与冻结副本前后身份稳定，18 项驱动输入及 native 与启动前冻结相同。
+
+- 正常：artifacts/android-profile-media-service-debug-4842de21-803f-4497-8017-f3fe8bd5af90/report.json。4 检查、2 Job、82 工具、412 响应日志 ID、4 下载；Root/无 Root 首样 derived、PTS邻帧、PNG原字节和真实前端联合消费通过。82 target/parent/probe 全为 0。
+- 生命周期：artifacts/android-profile-media-service-debug-9a3a5c2c-3fe4-40ab-a661-075e2ffca574/report.json。4 检查、3 Job、128 工具、277 响应日志 ID、2 下载；cancel/unload cancelled/result=null，新 nice-name 清理实际回执、forward 删除复核、新代重载及旧历史保持通过。124 target=0，取消与卸载各 held receipt/媒体服务共 4 target=1；128 parent/probe 全为 0。
+- 转发归属：artifacts/android-profile-media-service-debug-9474d816-e421-49b8-8dae-e8b5adf99b43/report.json。4 检查、1 Job、50 工具、236 响应日志 ID；Job failed/result=null、结束码 cleanup_failed，foreign forward 保留、未 remove，普通卸载 409 cleanup_failed及旧历史保持通过。50 target/parent/probe 全为 0。
+
+三批合计 12 检查、6 Job、260 工具、925 响应日志 ID、6 下载；driver/host 实际退出均 0，宿主 graceful、端口全部释放，test_kill=false。260 份 ready/exit 原件逐份与报告相等，PID及原创建时间一致，各目录保留 driver-exit.json/os-audit.json/os-ready-audit.json。汇总见 artifacts/android-profile-official-golden-400c799f-77f8-4184-acaa-b4a191ef279d/final-bt709-media-batches.json。所有自有进程已收口，未新增构建、时钟或性能测试。本轮只证明原生假 ADB+本机 TCP 功能合同；实际游戏画面/颜色仍以真机和视觉子代证据为准，不把壁纸当游戏。
+
+## 最终 workspace debug 新字节独立回归
+
+2026-10-13，新包 artifacts/android-profile-workspace-debug-frozen-4b40ba34-2d12-4ae7-bd5c-2b310380c29f：host SHA 9f7cfe9b83cf9b597bd2e83bed364261ecf3f68c997064ae3345807b681fac9a；plugin SHA 5923a5e1632bf7f05a2f607885052ccf10b255ab9c33941d8d16556fa589f08f；manifest SHA 403216f07e8f06eefc0689ba0f26331d1beaa65e64fd4517412d20635256e0c4。启动前核三 SHA，与同一 18 项 BT709/dummy13/254argv 驱动冻结及 native 精确身份一致，未修改驱动/黄金或构建。
+
+- 正常：artifacts/android-profile-media-service-debug-4cf70559-14f2-4c9b-88e8-2af5fe0a1e9c/report.json。4 检查、2 Job、82 工具、436 响应日志 ID、4 下载；Root/无 Root 画面、derived、PTS、原 PNG及真实前端联合消费通过，82 target/parent/probe 全为 0。
+- 生命周期：artifacts/android-profile-media-service-debug-9fcf7fa2-374e-437f-ae9c-b662242be952/report.json。4 检查、3 Job、128 工具、288 响应日志 ID、2 下载；cancel/unload cancelled/result=null，固定身份清理/forward删除复核、新代归档与旧历史通过；124 target=0、4 生产取消 target=1，全部 parent/probe=0。
+- 转发归属：artifacts/android-profile-media-service-debug-554c4279-f070-4f10-ba59-159b7e94ee47/report.json。4 检查、1 Job、50 工具、254 响应日志 ID；failed/result=null、cleanup_failed、foreign forward未remove、普通卸载409与历史保持通过，50 target/parent/probe 全为 0。
+
+三批合计 12 检查、6 Job、260 工具、978 响应日志 ID、6 下载。260 份 ready/exit 原件逐份与报告相等，PID原创建时间一致；6 下载实际字节/大小/SHA 与产物元数据逐份相等；每批43项前端源/快照身份相等，产物联合消费为本批实际执行。三driver/host均实际退出0、graceful，61817/59212/55392端口释放，test_kill=false，所有自有进程收口。三新包文件、18驱动输入与native前后稳定；各目录保存driver-exit.json/os-audit.json/os-ready-audit.json。汇总与启动资格见 artifacts/android-profile-workspace-golden-8fb2f364-7162-458f-a9ee-93ab89498931/final-workspace-media-batches.json及prepared.json。
+
+本轮仅新workspace字节独立功能合同；不连接真机、不重跑时钟/性能，不把旧2531842a插件三星真机或颜色结果外推到新5923a5e1插件，不当作正式分发验收。

@@ -126,3 +126,20 @@ test('观测设备标识按UTF8原文资格检查，精确匹配且不截断或�
   assert.ok(isDeviceObservation({ ...observation, device_id: boundary }, boundary, capturedAt));
   for (const id of ['中'.repeat(67), '   ', '-设备', 'device\n']) assert.equal(isDeviceObservation({ ...observation, device_id: id }, id, capturedAt), false);
 });
+
+test('样本页接受battery_dumpsys缺电流充电观测，保留34.1度电池温度且不反填功率', () => {
+  // 代表公开降级合同；温度来自电池服务，不将此用例计为原件或真实浏览器验收。
+  const observation = { ...deviceObservation(),
+    battery: { ...battery(), source: 'battery_dumpsys', voltage_uv: 3887000, current_ua: null,
+      current_polarity: 'unknown', status: 'charging', supply_state: 'external' },
+    temperatures: [{ ...temperature(), source: 'battery_dumpsys', sensor_name: 'battery',
+      sensor_type: null, temperature_celsius: 34.1, status: null }] };
+  const session = { id: '11111111-1111-4111-8111-111111111111',
+    request: { target: { device_id: deviceId, package: 'com.example.app' }, interval_ms: 1000, duration_secs: 60 },
+    state: 'running', revision: 1, samples: 1, started_at: 1000, updated_at: 1001, error: null };
+  const page = { session, readings: [{ ...observationReading(), device_observation: observation, battery_net_power_mw: null }], next_after: 1 };
+  assert.ok(isPerformancePage(page));
+  assert.equal(page.readings[0]?.battery_net_power_mw, null);
+  assert.deepEqual(page.readings[0]?.device_observation, observation);
+  assert.equal(page.readings[0]?.device_observation?.temperatures[0]?.temperature_celsius, 34.1);
+});

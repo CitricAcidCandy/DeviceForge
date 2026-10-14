@@ -51,12 +51,13 @@ fn raw(ticks: u64, total: u64) -> RawPerformance {
         pid: 123,
         process_start_ticks: 900,
         process_ticks: ticks,
-        system_ticks: total,
-        logical_cpus: 2,
-        pss_kib: 2048,
+        system_ticks: Some(total),
+        logical_cpus: Some(2),
+        pss_kib: Some(2048),
         rss_kib: Some(4096),
         frame_window: None,
         device_observation: None,
+        metric_missing: None,
     }
 }
 fn session(id: String) -> PerformanceSession {
@@ -147,8 +148,8 @@ async fn real_process_probe_validates_identity_and_counter_deltas() {
         .await
         .unwrap();
     assert_eq!(first.process_ticks, 105);
-    assert_eq!(first.system_ticks, 1000);
-    assert_eq!(first.pss_kib, 2048);
+    assert_eq!(first.system_ticks, Some(1000));
+    assert_eq!(first.pss_kib, Some(2048));
     assert_eq!(
         PerformanceReading::from_raw(2, &second, Some(&first)).cpu_share_percent,
         Some(10.0)
@@ -236,3 +237,5 @@ fn durable_sessions_reject_late_samples_reset_baselines_and_recover_all_pages() 
 }
 
 mod observations;
+
+mod partial_metrics;

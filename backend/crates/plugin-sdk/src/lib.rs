@@ -12,8 +12,9 @@ pub use context::{CONTEXT_PROTOCOL_VERSION, ReadyCommand, ReadyFrame, StartComma
 pub use execution::ExecutionBudget;
 pub use performance::{
     BatteryElectricalObservation, BatteryStatus, BatterySupplyState, CurrentPolarity,
-    DeviceObservation, DeviceTemperature, ObservationAccess, ObservationScope, PerformanceAccess,
-    PerformanceDeviceCapability, TemperatureKind,
+    DeviceObservation, DeviceTemperature, MetricMissing, MetricUnavailableReason,
+    ObservationAccess, ObservationScope, PerformanceAccess, PerformanceDeviceCapability,
+    TemperatureKind, UnavailableMetric,
 };
 pub use session_access::SessionAccess;
 pub const PROTOCOL_VERSION: u32 = 1;
@@ -78,13 +79,15 @@ pub struct FrameWindow {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PerformanceSample {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub metric_missing: Option<MetricMissing>,
     pub captured_at: u64,
     pub pid: u32,
     pub process_start_ticks: u64,
     pub process_ticks: u64,
-    pub system_ticks: u64,
-    pub logical_cpus: u32,
-    pub pss_kib: u64,
+    pub system_ticks: Option<u64>,
+    pub logical_cpus: Option<u32>,
+    pub pss_kib: Option<u64>,
     pub rss_kib: Option<u64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub frame_window: Option<FrameWindow>,

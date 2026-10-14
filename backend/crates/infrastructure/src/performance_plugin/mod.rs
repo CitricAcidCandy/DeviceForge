@@ -1,4 +1,5 @@
 mod device_observation;
+mod metric_missing;
 use crate::plugins::ProcessPlugin;
 use apk_domain::{
     Error, Executor, PluginArtifactResult, Result, now,
@@ -37,6 +38,7 @@ impl PluginPerformance {
             source: format!("plugin.{}", manifest.id),
             fps: access.fps,
             device_observation: access.device_observation,
+            partial_metrics: access.partial_metrics,
         };
         Ok(Self {
             plugin,
@@ -96,7 +98,11 @@ impl PerformanceProbe for PluginPerformance {
         {
             return Err(Error::Dependency("插件性能样本时间不在当前观测窗口".into()));
         }
+        if sample.metric_missing.is_some() && !self.capabilities.partial_metrics {
+            return Err(Error::Dependency("插件未声明部分缺测能力".into()));
+        }
         let raw = RawPerformance {
+            metric_missing: sample.metric_missing.map(metric_missing::map),
             captured_at: sample.captured_at,
             pid: sample.pid,
             process_start_ticks: sample.process_start_ticks,

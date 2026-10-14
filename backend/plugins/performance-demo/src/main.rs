@@ -35,9 +35,9 @@ fn run(request: &Request) -> Result<serde_json::Value, String> {
         pid: 123,
         process_start_ticks: 900,
         process_ticks: time / 10,
-        system_ticks: time,
-        logical_cpus: 2,
-        pss_kib: 2048,
+        system_ticks: Some(time),
+        logical_cpus: Some(2),
+        pss_kib: Some(2048),
         rss_kib: Some(4096),
         frame_window: Some(FrameWindow {
             frames: 60,
@@ -46,6 +46,8 @@ fn run(request: &Request) -> Result<serde_json::Value, String> {
         }),
 
         device_observation: None,
+
+        metric_missing: None,
     };
     let mut value = serde_json::to_value(sample).map_err(|_| "示例样本序列化失败".to_owned())?;
     match mode.as_str() {

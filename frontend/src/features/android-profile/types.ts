@@ -20,9 +20,11 @@ export interface ProfileResult extends ProfileIdentity {
   readonly index_filename: 'profile-index.json'; readonly archive_filename: 'profile.zip';
 }
 export type DeviceObservation = NonNullable<components['schemas']['PerformancePage']['readings'][number]['device_observation']>;
+export type ProfileMetricMissing = NonNullable<components['schemas']['PerformancePage']['readings'][number]['metric_missing']>;
 export interface ProfileMetrics {
   readonly captured_at: number; readonly pid: number; readonly process_start_ticks: number; readonly process_ticks: number;
-  readonly system_ticks: number; readonly logical_cpus: number; readonly pss_kib: number; readonly rss_kib?: number | null;
+  readonly system_ticks: number | null; readonly logical_cpus: number | null; readonly pss_kib: number | null; readonly rss_kib?: number | null;
+  readonly metric_missing?: ProfileMetricMissing | null;
   readonly frame_window?: { readonly frames: number; readonly duration_ms: number; readonly source: string } | null;
   readonly device_observation?: DeviceObservation | null;
 }

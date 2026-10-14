@@ -55,7 +55,13 @@ export async function recordBusiness(host, fixture, observer, loaded, report, di
       assert.deepEqual(await host.client.job(previous.id), previous, 'PROFILE-FALLBACK-STABLE-HTTP-HISTORY');
       assert.deepEqual(await host.client.tool('deviceforge.get_job', { id: previous.id }), previous, 'PROFILE-FALLBACK-STABLE-MCP-HISTORY');
     }
-    report.checks.push({ name: '无Root或无工具继续指标录制、空栈/无perf归档与稳定历史', passed: true }); return;
+    const archiveStates = (report.profiles ?? []).map(profile => ({ case_id: profile.case_id,
+      root_access: profile.result.root_access, stack_status: profile.result.stack_status,
+      frame_status: profile.result.frame_status, frame_count: profile.result.frame_count,
+      metric_missing: profile.index.samples[0].metrics.metric_missing ?? null,
+    }));
+    report.checks.push({ name: '录制归档的指标、调用栈和画面实际状态与HTTP/MCP卸载历史一致',
+      archive_states: archiveStates, passed: true }); return;
   }
   for (const scenario of fixture.cases.filter(value => ['cancel', 'unload'].includes(value.kind))) {
     await setMode(fixture, scenario.id); const baseline = report.tools.length; observer.holdNext(scenario.hold_category);

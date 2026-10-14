@@ -6,8 +6,8 @@ import { deviceId, shellQuote } from './probe-route.mjs';
 // 2026-10-13主代理冻结模板；仅nonce/scid/path/端口是明确受检变量。
 const templates = {
   "create": "umask 077; mkdir {dir} && printf '%s\\n' {nonce} > {dir}/owner.token && echo DFPC_VIDEO_CREATED",
-  "server": "cat /proc/$$/stat > {dir}/owner.stat && CLASSPATH={dir}/server.jar exec app_process / --nice-name=dfv_{scid} com.genymobile.scrcpy.Server 3.3.1 scid={scid} tunnel_forward=true audio=false control=false max_size=640 max_fps=30 video_bit_rate=2000000 send_device_meta=false send_dummy_byte=false cleanup=false",
-  "cleanup": "if [ -e {dir} ]; then [ -d {dir} ] || exit 82; [ \"$(cat {dir}/owner.token)\" = {nonce} ] || exit 92; {await_owner}if [ -f {dir}/owner.stat ]; then saved=$(cat {dir}/owner.stat) || exit 83; p=$(echo \"$saved\" | cut -d ' ' -f 1); case $p in ''|*[!0-9]*) exit 84;; esac; saved_tail=\"${{saved##*) }}\"; set -- $saved_tail; shift 19; expected=$1; owned_state() {{ if [ ! -e /proc/$p/stat ]; then return 1; fi; now=$(cat /proc/$p/stat 2>/dev/null) || {{ [ ! -e /proc/$p/stat ] && return 1; return 2; }}; now_tail=\"${{now##*) }}\"; set -- $now_tail; [ \"${{20}}\" = \"$expected\" ] || return 2; [ \"$1\" = Z ] && return 1; return 0; }}; owned_state; state=$?; [ $state -ne 2 ] || exit 86; if [ $state -eq 0 ]; then name=$(tr '\\000' '\\n' < /proc/$p/cmdline 2>/dev/null | head -n 1); if [ \"$name\" != dfv_{scid} ]; then owned_state; [ $? -eq 1 ] || exit 87; else kill -TERM $p || {{ owned_state; [ $? -eq 1 ] || exit 88; }}; fi; fi; i=0; while :; do owned_state; state=$?; [ $state -eq 1 ] && break; [ $state -eq 0 ] || exit 86; i=$((i+1)); [ $i -le 20 ] || exit 89; sleep 0.05; done; fi; rm -rf {dir} || exit 90; [ ! -e {dir} ] || exit 91; fi; echo DFPC_VIDEO_CLEAN",
+  "server": "cat /proc/$$/stat > {dir}/owner.stat && CLASSPATH={dir}/server.jar exec app_process / --nice-name={scid} com.genymobile.scrcpy.Server 3.3.1 scid={scid} tunnel_forward=true audio=false control=false max_size=640 max_fps=30 video_bit_rate=2000000 send_device_meta=false cleanup=false video_codec_options=color-standard:int=1",
+  "cleanup": "if [ -e {dir} ]; then [ -d {dir} ] || exit 82; [ \"$(cat {dir}/owner.token)\" = {nonce} ] || exit 92; {await_owner}if [ -f {dir}/owner.stat ]; then saved=$(cat {dir}/owner.stat) || exit 83; p=$(echo \"$saved\" | cut -d ' ' -f 1); case $p in ''|*[!0-9]*) exit 84;; esac; saved_tail=\"${{saved##*) }}\"; set -- $saved_tail; shift 19; expected=$1; owned_state() {{ if [ ! -e /proc/$p/stat ]; then return 1; fi; now=$(cat /proc/$p/stat 2>/dev/null) || {{ [ ! -e /proc/$p/stat ] && return 1; return 2; }}; now_tail=\"${{now##*) }}\"; set -- $now_tail; [ \"${{20}}\" = \"$expected\" ] || return 2; [ \"$1\" = Z ] && return 1; return 0; }}; owned_state; state=$?; [ $state -ne 2 ] || exit 86; if [ $state -eq 0 ]; then name=$(tr '\\000' '\\n' < /proc/$p/cmdline 2>/dev/null | head -n 1); if [ \"$name\" != {scid} ]; then owned_state; [ $? -eq 1 ] || exit 87; else kill -TERM $p || {{ owned_state; [ $? -eq 1 ] || exit 88; }}; fi; fi; i=0; while :; do owned_state; state=$?; [ $state -eq 1 ] && break; [ $state -eq 0 ] || exit 86; i=$((i+1)); [ $i -le 20 ] || exit 89; sleep 0.05; done; fi; rm -rf {dir} || exit 90; [ ! -e {dir} ] || exit 91; fi; echo DFPC_VIDEO_CLEAN",
   "awaitOwner": "i=0; while [ ! -f {}/owner.stat ]; do i=$((i+1)); [ $i -le 10 ] || exit 81; sleep 0.05; done; "
 };
 // 后端派生指标2026-10-13冻结：本夹具只有首样，无FPS窗口且无电池观测。
@@ -39,7 +39,28 @@ function scenario(snapshot,port,id,baseId,options={}) {
     frame:options.expired||options.drift?null:{index:0,filename:'frames/000000.png',begin_ns:'10054998000',end_ns:'10055002000',source:'scrcpy',epoch:1,video_frame_index:1,pts_us:'8055001',device_time_ns:'10055000000',selection_delta_ns:'0',clock_error_ns:'2000'},
     commands:[...base.commands,...mediaCommands(snapshot,port,options)]};
 }
+// 单点缺测只扩展指标黄金，保持现有Root资格、调用栈、连续媒体和原PNG选帧输入。
+function partialScenario(snapshot, port, category) {
+  assert.ok(['system', 'memory'].includes(category));
+  const value = scenario(snapshot, port, 'media-' + category + '-permission', 'record-adbd-root');
+  const cpu = category === 'system', key = cpu ? 'cpu' : 'memory';
+  const source = cpu ? 'linux_proc.stat' : 'android_dumpsys.meminfo';
+  const stderr = cpu ? 'cat: /proc/stat: Permission denied\n' : 'dumpsys: meminfo: Permission denied\n';
+  const selected = value.commands.filter(spec => spec.category === category); assert.equal(selected.length, 1);
+  value.commands = value.commands.map(spec => spec.category === category ? {
+    ...spec, outputs: [{ stdout: Buffer.alloc(0), stderr: Buffer.from(stderr), exit: 1 }],
+  } : spec);
+  value.expected_metrics = {
+    logical_cpus: cpu ? null : 2, pss_kib: cpu ? 2048 : null, rss_kib: cpu ? 4096 : null,
+    ...(cpu ? { system_ticks: null } : {}),
+    metric_missing: { api_version: 1, [key]: { source, access: 'root_shell', reason: 'permission_denied' } },
+  };
+  value.expected_derived = { ...expectedDerived,
+    ...(cpu ? { cpu_reason: '系统CPU计数明确不可用，未建立CPU差分基线' } : {}),
+  };
+  return value;
+}
 export function mediaContract(snapshot,port,matrix) {
-  const cases=matrix==='root'?[scenario(snapshot,port,'media-root','record-adbd-root'),scenario(snapshot,port,'media-no-root','record-no-root')]:matrix==='clock'?[scenario(snapshot,port,'media-expired','record-adbd-root',{expired:true}),scenario(snapshot,port,'media-clock-drift','record-adbd-root',{drift:true})]:matrix==='lifecycle'?[scenario(snapshot,port,'media-cancel','record-adbd-root',{kind:'cancel',hold:'remote-record-receipt'}),scenario(snapshot,port,'media-unload','record-su-root',{kind:'unload',hold:'remote-record-receipt'}),scenario(snapshot,port,'media-reloaded','record-adbd-root',{kind:'reloaded'})]:matrix==='ownership'?[scenario(snapshot,port,'media-forward-foreign','record-adbd-root',{kind:'failed',foreign:true})]:null;
+  const cases=matrix==='partial'?[partialScenario(snapshot,port,'system'),partialScenario(snapshot,port,'memory')]:matrix==='root'?[scenario(snapshot,port,'media-root','record-adbd-root'),scenario(snapshot,port,'media-no-root','record-no-root')]:matrix==='clock'?[scenario(snapshot,port,'media-expired','record-adbd-root',{expired:true}),scenario(snapshot,port,'media-clock-drift','record-adbd-root',{drift:true})]:matrix==='lifecycle'?[scenario(snapshot,port,'media-cancel','record-adbd-root',{kind:'cancel',hold:'remote-record-receipt'}),scenario(snapshot,port,'media-unload','record-su-root',{kind:'unload',hold:'remote-record-receipt'}),scenario(snapshot,port,'media-reloaded','record-adbd-root',{kind:'reloaded'})]:matrix==='ownership'?[scenario(snapshot,port,'media-forward-foreign','record-adbd-root',{kind:'failed',foreign:true})]:null;
   assert.ok(cases,'PROFILE-MEDIA-MATRIX'); return {...recordContract,cases,route:'持续H264/真实解码/双锚PTS选帧/自有资源清理'};
 }

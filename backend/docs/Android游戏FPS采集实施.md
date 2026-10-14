@@ -57,7 +57,7 @@ ADB 继续使用固定部署入口、`-s serial shell -T`、Restricted 环境、
 
 选择SurfaceFlinger proto身份见证，比较文本名字回退：名字可被重复或改名，不能证明进程归属，故不作为有效FPS资格。候选自身owner_uid必须等于目标/proc/pid/status四个一致UID；从候选沿真实parent有界查找metadata key1 UID及key6 PID，至少一处同层同时证明目标UID/PID，整链任何已声明相关值冲突即拒绝，重复ID/环/多候选或见证不唯一拒绝。祖先creator owner_uid允许system，但所有见证meta必须一致；source摘要保存候选id/name和整祖先链身份、目标pid/uid，不用层名独自定位。
 
-固定读取dumpsys --proto SurfaceFlinger与/proc/pid/status。支持已核AOSP裸LayersProto及带固定magic/单entry的TraceFile，未知/多snapshot/重复关键字段、非法wire类型不猜测；metadata field42、owner_uid field53、metadata map key1/key6值为四字节小端int32，必须记录官方schema来源。解析1MiB原两流、4096层、最多64meta/层、层名1024字节、迭代取消/原期限。录制前后同候选和完整身份链；最终原stat/startticks复核及UID复核。UID初读不可用可缺FPS；已确认后变化拒绝整次采样。
+固定读取adb exec-out dumpsys SurfaceFlinger --proto与/proc/pid/status。支持已核AOSP裸LayersProto及带固定magic/单entry的TraceFile，未知/多snapshot/重复关键字段、非法wire类型不猜测；metadata field42、owner_uid field53、metadata map key1/key6值为四字节小端int32，必须记录官方schema来源。解析1MiB原两流、4096层、最多64meta/层、层名1024字节、迭代取消/原期限。录制前后同候选和完整身份链；最终原stat/startticks复核及UID复核。UID初读不可用可缺FPS；已确认后变化拒绝整次采样。
 
 前台不是本批新增推断：不根据包名前台/层加载顺序挑候选，不虚构前后台证明；同归属多个游戏buffer层继续缺测，所有普通CPU/内存/温度等仍须合格。必要证据为合法/缺失/冲突/坏proto/恶意长度、环/层替换/UID与starttime变化、原期限/在途取消、实际HTTP-MCP/前端/卸载历史。root堆栈和画面关联已获用户授权，另定义录制任务与时间基准，不能塞入十秒基础采样。
 
@@ -69,7 +69,7 @@ ADB 继续使用固定部署入口、`-s serial shell -T`、Restricted 环境、
 
 候选仍以精确包名边界和 SurfaceView/BLAST 名称作为过滤条件，但必须同时满足自身 owner_uid 与目标进程四个相同UID一致。沿实际 parent 找到同一层的 metadata key1=UID、key6=PID见证，至少一处完整见证且所有已声明归属值无冲突；祖先 creator UID允许系统UID，不能代替元数据中的应用身份。重复ID、父链缺失/环、目录同名或多个合格候选均缺测。摘要加入PID、UID及整父链的id、parent、name、creator UID和归属元数据；父链任何变化都会撤销当前窗口。多处一致见证可以共存，无法以最近祖先绕过远祖冲突。
 
-合法命令链为：pidof、初stat、meminfo、初status、初proto、初latency、80ms观察、末latency、末proto、三条环境探针、末stat、末status、系统stat，共14条ADB命令。身份proto读取固定为 -s serial shell -T dumpsys --proto SurfaceFlinger；进程UID固定为 -s serial shell -T cat /proc/PID/status。latency沿既有固定命令和单一数据参数转义，无--list或--latency-clear。初UID不可读时缺FPS，总9条命令；初UID可读但首proto无资格时总11条。后置proto在第二latency之后比较完整身份，末stat保留starttime核验；初UID已确认后，末UID变动或不能确认会拒绝整次采样。
+合法命令链为：pidof、初stat、meminfo、初status、初proto、初latency、80ms观察、末latency、末proto、三条环境探针、末stat、末status、系统stat，共14条ADB命令。身份proto读取固定为 -s serial exec-out dumpsys SurfaceFlinger --proto；进程UID固定为 -s serial shell -T cat /proc/PID/status。latency沿既有固定命令和单一数据参数转义，无--list或--latency-clear。初UID不可读时缺FPS，总9条命令；初UID可读但首proto无资格时总11条。后置proto在第二latency之后比较完整身份，末stat保留starttime核验；初UID已确认后，末UID变动或不能确认会拒绝整次采样。
 
 官方字段和实际导出路径均本轮只读核验：
 
@@ -84,3 +84,9 @@ ADB 继续使用固定部署入口、`-s serial shell -T`、Restricted 环境、
 ## Android 11 图层字段兼容
 
 Android 11图层不保证提供owner_uid字段53。此字段缺失时仍必须由真实同层metadata键1的UID与键6的PID成对匹配目标/proc身份，祖先链中任何PID/UID声明冲突均拒绝，不能跨层拼见证。若候选存在owner_uid声明，该声明仍须等于目标UID。层名仅用于选择SurfaceView/BLAST和对应latency条目，不作为归属证明。无有效同层见证时FPS保持缺失；旧版纯夹具不能替代真实手机metadata验收。
+
+## Android11窗口见证增量
+
+2026-10-13修补：服务参数必须后置--proto，二进制只走exec-out；三星原前置命令返回文本，shell-T二进制有LF转CRLF，不纳入protobuf资格。metadata已同时证明UID/PID仍沿14条原路径；有UID父链但原生Android11缺PID metadata时才追加两次dumpsys window windows，完整路径16条。只有Session PID/UID、owner UID、完整Window token/title、声明Surface名、可见/hasSurface/HAS_DRAWN和真实SF数值父链共同匹配才采，前后Window/Surface对象代际及层链一致；同UID其他PID或窗口切换保持缺FPS，不猜归属。
+
+独立实际服务19检查/17会话/222工具通过，原OS逐份审计、driver/host/probe退出0，见artifacts/android-game-fps-service-debug-79259e2a-43a2-41f7-8d74-99201c12b68f/report.json。三星实际ChillyRoom已取得展示窗口（12帧/231ms及10帧/185ms）；只是该设备时点观察，不计跨OEM准确性或与商业工具等价。Root/画面及派生合同另见AndroidRoot堆栈与帧画面实施，最终版本与未验证范围以根todo增量为准。

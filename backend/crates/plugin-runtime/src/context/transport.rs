@@ -4,15 +4,20 @@ use crate::{Execution, framing};
 use apk_plugin_sdk::{
     Request, Response,
     context::{CONTEXT_FRAME_LIMIT, CONTEXT_PROTOCOL_VERSION, ReadyFrame, StartFrame},
-    cooperative::{CooperativeResponse, REQUEST_LIMIT, RESPONSE_LIMIT},
+    cooperative::{CancelReason, ControlFrame, CooperativeResponse, REQUEST_LIMIT, RESPONSE_LIMIT},
 };
 use tokio::io::{AsyncBufRead, AsyncWrite, AsyncWriteExt};
 use tokio::time::Instant;
 
-pub(super) async fn handshake<R, W>(
-    reader: &mut R,
-    writer: &mut W,
-) -> Result<(Request, InvocationContext), String>
+pub(super) enum Handshake {
+    Started(Request, InvocationContext),
+    Cancelled {
+        request_id: String,
+        reason: CancelReason,
+    },
+}
+
+pub(super) async fn handshake<R, W>(reader: &mut R, writer: &mut W) -> Result<Handshake, String>
 where
     R: AsyncBufRead + Unpin,
     W: AsyncWrite + Unpin,
@@ -44,13 +49,29 @@ where
     let bytes = framing::line(reader, CONTEXT_FRAME_LIMIT)
         .await?
         .ok_or("缺少 Start 帧")?;
-    let start: StartFrame = serde_json::from_slice(&bytes).map_err(|_| "Start 帧无效")?;
+    let start: StartFrame = match serde_json::from_slice(&bytes) {
+        Ok(start) => start,
+        Err(_) => {
+            // 有效Request及已发送Ready之后，严格匹配Cancel即可零业务确认收口。
+            let cancel: ControlFrame =
+                serde_json::from_slice(&bytes).map_err(|_| "Start 帧无效")?;
+            if cancel.protocol_version != CONTEXT_PROTOCOL_VERSION
+                || cancel.request_id != request.request_id
+            {
+                return Err("启动取消帧版本或请求 ID 不匹配".into());
+            }
+            return Ok(Handshake::Cancelled {
+                request_id: request.request_id,
+                reason: cancel.reason,
+            });
+        }
+    };
     start.validate().map_err(str::to_owned)?;
     if start.request_id != request.request_id {
         return Err("Start 请求 ID 不匹配".into());
     }
     let context = InvocationContext::from_start(origin, start.remaining_timeout_ns)?;
-    Ok((request, context))
+    Ok(Handshake::Started(request, context))
 }
 
 pub(super) async fn reply<W: AsyncWrite + Unpin>(

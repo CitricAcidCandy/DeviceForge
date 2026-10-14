@@ -292,6 +292,15 @@ impl PerformanceService {
         let raw = result?;
         context.check()?;
         raw.validate()?;
+        if raw.metric_missing.is_some()
+            && match (&self.0.source, &runtime.binding) {
+                (Source::Registered(_), Some(binding)) => !binding.capabilities.partial_metrics,
+                (Source::Probe(probe), None) => !probe.capabilities().partial_metrics,
+                _ => true,
+            }
+        {
+            return Err(Error::Dependency("性能来源未声明部分缺测能力".into()));
+        }
         Ok((raw, permit))
     }
 

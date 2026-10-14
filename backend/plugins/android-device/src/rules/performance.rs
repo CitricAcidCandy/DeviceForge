@@ -1,5 +1,6 @@
 //! 固定性能工具输出的纯规则；不访问设备、时钟、文件或会话存储。
 pub(crate) mod fps;
+pub(crate) mod missing;
 
 use crate::{Error, Result};
 use std::collections::HashSet;
@@ -142,6 +143,7 @@ pub(crate) fn memory(
     let mut pss = None;
     let mut rss = None;
     let mut identity = false;
+    let mut app_summary = false;
     for line in output.lines() {
         check()?;
         if let Some(header) = line.trim().strip_prefix("** MEMINFO in pid ") {
@@ -153,6 +155,17 @@ pub(crate) fn memory(
                 return Err(Error::Dependency("内存进程编号不匹配或重复"));
             }
             identity = true;
+        }
+        if line.trim() == "App Summary" {
+            app_summary = true;
+        }
+        // Android 9的摘要使用TOTAL:，其数值是PSS而非RSS或交换内存。
+        if app_summary && let Some(total) = line.trim().strip_prefix("TOTAL:") {
+            let count = total
+                .split_whitespace()
+                .next()
+                .ok_or(Error::Dependency("内存汇总缺少数值"))?;
+            set(&mut pss, integer(count)?)?;
         }
         for (label, value) in [("TOTAL PSS:", &mut pss), ("TOTAL RSS:", &mut rss)] {
             if let Some(index) = line.find(label) {

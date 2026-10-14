@@ -16,3 +16,9 @@ API 1 省略 `api_version` 时默认 1，序列化值 1 时省略，保留旧声
 容器限定 `api_version=1`、`scope=device`，设备编号保留 UTF-8 原文且须与会话目标一致。各成员记录宿主 Unix 毫秒观测时间，最多落后样本 10 秒；电压 µV、电流 µA、温度 °C，来源及访问权限必须明确。净电池功率单位 mW，正充电、负放电，仅未知极性省略；它是整机电池侧观测，不是游戏耗电。
 
 纯校验覆盖版本、归属、时效、长度、单位范围、充放电矛盾、非有限温度、HAL 类型和重复传感器。BCL 电压、电流及百分比类型不作温度，传感器名称拒绝控制符与替换字符。完整合同见[Android游戏指标Rust采集实施](../../../docs/Android游戏指标Rust采集实施.md)。
+
+## 部分缺测契约
+
+performance/metric_missing.rs提供纯MetricMissing、UnavailableMetric与原因枚举。系统计数/核数和PSS可空，必须与真实缺测原因精确对应，不以零代替不可读值；来源限1–80字节ASCII稳定标识。缺测对象版本1，至少一项cpu/memory存在；其它项可省略或null，空容器拒绝。
+
+PerformanceAccess.partial_metrics默认false，只有API2设备型性能来源可显式true。旧完整数字样本保持可读；取消、期限、进程身份与工具清理错误仍由原协议和执行层处理，不属于此纯模块。

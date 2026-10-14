@@ -131,3 +131,18 @@ test('数值核对容忍浮点舍入而不放宽字段范围，原指标仍拒�
   const raw = metrics();
   assert.throws(() => read([{ ...sample(0, raw), metrics: { ...raw, cpu_share_percent: 5 } }]), protocolLog);
 });
+
+test('battery_dumpsys缺电流的充电观测保留电压与电池温度，派生功率保持缺测', () => {
+  // 代表公开降级合同；三星原件重放由独立测试驱动验收，不代表真实浏览器通过。
+  const current = metrics({ device_observation: { api_version: 1, scope: 'device', device_id: device,
+    battery: { observed_at: 2000, source: 'battery_dumpsys', access: 'adb_shell', voltage_uv: 3887000,
+      current_ua: null, current_polarity: 'unknown', status: 'charging', supply_state: 'external' },
+    temperatures: [{ observed_at: 2000, source: 'battery_dumpsys', access: 'adb_shell', sensor_kind: 'battery',
+      sensor_name: 'battery', sensor_type: null, temperature_celsius: 34.1, status: null }] } });
+  const reason = '电池电流不可用，无法计算净电池功率';
+  const accepted = consume(derived({ battery_net_power_mw: null, battery_reason: reason }), current).samples[1];
+  assert.equal(accepted?.derived?.battery_net_power_mw, null);
+  assert.equal(accepted?.derived?.battery_reason, reason);
+  assert.deepEqual(accepted?.metrics.device_observation, current.device_observation);
+  assert.equal(accepted?.metrics.device_observation?.temperatures[0]?.temperature_celsius, 34.1);
+});

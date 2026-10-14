@@ -1,7 +1,10 @@
 //! 原截止点、固定工具入口和直接进程租约；不承担平台命令或共享server所有权。
 mod file;
 mod resources;
-use crate::{Error, Result};
+use crate::{
+    Error, Result,
+    rules::performance::missing::{self, Metric, Value},
+};
 use apk_plugin_sdk::cooperative::CleanupOutcome;
 use deviceforge_plugin_runtime::{Execution, InvocationContext};
 use deviceforge_tool_process::{
@@ -99,7 +102,25 @@ impl Control {
     pub(crate) async fn capture_scoped(&self, args: &[String]) -> Result<Output> {
         let mut command = ToolCommand::new(&self.executable, args);
         command.environment = Environment::Restricted;
-        self.capture_scoped_command(command).await
+        self.capture_scoped_command(command)
+            .await?
+            .map_err(Into::into)
+    }
+
+    pub(crate) async fn capture_metric_scoped(
+        &self,
+        args: &[String],
+        metric: Metric,
+    ) -> Result<Value<Output>> {
+        let mut command = ToolCommand::new(&self.executable, args);
+        command.environment = Environment::Restricted;
+        match self.capture_scoped_command(command).await? {
+            Ok(output) => Ok(Value::Available(output)),
+            Err(error) => match missing::nonzero(metric, &error) {
+                Some(reason) => Ok(Value::Unavailable(reason)),
+                None => Err(error.into()),
+            },
+        }
     }
 
     pub(crate) async fn capture_private(
@@ -116,10 +137,15 @@ impl Control {
                 .env
                 .insert(key.into(), directory.as_os_str().to_owned());
         }
-        self.capture_scoped_command(command).await
+        self.capture_scoped_command(command)
+            .await?
+            .map_err(Into::into)
     }
 
-    async fn capture_scoped_command(&self, command: ToolCommand<'_>) -> Result<Output> {
+    async fn capture_scoped_command(
+        &self,
+        command: ToolCommand<'_>,
+    ) -> Result<std::result::Result<Output, deviceforge_tool_process::Error>> {
         self.check()?;
         let mut guard = ToolGuard {
             unresolved: self.unresolved.clone(),
@@ -155,7 +181,7 @@ impl Control {
             return Err(Error::CleanupFailed);
         }
         self.check()?;
-        result.map_err(Into::into)
+        Ok(result)
     }
 
     pub(crate) fn finish(&self, result: Result<serde_json::Value>) -> Execution {

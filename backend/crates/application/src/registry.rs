@@ -521,6 +521,7 @@ mod tests {
                 .into(),
                 fps: false,
                 device_observation: false,
+                partial_metrics: false,
                 device_capability: None,
             })
         }

@@ -31,12 +31,13 @@ impl PerformanceProbe for Probe {
             pid: 123,
             process_start_ticks: 900,
             process_ticks: 100 + count * 10,
-            system_ticks: 1000 + count * 100,
-            logical_cpus: 2,
-            pss_kib: 1024,
+            system_ticks: Some(1000 + count * 100),
+            logical_cpus: Some(2),
+            pss_kib: Some(1024),
             rss_kib: Some(2048),
             frame_window: None,
             device_observation: None,
+            metric_missing: None,
         })
     }
 }
@@ -231,12 +232,13 @@ impl PerformanceProbe for LateProbe {
             pid: 123,
             process_start_ticks: 900,
             process_ticks: 10,
-            system_ticks: 1000,
-            logical_cpus: 2,
-            pss_kib: 10,
+            system_ticks: Some(1000),
+            logical_cpus: Some(2),
+            pss_kib: Some(10),
             rss_kib: None,
             frame_window: None,
             device_observation: None,
+            metric_missing: None,
         })
     }
 }

@@ -9,3 +9,4 @@ SDK PerformanceSample 显式转换为领域 RawPerformance，拒绝未知字段�
 协议 2 响应 result 是 PerformanceSample，outputs 必须为空；任务层看到的 result / artifacts 包装由适配器解包，再进入现有性能会话持久化。能力查询动态报告插件来源与 FPS 支持，不证明插件的数据准确性。插件仍是管理员可信代码，没有操作系统沙箱或测量真实性验证。
 
 验证：cargo test -p deviceforge-performance-demo-plugin；node scripts/runtime-smoke.mjs --performance-plugin。示例使用 synthetic_demo 合成来源，不是真实设备 FPS。
+metric_missing.rs只负责公开SDK到领域缺测类型的逐字段及逐枚举映射，无I/O或数据派生。适配器先校验部分缺测声明及值/原因联动，再交领域持久化；旧独立API1不能启用partial_metrics。

@@ -153,7 +153,7 @@ pub(super) fn server_arguments(scid: &str) -> Result<String> {
         return Err(Error::Invalid("视频会话标识无效"));
     }
     let value = format!(
-        "app_process / --nice-name=dfv_{scid} com.genymobile.scrcpy.Server 3.3.1 scid={scid} tunnel_forward=true audio=false control=false max_size=640 max_fps=30 video_bit_rate=2000000 send_device_meta=false send_dummy_byte=false cleanup=false"
+        "app_process / --nice-name={scid} com.genymobile.scrcpy.Server 3.3.1 scid={scid} tunnel_forward=true audio=false control=false max_size=640 max_fps=30 video_bit_rate=2000000 send_device_meta=false cleanup=false video_codec_options=color-standard:int=1"
     );
     if value.len() >= 255 {
         return Err(Error::Invalid("视频启动参数超出设备兼容上限"));

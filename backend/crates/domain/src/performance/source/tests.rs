@@ -89,6 +89,7 @@ fn device_definition() -> (
         operation: operation.id.clone(),
         fps: false,
         device_observation: false,
+        partial_metrics: false,
         device_capability: Some(super::PerformanceDeviceCapability {
             id: "sample".into(),
             version: 1,
@@ -253,6 +254,8 @@ fn real_android_manifests_register_their_device_sample_schema() {
         source.api_version = u32::try_from(declaration["api_version"].as_u64().unwrap()).unwrap();
         source.operation = operation.id.clone();
         source.fps = declaration["fps"].as_bool().unwrap();
+        source.partial_metrics = declaration["partial_metrics"].as_bool().unwrap();
+        assert!(source.partial_metrics, "{name}");
         let binding = source.device_capability.as_mut().unwrap();
         binding.id = declaration["device_capability"]["id"]
             .as_str()
@@ -311,4 +314,28 @@ fn legacy_source_has_no_device_binding_and_does_not_require_device_schema() {
     );
     source.api_version = 3;
     assert!(source.validate("fixture", &[operation], None).is_err());
+}
+
+#[test]
+fn partial_metrics_registration_only_accepts_device_api_two() {
+    let (mut source, operation, provider) = device_definition();
+    source.partial_metrics = true;
+    assert!(
+        source
+            .validate("fixture", std::slice::from_ref(&operation), Some(&provider))
+            .is_ok()
+    );
+    source.api_version = 1;
+    source.device_capability = None;
+    assert!(
+        source
+            .validate("fixture", std::slice::from_ref(&operation), None)
+            .is_err()
+    );
+    source.partial_metrics = false;
+    assert!(
+        source
+            .validate("fixture", std::slice::from_ref(&operation), None)
+            .is_ok()
+    );
 }

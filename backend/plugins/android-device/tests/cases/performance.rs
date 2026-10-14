@@ -411,3 +411,205 @@ fn sample_delayed_start_consumes_the_original_protocol_origin() {
     failure(&running.complete(), TOTAL_TIMEOUT);
     fixture.assert_no_tool();
 }
+
+#[test]
+fn sample_exact_metric_denials_and_unsupported_keep_the_other_base_metrics() {
+    for (stage, key, source, diagnostic, reason) in [
+        (
+            3,
+            "memory",
+            "android_dumpsys.meminfo",
+            "dumpsys: meminfo: Permission denied\n",
+            "permission_denied",
+        ),
+        (
+            3,
+            "memory",
+            "android_dumpsys.meminfo",
+            "dumpsys: meminfo: not supported\n",
+            "unsupported",
+        ),
+        (
+            9,
+            "cpu",
+            "linux_proc.stat",
+            "cat: /proc/stat: Permission denied\n",
+            "permission_denied",
+        ),
+        (
+            9,
+            "cpu",
+            "linux_proc.stat",
+            "cat: /proc/stat: Operation not supported\n",
+            "unsupported",
+        ),
+    ] {
+        for code in [0, 1] {
+            let fixture = Fixture::new("performance-explicit-partial-metric");
+            let outputs = performance::outputs();
+            performance::plan(&fixture, &outputs);
+            fixture.plan(
+                stage,
+                // 非零工具错误不保留stdout；即使曾输出计数也只发布缺测，不复用它们。
+                if code == 0 {
+                    diagnostic.as_bytes()
+                } else {
+                    &outputs[stage - 1]
+                },
+                if code == 1 {
+                    diagnostic.as_bytes()
+                } else {
+                    b""
+                },
+                code,
+            );
+            let reply = performance::complete(&fixture, performance::request(&fixture), 9);
+            let result = success(&reply);
+            assert_eq!(result["pid"], 123);
+            assert_eq!(result["process_start_ticks"], 900);
+            assert_eq!(result["process_ticks"], 30);
+            assert_eq!(result["metric_missing"]["api_version"], 1);
+            assert_eq!(
+                result["metric_missing"][key],
+                json!({
+                    "source": source, "access": "adb_shell", "reason": reason,
+                })
+            );
+            if key == "memory" {
+                assert_eq!(result["pss_kib"], Value::Null);
+                assert_eq!(result["rss_kib"], Value::Null);
+                assert_eq!(result["system_ticks"], 137);
+                assert_eq!(result["logical_cpus"], 2);
+                assert!(result["metric_missing"].get("cpu").is_none());
+            } else {
+                assert_eq!(result["system_ticks"], Value::Null);
+                assert_eq!(result["logical_cpus"], Value::Null);
+                assert_eq!(result["pss_kib"], 42);
+                assert_eq!(result["rss_kib"], 84);
+                assert!(result["metric_missing"].get("memory").is_none());
+            }
+            for index in 1..=9 {
+                assert_eq!(
+                    fs::read_to_string(
+                        fixture
+                            .root
+                            .join(format!("call-{index:02}/normal-exit-code"))
+                    )
+                    .unwrap(),
+                    if index == stage {
+                        code.to_string()
+                    } else {
+                        "0".into()
+                    }
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn sample_missing_cpu_and_memory_keep_qualified_environment_without_reusing_values() {
+    let fixture = Fixture::new("performance-both-metrics-missing");
+    let mut outputs = performance::outputs();
+    outputs[4] = b"POWER_SUPPLY_NAME=battery\nPOWER_SUPPLY_TYPE=Battery\nPOWER_SUPPLY_PRESENT=1\nPOWER_SUPPLY_STATUS=Discharging\nPOWER_SUPPLY_VOLTAGE_NOW=4000000\nPOWER_SUPPLY_CURRENT_NOW=-500000\nPOWER_SUPPLY_TEMP=305\n".to_vec();
+    outputs[5] = b"Current Battery Service state:\n AC powered: false\n USB powered: false\n Wireless powered: false\n Dock powered: false\n present: true\n status: 3\n voltage: 4000\n temperature: 305\n".to_vec();
+    outputs[6] = b"HAL Ready: true\nCurrent temperatures from HAL:\nTemperature{mValue=47.25, mType=1, mName=gpu, mStatus=0}\nCurrent cooling devices from HAL:\n".to_vec();
+    performance::plan(&fixture, &outputs);
+    fixture.plan(3, b"", b"dumpsys: meminfo: Permission denied\n", 1);
+    fixture.plan(9, b"", b"cat: /proc/stat: Operation not supported\n", 1);
+    let reply = performance::complete(&fixture, performance::request(&fixture), 9);
+    let result = success(&reply);
+    for key in ["system_ticks", "logical_cpus", "pss_kib", "rss_kib"] {
+        assert_eq!(result[key], Value::Null);
+    }
+    assert_eq!(result["process_ticks"], 30);
+    assert_eq!(result["metric_missing"]["cpu"]["reason"], "unsupported");
+    assert_eq!(
+        result["metric_missing"]["memory"]["reason"],
+        "permission_denied"
+    );
+    let observation = &result["device_observation"];
+    assert_eq!(observation["device_id"], SERIAL);
+    assert_eq!(observation["battery"]["voltage_uv"], 4_000_000);
+    assert_eq!(observation["battery"]["current_ua"], -500_000);
+    assert_eq!(
+        observation["temperatures"][0]["temperature_celsius"],
+        json!(47.25)
+    );
+    assert_eq!(observation["temperatures"][0]["sensor_kind"], "gpu");
+}
+
+#[test]
+fn sample_unknown_wrong_exit_and_mixed_metric_diagnostics_remain_hard_failures() {
+    for (stage, diagnostic) in [
+        (3, "dumpsys: meminfo: Permission denied\n"),
+        (3, "dumpsys: meminfo: not supported\n"),
+        (9, "cat: /proc/stat: Permission denied\n"),
+        (9, "cat: /proc/stat: Operation not supported\n"),
+    ] {
+        for mixed in [false, true] {
+            let fixture = Fixture::new("performance-refuses-unsafe-downgrade");
+            let outputs = performance::outputs();
+            performance::plan(&fixture, &outputs);
+            fixture.plan(
+                stage,
+                if mixed { &outputs[stage - 1] } else { b"" },
+                diagnostic.as_bytes(),
+                if mixed { 0 } else { 2 },
+            );
+            failure(
+                &performance::complete(&fixture, performance::request(&fixture), stage),
+                if mixed {
+                    performance::REJECTED
+                } else {
+                    "工具依赖失败：ADB客户端执行失败，请检查部署配置"
+                },
+            );
+        }
+    }
+    for stage in [3, 9] {
+        for diagnostic in [
+            "Permission Denied",
+            "unsupported",
+            "device offline",
+            "unauthorized",
+            "cat: /proc/stat: Permission denied extra",
+        ] {
+            let fixture = Fixture::new("performance-unknown-nonzero-diagnostic");
+            performance::plan(&fixture, &performance::outputs());
+            fixture.plan(stage, b"", diagnostic.as_bytes(), 1);
+            failure(
+                &performance::complete(&fixture, performance::request(&fixture), stage),
+                "工具依赖失败：ADB客户端执行失败，请检查部署配置",
+            );
+        }
+    }
+}
+
+#[test]
+fn sample_partial_memory_does_not_weaken_later_identity_or_cancellation() {
+    for cancel in [false, true] {
+        let fixture = Fixture::new("performance-partial-before-final-guard");
+        performance::plan(&fixture, &performance::outputs());
+        fixture.plan(3, b"", b"dumpsys: meminfo: Permission denied\n", 1);
+        if !cancel {
+            fixture.plan(8, &performance::stat(123, 22, 901), b"", 0);
+            failure(
+                &performance::complete(&fixture, performance::request(&fixture), 8),
+                "工具依赖失败：采样期间应用进程已重启",
+            );
+            continue;
+        }
+        let mut running = fixture.begin_request(performance::request(&fixture));
+        running.start(Duration::from_secs(20));
+        for index in 1..9 {
+            performance::release(&fixture, index);
+        }
+        let probe = fixture.wait_tool(9);
+        running.cancel("cancelled");
+        failure(&running.complete(), CANCELLED);
+        probe.assert_exited();
+        fixture.assert_calls(9);
+        assert!(!fixture.root.join("release-9").exists());
+    }
+}

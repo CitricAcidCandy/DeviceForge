@@ -27,8 +27,14 @@ export async function consume(host, directory, report, scenario, published, fron
   assert.equal(sample.index, 0); assert.equal(sample.begin_ns, '10000000000'); assert.equal(sample.end_ns, '10110000000');
   assert.equal(sample.target_ns, '10055000000'); assert.deepEqual(sample.frame, scenario.frame ?? null, 'PROFILE-MEDIA-EXACT-PTS-ASSOCIATION');
   assert.equal(sample.metrics.pid, targetPid); assert.equal(sample.metrics.process_start_ticks, 900);
-  assert.equal(sample.metrics.pss_kib, 2048); assert.equal(sample.metrics.rss_kib, 4096);
-  assert.equal(sample.metrics.logical_cpus, 2); assert.ok(sample.metrics.frame_window == null);
+  // 旧场景仍使用原固定数值；只有显式部分缺测场景可提供独立的可空指标黄金。
+  const expectedMetrics = scenario.expected_metrics ?? { pss_kib: 2048, rss_kib: 4096, logical_cpus: 2 };
+  assert.deepEqual(Object.fromEntries(Object.keys(expectedMetrics).map(key => [key, sample.metrics[key]])), expectedMetrics, 'PROFILE-EXACT-METRIC-GOLDEN');
+  if (scenario.expected_metrics) {
+    assert.ok(Number.isSafeInteger(sample.metrics.process_ticks) && sample.metrics.process_ticks > 0, 'PROFILE-PARTIAL-KEEPS-PROCESS-TICKS');
+    if (expectedMetrics.logical_cpus !== null) assert.ok(Number.isSafeInteger(sample.metrics.system_ticks) && sample.metrics.system_ticks > 0, 'PROFILE-PARTIAL-KEEPS-SYSTEM-TICKS');
+  }
+  assert.ok(sample.metrics.frame_window == null);
   assert.deepEqual(sample.stack_sample_indices, captured ? [0, 1] : [], 'PROFILE-ONLY-DEVICE-TIME-ASSOCIATION');
   const stacks = files.get('stacks.jsonl').length ? files.get('stacks.jsonl').toString('utf8').trimEnd().split('\n').map(line => JSON.parse(line)) : [];
   const golden = captured ? expectedStacks() : []; assert.equal(stacks.length, golden.length);

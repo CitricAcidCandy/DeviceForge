@@ -17,11 +17,11 @@ async fn session() -> Session {
         control: Control::new(session::lifecycle::context().await, "unused-ADB".into()),
     }
 }
-fn header() -> [u8; 12] {
-    let mut value = [0; 12];
-    value[..4].copy_from_slice(b"h264");
-    value[4..8].copy_from_slice(&640_u32.to_be_bytes());
-    value[8..].copy_from_slice(&288_u32.to_be_bytes());
+fn header() -> [u8; 13] {
+    let mut value = [0; 13];
+    value[1..5].copy_from_slice(b"h264");
+    value[5..9].copy_from_slice(&640_u32.to_be_bytes());
+    value[9..].copy_from_slice(&288_u32.to_be_bytes());
     value
 }
 
@@ -33,7 +33,7 @@ async fn early_eof_reconnects_and_codec_header_is_consumed_exactly_once() {
     device.port = Some(listener.local_addr().unwrap().port());
     let server = tokio::spawn(async move {
         let (mut first, _) = listener.accept().await.unwrap();
-        first.write_all(&header()[..5]).await.unwrap();
+        first.write_all(&header()[..6]).await.unwrap();
         drop(first);
         let (mut second, _) = listener.accept().await.unwrap();
         second.write_all(&header()).await.unwrap();
@@ -46,7 +46,7 @@ async fn early_eof_reconnects_and_codec_header_is_consumed_exactly_once() {
     let server_result = server.await;
     let (mut socket, actual_header) = connected.unwrap().unwrap();
     server_result.unwrap();
-    assert_eq!(actual_header, header());
+    assert_eq!(actual_header.as_slice(), &header()[1..]);
     let mut payload = [0; 6];
     tokio::time::timeout(Duration::from_secs(1), socket.read_exact(&mut payload))
         .await

@@ -41,3 +41,19 @@ node scripts/android-device-observation-smoke.mjs --frozen-input=宿主冻结目
 本批脚本的 6 份 `.mjs` 语法检查、`--help` 和自有差异检查均退出 0，原生假 ADB 元数据检查退出 0；主代理随后链接夹具并冻结新 debug 宿主/插件。
 
 新 debug 实服首轮通过：`artifacts/android-device-observation-service-debug-03a1812b-453f-4d40-849b-f72fe8f6565d/report.json` 为 `passed=true`，6 项检查、4 个会话、45 个直接工具、313 个响应日志 ID 和 7 对插件调用；驱动实际退出码为 0，独立 `driver-exit.json` 记录原 child close。45 份 OS 退出原件均独立与报告核对，工具及父插件均已退出、探针退出 0、`test_kill=false`；门闩温度工具由生产取消。宿主正常退出 0、监听释放，冻结输入/快照及实际前端字节身份稳定。实服结果只按本目录独立 `report.json` 的 `passed`、实际检查数、工具退出和冻结身份记录，未执行的部分不得计为通过。性能压测按用户要求延后至全部业务开发完成后。
+
+## OEM BatteryService 最小重放入口
+
+新增 `oem-replay.mjs` 仅用于修后 debug 冻结字节的独立功能验收，不替代上面的完整设备观测矩阵。由主代理统一启动：
+
+```powershell
+node scripts/android-device-observation-smoke/oem-replay.mjs --frozen-input=修后宿主冻结目录 --plugin-input=修后插件冻结目录 --tool=已有原生假ADB绝对路径 --probe=已有OS探针绝对路径 --battery-input=artifacts/android-power-readonly-166736c4-8c12-485a-ab6b-fb2a3334a838/battery-service.json
+```
+
+五个输入均显式提供；JSON 原件及其 SHA 纳入输入冻结，重放 `stdout` 原 UTF-8 字节。空 uevent 只代表 sysfs 不可用，空 thermal 使电池温度来自 BatteryService；未复现真实 Permission denied 的 stderr/exit1，真实权限失败仍由既有只读原件证明。冻结配置、原生工具、前端相对导入闭包和重放字节前后核身份。
+
+公开样本须为 `battery_dumpsys`/`adb_shell`、3887000µV、charging、external、电流缺值、unknown 极性、净功率缺值和 battery_dumpsys 的 battery 温度34.1℃；不从无单位 OEM current now 推算电流或功率。HTTP/MCP 历史与实际前端工厂消费精确相等，停采并卸载后历史不改写；记录每个工具与父插件原 OS 句柄、宿主exit0及端口释放。`driver-process-exit.json` 只记录自身实际exit事件，主代理另补原child句柄退出原件。
+
+本轮编写仅静态源码核对；当前持久运行环境不提供可用的静态模块解析器，未完成可执行语法检查。未执行入口、node --check、编译、服务或真实ADB。主代理先做语法检查，等待合并Root来源修复后的新冻结包再启动；通过仅按本轮实际report及原件审计，不计真机新包验收或性能专项。
+
+Root权限来源的小批入口为root-access-replay.mjs：使用显式冻结宿主/插件、已有profile原生假ADB与OS探针，只验证UID0/Simpleperf不可用和普通无Root两次无媒体短录制。权限来源必须贯穿真实Session、索引、ZIP及实际前端，纯映射回归或既有无环境观测normal批均不能替代。本轮执行结果由主代理原child句柄和新报告独立确认。

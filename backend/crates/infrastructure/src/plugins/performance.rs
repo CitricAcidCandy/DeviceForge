@@ -37,6 +37,7 @@ pub(super) fn definition(
         operation: format!("plugin.{}.{}", manifest.id, access.sample_operation),
         fps: access.fps,
         device_observation: access.device_observation,
+        partial_metrics: access.partial_metrics,
         device_capability: access.device_capability.as_ref().map(|binding| {
             PerformanceDeviceCapability {
                 id: binding.id.clone(),

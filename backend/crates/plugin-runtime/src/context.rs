@@ -84,7 +84,24 @@ where
     Fut: Future<Output = Execution>,
 {
     let mut reader = BufReader::new(reader);
-    let (request, context) = transport::handshake(&mut reader, &mut writer).await?;
+    let (request, context) = match transport::handshake(&mut reader, &mut writer).await? {
+        transport::Handshake::Started(request, context) => (request, context),
+        transport::Handshake::Cancelled { request_id, reason } => {
+            let error = match reason {
+                apk_plugin_sdk::cooperative::CancelReason::Timeout => {
+                    ContextError::Timeout.to_string()
+                }
+                apk_plugin_sdk::cooperative::CancelReason::Cancelled => {
+                    ContextError::Cancelled.to_string()
+                }
+                apk_plugin_sdk::cooperative::CancelReason::TransportFailure => {
+                    "宿主传输失败".into()
+                }
+            };
+            return transport::reply(&mut writer, request_id, Execution::complete(Err(error)))
+                .await;
+        }
+    };
     let id = request.request_id.clone();
     let execution = execution::run(&mut reader, request, context, handler).await;
     transport::reply(&mut writer, id, execution).await

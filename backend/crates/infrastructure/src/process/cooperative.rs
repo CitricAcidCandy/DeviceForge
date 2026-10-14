@@ -194,6 +194,7 @@ async fn run_version(
         &mut early_errors,
     )
     .await;
+    let mut startup_interruption = None;
     if sent && protocol_version == CONTEXT_PROTOCOL_VERSION {
         let start = context::start(
             &mut stdout,
@@ -203,15 +204,20 @@ async fn run_version(
             &call.cancel,
         );
         tokio::pin!(start);
-        sent = loop {
+        let outcome = loop {
             tokio::select! {
                 result = &mut start => break result,
                 result = &mut errors, if early_errors.is_none() => {
-                    if result.is_err() { break false; }
+                    if result.is_err() { break context::StartOutcome::Failed; }
                     early_errors = Some(result);
                 },
             }
         };
+        match outcome {
+            context::StartOutcome::Started => {}
+            context::StartOutcome::Interrupted(signal) => startup_interruption = Some(signal),
+            context::StartOutcome::Failed => sent = false,
+        }
     }
     let mut stdin = Some(stdin);
     let result = if sent {
@@ -235,15 +241,20 @@ async fn run_version(
         tokio::pin!(work);
         enum Completion {
             Finished(Result<Response>),
-            Interrupted(CancelReason),
+            Interrupted(CancelReason, Instant),
         }
-        let completion = loop {
-            tokio::select! {
-                biased;
-                _ = call.cancel.cancelled() => break Completion::Interrupted(cancellation_reason(shared_deadline)),
-                _ = tokio::time::sleep_until(deadline) => break Completion::Interrupted(CancelReason::Timeout),
-                _ = received.notified(), if stdin.is_some() => { drop(stdin.take()); },
-                result = &mut work => break Completion::Finished(result),
+        // 启动取消已经消耗Ready等待，后续控制、响应和退出共用首次清理绝对点。
+        let completion = if let Some(signal) = startup_interruption {
+            Completion::Interrupted(signal.reason, signal.grace)
+        } else {
+            loop {
+                tokio::select! {
+                    biased;
+                    _ = call.cancel.cancelled() => break Completion::Interrupted(cancellation_reason(shared_deadline), Instant::now() + Duration::from_millis(1250)),
+                    _ = tokio::time::sleep_until(deadline) => break Completion::Interrupted(CancelReason::Timeout, Instant::now() + Duration::from_millis(1250)),
+                    _ = received.notified(), if stdin.is_some() => { drop(stdin.take()); },
+                    result = &mut work => break Completion::Finished(result),
+                }
             }
         };
         match completion {
@@ -252,8 +263,7 @@ async fn run_version(
                 // 输出上限等提前错误也必须走下面的显式终止和等待，不能提前返回。
                 result.map_err(|_| Error::CleanupFailed)
             }
-            Completion::Interrupted(reason) => {
-                let grace = Instant::now() + Duration::from_millis(1250);
+            Completion::Interrupted(reason, grace) => {
                 let frame = ControlFrame {
                     protocol_version,
                     request_id: call.request_id.to_owned(),

@@ -1,4 +1,5 @@
 import { HostError } from '../../plugin-sdk/index.ts';
+import { isReadingMetricValues } from '../../shared/api/metric-missing.ts';
 import { isRecord } from '../../shared/api/validation.ts';
 import { isReadingDeviceObservation } from './device-observation.ts';
 import type { PerformanceAction, PerformanceCapabilities, PerformancePage, PerformanceSession, PerformanceSessions, PerformanceStart } from './types.ts';
@@ -39,9 +40,8 @@ export function isPerformanceSession(value: unknown): value is PerformanceSessio
 }
 function validReading(value: unknown, deviceId: string): boolean {
   if (!isRecord(value) || !integer(value.sequence, 1, 3600) || !integer(value.captured_at)
-    || !integer(value.pid, 1, 4294967295) || !integer(value.logical_cpus, 1, 4096) || !integer(value.pss_kib)
-    || !numberOrMissing(value.cpu_share_percent) || !numberOrMissing(value.cpu_core_percent)
-    || !(value.rss_kib === undefined || value.rss_kib === null || integer(value.rss_kib)) || !numberOrMissing(value.fps)) return false;
+    || !integer(value.pid, 1, 4294967295) || !isReadingMetricValues(value)
+    || !numberOrMissing(value.cpu_share_percent) || !numberOrMissing(value.cpu_core_percent) || !numberOrMissing(value.fps)) return false;
   if (value.cpu_share_percent !== undefined && value.cpu_share_percent !== null
     && typeof value.cpu_share_percent === 'number' && value.cpu_share_percent > 100) return false;
   if (typeof value.fps === 'number' && value.fps > 1000) return false;

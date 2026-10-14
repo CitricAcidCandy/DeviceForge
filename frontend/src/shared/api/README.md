@@ -9,3 +9,5 @@
 `createApiClient({baseUrl, transport, tokenProvider?})` 注入 fetch 与可选令牌；`call(endpoint,input,signal)` 返回 `{data,logId}`，错误为 ApiError 的 http/network/cancelled/protocol。v2 包装/关联头不一致拒绝；没有自动重试或管理重放。令牌只进请求头，禁止重定向携带令牌。
 
 uploadEndpoint 上传原始 Blob，downloadArtifact 保留包括 JSON 在内的原字节与响应头日志 ID。abortable 即使依赖忽略信号也及时结束客户端等待。公开标识按单路径段编码，分页参数验证非负安全整数。网络异常不携带原文。业务成功/错误必须为 v2 包装；未实现 v1 运行客户端或任意通用 URL 请求。
+
+metric-missing.ts提供原始样本与会话读数共用的纯缺测校验，只有数值为空且对应明确原因时接纳。它不生成重复DTO、不派生CPU或读取设备，具体性能/Profile功能从生成类型索引并复用校验。缺省/null兼容旧记录，空缺测容器、未知枚举和数值/原因矛盾拒绝。

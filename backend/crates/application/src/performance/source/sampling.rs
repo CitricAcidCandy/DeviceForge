@@ -52,6 +52,7 @@ impl SourceBinding {
                 self.registered.executor.result_format(),
                 self.capabilities.fps,
                 self.capabilities.device_observation,
+                self.capabilities.partial_metrics,
                 self.input["device_id"]
                     .as_str()
                     .ok_or_else(|| Error::Dependency("性能采样缺少固定设备标识".into()))?,
@@ -80,6 +81,7 @@ fn decode(
     format: ExecutorResultFormat,
     fps: bool,
     device_observation: bool,
+    partial_metrics: bool,
     device_id: &str,
 ) -> Result<RawPerformance> {
     let sample = match format {
@@ -96,6 +98,11 @@ fn decode(
     let raw: RawPerformance = serde_json::from_value(sample)
         .map_err(|_| Error::Dependency("插件性能样本类型无效".into()))?;
     raw.validate()?;
+    if raw.metric_missing.is_some() && !partial_metrics {
+        return Err(Error::Dependency(
+            "插件未声明部分缺测能力却返回缺测指标".into(),
+        ));
+    }
     if raw.frame_window.is_some() && !fps {
         return Err(Error::Dependency("插件未声明 FPS 能力却返回帧数据".into()));
     }
@@ -129,6 +136,7 @@ mod tests {
                 ExecutorResultFormat::Json,
                 false,
                 false,
+                false,
                 "device"
             )
             .is_err()
@@ -139,20 +147,51 @@ mod tests {
                 ExecutorResultFormat::PublishedArtifacts,
                 false,
                 false,
+                false,
                 "device"
             )
             .is_ok()
         );
-        assert!(decode(raw(), ExecutorResultFormat::Json, false, false, "device").is_ok());
+        assert!(
+            decode(
+                raw(),
+                ExecutorResultFormat::Json,
+                false,
+                false,
+                false,
+                "device"
+            )
+            .is_ok()
+        );
     }
     #[test]
     fn invalid_counts_wall_clock_and_undeclared_frames_are_rejected() {
         let mut value = raw();
         value["logical_cpus"] = json!(0);
-        assert!(decode(value, ExecutorResultFormat::Json, false, false, "device").is_err());
+        assert!(
+            decode(
+                value,
+                ExecutorResultFormat::Json,
+                false,
+                false,
+                false,
+                "device"
+            )
+            .is_err()
+        );
         let mut value = raw();
         value["captured_at"] = json!(apk_domain::now().saturating_add(60000));
-        assert!(decode(value, ExecutorResultFormat::Json, false, false, "device").is_err());
+        assert!(
+            decode(
+                value,
+                ExecutorResultFormat::Json,
+                false,
+                false,
+                false,
+                "device"
+            )
+            .is_err()
+        );
         let mut value = raw();
         value["frame_window"] = json!({"frames":30,"duration_ms":1000,"source":"fixture"});
         assert!(
@@ -161,11 +200,22 @@ mod tests {
                 ExecutorResultFormat::Json,
                 false,
                 false,
+                false,
                 "device"
             )
             .is_err()
         );
-        assert!(decode(value, ExecutorResultFormat::Json, true, false, "device").is_ok());
+        assert!(
+            decode(
+                value,
+                ExecutorResultFormat::Json,
+                true,
+                false,
+                false,
+                "device"
+            )
+            .is_ok()
+        );
     }
     #[test]
     fn observations_require_declaration_identity_version_and_current_time() {
@@ -180,6 +230,7 @@ mod tests {
                 ExecutorResultFormat::Json,
                 false,
                 true,
+                false,
                 "device"
             )
             .is_ok()
@@ -188,6 +239,7 @@ mod tests {
             decode(
                 value.clone(),
                 ExecutorResultFormat::Json,
+                false,
                 false,
                 false,
                 "device"
@@ -200,18 +252,116 @@ mod tests {
                 ExecutorResultFormat::Json,
                 false,
                 true,
+                false,
                 "other"
             )
             .is_err()
         );
         let mut bad = value.clone();
         bad["device_observation"]["api_version"] = json!(2);
-        assert!(decode(bad, ExecutorResultFormat::Json, false, true, "device").is_err());
+        assert!(
+            decode(
+                bad,
+                ExecutorResultFormat::Json,
+                false,
+                true,
+                false,
+                "device"
+            )
+            .is_err()
+        );
         let mut bad = value.clone();
         bad["device_observation"]["battery"]["observed_at"] = json!(time + 1);
-        assert!(decode(bad, ExecutorResultFormat::Json, false, true, "device").is_err());
+        assert!(
+            decode(
+                bad,
+                ExecutorResultFormat::Json,
+                false,
+                true,
+                false,
+                "device"
+            )
+            .is_err()
+        );
         let mut bad = value;
         bad["device_observation"]["battery"]["current_ua"] = json!(500000);
-        assert!(decode(bad, ExecutorResultFormat::Json, false, true, "device").is_err());
+        assert!(
+            decode(
+                bad,
+                ExecutorResultFormat::Json,
+                false,
+                true,
+                false,
+                "device"
+            )
+            .is_err()
+        );
+    }
+    #[test]
+    fn partial_metrics_requires_this_generation_declaration_and_matching_values() {
+        let mut value = raw();
+        value["system_ticks"] = Value::Null;
+        value["logical_cpus"] = Value::Null;
+        value["metric_missing"] = json!({"api_version":1,"cpu":{"source":"linux_proc.stat","access":"adb_shell","reason":"permission_denied"},"memory":null});
+        assert!(
+            decode(
+                value.clone(),
+                ExecutorResultFormat::Json,
+                false,
+                false,
+                false,
+                "device"
+            )
+            .is_err()
+        );
+        assert!(
+            decode(
+                value.clone(),
+                ExecutorResultFormat::Json,
+                false,
+                false,
+                true,
+                "device"
+            )
+            .is_ok()
+        );
+        let mut contradictory = value.clone();
+        contradictory["system_ticks"] = json!(2);
+        assert!(
+            decode(
+                contradictory,
+                ExecutorResultFormat::Json,
+                false,
+                false,
+                true,
+                "device"
+            )
+            .is_err()
+        );
+        value["metric_missing"]["cpu"]["reason"] = json!("unknown");
+        assert!(
+            decode(
+                value,
+                ExecutorResultFormat::Json,
+                false,
+                false,
+                true,
+                "device"
+            )
+            .is_err()
+        );
+        let mut legacy = raw();
+        legacy["metric_missing"] = Value::Null;
+        assert!(
+            decode(
+                legacy,
+                ExecutorResultFormat::Json,
+                false,
+                false,
+                false,
+                "device"
+            )
+            .is_ok()
+        );
     }
 }

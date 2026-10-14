@@ -75,4 +75,4 @@ APKS 的确认范围仅为本次直接 Java 进程、文件与目录。bundletoo
 
 `app.install_apks@1`的嵌套输入新增可选modules，缺省保持原安装argv及结果；不接提取instant或请求自选设备规格。模块规则归公共核心apks模块，真实设备匹配仍归bundletool。本批新增4项所属回归尚未运行，详见[APKS高级匹配插件实施裁定](../../docs/APKS高级匹配插件实施裁定.md)。
 
-本轮 FPS 接线已通过包级库89/89、完整协议133/133、定点格式和全目标Clippy，实际日志见 [FPS实施记录](../../docs/Android游戏FPS采集实施.md)。该证据包括独立假ADB与真实直接PID，不计真机或服务通过。宿主装配、HTTP/MCP、统一门禁与Release/npx继续由主代理协调；真实Java/bundletool/ADB、共享server、真机匹配、CPU/PSS/RSS和游戏FPS准确性、派生树、其它系统与常驻采集仍独立验收。电气与温度私有采集已按公开合同接线，当前源码冻结待主代理定点门禁；它们属于设备观测，不能据此宣称单游戏功耗。调用栈本批未接，性能专项延后。
+本轮 FPS 接线已通过包级库89/89、完整协议133/133、定点格式和全目标Clippy，实际日志见 [FPS实施记录](../../docs/Android游戏FPS采集实施.md)。该证据包括独立假ADB与真实直接PID，不计真机或服务通过。宿主装配、HTTP/MCP、统一门禁与Release/npx继续由主代理协调；真实Java/bundletool/ADB、共享server、真机匹配、CPU/PSS/RSS和游戏FPS准确性、派生树、其它系统与常驻采集仍独立验收。电气与温度私有采集已按公开合同接线，当前源码冻结待主代理定点门禁；它们属于设备观测，不能据此宣称单游戏功耗。Root调用栈与持续画面已另接stack.probe/profile.record，最新证据见[Root与画面实施](../../docs/AndroidRoot堆栈与帧画面实施.md)和根todo；Root真机/游戏画面颜色/精度仍独立验收，性能专项延后。

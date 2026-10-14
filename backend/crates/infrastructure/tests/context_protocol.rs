@@ -214,3 +214,116 @@ async fn original_deadline_after_handshake_sends_timeout_and_confirms_exit() {
     fixture.assert_exited(&marker).await;
     assert!(!fixture.plugin.has_unresolved_resources());
 }
+
+// 初始Request已完整送达但Ready仍由独立夹具门闩保持，取消不依赖碰巧抢到Start之前。
+#[tokio::test]
+async fn startup_cancel_waits_for_matching_ready_and_confirms_zero_start_exit() {
+    for mode in ["hold-ready", "split-ready"] {
+        let fixture = Fixture::new(mode).await;
+        let cancel = CancellationToken::new();
+        let execution = fixture.plugin.execute_with_context(
+            "plugin.context-real.run",
+            json!({}),
+            cancel.clone(),
+            context(Duration::from_secs(20)),
+        );
+        tokio::pin!(execution);
+        let spawned = tokio::select! {
+            marker = startup_spawned(&fixture) => marker,
+            result = &mut execution => panic!("完整Request门闩前提前结束：{result:?}"),
+        };
+        cancel.cancel();
+        tokio::select! {
+            result = &mut execution => panic!("Ready未完整时不得提前确认：{result:?}"),
+            _ = sleep(Duration::from_millis(40)) => {}
+        }
+        tokio::fs::write(fixture.ready().with_extension("json.release"), b"1")
+            .await
+            .expect("释放同一Ready帧");
+        assert!(matches!(execution.await, Err(Error::Cancelled)));
+        assert_startup_cleanup(&fixture, &spawned, "cancelled").await;
+    }
+}
+
+#[tokio::test]
+async fn startup_timeout_uses_original_deadline_then_confirms_zero_start_exit() {
+    let fixture = Fixture::new("split-ready").await;
+    let deadline = std::time::Instant::now() + Duration::from_secs(2);
+    let execution = fixture.plugin.execute_with_context(
+        "plugin.context-real.run",
+        json!({}),
+        CancellationToken::new(),
+        ExecutionContext {
+            deadline: Some(deadline),
+        },
+    );
+    tokio::pin!(execution);
+    let spawned = tokio::select! {
+        marker = startup_spawned(&fixture) => marker,
+        result = &mut execution => panic!("完整Request门闩前提前结束：{result:?}"),
+    };
+    tokio::select! {
+        result = &mut execution => panic!("Ready未完整时不得提前确认：{result:?}"),
+        _ = tokio::time::sleep_until(tokio::time::Instant::from_std(deadline) + Duration::from_millis(40)) => {}
+    }
+    tokio::fs::write(fixture.ready().with_extension("json.release"), b"1")
+        .await
+        .expect("到期后补完同一Ready帧");
+    assert!(matches!(execution.await, Err(Error::Timeout)));
+    assert_startup_cleanup(&fixture, &spawned, "timeout").await;
+}
+
+#[tokio::test]
+async fn startup_cancel_without_ready_preserves_unresolved_resources() {
+    let fixture = Fixture::new("no-ready").await;
+    let cancel = CancellationToken::new();
+    let execution = fixture.plugin.execute_with_context(
+        "plugin.context-real.run",
+        json!({}),
+        cancel.clone(),
+        context(Duration::from_secs(20)),
+    );
+    tokio::pin!(execution);
+    let spawned = tokio::select! {
+        marker = startup_spawned(&fixture) => marker,
+        result = &mut execution => panic!("完整Request门闩前提前结束：{result:?}"),
+    };
+    cancel.cancel();
+    assert!(matches!(execution.await, Err(Error::CleanupFailed)));
+    assert!(fixture.plugin.has_unresolved_resources());
+    assert!(!fixture.ready().exists());
+    assert!(!fixture.ready().with_extension("json.control").exists());
+    fixture.assert_exited(&spawned).await;
+}
+
+async fn startup_spawned(fixture: &Fixture) -> Value {
+    timeout(Duration::from_secs(10), async {
+        loop {
+            if let Ok(bytes) = tokio::fs::read(fixture.ready().with_extension("json.spawn")).await
+                && let Ok(value) = serde_json::from_slice(&bytes)
+            {
+                break value;
+            }
+            sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .expect("真实完整Request与PID门闩")
+}
+
+async fn assert_startup_cleanup(fixture: &Fixture, spawned: &Value, reason: &str) {
+    let control: Value = serde_json::from_slice(
+        &tokio::fs::read(fixture.ready().with_extension("json.control"))
+            .await
+            .expect("真实启动取消原帧"),
+    )
+    .expect("启动取消JSON");
+    assert_eq!(control["protocol_version"], 4);
+    assert_eq!(control["command"], "cancel");
+    assert_eq!(control["reason"], reason);
+    assert_eq!(control["handler_calls"], 0);
+    assert_eq!(control["pid"], spawned["pid"]);
+    assert!(!fixture.ready().exists(), "不允许发送Start或调用业务");
+    fixture.assert_exited(spawned).await;
+    assert!(!fixture.plugin.has_unresolved_resources());
+}

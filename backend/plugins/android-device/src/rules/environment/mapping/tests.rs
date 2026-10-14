@@ -11,6 +11,7 @@ fn check() -> Result<()> {
 
 fn raw(ue: &str, service: &str, temperatures: &str) -> EnvironmentObservation {
     EnvironmentObservation {
+        access: ReadAccess::default(),
         sysfs_battery: battery_uevent(ue, &check).unwrap().map(|value| Observed {
             observed_at: 1000,
             value,
@@ -173,4 +174,109 @@ fn combined_temperature_capacity_and_cancel_remain_failures() {
         observation(raw(UE, SERVICE, ""), "device".into(), &cancelled),
         Err(super::super::Error::Cancelled)
     ));
+}
+
+#[test]
+fn oem_backup_fallback_preserves_live_values_without_inventing_current_or_power() {
+    let service =
+        format!("{SERVICE}current now: 321\nBatteryInfoBackUp\nmSavedBatteryMaxTemp: 777\n");
+    let result = output("", &service, "");
+    let battery = result.battery.unwrap();
+    assert_eq!(battery.source, "battery_dumpsys");
+    assert_eq!(battery.voltage_uv, 3_800_000);
+    assert_eq!(battery.current_ua, None);
+    assert_eq!(battery.current_polarity, CurrentPolarity::Unknown);
+    assert_eq!(battery.net_power_mw(), None);
+    assert_eq!(battery.status, Some(BatteryStatus::Discharging));
+    assert_eq!(battery.supply_state, BatterySupplyState::Battery);
+    assert_eq!(result.temperatures[0].temperature_celsius, 31.5);
+}
+
+#[test]
+fn oem_backup_cannot_qualify_missing_or_invalid_live_voltage() {
+    for (service, backup) in [
+        (SERVICE.replace("voltage: 3800\n", ""), "voltage: 9999\n"),
+        (
+            SERVICE.replace("voltage: 3800", "voltage: invalid"),
+            "mSavedVoltage: 9999\n",
+        ),
+    ] {
+        let service = format!("{service}BatteryInfoBackUp\n{backup}");
+        let result = output("", &service, "");
+        assert_eq!(result.battery, None);
+        assert_eq!(result.temperatures[0].temperature_celsius, 31.5);
+    }
+}
+
+#[test]
+fn same_batch_access_covers_sysfs_battery_hal_and_battery_temperature() {
+    assert_eq!(
+        EnvironmentObservation::default().access,
+        ReadAccess::AdbShell
+    );
+    let temperatures = thermal(
+        "Temperature{mValue=45.0, mType=0, mName=cpu, mStatus=1}\nTemperature{mValue=46.0, mType=1, mName=gpu, mStatus=1}\n",
+    );
+    for (read_access, expected) in [
+        (ReadAccess::AdbShell, ObservationAccess::AdbShell),
+        (ReadAccess::RootShell, ObservationAccess::RootShell),
+    ] {
+        let mut observed = raw(UE, SERVICE, &temperatures);
+        observed.access = read_access;
+        let result = observation(observed, "device".into(), &check)
+            .unwrap()
+            .unwrap();
+        result.validate(1002).unwrap();
+        let battery = result.battery.as_ref().unwrap();
+        assert_eq!(battery.access, expected);
+        assert_eq!(battery.source, "battery_sysfs_uevent");
+        assert_eq!(battery.voltage_uv, 3_800_000);
+        assert_eq!(battery.current_ua, Some(-250_000));
+        assert_eq!(battery.net_power_mw(), Some(-950.0));
+        assert_eq!(result.temperatures.len(), 3);
+        for temperature in &result.temperatures {
+            assert_eq!(temperature.access, expected);
+        }
+        assert_eq!(result.temperatures[0].source, "thermal_hal_current");
+        assert_eq!(result.temperatures[1].source, "thermal_hal_current");
+        assert_eq!(result.temperatures[2].source, "battery_sysfs_uevent");
+        assert_eq!(result.temperatures[2].temperature_celsius, 31.5);
+    }
+}
+
+#[test]
+fn same_batch_access_preserves_service_fallback_and_hal_battery_override() {
+    for (read_access, expected) in [
+        (ReadAccess::AdbShell, ObservationAccess::AdbShell),
+        (ReadAccess::RootShell, ObservationAccess::RootShell),
+    ] {
+        for temperatures in [
+            String::new(),
+            thermal("Temperature{mValue=32.0, mType=2, mName=batt-hal, mStatus=0}\n"),
+        ] {
+            let mut observed = raw("", SERVICE, &temperatures);
+            observed.access = read_access;
+            let result = observation(observed, "device".into(), &check)
+                .unwrap()
+                .unwrap();
+            result.validate(1002).unwrap();
+            let battery = result.battery.as_ref().unwrap();
+            assert_eq!(battery.access, expected);
+            assert_eq!(battery.source, "battery_dumpsys");
+            assert_eq!(battery.voltage_uv, 3_800_000);
+            assert_eq!(battery.current_ua, None);
+            assert_eq!(battery.current_polarity, CurrentPolarity::Unknown);
+            assert_eq!(battery.net_power_mw(), None);
+            assert_eq!(result.temperatures.len(), 1);
+            let temperature = &result.temperatures[0];
+            assert_eq!(temperature.access, expected);
+            if temperatures.is_empty() {
+                assert_eq!(temperature.source, "battery_dumpsys");
+                assert_eq!(temperature.temperature_celsius, 31.5);
+            } else {
+                assert_eq!(temperature.source, "thermal_hal_current");
+                assert_eq!(temperature.temperature_celsius, 32.0);
+            }
+        }
+    }
 }

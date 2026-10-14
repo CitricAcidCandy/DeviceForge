@@ -74,8 +74,7 @@ impl<'a> Remote<'a> {
                 if output.stdout.len() > 64 * 1024 || !output.stderr.is_empty() {
                     return Err(Error::Dependency("远端监督响应超限或含诊断"));
                 }
-                String::from_utf8(output.stdout)
-                    .map_err(|_| Error::Dependency("远端监督响应不是UTF-8"))
+                control_text(output.stdout)
             })
             .await
     }
@@ -185,7 +184,23 @@ impl<'a> Remote<'a> {
             })
             .await?;
         let remote = self.path(name);
-        let args = root::argv(&self.device, Some(&self.access), &["cat", &remote]);
+        // su可能自行改写管道换行；仅放行自有文件读取，经exec-out保留原始字节。
+        let prepared = self
+            .read(&format!(
+                r#"test -d {0} && test ! -L {0} && test ! -L {0}/owner || exit 126; test "$(cat {0}/owner)" = {1} || exit 126; test -f {2} && test ! -L {2} || exit 126; chmod 0644 {2} && chmod 0711 {0}"#,
+                self.directory, self.token, remote
+            ))
+            .await?;
+        if !prepared.is_empty() {
+            return Err(Error::Dependency("远端二进制读取准备回执不为空"));
+        }
+        let args = vec![
+            "-s".into(),
+            self.device.clone(),
+            "exec-out".into(),
+            "cat".into(),
+            remote,
+        ];
         self.session.control.capture_file(args, file).await
     }
     pub(crate) async fn cleanup(&mut self, failed: bool) -> Result<()> {
@@ -212,7 +227,7 @@ impl<'a> Remote<'a> {
         .await
         .map_err(|_| Error::CleanupFailed)?
         .map_err(|_| Error::CleanupFailed)?;
-        if output.stdout != b"clean\n"
+        if !matches!(output.stdout.as_slice(), b"clean\n" | b"clean\r\n")
             || !output.stderr.is_empty()
             || tokio::time::Instant::now() >= until
         {
@@ -221,6 +236,12 @@ impl<'a> Remote<'a> {
         self.guard.confirmed();
         Ok(())
     }
+}
+fn control_text(bytes: Vec<u8>) -> Result<String> {
+    // 部分su会把文本回执换成CRLF；只归一完整换行，不处理二进制下载。
+    String::from_utf8(bytes)
+        .map(|text| text.replace("\r\n", "\n"))
+        .map_err(|_| Error::Dependency("远端监督响应不是UTF-8"))
 }
 fn identity_functions() -> &'static str {
     // stat尾字段22是原进程starttime；僵尸已退出，不再持有运行工具资源。
@@ -233,4 +254,22 @@ fn cleanup_script(directory: &str, token: &str) -> String {
         token,
         identity_functions()
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn supervisor_text_accepts_crlf_without_trimming_extra_content() {
+        assert_eq!(control_text(b"ready\r\n".to_vec()).unwrap(), "ready\n");
+        assert_eq!(control_text(b"pending\r\n".to_vec()).unwrap(), "pending\n");
+        assert_eq!(control_text(b"exited\n".to_vec()).unwrap(), "exited\n");
+        assert_eq!(
+            control_text(b"ready\r\n\r\n".to_vec()).unwrap(),
+            "ready\n\n"
+        );
+        assert_eq!(control_text(b"ready\r".to_vec()).unwrap(), "ready\r");
+        assert!(control_text(vec![0xff]).is_err());
+    }
 }

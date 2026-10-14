@@ -36,7 +36,7 @@ export function packet(payload, pts = 0n, { config = false, key = false } = {}) 
 }
 export function stream(golden, expired = false) {
   const meta = Buffer.alloc(12); meta.write('h264', 'ascii'); meta.writeUInt32BE(64, 4); meta.writeUInt32BE(48, 8);
-  return Buffer.concat([meta, packet(golden.config, 0n, { config: true }), ...golden.units.map((unit, index) => packet(unit.bytes, expired ? BigInt(index + 1) : [8025001n, 8055001n, 8085001n][index], { key: unit.key }))]);
+  return Buffer.concat([Buffer.from([0]), meta, packet(golden.config, 0n, { config: true }), ...golden.units.map((unit, index) => packet(unit.bytes, expired ? BigInt(index + 1) : [8025001n, 8055001n, 8085001n][index], { key: unit.key }))]);
 }
 export async function prepareGolden(directory, ffmpeg, ffprobe, report) {
   await mkdir(directory); const raw = join(directory, 'golden.h264');

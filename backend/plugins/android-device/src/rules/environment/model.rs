@@ -46,8 +46,17 @@ pub(crate) struct Observed<T> {
     pub(crate) value: T,
 }
 
+/// 本批原始读取使用的已确认访问通道，不执行权限探测。
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub(crate) enum ReadAccess {
+    #[default]
+    AdbShell,
+    RootShell,
+}
+
 #[derive(Debug, Default)]
 pub(crate) struct EnvironmentObservation {
+    pub(crate) access: ReadAccess,
     pub(crate) sysfs_battery: Option<Observed<UeventBattery>>,
     pub(crate) battery_service: Option<Observed<BatteryService>>,
     pub(crate) temperatures: Vec<Observed<ThermalReading>>,

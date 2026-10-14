@@ -6,7 +6,8 @@ pub(crate) use mapping::observation;
 mod thermal;
 pub(crate) use battery::{battery_service, battery_uevent};
 pub(crate) use model::{
-    BatteryService, BatteryState, EnvironmentObservation, Observed, ThermalReading, UeventBattery,
+    BatteryService, BatteryState, EnvironmentObservation, Observed, ReadAccess, ThermalReading,
+    UeventBattery,
 };
 pub(crate) use thermal::thermal_service;
 

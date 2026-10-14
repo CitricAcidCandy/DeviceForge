@@ -16,6 +16,7 @@ pub struct PerformanceSourceDefinition {
     pub operation: String,
     pub fps: bool,
     pub device_observation: bool,
+    pub partial_metrics: bool,
     pub device_capability: Option<PerformanceDeviceCapability>,
 }
 

@@ -3,6 +3,7 @@ use apk_plugin_sdk::{CurrentPolarity, PerformanceSample};
 use serde::Serialize;
 
 const CPU_FIRST: &str = "首个采样缺少相邻 CPU 计数";
+const CPU_MISSING: &str = "系统CPU计数明确不可用，未建立CPU差分基线";
 const CPU_IDENTITY: &str = "相邻采样的主进程身份、时间或逻辑核数无法连续确认";
 const CPU_COUNTERS: &str = "相邻 CPU 计数回退、系统跨度为零或进程计数超过系统";
 const FPS_MISSING: &str = "未取得主进程展示帧窗口";
@@ -57,12 +58,20 @@ fn cpu(
     current: &PerformanceSample,
     previous: Option<&PerformanceSample>,
 ) -> std::result::Result<(f64, f64), &'static str> {
+    let (Some(current_system), Some(cores)) = (current.system_ticks, current.logical_cpus) else {
+        return Err(CPU_MISSING);
+    };
     let previous = previous.ok_or(CPU_FIRST)?;
+    let (Some(previous_system), Some(previous_cores)) =
+        (previous.system_ticks, previous.logical_cpus)
+    else {
+        return Err(CPU_FIRST);
+    };
     if current.pid != previous.pid
         || current.process_start_ticks != previous.process_start_ticks
         || current.captured_at <= previous.captured_at
-        || current.logical_cpus == 0
-        || current.logical_cpus != previous.logical_cpus
+        || cores == 0
+        || cores != previous_cores
     {
         return Err(CPU_IDENTITY);
     }
@@ -71,16 +80,15 @@ fn cpu(
         .process_ticks
         .checked_sub(previous.process_ticks)
         .ok_or(CPU_COUNTERS)?;
-    let system = current
-        .system_ticks
-        .checked_sub(previous.system_ticks)
+    let system = current_system
+        .checked_sub(previous_system)
         .filter(|delta| *delta > 0)
         .ok_or(CPU_COUNTERS)?;
     if process > system {
         return Err(CPU_COUNTERS);
     }
     let share = process as f64 / system as f64 * 100.0;
-    Ok((share, share * f64::from(current.logical_cpus)))
+    Ok((share, share * f64::from(cores)))
 }
 
 fn fps(current: &PerformanceSample) -> std::result::Result<f64, &'static str> {
@@ -132,10 +140,11 @@ mod tests {
             pid: 123,
             process_start_ticks: 900,
             process_ticks: 100,
-            system_ticks: 1000,
-            logical_cpus: 8,
-            pss_kib: 2048,
+            system_ticks: Some(1000),
+            logical_cpus: Some(8),
+            pss_kib: Some(2048),
             rss_kib: None,
+            metric_missing: None,
             frame_window: None,
             device_observation: None,
         }
@@ -144,7 +153,7 @@ mod tests {
         PerformanceSample {
             captured_at: 2000,
             process_ticks: 110,
-            system_ticks: 1100,
+            system_ticks: Some(1100),
             ..sample()
         }
     }
@@ -191,9 +200,9 @@ mod tests {
         assert_eq!(value.cpu_reason, None);
         let mut previous = sample();
         previous.process_ticks = u64::MAX - 200;
-        previous.system_ticks = u64::MAX - 200;
+        previous.system_ticks = Some(u64::MAX - 200);
         current.process_ticks = u64::MAX - 199;
-        current.system_ticks = u64::MAX - 100;
+        current.system_ticks = Some(u64::MAX - 100);
         let value = from_sample(&current, Some(&previous));
         assert_eq!(value.cpu_share_percent, Some(1.0));
         assert_eq!(value.cpu_core_percent, Some(8.0));
@@ -214,19 +223,19 @@ mod tests {
         value.captured_at = 999;
         invalid.push((value, CPU_IDENTITY));
         let mut value = next();
-        value.logical_cpus = 4;
+        value.logical_cpus = Some(4);
         invalid.push((value, CPU_IDENTITY));
         let mut value = next();
-        value.logical_cpus = 0;
+        value.logical_cpus = Some(0);
         invalid.push((value, CPU_IDENTITY));
         let mut value = next();
         value.process_ticks = 99;
         invalid.push((value, CPU_COUNTERS));
         let mut value = next();
-        value.system_ticks = 999;
+        value.system_ticks = Some(999);
         invalid.push((value, CPU_COUNTERS));
         let mut value = next();
-        value.system_ticks = 1000;
+        value.system_ticks = Some(1000);
         invalid.push((value, CPU_COUNTERS));
         let mut value = next();
         value.process_ticks = 201;
@@ -237,6 +246,71 @@ mod tests {
             assert_eq!(derived.cpu_core_percent, None);
             assert_eq!(derived.cpu_reason, Some(reason));
         }
+    }
+
+    #[test]
+    fn missing_cpu_breaks_baseline_and_recovery_keeps_other_qualified_metrics() {
+        let first = sample();
+        let mut missing = next();
+        missing.system_ticks = None;
+        missing.logical_cpus = None;
+        missing.pss_kib = None;
+        missing.rss_kib = None;
+        missing.metric_missing = Some(apk_plugin_sdk::MetricMissing {
+            api_version: 1,
+            cpu: Some(apk_plugin_sdk::UnavailableMetric {
+                source: "linux_proc.stat".into(),
+                access: ObservationAccess::RootShell,
+                reason: apk_plugin_sdk::MetricUnavailableReason::PermissionDenied,
+            }),
+            memory: Some(apk_plugin_sdk::UnavailableMetric {
+                source: "android_dumpsys.meminfo".into(),
+                access: ObservationAccess::RootShell,
+                reason: apk_plugin_sdk::MetricUnavailableReason::Unsupported,
+            }),
+        });
+        missing
+            .metric_missing
+            .as_ref()
+            .unwrap()
+            .validate(
+                missing.system_ticks,
+                missing.logical_cpus,
+                missing.pss_kib,
+                missing.rss_kib,
+            )
+            .unwrap();
+        missing.frame_window = Some(FrameWindow {
+            frames: 3,
+            duration_ms: 50,
+            source: "sf_present_fixture".into(),
+        });
+        missing.device_observation = Some(observed_battery());
+        let value = from_sample(&missing, Some(&first));
+        assert_eq!(value.cpu_share_percent, None);
+        assert_eq!(value.cpu_core_percent, None);
+        assert_eq!(value.cpu_reason, Some(CPU_MISSING));
+        assert_eq!(value.fps, Some(60.0));
+        assert_eq!(value.battery_net_power_mw, Some(-2000.0));
+        let recovered = PerformanceSample {
+            captured_at: 3000,
+            process_ticks: 130,
+            system_ticks: Some(1300),
+            ..sample()
+        };
+        let value = from_sample(&recovered, Some(&missing));
+        assert_eq!(value.cpu_share_percent, None);
+        assert_eq!(value.cpu_reason, Some(CPU_FIRST));
+        let continuous = PerformanceSample {
+            captured_at: 4000,
+            process_ticks: 140,
+            system_ticks: Some(1400),
+            ..sample()
+        };
+        let value = from_sample(&continuous, Some(&recovered));
+        assert_eq!(value.cpu_share_percent, Some(10.0));
+        assert_eq!(value.cpu_core_percent, Some(80.0));
+        assert_eq!(value.cpu_reason, None);
     }
 
     #[test]

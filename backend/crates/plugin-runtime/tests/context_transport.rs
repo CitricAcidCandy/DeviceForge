@@ -720,3 +720,63 @@ async fn context_check_prefers_local_timeout_to_cancel_and_clone_keeps_original_
     // 控制在 D 前已被接收；此例只证明公开 check 优先级，不重定义终态分类竞争。
     assert_failure(&reply, CleanupOutcome::Complete, None);
 }
+
+#[tokio::test(start_paused = true)]
+async fn matching_cancel_before_start_returns_complete_without_handler_or_outputs() {
+    for (reason, expected_error) in [
+        ("cancelled", "操作已取消或宿主连接已关闭"),
+        ("timeout", TIMEOUT_MESSAGE),
+    ] {
+        let calls = Arc::new(AtomicUsize::new(0));
+        let mut session = counted_session(calls.clone());
+        let c0 = session.handshake().await;
+        assert_eq!(calls.load(Ordering::SeqCst), 0, "Ready 后未启动业务");
+        let mut frame = cancel();
+        frame["reason"] = json!(reason);
+        session.send(&frame).await;
+        // 保持输入打开且从不发送 Start，避免 EOF 或业务执行掩盖启动取消分支。
+        let reply = session.reply().await;
+        assert_failure(&reply, CleanupOutcome::Complete, Some(expected_error));
+        let response: apk_plugin_sdk::Response = serde_json::from_value(reply["response"].clone())
+            .expect("公开 Response 严格解码并应用既有空产物缺省");
+        assert!(response.outputs.is_empty(), "启动取消无产物");
+        assert_eq!(calls.load(Ordering::SeqCst), 0, "Start 前取消零业务调用");
+        assert_eq!(Instant::now(), c0, "原帧取消不推进或重授执行预算");
+    }
+}
+
+#[tokio::test(start_paused = true)]
+async fn invalid_cancel_before_start_is_rejected_without_handler_or_cleanup_response() {
+    let mut wrong_id = cancel();
+    wrong_id["request_id"] = json!("other-context-id");
+    let mut empty_id = cancel();
+    empty_id["request_id"] = json!("");
+    let mut old_version = cancel();
+    old_version["protocol_version"] = json!(3);
+    let mut future_version = cancel();
+    future_version["protocol_version"] = json!(5);
+    let mut unknown = cancel();
+    unknown["private_reason"] = json!("ignored");
+    let mut wrong_command = cancel();
+    wrong_command["command"] = json!("ready");
+    let mut missing_reason = cancel();
+    missing_reason
+        .as_object_mut()
+        .expect("手工 Cancel 对象")
+        .remove("reason");
+    let mut bad_reason = cancel();
+    bad_reason["reason"] = json!("unknown_reason");
+    for frame in [
+        wrong_id,
+        empty_id,
+        old_version,
+        future_version,
+        unknown,
+        wrong_command,
+        missing_reason,
+        bad_reason,
+    ] {
+        // 共用拒绝辅助保持输入打开，并要求 Err、零处理器、无任何合作终态响应。
+        rejected_start(frame).await;
+    }
+}

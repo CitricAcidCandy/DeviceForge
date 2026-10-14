@@ -7,7 +7,9 @@ const plain = tail => ['-s', deviceId, 'shell', '-T', ...tail];
 const rootCommand = (script, access) => ['-s', deviceId, 'shell', '-T', ...(access === 'su' ? ['su', '-c'] : ['/system/bin/sh', '-c']), shellQuote(script)];
 const output = (stdout = '', exit = 0) => ({ stdout: Buffer.isBuffer(stdout) ? stdout : Buffer.from(stdout), stderr: Buffer.alloc(0), exit });
 const command = (category, tail, values, access) => ({ category, argv: access === 'none' ? plain(tail) : rootArgv(tail, access), outputs: values.map(value => output(value)) });
-const scriptCommand = (category, script, value, access) => ({ category, argv: rootCommand(script, access), outputs: [output(value)] });
+const scriptCommand = (category, script, value, access) => ({ category, argv: rootCommand(script, access), outputs: [output(access === 'su' ? value.replace(/\n/g, '\r\n') : value)] });
+const binaryCommand = (category, name, bytes) => ({ category, argv: ['-s', deviceId, 'exec-out', 'cat', directory + '/' + name], outputs: [output(bytes)] });
+const prepareDownload = (name, access) => scriptCommand('remote-' + name + '-prepare', 'test -d ' + directory + ' && test ! -L ' + directory + ' && test ! -L ' + directory + '/owner || exit 126; test "$(cat ' + directory + '/owner)" = ' + token + ' || exit 126; test -f ' + directory + '/' + name + ' && test ! -L ' + directory + '/' + name + ' || exit 126; chmod 0644 ' + directory + '/' + name + ' && chmod 0711 ' + directory, '', access);
 function stat(pid, start, ticks = 100) { const fields = Array(20).fill('0'); fields[0] = 'R'; fields[11] = String(ticks); fields[19] = String(start); return pid + ' (owned profile) ' + fields.join(' ') + '\n'; }
 const status = uid => 'Name:\tprofile game\nPid:\t2468\nUid:\t' + [uid, uid, uid, uid].join('\t') + '\n';
 // 与后端阶段交接的固定脚本逐字一致；仅 SHA256 token 使用受检占位。
@@ -44,8 +46,10 @@ function remote(access) {
       scriptCommand('remote-' + phase + '-identity', identityScript(phase), String(800 + index * 2) + '\n' + stat(800 + index * 2, 3000 + index * 2) + stat(801 + index * 2, 3001 + index * 2), access),
       scriptCommand('remote-' + phase + '-receipt', receiptScript(phase), '0\n', access),
       scriptCommand('remote-' + phase + '-gone', goneScript(phase), 'exited\n', access)]),
-    command('remote-perf-download', ['cat', directory + '/perf.bin'], [rawPerfBytes], access),
-    command('remote-report-download', ['cat', directory + '/report.pb'], [reportBytes()], access),
+    prepareDownload('perf.bin', access),
+    binaryCommand('remote-perf-download', 'perf.bin', rawPerfBytes),
+    prepareDownload('report.pb', access),
+    binaryCommand('remote-report-download', 'report.pb', reportBytes()),
     scriptCommand('remote-cleanup', cleanupScript, 'clean\n', access)];
 }
 function scenario(id, probeId, access, options = {}) {

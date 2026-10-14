@@ -1,6 +1,10 @@
 //! 性能声明的纯版本与绑定资格；协议、提供者和贡献关联由宿主装载层校验。
 use serde::{Deserialize, Serialize};
+mod metric_missing;
 mod observation;
+pub use metric_missing::{
+    MetricMissing, MetricUnavailableReason, UnavailableMetric, validate_counts,
+};
 pub use observation::{
     BatteryElectricalObservation, BatteryStatus, BatterySupplyState, CurrentPolarity,
     DeviceObservation, DeviceTemperature, ObservationAccess, ObservationScope, TemperatureKind,
@@ -43,6 +47,8 @@ pub struct PerformanceAccess {
     pub fps: bool,
     #[serde(default, skip_serializing_if = "false_observation")]
     pub device_observation: bool,
+    #[serde(default, skip_serializing_if = "false_observation")]
+    pub partial_metrics: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub device_capability: Option<PerformanceDeviceCapability>,
 }
@@ -50,6 +56,9 @@ pub struct PerformanceAccess {
 impl PerformanceAccess {
     /// 同时覆盖 Rust 字面量；反序列化也调用此纯规则。
     pub fn validate(&self) -> Result<(), &'static str> {
+        if self.partial_metrics && self.api_version != DEVICE_PERFORMANCE_API_VERSION {
+            return Err("部分缺测能力要求设备性能API2");
+        }
         match (self.api_version, &self.device_capability) {
             (LEGACY_PERFORMANCE_API_VERSION, None) => Ok(()),
             (DEVICE_PERFORMANCE_API_VERSION, Some(binding)) => binding.validate(),
@@ -71,6 +80,8 @@ struct Declaration {
     #[serde(default)]
     device_observation: bool,
     #[serde(default)]
+    partial_metrics: bool,
+    #[serde(default)]
     device_capability: Option<PerformanceDeviceCapability>,
 }
 
@@ -83,6 +94,7 @@ impl TryFrom<Declaration> for PerformanceAccess {
             sample_operation: value.sample_operation,
             fps: value.fps,
             device_observation: value.device_observation,
+            partial_metrics: value.partial_metrics,
             device_capability: value.device_capability,
         };
         access.validate()?;

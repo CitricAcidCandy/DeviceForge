@@ -58,6 +58,7 @@ impl PerformanceProbe for AndroidPerformance {
             source: "android_adb".into(),
             fps: false,
             device_observation: false,
+            partial_metrics: false,
         }
     }
     async fn sample(
@@ -123,12 +124,13 @@ impl PerformanceProbe for AndroidPerformance {
             pid,
             process_start_ticks: start,
             process_ticks: ticks,
-            system_ticks,
-            logical_cpus,
-            pss_kib,
+            system_ticks: Some(system_ticks),
+            logical_cpus: Some(logical_cpus),
+            pss_kib: Some(pss_kib),
             rss_kib,
             frame_window: None,
             device_observation: None,
+            metric_missing: None,
         };
         raw.validate()?;
         Ok(raw)

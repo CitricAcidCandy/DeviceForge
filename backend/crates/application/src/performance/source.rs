@@ -100,6 +100,11 @@ impl SourceAccess {
             }
             Ok(ProbeCapabilities {
                 source: format!("plugin.{}", owner.info().id),
+                partial_metrics: owner
+                    .performance
+                    .as_ref()
+                    .expect("已验证来源")
+                    .partial_metrics,
                 fps: owner.performance.as_ref().expect("已验证来源").fps,
                 device_observation: owner
                     .performance
@@ -155,6 +160,7 @@ impl SourceAccess {
                 source: format!("plugin.{}", info.id),
                 fps: definition.fps,
                 device_observation: definition.device_observation,
+                partial_metrics: definition.partial_metrics,
             },
             owner,
             registered,

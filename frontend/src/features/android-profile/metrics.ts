@@ -1,3 +1,4 @@
+import { isRawMetricValues } from '../../shared/api/metric-missing.ts';
 import { isRecord } from '../../shared/api/validation.ts';
 import { onlyKeys } from '../../shared/jobs/index.ts';
 import { isDeviceObservation } from './observations.ts';
@@ -6,10 +7,9 @@ import type { ProfileMetrics } from './types.ts';
 
 // 原始累积计数不是会话派生读数，不添加 sequence、CPU 百分比或 FPS。
 export function isProfileMetrics(value: unknown, deviceId: string): value is ProfileMetrics {
-  if (!isRecord(value) || !onlyKeys(value, ['captured_at', 'pid', 'process_start_ticks', 'process_ticks', 'system_ticks', 'logical_cpus', 'pss_kib', 'rss_kib', 'frame_window', 'device_observation'])
+  if (!isRecord(value) || !onlyKeys(value, ['captured_at', 'pid', 'process_start_ticks', 'process_ticks', 'system_ticks', 'logical_cpus', 'pss_kib', 'rss_kib', 'frame_window', 'device_observation', 'metric_missing'])
     || !integer(value.captured_at) || !integer(value.pid, 1, 4294967295) || !integer(value.process_start_ticks)
-    || !integer(value.process_ticks) || !integer(value.system_ticks, 1) || !integer(value.logical_cpus, 1, 4096) || !integer(value.pss_kib)
-    || !(value.rss_kib === undefined || value.rss_kib === null || integer(value.rss_kib))
+    || !integer(value.process_ticks) || !isRawMetricValues(value)
     || !isDeviceObservation(value.device_observation, deviceId, value.captured_at)) return false;
   const window = value.frame_window;
   return window === undefined || window === null || isRecord(window) && onlyKeys(window, ['frames', 'duration_ms', 'source'])

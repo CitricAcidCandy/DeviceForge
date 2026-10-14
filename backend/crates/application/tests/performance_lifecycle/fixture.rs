@@ -52,6 +52,7 @@ impl Executor for Source {
             operation: "plugin.source.sample".into(),
             fps: false,
             device_observation: false,
+            partial_metrics: false,
             device_capability: None,
         })
     }

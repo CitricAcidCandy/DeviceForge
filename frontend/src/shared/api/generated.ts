@@ -8257,11 +8257,29 @@ export interface components {
                     source: string;
                 } | null;
 
-                logical_cpus: number;
+                logical_cpus?: number | null;
+                metric_missing?: {
+
+                    api_version: number;
+                    cpu?: {
+
+                        access: "adb_shell" | "root_shell";
+
+                        reason: "permission_denied" | "unsupported";
+                        source: string;
+                    } | null;
+                    memory?: {
+
+                        access: "adb_shell" | "root_shell";
+
+                        reason: "permission_denied" | "unsupported";
+                        source: string;
+                    } | null;
+                } | null;
 
                 pid: number;
 
-                pss_kib: number;
+                pss_kib?: number | null;
 
                 rss_kib?: number | null;
 

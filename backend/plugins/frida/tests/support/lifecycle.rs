@@ -4,6 +4,21 @@ use serde_json::json;
 use std::{fs, process::Stdio, time::Duration};
 use tokio::process::Command;
 
+fn cleanup_references_pid(script: &str, pid: u32) -> bool {
+    let pid = pid.to_string();
+    // 按完整PID字段核对；本次私有目录的随机nonce可以合法包含相同数字子串。
+    script
+        .split(|character: char| character.is_ascii_whitespace() || "\"';()".contains(character))
+        .any(|field| {
+            field == pid
+                || field.strip_prefix("p=") == Some(pid.as_str())
+                || field.strip_prefix("pid=") == Some(pid.as_str())
+                || field
+                    .strip_prefix("/proc/")
+                    .is_some_and(|path| path.split('/').next() == Some(pid.as_str()))
+        })
+}
+
 fn assert_owned_cleanup(fixture: &Fixture, index: usize) {
     assert_eq!(fixture.argv(index), ["-s", "device-1", "shell", "sh"]);
     let script = fixture.stdin(index);
@@ -23,8 +38,34 @@ fn assert_owned_cleanup(fixture: &Fixture, index: usize) {
     }
     assert!(!script.contains("pkill"));
     assert!(!script.contains("killall"));
-    assert!(!script.contains("991"));
+    assert!(
+        !cleanup_references_pid(&script, 991),
+        "不得引用无关进程的精确PID字段"
+    );
     assert!(!script.contains("deviceforge-frida-server"));
+}
+
+#[test]
+fn cleanup_pid_assertion_accepts_nonce_substrings_and_rejects_exact_unowned_fields() {
+    for script in [
+        "stop '/data/local/tmp/deviceforge-frida-run-10991-1760371991000/server.identity'",
+        "p=9910; kill 9910; cat /proc/9910/stat",
+        "read p start exe <'/data/local/tmp/deviceforge-frida-run-991/server.identity'",
+    ] {
+        assert!(!cleanup_references_pid(script, 991));
+    }
+    for script in [
+        "p=991",
+        "pid=991",
+        "p=\"991\"",
+        "kill 991",
+        "kill -9 '991'",
+        "cat /proc/991/stat",
+        "readlink '/proc/991/exe'",
+        "echo '991 12345 server'",
+    ] {
+        assert!(cleanup_references_pid(script, 991));
+    }
 }
 
 #[tokio::test]

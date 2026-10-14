@@ -19,7 +19,7 @@ import { finishPendingProbes, observeTools } from './android-profile-smoke/proce
 const args = process.argv.slice(2);
 if (args.length === 1 && args[0] === '--help') {
   console.log('Android Root/profile 独立功能验收，冻结probe、无画面录制与连续媒体阶段，不执行性能压测');
-  console.log('node scripts/android-profile-smoke.mjs --phase=probe|record|media --matrix=root|lifecycle|fallback|clock|ownership --frozen-input=宿主冻结目录 --plugin-input=插件冻结目录 --tool=原生假ADB路径 --probe=OS探针路径 [--profile=debug|release]');
+  console.log('node scripts/android-profile-smoke.mjs --phase=probe|record|media --matrix=root|lifecycle|fallback|clock|ownership|partial --frozen-input=宿主冻结目录 --plugin-input=插件冻结目录 --tool=原生假ADB路径 --probe=OS探针路径 [--profile=debug|release]');
   console.log('媒体需显式 --server/--clock-helper/--ffmpeg/--ffprobe；本入口不构建、不同步生成类型。'); process.exit(0);
 }
 const names = ['--phase', '--matrix', '--frozen-input', '--plugin-input', '--tool', '--probe', '--profile', '--server', '--clock-helper', '--ffmpeg', '--ffprobe'];
@@ -28,7 +28,8 @@ for (const name of names) assert.ok(args.filter(value => value.startsWith(name +
 const option = name => args.find(value => value.startsWith(name + '='))?.slice(name.length + 1);
 for (const name of ['--phase', '--frozen-input', '--plugin-input', '--tool', '--probe']) assert.ok(option(name), 'PROFILE-EXPLICIT-FROZEN-INPUT-REQUIRED');
 const phase = option('--phase'); assert.ok(['probe', 'record', 'media'].includes(phase), 'PROFILE-UNFROZEN-PHASE');
-const matrix = option('--matrix') ?? 'root'; assert.ok(['root', 'lifecycle', 'fallback', 'clock', 'ownership'].includes(matrix), 'PROFILE-MATRIX');
+const matrix = option('--matrix') ?? 'root'; assert.ok(['root', 'lifecycle', 'fallback', 'clock', 'ownership', 'partial'].includes(matrix), 'PROFILE-MATRIX');
+assert.ok(matrix !== 'partial' || phase === 'media', 'PROFILE-PARTIAL-MEDIA-ONLY');
 let contract = phase === 'probe' ? probeContract : { ...recordContract, cases: recordContract.cases.filter(scenario => matrix === 'root' ? ['record-adbd-root', 'record-su-root'].includes(scenario.id) : matrix === 'lifecycle' ? ['record-cancel', 'record-unload', 'record-reloaded'].includes(scenario.id) : ['record-no-root', 'record-su-denied', 'record-no-simpleperf'].includes(scenario.id)) };
 const profile = option('--profile') ?? 'debug'; assert.ok(['debug', 'release'].includes(profile));
 const root = fileURLToPath(new URL('../', import.meta.url));

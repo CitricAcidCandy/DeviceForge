@@ -1,6 +1,6 @@
 //! 固定电池节点与 BatteryService 输出；不将充电上限当成实际电流。
 use super::{BatteryService, BatteryState, Check, Error, Result, UeventBattery, clean, integer};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 fn boolean(value: &str) -> Option<bool> {
     match value {
@@ -78,7 +78,9 @@ pub(crate) fn battery_service(output: &str, check: Check<'_>) -> Result<Option<B
         return Ok(None);
     }
     let mut header = false;
+    let mut backup = false;
     let mut fields = BTreeMap::new();
+    let mut seen = BTreeSet::new();
     for (index, line) in output.lines().enumerate() {
         check()?;
         if index >= 512 {
@@ -95,6 +97,14 @@ pub(crate) fn battery_service(output: &str, check: Check<'_>) -> Result<Option<B
         if !header || line.is_empty() {
             continue;
         }
+        if line == "BatteryInfoBackUp" {
+            if backup {
+                return Ok(None);
+            }
+            // 厂商备份节只结束当前字段采集，后续仍检查结构、重复字段与上下文。
+            backup = true;
+            continue;
+        }
         let Some((key, value)) = line.split_once(':') else {
             return Ok(None);
         };
@@ -108,9 +118,13 @@ pub(crate) fn battery_service(output: &str, check: Check<'_>) -> Result<Option<B
                 | "present"
                 | "voltage"
                 | "temperature"
-        ) && fields.insert(key, value.trim()).is_some()
-        {
-            return Ok(None);
+        ) {
+            if !seen.insert(key) {
+                return Ok(None);
+            }
+            if !backup {
+                fields.insert(key, value.trim());
+            }
         }
     }
     if !header {

@@ -209,6 +209,7 @@ fn environment_rejects_lossy_bytes_and_keeps_independent_sources() {
         assert!(battery_uevent(output, &check).unwrap().is_none());
     }
     let observation = EnvironmentObservation {
+        access: ReadAccess::default(),
         sysfs_battery: battery_uevent(UEVENT, &check)
             .unwrap()
             .map(|value| Observed {
@@ -240,4 +241,68 @@ fn thermal_single_invalid_row_keeps_other_current_hal_sensors() {
     assert_eq!(values.len(), 1);
     assert_eq!(values[0].name, "gpu-current");
     assert_eq!(values[0].value_celsius, 43.75);
+}
+
+#[test]
+fn battery_service_oem_backup_preserves_only_current_section() {
+    let output = format!(
+        "BatteryInfoBackUp\n{BATTERY} current now: 321\nBatteryInfoBackUp\n mSavedBatteryAsoc: 87\n mSavedBatteryMaxTemp: 777\n"
+    );
+    let value = battery_service(&output, &check).unwrap().unwrap();
+    assert_eq!(value.present, Some(true));
+    assert_eq!(value.state, Some(BatteryState::Discharging));
+    assert_eq!(value.external_powered, Some(false));
+    assert_eq!(value.voltage_mv, Some(3800));
+    assert_eq!(value.temperature_decicelsius, Some(315));
+}
+
+#[test]
+fn battery_service_oem_backup_never_fills_missing_current_section_voltage() {
+    let partial = BATTERY.replace(" voltage: 3800\n", "");
+    let output = format!("{partial}BatteryInfoBackUp\n voltage: 9999\n");
+    let value = battery_service(&output, &check).unwrap().unwrap();
+    assert_eq!(value.voltage_mv, None);
+    assert_eq!(value.temperature_decicelsius, Some(315));
+}
+
+#[test]
+fn battery_service_oem_backup_preserves_structural_rejections() {
+    for output in [
+        format!("{BATTERY}BatteryInfoBackUp\nBatteryInfoBackUp\n"),
+        format!("{BATTERY}BatteryInfoBackUp\nCurrent Battery Service state:\n"),
+        format!("{BATTERY}BatteryInfoBackUp\n voltage: 3800\n"),
+        format!("{BATTERY}BatteryInfoBackUp\n present: true\n"),
+        format!("{BATTERY}unexpected section\nBatteryInfoBackUp\n"),
+        format!("{BATTERY}BatteryInfoBackUp\nunexpected section\n"),
+        format!("{BATTERY}BatteryInfoBackup\n"),
+        format!("{BATTERY}BatteryInfoBackUp\nUPDATES STOPPED\n"),
+    ] {
+        assert!(battery_service(&output, &check).unwrap().is_none());
+    }
+}
+
+#[test]
+fn battery_service_oem_backup_keeps_limits_and_context_checks() {
+    let large = format!(
+        "{BATTERY}BatteryInfoBackUp\n{}",
+        " saved value: 1\n".repeat(512)
+    );
+    assert!(matches!(
+        battery_service(&large, &check),
+        Err(Error::TooLarge)
+    ));
+    let output = format!("{BATTERY}BatteryInfoBackUp\n saved value: 1\n");
+    let calls = std::sync::atomic::AtomicUsize::new(0);
+    let cancelled = || {
+        let count = calls.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1;
+        if count >= BATTERY.lines().count() + 3 {
+            Err(Error::Cancelled)
+        } else {
+            Ok(())
+        }
+    };
+    assert!(matches!(
+        battery_service(&output, &cancelled),
+        Err(Error::Cancelled)
+    ));
 }

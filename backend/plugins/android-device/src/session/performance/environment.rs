@@ -4,7 +4,7 @@ use crate::{
     Error, Result,
     rules::{environment, performance::Check},
 };
-use environment::{EnvironmentObservation, Observed};
+use environment::{EnvironmentObservation, Observed, ReadAccess};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 impl Session {
@@ -49,6 +49,11 @@ impl Session {
             .unwrap_or_default();
         self.control.check()?;
         Ok(EnvironmentObservation {
+            access: if self.profile_root.is_some() {
+                ReadAccess::RootShell
+            } else {
+                ReadAccess::AdbShell
+            },
             sysfs_battery,
             battery_service,
             temperatures,

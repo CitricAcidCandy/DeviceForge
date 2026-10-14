@@ -15,3 +15,9 @@ PerformanceStart 限制采样间隔 1000–60000 毫秒、总时长 1–3600 秒
 `observation.rs` 与公开 SDK 分别定义纯类型；领域不依赖 SDK 或 Android。`RawPerformance` 与 `PerformanceReading` 保留可选 `device_observation`，旧历史缺省不反填。校验版本、固定设备、单位、时效、符号资格及传感器身份；领域只对极性明确的原值派生 `battery_net_power_mw`。
 
 净电池功率为整机电池侧观测，正充电、负放电，单位 mW；不表示游戏或设备负载耗电。温度保持真实传感器类别与来源，不把热状态当温度。会话存储追加时复核固定设备，拒绝错误观测且不推进序号。纯规则与真实 SQLite 回读分别验证，合成数据不证明真机准确性。
+
+## 可选部分缺测
+
+metric_missing.rs只校验版本、来源及值与缺测原因的对应关系，不访问设备或猜测数值。系统累计计数和核数必须同时有值或同时缺测；内存明确不可用时PSS/RSS同时为空。旧JSON没有缺测对象仍要求原字段齐。PerformanceReading复制同一样本的原因，CPU缺测中断相邻差分，恢复首样只建立新基线。
+
+partial_metrics只允许设备性能API2显式声明；默认false保证旧插件不自动取得新样本资格。应用层核对当前来源声明，SQLite继续存储JSON，无列迁移。

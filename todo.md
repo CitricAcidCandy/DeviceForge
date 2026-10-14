@@ -1,5 +1,26 @@
 # DeviceForge 开发与验收记录
 
+## 2026-10-14 Root 实设备验证延期
+
+用户明确“先跳过root，实现就好，验证晚点，延后，我方便了再测”。真实 Root 真机/模拟器验证不再作为本轮前置条件，不要求当前连接设备或唤醒手机；已有 Root 资格探测、受控 simpleperf 录制、堆栈解析、归档、采样画面和无 Root 降级实现保留，合成工具功能证据仍与实际设备资格分开。本轮只读设备报告 artifacts/android-root-qualification-5fa7d46b-b16b-4dd9-93c0-b6f08b970986/report.json 已标 deferred_by_user / implementation_failure=false，十四次 ADB 调用均终态，始末息屏。
+
+本轮继续主题插件真实浏览器验收；受检当前 debug 宿主与全部六份 JS 已冻结于 artifacts/theme-current-inputs-ff2dad2d-fa3c-43a2-a2c9-95435e657d53。温度增量取消、性能专项延后、REA MCP/Agent 只列计划。验证延期不表示整体项目完成。
+
+
+## 2026-10-14 用户选择与温度取消
+
+用户先选择三项都需要，随后明确“温度放弃，没有意义”。本轮停止温度缺测兼容增量，后端未写代码；仅保留 artifacts/android-temperature-missing-f41fa009-4455-44da-af62-bb308d228a71 的七份初始输入身份记录，不计开发或验收。继续已授权真实 Root 堆栈验证和主题插件真实浏览器验收，产品界面仍先不做。
+
+测试助理实时仅发现三星 SM_G991U 在线，普通 UID2000，su 不存在（exit127），屏幕仍 DOZE_SUSPEND；真实 Root 验证等待用户连接已 Root 真机/模拟器并指定游戏包，已异步询问。主题验收继续并行，不以此设备缺口阻塞主题。后续真机调试结束停止采集、释放本次会话并息屏。REA MCP/Agent 插件仍只列计划，性能专项延后，整体项目未完成。
+
+
+## 2026-10-13 已交付批次导航与下一方向待定
+
+后端迁移清单性能采集行已同步最新 Android 部分缺测、Root 栈与 scrcpy 画面实现及证据边界；前端主题文档已将旧版浏览器 8/8 标记为历史字节结果，当前源码门禁通过与最新浏览器连接失败分别记录。当前状态以本文件末尾 Android 部分缺测最终收口及 frontend/docs/主题插件与宿主样式.md 最新资格段为准，前文各批次结果不外推当前版本。
+
+下一开发方向已询问用户，尚未收到选择；不启动新业务、测试、构建、浏览器或设备采集。三星息屏原件时间为 2026-10-13 21:47（Asia/Shanghai），状态 DOZE_SUSPEND、交互关闭，本轮不唤醒手机。后续真机调试结束必须停止本次采集、释放本次设备会话并息屏。REA MCP/Agent 插件仍只列计划，性能专项延后，整体项目未完成。
+
+
 ## 2026-10-13 表格任务范围纠正与停止
 
 用户明确未要求用例业务，并指出表格可由前端处理；主代理承认本批选项扩大了范围，三个代理已停止。草稿保留不删除不提交；已撤销主代理刚追加的spreadsheet workspace成员，避免把缺模块的后端草稿加入构建。Cargo.lock仍保留本轮解析变化，未恢复；前端草稿也未纳入当前通过证据。基础设施表格最低资格4/4仅为局部结果，不算正式业务完成。两次Cargo依赖获取exit101，未集成/未服务验收；临时registry bridge已关闭，自有活动进程0。当前仅按用户要求汇报，不继续开发或测试。
@@ -949,3 +970,109 @@
 - 时钟helper可复用Node构建入口已新增并真实javac/D8/JAR退出0，min-api21；产物artifacts/android-profile-clock-reusable/profile-clock.jar。
 - SM_G991U Android11当前游戏com.ChillyRoom.DungeonShooter真实probe无Root；无Root指标record已成功，CPU原始计数、PSS/RSS、热传感器返回，JSON/ZIP原字节SHA通过（artifacts/android-profile-device-f61e3208-b5c0-42cf-acb0-f115836d014a/report.json）。scrcpy持续视频已清理自有目录/forward，但画面目前unavailable，正在定位固定原因，不计画面完成。
 - 当前设备窗口无游戏Surface且OEM SurfaceFlinger proto输出待兼容；已请用户保持亮屏解锁并打开实际游戏画面。FPS仍须精确进程归属见证，不用名字/UID猜。功率/CPU百分比派生及完整当前游戏画面仍待真机证据；全部业务完成后才性能专项。
+
+## 2026-10-13 18:12 Android指标与持续画面增量
+
+- 当前方向仍只Android性能/Root栈/采样画面，REA Agent插件列计划先不做，性能专项延后。
+- FPS Android11已改固定adb exec-out dumpsys SurfaceFlinger --proto，缺PID metadata时只在有UID父链资格下使用精确可见Window的Session PID/UID/owner UID/完整身份和声明Surface，前后二次复核真实SF数值父链，不靠UID+名称猜包。新完整workspace架构/fmt/Clippy/test/build通过（137组/1723项）见artifacts/android-profile-short-argv-window-gates-fixed.log；该版先于derived/最终媒体修复，不能外推全部当前树。
+- 当前derived采样点附CPU share/core、FPS、净电池功率及缺测原因，原metrics保持计数；前端213源码check0、68测试文件全0、208模块build0，见artifacts/frontend-profile-derived-gates.log。
+- 真机SM_G991U Android11无Root：当前游戏曾切换qihoo/ChillyRoom，均按可见Window核包。实际ChillyRoom FPS窗口12/231ms及10/185ms，profile取得CPU19.03%全机容量/152.28%单核归一化、PSS/RSS及CPU/电池/皮肤温度；缺电气资格净电池功率null，栈unavailable。实际数值只是该次观察，不作性能结论。
+- scrcpy完整argv超过254触发三星原生崩溃候选已真实短命令修复；TCP早EOF会重连且协议头完整才ready，真实localhost两回归已0。远端原PID/starttime清理兼容同代Z/消失，正常先远端后ADB，清理不确认仍拒绝产物，外来forward不误删。
+- 已修版本33d1…独立normal/lifecycle/foreign-forward三批12检查/6Job/260工具/953日志与原OS全过，README及artifacts/android-profile-media-golden-cd4bf448-4a7d-4cd3-994b-b0c0148c56cb/final-media-batches.json；该版先于BT709命令/dummy变动。
+- 三星默认H264错误YCgCo标记，zscale可解码但子代视觉严重偏色，不计颜色通过。最终固定video_codec_options=color-standard:int=1请求官方BT709，254 ASCII argv，nice-name为scid8hex，默认dummy0+codec12byte就绪（13byte）；保留640px/30fps/2Mbps。原真实H264输出bt709/bt709，FFmpeg默认PNG成功，但手机此时已退到壁纸/DOZE，不计游戏颜色通过。最终当前定点fmt/Clippy、149库+144协议、build全0，日志artifacts/android-profile-bt709-final-gates.log，冻包artifacts/android-profile-bt709-frozen-6fb10754-451e-4d50-9241-e7d7630445c6（plugin2531842a…）。
+- 下一步：等用户亮屏打开游戏答复，当前可见包核对后用最终BT709包录制，PNG交子代审颜色并验证实际前端归档；测试助理跑最终254/dummy版3必要小批。Root真机、游戏独占功耗、OEM精度、Release/npx仍独立缺口，不开展其他业务。所有失败报告和原件保留，未提交/未回退无关改动，自有诊断目录/forward均核owner与原进程退出后清理。
+
+### 2026-10-13 18:21 Android采样画面最终功能批
+
+- [x] 最终BT709/254字符/dummy13冻结包Root与无Root、生命周期、外来forward三批通过：12检查/6任务/260工具/925响应日志ID/6下载，260份OS原件及PID创建时间一致，三个驱动和宿主退出0、端口释放，无测试强杀。汇总artifacts/android-profile-official-golden-400c799f-77f8-4184-acaa-b4a191ef279d/final-bt709-media-batches.json；主代理复核汇总SHA、三报告SHA及三冻结文件SHA一致。
+- [x] 用户选择重新连接三星继续验证；三星已在线。预备最终真机目录artifacts/android-profile-device-bt709-1ba01fea-6779-4a84-8777-f50dd1446e28，三文件及配置/驱动和43份前端消费快照已备齐。当前自有进程无活跃、forward为空。
+- [ ] 当前屏幕ON但可见为系统桌面，待实际游戏可见后运行上述包并抽PNG交子代审颜色，核每采样点对应关系及真实前端归档；预备不等于执行，壁纸/旧偏色不计通过。
+- [ ] Root真机、游戏独占功耗、OEM精度及当前Release/npx继续独立缺口；REA Agent插件仅计划，性能专项延后，不扩展其他业务。
+
+### 2026-10-13 18:31 三星最终采样画面收口
+
+- [x] 最终BT709包在SM_G991U Android11/com.ChillyRoom.DungeonShooter真实录制成功：2指标点/2scrcpy PNG，CPU差分/FPS/PSS/RSS/温度，noRoot保留指标画面、栈unavailable；ZIP344388及索引5734大小/SHA通过。
+- [x] 正式PNG由视觉子代审核：地牢战斗和标题菜单颜色正常，未见此前全局通道错色；实际前端43份源码Node归档消费、索引和PNG原字节一致通过。设备时间映射选帧差-16.177405ms/+12.336595ms，仅本次功能观察。
+- [x] 原句柄driver63700/consumer60376及host65432均exit0，端口58546释放，forward为空、本次媒体/时钟助手无活进程；用户已有scrcpy5.0.1保留。汇总artifacts/android-profile-device-bt709-a9a45598-c562-4ef2-87ea-a182c7d5477d/acceptance.json，原件各自保存。首1ba01fea…载入400为验证清单漏executable，补验证入口后成功，生产未变且失败保留。
+- [ ] 真实Root调用栈/匹配符号资格、游戏独占功耗/OEM精度、当前Release/npx继续独立缺口。本机净功率因电池观测不足保持null。未做产品UI、真实浏览器或性能专项，不转新方向。
+
+### 2026-10-13 18:40 最终源码门禁与手机息屏
+
+- [x] 当前完整后端架构27模块/规则6、fmt、全目标Clippy、workspace测试136组/1732通过（0失败/0忽略/0筛除）、debug构建全0，测试助理独立统计一致；日志artifacts/android-profile-bt709-workspace-final.log，独立汇总同名前缀-report.json，原cmd49304退出0。
+- [x] 按用户要求真机插件调试通过后给三星息屏，KEYCODE_SLEEP223后Display Power=OFF，screen-off.json保存；不为重复验证擅自亮屏。
+- [ ] 完整workspace重建host/plugin字节与此前真机/三批验收冻结包不同，postbuild-identity.json单列身份；已验冻结包成绩不外推重建debug，重建运行包实服/Release/npx仍待。自有运行进程均收口，用户外部scrcpy5.0.1保留。
+
+### 2026-10-13 完整workspace重建包独立服务收口
+
+- [x] 新host9f7cfe9b…/plugin5923a5e1…/清单403216f0…三文件已独立冻结，复制前后和实服前后身份一致；目录artifacts/android-profile-workspace-debug-frozen-4b40ba34-2d12-4ae7-bd5c-2b310380c29f。源清单与新旧清单相同；二进制差异原因无证据，保持unknown。
+- [x] 正常Root/无Root、生命周期、转发归属三批新字节实服通过：12检查/6任务/260工具/978响应日志ID/6下载。260份OS ready/exit原件和PID创建时间一致，6下载大小/SHA一致，43份当前前端源码及归档联合消费通过；全部驱动/宿主exit0、端口释放、无测试强杀。汇总artifacts/android-profile-workspace-golden-8fb2f364-7162-458f-a9ee-93ab89498931/final-workspace-media-batches.json，主代理复核摘要和原报告一致。
+- [x] 不唤醒三星；本轮只合成ADB/本机TCP。旧253包真机颜色/数据资格保留旧身份，不转计新5923包。Root真机/游戏独占功耗/OEM精度及正式Release/TGZ/npx/LAN仍独立待验。
+- [ ] 前端整树历史门禁缺完整输入摘要，只能确认当前43份消费源码和本批实际消费，不无条件转计当前全树；主题插件历史两模式证据保持原版本边界，产品UI未做。
+- [ ] 原始完整项目目标继续active，已请用户指定下一方向，不自行切业务；REA Agent插件先不做、性能专项延后。
+
+### 2026-10-13 19:02 当前前端全树身份与完整门禁
+
+- [x] 340份前端维护输入generate前后及check/test/build前后大小/SHA逐份一致；生成exit0且字节0变更。213源码架构、Svelte0/0、严格TS、68测试文件615项全0、208模块构建通过，原cmd64924退出0；前端代理独立复核日志与340项清单一致。
+- [x] 证据artifacts/frontend-current-gates-dfffa715-7e73-45e0-a05b-170fc3023127保存输入清单、14文件dist清单、实际Node/npm/依赖树及锁摘要、日志和独立汇总，补齐此前全树缺输入身份的问题。
+- [ ] 当前构建主题插件8组浏览器行为仍在本批独立验收，旧主题报告不转计；产品UI仍不做、手机息屏不碰。待用户指定下一开发方向，不自行迁其他业务。
+
+### 2026-10-13 19:08 当前主题浏览器失败留证
+
+- [x] 当前615项完整前端门禁和340输入一致性已独立核验，前端所属文档frontend/docs/当前源码门禁记录.md已建立；未改产品UI/源码。
+- [ ] 当前debug真实Edge与Chrome各一次均在主题8组结果取得前浏览器原child退出2147483651/CDP关闭，未计当前browser通过；两个host exit0且53750/51432端口释放、输入前后稳定、失败与observer原件保留。报告c9e00353…和0a784cd1…，完整边界artifacts/frontend-current-gates-dfffa715-7e73-45e0-a05b-170fc3023127/theme-browser-boundary.json。
+- [ ] 历史两模式8/8保持旧产物资格；本次未取得业务断言，不断言应用缺陷。停止重复浏览器/GPU/flag尝试，手机维持息屏，等待用户指明下一开发方向。
+
+### 2026-10-13 19:32 三星电池服务兼容与再次息屏
+
+- [x] 息屏只读确认三星sysfs电池节点Permission denied；dumpsys标准电压/状态/温度可用，尾部BatteryInfoBackUp导致原解析整份丢弃。只修私有battery.rs及两测试文件，备份不补当前值，重复/坏行/冻结读数/限额/取消资格保留；公开SDK及前端不变。
+- [x] 新增6回归；修后架构27模块/规则6、fmt、全workspace Clippy、完整test/build全0，独立核定顶层136组/1738通过/0失败/0忽略/0筛除。1115后端输入前后相同。首次测试Cell线程安全编译失败保留，AtomicUsize修正后通过，不改写首次失败。
+- [x] 既有普通与performance-plugin两模式功能检查均exit0，无压测。产物在运行后冻结，缺运行前二进制摘要，不宣称前后逐字节一致。证据artifacts/android-power-readonly-166736c4-8c12-485a-ab6b-fb2a3334a838，当前host71220b4b…/plugin46b89f58…不借记旧包真机资格。
+- [x] 收口后再次KEYCODE_SLEEP223，确认三星DOZE_SUSPEND且非交互，本轮自有运行进程全部终态。全程未亮屏/切游戏/强制停止应用。
+- [ ] 本机当前电流仍无可核单位/极性和可读sysfs，功率保持缺测；本轮不宣称实测功耗。真实Root栈/匹配符号、游戏独占功耗、OEM精度、当前Release/npx与主题浏览器仍待。后续方向由用户指定，REA Agent插件先不做、性能专项延后。
+
+## 2026-10-13 Android访问来源修正与当前收尾
+
+Android环境观测已随实际Root读取通道标记权限；普通无Root不额外探su。后端完整源码门禁136组/1741通过、debug构建及两runtime功能模式通过，前端68文件/617项、严格类型及构建通过，生成字节不变。详细证据位于artifacts/android-observation-access-a4832cd8-707f-4cec-a064-315b1ab7bb43，旧首次失败保留，不能转计随后新增取消修复。
+
+该轮冻包host a3b1be81…/plugin c17a5e57…通过Root/无Root实服5检查/2Job/42工具，独立核原OS退出、HTTP/MCP、实际前端ZIP消费、输入与端口；Root无Simpleperf仍root_shell、普通adb_shell，无su。仅合成工具功能资格，Root真机/完整符号/媒体不计。三星原stdout重放恢复3887mV/34.1℃/Charging/External，缺current与净功率保留null，但stop后卸载409 cleanup_failed导致整体首轮失败，原件android-device-observation-oem-debug-9ea3a9b4-dc53-41a7-a9ca-36c302718af8保留。
+
+当前正在修复通用协议4 Ready/Start前取消缺口，裁定见backend/docs/插件执行上下文第四版裁定.md末节；不改业务stop/电池、不靠驱动延迟或放宽卸载。后端写通用握手与宿主回归，测试助手新增两条运行库原帧回归已冻结，前端代理只读审核。主代理统一门禁、冻包和原件重放；修后结果待补，整体目标active。
+
+用户要求调试结束息屏：已再次发送KEYCODE_SLEEP223，screen-resume.json确认三星DOZE_SUSPEND及非交互；本轮使用合成工具/原件、不唤醒手机。新业务必须先由用户指明，REA Agent插件仅计划，产品UI/Root真机/匹配符号/OEM精度/游戏独占功耗/Release与正式分发仍独立待验，性能专项延后。
+
+## 2026-10-13 Android本轮最终收口
+
+当前授权Android采集/Root栈/采样画面，后续新方向仍由用户指明；REA MCP Agent插件仅计划，性能专项延后。环境Root权限来源和三星BatteryInfoBackUp兼容已修；新增通用协议4 Ready/Start启动取消收口，严格Ready/Cancel匹配、零业务调用及Complete+零退出资格保持。stop后新OEM重放可正常卸载、历史保留，不改电池单位或卸载断言。
+
+后端完整门禁：架构27模块/Node6/fmt/workspaceClippy通过；Windows并发编译1455原件保留，降低Cargo -j1后完整workspace顶层独立核定136组/1749通过、debug构建及五必要功能检查全exit0；1115输入逐字一致，独立统计已核。定点runtime24、host8、cooperative12通过。首oracle误解空outputs、首Clippy条件写法和1455失败均保留，未放宽清理预算。证据artifacts/android-observation-access-a4832cd8-707f-4cec-a064-315b1ab7bb43/startup-cleanup/backend-final-report.json。前端340维护输入delta0，复用68文件/617项及生成字节不变报告，不增计浏览器/UI。
+
+新冻包host1d8cfd82…/plugin5838d3b7…/manifest403216f0…分别通过OEM原件重放4检查/1会话/9工具与Root/无Root实服5检查/2Job/42工具。目录android-device-observation-oem-debug-7b8f3cb2-8d6e-4aef-87ce-fc856fee22e5和android-root-access-debug-88eea176-6484-4d76-be3a-f3d7834b2741；原driver45236/11308及host43688/63716均exit0，端口58374/58383释放，实际前端消费与原工具退出通过。Root无Simpleperf仍root_shell，普通adb_shell且无su；三星恢复3887mV/34.1℃/Charging/External，current未知和净功率null。旧OEM首失败9ea3a9b4…保留，旧三星游戏画面只属于253包，不转计新583包。
+
+用户要求调试结束息屏，已再次KEYCODE_SLEEP223并确认DOZE_SUSPEND、mHalInteractiveModeEnabled=false；screen-final.json在startup-cleanup。本轮合成工具/保存原件不唤醒手机，全部自有运行进程均终态。Root真机/匹配符号、游戏独占功耗/OEM精度、完整产品UI与主题浏览器、Release/正式分发仍独立待验，整体项目active。
+
+## 2026-10-13 Android CPU/内存部分缺测接续（验证中）
+
+当前仍只Android采集、Root栈与采样画面，不转新业务、不唤醒手机。明确无权限/不支持的固定系统CPU与meminfo命令可只使对应指标为空，并保留同次FPS/环境/画面；PID、进程首末身份、未知/混合诊断、取消/期限/限额与清理资格继续硬失败。公开partial_metrics仅API2显式声明，旧默认false；SDK/domain纯规则、宿主本代准入、JSON存储和前端生成nullable索引已接线，CPU缺测断开相邻基线。
+
+已修独立审核发现的不支持诊断扩展尾行被宽松解析忽略漏口，只增加硬失败，不扩降级白名单。完整后端1121输入已冻结，前端342输入在门禁前后delta0；前端generate/check/test/build全exit0、69文件625项通过、214源码/209模块。后端全workspace门禁原cmd48800仍在低并发编译，尚无完整测试/构建通过结论；实服与媒体partial新包尚未执行。证据artifacts/android-partial-metrics-7bb5579b-7a55-4f9b-a965-1f35c7c25e7b，实施裁定backend/docs/Android指标部分缺测实施.md。
+
+只读ADB确认三星DOZE_SUSPEND、mHalInteractiveModeEnabled=false。用户要求结束息屏持续有效，后续验证用合成工具/原件。Root真机/符号、游戏独占功耗/OEM精度、正式Release/npx与产品UI仍未验，性能专项延后，整体目标active。
+
+## 2026-10-13 Android部分缺测最终收口
+
+当前仅Android指标、Root栈和指标点画面。固定系统CPU/meminfo明确拒绝时只缺对应指标，并保留同次FPS、环境和画面；未知/混合诊断、坏数值/结构/身份、取消/期限/限额/清理错误继续硬失败。公开partial_metrics仅API2显式声明，旧缺省false；原因与可空值严格对应，CPU缺测断相邻基线，恢复首样重新建立，SQLiteJSON重开保真。前端消费生成类型及共用纯校验，不做产品UI。
+
+源码完整门禁已通过：后端架构27模块/Node6、fmt、workspace Clippy/test/build全exit0；独立统计顶层136组1768通过（AI嵌套1通过32筛除另列），1121维护输入稳定。前端generate/check/test/build全exit0，214源码、69文件625项、209模块；342输入delta0，只有生成前后generated.ts按新可空合同改变。29验收驱动文件前后delta0。首次清单黄金漏partial_metrics及第二次Frida全文PID991断言失败原件保留；后者改精确PID字段，未捕获失败nonce原件，仅确认误判风险。首次公共smoke漏MSVC环境的link.exe错误也保留，补环境后成功。
+
+第三轮末build重建debug字节与初包不同，差异原因unknown，源清单仍一致；不转计旧包成绩。最终冻包host064a4408…/plugin e6488d24…/manifest238cb8cd…，两必要新实服分别通过4检查/2会话/29工具及4检查/2Job/99工具，CPU/内存缺测经HTTP/MCP/SQLite历史/实际前端与Root媒体ZIP联合消费。目录android-partial-metrics-debug-9ca564fa-a2bf-4e6a-a5db-eb0af06ba3a6、android-profile-media-service-debug-e3588018-cc81-41db-a0e4-7f34736e1c44。driver62536/47548、host27884/62564全exit0/graceful，端口64328/64384释放。公共runtime两模式/logging/plugin-lifecycle/cooperative最终字节全exit0。完整记录artifacts/android-partial-metrics-7bb5579b-7a55-4f9b-a965-1f35c7c25e7b。
+
+使用原生合成ADB/Root和媒体黄金，不是真实Root/simpleperf/OEM精度证明，旧三星画面仍属旧包。Root真机/匹配符号、游戏独占功耗、各温度单项缺测原因、正式Release/npx与产品UI仍独立待验；不转新业务，REA MCP Agent插件只列计划，性能专项延后，整体目标active。调试收口再次KEYCODE_SLEEP223，screen-final.json确认三星DOZE_SUSPEND/mHalInteractiveModeEnabled=false；全部本轮自有进程已终态，不唤醒手机。
+
+最终独立审计已冻结：backend-independent-audit.json（SHA587c268b…54b12a），确认18项缺测回归与1项Frida测试oracle逐名通过、终包128工具的双流原字节/OS创建身份/退出、两ZIP CRC/index/PNG/perf/4栈及实际前端联合消费均符合；初包及失败轮分别保留，不转计。最终视觉审计见终包media目录frontend-visual-audit.json，图像结论限于合成媒体。
+
+
+## 2026-10-14 模拟器 Root 验证恢复
+
+用户恢复后仅继续 Android Root 实设备验证，主题、温度增量、性能专项与 REA Agent 插件不恢复。模拟器 emulator-5554 为 Android 9/API 28、x86_64，固定 su 返回 UID0；官方本地 NDK r27 的 Simpleperf 已部署至独占临时目录，实际版本和必需参数通过，公开 stack.probe 及当前前端解码通过。用户打开游戏后核对 com.knight.union.wdj，PID3540、启动计数146565、UID10082。
+
+首录制 Job 5f851bc4-06cc-419a-b5d8-867ecc15df9b 返回 cleanup_failed，未发布产物。同生产目录脚本复现 ready/clean 的 CRLF 回执；远端监督文本原仅接受 LF，已窄修文本换行兼容，二进制下载、身份、期限及 token 规则未变。原现场当前未见采集目录或相关进程，不反推原 PID 退出。证据目录 artifacts/android-root-emulator-live-UcCxJn，真实非空堆栈、采样画面和修后完整门禁尚待验证，不计完成。

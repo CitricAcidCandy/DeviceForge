@@ -139,7 +139,13 @@ impl Case {
         let deadline = Instant::now() + READY_BUDGET;
         loop {
             match fs::read(self.directory.join(name)) {
-                Ok(bytes) => return serde_json::from_slice(&bytes).expect("原子发布有效JSON"),
+                Ok(bytes) => match serde_json::from_slice(&bytes) {
+                    Ok(value) => return value,
+                    Err(error) if error.is_eof() && Instant::now() < deadline => {
+                        sleep(Duration::from_millis(10)).await
+                    }
+                    Err(error) => panic!("原生证据{name}不是有效JSON：{error}"),
+                },
                 Err(error)
                     if error.kind() == std::io::ErrorKind::NotFound
                         && Instant::now() < deadline =>
@@ -438,4 +444,52 @@ impl Drop for Case {
             );
         }
     }
+}
+
+#[tokio::test]
+async fn ready_json_oracle_waits_for_complete_bytes_and_rejects_invalid_syntax() {
+    let mut case = Case::new("ready-json-oracle", "stdout", "read-only-oracle", 0, 0);
+    case.report["test_oracle_only"] = json!(true);
+    // 本用例不创建进程，禁止进入进程恢复分支；公有作用域证据始终保持未验证。
+    case.completed = true;
+    case.save();
+    let name = "staged-ready.json";
+    let path = case.directory.join(name);
+    fs::write(&path, b"").expect("创建尚未写入的ready原件");
+    {
+        let reading = case.read_json(name);
+        tokio::pin!(reading);
+        tokio::select! {
+            _ = &mut reading => panic!("空ready原件不得返回"),
+            _ = sleep(Duration::from_millis(40)) => {}
+        }
+        fs::write(&path, br#"{"ready":"#).expect("写入尚未完成的ready原件");
+        tokio::select! {
+            _ = &mut reading => panic!("部分ready原件不得返回"),
+            _ = sleep(Duration::from_millis(40)) => {}
+        }
+        let expected = json!({"ready":true,"source":"test_oracle_only"});
+        fs::write(&path, serde_json::to_vec(&expected).expect("完整JSON"))
+            .expect("完成同一ready原件");
+        let actual = tokio::time::timeout(Duration::from_secs(1), &mut reading)
+            .await
+            .expect("完整原件应在原预算内返回");
+        assert_eq!(actual, expected);
+    }
+    fs::write(case.directory.join("invalid-ready.json"), br#"{"ready": }"#)
+        .expect("写入完整但语法无效的ready原件");
+    let case = Arc::new(case);
+    let reader_case = Arc::clone(&case);
+    let mut readers = tokio::task::JoinSet::new();
+    readers.spawn(async move { reader_case.read_json("invalid-ready.json").await });
+    let rejection = tokio::time::timeout(Duration::from_secs(1), readers.join_next())
+        .await
+        .expect("非EOF语法错误必须直接拒绝")
+        .expect("读取器任务必须结束")
+        .expect_err("无效语法不得返回JSON");
+    assert!(rejection.is_panic());
+    drop(readers);
+    let mut case = Arc::try_unwrap(case).unwrap_or_else(|_| panic!("读取器必须释放用例"));
+    case.report["test_oracle_verified"] = json!(true);
+    case.save();
 }
