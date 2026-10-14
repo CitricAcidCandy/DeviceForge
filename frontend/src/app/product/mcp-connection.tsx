@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { Button } from '../../shared/ui/components/button.tsx';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../shared/ui/components/table.tsx';
-import { ActionFeedback, EmptyState, ErrorNotice } from './common.tsx';
+import { Button } from '../../components/ui/button.tsx';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table.tsx';
+import { EmptyState } from '../../components/common/index.ts';
+import { ActionFeedback, ErrorNotice } from './feedback.tsx';
 import { useAction } from './hooks.ts';
 import type { ProductServices } from './services.ts';
 

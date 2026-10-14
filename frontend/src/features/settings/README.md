@@ -1,5 +1,14 @@
 # 设置业务用例
 
+## 当前目录分层
+
+根目录仅保留本说明与 `index.ts` 公开门面，外部应用按门面消费。原用例实现从根索引迁入 `application/`，原导出保持兼容。已有算法行为与协议保持，内部文件路径已按职责整理。
+
+- `application/`：用例、状态、目录与生命周期编排；HTTP装配工厂也放在此层，基础设施不反向依赖用例。
+- `domain/`：纯业务规则、输入及结果验证、数据模型与转换；不依赖其他内部层。
+
+允许依赖为 application → domain/infrastructure，infrastructure → domain，ui → application/domain；domain 不依赖用例、适配或界面。纯规则现有共享API类型和错误保留过渡，不新增HTTP调用。
+
 本模块以 `plugin.settings.list/get/set/delete/import` 提交真实任务，并通过共享执行器等待终态。`rules.ts` 校验用户或工作区归属、ASCII 业务身份、规范十进制 u64 预期修订及 1–64 配置区导入；`results.ts` 校验结果版本、修订及配置区匹配；`index.ts` 组合公开用例、恢复等待和显式取消。
 
 `createSettings` 注入公开宿主的 `submit/getJob/cancelJob` 或 `createHttpJobGateway`。写入、删除和导入必须携带服务器最后返回的修订，不自动覆盖冲突，不自动重放。恢复读取配置时同时传原配置区。配置内容保持 JSON 原值，不读取本机文件或服务器路径。结果携带真实任务、提交日志和最后查询日志。

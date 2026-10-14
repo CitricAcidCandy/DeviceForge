@@ -1,9 +1,10 @@
 import { RefreshCw, Smartphone, Check, ArrowUpRight, PlugZap } from 'lucide-react';
-import { Button } from '../../../shared/ui/components/button.tsx';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../shared/ui/components/table.tsx';
+import { Button } from '../../../components/ui/button.tsx';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../components/ui/table.tsx';
 import type { ProductServices } from '../services.ts';
 import { useAction, useSnapshot } from '../hooks.ts';
-import { ActionFeedback, EmptyState, JsonResult, PageTitle } from '../common.tsx';
+import { EmptyState, JsonResult, PageTitle } from '../../../components/common/index.ts';
+import { ActionFeedback } from '../feedback.tsx';
 import { DevicesConnect } from './devices-connect.tsx';
 
 const deviceStates = { online: '在线', offline: '离线', unauthorized: '等待设备授权', unknown: '状态未知' };

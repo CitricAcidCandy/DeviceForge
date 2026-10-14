@@ -1,8 +1,8 @@
 import { HostError } from '../plugin-sdk/index.ts';
 import type { HostContext, HostResult, JsonValue } from '../plugin-sdk/index.ts';
 import type { createAiSdk } from '../features/ai-sdk/index.ts';
-import { normalizeAiSdkAssistant, normalizeAiSdkThread, normalizeAiSdkTurn } from '../features/ai-sdk/rules.ts';
-import type { AiSdkAssistantInput, AiSdkSingleInput, AiSdkThreadInput, AiSdkTurnInput } from '../features/ai-sdk/types.ts';
+import { normalizeAiSdkAssistant, normalizeAiSdkThread, normalizeAiSdkTurn } from '../features/ai-sdk/index.ts';
+import type { AiSdkAssistantInput, AiSdkSingleInput, AiSdkThreadInput, AiSdkTurnInput } from '../features/ai-sdk/index.ts';
 import type { JobOutcome } from '../shared/jobs/index.ts';
 import { isJsonData } from '../shared/jobs/values.ts';
 import type { ExtensionRegistry } from '../plugins/extensions/registry.ts';

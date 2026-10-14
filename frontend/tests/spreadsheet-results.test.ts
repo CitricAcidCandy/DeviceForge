@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { ApiError } from '../src/shared/api/index.ts';
-import { decodeInspection, decodePage } from '../src/features/spreadsheet/results.ts';
-import { normalizeInspect, normalizeRead } from '../src/features/spreadsheet/rules.ts';
+import { decodeInspection, decodePage } from '../src/features/spreadsheet/domain/results.ts';
+import { normalizeInspect, normalizeRead } from '../src/features/spreadsheet/domain/rules.ts';
 
 const artifact = '12345678-1234-1234-1234-123456789abc';
 function inspection(changes: Record<string, unknown> = {}) {

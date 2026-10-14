@@ -1,11 +1,13 @@
 import { useState } from 'react';
-import { Button } from '../../../shared/ui/components/button.tsx';
-import { Checkbox } from '../../../shared/ui/components/checkbox.tsx';
-import { Label } from '../../../shared/ui/components/label.tsx';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../shared/ui/components/table.tsx';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../../shared/ui/components/dialog.tsx';
+import { Button } from '../../../components/ui/button.tsx';
+import { Checkbox } from '../../../components/ui/checkbox.tsx';
+import { Label } from '../../../components/ui/label.tsx';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../components/ui/table.tsx';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../../components/ui/dialog.tsx';
 import type { ToolCatalog, ToolPlan, ToolModule, ToolRuntimeFeaturePreparation, ToolRuntimeFeatureStatus } from '../../../features/tool-supply/index.ts';
-import { ActionFeedback, EmptyState, Field, JsonResult, OperationNotice, PageTitle, useOperationAvailable } from '../common.tsx';
+import { EmptyState, Field, JsonResult, PageTitle } from '../../../components/common/index.ts';
+import { OperationNotice, useOperationAvailable } from '../capabilities.tsx';
+import { ActionFeedback } from '../feedback.tsx';
 import { useAction } from '../hooks.ts';
 import type { ProductServices } from '../services.ts';
 

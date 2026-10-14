@@ -1,5 +1,14 @@
 # 投屏录像业务用例
 
+## 当前目录分层
+
+根目录仅保留本说明与 `index.ts` 公开门面，外部应用按门面消费。原用例实现从根索引迁入 `application/`，原导出保持兼容。已有算法行为与协议保持，内部文件路径已按职责整理。
+
+- `application/`：用例、状态、目录与生命周期编排；HTTP装配工厂也放在此层，基础设施不反向依赖用例。
+- `domain/`：纯业务规则、输入及结果验证、数据模型与转换；不依赖其他内部层。
+
+允许依赖为 application → domain/infrastructure，infrastructure → domain，ui → application/domain；domain 不依赖用例、适配或界面。纯规则现有共享API类型和错误保留过渡，不新增HTTP调用。
+
 `createHttpMirroring` 使用生成的公开类型、真实 HTTP 任务网关和原字节产物接口，只消费 `plugin.mirroring.runtime.status` 与 `plugin.mirroring.record`。新提交前必须显式调用 `refreshOperations`；刷新开始立即撤销旧目录，失败、取消、替换和销毁后的晚到结果均不能恢复入口。`snapshot` 提供本次目录、刷新状态、错误和真实日志 ID。
 
 `createMirroring` 保留已有任务网关和产物读取器注入签名；可通过 `options.operations` 注入动态公开目录。未注入目录时保持旧调用语义，目录快照为空，不能将其视为贡献发现证据。`catalog.ts` 负责目录代际；`rules.ts` 校验设备、1000–120000 毫秒时长及分辨率/帧率范围；`results.ts` 核对设备回显、H264、向上整秒时长、128 MiB 文件上限和唯一 `screen.mp4` 元数据；`index.ts` 组合任务与下载。输入与业务结果建立冻结副本，调用者修改原对象不改变已提交设备、时长或解码预期。

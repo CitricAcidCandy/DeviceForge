@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react';
 import { Download } from 'lucide-react';
-import { Button } from '../../../shared/ui/components/button.tsx';
+import { Button } from '../../../components/ui/button.tsx';
 import { decodeArtifactEnvelope, downloadPublishedArtifact } from '../../../shared/jobs/index.ts';
 import { isRecord } from '../../../shared/api/validation.ts';
 import type { ProductServices } from '../services.ts';
 import { useAction } from '../hooks.ts';
-import { ActionFeedback, ErrorNotice } from '../common.tsx';
+import { ActionFeedback, ErrorNotice } from '../feedback.tsx';
 import { BlobDownload } from './profile-view.tsx';
 
 // 只从公开产物封套取得文件；下载复用大小与 SHA-256 校验，任务切换时释放链接。

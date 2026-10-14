@@ -4,10 +4,10 @@ import { createServer } from 'vite';
 import { act, createElement } from 'react';
 import type { ComponentType } from 'react';
 import { JSDOM } from 'jsdom';
-import { buildProfileFlamegraph } from '../src/features/android-profile/flamegraph.ts';
-import { flamePercent, layoutFlamegraph } from '../src/features/android-profile/flamegraph-layout.ts';
-import type { FlameInterval, ProfileFlamegraphViewProps } from '../src/features/android-profile/flamegraph-view.tsx';
-import type { StackFrame, StackSample } from '../src/features/android-profile/types.ts';
+import { buildProfileFlamegraph } from '../src/features/android-profile/domain/flamegraph.ts';
+import { flamePercent, layoutFlamegraph } from '../src/features/android-profile/ui/flamegraph-layout.ts';
+import type { FlameInterval, ProfileFlamegraphViewProps } from '../src/features/android-profile/ui/flamegraph-view.tsx';
+import type { StackFrame, StackSample } from '../src/features/android-profile/domain/types.ts';
 
 const begin = '90071992547409930';
 const middle = '90071992547409932';
@@ -51,7 +51,7 @@ test('React 火焰图在真实 DOM 中筛选、搜索、缩放并保留大整数
   const { createRoot } = await import('react-dom/client');
   const viewRoot = createRoot(target);
   try {
-    const loaded: unknown = await server.ssrLoadModule('/src/features/android-profile/flamegraph-view.tsx');
+    const loaded: unknown = await server.ssrLoadModule('/src/features/android-profile/ui/flamegraph-view.tsx');
     assert.ok(componentModule(loaded));
     let generation = 0;
     const reset = async () => { await act(async () => viewRoot.render(createElement(loaded.ProfileFlamegraphView, { stacks, intervals, key: ++generation }))); };

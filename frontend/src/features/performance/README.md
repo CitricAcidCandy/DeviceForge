@@ -1,5 +1,15 @@
 # 性能会话消费
 
+## 当前目录分层
+
+根目录仅保留本说明与 `index.ts` 公开门面，外部应用按门面消费。原用例实现从根索引迁入 `application/`，原导出保持兼容。已有算法行为与协议保持，内部文件路径已按职责整理。
+
+- `application/`：用例、状态、目录与生命周期编排；HTTP装配工厂也放在此层，基础设施不反向依赖用例。
+- `domain/`：纯业务规则、输入及结果验证、数据模型与转换；不依赖其他内部层。
+- `infrastructure/`：宿主网关、字节流解码、媒体与浏览器适配；依赖纯规则和模型。
+
+允许依赖为 application → domain/infrastructure，infrastructure → domain，ui → application/domain；domain 不依赖用例、适配或界面。纯规则现有共享API类型和错误保留过渡，不新增HTTP调用。
+
 本模块消费宿主八个 `android.performance.*` 操作，不执行平台采样、不新增路由或页面。`createPerformance` 注入公开 `HostContext` 的 `submit/getJob`，现有 HTTP 客户端、任务用例和浏览器 SDK 保持原实现。`createHttpPerformance` 复用 shared/jobs HTTP 网关，由 app runtime 持有并在关闭时 dispose；`host.performance` v1 服务供可信浏览器插件通过公开扩展服务消费。会话、样本页及历史列表类型直接索引生成契约。能力响应当前没有生成组件，校验后映射为独立消费视图。
 
 `start/inspect/pause/resume/stop` 校验直接会话结果，`samples/list` 校验各自分页对象，`capabilities` 校验实际指标与限制。提交只执行一次，排队或执行中 Job 继续查询，只有成功终态才解码 `Job.result`。普通 `performance.sample` 的 `result/artifacts` 包装不接受为会话结果。`PerformanceJobFailure` 保留真实失败 Job、字符串 error、提交与最后查询日志；等待失败保留已知 Job 和原错误 cause。查询日志不当作执行日志，任务编号不当作日志编号。

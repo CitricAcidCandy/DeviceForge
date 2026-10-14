@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { decodePerformanceCapabilities, isPerformancePage, isPerformanceSession, isPerformanceSessions, isPerformanceStart, requireSession } from '../src/features/performance/results.ts';
+import { decodePerformanceCapabilities, isPerformancePage, isPerformanceSession, isPerformanceSessions, isPerformanceStart, requireSession } from '../src/features/performance/domain/results.ts';
 import { HostError } from '../src/plugin-sdk/index.ts';
 
 const id = '11111111-1111-4111-8111-111111111111';

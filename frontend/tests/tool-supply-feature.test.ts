@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createToolSupply } from '../src/features/tool-supply/index.ts';
-import { requireRuntimeFeatureKey, runtimeFeatureKey } from '../src/features/tool-supply/feature-rules.ts';
+import { requireRuntimeFeatureKey, runtimeFeatureKey } from '../src/features/tool-supply/domain/feature-rules.ts';
 import { ApiError } from '../src/shared/api/index.ts';
 import type { ApiResult } from '../src/shared/api/index.ts';
 import { JobFailure, JobWaitFailure } from '../src/shared/jobs/index.ts';

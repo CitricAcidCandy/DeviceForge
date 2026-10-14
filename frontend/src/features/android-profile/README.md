@@ -1,5 +1,16 @@
 # Android Root 堆栈与采样画面消费
 
+## 当前目录分层
+
+根目录仅保留本说明与 `index.ts` 公开门面，外部应用按门面消费。原用例实现从根索引迁入 `application/`，原导出保持兼容。已有算法行为与协议保持，内部文件路径已按职责整理。
+
+- `application/`：用例、状态、目录与生命周期编排；HTTP装配工厂也放在此层，基础设施不反向依赖用例。
+- `domain/`：纯业务规则、输入及结果验证、数据模型与转换；不依赖其他内部层。
+- `infrastructure/`：宿主网关、字节流解码、媒体与浏览器适配；依赖纯规则和模型。
+- `ui/`：本功能专用的React组件与展示计算；不承担网络和设备动作。
+
+允许依赖为 application → domain/infrastructure，infrastructure → domain，ui → application/domain；domain 不依赖用例、适配或界面。纯规则现有共享API类型和错误保留过渡，不新增HTTP调用。
+
 本模块采用 plan-and-build，消费冻结的 stack.probe v1 与 profile.record v1，不创建产品页面，也不改变宿主 SDK 或 runtime。通过公开 host.devices.invoke 携带完整设备引用；宿主负责转换为 {device_id,input} 封套。外部任务操作为 plugin.android-device.stack.probe 与 plugin.android-device.profile.record。
 
 ## 职责

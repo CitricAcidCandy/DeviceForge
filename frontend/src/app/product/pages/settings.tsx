@@ -1,18 +1,20 @@
 import { useState } from 'react';
 import { Save, RefreshCw, Palette, Settings2, Eye, EyeOff, Trash2, Upload, CloudDownload, CloudUpload } from 'lucide-react';
-import { Button } from '../../../shared/ui/components/button.tsx';
-import { Input } from '../../../shared/ui/components/input.tsx';
-import { Textarea } from '../../../shared/ui/components/textarea.tsx';
-import { Label } from '../../../shared/ui/components/label.tsx';
-import { Switch } from '../../../shared/ui/components/switch.tsx';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '../../../shared/ui/components/dialog.tsx';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../shared/ui/components/select.tsx';
+import { Button } from '../../../components/ui/button.tsx';
+import { Input } from '../../../components/ui/input.tsx';
+import { Textarea } from '../../../components/ui/textarea.tsx';
+import { Label } from '../../../components/ui/label.tsx';
+import { Switch } from '../../../components/ui/switch.tsx';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '../../../components/ui/dialog.tsx';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../components/ui/select.tsx';
 import { isJsonData, jsonObject } from '../../../shared/jobs/index.ts';
 import { remoteSettingSections } from '../../../features/settings/index.ts';
 import type { RemoteSettingsResult, SettingsOwner, SettingsResult } from '../../../features/settings/index.ts';
 import type { ProductServices } from '../services.ts';
 import { useAction, useSnapshot } from '../hooks.ts';
-import { ActionFeedback, Field, JsonResult, OperationNotice, PageTitle, useOperationAvailable } from '../common.tsx';
+import { Field, JsonResult, PageTitle } from '../../../components/common/index.ts';
+import { OperationNotice, useOperationAvailable } from '../capabilities.tsx';
+import { ActionFeedback } from '../feedback.tsx';
 import { McpConnection } from '../mcp-connection.tsx';
 
 export function SettingsPage({ services }: { services: ProductServices }) {

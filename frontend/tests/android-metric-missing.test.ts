@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { decodeProfileIndex } from '../src/features/android-profile/index.ts';
-import { isProfileMetrics } from '../src/features/android-profile/metrics.ts';
-import type { ProfileDerived, ProfileMetrics, ProfileResult } from '../src/features/android-profile/types.ts';
-import type { ProfileMetricMissing } from '../src/features/android-profile/types.ts';
-import { isPerformancePage } from '../src/features/performance/results.ts';
+import { isProfileMetrics } from '../src/features/android-profile/domain/metrics.ts';
+import type { ProfileDerived, ProfileMetrics, ProfileResult } from '../src/features/android-profile/domain/types.ts';
+import type { ProfileMetricMissing } from '../src/features/android-profile/domain/types.ts';
+import { isPerformancePage } from '../src/features/performance/domain/results.ts';
 import { ApiError } from '../src/shared/api/index.ts';
 import { deviceObservation, observationReading } from './performance-observation-fixtures.ts';
 

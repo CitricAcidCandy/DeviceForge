@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Button } from '../../../shared/ui/components/button.tsx';
-import { Label } from '../../../shared/ui/components/label.tsx';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../shared/ui/components/select.tsx';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../../shared/ui/components/dialog.tsx';
+import { Button } from '../../../components/ui/button.tsx';
+import { Label } from '../../../components/ui/label.tsx';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../components/ui/select.tsx';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../../components/ui/dialog.tsx';
 import type { DeviceProviderInfo } from '../../../plugin-sdk/index.ts';
-import { ActionFeedback, EmptyState, Field, JsonResult } from '../common.tsx';
+import { EmptyState, Field, JsonResult } from '../../../components/common/index.ts';
+import { ActionFeedback } from '../feedback.tsx';
 import { useAction, useSnapshot } from '../hooks.ts';
 import type { ProductServices } from '../services.ts';
 import { capabilityGate, decodeDeviceBusinessResult, executeDeviceTask } from './apps-contract.ts';

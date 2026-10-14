@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
-import { ProfileFlamegraphView } from '../../../features/android-profile/flamegraph-view.tsx';
-import { closedFlameInterval } from '../../../features/android-profile/flamegraph-interval.ts';
-import { Button } from '../../../shared/ui/components/button.tsx';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../shared/ui/components/table.tsx';
+import { ProfileFlamegraphView } from '../../../features/android-profile/index.ts';
+import { closedFlameInterval } from '../../../features/android-profile/index.ts';
+import { Button } from '../../../components/ui/button.tsx';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../components/ui/table.tsx';
 import type { OpenedProfileArchive, ProfileFrameAssociation, ProfileSample } from '../../../features/android-profile/index.ts';
 import type { PerformanceReading } from '../../../features/performance/index.ts';
-import { EmptyState, JsonResult } from '../common.tsx';
+import { EmptyState, JsonResult } from '../../../components/common/index.ts';
 
 export function metricText(value: number | null | undefined, unit = ''): string {
   return value == null ? '—' : `${Number.isInteger(value) ? value : value.toFixed(2)}${unit ? ` ${unit}` : ''}`;

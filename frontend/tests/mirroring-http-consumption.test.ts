@@ -5,8 +5,8 @@ import { ApiError, createApiClient } from '../src/shared/api/index.ts';
 import type { ArtifactDto, OperationDto } from '../src/shared/api/index.ts';
 import type { ArtifactReader, JobGateway, JsonData, TaskRecord } from '../src/shared/jobs/index.ts';
 import { JobWaitFailure } from '../src/shared/jobs/index.ts';
-import { decodeMirroringRecording, decodeMirroringStatus } from '../src/features/mirroring/results.ts';
-import { requireMirroringRequest } from '../src/features/mirroring/rules.ts';
+import { decodeMirroringRecording, decodeMirroringStatus } from '../src/features/mirroring/domain/results.ts';
+import { requireMirroringRequest } from '../src/features/mirroring/domain/rules.ts';
 import { deferred, requestUrl, signal, success } from './fixtures.ts';
 
 const request = { device_id: 'emulator-5554', duration_ms: 1100 };

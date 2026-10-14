@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import type { PointerEvent } from 'react';
 import { Camera, Play, Square, Download } from 'lucide-react';
-import { Button } from '../../../shared/ui/components/button.tsx';
-import { Switch } from '../../../shared/ui/components/switch.tsx';
-import { Label } from '../../../shared/ui/components/label.tsx';
+import { Button } from '../../../components/ui/button.tsx';
+import { Switch } from '../../../components/ui/switch.tsx';
+import { Label } from '../../../components/ui/label.tsx';
 import { createJobRunner, decodeArtifactEnvelope, downloadPublishedArtifact } from '../../../shared/jobs/index.ts';
-import { Field, PageTitle, ActionFeedback, EmptyState, ErrorNotice, JsonResult, useOperationAvailable } from '../common.tsx';
+import { Field, PageTitle, EmptyState, JsonResult } from '../../../components/common/index.ts';
+import { useOperationAvailable } from '../capabilities.tsx';
+import { ActionFeedback, ErrorNotice } from '../feedback.tsx';
 import { useAction, useSnapshot } from '../hooks.ts';
 import { withSelectedDevice } from '../device-target.ts';
 import { createMediaControlQueue } from '../media-controls.ts';
@@ -67,7 +69,7 @@ export function MediaPage({services}: {services: ProductServices}) {
       return result;
     } finally { runner.dispose(); }
   }))}><Camera />截取画面</Button></PageTitle>
-    {!device.selection && <EmptyState title="选择一台设备开始" description="底部切换工作对象。截图按当前设备能力开放，投屏和录像还需要服务端投屏插件。" />}
+    {!device.selection && <EmptyState title="选择一台设备开始" description="顶部选择工作对象。截图按当前设备能力开放，投屏和录像还需要服务端投屏插件。" />}
     <div className="form-row"><Field label="最大画面尺寸" value={size} onChange={setSize} type="number" min={256} max={8192} /><Field label="帧率上限" value={fps} onChange={setFps} type="number" min={1} max={240} /><div className="setting-toggle"><Switch id="media-audio" checked={audio} onCheckedChange={setAudio} disabled={Boolean(activeSession)} /><Label htmlFor="media-audio">播放设备音频</Label></div><div className="setting-toggle"><Switch id="media-control" checked={control} onCheckedChange={setControl} disabled={Boolean(activeSession)} /><Label htmlFor="media-control">开启设备控制</Label></div></div>
     <div className="action-row"><Button variant="outline" disabled={action.pending} onClick={() => void action.run(signal => live.refreshDefinitions(signal))}>检查直播能力</Button><Button disabled={!androidTarget || !liveAvailable || Boolean(activeSession) || reader.pending} onClick={() => void reader.run(signal => withSelectedDevice(services, signal, async (reference, active) => {
       await services.mediaDisplay.prepare(audio); services.mediaDisplay.bind(canvas.current);

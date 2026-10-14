@@ -7,12 +7,14 @@
 
 ## 依赖与文件职责
 - `src/app`：启动、路由、全局样式与装配，不堆积业务规则、HTTP 调用或插件逻辑。
-- `src/features/<功能>`：该功能的组件、状态和用例，只依赖本功能、shared 与 SDK，禁止引用其他功能内部实现。
+- `src/features/<功能>`：根目录仅保留薄 index 公开门面和中文 README；源码按实际需要放 domain 纯规则与模型、application 用例和状态、infrastructure 适配与解码、ui 专用组件，不创建四层空目录。模块之间不互相导入；app 使用功能公开 index，类型导入也不读取内部文件。
 - `src/shared/api`：生成类型、HTTP 适配器、统一错误与取消；组件不直接 fetch，令牌不进入 URL 或 localStorage。
-- `src/shared/ui`：纯展示与可访问性组件，不引用 API、features、app 或宿主插件逻辑。
+- `src/components`：宽泛公共组件目录；ui 放官方基础组件，common 放纯通用展示，lib 放组件纯工具，integrations/<库或能力> 放实际使用的第三方封装，不建空集成目录。只依赖 components 和 shared 纯工具，不引用 API、features、app、plugins 或 SDK。
+- 公共组件方向：ui 只依 ui/lib；common 可依 common/ui/lib，不依具体 integrations；integrations 可依 integrations/common/ui/lib；lib 只依 lib 和 shared 纯工具。第三方库可以在通用包装中封装，业务读取、任务派发与服务适配留所属功能或 app。
+- 功能层方向：domain 不依 application/infrastructure/ui/app；infrastructure 不依 application/ui；application 不依 ui。只有 features/ui 可依 components，其他功能层不得引入展示组件。测试可读取内部源码，生产入口限制仍由架构门禁执行。
 - `src/plugin-sdk`：独立版本化公开契约，不依赖 app/features/shared/plugins，不暴露服务令牌或私有类型。
 - `src/plugins`：可信预注册加载器、贡献校验及运行中加载/卸载编排，只通过 SDK 与宿主交互，不导入功能实现；装载失败须回滚，卸载须撤销调用并等待资源清理。
-- 禁止反向依赖、循环导入和跨工程源码路径。新增模块附中文 README，复杂规则拆为可测试纯函数。
+- 禁止反向依赖、循环导入和跨工程源码路径。新增模块附中文 README，复杂规则拆为可测试纯函数。目录与组件细则见 [前端目录与组件约束](docs/前端目录与组件约束.md)；发现普通约束异常直接修正结构或门禁，不新增用户审批步骤。
 
 ## 基础工作台与设备扩展
 - 开发设备相关界面前阅读 `docs/设备能力与插件面板.md`。通用工作台消费宿主设备目录和能力，平台特有交互通过公开插件面板扩展。

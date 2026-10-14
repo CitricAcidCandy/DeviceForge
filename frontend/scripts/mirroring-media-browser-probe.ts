@@ -7,7 +7,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
 import { createServer } from 'vite';
-import type { createBrowserMirroringSink } from '../src/features/mirroring-streaming/browser-sink.ts';
+import type { createBrowserMirroringSink } from '../src/features/mirroring-streaming/infrastructure/browser-sink.ts';
 
 interface Check { readonly name: string; readonly passed: boolean; readonly detail: unknown }
 interface BrowserResult { readonly passed: boolean; readonly checks: readonly Check[]; readonly capabilities: Record<string, unknown>; readonly video: Record<string, unknown>; readonly audio: Record<string, unknown> }
@@ -208,7 +208,7 @@ async function nativeBrowser(directory: string, pageUrl: string, report: Record<
       if (Date.now() > deadline) throw new Error('探针页面导航未就绪'); await delay(50);
     }
     report.activation = 'CDP Runtime.evaluate userGesture=true；不改变生产自动播放规则';
-    const expression = '(async()=>{ const module=await import("/src/features/mirroring-streaming/browser-sink.ts"); return await (' + probeBrowser.toString() + ')(module); })()';
+    const expression = '(async()=>{ const module=await import("/src/features/mirroring-streaming/infrastructure/browser-sink.ts"); return await (' + probeBrowser.toString() + ')(module); })()';
     const evaluation = await page.call('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true, userGesture: true }, 30000);
     if (!record(evaluation)) throw new Error('探针响应不是对象'); if (evaluation.exceptionDetails) { report.browserException = evaluation.exceptionDetails; throw new Error('浏览器原生媒体探针异常'); }
     if (!record(evaluation.result)) throw new Error('探针结果缺失'); return evaluation.result.value;

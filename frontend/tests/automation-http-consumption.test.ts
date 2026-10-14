@@ -6,10 +6,10 @@ import { ApiError, createApiClient } from '../src/shared/api/index.ts';
 import type { ArtifactDto, OperationDto } from '../src/shared/api/index.ts';
 import type { JobGateway, JobTicket, JsonData, TaskRecord } from '../src/shared/jobs/index.ts';
 import { JobWaitFailure } from '../src/shared/jobs/index.ts';
-import { requireRepeat, requireSequence } from '../src/features/automation/rules.ts';
-import { requireDesktopClick, requireInputTrace } from '../src/features/automation/desktop-rules.ts';
-import { decodeAutomationResult } from '../src/features/automation/results.ts';
-import { decodeDesktopClick, decodeDesktopPosition, decodeDesktopRepeat, decodeInputTracePlayback, decodeInputTraceRecord } from '../src/features/automation/desktop-results.ts';
+import { requireRepeat, requireSequence } from '../src/features/automation/domain/rules.ts';
+import { requireDesktopClick, requireInputTrace } from '../src/features/automation/domain/desktop-rules.ts';
+import { decodeAutomationResult } from '../src/features/automation/domain/results.ts';
+import { decodeDesktopClick, decodeDesktopPosition, decodeDesktopRepeat, decodeInputTracePlayback, decodeInputTraceRecord } from '../src/features/automation/domain/desktop-results.ts';
 import { deferred, requestUrl, signal, success } from './fixtures.ts';
 
 const actions: readonly AutomationOperation[] = ['sequence.run', 'click.repeat', 'windows.mouse.position', 'windows.mouse.click', 'windows.mouse.repeat', 'input_trace.record', 'input_trace.playback'];

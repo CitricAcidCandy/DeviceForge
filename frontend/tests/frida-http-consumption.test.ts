@@ -6,8 +6,8 @@ import type { ArtifactDto, OperationDto } from '../src/shared/api/index.ts';
 import type { ArtifactAccess } from '../src/plugin-sdk/index.ts';
 import type { JobGateway, JsonData, TaskRecord } from '../src/shared/jobs/index.ts';
 import { JobWaitFailure } from '../src/shared/jobs/index.ts';
-import { requireFridaInput } from '../src/features/frida/rules.ts';
-import { decodeDeployment, decodeProcesses, decodeScript, decodeServerRun, decodeStatus } from '../src/features/frida/results.ts';
+import { requireFridaInput } from '../src/features/frida/domain/rules.ts';
+import { decodeDeployment, decodeProcesses, decodeScript, decodeServerRun, decodeStatus } from '../src/features/frida/domain/results.ts';
 import type { FridaPermissionsInput } from '../src/features/frida/index.ts';
 import { deferred, requestUrl, signal, success } from './fixtures.ts';
 

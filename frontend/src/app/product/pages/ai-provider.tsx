@@ -1,9 +1,11 @@
 import { useState } from 'react';
-import { Button } from '../../../shared/ui/components/button.tsx';
-import { Textarea } from '../../../shared/ui/components/textarea.tsx';
-import { Label } from '../../../shared/ui/components/label.tsx';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../shared/ui/components/select.tsx';
-import { Field, ActionFeedback, EmptyState, ErrorNotice, JsonResult, useOperationAvailable } from '../common.tsx';
+import { Button } from '../../../components/ui/button.tsx';
+import { Textarea } from '../../../components/ui/textarea.tsx';
+import { Label } from '../../../components/ui/label.tsx';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../components/ui/select.tsx';
+import { Field, EmptyState, JsonResult } from '../../../components/common/index.ts';
+import { useOperationAvailable } from '../capabilities.tsx';
+import { ActionFeedback, ErrorNotice } from '../feedback.tsx';
 import { useAction, useSnapshot } from '../hooks.ts';
 import type { ProductServices } from '../services.ts';
 

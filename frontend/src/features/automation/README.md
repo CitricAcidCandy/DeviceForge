@@ -1,5 +1,14 @@
 # 自动化业务用例
 
+## 当前目录分层
+
+根目录仅保留本说明与 `index.ts` 公开门面，外部应用按门面消费。原用例实现从根索引迁入 `application/`，原导出保持兼容。已有算法行为与协议保持，内部文件路径已按职责整理。
+
+- `application/`：用例、状态、目录与生命周期编排；HTTP装配工厂也放在此层，基础设施不反向依赖用例。
+- `domain/`：纯业务规则、输入及结果验证、数据模型与转换；不依赖其他内部层。
+
+允许依赖为 application → domain/infrastructure，infrastructure → domain，ui → application/domain；domain 不依赖用例、适配或界面。纯规则现有共享API类型和错误保留过渡，不新增HTTP调用。
+
 `createHttpAutomation` 通过生成类型和真实 HTTP 任务网关消费七项公开贡献：`plugin.automation.sequence.run`、`click.repeat`、`windows.mouse.position`、`windows.mouse.click`、`windows.mouse.repeat`、`input_trace.record` 和 `input_trace.playback`，后六项均使用相同 `plugin.automation.` 前缀。新提交前先显式 `refreshOperations`；目录只接纳这七个完整 ID。刷新开始即清旧入口，失败、取消、替换和销毁后的晚结果不能恢复贡献；`snapshot` 保留本次观察与真实日志 ID。
 
 `createAutomation(gateway, options, artifacts?)` 保留原注入签名及全部旧方法，`options.operations` 可选接入动态目录。未注入目录时保持旧执行语义，空目录不代表发现了贡献。`catalog.ts` 负责目录代际；`rules.ts` 校验设备、动作范围、最多 10000 步和一小时内非递减时间；`results.ts` 校验设备和完整派发数量；`index.ts` 组合执行、`queryJob`、恢复等待和显式取消。请求字段保持平铺，输入与业务结果均建立冻结副本；调用者修改步骤或嵌套鼠标参数不改变已提交操作与解码预期。

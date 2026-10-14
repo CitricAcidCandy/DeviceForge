@@ -1,5 +1,15 @@
 # AI 助手业务用例
 
+## 当前目录分层
+
+根目录仅保留本说明与 `index.ts` 公开门面，外部应用按门面消费。原用例实现从根索引迁入 `application/`，原导出保持兼容。已有算法行为与协议保持，内部文件路径已按职责整理。
+
+- `application/`：用例、状态、目录与生命周期编排；HTTP装配工厂也放在此层，基础设施不反向依赖用例。
+- `domain/`：纯业务规则、输入及结果验证、数据模型与转换；不依赖其他内部层。
+- `infrastructure/`：宿主网关、字节流解码、媒体与浏览器适配；依赖纯规则和模型。
+
+允许依赖为 application → domain/infrastructure，infrastructure → domain，ui → application/domain；domain 不依赖用例、适配或界面。纯规则现有共享API类型和错误保留过渡，不新增HTTP调用。
+
 `createAiAssistant` 通过真实任务消费 `plugin.ai-assistant.runtime.status/cli.single/cli.turn`。`rules.ts` 校验公开项目 ID、131072 字节提示词上限和规范 UUID 线程；`results.ts` 校验项目、线程、原始 JSON 事件、回答及完成事件，拒绝部分回答或失败事件；`index.ts` 负责运行、原任务恢复和显式取消。
 
 `session.get/session.close` 管理本插件已登记的会话，保留规范十进制轮数、`closed` 和 `uncertain`。关闭只撤销本地恢复资格，不代表删除提供者历史；不确定轮次不可自动重放。读取和关闭仍等待真实任务终态，并可查询恢复管理操作，不能用当前目录推断旧会话状态。

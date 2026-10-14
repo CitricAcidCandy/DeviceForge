@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { RefreshCw, Square, ChevronDown, Copy } from 'lucide-react';
-import { Button } from '../../../shared/ui/components/button.tsx';
-import { Input } from '../../../shared/ui/components/input.tsx';
-import { Label } from '../../../shared/ui/components/label.tsx';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../shared/ui/components/select.tsx';
+import { Button } from '../../../components/ui/button.tsx';
+import { Input } from '../../../components/ui/input.tsx';
+import { Label } from '../../../components/ui/label.tsx';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../components/ui/select.tsx';
 import type { JobDto, JobEventDto } from '../../../shared/api/index.ts';
 import type { ProductServices } from '../services.ts';
 import { useAction, useSnapshot } from '../hooks.ts';
-import { ActionFeedback, EmptyState, JsonResult, PageTitle } from '../common.tsx';
+import { EmptyState, JsonResult, PageTitle } from '../../../components/common/index.ts';
+import { ActionFeedback } from '../feedback.tsx';
 import { TaskArtifacts } from './task-artifacts.tsx';
 
 const taskStates = { queued: '排队中', running: '运行中', succeeded: '成功', failed: '失败', cancelled: '已取消' };

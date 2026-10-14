@@ -1,5 +1,13 @@
 # 操作基础用例
 
+## 当前目录分层
+
+根目录仅保留本说明与 `index.ts` 公开门面，外部应用按门面消费。原用例实现从根索引迁入 `application/`，原导出保持兼容。已有算法行为与协议保持，内部文件路径已按职责整理。
+
+- `application/`：用例、状态、目录与生命周期编排；HTTP装配工厂也放在此层，基础设施不反向依赖用例。
+
+允许依赖为 application → domain/infrastructure，infrastructure → domain，ui → application/domain；domain 不依赖用例、适配或界面。纯规则现有共享API类型和错误保留过渡，不新增HTTP调用。
+
 公开入口 `index.ts` 提供独立 list 与目录 refresh/snapshot/subscribe/invalidate/dispose。list 不改目录快照；refresh 只发布最新请求结果。两类查询都绑定当前目录观测和功能生命周期，失效或销毁后取消旧等待，即使下游忽略信号也不能交付旧结果。
 
 `state.ts` 管理本功能的刷新代次、快照、失效和订阅，不改共享 createLatestResource。invalidate 同步清空当前操作列表、撤销刷新并通知订阅；空目录是本地撤销，logId 为 null。订阅重入导致失效时，旧通知及旧请求不能继续交付。坏订阅不影响其他订阅；dispose 取消请求并释放全部订阅。

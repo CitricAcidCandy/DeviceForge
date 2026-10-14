@@ -1,7 +1,9 @@
 import { useState } from 'react';
-import { Button } from '../../../shared/ui/components/button.tsx';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../shared/ui/components/select.tsx';
-import { ActionFeedback, EmptyState, ErrorNotice, Field, JsonResult, useOperationAvailable } from '../common.tsx';
+import { Button } from '../../../components/ui/button.tsx';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../components/ui/select.tsx';
+import { EmptyState, Field, JsonResult } from '../../../components/common/index.ts';
+import { useOperationAvailable } from '../capabilities.tsx';
+import { ActionFeedback, ErrorNotice } from '../feedback.tsx';
 import { useAction, useSnapshot } from '../hooks.ts';
 import { withSelectedDevice } from '../device-target.ts';
 import type { ProductServices } from '../services.ts';

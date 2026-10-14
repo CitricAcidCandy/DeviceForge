@@ -1,5 +1,14 @@
 # Frida 业务用例
 
+## 当前目录分层
+
+根目录仅保留本说明与 `index.ts` 公开门面，外部应用按门面消费。原用例实现从根索引迁入 `application/`，原导出保持兼容。已有算法行为与协议保持，内部文件路径已按职责整理。
+
+- `application/`：用例、状态、目录与生命周期编排；HTTP装配工厂也放在此层，基础设施不反向依赖用例。
+- `domain/`：纯业务规则、输入及结果验证、数据模型与转换；不依赖其他内部层。
+
+允许依赖为 application → domain/infrastructure，infrastructure → domain，ui → application/domain；domain 不依赖用例、适配或界面。纯规则现有共享API类型和错误保留过渡，不新增HTTP调用。
+
 本模块消费六个真实贡献：`plugin.frida.server.deploy/server.status/server.run/processes/script.run/permissions.analyze`。`rules.ts` 校验设备、产物身份、100–120000 毫秒时长和结构化 Hook；`results.ts` 区分部署、观测、受控运行、进程枚举和脚本结果；`index.ts` 负责任务组合、上传、下载、恢复等待和显式取消。
 
 `createFrida(gateway, artifacts, options)` 保留公开宿主三个任务方法与 `ArtifactAccess` 的既有注入语义。`createHttpFrida(client, options)` 新增真实生成端点装配，显式映射上传产物的 HTTP 字段与 SDK 元数据，不修改公开 SDK。六个业务方法仍使用原签名：deploy、status、runServer、processes、runScript、analyzePermissions。

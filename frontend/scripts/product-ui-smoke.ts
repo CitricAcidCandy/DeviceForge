@@ -21,14 +21,21 @@ function textValue(value: unknown): string { assert.equal(typeof value, 'string'
 function message(error: unknown): string { return error instanceof Error ? error.message : String(error); }
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const out = resolve(root, 'artifacts/product-ui', new Date().toISOString().replace(/[:.]/g, '-') + '-' + randomUUID().slice(0, 8));
-const source = resolve(root, process.argv[2] ?? 'frontend/dist');
+const argumentsList = process.argv.slice(2);
+assert.ok(argumentsList.every(value => !value.startsWith('--') || value === '--in-process-gpu'), '未知浏览器验收选项');
+assert.ok(argumentsList.filter(value => value === '--in-process-gpu').length <= 1, '浏览器验收选项重复');
+const sourceArguments = argumentsList.filter(value => !value.startsWith('--'));
+assert.ok(sourceArguments.length <= 1, '只接受一个生产构建目录');
+const source = resolve(root, sourceArguments[0] ?? 'frontend/dist');
+const inProcessGpu = argumentsList.includes('--in-process-gpu');
 const active = '[data-route]:not([hidden])';
 const routes = ['devices', 'packages', 'files', 'media', 'performance', 'frida', 'automation', 'terminal', 'ai', 'analysis', 'plugins', 'tasks', 'tools', 'settings'];
 const cases: Case[] = []; const pages: unknown[] = []; const screenshots: string[] = [];
-const report: RecordValue = { timestamp: new Date().toISOString(), scope: '真实隔离 Rust 宿主与生产 React 界面；14 页桌面和窄屏，合成 ZIP 仅验证目录排版；不连接设备、模拟器或桌面输入，不证明媒体或 Root 资格', out, source, cases, pages, screenshots };
+const report: RecordValue = { timestamp: new Date().toISOString(), scope: '真实隔离 Rust 宿主与生产 React 界面；14 页桌面和窄屏，合成 ZIP 仅验证目录排版；不连接设备、模拟器或桌面输入，不证明媒体或 Root 资格', out, source, browserMode: inProcessGpu ? 'headless-in-process-gpu' : 'headless-disable-gpu', cases, pages, screenshots };
 const hash = (bytes: Uint8Array): string => createHash('sha256').update(bytes).digest('hex');
 let host: ChildProcess | undefined; let browserChild: ChildProcess | undefined;
 let hostEvidence: ChildEvidence | undefined; let browserEvidence: ChildEvidence | undefined;
+let frozenFrontend: string | undefined; let frozenBinary: string | undefined;
 let vite: ViteDevServer | undefined; let browser: Protocol | undefined; let page: Protocol | undefined; let base = '';
 const ownedPorts: number[] = [];
 
@@ -41,7 +48,36 @@ async function digestTree(directory: string): Promise<InputIdentity[]> {
       else { const bytes = await readFile(child); result.push({path: child.slice(directory.length + 1), bytes: bytes.length, sha256: hash(bytes)}); }
     }
   }
-  await walk(directory); return result;
+  await walk(directory); return result.sort((left, right) => Buffer.compare(Buffer.from(left.path, 'utf8'), Buffer.from(right.path, 'utf8')));
+}
+async function fileIdentity(path: string): Promise<InputIdentity> {
+  const bytes = await readFile(path); return {path, bytes: bytes.length, sha256: hash(bytes)};
+}
+async function freezeInputs(): Promise<{ frontend: string; binary: string }> {
+  const frontend = join(out, 'frozen-dist'), sourceBefore = await digestTree(source);
+  const driverBefore = await fileIdentity(fileURLToPath(import.meta.url));
+  await cp(source, frontend, {recursive: true});
+  const frozenBefore = await digestTree(frontend), sourceAfter = await digestTree(source);
+  assert.deepEqual(sourceAfter, sourceBefore, '生产构建在冻结期间改变');
+  assert.deepEqual(frozenBefore, sourceBefore, '生产构建冻结字节不一致');
+  const hostSource = resolve(root, 'backend/target/debug/apk-server.exe'), hostBefore = await fileIdentity(hostSource);
+  const binary = join(out, 'frozen-host', 'apk-server.exe'); await mkdir(join(out, 'frozen-host')); await cp(hostSource, binary);
+  const hostAfter = await fileIdentity(hostSource), hostFrozen = await fileIdentity(binary);
+  assert.deepEqual(hostAfter, hostBefore, 'Rust宿主在冻结期间改变');
+  assert.equal(hostFrozen.bytes, hostBefore.bytes); assert.equal(hostFrozen.sha256, hostBefore.sha256);
+  report['inputs'] = frozenBefore;
+  report['frozenInputs'] = {source: {directory: source, before: sourceBefore, afterFreeze: sourceAfter}, frontend: {directory: frontend, before: frozenBefore},
+    host: {before: hostBefore, afterFreeze: hostAfter, frozen: hostFrozen}, driver: {before: driverBefore}};
+  report['host'] = hostFrozen; return {frontend, binary};
+}
+async function verifyFrozenInputs(frontend: string, binary: string): Promise<void> {
+  const inputs = record(report['frozenInputs']), front = record(inputs['frontend']), hostInput = record(inputs['host']), driver = record(inputs['driver']);
+  const frontendAfter = await digestTree(frontend), hostAfter = await fileIdentity(binary), driverAfter = await fileIdentity(fileURLToPath(import.meta.url));
+  front['after'] = frontendAfter; hostInput['after'] = hostAfter; driver['after'] = driverAfter;
+  assert.deepEqual(frontendAfter, front['before'], '受检生产构建运行期间改变');
+  assert.deepEqual(hostAfter, hostInput['frozen'], '受检Rust宿主运行期间改变');
+  assert.deepEqual(driverAfter, driver['before'], '验收驱动运行期间改变');
+  inputs['verified'] = true;
 }
 async function port(): Promise<number> {
   const server = createNetServer();
@@ -114,6 +150,18 @@ async function check(name: string, action: () => Promise<unknown>): Promise<void
   catch (error) { cases.push({name, passed: false, error: message(error)}); await capture('failure-' + cases.length).catch(() => {}); }
   await writeFile(join(out, 'report.json'), JSON.stringify(report, null, 2), 'utf8');
 }
+async function activate(selector: string): Promise<void> {
+  const focused = await evaluate(`(() => {const element=document.querySelector(${JSON.stringify(selector)});if(!element||!element.getClientRects().length||element.disabled)return false;element.focus();return document.activeElement===element;})()`);
+  assert.equal(focused, true, '不可用入口：' + selector); await key('Enter', 'Enter', 13);
+}
+async function navigation(scope: string, current: string): Promise<unknown> {
+  const observation = record(await evaluate(`(() => {const navigation=document.querySelector(${JSON.stringify(scope)});if(!navigation)return null;const links=[...navigation.querySelectorAll('[data-navigation-route]')];return {groups:[...navigation.querySelectorAll('[data-navigation-group]')].map(group=>group.getAttribute('data-navigation-group')),routes:links.map(link=>link.getAttribute('data-navigation-route')),current:links.filter(link=>link.getAttribute('aria-current')==='page').map(link=>link.getAttribute('data-navigation-route')),labels:links.map(link=>link.getAttribute('aria-label')||link.textContent.trim())};})()`));
+  assert.ok(Array.isArray(observation['groups']) && observation['groups'].length === 4, '导航必须有四个分组');
+  assert.ok(Array.isArray(observation['routes'])); assert.deepEqual([...observation['routes']].sort(), [...routes].sort(), '全部十四个导航入口');
+  assert.deepEqual(observation['current'], [current], '当前路由必须有唯一aria-current');
+  assert.ok(Array.isArray(observation['labels']) && observation['labels'].every(label => typeof label === 'string' && label.trim().length > 0), '导航入口具有可访问名称');
+  return observation;
+}
 async function click(text: string, scope = active): Promise<void> {
   const result = await evaluate(`(() => {const b=[...document.querySelectorAll(${JSON.stringify(scope)}+' button')].find(b=>b.getClientRects().length&&!b.closest('[hidden]')&&b.textContent.trim()===${JSON.stringify(text)});if(!b||b.disabled)return false;b.scrollIntoView({block:'center'});b.focus();b.click();return true;})()`);
   assert.equal(result, true, '不可用按钮：' + text); await delay(80);
@@ -132,7 +180,7 @@ async function file(selector: string, path: string): Promise<void> {
 }
 async function key(key: string, code: string, virtual: number, shiftKey = false): Promise<void> {
   assert.ok(page); const params = {key, code, windowsVirtualKeyCode: virtual, nativeVirtualKeyCode: virtual, modifiers: shiftKey ? 8 : 0};
-  await page.call('Input.dispatchKeyEvent', {type: 'keyDown', ...params}); await page.call('Input.dispatchKeyEvent', {type: 'keyUp', ...params}); await delay(50);
+  await page.call('Input.dispatchKeyEvent', {type: 'keyDown', ...params, ...(key === 'Enter' ? {text: '\r', unmodifiedText: '\r'} : {})}); await page.call('Input.dispatchKeyEvent', {type: 'keyUp', ...params}); await delay(50);
 }
 
 // 自包含 Stored ZIP 夹具：只验证真实服务器目录与长名称表格，不使用设备数据。
@@ -148,19 +196,21 @@ function zipFixture(name: string): Buffer {
 
 await mkdir(out, {recursive: true});
 try {
-  const frozen = join(out, 'frozen-dist'); await cp(source, frozen, {recursive: true}); report['inputs'] = await digestTree(frozen);
-  const binary = resolve(root, 'backend/target/debug/apk-server.exe'); const bytes = await readFile(binary);
-  report['host'] = {path: binary, bytes: bytes.length, sha256: hash(bytes)};
+  const frozen = await freezeInputs(); frozenFrontend = frozen.frontend; frozenBinary = frozen.binary;
+  const binary = frozen.binary;
   const hostPort = await port(); ownedPorts.push(hostPort); base = `http://127.0.0.1:${hostPort}`; report['base'] = base;
   host = spawn(binary, [], {windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'], env: {...process.env, APK_API_TOKEN: '', APK_BIND: `127.0.0.1:${hostPort}`, APK_DATA_DIR: join(out, 'session/data'), APK_PLUGIN_DIR: join(out, 'session/server-plugins'), APK_BROWSER_PLUGIN_DIR: join(out, 'session/browser-plugins'), DEVICEFORGE_NODE: process.execPath}});
   hostEvidence = observe(host); report['hostProcess'] = hostEvidence;
   const readyDeadline = Date.now() + 15000;
   while (true) { try { report['operations'] = await api('/api/v2/operations'); break; } catch { assert.ok(Date.now() < readyDeadline && host.exitCode === null, '隔离宿主未启动'); await delay(100); } }
   report['initialProviders'] = await api('/api/v2/device-providers');
-  vite = await createServer({root: frozen, configFile: false, appType: 'spa', logLevel: 'error', server: {host: '127.0.0.1', port: 0, hmr: false, proxy: {'/api': base, '/mcp': base}}});
+  vite = await createServer({root: frozen.frontend, configFile: false, appType: 'spa', logLevel: 'error', server: {host: '127.0.0.1', port: 0, hmr: false, proxy: {'/api': base, '/mcp': base}}});
   await vite.listen(); const address = vite.httpServer?.address(); assert.ok(address && typeof address === 'object');
   const frontend = `http://127.0.0.1:${address.port}`; ownedPorts.push(address.port); report['frontend'] = frontend;
-  browserChild = spawn('C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe', ['--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check', '--remote-debugging-address=127.0.0.1', '--remote-debugging-port=0', `--user-data-dir=${join(out, 'session/edge-profile')}`, 'about:blank'], {windowsHide: true, stdio: ['ignore', 'ignore', 'pipe']});
+  const browserBinary = 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe';
+  const browserArguments = ['--headless=new', ...(inProcessGpu ? ['--in-process-gpu', '--no-sandbox'] : ['--disable-gpu']), '--no-first-run', '--no-default-browser-check', '--remote-debugging-address=127.0.0.1', '--remote-debugging-port=0', `--user-data-dir=${join(out, 'session/edge-profile')}`, 'about:blank'];
+  report['browserLaunch'] = {binary: await fileIdentity(browserBinary), arguments: browserArguments};
+  browserChild = spawn(browserBinary, browserArguments, {windowsHide: true, stdio: ['ignore', 'ignore', 'pipe']});
   browserEvidence = observe(browserChild); report['browserProcess'] = browserEvidence;
   let browserUrl = ''; const browserDeadline = Date.now() + 15000;
   while (!browserUrl) { browserUrl = browserEvidence.diagnostic.match(/DevTools listening on (ws:\/\/127\.0\.0\.1:\d+\/\S+)/)?.[1] ?? ''; assert.ok(Date.now() < browserDeadline && browserChild.exitCode === null, '隔离浏览器未启动'); if (!browserUrl) await delay(100); }
@@ -171,6 +221,7 @@ try {
   await page.call('Runtime.enable'); await page.call('Page.enable'); await page.call('DOM.enable'); await viewport(1440, 1000);
   await wait('!!document.querySelector(".product-shell")', '生产 React 页面');
   await wait('document.querySelector(".connection-state")?.textContent.includes("服务器已连接")', '真实服务器目录');
+  await viewport(1536, 1024); await route('devices'); await capture('reference-desktop-devices');
   for (const id of routes) {
     await route(id);
     for (const [width, height, size] of [[1440, 1000, 'desktop'], [390, 844, 'narrow']] as const) {
@@ -204,12 +255,54 @@ try {
     await route('settings'); await field('归属 ID', '审图草稿-保留'); await route('files'); await route('settings');
     assert.equal(await evaluate(`(${labeled('归属 ID')})?.value`), '审图草稿-保留'); return {labelBinding: true, draftRetained: true};
   });
-  await check('窄屏菜单键盘与焦点返回', async () => {
-    await viewport(390, 844); await evaluate('document.querySelector(".compact-tools button").focus()'); await key('Enter', 'Enter', 13);
-    await wait('!!document.querySelector("[role=menu]")'); assert.equal(await evaluate('document.querySelectorAll("[role=menuitem]").length'), 14);
-    await key('ArrowDown', 'ArrowDown', 40); assert.equal(await evaluate('document.activeElement.getAttribute("role")'), 'menuitem'); await capture('state-menu-keyboard');
-    await key('Escape', 'Escape', 27); await wait('!document.querySelector("[role=menu]")');
-    assert.equal(await evaluate('document.activeElement===document.querySelector(".compact-tools button")'), true); return {entries: 14, focusReturned: true};
+  await check('桌面四组导航与折叠恢复', async () => {
+    await viewport(1440, 1000); await route('settings');
+    const nav = '.workspace-sidebar nav[aria-label="工坊工具"]';
+    const expanded = await navigation(nav, 'settings');
+    assert.equal(await evaluate('document.querySelector(".product-shell").getAttribute("data-navigation-collapsed")'), 'false');
+    const before = record(await evaluate('(() => {const side=document.querySelector(".workspace-sidebar"),work=document.querySelector("#workplane");return {sidebarWidth:side.getBoundingClientRect().width,workspaceWidth:work.getBoundingClientRect().width};})()'));
+    await activate('[aria-label="折叠导航"]');
+    await wait('document.querySelector(".product-shell").getAttribute("data-navigation-collapsed")==="true"', '侧栏折叠');
+    const collapsed = await navigation(nav, 'settings');
+    const narrow = record(await evaluate('(() => {const side=document.querySelector(".workspace-sidebar"),work=document.querySelector("#workplane");return {sidebarWidth:side.getBoundingClientRect().width,workspaceWidth:work.getBoundingClientRect().width};})()'));
+    assert.ok(Number(narrow['sidebarWidth']) < Number(before['sidebarWidth']), '折叠后侧栏没有收窄');
+    assert.ok(Number(narrow['workspaceWidth']) > Number(before['workspaceWidth']), '折叠后工作面没有扩展');
+    await capture('state-sidebar-collapsed');
+    await activate('.workspace-sidebar [data-navigation-route="files"]'); await wait('document.querySelector("[data-route=files]")?.hidden===false');
+    await navigation(nav, 'files');
+    await activate('[aria-label="展开导航"]');
+    await wait('document.querySelector(".product-shell").getAttribute("data-navigation-collapsed")==="false"', '侧栏展开');
+    await navigation(nav, 'files'); await capture('state-sidebar-expanded');
+    return {groups: 4, entries: 14, keyboardNavigation: true, expanded, collapsed, before, narrow};
+  });
+  await check('窄屏导航抽屉焦点约束与关闭恢复', async () => {
+    await viewport(390, 844); await route('files');
+    const trigger = '[aria-label="打开导航"]', dialog = '[role="dialog"]', nav = '[role="dialog"] nav[aria-label="工坊工具"]';
+    await activate(trigger); await wait('!!document.querySelector("[role=dialog]")', '移动导航Sheet');
+    assert.equal(await evaluate('document.querySelector("[role=dialog]").innerText.includes("工坊导航")'), true);
+    const first = await navigation(nav, 'files');
+    assert.equal(await evaluate('!!document.activeElement?.closest("[role=dialog]")'), true, '抽屉打开后焦点没有进入');
+    for (let i = 0; i < 18; i++) {
+      await key('Tab', 'Tab', 9, i >= 9);
+      assert.equal(await evaluate('!!document.activeElement?.closest("[role=dialog]")'), true, '抽屉键盘焦点越界');
+    }
+    const targets = await evaluate('[...document.querySelectorAll("[role=dialog] button")].map(button=>{const bounds=button.getBoundingClientRect();return {label:button.getAttribute("aria-label")||button.textContent.trim(),width:bounds.width,height:bounds.height};})');
+    assert.ok(Array.isArray(targets));
+    for (const value of targets) {
+      const target = record(value); assert.ok(Number(target['height']) >= 44 && Number(target['width']) >= 44, '导航抽屉点击目标不足44×44px：' + target['label']);
+    }
+    await capture('state-navigation-sheet');
+    await key('Escape', 'Escape', 27); await wait('!document.querySelector("[role=dialog]")', 'Esc关闭导航');
+    assert.equal(await evaluate('document.activeElement===document.querySelector("[aria-label=打开导航]")'), true);
+    await activate(trigger); await wait('!!document.querySelector("[role=dialog]")');
+    await activate(nav + ' [data-navigation-route="performance"]');
+    await wait('!document.querySelector("[role=dialog]") && document.querySelector("[data-route=performance]")?.hidden===false', '导航后关闭抽屉');
+    assert.equal(await evaluate('document.activeElement===document.querySelector("[aria-label=打开导航]")'), true, '导航后焦点未恢复触发器');
+    await activate(trigger); await wait('!!document.querySelector("[role=dialog]")');
+    const current = await navigation(nav, 'performance'); await capture('state-navigation-sheet-current');
+    await activate(dialog + ' button[aria-label="关闭"]'); await wait('!document.querySelector("[role=dialog]")', '关闭按钮收起导航');
+    assert.equal(await evaluate('document.activeElement===document.querySelector("[aria-label=打开导航]")'), true);
+    return {groups: 4, entries: 14, first, current, focusContained: true, escapeClosed: true, navigationClosed: true, closeButton: true, focusReturned: true, targets};
   });
   await check('专注模式与减少动态效果', async () => {
     await viewport(1440, 1000); await route('files'); await field('公开产物 ID', '专注草稿'); await click('专注', '.global-actions');
@@ -269,7 +362,10 @@ try {
   });
   await check('低高度视口入口可用', async () => {
     await route('terminal'); await viewport(1440, 600); await capture('state-low-height');
-    const height = await evaluate('document.querySelector(".scene-caption").getBoundingClientRect().height'); assert.ok(Number(height) <= 28); return {sceneHeight: height};
+    const geometry = record(await evaluate('(() => {const top=document.querySelector(".workspace-topbar"),device=document.querySelector(".device-context"),work=document.querySelector("#workplane"),link=document.querySelector(".workspace-sidebar [data-navigation-route=terminal]");const bounds=work.getBoundingClientRect();return {topbarVisible:!!top?.getClientRects().length,deviceContextVisible:!!device?.getClientRects().length,currentNavigationVisible:!!link?.getClientRects().length,workHeight:bounds.height,workBottom:bounds.bottom,viewportHeight:innerHeight};})()'));
+    assert.equal(geometry['topbarVisible'], true); assert.equal(geometry['deviceContextVisible'], true); assert.equal(geometry['currentNavigationVisible'], true);
+    assert.ok(Number(geometry['workHeight']) > 200 && Number(geometry['workBottom']) <= 601, '低高度工作面不可用或越界');
+    return geometry;
   });
   await check('补充响应式断点与背景裁切', async () => {
     await route('devices'); const widths: unknown[] = [];
@@ -295,6 +391,10 @@ finally {
   if (host && hostEvidence) {
     if (host.exitCode === null && host.signalCode === null) await api('/api/v2/system/shutdown', {method: 'POST'}).catch(error => {report['shutdownError'] = message(error);});
     await ended(host, hostEvidence);
+  }
+  if (frozenFrontend && frozenBinary) {
+    try { await verifyFrozenInputs(frozenFrontend, frozenBinary); }
+    catch (error) { report['inputVerificationError'] = message(error); report['passed'] = false; process.exitCode = 1; }
   }
   report['completedAt'] = new Date().toISOString();
   const ports = await Promise.all(ownedPorts.map(async port => ({port, released: await released(port)})));

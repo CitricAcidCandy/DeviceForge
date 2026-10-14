@@ -1,5 +1,14 @@
 # 设备提供者基础用例
 
+## 当前目录分层
+
+根目录仅保留本说明与 `index.ts` 公开门面，外部应用按门面消费。原用例实现从根索引迁入 `application/`，原导出保持兼容。已有算法行为与协议保持，内部文件路径已按职责整理。
+
+- `application/`：用例、状态、目录与生命周期编排；HTTP装配工厂也放在此层，基础设施不反向依赖用例。
+- `domain/`：纯业务规则、输入及结果验证、数据模型与转换；不依赖其他内部层。
+
+允许依赖为 application → domain/infrastructure，infrastructure → domain，ui → application/domain；domain 不依赖用例、适配或界面。纯规则现有共享API类型和错误保留过渡，不新增HTTP调用。
+
 公开入口 createDevices 接收四类公开模型网关，返回 refreshProviders/refreshDirectories/refreshProvider、select/snapshot/subscribe、invoke 与 dispose。app 负责从生成 HTTP DTO 显式映射到独立 SDK 模型；本功能不手写 HTTP DTO、不引用其他功能内部实现，也不根据 platform 分支执行工具。
 
 rules.ts 只比较完整设备引用及提供者代次、观测/状态和精确能力版本；requests.ts 负责取消等待与晚到拒绝；state.ts 持有只读快照与整体/单提供者观测修订，index.ts 编排用例。目录、选择和在途请求属于运行实例，插件使用相同公开设备能力但由 scope 包装实例/挂载子信号。

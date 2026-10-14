@@ -1,17 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
 import { PackagePlus, RefreshCw, Play, Square, Trash2, Puzzle } from 'lucide-react';
-import { Button } from '../../../shared/ui/components/button.tsx';
-import { Input } from '../../../shared/ui/components/input.tsx';
-import { Label } from '../../../shared/ui/components/label.tsx';
-import { Textarea } from '../../../shared/ui/components/textarea.tsx';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../../shared/ui/components/dialog.tsx';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../../shared/ui/components/tabs.tsx';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../shared/ui/components/select.tsx';
+import { Button } from '../../../components/ui/button.tsx';
+import { Input } from '../../../components/ui/input.tsx';
+import { Label } from '../../../components/ui/label.tsx';
+import { Textarea } from '../../../components/ui/textarea.tsx';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../../components/ui/dialog.tsx';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../../components/ui/tabs.tsx';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../components/ui/select.tsx';
 import type { PackageKind } from '../../../shared/api/index.ts';
 import { isJsonValue } from '../../../plugin-sdk/json.ts';
 import type { ProductServices } from '../services.ts';
 import { useAction, useSnapshot } from '../hooks.ts';
-import { ActionFeedback, EmptyState, JsonResult, PageTitle } from '../common.tsx';
+import { EmptyState, JsonResult, PageTitle } from '../../../components/common/index.ts';
+import { ActionFeedback } from '../feedback.tsx';
 
 export function PluginsPage({ services }: { services: ProductServices }) {
   const [kind, setKind] = useState<PackageKind>('server');

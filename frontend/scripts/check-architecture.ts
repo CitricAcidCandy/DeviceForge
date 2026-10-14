@@ -4,7 +4,7 @@ import { dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
 import { inspectSource } from './source-dependencies.ts';
-import { allowedDependency, findCycles } from './architecture-policy.ts';
+import { allowedDependency, findCycles, sourcePlacementIssue } from './architecture-policy.ts';
 
 export async function checkArchitecture(root = fileURLToPath(new URL('../', import.meta.url))) {
   const sourceRoot = join(root, 'src');
@@ -29,6 +29,8 @@ export async function checkArchitecture(root = fileURLToPath(new URL('../', impo
       if (entry.isDirectory()) { await scan(path); continue; }
       if (!/\.(?:ts|tsx|js|mjs)$/.test(entry.name)) continue;
       const from = portable(path); const edges: string[] = [];
+      const placementIssue = sourcePlacementIssue(from);
+      if (placementIssue) failures.push(from + ': ' + placementIssue);
       if (/\.(?:js|mjs)$/.test(entry.name)) failures.push(`${from}: 维护源码必须使用 TypeScript`);
       let inspection;
       try { inspection = inspectSource(await readFile(path, 'utf8'), path); }
@@ -55,6 +57,13 @@ export async function checkArchitecture(root = fileURLToPath(new URL('../', impo
     }
   }
   await scan(sourceRoot);
+  const featureRoot = join(sourceRoot, 'features');
+  if (existsSync(featureRoot)) {
+    for (const entry of await readdir(featureRoot, { withFileTypes: true })) {
+      if (entry.isDirectory() && !existsSync(join(featureRoot, entry.name, 'README.md'))) failures.push('features/' + entry.name + ': 功能模块必须保留 README.md 职责说明');
+    }
+  }
+
   for (const directory of ['scripts', 'tests']) {
     const path = join(root, directory);
     if (existsSync(path)) await checkMaintenanceFiles(path);

@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { Button } from '../../../shared/ui/components/button.tsx';
-import { Input } from '../../../shared/ui/components/input.tsx';
-import { Label } from '../../../shared/ui/components/label.tsx';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../shared/ui/components/table.tsx';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '../../../shared/ui/components/dialog.tsx';
-import { ActionFeedback, EmptyState, Field, PageTitle } from '../common.tsx';
+import { Button } from '../../../components/ui/button.tsx';
+import { Input } from '../../../components/ui/input.tsx';
+import { Label } from '../../../components/ui/label.tsx';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../components/ui/table.tsx';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '../../../components/ui/dialog.tsx';
+import { EmptyState, Field, PageTitle } from '../../../components/common/index.ts';
+import { ActionFeedback } from '../feedback.tsx';
 import { useAction, useSnapshot } from '../hooks.ts';
 import type { ProductServices } from '../services.ts';
 
