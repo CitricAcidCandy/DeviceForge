@@ -3,8 +3,18 @@ import { readFile, realpath, stat, writeFile } from 'node:fs/promises';
 import { isAbsolute, relative, resolve, sep } from 'node:path';
 
 export const providers = Object.freeze([
-  Object.freeze({ id: 'raw_npx_android', protocol: 2, platform: 'android', alias: 'android.devices' }),
-  Object.freeze({ id: 'raw_npx_harmony', protocol: 3, platform: 'harmony', alias: 'harmony.devices' }),
+  Object.freeze({
+    id: 'raw_npx_android',
+    protocol: 2,
+    platform: 'android',
+    alias: 'android.devices',
+  }),
+  Object.freeze({
+    id: 'raw_npx_harmony',
+    protocol: 3,
+    platform: 'harmony',
+    alias: 'harmony.devices',
+  }),
 ]);
 
 function inside(root, path) {
@@ -27,8 +37,11 @@ export async function configure(temporary, environment) {
   assert.equal(names.size, originals.length, '既有绑定不得重复');
   for (const item of providers) assert.ok(!names.has(item.alias), '不能覆盖已有旧发现绑定');
   const additions = providers.map((item) => ({
-    operation: { id: item.alias, title: `npx统一发现 ${item.platform}`,
-      input_schema: { type: 'object', additionalProperties: false } },
+    operation: {
+      id: item.alias,
+      title: `npx统一发现 ${item.platform}`,
+      input_schema: { type: 'object', additionalProperties: false },
+    },
     target: { kind: 'device_discovery', plugin_id: item.id },
     input: 'identity',
     result: { kind: 'device_discovery', platform: item.platform },
@@ -41,6 +54,11 @@ export async function configure(temporary, environment) {
   const saved = JSON.parse(await readFile(path, 'utf8'));
   assert.deepEqual(saved.bindings.slice(0, originals.length), originals, '原绑定必须完整保留');
   assert.deepEqual(saved.bindings.slice(originals.length), additions);
-  return { path, formatVersion: 2, preservedBindings: originals.length,
-    addedAliases: providers.map((item) => item.alias), providerIds: providers.map((item) => item.id) };
+  return {
+    path,
+    formatVersion: 2,
+    preservedBindings: originals.length,
+    addedAliases: providers.map((item) => item.alias),
+    providerIds: providers.map((item) => item.id),
+  };
 }

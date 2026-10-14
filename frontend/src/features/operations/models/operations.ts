@@ -12,7 +12,8 @@ export function createOperations(client: ApiClient) {
     const current = AbortSignal.any([signal, admitted.signal, lifetime.signal]);
     if (current.aborted) throw new ApiError('cancelled', 'cancelled', '操作目录请求等待已取消');
     const result = await abortable(client.call(operationsEndpoint, undefined, current), current);
-    if (current.aborted || admitted !== observation) throw new ApiError('cancelled', 'stale_result', '旧操作列表响应已撤销');
+    if (current.aborted || admitted !== observation)
+      throw new ApiError('cancelled', 'stale_result', '旧操作列表响应已撤销');
     return result;
   }
   return {
@@ -21,10 +22,17 @@ export function createOperations(client: ApiClient) {
     snapshot: state.snapshot,
     subscribe: state.subscribe,
     invalidate() {
-      if (lifetime.signal.aborted) throw new ApiError('cancelled', 'cancelled', '操作目录已关闭，请求等待已取消');
-      observation.abort(); observation = new AbortController(); state.invalidate();
+      if (lifetime.signal.aborted)
+        throw new ApiError('cancelled', 'cancelled', '操作目录已关闭，请求等待已取消');
+      observation.abort();
+      observation = new AbortController();
+      state.invalidate();
     },
-    dispose() { state.dispose(); lifetime.abort(); observation.abort(); },
+    dispose() {
+      state.dispose();
+      lifetime.abort();
+      observation.abort();
+    },
   };
 }
 export type Operations = ReturnType<typeof createOperations>;

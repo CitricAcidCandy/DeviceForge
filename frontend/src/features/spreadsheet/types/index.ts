@@ -25,7 +25,9 @@ export type SpreadsheetPage = SpreadsheetInspection & {
   readonly offset: number;
   readonly limit: number;
 };
-export interface SpreadsheetOperationReader { readonly list: (signal: AbortSignal) => Promise<ApiResult<readonly OperationDto[]>> }
+export interface SpreadsheetOperationReader {
+  readonly list: (signal: AbortSignal) => Promise<ApiResult<readonly OperationDto[]>>;
+}
 export interface SpreadsheetCatalogSnapshot {
   readonly operations: readonly Readonly<OperationDto>[];
   readonly refreshing: boolean;
@@ -39,7 +41,10 @@ export type SpreadsheetImportField = {
   readonly description?: string;
 };
 export type SpreadsheetFieldMapping = Readonly<Record<string, string | undefined>>;
-export type SpreadsheetMissingValue = { readonly field_key: string; readonly source_row_index: number };
+export type SpreadsheetMissingValue = {
+  readonly field_key: string;
+  readonly source_row_index: number;
+};
 export type SpreadsheetImportOptions = {
   readonly defaultMapping?: SpreadsheetFieldMapping;
   readonly previousMapping?: SpreadsheetFieldMapping;

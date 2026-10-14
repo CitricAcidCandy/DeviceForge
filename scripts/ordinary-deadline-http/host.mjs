@@ -1,5 +1,11 @@
 import assert from 'node:assert/strict';
-import { startHost, stopHost, finishOwnHost, reservePort, assertListenerReleased } from '../unified-discovery-smoke/host.mjs';
+import {
+  startHost,
+  stopHost,
+  finishOwnHost,
+  reservePort,
+  assertListenerReleased,
+} from '../unified-discovery-smoke/host.mjs';
 import { fileIdentity } from '../unified-discovery-smoke/evidence.mjs';
 import { clientFor } from './client.mjs';
 
@@ -10,7 +16,8 @@ export async function prepareHost({ root, binary, directory, report, port }) {
   const host = await startHost({ root, binary, directory, report, port, ordinal: 1 });
   const startupClient = host.client;
   host.client = clientFor(startupClient.base, report);
-  return { ...host,
+  return {
+    ...host,
     ready: async () => {
       await host.ready();
       for (const id of startupClient.logIds) host.client.logIds.add(id);
@@ -27,22 +34,30 @@ export async function prepareHost({ root, binary, directory, report, port }) {
     },
     shutdown: async () => {
       const before = report.requests.length;
-      try { await stopHost(host); }
-      finally {
+      try {
+        await stopHost(host);
+      } finally {
         report.shutdown_attempts ??= [];
-        report.shutdown_attempts.push(...report.requests.slice(before)
-          .filter((request) => request.path === '/api/v2/system/shutdown'));
+        report.shutdown_attempts.push(
+          ...report.requests
+            .slice(before)
+            .filter((request) => request.path === '/api/v2/system/shutdown'),
+        );
       }
       await assertListenerReleased(port);
       report.listener_released = { port, host: '127.0.0.1', released: true };
     },
     finish: async () => {
       const before = report.requests.length;
-      try { await finishOwnHost(host); }
-      finally {
+      try {
+        await finishOwnHost(host);
+      } finally {
         report.shutdown_attempts ??= [];
-        report.shutdown_attempts.push(...report.requests.slice(before)
-          .filter((request) => request.path === '/api/v2/system/shutdown'));
+        report.shutdown_attempts.push(
+          ...report.requests
+            .slice(before)
+            .filter((request) => request.path === '/api/v2/system/shutdown'),
+        );
       }
       await assertListenerReleased(port);
       report.listener_released = { port, host: '127.0.0.1', released: true };
@@ -51,5 +66,6 @@ export async function prepareHost({ root, binary, directory, report, port }) {
       const final = await fileIdentity(binary);
       assert.equal(final.sha256, host.entry.binary.sha256, '验收前后真实宿主字节必须相同');
       report.host_identity_after = final;
-    } };
+    },
+  };
 }

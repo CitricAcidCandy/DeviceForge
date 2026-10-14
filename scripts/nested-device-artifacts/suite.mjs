@@ -6,8 +6,10 @@ import { verifyLifecycle } from './lifecycle.mjs';
 export async function verifyNestedDeviceArtifacts({ host, fixtures, report }) {
   const context = { host, fixtures, report, history: new Map() };
   for (const [stage, verify] of [
-    ['在线安装与发现', installProviders], ['嵌套输入与产物发布', verifyArtifacts],
-    ['坏终值与拒绝边界', verifyBadValues], ['取消与热卸载重载', verifyLifecycle],
+    ['在线安装与发现', installProviders],
+    ['嵌套输入与产物发布', verifyArtifacts],
+    ['坏终值与拒绝边界', verifyBadValues],
+    ['取消与热卸载重载', verifyLifecycle],
   ]) {
     report.stage = stage;
     await verify(context);

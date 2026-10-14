@@ -16,8 +16,20 @@ test('无界面 bootstrap 默认把插件挂载和主题目标接到宿主根节
     id: 'bootstrap-theme',
     trusted: true,
     plugin: {
-      id: 'bootstrap-theme', version: '1', apiVersion: 2, panels: [],
-      contributions: { themes: [{ id: 'bootstrap-theme.dark', title: '暗色', variables: { '--bootstrap-color': 'black' }, colorScheme: 'dark' }] },
+      id: 'bootstrap-theme',
+      version: '1',
+      apiVersion: 2,
+      panels: [],
+      contributions: {
+        themes: [
+          {
+            id: 'bootstrap-theme.dark',
+            title: '暗色',
+            variables: { '--bootstrap-color': 'black' },
+            colorScheme: 'dark',
+          },
+        ],
+      },
     },
   });
   await runtime.webPlugins.load('bootstrap-theme');

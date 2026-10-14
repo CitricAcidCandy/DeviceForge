@@ -1,6 +1,12 @@
 import type { ApiError } from '../../../services/api/index.ts';
 
-export type McpJsonValue = null | boolean | number | string | readonly McpJsonValue[] | { readonly [key: string]: McpJsonValue };
+export type McpJsonValue =
+  | null
+  | boolean
+  | number
+  | string
+  | readonly McpJsonValue[]
+  | { readonly [key: string]: McpJsonValue };
 export type McpJsonObject = { readonly [key: string]: McpJsonValue };
 
 export interface McpTool {
@@ -26,7 +32,10 @@ export interface McpSubscriptionHandlers {
 
 export interface McpClient {
   readonly listTools: (signal: AbortSignal) => Promise<McpSnapshot>;
-  readonly subscribe: (handlers: McpSubscriptionHandlers, signal: AbortSignal) => Promise<() => Promise<void>>;
+  readonly subscribe: (
+    handlers: McpSubscriptionHandlers,
+    signal: AbortSignal,
+  ) => Promise<() => Promise<void>>;
   readonly snapshot: () => McpSnapshot;
   readonly dispose: () => Promise<void>;
 }

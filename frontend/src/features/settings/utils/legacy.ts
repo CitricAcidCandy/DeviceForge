@@ -3,7 +3,10 @@ import { jsonObject, onlyKeys, requireJson } from '../../../shared/jobs/index.ts
 import type { JsonData } from '../../../shared/jobs/index.ts';
 import type { SettingsOwner } from '../types/index.ts';
 
-export interface LegacySettingsFile { readonly name: string; readonly text: string }
+export interface LegacySettingsFile {
+  readonly name: string;
+  readonly text: string;
+}
 export interface SettingsLegacyImport extends SettingsOwner {
   readonly expected_revision: string;
   readonly files: readonly LegacySettingsFile[];
@@ -32,21 +35,31 @@ export function parseLegacyEditorText(text: string): JsonData {
 }
 
 /** 整批转换成功后才能提交；不读取文件系统、不选择归属、不访问远端。 */
-export function convertLegacyFiles(files: readonly LegacySettingsFile[]): { [key: string]: JsonData } {
+export function convertLegacyFiles(files: readonly LegacySettingsFile[]): {
+  [key: string]: JsonData;
+} {
   if (!Array.isArray(files) || files.length < 1 || files.length > sectionsByFile.size) {
     throw invalidLegacy('旧配置导入须选择一至七个已知备份文件');
   }
   const sections: { [key: string]: JsonData } = {};
   for (const file of files) {
-    if (!jsonObject(file) || !onlyKeys(file, ['name', 'text']) || typeof file.name !== 'string' || typeof file.text !== 'string') {
+    if (
+      !jsonObject(file) ||
+      !onlyKeys(file, ['name', 'text']) ||
+      typeof file.name !== 'string' ||
+      typeof file.text !== 'string'
+    ) {
       throw invalidLegacy('旧配置文件须提供名称和 JSON 文本');
     }
     const section = sectionsByFile.get(file.name);
     if (section === undefined || Object.hasOwn(sections, section)) {
       throw invalidLegacy('旧配置文件名未知或重复');
     }
-    try { sections[section] = parseLegacyEditorText(file.text); }
-    catch { throw invalidLegacy(`旧配置文件 JSON 无效：${file.name}`); }
+    try {
+      sections[section] = parseLegacyEditorText(file.text);
+    } catch {
+      throw invalidLegacy(`旧配置文件 JSON 无效：${file.name}`);
+    }
   }
   return sections;
 }

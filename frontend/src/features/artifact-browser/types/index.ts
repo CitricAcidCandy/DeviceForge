@@ -1,14 +1,31 @@
-import type { ApiError, ApiResult, ArchiveEntries, ArchiveEntryQuery, ArtifactDto, ArtifactMetadata } from '../../../services/api/index.ts';
+import type {
+  ApiError,
+  ApiResult,
+  ArchiveEntries,
+  ArchiveEntryQuery,
+  ArtifactDto,
+  ArtifactMetadata,
+} from '../../../services/api/index.ts';
 
 export interface ArtifactBrowserGateway {
   readonly metadata: (id: string, signal: AbortSignal) => Promise<ApiResult<ArtifactMetadata>>;
-  readonly entries: (id: string, query: ArchiveEntryQuery, signal: AbortSignal) => Promise<ApiResult<ArchiveEntries>>;
+  readonly entries: (
+    id: string,
+    query: ArchiveEntryQuery,
+    signal: AbortSignal,
+  ) => Promise<ApiResult<ArchiveEntries>>;
   readonly remove: (id: string, signal: AbortSignal) => Promise<ApiResult<ArtifactMetadata>>;
-  readonly upload?: (filename: string, content: Blob, signal: AbortSignal) => Promise<ApiResult<ArtifactDto>>;
+  readonly upload?: (
+    filename: string,
+    content: Blob,
+    signal: AbortSignal,
+  ) => Promise<ApiResult<ArtifactDto>>;
   readonly download?: (id: string, signal: AbortSignal) => Promise<ApiResult<Blob>>;
 }
 export type ArtifactMetadataView = Readonly<ArtifactMetadata>;
-export type ArtifactEntriesView = Readonly<Omit<ArchiveEntries, 'entries'>> & { readonly entries: readonly Readonly<ArchiveEntries['entries'][number]>[] };
+export type ArtifactEntriesView = Readonly<Omit<ArchiveEntries, 'entries'>> & {
+  readonly entries: readonly Readonly<ArchiveEntries['entries'][number]>[];
+};
 export interface ArtifactBrowserSnapshot {
   readonly selection: string | null;
   readonly metadata: ArtifactMetadataView | null;

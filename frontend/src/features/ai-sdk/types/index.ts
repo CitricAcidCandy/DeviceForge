@@ -1,13 +1,35 @@
 import type { ApiError, ApiResult, OperationDto } from '../../../services/api/index.ts';
 import type { JobOptions } from '../../../shared/jobs/index.ts';
 
-export type AiSdkAction = 'runtime.status' | 'sdk.single' | 'sdk.turn' | 'session.get' | 'session.close' | 'assistant.run';
-export interface AiSdkSingleInput { readonly project_id: string; readonly prompt: string }
-export interface AiSdkTurnInput extends AiSdkSingleInput { readonly thread_id?: string }
-export interface AiSdkThreadInput { readonly project_id: string; readonly thread_id: string }
-export interface AiSdkAssistantInput { readonly project_id: string; readonly user_prompt?: string; readonly stream_output?: boolean }
-export interface AiSdkOperationReader { readonly list: (signal: AbortSignal) => Promise<ApiResult<unknown>> }
-export interface AiSdkOptions extends JobOptions { readonly operations?: AiSdkOperationReader }
+export type AiSdkAction =
+  | 'runtime.status'
+  | 'sdk.single'
+  | 'sdk.turn'
+  | 'session.get'
+  | 'session.close'
+  | 'assistant.run';
+export interface AiSdkSingleInput {
+  readonly project_id: string;
+  readonly prompt: string;
+}
+export interface AiSdkTurnInput extends AiSdkSingleInput {
+  readonly thread_id?: string;
+}
+export interface AiSdkThreadInput {
+  readonly project_id: string;
+  readonly thread_id: string;
+}
+export interface AiSdkAssistantInput {
+  readonly project_id: string;
+  readonly user_prompt?: string;
+  readonly stream_output?: boolean;
+}
+export interface AiSdkOperationReader {
+  readonly list: (signal: AbortSignal) => Promise<ApiResult<unknown>>;
+}
+export interface AiSdkOptions extends JobOptions {
+  readonly operations?: AiSdkOperationReader;
+}
 export interface AiSdkCatalogSnapshot {
   readonly operations: readonly Readonly<OperationDto>[];
   readonly refreshing: boolean;

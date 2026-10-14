@@ -144,4 +144,4 @@ const historical = await execute('get-job', { jobId: job.data.id });
 
 本轮仅交付源码、清单、测试与说明，未执行 Node/npm/Cargo、构建、打包、服务或浏览器。静态路径/编码核对不能证明语法、标准包安装或运行行为通过；其他批次的测试和 release 报告不计为本示例通过。没有验证 Android/Harmony/iOS 真机、平台迁出、常驻性能会话、产品 UI、长时执行或分发兼容。
 
-公开契约参见 [插件开发](../../frontend/docs/插件开发.md)、[在线插件与开放扩展](../../frontend/docs/在线插件与开放扩展.md)、[设备能力与插件面板](../../frontend/docs/设备能力与插件面板.md) 和 [普通操作总期限消费契约](../../frontend/docs/普通操作总期限消费契约.md)。这些文档描述宿主已有边界；本示例不冻结或扩充 HTTP/SDK 契约。
+公开契约参见 [插件开发](../../frontend/docs/guides/插件开发.md)、[在线插件与开放扩展](../../frontend/docs/implementation/在线插件与开放扩展.md)、[设备能力与插件面板](../../frontend/docs/implementation/设备能力与插件面板.md) 和 [普通操作总期限消费契约](../../frontend/docs/contracts/普通操作总期限消费契约.md)。这些文档描述宿主已有边界；本示例不冻结或扩充 HTTP/SDK 契约。

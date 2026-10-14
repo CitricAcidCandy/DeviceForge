@@ -8,23 +8,36 @@ export function awaitActive<T>(callback: () => Promise<T>, signal: AbortSignal):
     function finish(deliver: () => void) {
       if (settled) return;
       settled = true;
-      if (listening) { signal.removeEventListener('abort', abort); listening = false; }
+      if (listening) {
+        signal.removeEventListener('abort', abort);
+        listening = false;
+      }
       deliver();
     }
     function abort() {
       finish(() => reject(new HostError('cancelled', 'extension_revoked', '扩展调用等待已撤销')));
     }
-    if (signal.aborted) { abort(); return; }
+    if (signal.aborted) {
+      abort();
+      return;
+    }
     listening = true;
     signal.addEventListener('abort', abort, { once: true });
     try {
       // 即使回调同步触发取消，也登记成功和拒绝处理，消费所有晚到结果。
       Promise.resolve(callback()).then(
-        (value) => { if (signal.aborted) abort(); else finish(() => resolve(value)); },
-        (error: unknown) => { if (signal.aborted) abort(); else finish(() => reject(error)); },
+        (value) => {
+          if (signal.aborted) abort();
+          else finish(() => resolve(value));
+        },
+        (error: unknown) => {
+          if (signal.aborted) abort();
+          else finish(() => reject(error));
+        },
       );
     } catch (error) {
-      if (signal.aborted) abort(); else finish(() => reject(error));
+      if (signal.aborted) abort();
+      else finish(() => reject(error));
     }
   });
 }

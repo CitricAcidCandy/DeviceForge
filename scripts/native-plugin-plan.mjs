@@ -3,20 +3,31 @@ const architectures = { x64: 'x86_64', arm64: 'aarch64', ia32: 'i686' };
 
 // Rust 使用原生 host 构建；Node 平台与 Rust host 不一致时拒绝错误标注分发包。
 export function verifyNativeHost(host, platform = process.platform, arch = process.arch) {
-  if (!platforms[platform] || !architectures[arch]
-    || !host.startsWith(`${architectures[arch]}-`) || !host.includes(platforms[platform])) {
+  if (
+    !platforms[platform] ||
+    !architectures[arch] ||
+    !host.startsWith(`${architectures[arch]}-`) ||
+    !host.includes(platforms[platform])
+  ) {
     throw new Error('Rust 原生目标与当前 Node 平台不一致，不能生成当前平台插件包');
   }
   return host;
 }
 
 // 清单来自插件自身，版本来自 Cargo；这里只有分发映射，不复制宿主注册规则。
-export function nativePluginPlan(cargoPackage, sourceManifest, platform = process.platform, arch = process.arch) {
+export function nativePluginPlan(
+  cargoPackage,
+  sourceManifest,
+  platform = process.platform,
+  arch = process.arch,
+) {
   const binaries = cargoPackage.targets.filter((target) => target.kind.includes('bin'));
   if (binaries.length !== 1) throw new Error('原生插件必须有唯一二进制入口');
-  if (sourceManifest.version !== cargoPackage.version) throw new Error('Cargo 与插件清单版本不一致');
+  if (sourceManifest.version !== cargoPackage.version)
+    throw new Error('Cargo 与插件清单版本不一致');
   const id = sourceManifest.id;
-  if (typeof id !== 'string' || !/^[a-z0-9][a-z0-9._-]{0,98}$/.test(id)) throw new Error('插件清单 ID 不能生成 npm 包名');
+  if (typeof id !== 'string' || !/^[a-z0-9][a-z0-9._-]{0,98}$/.test(id))
+    throw new Error('插件清单 ID 不能生成 npm 包名');
   const portableManifest = { ...sourceManifest };
   delete portableManifest.executable;
   const target = binaries[0].name;
@@ -24,22 +35,38 @@ export function nativePluginPlan(cargoPackage, sourceManifest, platform = proces
   const entry = `bin/${target}${platform === 'win32' ? '.exe' : ''}`;
   const key = `${platform}-${arch}`;
   return {
-    id, packageId: cargoPackage.id, crate: cargoPackage.name, target, entry, portableManifest,
+    id,
+    packageId: cargoPackage.id,
+    crate: cargoPackage.name,
+    target,
+    entry,
+    portableManifest,
     packageJson: {
       name: `@deviceforge/plugin-${id.replaceAll('_', '-')}-${key}`,
-      version: cargoPackage.version, description: `DeviceForge ${id} 服务器原生插件（${key}）`,
-      license: cargoPackage.license, os: [platform], cpu: [arch],
+      version: cargoPackage.version,
+      description: `DeviceForge ${id} 服务器原生插件（${key}）`,
+      license: cargoPackage.license,
+      os: [platform],
+      cpu: [arch],
       files: ['bin', 'plugin.json', 'README.md'],
-      deviceforge: { kind: 'server', manifest: 'plugin.json', entrypoints: { [key]: { runtime: 'native', path: entry } } },
+      deviceforge: {
+        kind: 'server',
+        manifest: 'plugin.json',
+        entrypoints: { [key]: { runtime: 'native', path: entry } },
+      },
     },
   };
 }
 
 export function selectPluginPlans(plans, selected = []) {
-  if (new Set(plans.map((plan) => plan.id)).size !== plans.length
-    || new Set(plans.map((plan) => plan.packageJson.name)).size !== plans.length) throw new Error('插件 ID 或生成的 npm 包名冲突');
+  if (
+    new Set(plans.map((plan) => plan.id)).size !== plans.length ||
+    new Set(plans.map((plan) => plan.packageJson.name)).size !== plans.length
+  )
+    throw new Error('插件 ID 或生成的 npm 包名冲突');
   if (new Set(selected).size !== selected.length) throw new Error('插件选择不能重复');
-  if (selected.some((id) => !plans.some((plan) => plan.id === id))) throw new Error('选择了不存在的工作区插件 ID');
+  if (selected.some((id) => !plans.some((plan) => plan.id === id)))
+    throw new Error('选择了不存在的工作区插件 ID');
   const result = selected.length ? plans.filter((plan) => selected.includes(plan.id)) : plans;
   if (!result.length) throw new Error('工作区没有可打包的服务器插件');
   return result;
@@ -47,7 +74,9 @@ export function selectPluginPlans(plans, selected = []) {
 
 export function nativePluginReadme(plan, cliVersion, sourceReadme, configurationTemplates = []) {
   const archive = `${plan.packageJson.name.slice(1).replace('/', '-')}-${plan.packageJson.version}.tgz`;
-  const configuration = configurationTemplates.length ? `\n包内 bin 目录携带公开配置模板：${configurationTemplates.map((item) => item.name).join('、')}。安装后按下方插件说明将模板复制为实际配置，填写本机工具、存储目录及必要凭据后再启动或加载；模板不会自动启用，打包器不采集部署者的实际配置。\n` : '';
+  const configuration = configurationTemplates.length
+    ? `\n包内 bin 目录携带公开配置模板：${configurationTemplates.map((item) => item.name).join('、')}。安装后按下方插件说明将模板复制为实际配置，填写本机工具、存储目录及必要凭据后再启动或加载；模板不会自动启用，打包器不采集部署者的实际配置。\n`
+    : '';
   return `# DeviceForge 原生插件：${plan.id}
 
 此包携带 ${plan.packageJson.os[0]}/${plan.packageJson.cpu[0]} 的 release 原生程序，版本 ${plan.packageJson.version}，协议 ${plan.portableManifest.protocol_version}。部署者只需 Node.js/npm 和对应平台的 DeviceForge CLI 运行包，不需要 Rust。

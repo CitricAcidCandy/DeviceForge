@@ -4,4 +4,10 @@ export * from './models/http-factory.ts';
 export { requireRepeat, requireSequence } from './utils/rules.ts';
 export { requireDesktopClick, requireInputTrace } from './utils/desktop-rules.ts';
 export { decodeAutomationResult } from './utils/results.ts';
-export { decodeDesktopClick, decodeDesktopPosition, decodeDesktopRepeat, decodeInputTracePlayback, decodeInputTraceRecord } from './utils/desktop-results.ts';
+export {
+  decodeDesktopClick,
+  decodeDesktopPosition,
+  decodeDesktopRepeat,
+  decodeInputTracePlayback,
+  decodeInputTraceRecord,
+} from './utils/desktop-results.ts';

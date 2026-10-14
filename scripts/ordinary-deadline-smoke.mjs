@@ -8,14 +8,28 @@ import { prepareHost, reservePort } from './ordinary-deadline-http/host.mjs';
 import { installFixtures, verifyPackageBytes } from './ordinary-deadline-http/packages.mjs';
 import { verifyMatrix } from './ordinary-deadline-http/matrix.mjs';
 import { collectKnownProcesses } from './ordinary-deadline-http/process-evidence.mjs';
-import { createReport, passed, recordFailure, retainEvidence, stage, verifyLogs, writeReport } from './ordinary-deadline-http/evidence.mjs';
+import {
+  createReport,
+  passed,
+  recordFailure,
+  retainEvidence,
+  stage,
+  verifyLogs,
+  writeReport,
+} from './ordinary-deadline-http/evidence.mjs';
 
 // 只使用主代理已构建的二进制，不调用 Cargo/npm 或启动第二个宿主。
 const root = fileURLToPath(new URL('../', import.meta.url));
 const args = process.argv.slice(2);
 assert.ok(args.length <= 1 && args.every((arg) => arg === '--release'), '只接受一个可选 --release');
 const profile = args.includes('--release') ? 'release' : 'debug';
-const binary = resolve(root, 'backend', 'target', profile, `apk-server${process.platform === 'win32' ? '.exe' : ''}`);
+const binary = resolve(
+  root,
+  'backend',
+  'target',
+  profile,
+  `apk-server${process.platform === 'win32' ? '.exe' : ''}`,
+);
 const report = createReport(profile);
 report.command = `node scripts/ordinary-deadline-smoke.mjs${profile === 'release' ? ' --release' : ''}`;
 report.platform = process.platform;
@@ -44,8 +58,10 @@ try {
   await verifyMatrix(host, items, report);
   await stage(report, '宿主原10秒正常关闭与监听释放', async () => {
     await host.shutdown();
-    assert.deepEqual(host.entry.exit && { code: host.entry.exit.code, signal: host.entry.exit.signal },
-      { code: 0, signal: null });
+    assert.deepEqual(
+      host.entry.exit && { code: host.entry.exit.code, signal: host.entry.exit.signal },
+      { code: 0, signal: null },
+    );
     passed(report, '宿主正常exit0与监听释放');
   });
   await stage(report, '退出后原包/宿主身份和日志关联', async () => {
@@ -61,8 +77,9 @@ try {
 } finally {
   // 清理失败不能掩盖业务首失败；只操作本次持有的直接宿主 ChildProcess。
   if (host) {
-    try { await host.finish(); }
-    catch (error) {
+    try {
+      await host.finish();
+    } catch (error) {
       recordFailure(report, error);
       report.cleanup_error = { name: error.name, code: error.code };
       completed = false;
@@ -73,13 +90,16 @@ try {
       try {
         await host.verifyIdentity();
         if (report.packages?.length) await verifyPackageBytes(report);
-      } catch (error) { report.failure_identity_error = { name: error.name, code: error.code }; }
+      } catch (error) {
+        report.failure_identity_error = { name: error.name, code: error.code };
+      }
     }
   }
   report.passed = completed && report.failure_stage === undefined;
   if (directory) {
-    try { await retainEvidence(directory, items, report); }
-    catch (error) {
+    try {
+      await retainEvidence(directory, items, report);
+    } catch (error) {
       recordFailure(report, error);
       report.retention_error = { name: error.name, code: error.code };
       process.exitCode = 1;
@@ -87,8 +107,16 @@ try {
   }
   report.stage = report.passed ? '完成' : report.stage;
   const path = await writeReport(root, report);
-  console.log(JSON.stringify({ passed: report.passed, profile, report: path,
-    jobs: report.jobs.length, failure_stage: report.failure_stage,
-    error_name: report.error?.name, temporary_retained: report.temporary_retained }));
+  console.log(
+    JSON.stringify({
+      passed: report.passed,
+      profile,
+      report: path,
+      jobs: report.jobs.length,
+      failure_stage: report.failure_stage,
+      error_name: report.error?.name,
+      temporary_retained: report.temporary_retained,
+    }),
+  );
   if (!report.passed) process.exitCode = 1;
 }

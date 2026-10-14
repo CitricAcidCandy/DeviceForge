@@ -5,19 +5,28 @@
 ## 稳定接口与调用顺序
 
 ```js
-configureNpxUnifiedDiscovery(temporary, environment)
-verifyNpxUnifiedDiscovery({ root, temporary, pluginDirectory, runNpx, prefix,
-  dataDirectory, base, mcp, headers })
+configureNpxUnifiedDiscovery(temporary, environment);
+verifyNpxUnifiedDiscovery({
+  root,
+  temporary,
+  pluginDirectory,
+  runNpx,
+  prefix,
+  dataDirectory,
+  base,
+  mcp,
+  headers,
+});
 ```
 
 两个函数从 `../cli-smoke-unified-discovery.mjs` 导出。配置函数须在 configureNpxAlias 之后、宿主启动之前调用；verify 由主代理在同一实际 npx 服务就绪后调用。mcp 是独立监听器的完整 `/mcp` URL，headers 可省略，也可包含调用方当前私有令牌。helper 不启动、停止或查杀宿主，不自行执行 npm pack，不把 HTTP 在线上传冒充实际 CLI 安装。
 
 configure 读取 environment.APK_OPERATION_BINDINGS，按当前工作目录解析相对路径，再核对真实路径处于本次 temporary 内。只修改这个已有文件，不另造配置或改变环境路径。保留全部原 bindings，将 format_version 升为2，追加：
 
-| 旧入口 | 真实目标 | 专用结果profile | 协议 / 设备API |
-| --- | --- | --- | --- |
-| android.devices | device_discovery / raw_npx_android | device_discovery / android | 2 / 3 |
-| harmony.devices | device_discovery / raw_npx_harmony | device_discovery / harmony | 3 / 3 |
+| 旧入口          | 真实目标                           | 专用结果profile            | 协议 / 设备API |
+| --------------- | ---------------------------------- | -------------------------- | -------------- |
+| android.devices | device_discovery / raw_npx_android | device_discovery / android | 2 / 3          |
+| harmony.devices | device_discovery / raw_npx_harmony | device_discovery / harmony | 3 / 3          |
 
 input 的线格式为字符串 `'identity'`，不猜内部tag。绑定中没有自行指定目标operation；真实发现由加载owner解析。发现业务模式为object且禁止额外字段；旧名冲突、文件越界、数量或64KiB上限均在写入前拒绝，不覆盖原绑定。
 
@@ -49,17 +58,17 @@ refresh返回本次目录回执；direct/alias按本次Job ID等待目录匹配�
 
 verify 返回以下稳定根字段：
 
-| 字段 | 含义 |
-| --- | --- |
-| schemaVersion / phaseId / startedAt / completedAt / passed | 证据版本1、本次唯一阶段、实际时间及全部断言结果 |
-| packages | id/protocol/devicesApiVersion/platform/controlDirectory；tgz包含path/bytes/sha256，install包含command/exitCode/installedVersion |
-| entries | providerId/generation/protocol/entry/transport/operation/label/jobId/requestId/pid；jobCountDelta、executionCountDelta与process证据；成功条目附rawState与本次logIds |
-| logIds | 本客户端所有真实HTTP/MCP响应日志ID去重排序，不含令牌或原始正文 |
-| providerIds | raw_npx_android、raw_npx_harmony |
-| history | jobId/operation/status/eventCount/httpMcpEqual/unchanged/eventsUnchanged |
-| reloads | providerId/protocol/oldGeneration/newGeneration/cancelledJobId/process及精确rejections |
-| rejections | HTTP path或MCP tool、transport/status/code/logId；MCP业务错误仍为HTTP200 |
-| cleanup | 两个本次部署的卸载、清理标记、贡献/目录撤销和删除断言 |
+| 字段                                                       | 含义                                                                                                                                                                |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| schemaVersion / phaseId / startedAt / completedAt / passed | 证据版本1、本次唯一阶段、实际时间及全部断言结果                                                                                                                     |
+| packages                                                   | id/protocol/devicesApiVersion/platform/controlDirectory；tgz包含path/bytes/sha256，install包含command/exitCode/installedVersion                                     |
+| entries                                                    | providerId/generation/protocol/entry/transport/operation/label/jobId/requestId/pid；jobCountDelta、executionCountDelta与process证据；成功条目附rawState与本次logIds |
+| logIds                                                     | 本客户端所有真实HTTP/MCP响应日志ID去重排序，不含令牌或原始正文                                                                                                      |
+| providerIds                                                | raw_npx_android、raw_npx_harmony                                                                                                                                    |
+| history                                                    | jobId/operation/status/eventCount/httpMcpEqual/unchanged/eventsUnchanged                                                                                            |
+| reloads                                                    | providerId/protocol/oldGeneration/newGeneration/cancelledJobId/process及精确rejections                                                                              |
+| rejections                                                 | HTTP path或MCP tool、transport/status/code/logId；MCP业务错误仍为HTTP200                                                                                            |
+| cleanup                                                    | 两个本次部署的卸载、清理标记、贡献/目录撤销和删除断言                                                                                                               |
 
 成功entries为12次六入口矩阵加2次重载发现，共14条成功；另有2次坏原文失败、2次在途卸载取消。18份Job历史逐一比较，HTTP/MCP历史一致。任务列表要求少于200，若截断直接失败，不能把计数不完整写成单Job证明。
 

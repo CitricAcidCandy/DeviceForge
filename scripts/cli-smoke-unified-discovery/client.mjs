@@ -14,8 +14,9 @@ export function clientFor({ base, mcp, headers, evidence }) {
     const summary = { method: options.method ?? 'GET', path: new URL(url).pathname };
     diagnostic.lastRequest = summary;
     let response;
-    try { response = await fetch(url, { signal: AbortSignal.timeout(20000), ...options }); }
-    catch (error) {
+    try {
+      response = await fetch(url, { signal: AbortSignal.timeout(20000), ...options });
+    } catch (error) {
       diagnostic.failedRequest ??= { ...summary, errorName: error.name };
       throw error;
     }
@@ -39,15 +40,22 @@ export function clientFor({ base, mcp, headers, evidence }) {
     assert.ok(Object.hasOwn(reply.body, 'data'));
     return reply.body.data;
   }
-  const post = (path, input, options = {}) => json(path, { method: 'POST',
-    ...(input !== undefined ? { body: JSON.stringify(input) } : {}), ...options });
+  const post = (path, input, options = {}) =>
+    json(path, {
+      method: 'POST',
+      ...(input !== undefined ? { body: JSON.stringify(input) } : {}),
+      ...options,
+    });
   async function rpc(method, params) {
     const id = ++requestId;
     const rpcHeaders = new Headers(common);
     rpcHeaders.set('accept', 'application/json, text/event-stream');
     rpcHeaders.set('origin', base);
-    const reply = await send(mcp, { method: 'POST', headers: rpcHeaders,
-      body: JSON.stringify({ jsonrpc: '2.0', id, method, params }) });
+    const reply = await send(mcp, {
+      method: 'POST',
+      headers: rpcHeaders,
+      body: JSON.stringify({ jsonrpc: '2.0', id, method, params }),
+    });
     assert.equal(reply.response.status, 200);
     assert.equal(reply.body.id, id);
     assert.equal(reply.body.error, undefined, '业务失败必须由工具错误表达');
@@ -81,14 +89,24 @@ export function clientFor({ base, mcp, headers, evidence }) {
   }
   const job = (id) => json(`/api/v2/jobs/${id}`);
   async function finished(id, status = 'succeeded') {
-    const result = await poll(() => job(id), (value) => ['succeeded', 'failed', 'cancelled'].includes(value.status), `npx任务 ${id}`);
+    const result = await poll(
+      () => job(id),
+      (value) => ['succeeded', 'failed', 'cancelled'].includes(value.status),
+      `npx任务 ${id}`,
+    );
     assert.equal(result.status, status);
     assert.deepEqual(await tool('deviceforge.get_job', { id }), result);
     return result;
   }
-  const refresh = (provider, options = {}) => post(`/api/v2/device-providers/${provider.id}/refresh`,
-    { generation: provider.generation }, options);
-  const manage = (id, action, transport = 'http') => transport === 'http'
-    ? post(`/api/v2/plugins/${id}/${action}`) : tool(`deviceforge.${action}_plugin`, { id });
+  const refresh = (provider, options = {}) =>
+    post(
+      `/api/v2/device-providers/${provider.id}/refresh`,
+      { generation: provider.generation },
+      options,
+    );
+  const manage = (id, action, transport = 'http') =>
+    transport === 'http'
+      ? post(`/api/v2/plugins/${id}/${action}`)
+      : tool(`deviceforge.${action}_plugin`, { id });
   return { json, post, tool, tools, job, finished, refresh, manage, logIds, diagnostic };
 }

@@ -4,11 +4,17 @@ import type { JsonData } from './values.ts';
 // 任务字段直接索引生成契约；公开 SDK 的精简任务也能结构化消费。
 export type TaskRecord = Pick<JobDto, 'id' | 'operation' | 'status' | 'result' | 'error'>;
 export interface JobGateway {
-  readonly submit: (operation: string, input: JsonData, signal: AbortSignal) => Promise<ApiResult<TaskRecord>>;
+  readonly submit: (
+    operation: string,
+    input: JsonData,
+    signal: AbortSignal,
+  ) => Promise<ApiResult<TaskRecord>>;
   readonly getJob: (id: string, signal: AbortSignal) => Promise<ApiResult<TaskRecord>>;
   readonly cancelJob: (id: string, signal: AbortSignal) => Promise<ApiResult<TaskRecord>>;
 }
-export interface JobOptions { readonly pollIntervalMs?: number }
+export interface JobOptions {
+  readonly pollIntervalMs?: number;
+}
 export interface JobOutcome<T> {
   readonly data: T;
   readonly job: TaskRecord;

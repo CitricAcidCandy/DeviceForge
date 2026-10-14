@@ -5,5 +5,8 @@ import type { AiSdkOptions } from '../types/index.ts';
 import { createAiSdk } from './ai-sdk.ts';
 
 export function createHttpAiSdk(client: ApiClient, options: Omit<AiSdkOptions, 'operations'> = {}) {
-  return createAiSdk(createHttpJobGateway(client), { ...options, operations: { list: (signal) => client.call(operationsEndpoint, undefined, signal) } });
+  return createAiSdk(createHttpJobGateway(client), {
+    ...options,
+    operations: { list: (signal) => client.call(operationsEndpoint, undefined, signal) },
+  });
 }

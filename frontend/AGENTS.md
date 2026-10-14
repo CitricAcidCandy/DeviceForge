@@ -6,15 +6,17 @@
 - 前端文档只放 `docs/`。注释、README 和文档使用中文与 UTF-8。开发前阅读架构与开发约束及插件开发文档。
 
 ## 依赖与文件职责
-- `src/app`：启动、路由、全局样式与装配，不堆积业务规则、HTTP 调用或插件逻辑。app 对功能只导入核心 index.ts 或 components/index.ts 展示入口，类型导入同规。
-- `src/components/<PascalCase组件>/index.tsx`：公共组件统一入口；官方基础组件、组合展示和第三方封装一视同仁，私有 children/types/styles/hooks 放组件同目录。components/index.ts 供外部汇总，组件内部不导入汇总；跨组件使用对方 index.tsx，不读取私有实现。
-- 公共组件只依公共组件和 `src/utils` 纯工具，不读取业务 API、features、app、plugins 或 SDK。纯工具只依 utils，不承接业务查询或网络副作用；不再强制 ui/common/integrations 分类。
-- `src/features/<功能>`：根目录保留薄 index.ts 核心入口和中文 README；源码按真实职责放 models 用例、状态、订阅与编排，services 适配、网关及字节解码，types 类型，utils 纯规则、验证与转换，components/<PascalCase组件>/index.tsx 专属展示。展示汇总为 components/index.ts，核心入口不依赖或重导出展示，不创建空目录。
-- 功能内部方向：types/utils 不依 models/services/components；services 可依自身、types/utils，不依 models/components；models 可依自身、services/types/utils；专属 components 可依 models/types/utils 和公共组件，不直接依 services。不同功能不直接互相导入，跨功能协作由 app 装配公开端口。
-- `src/services/api`：生成类型、HTTP 适配器、统一错误与取消；组件不直接 fetch，令牌不进入 URL 或 localStorage。现有共享基础设施和 SDK 保留公开边界，目录迁移不强制额外剥离。
-- `src/plugin-sdk`：独立版本化公开契约，不依赖 app/features/shared/plugins，不暴露服务令牌或私有类型。
-- `src/plugins`：可信预注册加载器、贡献校验及运行中装卸编排，只通过 SDK 与宿主交互；装载失败须回滚，卸载须撤销调用并等待资源清理。
-- 禁止反向依赖、循环导入和跨工程源码路径。测试可读取内部实现，生产边界不因此放宽。新模块附中文 README，细则见 [前端目录与组件约束](docs/guides/前端目录与组件约束.md)；普通异常直接修正结构或门禁，不新增用户审批步骤。
+- `src/app`：启动、路由、全局样式与装配；路由仅导入 pages/<功能页>/index.tsx，不堆积业务页面。应用装配可消费 features 的 index.ts 核心入口。
+- `src/pages/<功能页>/index.tsx`：路由页面与页面编排。私有组件、局部 hooks、样式和类型就近放该页面目录；页面只读取自身私有文件，不读取其他页面实现。可消费 features 核心入口、公共 components 入口、services/api 和 utils。
+- `src/features/<功能>`：只保留跨页面业务逻辑，根 index.ts 和中文 README；models 放用例、状态、订阅与编排，services 放适配与解码，types 放类型，utils 放纯规则。不含业务 UI、components 或 TSX；页面专属能力优先留 pages，不为目录完整制造空层。
+- 功能内部方向：types/utils 不依 models/services；services 可依自身与 types/utils，不依 models；models 可依 services/types/utils。跨功能只引用对方 index.ts 核心公开入口，不读取内部路径且不得形成循环；核心入口不得引用 pages 或公共展示组件。
+- `src/components/<PascalCase组件>/index.tsx`：仅跨页面公共组件，官方基础、组合和第三方封装使用相同结构。私有 children/types/styles/hooks 放本组件目录；外部读取组件入口或 components/index.ts，组件内部不导入汇总，不读取其他组件私有文件。
+- 公共组件只依公共组件和 `src/utils` 纯工具，不读取业务 API、features、pages、app、plugins 或 SDK。纯工具只依 utils，不承接业务状态和网络副作用。
+- `src/services/api`：公共请求、生成类型、错误、取消和日志适配；页面调用公开请求，不直接 fetch。现有共享基础设施和 SDK 保留原边界，本轮不额外扩大业务重构。
+- 页面另可消费 shared/jobs/index.ts 的公共作业能力，以及 plugin-sdk/index.ts、plugin-sdk/json.ts 的公开契约；不开放其他 shared 文件或 SDK 私有路径。
+- 页面支撑过渡清单仅限 app/product 下 services.ts、hooks.ts、feedback.tsx、capabilities.tsx、device-target.ts，供既有页面使用；这些精确路径不表示可以任意读取 app 私有文件，后续按职责迁出。
+- `src/plugin-sdk`：独立公开契约，不依 app/features/pages/shared/plugins。`src/plugins` 通过 SDK 接入宿主，装载失败回滚，卸载撤销贡献并等待资源清理。
+- 禁止反向依赖、循环和跨工程源码路径。测试可读内部实现；生产边界不放宽。详见 [前端目录与组件约束](docs/guides/前端目录与组件约束.md)，普通异常直接修结构或门禁，不新增用户审批。
 
 ## 基础工作台与设备扩展
 - 开发设备相关界面前阅读 `docs/implementation/设备能力与插件面板.md`。通用工作台消费宿主设备目录和能力，平台特有交互通过公开插件面板扩展。
@@ -28,7 +30,7 @@
 - Node 工具及测试要求 Node 22.18 以上，直接执行 TypeScript；浏览器只能载入构建后的 JavaScript。独立插件验收源码为 `scripts/browser-plugin-harness.ts`，稳定浏览器产物为 `dist/assets/browser-plugin-harness.js`，依赖既有公开 `plugin-host.js`。
 - HTTP 类型由 generate:api 生成，禁止手改 generated.ts 或手写重复 DTO；公开 SDK 独立版本化，由适配器映射。
 - 异步调用显式传 AbortSignal，处理失败、取消、销毁和晚到结果；插件卸载释放事件、订阅和 DOM。
-- 日志 ID 由 shared/api 按公开响应契约提取并传递，失败界面应支持复制排查；任务 ID 不代替日志 ID。日志响应升级需同步生成类型、适配器和公开 SDK，不把协议包装或服务器日志路径混入组件。
+- 日志 ID 由 services/api 按公开响应契约提取并传递，失败界面应支持复制排查；任务 ID 不代替日志 ID。日志响应升级需同步生成类型、适配器和公开 SDK，不把协议包装或服务器日志路径混入组件。
 - 日志消费遵守 `docs/contracts/日志ID与接口消费.md`：默认 v2，v1 从响应头兼容，产物原字节与 OpenAPI 不按业务 JSON 拆包；真实客户端保留日志 ID 与结构化错误，复制交互随具体界面验收。
 - 同页面插件按可信扩展运行，允许从已安装浏览器包动态导入模块；预注册加载器仅是开发路径。在线包、组件/模块/命令/服务/逻辑扩展遵守 `docs/implementation/在线插件与开放扩展.md`，没有实施或验收的能力不得写成已完成。
 - 默认免鉴权，令牌提供器可选；不增加多用户权限、来源审批或强制隔离。宿主通过公开扩展点管理资源所有权与代际，不以直接引用宿主私有实现作为公开接口。

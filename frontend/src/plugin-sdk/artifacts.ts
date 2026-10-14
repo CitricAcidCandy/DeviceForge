@@ -10,6 +10,10 @@ export interface Artifact {
   readonly createdAt: number;
 }
 export interface ArtifactAccess {
-  readonly upload: (filename: string, content: Blob, signal: AbortSignal) => Promise<HostResult<Artifact>>;
+  readonly upload: (
+    filename: string,
+    content: Blob,
+    signal: AbortSignal,
+  ) => Promise<HostResult<Artifact>>;
   readonly download: (id: string, signal: AbortSignal) => Promise<HostResult<Blob>>;
 }

@@ -15,12 +15,12 @@ node scripts/android-packages-online-smoke.mjs --archive G:\Rust\DeviceForge\art
 
 本次宿主使用新临时数据目录及源七 alias 显式配置。安装前核空包/空插件、贡献缺席和零 Job；上传同一份已校 SHA 的原始压缩字节，201 后核包存在但插件未加载、贡献仍缺席、没有管理 Job。包内没有本次工具配置，不使用真实 Android 工具。
 
-| 任务 | 提交入口 | 固定断言 |
-| --- | --- | --- |
-| 提取一 | HTTP 旧 `android.package.extract_apk` | 同 Job 保留旧 operation/input；旧产物投影精确匹配；下载原 APK 字节 |
-| 提取二 | MCP 新 `plugin.android-packages.extract_apk` | 公布产物 wrapper 精确匹配；本次独立产物 ID；下载相同原 APK 字节 |
-| SDK 扫描一 | HTTP 新 `plugin.android-packages.scan_sdks` | 完整 findings、命中/缺失/null 及 evidence 排序 |
-| SDK 扫描二 | MCP 旧 `android.package.scan_sdks` | 同 Job 旧 value 投影；保留原规则及完整 findings |
+| 任务       | 提交入口                                     | 固定断言                                                           |
+| ---------- | -------------------------------------------- | ------------------------------------------------------------------ |
+| 提取一     | HTTP 旧 `android.package.extract_apk`        | 同 Job 保留旧 operation/input；旧产物投影精确匹配；下载原 APK 字节 |
+| 提取二     | MCP 新 `plugin.android-packages.extract_apk` | 公布产物 wrapper 精确匹配；本次独立产物 ID；下载相同原 APK 字节    |
+| SDK 扫描一 | HTTP 新 `plugin.android-packages.scan_sdks`  | 完整 findings、命中/缺失/null 及 evidence 排序                     |
+| SDK 扫描二 | MCP 旧 `android.package.scan_sdks`           | 同 Job 旧 value 投影；保留原规则及完整 findings                    |
 
 ZIP 字节由独立测试 helper 手工构造；SDK 固定期望不调用生产解析器生成。每次提交前后精确新增一个 Job，总共四个，无嵌套 alias Job。HTTP GET/MCP get_job、历史及事件核同一全文与唯一终态；两次下载分别记录实际关联头、Artifact 元数据、长度、SHA 与原字节。
 

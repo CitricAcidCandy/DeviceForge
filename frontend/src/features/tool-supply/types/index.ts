@@ -1,5 +1,17 @@
-export type ToolSupplyAction = 'catalog' | 'plan' | 'install' | 'remove' | 'runtime_feature.status' | 'runtime_feature.prepare';
-export type ToolSupplyDecision = 'install' | 'update' | 'repair' | 'current' | 'local_newer' | 'local_only';
+export type ToolSupplyAction =
+  | 'catalog'
+  | 'plan'
+  | 'install'
+  | 'remove'
+  | 'runtime_feature.status'
+  | 'runtime_feature.prepare';
+export type ToolSupplyDecision =
+  | 'install'
+  | 'update'
+  | 'repair'
+  | 'current'
+  | 'local_newer'
+  | 'local_only';
 export interface ToolManifestSource {
   readonly manifest_source?: 'live' | 'cache' | null;
   readonly manifest_sha256?: string | null;
@@ -15,14 +27,32 @@ export interface ToolModule {
   readonly action: ToolSupplyDecision;
   readonly size?: number;
 }
-export interface ToolCatalog extends ToolManifestSource { readonly manifest_version: string | null; readonly source_error: string | null; readonly modules: readonly ToolModule[] }
-export interface ToolPlan extends ToolManifestSource { readonly manifest_version: string; readonly source_error?: string | null; readonly download_bytes: number; readonly modules: readonly ToolModule[] }
-export interface ToolInstallation { readonly module_id: string; readonly version: string; readonly changed: boolean; readonly sha256: string }
+export interface ToolCatalog extends ToolManifestSource {
+  readonly manifest_version: string | null;
+  readonly source_error: string | null;
+  readonly modules: readonly ToolModule[];
+}
+export interface ToolPlan extends ToolManifestSource {
+  readonly manifest_version: string;
+  readonly source_error?: string | null;
+  readonly download_bytes: number;
+  readonly modules: readonly ToolModule[];
+}
+export interface ToolInstallation {
+  readonly module_id: string;
+  readonly version: string;
+  readonly changed: boolean;
+  readonly sha256: string;
+}
 export interface ToolInstallResult extends ToolInstallation, ToolManifestSource {
   readonly manifest_version?: string;
   readonly source_error?: string | null;
 }
-export interface ToolRemoval { readonly module_id: string; readonly removed: boolean; readonly version?: string }
+export interface ToolRemoval {
+  readonly module_id: string;
+  readonly removed: boolean;
+  readonly version?: string;
+}
 export interface ToolRuntimeFeatureStatus extends ToolManifestSource {
   readonly feature_key: string;
   readonly manifest_version: string | null;

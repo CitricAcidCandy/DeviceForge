@@ -8,11 +8,21 @@ export function scopedThemeAccess(
 ): ThemeAccess | undefined {
   if (!upstream) return undefined;
   return Object.freeze<ThemeAccess>({
-    snapshot: () => { current(); return upstream.snapshot(); },
-    select: (id) => { current(); upstream.select(id); },
+    snapshot: () => {
+      current();
+      return upstream.snapshot();
+    },
+    select: (id) => {
+      current();
+      upstream.select(id);
+    },
     subscribe: (listener) => {
       current();
-      return track(upstream.subscribe((snapshot) => { if (!signal.aborted) listener(snapshot); }));
+      return track(
+        upstream.subscribe((snapshot) => {
+          if (!signal.aborted) listener(snapshot);
+        }),
+      );
     },
   });
 }

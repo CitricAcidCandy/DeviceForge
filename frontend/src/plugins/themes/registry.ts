@@ -1,10 +1,20 @@
 import { HostError } from '../../plugin-sdk/index.ts';
-import type { Dispose, ThemeAccess, ThemeContribution, ThemeInfo, ThemeSnapshot } from '../../plugin-sdk/index.ts';
+import type {
+  Dispose,
+  ThemeAccess,
+  ThemeContribution,
+  ThemeInfo,
+  ThemeSnapshot,
+} from '../../plugin-sdk/index.ts';
 import type { ExtensionOwner } from '../extensions/types.ts';
 import { copyThemeContribution } from './rules.ts';
 import type { ThemeAdapter } from './types.ts';
 
-interface OwnedTheme { readonly contribution: ThemeContribution; readonly owner: ExtensionOwner; readonly info: ThemeInfo }
+interface OwnedTheme {
+  readonly contribution: ThemeContribution;
+  readonly owner: ExtensionOwner;
+  readonly info: ThemeInfo;
+}
 export function createThemeRegistry(adapter?: ThemeAdapter) {
   const entries = new Map<string, OwnedTheme>();
   const listeners = new Set<(snapshot: ThemeSnapshot) => void>();
@@ -18,32 +28,43 @@ export function createThemeRegistry(adapter?: ThemeAdapter) {
   }
   function snapshot(): ThemeSnapshot {
     check();
-    return Object.freeze({ themes: Object.freeze([...entries.values()].map((entry) => entry.info)), selected: selected?.info ?? null });
+    return Object.freeze({
+      themes: Object.freeze([...entries.values()].map((entry) => entry.info)),
+      selected: selected?.info ?? null,
+    });
   }
   function notifyListener(listener: (snapshot: ThemeSnapshot) => void, value: ThemeSnapshot): void {
-    try { listener(value); } catch {}
+    try {
+      listener(value);
+    } catch {}
   }
   function notify(): void {
     if (closed) return;
-    revision += 1; pending = true;
+    revision += 1;
+    pending = true;
     if (notifying) return;
     notifying = true;
     try {
       while (pending && !closed) {
         pending = false;
-        const emitted = revision; const value = snapshot();
+        const emitted = revision;
+        const value = snapshot();
         for (const listener of [...listeners]) {
           if (closed || revision !== emitted) break;
           if (listeners.has(listener)) notifyListener(listener, value);
         }
       }
-    } finally { notifying = false; }
+    } finally {
+      notifying = false;
+    }
   }
   function select(id: string | null): void {
     check();
     const next = id === null ? null : entries.get(id);
-    if (next === undefined || next?.owner.context.signal.aborted) throw new HostError('protocol', 'theme_unavailable', '主题不存在或所属插件已撤销');
-    if (next && !adapter) throw new HostError('protocol', 'theme_unavailable', '宿主没有配置主题目标');
+    if (next === undefined || next?.owner.context.signal.aborted)
+      throw new HostError('protocol', 'theme_unavailable', '主题不存在或所属插件已撤销');
+    if (next && !adapter)
+      throw new HostError('protocol', 'theme_unavailable', '宿主没有配置主题目标');
     if (selected === next) return;
     adapter?.apply(next?.contribution ?? null);
     selected = next;
@@ -51,13 +72,21 @@ export function createThemeRegistry(adapter?: ThemeAdapter) {
   }
   function stage(owner: ExtensionOwner, themes: readonly ThemeContribution[]): Dispose {
     check();
-    if (owner.context.signal.aborted) throw new HostError('cancelled', 'plugin_unloaded', '主题所属插件已撤销');
+    if (owner.context.signal.aborted)
+      throw new HostError('cancelled', 'plugin_unloaded', '主题所属插件已撤销');
     const additions = themes.map(copyThemeContribution);
     const ids = additions.map((entry) => entry.id);
-    if (new Set(ids).size !== ids.length || ids.some((id) => entries.has(id))) throw new Error('已登记的主题标识发生冲突');
+    if (new Set(ids).size !== ids.length || ids.some((id) => entries.has(id)))
+      throw new Error('已登记的主题标识发生冲突');
     for (const contribution of additions) {
-      const info: ThemeInfo = Object.freeze({ id: contribution.id, title: contribution.title, pluginId: owner.pluginId, generation: owner.generation,
-        ...(contribution.colorScheme !== undefined ? { colorScheme: contribution.colorScheme } : {}),
+      const info: ThemeInfo = Object.freeze({
+        id: contribution.id,
+        title: contribution.title,
+        pluginId: owner.pluginId,
+        generation: owner.generation,
+        ...(contribution.colorScheme !== undefined
+          ? { colorScheme: contribution.colorScheme }
+          : {}),
       });
       entries.set(contribution.id, { contribution, owner, info });
     }
@@ -67,24 +96,36 @@ export function createThemeRegistry(adapter?: ThemeAdapter) {
       released = true;
       let removed = false;
       for (const id of ids) if (entries.delete(id)) removed = true;
-      if (selected && ids.includes(selected.contribution.id)) { adapter?.apply(null); selected = null; }
+      if (selected && ids.includes(selected.contribution.id)) {
+        adapter?.apply(null);
+        selected = null;
+      }
       if (removed && !closed) notify();
     };
   }
   const access: ThemeAccess = Object.freeze<ThemeAccess>({
-    snapshot, select,
+    snapshot,
+    select,
     subscribe(listener) {
-      check(); listeners.add(listener); notifyListener(listener, snapshot());
-      return () => { listeners.delete(listener); };
+      check();
+      listeners.add(listener);
+      notifyListener(listener, snapshot());
+      return () => {
+        listeners.delete(listener);
+      };
     },
   });
   return {
-    access, stage, publish: notify,
+    access,
+    stage,
+    publish: notify,
     dispose() {
       if (closed) return;
       closed = true;
-      listeners.clear(); entries.clear();
-      adapter?.apply(null); selected = null;
+      listeners.clear();
+      entries.clear();
+      adapter?.apply(null);
+      selected = null;
     },
   };
 }

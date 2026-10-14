@@ -38,18 +38,18 @@ app.detail 为 device/read/30000，严格业务输入只含 bundle，固定 `-t 
 
 资源组新增provider屏障双向冲突设备读写与同provider串行7 Job/7工具、两能力在途取消2/2、网络独立在途卸载1/1和新代无发现断开1/1。原两代设备矩阵保留，网络再独立装卸两代并核旧代两能力HTTP/MCP精确conflict拒绝。全部新增共65 Job/41工具，当前总库存要求148 Job/130工具（87成功、50预期失败、11取消）。事件数量逐Job回读，并由独立SQLite审核取得实数，不凭Job公式转记证据。查询使用公开`limit=200`并要求少于200，假工具目录看门狗上限200；仅调整独立驱动库存边界，不改变生产期限或资源限额。
 
-| 文件 | 责任 |
-| --- | --- |
-| 根入口 | 参数、冻结输入、串行编排、自有宿主、报告与有界清理 |
-| deployment | 双 manifest、十绑定/九定义能力、provider/device作用域、便携描述、当前 binary、validator 与身份复核 |
-| bootstrap / discovery | 目录、owner/generation、缺配置、三发现入口与失败恢复 |
-| applications / application-resources / details / inventory | 详情、启动、停止、重置、自动ability、严格失败、取消、读取并行、共享写锁及逐矩阵Job/工具库存核对 |
-| fixtures / fake-hdc.rs | 每调用独占门闩、实际 argv、父插件路径、直接 PID、HAP 副本 |
-| jobs / actions | 同 Job 历史事件、准入精确错误、普通业务及旧 alias |
-| artifacts | HAP 上传下载、私有副本、共享设备锁、安装取消 |
-| lifecycle | 在途卸载、旧代拒绝、换代重载、历史与输入产物保留 |
-| network | 无发现提供者动作、两类输入失败边界、固定命令/结果、双向provider屏障、取消和独立网络装卸 |
-| evidence | 实际 imports 输入摘要、逐 Job 日志、独立报告与原件索引 |
+| 文件                                                       | 责任                                                                                               |
+| ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| 根入口                                                     | 参数、冻结输入、串行编排、自有宿主、报告与有界清理                                                 |
+| deployment                                                 | 双 manifest、十绑定/九定义能力、provider/device作用域、便携描述、当前 binary、validator 与身份复核 |
+| bootstrap / discovery                                      | 目录、owner/generation、缺配置、三发现入口与失败恢复                                               |
+| applications / application-resources / details / inventory | 详情、启动、停止、重置、自动ability、严格失败、取消、读取并行、共享写锁及逐矩阵Job/工具库存核对    |
+| fixtures / fake-hdc.rs                                     | 每调用独占门闩、实际 argv、父插件路径、直接 PID、HAP 副本                                          |
+| jobs / actions                                             | 同 Job 历史事件、准入精确错误、普通业务及旧 alias                                                  |
+| artifacts                                                  | HAP 上传下载、私有副本、共享设备锁、安装取消                                                       |
+| lifecycle                                                  | 在途卸载、旧代拒绝、换代重载、历史与输入产物保留                                                   |
+| network                                                    | 无发现提供者动作、两类输入失败边界、固定命令/结果、双向provider屏障、取消和独立网络装卸            |
+| evidence                                                   | 实际 imports 输入摘要、逐 Job 日志、独立报告与原件索引                                             |
 
 每轮报告写入 artifacts/harmony-device-smoke-{debug|release}-{run_id}/report.json。临时原件始终保留，首次失败不会被后续清理错误覆盖；标准输出只含通过状态、路径、首失败阶段、断言标签与错误类型。
 

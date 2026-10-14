@@ -24,19 +24,33 @@ export function createClient(base, report) {
     let response;
     let body;
     try {
-      response = await fetch(`${base}${path}`, { headers: { 'content-type': 'application/json' },
-        signal: AbortSignal.timeout(20000), ...options });
+      response = await fetch(`${base}${path}`, {
+        headers: { 'content-type': 'application/json' },
+        signal: AbortSignal.timeout(20000),
+        ...options,
+      });
       body = await response.json();
     } catch (error) {
       // 不记录请求体、访问凭据或任意插件输出；关闭请求不能覆盖原始失败请求。
-      report.failed_request ??= { ...pending, status: response?.status,
-        log_id: response?.headers.get('x-deviceforge-log-id'), elapsed_ms: performance.now() - before,
-        error_name: error.name, error_code: error.code };
+      report.failed_request ??= {
+        ...pending,
+        status: response?.status,
+        log_id: response?.headers.get('x-deviceforge-log-id'),
+        elapsed_ms: performance.now() - before,
+        error_name: error.name,
+        error_code: error.code,
+      };
       throw error;
     }
     const logId = response.headers.get('x-deviceforge-log-id');
-    report.last_request = { path, method: options.method ?? 'GET', status: response.status,
-      code: body.error?.code, log_id: logId, elapsed_ms: performance.now() - before };
+    report.last_request = {
+      path,
+      method: options.method ?? 'GET',
+      status: response.status,
+      code: body.error?.code,
+      log_id: logId,
+      elapsed_ms: performance.now() - before,
+    };
     assert.match(logId, uuid, '响应必须包含服务端日志 ID');
     if (path.startsWith('/api/v2/')) assert.equal(body.log_id, logId);
     logIds.add(logId);
@@ -46,16 +60,29 @@ export function createClient(base, report) {
     const reply = await call(path, options);
     assert.equal(reply.status, status, `${options.method ?? 'GET'} ${path}`);
     if (code) assert.equal(reply.body.error?.code, code, path);
-    else { assert.equal(reply.body.error, undefined); assert.ok(Object.hasOwn(reply.body, 'data')); }
+    else {
+      assert.equal(reply.body.error, undefined);
+      assert.ok(Object.hasOwn(reply.body, 'data'));
+    }
     return code ? reply.body.error : reply.body.data;
   };
-  const post = (path, input, options = {}) => json(path, { method: 'POST',
-    ...(input !== undefined ? { body: JSON.stringify(input) } : {}), ...options });
+  const post = (path, input, options = {}) =>
+    json(path, {
+      method: 'POST',
+      ...(input !== undefined ? { body: JSON.stringify(input) } : {}),
+      ...options,
+    });
   const rpc = async (method, params) => {
     const id = ++requestId;
-    const reply = await call('/mcp', { method: 'POST', headers: {
-      'content-type': 'application/json', accept: 'application/json, text/event-stream', origin: base },
-    body: JSON.stringify({ jsonrpc: '2.0', id, method, params }) });
+    const reply = await call('/mcp', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        accept: 'application/json, text/event-stream',
+        origin: base,
+      },
+      body: JSON.stringify({ jsonrpc: '2.0', id, method, params }),
+    });
     assert.equal(reply.status, 200);
     assert.equal(reply.body.id, id);
     assert.equal(reply.body.error, undefined, '业务错误应在工具结果中表达');
@@ -82,16 +109,28 @@ export function createClient(base, report) {
   };
   const job = (id) => json(`/api/v2/jobs/${id}`);
   const finished = async (id, status = 'succeeded') => {
-    const value = await poll(() => job(id), (item) => ['succeeded', 'failed', 'cancelled'].includes(item.status), `任务 ${id}`);
+    const value = await poll(
+      () => job(id),
+      (item) => ['succeeded', 'failed', 'cancelled'].includes(item.status),
+      `任务 ${id}`,
+    );
     assert.equal(value.status, status, `共享任务终态 ${id}`);
     assert.equal((await tool('deviceforge.get_job', { id })).status, status);
     return value;
   };
-  const action = (input, transport = 'http') => transport === 'http'
-    ? post('/api/v2/device-actions', input, { status: 202 }) : tool('deviceforge.invoke_device', input);
-  const refresh = (provider, options) => post(`/api/v2/device-providers/${provider.id}/refresh`,
-    { generation: provider.generation }, options);
-  const manage = (id, action_, transport = 'http') => transport === 'http'
-    ? post(`/api/v2/plugins/${id}/${action_}`) : tool(`deviceforge.${action_}_plugin`, { id });
+  const action = (input, transport = 'http') =>
+    transport === 'http'
+      ? post('/api/v2/device-actions', input, { status: 202 })
+      : tool('deviceforge.invoke_device', input);
+  const refresh = (provider, options) =>
+    post(
+      `/api/v2/device-providers/${provider.id}/refresh`,
+      { generation: provider.generation },
+      options,
+    );
+  const manage = (id, action_, transport = 'http') =>
+    transport === 'http'
+      ? post(`/api/v2/plugins/${id}/${action_}`)
+      : tool(`deviceforge.${action_}_plugin`, { id });
   return { base, call, json, post, tool, tools, job, finished, action, refresh, manage, logIds };
 }

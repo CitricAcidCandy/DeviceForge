@@ -1,14 +1,25 @@
 import {
-  appendFileSync, closeSync, existsSync, openSync, readFileSync,
-  renameSync, unlinkSync, writeFileSync, writeSync,
+  appendFileSync,
+  closeSync,
+  existsSync,
+  openSync,
+  readFileSync,
+  renameSync,
+  unlinkSync,
+  writeFileSync,
+  writeSync,
 } from 'node:fs';
 import { isAbsolute, join } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 
 // 配置由本次可信 TGZ 固定；SDK input 只能选择有限 case_id。
 const config = JSON.parse(readFileSync(new URL('./fixture.json', import.meta.url), 'utf8'));
-if (![2, 3].includes(config.protocolVersion) || !isAbsolute(config.controlRoot)
-  || typeof config.pluginId !== 'string' || typeof config.runId !== 'string') {
+if (
+  ![2, 3].includes(config.protocolVersion) ||
+  !isAbsolute(config.controlRoot) ||
+  typeof config.pluginId !== 'string' ||
+  typeof config.runId !== 'string'
+) {
   throw new Error('普通期限夹具固定配置无效');
 }
 const requestLimit = 512 * 1024;
@@ -32,13 +43,22 @@ let failureCode;
 let outcome = 'running';
 let pending = Buffer.alloc(0);
 let resolveEof;
-const eof = new Promise((resolve) => { resolveEof = resolve; });
+const eof = new Promise((resolve) => {
+  resolveEof = resolve;
+});
 
 function record(event, extra = {}) {
   if (!identity) return;
-  appendFileSync(paths.events, `${JSON.stringify({
-    ...identity, event, monotonic_ns: process.hrtime.bigint().toString(), ...extra,
-  })}\n`, 'utf8');
+  appendFileSync(
+    paths.events,
+    `${JSON.stringify({
+      ...identity,
+      event,
+      monotonic_ns: process.hrtime.bigint().toString(),
+      ...extra,
+    })}\n`,
+    'utf8',
+  );
 }
 
 function atomicJson(target, value) {
@@ -66,38 +86,61 @@ function fail(code) {
   outcome = 'fixture_failed';
   failureCode = code;
   clearTimeout(watchdog);
-  try { cleanResource(); } catch { /* 失败证据保留当前实际释放状态，不伪造清理成功。 */ }
+  try {
+    cleanResource();
+  } catch {
+    /* 失败证据保留当前实际释放状态，不伪造清理成功。 */
+  }
   process.stderr.write('普通期限夹具失败，详见本次诊断标记\n');
   process.exit(1);
 }
 
 function objectWithKeys(value, required, allowed = required) {
-  return value !== null && typeof value === 'object' && !Array.isArray(value)
-    && required.every((key) => Object.hasOwn(value, key))
-    && Object.keys(value).every((key) => allowed.includes(key));
+  return (
+    value !== null &&
+    typeof value === 'object' &&
+    !Array.isArray(value) &&
+    required.every((key) => Object.hasOwn(value, key)) &&
+    Object.keys(value).every((key) => allowed.includes(key))
+  );
 }
 
 function validCaseId(value) {
   // 避免 JS 的 $ 在末尾换行前匹配；实际输入须逐字符属于 ASCII 白名单。
-  return typeof value === 'string' && value.length >= 1 && value.length <= 80
-    && !/[^A-Za-z0-9_-]/.test(value);
+  return (
+    typeof value === 'string' &&
+    value.length >= 1 &&
+    value.length <= 80 &&
+    !/[^A-Za-z0-9_-]/.test(value)
+  );
 }
 
 function validateRequest(frame) {
-  if (!objectWithKeys(frame, ['protocol_version', 'request_id', 'operation', 'input'],
-    ['protocol_version', 'request_id', 'operation', 'input', 'artifacts'])
-    || frame.protocol_version !== config.protocolVersion
-    || typeof frame.request_id !== 'string' || !frame.request_id
-    || Buffer.byteLength(frame.request_id, 'utf8') > 128
-    || /[\u0000-\u001f\u007f]/.test(frame.request_id)
-    || !['long', 'short', 'default'].includes(frame.operation)
-    || !objectWithKeys(frame.input, ['case_id']) || !validCaseId(frame.input.case_id)) {
+  if (
+    !objectWithKeys(
+      frame,
+      ['protocol_version', 'request_id', 'operation', 'input'],
+      ['protocol_version', 'request_id', 'operation', 'input', 'artifacts'],
+    ) ||
+    frame.protocol_version !== config.protocolVersion ||
+    typeof frame.request_id !== 'string' ||
+    !frame.request_id ||
+    Buffer.byteLength(frame.request_id, 'utf8') > 128 ||
+    /[\u0000-\u001f\u007f]/.test(frame.request_id) ||
+    !['long', 'short', 'default'].includes(frame.operation) ||
+    !objectWithKeys(frame.input, ['case_id']) ||
+    !validCaseId(frame.input.case_id)
+  ) {
     throw new Error('SDK 请求或普通期限输入无效');
   }
   // 宿主协议 2/3 可附带空标准产物上下文；本夹具不读输入产物也不发布文件输出。
-  if (frame.artifacts != null && (!objectWithKeys(frame.artifacts, ['inputs', 'output_directory'])
-    || !Array.isArray(frame.artifacts.inputs) || frame.artifacts.inputs.length !== 0
-    || frame.artifacts.output_directory !== null)) {
+  if (
+    frame.artifacts != null &&
+    (!objectWithKeys(frame.artifacts, ['inputs', 'output_directory']) ||
+      !Array.isArray(frame.artifacts.inputs) ||
+      frame.artifacts.inputs.length !== 0 ||
+      frame.artifacts.output_directory !== null)
+  ) {
     throw new Error('普通期限夹具不接受额外产物权限');
   }
 }
@@ -105,8 +148,11 @@ function validateRequest(frame) {
 function prepareCase() {
   const base = join(config.controlRoot, request.input.case_id);
   const candidates = {
-    ready: `${base}.ready.json`, release: `${base}.release`, events: `${base}.events.jsonl`,
-    resource: `${base}.resource`, diagnostic: `${base}.diagnostic.json`,
+    ready: `${base}.ready.json`,
+    release: `${base}.release`,
+    events: `${base}.events.jsonl`,
+    resource: `${base}.resource`,
+    diagnostic: `${base}.diagnostic.json`,
   };
   if (Object.values(candidates).some((file) => existsSync(file))) {
     throw new Error('case_id 已存在，禁止借用旧标记');
@@ -117,9 +163,13 @@ function prepareCase() {
   paths = candidates;
   readyNs = process.hrtime.bigint();
   identity = {
-    run_id: config.runId, case_id: request.input.case_id, plugin_id: config.pluginId,
-    protocol_version: config.protocolVersion, pid: process.pid,
-    request_id: request.request_id, request_operation: request.operation,
+    run_id: config.runId,
+    case_id: request.input.case_id,
+    plugin_id: config.pluginId,
+    protocol_version: config.protocolVersion,
+    pid: process.pid,
+    request_id: request.request_id,
+    request_operation: request.operation,
     ready_monotonic_ns: readyNs.toString(),
   };
   writeSync(resourceFd, '本次受控夹具资源\n');
@@ -128,17 +178,23 @@ function prepareCase() {
 }
 
 function receiveCancel(frame) {
-  if (config.protocolVersion !== 3
-    || !objectWithKeys(frame, ['protocol_version', 'request_id', 'command', 'reason'])
-    || frame.protocol_version !== 3 || frame.request_id !== request.request_id
-    || frame.command !== 'cancel' || !['timeout', 'cancelled'].includes(frame.reason)
-    || cancelReason !== undefined) {
+  if (
+    config.protocolVersion !== 3 ||
+    !objectWithKeys(frame, ['protocol_version', 'request_id', 'command', 'reason']) ||
+    frame.protocol_version !== 3 ||
+    frame.request_id !== request.request_id ||
+    frame.command !== 'cancel' ||
+    !['timeout', 'cancelled'].includes(frame.reason) ||
+    cancelReason !== undefined
+  ) {
     throw new Error('收到不匹配或重复的合作取消帧');
   }
   cancelReason = frame.reason;
   record('cancel_received', {
-    reason: frame.reason, command: frame.command,
-    control_request_id: frame.request_id, id_matches: frame.request_id === request.request_id,
+    reason: frame.reason,
+    command: frame.command,
+    control_request_id: frame.request_id,
+    id_matches: frame.request_id === request.request_id,
   });
   // 已开始发送的成功帧不重写为另一帧；迟到控制仍保留原值供宿主资格门禁复核。
   if (!responseStarted) cancelled = true;
@@ -162,9 +218,12 @@ async function waitForEof() {
   if (stdinEnded) return;
   let timer;
   try {
-    await Promise.race([eof, new Promise((_, reject) => {
-      timer = setTimeout(() => reject(new Error('响应后未收到真实 stdin EOF')), 1000);
-    })]);
+    await Promise.race([
+      eof,
+      new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error('响应后未收到真实 stdin EOF')), 1000);
+      }),
+    ]);
   } finally {
     clearTimeout(timer);
   }
@@ -178,19 +237,23 @@ async function execute() {
   const response = {
     protocol_version: config.protocolVersion,
     request_id: request.request_id,
-    ...(cancelled ? { error: '普通期限夹具已收到取消并完成受控资源清理' } : {
-      result: {
-        ...identity,
-        completed_monotonic_ns: completedNs.toString(),
-        elapsed_ms: Number(completedNs - readyNs) / 1_000_000,
-      },
-    }),
+    ...(cancelled
+      ? { error: '普通期限夹具已收到取消并完成受控资源清理' }
+      : {
+          result: {
+            ...identity,
+            completed_monotonic_ns: completedNs.toString(),
+            elapsed_ms: Number(completedNs - readyNs) / 1_000_000,
+          },
+        }),
   };
   // 协议 2 是 SDK Response；协议 3 只增加 SDK 已定义的 CooperativeResponse。
   const frame = config.protocolVersion === 3 ? { response, cleanup: 'complete' } : response;
   responseStarted = true;
   await new Promise((resolve, reject) => {
-    process.stdout.write(`${JSON.stringify(frame)}\n`, (error) => error ? reject(error) : resolve());
+    process.stdout.write(`${JSON.stringify(frame)}\n`, (error) =>
+      error ? reject(error) : resolve(),
+    );
   });
   responseWritten = true;
   record('response_written');
@@ -285,5 +348,9 @@ process.stdin.on('close', () => {
 
 // data 监听最后注册，确保首个请求发布 ready 前清理和证据处理器已就绪。
 process.stdin.on('data', (chunk) => {
-  try { receiveBytes(chunk); } catch { fail('invalid_sdk_frame'); }
+  try {
+    receiveBytes(chunk);
+  } catch {
+    fail('invalid_sdk_frame');
+  }
 });

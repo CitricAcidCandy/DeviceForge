@@ -8,7 +8,8 @@
 | folded.ts | 重建/核对插件的可选折叠栈 | 同次原栈与 UTF-8 原字节 | 无 |
 | flamegraph-layout.ts | 有界可见节点与精确比例映射 | 火焰树、焦点节点到色块坐标 | 无 |
 | flamegraph-view.tsx | 搜索、筛选、缩放、区间快捷选择和质量提示 | 原栈、指标区间到 React 展示 | 本地状态与滚动 |
-| app/product/pages/profile-view.tsx | 归档报告装配和下载入口 | 已验证 OpenedProfileArchive | 对象 URL 生命周期 |
+| pages/performance/components/ProfileArchiveView/index.tsx | 性能页私有归档展示 | 已验证 OpenedProfileArchive | 页面内画面、栈和火焰图组件 |
+| components/BlobDownload/index.tsx | 跨页面下载入口 | Blob | 对象 URL 生命周期 |
 
 ## 数据与行为
 

@@ -3,7 +3,11 @@ import type { JobGateway, JobTicket, TaskRecord } from '../../../shared/jobs/ind
 import type { ResourceSnapshot } from '../../../shared/lifecycle/latest.ts';
 
 export interface AiTaskGateway extends JobGateway {
-  readonly getEvents: (id: string, query: EventQuery, signal: AbortSignal) => Promise<ApiResult<JobEventDto[]>>;
+  readonly getEvents: (
+    id: string,
+    query: EventQuery,
+    signal: AbortSignal,
+  ) => Promise<ApiResult<JobEventDto[]>>;
 }
 export interface AiTaskObservation {
   readonly ticket: JobTicket;

@@ -13,7 +13,15 @@ export type PerformanceDeviceObservation = NonNullable<PerformanceReading['devic
 export type PerformanceBatteryObservation = NonNullable<PerformanceDeviceObservation['battery']>;
 export type PerformanceTemperature = PerformanceDeviceObservation['temperatures'][number];
 export type PerformanceGateway = Pick<HostContext, 'submit' | 'getJob'>;
-export type PerformanceAction = 'start' | 'inspect' | 'pause' | 'resume' | 'stop' | 'samples' | 'list' | 'capabilities';
+export type PerformanceAction =
+  | 'start'
+  | 'inspect'
+  | 'pause'
+  | 'resume'
+  | 'stop'
+  | 'samples'
+  | 'list'
+  | 'capabilities';
 
 // 能力响应目前没有生成组件；这里只定义校验后的消费视图。
 export interface PerformanceCapabilities {

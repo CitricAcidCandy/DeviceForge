@@ -7,8 +7,14 @@ export function abortable<T>(promise: Promise<T>, signal: AbortSignal): Promise<
     if (signal.aborted) abort();
     else signal.addEventListener('abort', abort, { once: true });
     promise.then(
-      (value) => { signal.removeEventListener('abort', abort); if (!signal.aborted) resolve(value); },
-      (error: unknown) => { signal.removeEventListener('abort', abort); reject(error); },
+      (value) => {
+        signal.removeEventListener('abort', abort);
+        if (!signal.aborted) resolve(value);
+      },
+      (error: unknown) => {
+        signal.removeEventListener('abort', abort);
+        reject(error);
+      },
     );
   });
 }

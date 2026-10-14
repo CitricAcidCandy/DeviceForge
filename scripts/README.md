@@ -29,7 +29,8 @@
 
 正式打包：npm run pack:cli。基础门禁：npm test；完整分发验证：npm run smoke:cli。两端还须各自执行 AGENTS.md 指定的检查，不以根 CLI 测试替代后端与前端验收。
 
-原生插件包格式、版本和当前平台限制见 backend/docs/原生插件分发.md。插件编写只维护原有 Cargo 元数据及公开清单，便携 npm 描述由构建派生。
+原生插件包格式、版本和当前平台限制见 backend/docs/implementation/原生插件分发.md。插件编写只维护原有 Cargo 元数据及公开清单，便携 npm 描述由构建派生。
+
 ## 运行中安装与管理
 
 cli-smoke-lifecycle.mjs 在真实 npx 服务启动后安装 Node 依赖插件，验证安装脚本禁用、HTTP 加载及任务执行、独立 MCP 卸载/重载、新代际和历史任务保留，由 cli-smoke.mjs 统一编排。它只验证本机当前平台包，不等于 npm registry 发布或设备层热拔插验收。
@@ -69,6 +70,7 @@ cli-smoke-alias.mjs 为既有真实 npx 两阶段增加相对绑定配置路径�
 `cli-smoke-archive.mjs` 只读当次保留 TGZ 的全部普通成员，检查头校验、重复、链接与越界后逐文件核对缓存字节数和 SHA256，并核对 npm bin 入口；不以重新打包的归档替代实际安装包。失败时先保存 `failure-before-cleanup.json`，`cli-smoke-cleanup.mjs` 再有界关闭本次宿主、记录包装进程退出与两个端口各自状态；限流退避也受关闭总等待上限约束。`node --import ./scripts/cli-smoke-controlled-failure.mjs scripts/cli-smoke.mjs` 仅在本入口第一次成功读取生产宿主正文后注入 `CliControlledFailure`，用于独立验证真实失败分支，不能把任意退出1算作注入通过。
 
 CLI smoke 的高频行为矩阵显式使用本次 `10000` 请求/秒配置并记录到报告，生产默认不变，不构成限流容量或性能结论。统一发现辅助区分 CLI 离线部署与在线包视图：在线DELETE对离线夹具返回404；完成卸载与贡献撤销后，仅清理已校验的本轮临时离线目录，不表示生产CLI卸载命令或在线包统一管理已完成。
+
 - ai-streaming-smoke.mjs：消费冻结宿主/AI插件及受控Node工具，独立验证HTTP/MCP实时会话、分页、取消/卸载/重载与历史；可实际导入前端工厂验证增量消费和无重放。实际两轮debug已通过，入口参数与证据边界见同名目录README，不代表SDK或真实模型。
 - frida-consumption-smoke.mjs：实际导入Frida前端HTTP工厂，消费真实宿主/插件与固定标准库假工具，验证六业务、MCP同Job、原字节、取消及卸载历史；只消费已构建程序，真实设备/注入与工具OS句柄另验。入口和冻结边界见同名目录README。
 - apks-advanced-smoke.mjs：测试角色正在完成高级规格/modules/instant独立驱动，消费隔离debug输入和fake-java黄金参数；当前尚未运行完整服务，真实JAR/包/设备另验。

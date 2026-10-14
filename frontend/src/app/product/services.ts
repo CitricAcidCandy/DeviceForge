@@ -25,9 +25,14 @@ export interface ProductConnection {
 }
 
 // 产品装配复用原工厂与任务钩子，不在页面中创建第二套业务协议。
-export function createProductServices(options: RuntimeOptions & {readonly connection?: ProductConnection}) {
+export function createProductServices(
+  options: RuntimeOptions & { readonly connection?: ProductConnection },
+) {
   const mediaDisplay = createMediaDisplay();
-  const runtime = createFrontendRuntime({...options, mirroringSink: options.mirroringSink ?? mediaDisplay.sink});
+  const runtime = createFrontendRuntime({
+    ...options,
+    mirroringSink: options.mirroringSink ?? mediaDisplay.sink,
+  });
   const client = createApiClient(options);
   const gateway: JobGateway = {
     submit: (operation, input, signal) => runtime.tasks.submit({ operation, input }, signal),
@@ -53,17 +58,44 @@ export function createProductServices(options: RuntimeOptions & {readonly connec
   const aiStreaming = createHttpAiStreaming(client);
   let closing: Promise<void> | null = null;
   return {
-    runtime, client, mediaDisplay, connection: options.connection ?? null, packageAnalysis, frida, automation, settings, aiAssistant,
-    dex, msgpack, toolSupply, spreadsheet, sessions, artifactBrowser, mirroring, aiStreaming,
+    runtime,
+    client,
+    mediaDisplay,
+    connection: options.connection ?? null,
+    packageAnalysis,
+    frida,
+    automation,
+    settings,
+    aiAssistant,
+    dex,
+    msgpack,
+    toolSupply,
+    spreadsheet,
+    sessions,
+    artifactBrowser,
+    mirroring,
+    aiStreaming,
     profile: (reference: ProfileReference) => createAndroidProfile(runtime.host, reference),
     dispose(): Promise<void> {
       if (closing) return closing;
       closing = (async () => {
-        packageAnalysis.dispose(); frida.dispose(); automation.dispose(); settings.dispose();
-        aiAssistant.dispose(); dex.dispose(); msgpack.dispose(); toolSupply.dispose(); spreadsheet.dispose();
-        sessions.dispose(); artifactBrowser.dispose(); mirroring.dispose(); aiStreaming.dispose();
+        packageAnalysis.dispose();
+        frida.dispose();
+        automation.dispose();
+        settings.dispose();
+        aiAssistant.dispose();
+        dex.dispose();
+        msgpack.dispose();
+        toolSupply.dispose();
+        spreadsheet.dispose();
+        sessions.dispose();
+        artifactBrowser.dispose();
+        mirroring.dispose();
+        aiStreaming.dispose();
         const results = await Promise.allSettled([runtime.dispose(), mediaDisplay.dispose()]);
-        const errors = results.flatMap(result => result.status === 'rejected' ? [result.reason] : []);
+        const errors = results.flatMap((result) =>
+          result.status === 'rejected' ? [result.reason] : [],
+        );
         if (errors.length) throw new AggregateError(errors, '产品运行实例清理失败');
       })();
       return closing;

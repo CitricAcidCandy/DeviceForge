@@ -8,9 +8,21 @@ import type { PerformanceGateway } from '../types/index.ts';
 async function publicResponse(request: Promise<ApiResult<TaskRecord>>): Promise<HostResult<Job>> {
   const response = await request;
   const result: unknown = response.data.result ?? null;
-  if (!isJsonData(result)) throw new HostError('protocol', 'invalid_performance_job', '性能任务结果不是有限 JSON 数据', response.logId);
+  if (!isJsonData(result))
+    throw new HostError(
+      'protocol',
+      'invalid_performance_job',
+      '性能任务结果不是有限 JSON 数据',
+      response.logId,
+    );
   return {
-    data: { id: response.data.id, operation: response.data.operation, status: response.data.status, result, error: response.data.error ?? null },
+    data: {
+      id: response.data.id,
+      operation: response.data.operation,
+      status: response.data.status,
+      result,
+      error: response.data.error ?? null,
+    },
     logId: response.logId,
   };
 }

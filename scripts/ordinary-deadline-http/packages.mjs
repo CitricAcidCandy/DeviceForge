@@ -27,23 +27,37 @@ export async function installFixtures(host, items, directory, report) {
     const archive = await readFile(item.archivePath);
     const sha256 = createHash('sha256').update(archive).digest('hex');
     assert.equal(sha256, item.archiveSha256);
-    const identity = { plugin_id: item.pluginId, protocol_version: item.protocolVersion,
-      run_id: item.runId, archive: { path: item.archivePath, bytes: archive.length, sha256 },
-      control_root: item.controlRoot, operations: item.operations, short_timeout_ms: item.shortTimeoutMs };
+    const identity = {
+      plugin_id: item.pluginId,
+      protocol_version: item.protocolVersion,
+      run_id: item.runId,
+      archive: { path: item.archivePath, bytes: archive.length, sha256 },
+      control_root: item.controlRoot,
+      operations: item.operations,
+      short_timeout_ms: item.shortTimeoutMs,
+    };
     report.packages.push(identity);
     const installed = await host.client.json('/api/v2/plugin-packages/server?format=tgz', {
-      method: 'POST', status: 201, headers: { 'content-type': 'application/gzip' }, body: archive });
+      method: 'POST',
+      status: 201,
+      headers: { 'content-type': 'application/gzip' },
+      body: archive,
+    });
     assert.equal(installed.id, item.pluginId);
     identity.install_status = 201;
-    const loaded = item.protocolVersion === 2
-      ? await host.client.post(`/api/v2/plugins/${item.pluginId}/load`)
-      : await host.client.tool('deviceforge.load_plugin', { id: item.pluginId });
+    const loaded =
+      item.protocolVersion === 2
+        ? await host.client.post(`/api/v2/plugins/${item.pluginId}/load`)
+        : await host.client.tool('deviceforge.load_plugin', { id: item.pluginId });
     assert.equal(loaded.state, 'loaded');
     assert.equal(loaded.cleanup_failed, false);
     identity.load_transport = item.protocolVersion === 2 ? 'http' : 'mcp';
   }
   const deployments = await host.client.json('/api/v2/plugin-packages/server');
-  assert.deepEqual(deployments.map((item) => item.id).sort(), items.map((item) => item.pluginId).sort());
+  assert.deepEqual(
+    deployments.map((item) => item.id).sort(),
+    items.map((item) => item.pluginId).sort(),
+  );
   const http = await host.client.json('/api/v2/operations');
   const mcp = await host.client.tool('deviceforge.list_operations');
   assert.deepEqual(mcp, http, 'HTTP/MCP 必须公布相同操作和有效预算');
@@ -52,11 +66,18 @@ export async function installFixtures(host, items, directory, report) {
     for (const [kind, id] of Object.entries(item.operations)) {
       const found = http.filter((operation) => operation.id === id);
       assert.equal(found.length, 1);
-      const expected = { api_version: 1, total_timeout_ms: kind === 'long' ? 120000
-        : kind === 'short' ? 10000 : 60000, source: kind === 'default' ? 'default' : 'declared' };
+      const expected = {
+        api_version: 1,
+        total_timeout_ms: kind === 'long' ? 120000 : kind === 'short' ? 10000 : 60000,
+        source: kind === 'default' ? 'default' : 'declared',
+      };
       assert.deepEqual(found[0].execution, expected);
-      report.operation_budgets.push({ plugin_id: item.pluginId, protocol_version: item.protocolVersion,
-        operation: id, ...expected });
+      report.operation_budgets.push({
+        plugin_id: item.pluginId,
+        protocol_version: item.protocolVersion,
+        operation: id,
+        ...expected,
+      });
     }
   }
 }

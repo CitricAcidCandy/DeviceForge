@@ -15,24 +15,34 @@ export function entries(bytes) {
   const end = bytes.length - 22;
   assert.equal(bytes.readUInt32LE(end), 0x06054b50);
   assert.equal(bytes.readUInt16LE(end + 20), 0);
-  const count = bytes.readUInt16LE(end + 10), size = bytes.readUInt32LE(end + 12);
+  const count = bytes.readUInt16LE(end + 10),
+    size = bytes.readUInt32LE(end + 12);
   let cursor = bytes.readUInt32LE(end + 16);
-  const indexEnd = cursor + size, found = new Map();
+  const indexEnd = cursor + size,
+    found = new Map();
   assert.ok(count > 0 && count <= 16 && indexEnd === end);
   for (let ordinal = 0; ordinal < count; ordinal++) {
     assert.equal(bytes.readUInt32LE(cursor), 0x02014b50);
-    const method = bytes.readUInt16LE(cursor + 10), crc = bytes.readUInt32LE(cursor + 16);
-    const compressed = bytes.readUInt32LE(cursor + 20), length = bytes.readUInt32LE(cursor + 24);
-    const nameLength = bytes.readUInt16LE(cursor + 28), extra = bytes.readUInt16LE(cursor + 30), comment = bytes.readUInt16LE(cursor + 32);
+    const method = bytes.readUInt16LE(cursor + 10),
+      crc = bytes.readUInt32LE(cursor + 16);
+    const compressed = bytes.readUInt32LE(cursor + 20),
+      length = bytes.readUInt32LE(cursor + 24);
+    const nameLength = bytes.readUInt16LE(cursor + 28),
+      extra = bytes.readUInt16LE(cursor + 30),
+      comment = bytes.readUInt16LE(cursor + 32);
     const local = bytes.readUInt32LE(cursor + 42);
-    const name = new TextDecoder('utf-8', { fatal: true }).decode(bytes.subarray(cursor + 46, cursor + 46 + nameLength));
+    const name = new TextDecoder('utf-8', { fatal: true }).decode(
+      bytes.subarray(cursor + 46, cursor + 46 + nameLength),
+    );
     assert.ok(!found.has(name) && length <= 65536 && [0, 8].includes(method));
     assert.equal(bytes.readUInt32LE(local), 0x04034b50);
     assert.equal(bytes.readUInt16LE(local + 8), method);
     const offset = local + 30 + bytes.readUInt16LE(local + 26) + bytes.readUInt16LE(local + 28);
     assert.ok(offset + compressed <= bytes.readUInt32LE(end + 16));
-    const content = method === 0 ? bytes.subarray(offset, offset + compressed)
-      : inflateRawSync(bytes.subarray(offset, offset + compressed), { maxOutputLength: 65536 });
+    const content =
+      method === 0
+        ? bytes.subarray(offset, offset + compressed)
+        : inflateRawSync(bytes.subarray(offset, offset + compressed), { maxOutputLength: 65536 });
     assert.equal(content.length, length);
     assert.equal(crc32(content), crc);
     found.set(name, content);
@@ -52,16 +62,22 @@ export function readEntry(bytes, target, limit = 16384) {
   let cursor = bytes.readUInt32LE(end + 16);
   for (let ordinal = 0; ordinal < count; ordinal++) {
     assert.equal(bytes.readUInt32LE(cursor), 0x02014b50);
-    const nameLength = bytes.readUInt16LE(cursor + 28), extra = bytes.readUInt16LE(cursor + 30), comment = bytes.readUInt16LE(cursor + 32);
+    const nameLength = bytes.readUInt16LE(cursor + 28),
+      extra = bytes.readUInt16LE(cursor + 30),
+      comment = bytes.readUInt16LE(cursor + 32);
     const name = bytes.subarray(cursor + 46, cursor + 46 + nameLength).toString('utf8');
     if (name === target) {
-      const local = bytes.readUInt32LE(cursor + 42), method = bytes.readUInt16LE(cursor + 10);
-      const length = bytes.readUInt32LE(cursor + 24), compressed = bytes.readUInt32LE(cursor + 20);
+      const local = bytes.readUInt32LE(cursor + 42),
+        method = bytes.readUInt16LE(cursor + 10);
+      const length = bytes.readUInt32LE(cursor + 24),
+        compressed = bytes.readUInt32LE(cursor + 20);
       assert.ok(length <= limit && [0, 8].includes(method));
       assert.equal(bytes.readUInt32LE(local), 0x04034b50);
       const offset = local + 30 + bytes.readUInt16LE(local + 26) + bytes.readUInt16LE(local + 28);
-      const result = method === 0 ? bytes.subarray(offset, offset + compressed)
-        : inflateRawSync(bytes.subarray(offset, offset + compressed), { maxOutputLength: limit });
+      const result =
+        method === 0
+          ? bytes.subarray(offset, offset + compressed)
+          : inflateRawSync(bytes.subarray(offset, offset + compressed), { maxOutputLength: limit });
       assert.equal(result.length, length);
       assert.equal(crc32(result), bytes.readUInt32LE(cursor + 16));
       return result;

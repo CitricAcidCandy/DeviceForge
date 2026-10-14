@@ -19,11 +19,16 @@ export async function verifyProcess(item, entry) {
     assert.equal(exit.code, 0, '夹具自身退出事件必须为零，另行核对真实 PID 消失');
     assert.ok(BigInt(exit.monotonic_ns) >= BigInt(response.monotonic_ns));
   } else {
-    assert.equal(observed.filter((event) => event.event === 'response_written').length, 0,
-      '协议 2 hold 未 release 时不得返回成功响应');
-    entry.noncooperative_exit = { confirmed_direct_pid_gone: true,
+    assert.equal(
+      observed.filter((event) => event.event === 'response_written').length,
+      0,
+      '协议 2 hold 未 release 时不得返回成功响应',
+    );
+    entry.noncooperative_exit = {
+      confirmed_direct_pid_gone: true,
       fixture_exit_event_present: observed.some((event) => event.event === 'process_exit'),
-      cooperative_cleanup_proven: false };
+      cooperative_cleanup_proven: false,
+    };
   }
   const cancellations = observed.filter((event) => event.event === 'cancel_received');
   if (item.protocolVersion === 3) {
@@ -42,11 +47,18 @@ export async function verifyProcess(item, entry) {
       assert.ok(BigInt(cancel.monotonic_ns) <= BigInt(cleaned.monotonic_ns));
       entry.control_cancel_reason = cancel.reason;
       entry.fixture_cancel_to_exit_ms = elapsedMs(cancel.monotonic_ns, exit.monotonic_ns);
-      assert.ok(entry.fixture_cancel_to_exit_ms <= 1250, '夹具收到取消至零退出自报不得超过既有合作窗口');
+      assert.ok(
+        entry.fixture_cancel_to_exit_ms <= 1250,
+        '夹具收到取消至零退出自报不得超过既有合作窗口',
+      );
     }
-    entry.cleanup = { controlled_marker: 'cleaned', direct_pid_gone: true,
-      response_written: true, fixture_exit_event_code: 0,
-      scope: '本次夹具受控文件资源；匹配线上 cleanup=complete 由宿主解析及取消清理日志另证' };
+    entry.cleanup = {
+      controlled_marker: 'cleaned',
+      direct_pid_gone: true,
+      response_written: true,
+      fixture_exit_event_code: 0,
+      scope: '本次夹具受控文件资源；匹配线上 cleanup=complete 由宿主解析及取消清理日志另证',
+    };
   } else {
     assert.equal(cancellations.length, 0, '协议 2 不具有合作取消控制帧');
     entry.cleanup_scope = '只确认本次直接 PID 退出和正常输入 EOF，不证明合作清理或外部资源';
@@ -73,14 +85,22 @@ export async function collectKnownProcesses(items, report) {
     const item = items.find((item) => item.pluginId === entry.plugin_id);
     if (!item) continue;
     if (!entry.process) {
-      try { await ready(item, entry, 250); }
-      catch (error) { entry.ready_not_observed = { name: error.name, code: error.code }; continue; }
+      try {
+        await ready(item, entry, 250);
+      } catch (error) {
+        entry.ready_not_observed = { name: error.name, code: error.code };
+        continue;
+      }
     }
-    try { await processExited(item, entry); }
-    catch (error) {
+    try {
+      await processExited(item, entry);
+    } catch (error) {
       entry.pid_observation_error = { name: error.name, code: error.code };
-      try { entry.events = await events(item, entry); }
-      catch (eventError) { entry.event_observation_error = { name: eventError.name, code: eventError.code }; }
+      try {
+        entry.events = await events(item, entry);
+      } catch (eventError) {
+        entry.event_observation_error = { name: eventError.name, code: eventError.code };
+      }
     }
   }
 }

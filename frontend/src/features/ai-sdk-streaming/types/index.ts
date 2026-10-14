@@ -1,4 +1,10 @@
-import type { ApiError, SessionDefinitions, SessionInfo, SessionOutputPage, SessionOutputQuery } from '../../../services/api/index.ts';
+import type {
+  ApiError,
+  SessionDefinitions,
+  SessionInfo,
+  SessionOutputPage,
+  SessionOutputQuery,
+} from '../../../services/api/index.ts';
 
 export interface AiSdkStreamInput {
   readonly project_id: string;
@@ -6,7 +12,14 @@ export interface AiSdkStreamInput {
   readonly thread_id?: string;
 }
 export type AiSdkStreamOwner = Omit<AiSdkStreamInput, 'prompt'>;
-export type AiSdkItemKind = 'agent_message' | 'reasoning' | 'command_execution' | 'file_change' | 'mcp_tool_call' | 'web_search' | 'todo_list';
+export type AiSdkItemKind =
+  | 'agent_message'
+  | 'reasoning'
+  | 'command_execution'
+  | 'file_change'
+  | 'mcp_tool_call'
+  | 'web_search'
+  | 'todo_list';
 export interface AiSdkStreamItem {
   readonly id: string;
   readonly type: AiSdkItemKind;
@@ -17,7 +30,11 @@ export type AiSdkStreamEvent =
   | { readonly format_version: 1; readonly type: 'thread.started'; readonly thread_id: string }
   | { readonly format_version: 1; readonly type: 'turn.started' }
   | { readonly format_version: 1; readonly type: 'turn.completed' }
-  | { readonly format_version: 1; readonly type: 'item.started' | 'item.updated' | 'item.completed'; readonly item: AiSdkStreamItem };
+  | {
+      readonly format_version: 1;
+      readonly type: 'item.started' | 'item.updated' | 'item.completed';
+      readonly item: AiSdkStreamItem;
+    };
 export interface AiSdkObservedEvent {
   readonly firstSequence: number;
   readonly sequence: number;
@@ -28,7 +45,9 @@ export interface AiSdkObservedItem {
   readonly completed: boolean;
   readonly item: AiSdkStreamItem;
 }
-export type AiSdkStreamChunk = Readonly<Omit<SessionOutputPage['chunks'][number], 'bytes'> & { readonly bytes: readonly number[] }>;
+export type AiSdkStreamChunk = Readonly<
+  Omit<SessionOutputPage['chunks'][number], 'bytes'> & { readonly bytes: readonly number[] }
+>;
 export interface AiSdkStreamView {
   readonly cursor: number;
   readonly chunks: readonly AiSdkStreamChunk[];
@@ -48,8 +67,19 @@ export interface AiSdkStreamResult {
   readonly turns: string;
   readonly resource_scope: 'sdk_worker_proxy_and_cli';
 }
-export type AiSdkStreamAction = 'definitions' | 'records' | 'open' | 'resume' | 'query' | 'output' | 'cancel';
-export type AiSdkDefinitionsView = Readonly<Omit<SessionDefinitions, 'sessions'> & { readonly sessions: readonly Readonly<SessionDefinitions['sessions'][number]>[] }>;
+export type AiSdkStreamAction =
+  | 'definitions'
+  | 'records'
+  | 'open'
+  | 'resume'
+  | 'query'
+  | 'output'
+  | 'cancel';
+export type AiSdkDefinitionsView = Readonly<
+  Omit<SessionDefinitions, 'sessions'> & {
+    readonly sessions: readonly Readonly<SessionDefinitions['sessions'][number]>[];
+  }
+>;
 export interface AiSdkStreamingSnapshot {
   readonly definitions: AiSdkDefinitionsView | null;
   readonly records: readonly Readonly<SessionInfo>[];
@@ -62,5 +92,7 @@ export interface AiSdkStreamingSnapshot {
   readonly logs: Readonly<Partial<Record<AiSdkStreamAction, string | null>>>;
   readonly errors: Readonly<Partial<Record<AiSdkStreamAction, ApiError>>>;
 }
-export interface AiSdkStreamingOptions { readonly pollIntervalMs?: number }
+export interface AiSdkStreamingOptions {
+  readonly pollIntervalMs?: number;
+}
 export type AiSdkStreamReadOptions = Pick<SessionOutputQuery, 'limit'>;

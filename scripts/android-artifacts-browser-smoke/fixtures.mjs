@@ -6,14 +6,35 @@ import { npmTgz } from '../../backend/scripts/online-plugins/fixtures.mjs';
 export const pluginId = 'android-device';
 export const apkCase = 'artifact-browser-safe';
 export const devices = ['input-ok', 'input-error', 'ok', 'stderr-failure'];
-export const capabilityNames = ['app.install', 'screenshot', 'connect', 'disconnect', 'packages', 'app.start', 'app.stop', 'app.uninstall', 'input'];
+export const capabilityNames = [
+  'app.install',
+  'screenshot',
+  'connect',
+  'disconnect',
+  'packages',
+  'app.start',
+  'app.stop',
+  'app.uninstall',
+  'input',
+];
 export const operation = (name) => `plugin.${pluginId}.${name}`;
 export const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex');
 
 export async function createFixtures() {
   const apk = apkSample(apkCase);
-  const pixel = await readFile(new URL('../../backend/crates/infrastructure/src/device_artifacts/fixtures/pixel.png', import.meta.url));
-  return { apk, pixel, browser: browserPackage(), apkSha256: sha256(apk), pixelSha256: sha256(pixel) };
+  const pixel = await readFile(
+    new URL(
+      '../../backend/crates/infrastructure/src/device_artifacts/fixtures/pixel.png',
+      import.meta.url,
+    ),
+  );
+  return {
+    apk,
+    pixel,
+    browser: browserPackage(),
+    apkSha256: sha256(apk),
+    pixelSha256: sha256(pixel),
+  };
 }
 
 export function browserPluginSource() {
@@ -35,8 +56,29 @@ export default { id, version: '1.0.0', apiVersion: 2, panels: [panel('left'), pa
 
 export function browserPackage() {
   const files = [
-    { path: 'package.json', bytes: JSON.stringify({ name: 'deviceforge-android-artifacts-browser-probe', version: '1.0.0', type: 'module', deviceforge: { kind: 'browser', manifest: 'plugin.json', entrypoints: { any: { runtime: 'browser', path: 'dist/index.js' } } } }) + '\n' },
-    { path: 'plugin.json', bytes: JSON.stringify({ id: 'android_artifacts_browser_probe', version: '1.0.0', api_version: 2 }) + '\n' },
+    {
+      path: 'package.json',
+      bytes:
+        JSON.stringify({
+          name: 'deviceforge-android-artifacts-browser-probe',
+          version: '1.0.0',
+          type: 'module',
+          deviceforge: {
+            kind: 'browser',
+            manifest: 'plugin.json',
+            entrypoints: { any: { runtime: 'browser', path: 'dist/index.js' } },
+          },
+        }) + '\n',
+    },
+    {
+      path: 'plugin.json',
+      bytes:
+        JSON.stringify({
+          id: 'android_artifacts_browser_probe',
+          version: '1.0.0',
+          api_version: 2,
+        }) + '\n',
+    },
     { path: 'dist/index.js', bytes: browserPluginSource() },
   ];
   return { files, archive: npmTgz(files), id: 'android_artifacts_browser_probe', kind: 'browser' };

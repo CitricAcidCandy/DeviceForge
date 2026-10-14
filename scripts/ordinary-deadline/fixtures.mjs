@@ -26,8 +26,9 @@ export async function createFixtures(directory, report) {
     const pluginId = `ordinary_deadline_v${protocolVersion}_${suffix}`;
     const controlRoot = join(fixtureRoot, `${pluginId}-control`);
     await mkdir(controlRoot);
-    const operations = Object.fromEntries(['long', 'short', 'default']
-      .map((name) => [name, `plugin.${pluginId}.${name}`]));
+    const operations = Object.fromEntries(
+      ['long', 'short', 'default'].map((name) => [name, `plugin.${pluginId}.${name}`]),
+    );
     const manifest = {
       id: pluginId,
       version: '1.0.0',
@@ -37,9 +38,11 @@ export async function createFixtures(directory, report) {
         name,
         title: `普通期限夹具 ${name}`,
         input_schema: inputSchema,
-        ...(name === 'default' ? {} : {
-          execution: { api_version: 1, total_timeout_ms: name === 'long' ? 120000 : 10000 },
-        }),
+        ...(name === 'default'
+          ? {}
+          : {
+              execution: { api_version: 1, total_timeout_ms: name === 'long' ? 120000 : 10000 },
+            }),
       })),
     };
     const descriptor = {
@@ -63,9 +66,14 @@ export async function createFixtures(directory, report) {
     const archivePath = join(fixtureRoot, `${pluginId}.tgz`);
     await writeFile(archivePath, bytes, { flag: 'wx' });
     fixtures.push({
-      pluginId, protocolVersion, archivePath,
+      pluginId,
+      protocolVersion,
+      archivePath,
       archiveSha256: createHash('sha256').update(bytes).digest('hex'),
-      controlRoot, operations, shortTimeoutMs: 10000, runId,
+      controlRoot,
+      operations,
+      shortTimeoutMs: 10000,
+      runId,
     });
   }
 

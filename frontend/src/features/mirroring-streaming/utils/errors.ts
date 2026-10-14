@@ -1,3 +1,5 @@
 import { ApiError } from '../../../services/api/index.ts';
 
-export function invalidStream(message: string, logId: string | null = null): ApiError { return new ApiError('protocol', 'invalid_mirroring_stream', message, null, logId); }
+export function invalidStream(message: string, logId: string | null = null): ApiError {
+  return new ApiError('protocol', 'invalid_mirroring_stream', message, null, logId);
+}

@@ -29,16 +29,15 @@ node scripts/android-artifacts-browser-smoke.mjs --release --tool-binary G:/Rust
 
 ## 文件职责
 
-| 文件 | 职责 |
-| --- | --- |
-| 根入口 | 参数、输入摘要、独立Rust/Edge、资源终态与报告 |
-| `deployment.mjs` | 源声明校验、实际native副本、CLI物化、工具旁置配置 |
-| `fixtures.mjs` | 固定APK/PNG及小型浏览器TGZ生成 |
-| `bridge.mjs` | 生产资源只读路由、原字节HTTP/MCP转发及日志证据 |
-| `harness.mjs` | 生产runtime装配、面板目标、逐步报告与释放 |
-| `evidence.mjs` | 浏览器断言、真实HTTP/MCP日志、SHA256和有限Job观测 |
-| `scenarios.mjs` | 安装/截图、上传下载、真实错误与双端历史 |
-| `lifecycle-scenarios.mjs` | 预取消、挂载/插件/runtime撤销与提供者新代隔离 |
+| 文件                      | 职责                                              |
+| ------------------------- | ------------------------------------------------- |
+| 根入口                    | 参数、输入摘要、独立Rust/Edge、资源终态与报告     |
+| `deployment.mjs`          | 源声明校验、实际native副本、CLI物化、工具旁置配置 |
+| `fixtures.mjs`            | 固定APK/PNG及小型浏览器TGZ生成                    |
+| `bridge.mjs`              | 生产资源只读路由、原字节HTTP/MCP转发及日志证据    |
+| `harness.mjs`             | 生产runtime装配、面板目标、逐步报告与释放         |
+| `evidence.mjs`            | 浏览器断言、真实HTTP/MCP日志、SHA256和有限Job观测 |
+| `scenarios.mjs`           | 安装/截图、上传下载、真实错误与双端历史           |
+| `lifecycle-scenarios.mjs` | 预取消、挂载/插件/runtime撤销与提供者新代隔离     |
 
 取消目前验证预取消、已经撤销引用和消费资格；工具没有可靠在途门闩，不用固定 sleep 推断安装正在运行。真实在途工具取消和宿主资源排空由独立后端服务/协议测试另证。
-

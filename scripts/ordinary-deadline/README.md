@@ -12,7 +12,7 @@
   shortTimeoutMs: 10000, runId }
 ```
 
-`operations` 是三个完整公开操作 ID。包声明 long=120000、short=10000 毫秒；default 省略 execution。控制根以管理员生成的绝对路径嵌入可信包配置，不从公开业务参数取路径。业务 input 只能是 `{case_id}`，case_id 符合 ASCII `^[A-Za-z0-9_-]{1,80}$`。
+`operations` 是三个完整公开操作 ID。包声明 long=120000、short=10000 毫秒；default 省略 execution。控制根以管理员生成的绝对路径嵌入可信包配置，不从公开业务参数取路径。业务 input 只能是 `{case_id}`，case*id 符合 ASCII `^[A-Za-z0-9*-]{1,80}$`。
 
 `directory` 是验收方本次独占临时根；构造器在其下新建唯一子目录，为两协议各建控制根并保存实际 TGZ。每次调用生成一个共享 runId，两包 pluginId 不同；`archiveSha256` 是写入归档的实际压缩字节 SHA256 小写十六进制。复用 `../device-provider/fixtures.mjs` 的 `archive`，不复制 TAR 构造器。`report` 形参为接线保留，构造器不改共享报告；验收方将返回摘要并入自己的证据。
 

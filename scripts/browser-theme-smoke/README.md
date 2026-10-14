@@ -25,4 +25,4 @@ node scripts/browser-theme-smoke.mjs '--frozen-input=G:\Rust\DeviceForge\artifac
 
 真实业务通过依据为终态报告的 `browser.checks` 原八项、正常退出以及输入身份复核。顶层 `checks`、参数检查、语法检查、最小连接探针和正常宿主退出均不能替代八项结果。
 
-2026-10-14 最后一个探针在相同浏览器、相同进程内 GPU 参数和恢复原 30 秒期限后，仍在 `Runtime.enable` 超时，最小 `1+1` 和主题八项未执行。原浏览器与 Node 进程均已退出，调试端口释放；诊断与最新缺口见 [主题文档](../../frontend/docs/主题插件与宿主样式.md) 和 [原始终态](../../artifacts/browser-theme-connection-probe-9f43fb0e-4ef4-4da9-a21b-61e0ee8e5992/report-restored-30s.json)。后续需在能执行页面 Runtime 的正常环境使用同一冻结输入验收，不自动循环浏览器或参数。
+2026-10-14 最后一个探针在相同浏览器、相同进程内 GPU 参数和恢复原 30 秒期限后，仍在 `Runtime.enable` 超时，最小 `1+1` 和主题八项未执行。原浏览器与 Node 进程均已退出，调试端口释放；诊断与最新缺口见 [主题文档](../../frontend/docs/guides/主题插件与宿主样式.md) 和 [原始终态](../../artifacts/browser-theme-connection-probe-9f43fb0e-4ef4-4da9-a21b-61e0ee8e5992/report-restored-30s.json)。后续需在能执行页面 Runtime 的正常环境使用同一冻结输入验收，不自动循环浏览器或参数。

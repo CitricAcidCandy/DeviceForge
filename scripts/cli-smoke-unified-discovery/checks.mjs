@@ -4,12 +4,18 @@ import { cleaned, control, events, rawCases } from '../unified-discovery/fixture
 
 export async function jobs(client) {
   const result = await client.json('/api/v2/jobs?limit=200');
-  assert.ok(Array.isArray(result) && result.length < 200, '不能用截断任务列表证明一次调用只创建一个Job');
+  assert.ok(
+    Array.isArray(result) && result.length < 200,
+    '不能用截断任务列表证明一次调用只创建一个Job',
+  );
   return result;
 }
 
-export const keys = (records) => records.filter((record) => record.kind === 'started')
-  .map((record) => `${record.request_id}/${record.pid}`).sort();
+export const keys = (records) =>
+  records
+    .filter((record) => record.kind === 'started')
+    .map((record) => `${record.request_id}/${record.pid}`)
+    .sort();
 
 export function singleJob(before, after, operation, id) {
   const previous = new Set(before.map((job) => job.id));
@@ -30,17 +36,28 @@ export async function history(client, id) {
 }
 
 export async function callEntry(client, item, entry, transport) {
-  if (entry === 'refresh') return transport === 'http' ? client.refresh(item.provider)
-    : client.tool('deviceforge.refresh_devices', { id: item.id, generation: item.provider.generation });
+  if (entry === 'refresh')
+    return transport === 'http'
+      ? client.refresh(item.provider)
+      : client.tool('deviceforge.refresh_devices', {
+          id: item.id,
+          generation: item.provider.generation,
+        });
   const operation = entry === 'alias' ? item.alias : item.discoverOperation;
-  return transport === 'http' ? client.post('/api/v2/jobs', { operation, input: {} }, { status: 202 })
+  return transport === 'http'
+    ? client.post('/api/v2/jobs', { operation, input: {} }, { status: 202 })
     : client.tool(operation, {});
 }
 
 export async function currentDirectory(client, item, id) {
-  const all = await poll(() => client.json('/api/v2/devices'),
-    (directories) => directories.some((directory) => directory.provider.id === item.id && directory.discovery_job_id === id),
-    `npx ${item.id} 本Job目录接受`);
+  const all = await poll(
+    () => client.json('/api/v2/devices'),
+    (directories) =>
+      directories.some(
+        (directory) => directory.provider.id === item.id && directory.discovery_job_id === id,
+      ),
+    `npx ${item.id} 本Job目录接受`,
+  );
   assert.deepEqual(await client.tool('deviceforge.list_devices'), all);
   return all.find((directory) => directory.provider.id === item.id);
 }
@@ -76,31 +93,54 @@ function assertObservation(item, directory, job, entry, rawState) {
   assert.ok(Number.isSafeInteger(directory.observed_at) && directory.observed_at > 0);
   assert.equal(directory.devices.length, 1);
   const device = directory.devices[0];
-  assert.deepEqual(device.reference, { provider_id: item.id, generation: item.provider.generation, local_id: item.localId });
+  assert.deepEqual(device.reference, {
+    provider_id: item.id,
+    generation: item.provider.generation,
+    local_id: item.localId,
+  });
   assert.equal(device.state, 'unknown', '原文不能猜测或替换归一化状态');
   assert.equal(device.raw_state, rawState);
   assert.deepEqual(Buffer.from(device.raw_state, 'utf8'), Buffer.from(rawState, 'utf8'));
   assert.equal(device.model, null);
-  const availability = [{ id: 'device_read', version: 1, available: true }, { id: 'device_write', version: 1, available: true }];
-  assert.deepEqual(device.capabilities, availability.map((capability) => ({ ...capability, reason: null })));
+  const availability = [
+    { id: 'device_read', version: 1, available: true },
+    { id: 'device_write', version: 1, available: true },
+  ];
+  assert.deepEqual(
+    device.capabilities,
+    availability.map((capability) => ({ ...capability, reason: null })),
+  );
   if (entry === 'alias') {
-    assert.deepEqual(job.result, [{ id: item.localId, platform: item.platform, state: rawState, model: null }]);
+    assert.deepEqual(job.result, [
+      { id: item.localId, platform: item.platform, state: rawState, model: null },
+    ]);
     assert.deepEqual(Object.keys(job.result[0]).sort(), ['id', 'model', 'platform', 'state']);
   } else {
     assert.deepEqual(Object.keys(job.result).sort(), ['artifacts', 'result']);
     assert.deepEqual(job.result.artifacts, []);
-    assert.deepEqual(job.result.result, [{ id: item.localId, state: 'unknown', raw_state: rawState, capabilities: availability }]);
+    assert.deepEqual(job.result.result, [
+      { id: item.localId, state: 'unknown', raw_state: rawState, capabilities: availability },
+    ]);
   }
 }
 
-export async function oneDiscovery(context, item, { entry, transport, label, rawCase = 'valid', rawState }) {
+export async function oneDiscovery(
+  context,
+  item,
+  { entry, transport, label, rawCase = 'valid', rawState },
+) {
   const { client, evidence, histories } = context;
   const before = await jobs(client);
   const beforeKeys = keys(await events(item));
   const previousLogs = new Set(client.logIds);
   const expectedRaw = rawState === undefined ? rawCases[rawCase] : rawState;
   assert.equal(typeof expectedRaw, 'string', '成功旧profile需要真实合法原文');
-  await control(item, { label, rawCase, ...(rawState !== undefined ? { rawState } : {}), state: 'unknown' });
+  await control(item, {
+    label,
+    rawCase,
+    ...(rawState !== undefined ? { rawState } : {}),
+    state: 'unknown',
+  });
   const returned = await callEntry(client, item, entry, transport);
   const id = entry === 'refresh' ? returned.discovery_job_id : returned.id;
   const job = await client.finished(id);
@@ -114,12 +154,28 @@ export async function oneDiscovery(context, item, { entry, transport, label, raw
   const added = afterKeys.filter((key) => !beforeKeys.includes(key));
   assert.deepEqual(added, [`${process.request_id}/${process.pid}`], '一个Job必须只有一次真实执行');
   const retained = await history(client, id);
-  assert.deepEqual(retained.events.map((event) => event.status), ['queued', 'running', 'succeeded']);
+  assert.deepEqual(
+    retained.events.map((event) => event.status),
+    ['queued', 'running', 'succeeded'],
+  );
   histories.set(id, retained);
-  evidence.entries.push({ providerId: item.id, generation: item.provider.generation, protocol: item.protocol,
-    entry, transport, operation, label, jobId: id, requestId: process.request_id, pid: process.pid,
-    rawState: expectedRaw, jobCountDelta: 1, executionCountDelta: 1,
-    process, logIds: [...client.logIds].filter((logId) => !previousLogs.has(logId)) });
+  evidence.entries.push({
+    providerId: item.id,
+    generation: item.provider.generation,
+    protocol: item.protocol,
+    entry,
+    transport,
+    operation,
+    label,
+    jobId: id,
+    requestId: process.request_id,
+    pid: process.pid,
+    rawState: expectedRaw,
+    jobCountDelta: 1,
+    executionCountDelta: 1,
+    process,
+    logIds: [...client.logIds].filter((logId) => !previousLogs.has(logId)),
+  });
   return { job, directory };
 }
 
@@ -131,8 +187,14 @@ export async function invalidRaw(context, item) {
   const beforeKeys = keys(await events(item));
   await control(item, { label, rawCase: 'utf8-101', state: 'unknown' });
   const transport = item.protocol === 2 ? 'http' : 'mcp';
-  if (transport === 'http') await client.refresh(item.provider, { status: 502, code: 'dependency_failed' });
-  else await client.tool('deviceforge.refresh_devices', { id: item.id, generation: item.provider.generation }, 'dependency_failed');
+  if (transport === 'http')
+    await client.refresh(item.provider, { status: 502, code: 'dependency_failed' });
+  else
+    await client.tool(
+      'deviceforge.refresh_devices',
+      { id: item.id, generation: item.provider.generation },
+      'dependency_failed',
+    );
   const submitted = singleJob(before, await jobs(client), item.discoverOperation);
   await client.finished(submitted.id, 'failed');
   const process = await cleaned(item, label);
@@ -140,8 +202,20 @@ export async function invalidRaw(context, item) {
   assert.deepEqual(added, [`${process.request_id}/${process.pid}`]);
   await noDirectory(client, item);
   histories.set(submitted.id, await history(client, submitted.id));
-  evidence.entries.push({ providerId: item.id, protocol: item.protocol, generation: item.provider.generation,
-    entry: 'refresh-invalid-raw', transport, label, operation: item.discoverOperation,
-    jobId: submitted.id, requestId: process.request_id, pid: process.pid,
-    status: 'failed', jobCountDelta: 1, executionCountDelta: 1, process });
+  evidence.entries.push({
+    providerId: item.id,
+    protocol: item.protocol,
+    generation: item.provider.generation,
+    entry: 'refresh-invalid-raw',
+    transport,
+    label,
+    operation: item.discoverOperation,
+    jobId: submitted.id,
+    requestId: process.request_id,
+    pid: process.pid,
+    status: 'failed',
+    jobCountDelta: 1,
+    executionCountDelta: 1,
+    process,
+  });
 }

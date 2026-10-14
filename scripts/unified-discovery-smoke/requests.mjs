@@ -13,15 +13,24 @@ export function entryOperation(provider, entry, alias) {
 }
 
 // refresh身份属于传输层，其余两入口才有业务input；全部成功发现只发送{}。
-export async function callEntry(client, provider, { entry, transport, alias, input = {}, status, code }) {
+export async function callEntry(
+  client,
+  provider,
+  { entry, transport, alias, input = {}, status, code },
+) {
   assert.ok(entries.includes(entry) && transports.includes(transport));
   if (entry === 'refresh') {
     assert.deepEqual(input, {}, '成功refresh不把管理员控制参数塞进业务输入');
     if (transport === 'http') return client.refresh(provider, { status: status ?? 200, code });
-    return client.tool('deviceforge.refresh_devices', { id: provider.id, generation: provider.generation }, code);
+    return client.tool(
+      'deviceforge.refresh_devices',
+      { id: provider.id, generation: provider.generation },
+      code,
+    );
   }
   const operation = entryOperation(provider, entry, alias);
-  if (transport === 'http') return client.post('/api/v2/jobs', { operation, input }, { status: status ?? 202, code });
+  if (transport === 'http')
+    return client.post('/api/v2/jobs', { operation, input }, { status: status ?? 202, code });
   return client.tool(operation, input, code);
 }
 
@@ -30,15 +39,31 @@ export async function rejectInput(client, provider, { entry, transport, alias, i
   if (entry === 'refresh') {
     // 额外字段放在刷新身份对象外层，验证薄边界拒绝，不伪造内部业务参数通道。
     const objectInput = input !== null && typeof input === 'object' && !Array.isArray(input);
-    const body = objectInput ? { generation: provider.generation,
-      ...(Object.hasOwn(input, 'generation') ? { input } : input) } : input;
-    if (transport === 'http') return client.post(`/api/v2/device-providers/${provider.id}/refresh`, body,
-      { status: 400, code: 'invalid_input' });
-    const arguments_ = body !== null && typeof body === 'object' && !Array.isArray(body)
-      ? { ...body, id: provider.id } : body;
+    const body = objectInput
+      ? {
+          generation: provider.generation,
+          ...(Object.hasOwn(input, 'generation') ? { input } : input),
+        }
+      : input;
+    if (transport === 'http')
+      return client.post(`/api/v2/device-providers/${provider.id}/refresh`, body, {
+        status: 400,
+        code: 'invalid_input',
+      });
+    const arguments_ =
+      body !== null && typeof body === 'object' && !Array.isArray(body)
+        ? { ...body, id: provider.id }
+        : body;
     return client.tool('deviceforge.refresh_devices', arguments_, 'invalid_input');
   }
-  return callEntry(client, provider, { entry, transport, alias, input, status: 400, code: 'invalid_input' });
+  return callEntry(client, provider, {
+    entry,
+    transport,
+    alias,
+    input,
+    status: 400,
+    code: 'invalid_input',
+  });
 }
 
 export async function jobList(client) {
@@ -68,6 +93,7 @@ export const badInputs = [
   { name: '伪设备参数', input: { device_id: 'forged-device' } },
   { name: '伪代际参数', input: { generation: 'forged-generation' } },
   { name: '伪产物参数', input: { artifact_id: 'forged-artifact' } },
-  { name: 'null', input: null }, { name: '数组', input: [] },
+  { name: 'null', input: null },
+  { name: '数组', input: [] },
   { name: '字符串', input: 'not-an-object' },
 ];

@@ -62,9 +62,17 @@ export interface DeviceSnapshot {
   readonly selected: ProvidedDevice | null;
 }
 export interface DeviceAccess {
-  readonly refreshProviders: (signal: AbortSignal) => Promise<HostResult<readonly DeviceProviderInfo[]>>;
-  readonly refreshDirectories: (signal: AbortSignal) => Promise<HostResult<readonly DeviceDirectory[]>>;
-  readonly refreshProvider: (id: string, generation: string, signal: AbortSignal) => Promise<HostResult<DeviceDirectory>>;
+  readonly refreshProviders: (
+    signal: AbortSignal,
+  ) => Promise<HostResult<readonly DeviceProviderInfo[]>>;
+  readonly refreshDirectories: (
+    signal: AbortSignal,
+  ) => Promise<HostResult<readonly DeviceDirectory[]>>;
+  readonly refreshProvider: (
+    id: string,
+    generation: string,
+    signal: AbortSignal,
+  ) => Promise<HostResult<DeviceDirectory>>;
   readonly select: (reference: DeviceRef | null) => void;
   readonly snapshot: () => DeviceSnapshot;
   readonly subscribe: (listener: (snapshot: DeviceSnapshot) => void) => Dispose;

@@ -1,7 +1,8 @@
 import { createFrontendRuntime } from './runtime.ts';
 import type { RuntimeOptions } from './runtime.ts';
 
-export interface FrontendBootstrapOptions extends Omit<RuntimeOptions, 'panelTarget' | 'componentTarget' | 'moduleTarget' | 'themeTarget'> {
+export interface FrontendBootstrapOptions
+  extends Omit<RuntimeOptions, 'panelTarget' | 'componentTarget' | 'moduleTarget' | 'themeTarget'> {
   readonly target: HTMLElement;
   readonly panelTarget?: RuntimeOptions['panelTarget'];
   readonly componentTarget?: RuntimeOptions['componentTarget'];

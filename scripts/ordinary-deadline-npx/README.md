@@ -12,15 +12,15 @@ node scripts/ordinary-deadline-npx-smoke.mjs --archive artifacts/正式CLI原包
 
 ## 职责与冻结接口复用
 
-| 文件 | 职责 |
-| --- | --- |
-| 根 ordinary-deadline-npx-smoke.mjs | 原归档参数、独占目录、真实 npx 编排、首次失败 checkpoint 与 finally 收尾 |
-| host.mjs | 独立 argv 启动 npx、安装/列举命令、默认 LAN/无 token、独立 HTTP/MCP 端口与关闭 |
-| identity.mjs | 原 TGZ 保留、缓存全成员、shim 实际调用目标、loadRuntime 资源/served 字节及结束后身份 |
-| packages.mjs | CLI plugin install 原夹具 TGZ、显式 HTTP/MCP load、操作预算目录 |
-| history.mjs | 本批开始前基线与新增八 Job 子集；已有 Job 不被本批改写 |
-| cases.mjs | 八 Job 场景适配，两个长分支并行且都收束后再收尾 |
-| evidence.mjs | npx 专属范围、失败快照、保留证据与独立报告/最新索引 |
+| 文件                               | 职责                                                                                 |
+| ---------------------------------- | ------------------------------------------------------------------------------------ |
+| 根 ordinary-deadline-npx-smoke.mjs | 原归档参数、独占目录、真实 npx 编排、首次失败 checkpoint 与 finally 收尾             |
+| host.mjs                           | 独立 argv 启动 npx、安装/列举命令、默认 LAN/无 token、独立 HTTP/MCP 端口与关闭       |
+| identity.mjs                       | 原 TGZ 保留、缓存全成员、shim 实际调用目标、loadRuntime 资源/served 字节及结束后身份 |
+| packages.mjs                       | CLI plugin install 原夹具 TGZ、显式 HTTP/MCP load、操作预算目录                      |
+| history.mjs                        | 本批开始前基线与新增八 Job 子集；已有 Job 不被本批改写                               |
+| cases.mjs                          | 八 Job 场景适配，两个长分支并行且都收束后再收尾                                      |
+| evidence.mjs                       | npx 专属范围、失败快照、保留证据与独立报告/最新索引                                  |
 
 只读复用已冻结 `ordinary-deadline-http` 的 `clientFor(base,report,{mcp})`、`sharedJob/jobEvents`、`submit/terminal/cancel`、`ready/release/processVisible`、`verifyProcess/collectKnownProcesses`、`verifyLogs/verifyPackageBytes` 和证据函数。只读复用 Galileo `ordinary-deadline/fixtures.mjs#createFixtures`；不复制 TAR 构造器，不修改冻结十一文件或夹具。
 
@@ -28,15 +28,15 @@ node scripts/ordinary-deadline-npx-smoke.mjs --archive artifacts/正式CLI原包
 
 ## 八 Job 与期限证据
 
-| 场景 | 提交/取消入口 | 必须核对 |
-| --- | --- | --- |
-| L2 | HTTP | 协议2声明120000；ready后实际保持至少61000ms；超过60000ms同Job仍Running、夹具PID存在，release后Succeeded |
-| L3 | MCP | 协议3声明120000；与L2并行，但各自用本侧驱动/夹具单调时间独立核对 |
-| S2-D | HTTP | short=10000，无release；Failed且error精确“执行超时”；实际PID退出，不伪造合作标记 |
-| S3-D | MCP | 同短D，线上匹配cancel reason严格timeout，command/control_request_id/id_matches精确核对 |
-| S2-C | MCP提交、HTTP取消 | ready后且短D内主动取消；Cancelled/error=null/result=null，协议2仅证明EOF/直接PID退出 |
-| S3-C | HTTP提交、MCP取消 | 同主动取消；匹配reason严格cancelled，cleaned/响应/EOF/零退出自报与实际PID消失分别核对 |
-| M2/M3 | 分别HTTP/MCP | default省略声明；目录60000/source=default，有限即时响应成功 |
+| 场景  | 提交/取消入口     | 必须核对                                                                                                |
+| ----- | ----------------- | ------------------------------------------------------------------------------------------------------- |
+| L2    | HTTP              | 协议2声明120000；ready后实际保持至少61000ms；超过60000ms同Job仍Running、夹具PID存在，release后Succeeded |
+| L3    | MCP               | 协议3声明120000；与L2并行，但各自用本侧驱动/夹具单调时间独立核对                                        |
+| S2-D  | HTTP              | short=10000，无release；Failed且error精确“执行超时”；实际PID退出，不伪造合作标记                        |
+| S3-D  | MCP               | 同短D，线上匹配cancel reason严格timeout，command/control_request_id/id_matches精确核对                  |
+| S2-C  | MCP提交、HTTP取消 | ready后且短D内主动取消；Cancelled/error=null/result=null，协议2仅证明EOF/直接PID退出                    |
+| S3-C  | HTTP提交、MCP取消 | 同主动取消；匹配reason严格cancelled，cleaned/响应/EOF/零退出自报与实际PID消失分别核对                   |
+| M2/M3 | 分别HTTP/MCP      | default省略声明；目录60000/source=default，有限即时响应成功                                             |
 
 L2/L3 各自产物结果保持真实 SDK 测量摘要，宿主 PublishedArtifacts 包装按冻结端口解包。各实际 request_id、case_id、plugin_id、Job/PID映射一致；每个 case 只有一项 ready，八个不同 request_id。超过60秒的采样同时核对 npx 包装进程句柄未退出；最终日志要求恰一次宿主启动/成功结束，不把该采样宣称为直接 Rust PID 未重启证明。
 

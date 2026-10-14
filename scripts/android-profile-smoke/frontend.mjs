@@ -5,21 +5,33 @@ import { pathToFileURL } from 'node:url';
 import { fileIdentity } from '../unified-discovery-smoke/evidence.mjs';
 
 export async function freezeFrontend(root, destination, report) {
-  const sourceRoot = join(root, 'frontend'), visited = new Set(), identities = [];
+  const sourceRoot = join(root, 'frontend'),
+    visited = new Set(),
+    identities = [];
   async function visit(path) {
-    path = resolve(path); if (visited.has(path)) return; visited.add(path);
+    path = resolve(path);
+    if (visited.has(path)) return;
+    visited.add(path);
     assert.ok(visited.size <= 512, 'PROFILE-FRONTEND-MODULE-BOUND');
-    const name = relative(sourceRoot, path); assert.ok(!name.startsWith('..'), 'PROFILE-FRONTEND-PATH-BOUND');
-    const before = await fileIdentity(path), source = await readFile(path, 'utf8'), target = join(destination, name);
-    await mkdir(dirname(target), { recursive: true }); await copyFile(path, target);
-    const actual = await fileIdentity(target); assert.equal(actual.sha256, before.sha256); assert.equal(actual.bytes, before.bytes);
-    assert.deepEqual(await fileIdentity(path), before, 'PROFILE-FRONTEND-SOURCE-DURING-FREEZE'); identities.push({ source: before, actual });
+    const name = relative(sourceRoot, path);
+    assert.ok(!name.startsWith('..'), 'PROFILE-FRONTEND-PATH-BOUND');
+    const before = await fileIdentity(path),
+      source = await readFile(path, 'utf8'),
+      target = join(destination, name);
+    await mkdir(dirname(target), { recursive: true });
+    await copyFile(path, target);
+    const actual = await fileIdentity(target);
+    assert.equal(actual.sha256, before.sha256);
+    assert.equal(actual.bytes, before.bytes);
+    assert.deepEqual(await fileIdentity(path), before, 'PROFILE-FRONTEND-SOURCE-DURING-FREEZE');
+    identities.push({ source: before, actual });
     for (const match of source.matchAll(/(?:from\s*|import\s*)['"]([^'"]+)['"]/g)) {
       if (match[1].startsWith('.')) await visit(resolve(dirname(path), match[1]));
     }
   }
   await visit(join(sourceRoot, 'src/features/android-profile/index.ts'));
-  report.frontend_snapshots = identities; return destination;
+  report.frontend_snapshots = identities;
+  return destination;
 }
 export async function actualFrontend(destination) {
   return import(pathToFileURL(join(destination, 'src/features/android-profile/index.ts')).href);

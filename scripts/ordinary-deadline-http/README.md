@@ -13,32 +13,32 @@ node scripts/ordinary-deadline-smoke.mjs --release
 
 ## 文件职责与复用
 
-| 文件 | 职责与公开复用点 |
-| --- | --- |
-| 根 ordinary-deadline-smoke.mjs | 单宿主、空目录、阶段编排、finally 收尾与报告；仅接受可选 --release |
-| client.mjs | 复用 device-provider 的 createClient；clientFor 可选独立 mcp URL；sharedJob/jobEvents 严格比较 HTTP/MCP 原文 |
-| host.mjs | 复用 unified-discovery-smoke 已有宿主/关闭/端口 helper；保留实际 ChildProcess 和二进制身份 |
-| packages.mjs | installFixtures 上传真实原 TGZ 并核对六项有效预算；verifyPackageBytes 核对结束后原压缩字节 |
-| jobs.mjs | submit/terminal/cancel/verifyHistory；共享 Job、原 input、唯一终态与标准 PublishedArtifacts 解包 |
-| matrix.mjs | verifyMatrix 的八 Job 流程；两长分支全部收束后才进入收尾 |
-| control.mjs/wait.mjs | ready/release/事件/诊断、仅 signal 0 的实际 PID 观察、有限单调等待；不启动或杀夹具 |
-| process-evidence.mjs | verifyProcess 区分协议2 EOF/终止与协议3匹配取消/清理；失败仅收集本轮已知 PID |
-| evidence.mjs | 首失败请求、同记录 Job/request/logID 关联、真实文件身份及保留证据 |
+| 文件                           | 职责与公开复用点                                                                                             |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------ |
+| 根 ordinary-deadline-smoke.mjs | 单宿主、空目录、阶段编排、finally 收尾与报告；仅接受可选 --release                                           |
+| client.mjs                     | 复用 device-provider 的 createClient；clientFor 可选独立 mcp URL；sharedJob/jobEvents 严格比较 HTTP/MCP 原文 |
+| host.mjs                       | 复用 unified-discovery-smoke 已有宿主/关闭/端口 helper；保留实际 ChildProcess 和二进制身份                   |
+| packages.mjs                   | installFixtures 上传真实原 TGZ 并核对六项有效预算；verifyPackageBytes 核对结束后原压缩字节                   |
+| jobs.mjs                       | submit/terminal/cancel/verifyHistory；共享 Job、原 input、唯一终态与标准 PublishedArtifacts 解包             |
+| matrix.mjs                     | verifyMatrix 的八 Job 流程；两长分支全部收束后才进入收尾                                                     |
+| control.mjs/wait.mjs           | ready/release/事件/诊断、仅 signal 0 的实际 PID 观察、有限单调等待；不启动或杀夹具                           |
+| process-evidence.mjs           | verifyProcess 区分协议2 EOF/终止与协议3匹配取消/清理；失败仅收集本轮已知 PID                                 |
+| evidence.mjs                   | 首失败请求、同记录 Job/request/logID 关联、真实文件身份及保留证据                                            |
 
 只读导入 Galileo `../ordinary-deadline/fixtures.mjs#createFixtures`；不复制 TAR 构造器，也不修改旧客户端或夹具。构造器返回的原压缩 SHA256 与本次实际上传 Buffer 严格相同。SDK request_operation 使用短名，公开 operation 使用返回的完整 ID；业务 input 只有 `{case_id}`。
 
 ## 八 Job 最小矩阵
 
-| 场景 | 提交/取消入口 | 核对结果 |
-| --- | --- | --- |
-| L2 | HTTP 提交 | 协议2长声明120000；实际 ready 后驱动保持至少61000ms，超过60000ms仍Running/PID存在/宿主未重启；release后Succeeded |
-| L3 | MCP 提交 | 同L2但协议3；与L2并行，分别计算自己的驱动和夹具单调时间，不相减跨进程计数 |
-| S2-D | HTTP 提交 | short=10000、不release；Failed且error精确“执行超时”；实际直接PID消失，不要求强杀进程伪写exit/诊断 |
-| S3-D | MCP 提交 | 同短D；匹配cancel的reason严格timeout、command/id一致；cleaned/响应/EOF/零退出自报及实际PID消失分别核对 |
-| S2-C | MCP提交、HTTP取消 | ready后在短D内主动取消；Cancelled/error=null/result=null；协议2仅证明EOF与直接PID退出 |
-| S3-C | HTTP提交、MCP取消 | 同主动取消；严格reason=cancelled及协议3匹配清理证据 |
-| M2 | HTTP 提交 | default省略声明，目录公布60000/source=default；即时有限标准响应成功 |
-| M3 | MCP 提交 | 同M2但协议3 |
+| 场景 | 提交/取消入口     | 核对结果                                                                                                         |
+| ---- | ----------------- | ---------------------------------------------------------------------------------------------------------------- |
+| L2   | HTTP 提交         | 协议2长声明120000；实际 ready 后驱动保持至少61000ms，超过60000ms仍Running/PID存在/宿主未重启；release后Succeeded |
+| L3   | MCP 提交          | 同L2但协议3；与L2并行，分别计算自己的驱动和夹具单调时间，不相减跨进程计数                                        |
+| S2-D | HTTP 提交         | short=10000、不release；Failed且error精确“执行超时”；实际直接PID消失，不要求强杀进程伪写exit/诊断                |
+| S3-D | MCP 提交          | 同短D；匹配cancel的reason严格timeout、command/id一致；cleaned/响应/EOF/零退出自报及实际PID消失分别核对           |
+| S2-C | MCP提交、HTTP取消 | ready后在短D内主动取消；Cancelled/error=null/result=null；协议2仅证明EOF与直接PID退出                            |
+| S3-C | HTTP提交、MCP取消 | 同主动取消；严格reason=cancelled及协议3匹配清理证据                                                              |
+| M2   | HTTP 提交         | default省略声明，目录公布60000/source=default；即时有限标准响应成功                                              |
+| M3   | MCP 提交          | 同M2但协议3                                                                                                      |
 
 全部八项均交叉 GET/工具读取同一个 Job 原文与事件；原 operation/input/id 不变，唯一终态事件，空存储 history 恰有八个 Job。每个 case 恰有一项 ready，八个不同 request_id；记录实际 PID 数和逐 Job/request/PID 对应，不把 PID 数推为进程树证明。协议2强制终止时受控 resource 可以残留，原件保留且不冒称合作资源清理。
 

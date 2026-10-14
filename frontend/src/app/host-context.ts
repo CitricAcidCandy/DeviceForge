@@ -10,7 +10,14 @@ import type { ArtifactTransport } from './artifact-gateway.ts';
 import { createTaskHistoryGateway } from './task-history-gateway.ts';
 import type { TaskHistoryTransport } from './task-history-gateway.ts';
 
-export function createHostContext(operations: Operations, tasks: Tasks, lifetime: AbortController, devices?: DeviceAccess, artifacts?: ArtifactTransport, taskHistory?: TaskHistoryTransport) {
+export function createHostContext(
+  operations: Operations,
+  tasks: Tasks,
+  lifetime: AbortController,
+  devices?: DeviceAccess,
+  artifacts?: ArtifactTransport,
+  taskHistory?: TaskHistoryTransport,
+) {
   const disposers = new Set<Dispose>();
   const pending = new Set<Promise<void>>();
   const failures: unknown[] = [];
@@ -21,30 +28,42 @@ export function createHostContext(operations: Operations, tasks: Tasks, lifetime
       released = true;
       disposers.delete(release);
       try {
-        const task = Promise.resolve(dispose()).catch((error: unknown) => { failures.push(error); });
-        pending.add(task); void task.then(() => { pending.delete(task); }); return task;
+        const task = Promise.resolve(dispose()).catch((error: unknown) => {
+          failures.push(error);
+        });
+        pending.add(task);
+        void task.then(() => {
+          pending.delete(task);
+        });
+        return task;
+      } catch (error) {
+        failures.push(error);
       }
-      catch (error) { failures.push(error); }
     };
-    if (lifetime.signal.aborted) release(); else disposers.add(release);
+    if (lifetime.signal.aborted) release();
+    else disposers.add(release);
     return release;
   }
   const signal = (caller: AbortSignal) => AbortSignal.any([caller, lifetime.signal]);
   const context = Object.freeze<HostContext>({
     apiVersion: 2,
     signal: lifetime.signal,
-    listOperations: (caller) => publicCall(operations.list(signal(caller)), (items) => items.map(publicOperation)),
-    submit: (id, input, caller) => publicCall(tasks.submit({ operation: id, input }, signal(caller)), publicJob),
+    listOperations: (caller) =>
+      publicCall(operations.list(signal(caller)), (items) => items.map(publicOperation)),
+    submit: (id, input, caller) =>
+      publicCall(tasks.submit({ operation: id, input }, signal(caller)), publicJob),
     getJob: (id, caller) => publicCall(tasks.get(id, signal(caller)), publicJob),
     cancelJob: (id, caller) => publicCall(tasks.cancel(id, signal(caller)), publicJob),
     subscribeOperations(listener) {
       if (lifetime.signal.aborted) throw new HostError('cancelled', 'host_closed', '宿主已关闭');
       let last: readonly OperationDto[] | null = null;
-      return onDispose(operations.subscribe((snapshot) => {
-        if (lifetime.signal.aborted || !snapshot.result || snapshot.result.data === last) return;
-        last = snapshot.result.data;
-        listener(last.map(publicOperation));
-      }));
+      return onDispose(
+        operations.subscribe((snapshot) => {
+          if (lifetime.signal.aborted || !snapshot.result || snapshot.result.data === last) return;
+          last = snapshot.result.data;
+          listener(last.map(publicOperation));
+        }),
+      );
     },
     onDispose,
     ...(devices ? { devices: createHostDeviceAccess(devices, lifetime.signal, onDispose) } : {}),

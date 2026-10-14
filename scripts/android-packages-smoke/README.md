@@ -26,12 +26,12 @@ node scripts/android-packages-smoke.mjs --release --tool G:/DeviceForgeEvidence/
 
 ## 四 Job 与工具关联
 
-| Job | 提交入口 | 操作 | 实际断言 |
-| --- | --- | --- | --- |
-| M-H | HTTP旧alias | android.package.manifest | 旧operation/input同一Job，完整清单DTO/XML/字符串版本号/null |
-| M-M | MCP新target | plugin.android-packages.manifest | 同Job宿主result/artifacts包装，业务DTO与旧alias等价 |
-| E-H | HTTP新target | plugin.android-packages.extract_apk | 唯一实际host Artifact，GET与下载原APK字节/SHA/logID |
-| E-M | MCP旧alias | android.package.extract_apk | 同Job旧source_artifact_id/entry/artifact投影，GET与下载原字节 |
+| Job | 提交入口     | 操作                                | 实际断言                                                      |
+| --- | ------------ | ----------------------------------- | ------------------------------------------------------------- |
+| M-H | HTTP旧alias  | android.package.manifest            | 旧operation/input同一Job，完整清单DTO/XML/字符串版本号/null   |
+| M-M | MCP新target  | plugin.android-packages.manifest    | 同Job宿主result/artifacts包装，业务DTO与旧alias等价           |
+| E-H | HTTP新target | plugin.android-packages.extract_apk | 唯一实际host Artifact，GET与下载原APK字节/SHA/logID           |
+| E-M | MCP旧alias   | android.package.extract_apk         | 同Job旧source_artifact_id/entry/artifact投影，GET与下载原字节 |
 
 每次提交前后检查新增一 Job；本次总集合恰为四 Job。HTTP/MCP交叉 GET 与事件原文一致，唯一终态为 Succeeded；卸载后历史operation/input/result不变。其它五操作仅检查注册目录与有效预算复制，不宣称业务通过。
 

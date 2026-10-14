@@ -12,7 +12,9 @@ export async function waitFor(read, accept, label, timeoutMs, intervalMs = 50) {
   assert.fail(`${label}：有界观察超时`);
 }
 
-export function monotonicNs() { return process.hrtime.bigint().toString(); }
+export function monotonicNs() {
+  return process.hrtime.bigint().toString();
+}
 
 export function elapsedMs(start, end) {
   assert.match(start, /^\d+$/);
@@ -25,8 +27,13 @@ export function elapsedMs(start, end) {
 export async function bounded(promise, timeoutMs, label) {
   let timer;
   try {
-    return await Promise.race([promise, new Promise((_, reject) => {
-      timer = setTimeout(() => reject(new Error(`${label}：有界等待超时`)), timeoutMs);
-    })]);
-  } finally { clearTimeout(timer); }
+    return await Promise.race([
+      promise,
+      new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error(`${label}：有界等待超时`)), timeoutMs);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
 }

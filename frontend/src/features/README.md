@@ -1,11 +1,9 @@
-# 业务功能边界
+# 跨页面业务逻辑
 
-功能模块根目录保留薄 `index.ts` 核心入口和中文 README。app 的值和类型导入使用功能核心入口或 `components/index.ts` 展示入口；核心不依赖或重导出展示，避免无界面消费者加载 TSX。测试可以读取内部实现，不同功能不互相导入，跨功能协作由 app 装配公开端口。
+features 只承载被多个页面或无界面调用方复用的业务能力，不保存业务 UI。模块以薄 `index.ts` 暴露核心并保留中文 README；值和类型导入同样使用公开核心。测试可读内部文件，生产消费者不能绕过入口。
 
-按真实职责建立目录，不搭建空骨架：`models` 放用例、状态、订阅与编排；`services` 放适配器、网关与字节解码；`types` 放类型；`utils` 放纯规则、验证与转换；`components/<PascalCase组件>/index.tsx` 放专属展示，私有文件留同组件目录。
+目录按真实职责建立：models 放状态、用例、订阅和编排；services 放请求适配、网关和字节解码；types 放类型；utils 放纯规则、验证和转换。types/utils 不依 models/services，services 不依 models，models 可依 services/types/utils；跨 feature 仅使用对方 index.ts 核心公开入口，不读取内部路径，类型导入也不得形成循环。
 
-依赖方向为 types/utils 不引用 models/services/components；services 不引用 models/components；models 可引用 services/types/utils；专属 components 可引用 models/types/utils 和公共组件，不能直接读取 services。功能非展示目录不依赖公共组件。
+业务页面与页面私有组件放 `src/pages/<功能页>/index.tsx` 和该页 components。features 不含 components 或 TSX，不导出页面或展示组件；公共跨页面展示放 `src/components/<组件名>/index.tsx`，公共请求放 `src/services/api`。只有出现实际跨页面复用才提升逻辑，不为规范制造转发层或空目录。
 
-公共组件统一放 `src/components/<PascalCase组件>/index.tsx`，官方、组合及第三方封装使用相同结构。`components/index.ts` 供外部汇总，组件内部不导入汇总；纯工具放 `src/utils`。不再强制 ui/common/integrations 或 DDD 分层。
-
-业务与验证状态仍以模块 README、根 todo 和交接文档为准；目录重排不计为新的业务、视觉或真机验收。细则见 [前端目录与组件约束](../../docs/前端目录与组件约束.md)。
+本约束覆盖上一轮 feature 展示入口规则。目录迁移不计为新增业务或真机验收，最新证据见模块 README、根 todo 和交接文档。详见 [前端目录与组件约束](../../docs/guides/前端目录与组件约束.md)。

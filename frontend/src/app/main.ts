@@ -15,18 +15,30 @@ export async function startFrontendApp(documentRef: Document, windowRef: Window)
   const themeRoot = documentRef.documentElement;
   const application = documentRef.createElement('div');
   const extensions = documentRef.createElement('section');
-  application.id = 'product-root'; extensions.className = 'plugin-extension-root';
+  application.id = 'product-root';
+  extensions.className = 'plugin-extension-root';
   extensions.setAttribute('aria-label', '插件工作区');
   target.append(application, extensions);
   const panel = documentRef.createElement('div');
   const component = documentRef.createElement('div');
   const module = documentRef.createElement('div');
-  panel.dataset.pluginPanels = ''; component.dataset.pluginComponents = ''; module.dataset.pluginModules = '';
+  panel.dataset.pluginPanels = '';
+  component.dataset.pluginComponents = '';
+  module.dataset.pluginModules = '';
   extensions.append(panel, component, module);
-  const slots = await createNamedSlotAdapter([{id: 'workshop.extensions', target: component, renderDefault(slotRoot) {
-    const link = documentRef.createElement('a'); link.href = '#plugins'; link.textContent = '管理工坊扩展';
-    slotRoot.append(link); return () => link.remove();
-  }}]);
+  const slots = await createNamedSlotAdapter([
+    {
+      id: 'workshop.extensions',
+      target: component,
+      renderDefault(slotRoot) {
+        const link = documentRef.createElement('a');
+        link.href = '#plugins';
+        link.textContent = '管理工坊扩展';
+        slotRoot.append(link);
+        return () => link.remove();
+      },
+    },
+  ]);
   const root = createRoot(application);
   let services: ProductServices | null = null;
   let closing: Promise<void> | null = null;
@@ -37,37 +49,81 @@ export async function startFrontendApp(documentRef: Document, windowRef: Window)
     if (closing || switching) throw new Error('运行实例正在切换或关闭');
     switching = true;
     try {
-      if (services) await probeProductConnection(origin, token, windowRef.fetch.bind(windowRef), AbortSignal.any([signal, lifetime.signal]));
+      if (services)
+        await probeProductConnection(
+          origin,
+          token,
+          windowRef.fetch.bind(windowRef),
+          AbortSignal.any([signal, lifetime.signal]),
+        );
       if (lifetime.signal.aborted || signal.aborted) throw new Error('服务连接切换已取消');
-      if (services) { flushSync(() => root.render(null)); await services.dispose(); }
+      if (services) {
+        flushSync(() => root.render(null));
+        await services.dispose();
+      }
       if (lifetime.signal.aborted) throw new Error('页面已关闭');
-      services = createProductServices({baseUrl: origin, transport: windowRef.fetch.bind(windowRef), tokenProvider: () => token || null,
-        panelTarget: () => panel, componentTarget: () => component, moduleTarget: () => module, slotAdapter: slots, themeTarget: themeRoot,
-        connection: {baseUrl: origin, reconnect: connect},
+      services = createProductServices({
+        baseUrl: origin,
+        transport: windowRef.fetch.bind(windowRef),
+        tokenProvider: () => token || null,
+        panelTarget: () => panel,
+        componentTarget: () => component,
+        moduleTarget: () => module,
+        slotAdapter: slots,
+        themeTarget: themeRoot,
+        connection: { baseUrl: origin, reconnect: connect },
       });
-      root.render(createElement(App, {services}));
-    } finally { switching = false; }
+      root.render(createElement(App, { services }));
+    } finally {
+      switching = false;
+    }
   }
   await connect(windowRef.location.origin, '', lifetime.signal);
   const dispose = () => {
     closing ??= (async () => {
       lifetime.abort();
       root.unmount();
-      const results = [await Promise.resolve(services?.dispose()).then(() => ({status: 'fulfilled' as const}), reason => ({status: 'rejected' as const, reason})),
-        await slots.dispose().then(() => ({status: 'fulfilled' as const}), reason => ({status: 'rejected' as const, reason}))];
-      application.remove(); extensions.remove();
-      const failures = results.flatMap(result => result.status === 'rejected' ? [result.reason] : []);
+      const results = [
+        await Promise.resolve(services?.dispose()).then(
+          () => ({ status: 'fulfilled' as const }),
+          (reason) => ({ status: 'rejected' as const, reason }),
+        ),
+        await slots.dispose().then(
+          () => ({ status: 'fulfilled' as const }),
+          (reason) => ({ status: 'rejected' as const, reason }),
+        ),
+      ];
+      application.remove();
+      extensions.remove();
+      const failures = results.flatMap((result) =>
+        result.status === 'rejected' ? [result.reason] : [],
+      );
       if (failures.length) throw new AggregateError(failures, '前端应用关闭失败');
     })();
     return closing;
   };
-  windowRef.addEventListener('pagehide', () => { void dispose().catch(error => console.error('前端清理失败', error instanceof Error ? error.message : '未知原因')); }, {once: true});
-  return {get runtime() {return services?.runtime;}, dispose};
+  windowRef.addEventListener(
+    'pagehide',
+    () => {
+      void dispose().catch((error) =>
+        console.error('前端清理失败', error instanceof Error ? error.message : '未知原因'),
+      );
+    },
+    { once: true },
+  );
+  return {
+    get runtime() {
+      return services?.runtime;
+    },
+    dispose,
+  };
 }
 
 if (typeof document !== 'undefined' && typeof window !== 'undefined') {
-  void startFrontendApp(document, window).catch(error => {
+  void startFrontendApp(document, window).catch((error) => {
     const target = document.getElementById('app');
-    if (target) target.textContent = error instanceof Error ? `工坊启动失败：${error.message}` : '工坊启动失败';
+    if (target)
+      target.textContent =
+        error instanceof Error ? `工坊启动失败：${error.message}` : '工坊启动失败';
   });
 }

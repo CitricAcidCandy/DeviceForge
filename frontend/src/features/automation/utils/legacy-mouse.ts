@@ -3,7 +3,9 @@ import { jsonObject, naturalNumber, onlyKeys } from '../../../shared/jobs/index.
 import { int32, requireDesktopClick } from './desktop-rules.ts';
 import type { DesktopPosition, DesktopRepeat, DesktopRepeatLimit } from '../types/desktop.ts';
 
-export interface LegacyMouseOptions { readonly manualMaxDurationMs?: number }
+export interface LegacyMouseOptions {
+  readonly manualMaxDurationMs?: number;
+}
 
 function invalid(): ApiError {
   return new ApiError('protocol', 'invalid_legacy_mouse', '旧自动点击配置无效或超过当前限额');
@@ -13,14 +15,21 @@ function position(input: Record<string, unknown>): DesktopPosition | undefined {
   const nested = input.clickPos !== undefined;
   const flat = input.clickPosX !== undefined || input.clickPosY !== undefined;
   if (nested && flat) throw invalid();
-  if (nested && (!jsonObject(input.clickPos) || !onlyKeys(input.clickPos, ['x', 'y'])
-    || !int32(input.clickPos.x) || !int32(input.clickPos.y))) throw invalid();
+  if (
+    nested &&
+    (!jsonObject(input.clickPos) ||
+      !onlyKeys(input.clickPos, ['x', 'y']) ||
+      !int32(input.clickPos.x) ||
+      !int32(input.clickPos.y))
+  )
+    throw invalid();
   if (flat && (!int32(input.clickPosX) || !int32(input.clickPosY))) throw invalid();
   if (input.clickPosType === 0) return undefined;
   if (nested && jsonObject(input.clickPos) && int32(input.clickPos.x) && int32(input.clickPos.y)) {
     return { x: input.clickPos.x, y: input.clickPos.y };
   }
-  if (flat && int32(input.clickPosX) && int32(input.clickPosY)) return { x: input.clickPosX, y: input.clickPosY };
+  if (flat && int32(input.clickPosX) && int32(input.clickPosY))
+    return { x: input.clickPosX, y: input.clickPosY };
   throw invalid();
 }
 
@@ -50,20 +59,47 @@ function limit(input: Record<string, unknown>, options: LegacyMouseOptions): Des
   throw invalid();
 }
 
-export function convertLegacyMouse(input: unknown, options: LegacyMouseOptions = {}): DesktopRepeat {
-  if (!jsonObject(input) || !onlyKeys(input, ['mouseButtonType', 'clickType', 'clickPosType', 'clickPos',
-    'clickPosX', 'clickPosY', 'clickCountType', 'timeInterval', 'repeatedType', 'repeatedClickCount', 'repeatedClickDuration'])
-    || ![0, 1, 2].some((value) => value === input.mouseButtonType)
-    || input.clickType !== 0 && input.clickType !== 1 || input.clickPosType !== 0 && input.clickPosType !== 1
-    || ![0, 1, 2].some((value) => value === input.clickCountType)
-    || ![0, 1, 2].some((value) => value === input.repeatedType)
-    || input.timeInterval !== undefined && (!naturalNumber(input.timeInterval)
-      || input.timeInterval !== 0 && input.timeInterval < 10 || input.timeInterval > 60000)
-    || input.repeatedClickCount !== undefined && (!naturalNumber(input.repeatedClickCount) || input.repeatedClickCount > 10000)
-    || input.repeatedClickDuration !== undefined && (typeof input.repeatedClickDuration !== 'number'
-      || !Number.isFinite(input.repeatedClickDuration) || input.repeatedClickDuration < 0 || input.repeatedClickDuration > 600)
-    || !jsonObject(options) || !onlyKeys(options, ['manualMaxDurationMs'])) throw invalid();
-  const intervalMs = input.clickCountType === 0 ? 100 : input.clickCountType === 1 ? 10 : input.timeInterval;
+export function convertLegacyMouse(
+  input: unknown,
+  options: LegacyMouseOptions = {},
+): DesktopRepeat {
+  if (
+    !jsonObject(input) ||
+    !onlyKeys(input, [
+      'mouseButtonType',
+      'clickType',
+      'clickPosType',
+      'clickPos',
+      'clickPosX',
+      'clickPosY',
+      'clickCountType',
+      'timeInterval',
+      'repeatedType',
+      'repeatedClickCount',
+      'repeatedClickDuration',
+    ]) ||
+    ![0, 1, 2].some((value) => value === input.mouseButtonType) ||
+    (input.clickType !== 0 && input.clickType !== 1) ||
+    (input.clickPosType !== 0 && input.clickPosType !== 1) ||
+    ![0, 1, 2].some((value) => value === input.clickCountType) ||
+    ![0, 1, 2].some((value) => value === input.repeatedType) ||
+    (input.timeInterval !== undefined &&
+      (!naturalNumber(input.timeInterval) ||
+        (input.timeInterval !== 0 && input.timeInterval < 10) ||
+        input.timeInterval > 60000)) ||
+    (input.repeatedClickCount !== undefined &&
+      (!naturalNumber(input.repeatedClickCount) || input.repeatedClickCount > 10000)) ||
+    (input.repeatedClickDuration !== undefined &&
+      (typeof input.repeatedClickDuration !== 'number' ||
+        !Number.isFinite(input.repeatedClickDuration) ||
+        input.repeatedClickDuration < 0 ||
+        input.repeatedClickDuration > 600)) ||
+    !jsonObject(options) ||
+    !onlyKeys(options, ['manualMaxDurationMs'])
+  )
+    throw invalid();
+  const intervalMs =
+    input.clickCountType === 0 ? 100 : input.clickCountType === 1 ? 10 : input.timeInterval;
   if (typeof intervalMs !== 'number') throw invalid();
   const selectedPosition = position(input);
   const converted: DesktopRepeat = {
@@ -74,6 +110,10 @@ export function convertLegacyMouse(input: unknown, options: LegacyMouseOptions =
     stop_on_f9: true,
     ...(selectedPosition === undefined ? {} : { position: selectedPosition }),
   };
-  try { requireDesktopClick(converted, true); } catch { throw invalid(); }
+  try {
+    requireDesktopClick(converted, true);
+  } catch {
+    throw invalid();
+  }
   return converted;
 }

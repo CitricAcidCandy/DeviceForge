@@ -18,14 +18,18 @@ export async function* readSse(response: Response, signal: AbortSignal): AsyncGe
   const consume = (line: string): string | null => {
     if (line === '') {
       if (data.length === 0) return null;
-      const event = data.join('\n'); data = []; bytes = 0; return event;
+      const event = data.join('\n');
+      data = [];
+      bytes = 0;
+      return event;
     }
     if (line.startsWith(':')) return null;
     if (line.startsWith('data:')) {
       const value = line.startsWith('data: ') ? line.slice(6) : line.slice(5);
       bytes += encoder.encode(value).byteLength;
       if (bytes > maxEventBytes) throw protocol('MCP SSE 单事件超过大小上限');
-      data.push(value); return null;
+      data.push(value);
+      return null;
     }
     if (/^(?:event|id|retry):/.test(line)) return null;
     throw protocol('MCP SSE 包含未知字段');
@@ -36,7 +40,8 @@ export async function* readSse(response: Response, signal: AbortSignal): AsyncGe
       if (chunk.done) break;
       if (!chunk.value) continue;
       pending += decoder.decode(chunk.value, { stream: true });
-      const lines = pending.split('\n'); pending = lines.pop() ?? '';
+      const lines = pending.split('\n');
+      pending = lines.pop() ?? '';
       for (const raw of lines) {
         const event = consume(raw.endsWith('\r') ? raw.slice(0, -1) : raw);
         if (event !== null) yield event;
@@ -53,7 +58,9 @@ export async function* readSse(response: Response, signal: AbortSignal): AsyncGe
     if (signal.aborted) throw new ApiError('cancelled', 'cancelled', 'MCP SSE 订阅等待已取消');
     throw protocol('MCP SSE 数据不是有效 UTF-8');
   } finally {
-    try { await reader.cancel(); } catch { }
+    try {
+      await reader.cancel();
+    } catch {}
     reader.releaseLock();
   }
 }

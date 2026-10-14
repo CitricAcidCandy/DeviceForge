@@ -7,15 +7,21 @@ export function clientFor(base, report, { mcp } = {}) {
   assert.equal(mcpBase.pathname, '/mcp');
   assert.ok(!mcpBase.username && !mcpBase.password && !mcpBase.search && !mcpBase.hash);
   const logIds = new Set();
-  const requests = report.requests ??= [];
+  const requests = (report.requests ??= []);
   const invoke = async (name, args, context = {}) => {
     const local = {};
     const endpoint = ['tool', 'tools'].includes(name) ? mcpBase.origin : base;
     const client = createClient(endpoint, local);
-    const pending = { client_method: name, started_at: new Date().toISOString(), ...context,
+    const pending = {
+      client_method: name,
+      started_at: new Date().toISOString(),
+      ...context,
       ...(['json', 'post', 'call'].includes(name) ? { path: args[0] } : {}),
-      ...(['tool', 'tools'].includes(name) ? { path: '/mcp', tool: name === 'tool' ? args[0] : undefined } : {}),
-      ...(name === 'job' ? { path: `/api/v2/jobs/${args[0]}` } : {}) };
+      ...(['tool', 'tools'].includes(name)
+        ? { path: '/mcp', tool: name === 'tool' ? args[0] : undefined }
+        : {}),
+      ...(name === 'job' ? { path: `/api/v2/jobs/${args[0]}` } : {}),
+    };
     report.in_flight_requests ??= [];
     report.in_flight_requests.push(pending);
     try {
@@ -23,7 +29,11 @@ export function clientFor(base, report, { mcp } = {}) {
       requests.push({ ...pending, ...local.last_request, outcome: 'returned' });
       return value;
     } catch (error) {
-      const failed = { ...pending, ...(local.failed_request ?? local.last_request), outcome: 'threw' };
+      const failed = {
+        ...pending,
+        ...(local.failed_request ?? local.last_request),
+        outcome: 'threw',
+      };
       report.failed_request ??= failed;
       requests.push(failed);
       throw error;
@@ -39,8 +49,15 @@ export function clientFor(base, report, { mcp } = {}) {
     tool: (...args) => invoke('tool', args, context),
     job: (...args) => invoke('job', args, context),
   });
-  return { base, mcp: mcpBase.href, logIds, scope: scoped,
-    ...scoped({}), call: (...args) => invoke('call', args), tools: () => invoke('tools', []) };
+  return {
+    base,
+    mcp: mcpBase.href,
+    logIds,
+    scope: scoped,
+    ...scoped({}),
+    call: (...args) => invoke('call', args),
+    tools: () => invoke('tools', []),
+  };
 }
 
 export async function sharedJob(client, entry) {
@@ -61,7 +78,9 @@ export async function jobEvents(client, entry) {
   assert.deepEqual(mcp, events, 'HTTP/MCP 必须读取同一份 Job 事件历史');
   assert.ok(Array.isArray(events));
   assert.ok(events.every((event) => event.job_id === entry.job_id));
-  const terminals = events.filter((event) => ['succeeded', 'failed', 'cancelled'].includes(event.status));
+  const terminals = events.filter((event) =>
+    ['succeeded', 'failed', 'cancelled'].includes(event.status),
+  );
   assert.equal(terminals.length, 1, '同次 Job 只允许一个终态事件');
   assert.equal(terminals[0].status, entry.expected_status);
   return events.map(({ sequence, status }) => ({ sequence, status }));

@@ -16,6 +16,10 @@ export class ApiError extends Error {
   ) {
     super(message);
     this.name = 'ApiError';
-    this.kind = kind; this.code = code; this.status = status; this.logId = logId; this.retryAfter = retryAfter;
+    this.kind = kind;
+    this.code = code;
+    this.status = status;
+    this.logId = logId;
+    this.retryAfter = retryAfter;
   }
 }

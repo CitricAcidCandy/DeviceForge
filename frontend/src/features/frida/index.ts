@@ -2,4 +2,10 @@
 export * from './models/frida.ts';
 export * from './models/http-factory.ts';
 export { requireFridaInput } from './utils/rules.ts';
-export { decodeDeployment, decodeProcesses, decodeScript, decodeServerRun, decodeStatus } from './utils/results.ts';
+export {
+  decodeDeployment,
+  decodeProcesses,
+  decodeScript,
+  decodeServerRun,
+  decodeStatus,
+} from './utils/results.ts';

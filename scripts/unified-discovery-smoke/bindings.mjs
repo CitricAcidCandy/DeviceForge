@@ -16,8 +16,11 @@ export function discoveryBinding({ operation, pluginId, platform, legacy = false
 
 export async function writeBindings(path, declarations) {
   const config = { format_version: 2, bindings: declarations.map(discoveryBinding) };
-  assert.equal(new Set(config.bindings.map((binding) => binding.operation.id)).size, config.bindings.length,
-    '测试配置的别名必须唯一，不能用重复ID遮蔽失败原因');
+  assert.equal(
+    new Set(config.bindings.map((binding) => binding.operation.id)).size,
+    config.bindings.length,
+    '测试配置的别名必须唯一，不能用重复ID遮蔽失败原因',
+  );
   await writeFile(path, `${JSON.stringify(config, null, 2)}\n`, 'utf8');
   return config;
 }

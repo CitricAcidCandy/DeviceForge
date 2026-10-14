@@ -19,9 +19,17 @@ export async function removeOfflineFixture({ temporary, pluginDirectory, id, cli
   await assert.rejects(lstat(join(path, '.deviceforge-package.json')), { code: 'ENOENT' });
   const online = await client.json('/api/v2/plugin-packages/server');
   assert.ok(!online.some((entry) => entry.id === id), '本轮CLI部署不能冒充在线包视图');
-  await client.json(`/api/v2/plugin-packages/server/${id}`, { method: 'DELETE', status: 404, code: 'not_found' });
+  await client.json(`/api/v2/plugin-packages/server/${id}`, {
+    method: 'DELETE',
+    status: 404,
+    code: 'not_found',
+  });
   await rm(path, { recursive: true });
   await assert.rejects(lstat(path), { code: 'ENOENT' });
-  return { method: '卸载后清理本轮精确临时CLI离线目录', onlineManaged: false,
-    onlineDeleteStatus: 404, temporaryCliDeploymentRemoved: true };
+  return {
+    method: '卸载后清理本轮精确临时CLI离线目录',
+    onlineManaged: false,
+    onlineDeleteStatus: 404,
+    temporaryCliDeploymentRemoved: true,
+  };
 }

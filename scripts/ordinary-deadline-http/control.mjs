@@ -8,7 +8,10 @@ const casePattern = /^[A-Za-z0-9_-]{1,80}$/;
 
 export function within(parent, child) {
   const result = relative(resolve(parent), resolve(child));
-  assert.ok(result && !result.startsWith('..') && !isAbsolute(result), '控制路径必须属于本次根目录');
+  assert.ok(
+    result && !result.startsWith('..') && !isAbsolute(result),
+    '控制路径必须属于本次根目录',
+  );
 }
 
 function marker(item, caseId, suffix) {
@@ -52,7 +55,16 @@ export async function events(item, entry, { complete: requireComplete = false } 
     let previous = 0n;
     for (const event of parsed) {
       validateIdentity(item, entry, event);
-      assert.ok(['ready', 'cancel_received', 'response_written', 'cleaned', 'stdin_eof', 'process_exit'].includes(event.event));
+      assert.ok(
+        [
+          'ready',
+          'cancel_received',
+          'response_written',
+          'cleaned',
+          'stdin_eof',
+          'process_exit',
+        ].includes(event.event),
+      );
       assert.match(event.monotonic_ns, /^\d+$/);
       assert.ok(BigInt(event.monotonic_ns) >= previous, '控制事件单调时钟不得回退');
       previous = BigInt(event.monotonic_ns);
@@ -65,10 +77,19 @@ export async function events(item, entry, { complete: requireComplete = false } 
 }
 
 export async function ready(item, entry, timeoutMs) {
-  const value = await waitFor(async () => {
-    try { return JSON.parse(await readBounded(marker(item, entry.case_id, 'ready.json'))); }
-    catch (error) { if (error.code === 'ENOENT') return undefined; throw error; }
-  }, Boolean, `${entry.case_id} 实际 ready`, timeoutMs);
+  const value = await waitFor(
+    async () => {
+      try {
+        return JSON.parse(await readBounded(marker(item, entry.case_id, 'ready.json')));
+      } catch (error) {
+        if (error.code === 'ENOENT') return undefined;
+        throw error;
+      }
+    },
+    Boolean,
+    `${entry.case_id} 实际 ready`,
+    timeoutMs,
+  );
   validateIdentity(item, entry, value);
   assert.match(value.ready_monotonic_ns, /^\d+$/);
   entry.process = { ...value };
@@ -96,16 +117,31 @@ export async function diagnostic(item, entry) {
 }
 
 export function processVisible(pid) {
-  try { process.kill(pid, 0); return true; }
-  catch (error) { if (error.code === 'ESRCH') return false; throw error; }
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    if (error.code === 'ESRCH') return false;
+    throw error;
+  }
 }
 
 export async function processExited(item, entry, timeoutMs = 2000) {
   const started = performance.now();
-  await waitFor(() => processVisible(entry.process.pid), (visible) => !visible,
-    `${entry.case_id} 本次直接 PID 退出`, timeoutMs);
-  entry.pid_exit = { pid: entry.process.pid, visible: false, observed_at: new Date().toISOString(),
-    elapsed_ms: performance.now() - started, method: 'signal_0_existence_check', os_exit_code: null };
+  await waitFor(
+    () => processVisible(entry.process.pid),
+    (visible) => !visible,
+    `${entry.case_id} 本次直接 PID 退出`,
+    timeoutMs,
+  );
+  entry.pid_exit = {
+    pid: entry.process.pid,
+    visible: false,
+    observed_at: new Date().toISOString(),
+    elapsed_ms: performance.now() - started,
+    method: 'signal_0_existence_check',
+    os_exit_code: null,
+  };
   entry.events = await events(item, entry, { complete: true });
   return entry.events;
 }

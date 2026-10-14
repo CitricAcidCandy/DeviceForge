@@ -56,15 +56,15 @@ node scripts/harmony-screenshot-npx-smoke.mjs --archive C:\冻结原件\devicefo
 
 冻结 debug 快照为 `artifacts/harmony-screenshot-frozen-debug-20261012-141929/identity.json`。服务首批十五轮全部 exit0；补强后的普通轮与新增排队卸载轮分别定点通过。以下是实际报告，不能合成一次尚未执行的 all 命令：
 
-| 场景 | 实际结果 | 插件Job / 元数据Job / 工具 | report.json 所在目录 |
-| --- | --- | --- | --- |
-| 首批 normal | 1/1 | 15 / 7 / 63 | harmony-screenshot-service-debug-369dd738-fae0-4f90-a750-174eea48ed02 |
-| cancel | 5/5 | 10 / 0 / 20 | harmony-screenshot-service-debug-b70f7059-b616-4db7-a7d9-4413b035a404 |
-| deadline | 5/5，真实30秒 | 10 / 0 / 20 | harmony-screenshot-service-debug-968e0a6c-c26b-48c7-aa46-3d2d6b0126a2 |
-| late | 3/3 | 6 / 0 / 11 | harmony-screenshot-service-debug-5ec06a43-e60b-4da4-b78b-24bf1049cdd2 |
-| leftover | 1/1 | 2 / 0 / 6 | harmony-screenshot-service-debug-93cf4653-eb1e-4101-8ad7-f1c097f2082a |
-| 补强 normal，输入拒绝零工具 | 1/1 | 15 / 7 / 63 | harmony-screenshot-service-debug-7a536414-204f-4d09-acac-134d28e4c616 |
-| 新增 queued-unload | 1/1 | 3 / 0 / 3 | harmony-screenshot-service-debug-ec30de15-d8ce-4006-8a85-3244547b8ff6 |
+| 场景                        | 实际结果      | 插件Job / 元数据Job / 工具 | report.json 所在目录                                                  |
+| --------------------------- | ------------- | -------------------------- | --------------------------------------------------------------------- |
+| 首批 normal                 | 1/1           | 15 / 7 / 63                | harmony-screenshot-service-debug-369dd738-fae0-4f90-a750-174eea48ed02 |
+| cancel                      | 5/5           | 10 / 0 / 20                | harmony-screenshot-service-debug-b70f7059-b616-4db7-a7d9-4413b035a404 |
+| deadline                    | 5/5，真实30秒 | 10 / 0 / 20                | harmony-screenshot-service-debug-968e0a6c-c26b-48c7-aa46-3d2d6b0126a2 |
+| late                        | 3/3           | 6 / 0 / 11                 | harmony-screenshot-service-debug-5ec06a43-e60b-4da4-b78b-24bf1049cdd2 |
+| leftover                    | 1/1           | 2 / 0 / 6                  | harmony-screenshot-service-debug-93cf4653-eb1e-4101-8ad7-f1c097f2082a |
+| 补强 normal，输入拒绝零工具 | 1/1           | 15 / 7 / 63                | harmony-screenshot-service-debug-7a536414-204f-4d09-acac-134d28e4c616 |
+| 新增 queued-unload          | 1/1           | 3 / 0 / 3                  | harmony-screenshot-service-debug-ec30de15-d8ce-4006-8a85-3244547b8ff6 |
 
 首批合计四十三插件 Job、七元数据 Job、一百二十工具。按补强 normal 替换首批 normal、再加 queued 场景计，已覆盖十六场景轮、四十六插件 Job、七元数据 Job、一百二十三工具；这是多次独立冻结报告的场景汇总，不是最后源码的一次 all 单轮门禁。排队卸载初次驱动错误地要求在途 Job cancelled，实际日志证明 cleanup_failed 归 failed；已修正驱动语义并重跑通过，失败原件保留于 `harmony-screenshot-service-debug-60bf3bb2-06c0-461d-921e-80d5aa7e2470`，不作为生产缺陷或通过证据。
 

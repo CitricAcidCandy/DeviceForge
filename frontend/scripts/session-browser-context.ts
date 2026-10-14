@@ -6,6 +6,6 @@ export interface SessionBrowserContext {
   readonly target: HTMLElement;
   readonly services: ProductServices;
   readonly fixture: Awaited<ReturnType<typeof createSessionFixture>>;
-  readonly mount: (page: ComponentType<{services: ProductServices}>) => Promise<void>;
+  readonly mount: (page: ComponentType<{ services: ProductServices }>) => Promise<void>;
   readonly passed: (name: string) => void;
 }

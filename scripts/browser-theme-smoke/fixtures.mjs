@@ -3,8 +3,16 @@ import { npmTgz } from '../../backend/scripts/online-plugins/fixtures.mjs';
 export const observationKey = 'deviceforge.browser-theme-smoke.contexts';
 
 function fixture(id, color, width, colorScheme, { dynamic = false, failing = false } = {}) {
-  const descriptor = { name: 'deviceforge-' + id, version: '1.0.0', type: 'module',
-    deviceforge: { kind: 'browser', manifest: 'plugin.json', entrypoints: { any: { runtime: 'browser', path: 'dist/index.js' } } } };
+  const descriptor = {
+    name: 'deviceforge-' + id,
+    version: '1.0.0',
+    type: 'module',
+    deviceforge: {
+      kind: 'browser',
+      manifest: 'plugin.json',
+      entrypoints: { any: { runtime: 'browser', path: 'dist/index.js' } },
+    },
+  };
   const source = `
 const run = crypto.randomUUID();
 let releaseDynamic;
@@ -30,8 +38,12 @@ export default {
   },
   async activate(context) {
     observe('plugin', context);
-    ${dynamic ? `releaseDynamic = context.extensions.register({ themes: [{ id: '${id}.dynamic', title: '动态主题',
-      variables: { '--df-theme-smoke-color': 'rgb(1, 2, 3)' }, colorScheme: 'normal' }] });` : ''}
+    ${
+      dynamic
+        ? `releaseDynamic = context.extensions.register({ themes: [{ id: '${id}.dynamic', title: '动态主题',
+      variables: { '--df-theme-smoke-color': 'rgb(1, 2, 3)' }, colorScheme: 'normal' }] });`
+        : ''
+    }
     ${failing ? `context.themes.select('${id}.main'); throw new Error('主题激活失败夹具');` : ''}
   }
 };
@@ -45,7 +57,9 @@ export default {
 }
 
 export function themeFixtures() {
-  return { first: fixture('theme_probe_a', 'rgb(71, 81, 91)', 7, 'dark', { dynamic: true }),
+  return {
+    first: fixture('theme_probe_a', 'rgb(71, 81, 91)', 7, 'dark', { dynamic: true }),
     second: fixture('theme_probe_b', 'rgb(121, 131, 141)', 9, 'light'),
-    failing: fixture('theme_probe_fail', 'rgb(211, 221, 231)', 11, 'dark', { failing: true }) };
+    failing: fixture('theme_probe_fail', 'rgb(211, 221, 231)', 11, 'dark', { failing: true }),
+  };
 }

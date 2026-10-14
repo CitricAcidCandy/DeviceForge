@@ -11,38 +11,70 @@ export function createToolSupply(gateway: JobGateway, options: JobOptions = {}) 
   const jobs = createJobRunner(gateway, options);
   const operation = (action: ToolSupplyAction) => `plugin.tool-supply.${action}`;
   function checkTicket(action: ToolSupplyAction, ticket: JobTicket): void {
-    if (ticket.operation !== operation(action)) throw new ApiError('protocol', 'invalid_tool_ticket', '恢复任务与工具供应操作不匹配');
+    if (ticket.operation !== operation(action))
+      throw new ApiError('protocol', 'invalid_tool_ticket', '恢复任务与工具供应操作不匹配');
   }
   function checkModuleTicket(ticket: JobTicket): void {
-    if (!['catalog', 'plan', 'install', 'remove'].some((action) => ticket.operation === `plugin.tool-supply.${action}`)
-      && !isRuntimeFeatureOperation(ticket.operation)) throw new ApiError('protocol', 'invalid_tool_ticket', '任务不属于工具供应模块');
+    if (
+      !['catalog', 'plan', 'install', 'remove'].some(
+        (action) => ticket.operation === `plugin.tool-supply.${action}`,
+      ) &&
+      !isRuntimeFeatureOperation(ticket.operation)
+    )
+      throw new ApiError('protocol', 'invalid_tool_ticket', '任务不属于工具供应模块');
   }
   return {
     ...createRuntimeFeature(jobs),
     catalog: (signal: AbortSignal) => jobs.execute(operation('catalog'), {}, signal, decodeCatalog),
     plan(moduleIds: readonly string[], signal: AbortSignal) {
-      requireSelection(moduleIds); const selected = [...moduleIds];
-      return jobs.execute(operation('plan'), { module_ids: selected }, signal, (value, logId) => decodePlan(value, logId, selected));
+      requireSelection(moduleIds);
+      const selected = [...moduleIds];
+      return jobs.execute(operation('plan'), { module_ids: selected }, signal, (value, logId) =>
+        decodePlan(value, logId, selected),
+      );
     },
     install(moduleId: string, signal: AbortSignal) {
-      requireModuleId(moduleId); return jobs.execute(operation('install'), { module_id: moduleId }, signal, (value, logId) => decodeInstallation(value, logId, moduleId));
+      requireModuleId(moduleId);
+      return jobs.execute(operation('install'), { module_id: moduleId }, signal, (value, logId) =>
+        decodeInstallation(value, logId, moduleId),
+      );
     },
     remove(moduleId: string, signal: AbortSignal) {
-      requireModuleId(moduleId); return jobs.execute(operation('remove'), { module_id: moduleId }, signal, (value, logId) => decodeRemoval(value, logId, moduleId));
+      requireModuleId(moduleId);
+      return jobs.execute(operation('remove'), { module_id: moduleId }, signal, (value, logId) =>
+        decodeRemoval(value, logId, moduleId),
+      );
     },
-    resumeCatalog(ticket: JobTicket, signal: AbortSignal) { checkTicket('catalog', ticket); return jobs.resume(ticket, signal, decodeCatalog); },
+    resumeCatalog(ticket: JobTicket, signal: AbortSignal) {
+      checkTicket('catalog', ticket);
+      return jobs.resume(ticket, signal, decodeCatalog);
+    },
     resumePlan(ticket: JobTicket, moduleIds: readonly string[], signal: AbortSignal) {
-      checkTicket('plan', ticket); requireSelection(moduleIds); const selected = [...moduleIds];
+      checkTicket('plan', ticket);
+      requireSelection(moduleIds);
+      const selected = [...moduleIds];
       return jobs.resume(ticket, signal, (value, logId) => decodePlan(value, logId, selected));
     },
     resumeInstall(ticket: JobTicket, moduleId: string, signal: AbortSignal) {
-      checkTicket('install', ticket); requireModuleId(moduleId); return jobs.resume(ticket, signal, (value, logId) => decodeInstallation(value, logId, moduleId));
+      checkTicket('install', ticket);
+      requireModuleId(moduleId);
+      return jobs.resume(ticket, signal, (value, logId) =>
+        decodeInstallation(value, logId, moduleId),
+      );
     },
     resumeRemove(ticket: JobTicket, moduleId: string, signal: AbortSignal) {
-      checkTicket('remove', ticket); requireModuleId(moduleId); return jobs.resume(ticket, signal, (value, logId) => decodeRemoval(value, logId, moduleId));
+      checkTicket('remove', ticket);
+      requireModuleId(moduleId);
+      return jobs.resume(ticket, signal, (value, logId) => decodeRemoval(value, logId, moduleId));
     },
-    query(ticket: JobTicket, signal: AbortSignal) { checkModuleTicket(ticket); return jobs.query(ticket, signal); },
-    cancel(ticket: JobTicket, signal: AbortSignal) { checkModuleTicket(ticket); return jobs.cancel(ticket, signal); },
+    query(ticket: JobTicket, signal: AbortSignal) {
+      checkModuleTicket(ticket);
+      return jobs.query(ticket, signal);
+    },
+    cancel(ticket: JobTicket, signal: AbortSignal) {
+      checkModuleTicket(ticket);
+      return jobs.cancel(ticket, signal);
+    },
     dispose: jobs.dispose,
   };
 }

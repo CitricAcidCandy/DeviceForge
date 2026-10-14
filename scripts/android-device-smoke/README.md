@@ -22,24 +22,24 @@ ADB、Java与占位bundletool JAR由部署者写入实际插件二进制旁的 `
 
 ## 责任
 
-| 文件 | 责任 |
-| --- | --- |
-| 根入口 | 参数、冻结输入、串行编排、自有宿主与报告 |
-| deployment | 源双清单、显式绑定、当前原binary、便携部署、真实validator及身份复核 |
-| bootstrap | 公开目录、当前owner/generation与未配置ADB精确失败 |
+| 文件                   | 责任                                                                              |
+| ---------------------- | --------------------------------------------------------------------------------- |
+| 根入口                 | 参数、冻结输入、串行编排、自有宿主与报告                                          |
+| deployment             | 源双清单、显式绑定、当前原binary、便携部署、真实validator及身份复核               |
+| bootstrap              | 公开目录、当前owner/generation与未配置ADB精确失败                                 |
 | fixtures / fake-adb.rs | 独立ADB/Java双入口、旁置工具配置、原子门闩、实际argv/父插件路径/直接PID与退出意图 |
-| jobs | 同Job双端历史/事件、唯一终态、冻结历史、默认60个Job/57个工具与性能整体99个Job库存 |
-| discovery | refresh/direct/alias，HTTP/MCP各一Job/一工具与本次目录 |
-| actions | 原七能力固定argv/结果、精确错误、十一贡献无内置回退、原共享锁 |
-| artifacts | 安装/截图的HTTP及MCP能力与旧别名、私有副本、下载原字节、共享锁与取消 |
-| apks-fixtures | 独立APKS内外层ZIP、完整SHA、固定Java argv、私有副本和Windows路径规范化 |
-| apks | APKS资格失败、准入拒绝、HTTP/MCP三类入口、空/损坏UTF-8输出与在途取消 |
-| apks-locks | APKS与APK/截图的双向共享写锁、三类入口串行及另一设备并行 |
-| lifecycle | APKS及截图两轮在途卸载、旧代四类动作和新代未发现APKS拒绝、新代发现及历史/产物保留 |
-| performance-fixtures | 独立五笔采样argv与原始数值、同父PID样本分组、完整和取消工具观察 |
-| performance | 显式来源缺失、准入、四类直接采样、device/read并行及provider/write屏障 |
-| performance-lifecycle | 八会话入口、CPU差分与恢复基线、Running/Paused卸载、换代来源和分页历史 |
-| evidence | 递归实际import输入摘要、逐Job及后台会话来源关联日志、报告与原件保留 |
+| jobs                   | 同Job双端历史/事件、唯一终态、冻结历史、默认60个Job/57个工具与性能整体99个Job库存 |
+| discovery              | refresh/direct/alias，HTTP/MCP各一Job/一工具与本次目录                            |
+| actions                | 原七能力固定argv/结果、精确错误、十一贡献无内置回退、原共享锁                     |
+| artifacts              | 安装/截图的HTTP及MCP能力与旧别名、私有副本、下载原字节、共享锁与取消              |
+| apks-fixtures          | 独立APKS内外层ZIP、完整SHA、固定Java argv、私有副本和Windows路径规范化            |
+| apks                   | APKS资格失败、准入拒绝、HTTP/MCP三类入口、空/损坏UTF-8输出与在途取消              |
+| apks-locks             | APKS与APK/截图的双向共享写锁、三类入口串行及另一设备并行                          |
+| lifecycle              | APKS及截图两轮在途卸载、旧代四类动作和新代未发现APKS拒绝、新代发现及历史/产物保留 |
+| performance-fixtures   | 独立五笔采样argv与原始数值、同父PID样本分组、完整和取消工具观察                   |
+| performance            | 显式来源缺失、准入、四类直接采样、device/read并行及provider/write屏障             |
+| performance-lifecycle  | 八会话入口、CPU差分与恢复基线、Running/Paused卸载、换代来源和分页历史             |
+| evidence               | 递归实际import输入摘要、逐Job及后台会话来源关联日志、报告与原件保留               |
 
 ## 必须通过
 
