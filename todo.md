@@ -1439,3 +1439,10 @@ Android环境观测已随实际Root读取通道标记权限；普通无Root不�
 - 插件最终fmt/Clippy/24测试/debug build退出0；无声窄修前workspace test/build退出0，系统重启导致PDB损坏的首次失败与修复后通过日志均保留。前端generate退出0、7项WebRTC定点通过，最终无声页check（344源码）/build（2331模块）退出0，保留既有构建警告；遵用户要求未跑前端全量测试。依赖恢复不改package或锁定版本，最初npm ci因运行中Vite原生binding锁定EPERM，后续按锁文件npm install退出0。
 - 当前只证明本机真机视频、实际UDP、控制发送与资源释放；局域网、防火墙、NAT/TURN、长期运行、音频、产品页真机触摸和端到端延迟仍各自待验。完整实现与证据入口见 backend/docs/implementation/投屏WebRTC实施.md。
 - 最终无声隔离 smoke `artifacts/mirroring-webrtc-smoke-15925553-8c88-489d-9829-6bd3b4bbe235/report.json` 四项通过/退出0，匹配最终插件摘要；15帧零丢帧、UDP、无音轨、原字节有序控制、未应答取消及旧open清理通过。两模式runtime、plugin-lifecycle、cooperative三情形均退出0；本次独立宿主/浏览器/工具进程已回收。
+
+### 2026-10-15 局域网联调服务重启
+
+- 按用户要求通过公开关闭接口停止旧宿主26340，使用原宿主副本与原数据、插件目录恢复；预览启动脚本增加 `-Lan` 开关。后端PID35920监听 `0.0.0.0:7031`，前端Vite PID35792监听 `0.0.0.0:5173`，均后台持久运行。
+- 同事入口 `http://192.168.50.5:5173/#media`，接口通过同源 `/api` 代理；直连后端为 `http://192.168.50.5:7031`。本机经该局域网IP访问首页、代理健康及后端健康均HTTP200，13个插件全部loaded、cleanup_failed为0，mirroring新旧会话贡献均存在。
+- 重启后宿主SHA256仍为 `C2EA162225CB6645DB5EC6DA1C21AE86508B8CD61364C942D75C81B0E9711CD7`，投屏插件仍为 `C8F9A752062FEE3241E7956BDDEAF58CFFD16FEEF07B2AF544770636B9FD8A87`。本轮只调整部署与重启，未运行构建或测试套件。
+- 局域网HTTP联调选择WebRTC；兼容模式的VideoDecoder可能受安全上下文限制。实际同事电脑连通性、UDP候选对及操作延迟等待本次跨机器联调，不将本机访问当作远端验收。

@@ -1,0 +1,329 @@
+use axum::{
+    Json, Router,
+    body::Body,
+    extract::{Path, Query, State},
+    http::{HeaderMap, HeaderValue, Method, StatusCode, header},
+    response::{IntoResponse, Response},
+    routing::{delete, get, post},
+};
+use futures_util::StreamExt;
+use serde_json::json;
+use sha2::{Digest, Sha256};
+use tokio::{
+    fs,
+    io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt},
+};
+use tokio_util::io::ReaderStream;
+use tower_http::cors::CorsLayer;
+
+use crate::{
+    CatalogResult, MarketEntry, ResourceRecord, Store, model::CatalogQuery, store::StoreError,
+};
+
+const MAX_UPLOAD_BYTES: u64 = 2 * 1024 * 1024 * 1024;
+
+#[derive(Clone)]
+pub struct AppState {
+    pub store: Store,
+}
+
+pub fn router(store: Store) -> Router {
+    Router::new()
+        .route("/api/v1/health", get(health))
+        .route("/api/v1/resources", post(upload_resource))
+        .route(
+            "/api/v1/resources/{sha256}",
+            get(download_resource).head(download_resource),
+        )
+        .route("/api/v1/resources/{sha256}/meta", get(resource_metadata))
+        .route("/api/v1/catalog", get(catalog).post(publish_catalog_entry))
+        .route(
+            "/api/v1/catalog/{id}/{version}",
+            delete(delete_catalog_entry),
+        )
+        .layer(CorsLayer::permissive())
+        .with_state(AppState { store })
+}
+
+async fn health() -> Json<serde_json::Value> {
+    Json(json!({ "status": "ok", "service": "deviceforge-resource-server" }))
+}
+
+async fn upload_resource(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    body: Body,
+) -> Result<(StatusCode, Json<ResourceRecord>), ApiError> {
+    let content_length = headers
+        .get(header::CONTENT_LENGTH)
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.parse::<u64>().ok());
+    if content_length.is_some_and(|size| size > MAX_UPLOAD_BYTES) {
+        return Err(ApiError::PayloadTooLarge);
+    }
+    let filename =
+        header_text(&headers, "x-resource-filename").unwrap_or_else(|| "resource.bin".to_owned());
+    let media_type = header_text(&headers, header::CONTENT_TYPE.as_str())
+        .unwrap_or_else(|| "application/octet-stream".to_owned());
+    let kind = header_text(&headers, "x-resource-kind").unwrap_or_else(|| "resource".to_owned());
+    let temporary = state.store.temp_path();
+    let mut file = fs::File::create(&temporary).await?;
+    let mut stream = body.into_data_stream();
+    let mut digest = Sha256::new();
+    let mut size = 0_u64;
+    while let Some(chunk) = stream.next().await {
+        let chunk =
+            chunk.map_err(|error| ApiError::BadRequest(format!("上传数据无效：{error}")))?;
+        size = size.saturating_add(chunk.len() as u64);
+        if size > MAX_UPLOAD_BYTES {
+            let _ = fs::remove_file(&temporary).await;
+            return Err(ApiError::PayloadTooLarge);
+        }
+        digest.update(&chunk);
+        file.write_all(&chunk).await?;
+    }
+    file.flush().await?;
+    drop(file);
+    let sha256 = format!("{:x}", digest.finalize());
+    let store = state.store.clone();
+    let temporary_for_publish = temporary.clone();
+    let record = tokio::task::spawn_blocking(move || {
+        store.publish_blob(
+            &temporary_for_publish,
+            &filename,
+            &media_type,
+            &kind,
+            size,
+            &sha256,
+        )
+    })
+    .await??;
+    Ok((StatusCode::CREATED, Json(record)))
+}
+
+async fn resource_metadata(
+    State(state): State<AppState>,
+    Path(sha256): Path<String>,
+) -> Result<Json<ResourceRecord>, ApiError> {
+    let record = load_resource(state.store, sha256).await?;
+    Ok(Json(record))
+}
+
+async fn download_resource(
+    State(state): State<AppState>,
+    method: Method,
+    Path(sha256): Path<String>,
+    headers: HeaderMap,
+) -> Result<Response, ApiError> {
+    let record = load_resource(state.store.clone(), sha256).await?;
+    let path = state.store.resource_path(&record)?;
+    let (start, end) = parse_range(headers.get(header::RANGE), record.size)?;
+    if headers
+        .get(header::IF_NONE_MATCH)
+        .and_then(|value| value.to_str().ok())
+        .is_some_and(|value| value.trim() == format!("\"{}\"", record.sha256))
+    {
+        let mut response = Response::new(Body::empty());
+        *response.status_mut() = StatusCode::NOT_MODIFIED;
+        set_common_headers(response.headers_mut(), &record);
+        return Ok(response);
+    }
+    let is_partial = start != 0 || end + 1 != record.size;
+    let length = end - start + 1;
+    let mut response = if method == Method::HEAD {
+        Response::new(Body::empty())
+    } else {
+        let mut file = fs::File::open(path).await?;
+        if start != 0 {
+            file.seek(std::io::SeekFrom::Start(start)).await?;
+        }
+        let reader = file.take(length);
+        Response::new(Body::from_stream(ReaderStream::new(reader)))
+    };
+    *response.status_mut() = if is_partial {
+        StatusCode::PARTIAL_CONTENT
+    } else {
+        StatusCode::OK
+    };
+    set_common_headers(response.headers_mut(), &record);
+    response.headers_mut().insert(
+        header::CONTENT_LENGTH,
+        HeaderValue::from_str(&length.to_string())
+            .map_err(|_| ApiError::Internal("响应长度无效".into()))?,
+    );
+    if is_partial {
+        response.headers_mut().insert(
+            header::CONTENT_RANGE,
+            HeaderValue::from_str(&format!("bytes {start}-{end}/{}", record.size))
+                .map_err(|_| ApiError::Internal("响应范围无效".into()))?,
+        );
+    }
+    Ok(response)
+}
+
+fn set_common_headers(headers: &mut HeaderMap, record: &ResourceRecord) {
+    if let Ok(value) = HeaderValue::from_str(&record.media_type) {
+        headers.insert(header::CONTENT_TYPE, value);
+    }
+    if let Ok(value) = HeaderValue::from_str(&format!("\"{}\"", record.sha256)) {
+        headers.insert(header::ETAG, value);
+    }
+    headers.insert(header::ACCEPT_RANGES, HeaderValue::from_static("bytes"));
+    if let Ok(value) = HeaderValue::from_str(&record.filename) {
+        headers.insert("x-resource-filename", value);
+    }
+}
+
+async fn catalog(
+    State(state): State<AppState>,
+    Query(query): Query<CatalogQuery>,
+) -> Result<Json<CatalogResult>, ApiError> {
+    let result = tokio::task::spawn_blocking(move || state.store.catalog(&query)).await??;
+    Ok(Json(result))
+}
+
+async fn publish_catalog_entry(
+    State(state): State<AppState>,
+    Json(entry): Json<MarketEntry>,
+) -> Result<(StatusCode, Json<MarketEntry>), ApiError> {
+    let store = state.store;
+    let copy = entry.clone();
+    tokio::task::spawn_blocking(move || store.insert_market_entry(&copy)).await??;
+    Ok((StatusCode::CREATED, Json(entry)))
+}
+
+async fn delete_catalog_entry(
+    State(state): State<AppState>,
+    Path((id, version)): Path<(String, String)>,
+) -> Result<StatusCode, ApiError> {
+    let removed =
+        tokio::task::spawn_blocking(move || state.store.remove_market_entry(&id, &version))
+            .await??;
+    if removed {
+        Ok(StatusCode::NO_CONTENT)
+    } else {
+        Err(ApiError::NotFound)
+    }
+}
+
+async fn load_resource(store: Store, id: String) -> Result<ResourceRecord, ApiError> {
+    let record = tokio::task::spawn_blocking(move || store.resource(&id)).await??;
+    Ok(record)
+}
+
+fn header_text(headers: &HeaderMap, name: &str) -> Option<String> {
+    headers
+        .get(name)
+        .and_then(|value| value.to_str().ok())
+        .map(str::to_owned)
+}
+
+fn parse_range(value: Option<&HeaderValue>, size: u64) -> Result<(u64, u64), ApiError> {
+    if size == 0 {
+        return Ok((0, 0));
+    }
+    let Some(value) = value.and_then(|value| value.to_str().ok()) else {
+        return Ok((0, size - 1));
+    };
+    let Some(range) = value.strip_prefix("bytes=") else {
+        return Err(ApiError::Range(size));
+    };
+    let Some((start, end)) = range.split_once('-') else {
+        return Err(ApiError::Range(size));
+    };
+    let (start, end) = if start.is_empty() {
+        let suffix = end.parse::<u64>().map_err(|_| ApiError::Range(size))?;
+        if suffix == 0 {
+            return Err(ApiError::Range(size));
+        }
+        (size.saturating_sub(suffix), size - 1)
+    } else {
+        let start = start.parse::<u64>().map_err(|_| ApiError::Range(size))?;
+        let end = if end.is_empty() {
+            size - 1
+        } else {
+            end.parse::<u64>()
+                .map_err(|_| ApiError::Range(size))?
+                .min(size - 1)
+        };
+        (start, end)
+    };
+    if start > end || start >= size {
+        return Err(ApiError::Range(size));
+    }
+    Ok((start, end))
+}
+
+#[derive(Debug)]
+enum ApiError {
+    BadRequest(String),
+    NotFound,
+    Conflict,
+    PayloadTooLarge,
+    Range(u64),
+    Internal(String),
+}
+
+impl From<StoreError> for ApiError {
+    fn from(error: StoreError) -> Self {
+        match error {
+            StoreError::Missing => Self::NotFound,
+            StoreError::InvalidId => Self::BadRequest("资源标识无效".into()),
+            StoreError::Conflict => Self::Conflict,
+            StoreError::Metadata(message) => Self::BadRequest(message),
+            other => Self::Internal(other.to_string()),
+        }
+    }
+}
+
+impl From<std::io::Error> for ApiError {
+    fn from(error: std::io::Error) -> Self {
+        Self::Internal(error.to_string())
+    }
+}
+
+impl From<tokio::task::JoinError> for ApiError {
+    fn from(error: tokio::task::JoinError) -> Self {
+        Self::Internal(error.to_string())
+    }
+}
+
+impl IntoResponse for ApiError {
+    fn into_response(self) -> Response {
+        let (status, code, message) = match self {
+            Self::BadRequest(message) => (StatusCode::BAD_REQUEST, "invalid_request", message),
+            Self::NotFound => (StatusCode::NOT_FOUND, "not_found", "资源不存在".into()),
+            Self::Conflict => (
+                StatusCode::CONFLICT,
+                "conflict",
+                "资源或市场条目已存在".into(),
+            ),
+            Self::PayloadTooLarge => (
+                StatusCode::PAYLOAD_TOO_LARGE,
+                "payload_too_large",
+                "上传内容超过限制".into(),
+            ),
+            Self::Range(size) => {
+                let mut response = (
+                    StatusCode::RANGE_NOT_SATISFIABLE,
+                    Json(json!({
+                        "error": { "code": "invalid_range", "message": "请求范围无效" }
+                    })),
+                )
+                    .into_response();
+                if let Ok(value) = HeaderValue::from_str(&format!("bytes */{size}")) {
+                    response.headers_mut().insert(header::CONTENT_RANGE, value);
+                }
+                return response;
+            }
+            Self::Internal(message) => {
+                (StatusCode::INTERNAL_SERVER_ERROR, "internal_error", message)
+            }
+        };
+        (
+            status,
+            Json(json!({ "error": { "code": code, "message": message } })),
+        )
+            .into_response()
+    }
+}

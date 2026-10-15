@@ -1,4 +1,4 @@
-use std::{net::SocketAddr, path::PathBuf};
+use std::net::SocketAddr;
 
 use clapless::Options;
 use deviceforge_resource_server::{Store, router};

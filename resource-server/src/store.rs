@@ -1,7 +1,6 @@
-use crate::model::{CatalogQuery, MarketEntry, ResourceKind, Visibility, validate_market_entry};
+use crate::model::{CatalogQuery, MarketEntry, Visibility, validate_market_entry};
 use rusqlite::{Connection, OptionalExtension, params};
 use serde::Serialize;
-use sha2::{Digest, Sha256};
 use std::{
     fs,
     path::{Path, PathBuf},
@@ -86,7 +85,10 @@ impl Store {
                  author
              );",
         )?;
-        Ok(Self { root: Arc::new(root.to_path_buf()), connection: Arc::new(Mutex::new(connection)) })
+        Ok(Self {
+            root: Arc::new(root.to_path_buf()),
+            connection: Arc::new(Mutex::new(connection)),
+        })
     }
 
     pub fn temp_path(&self) -> PathBuf {
@@ -143,7 +145,7 @@ impl Store {
             Visibility::Market => "market",
             Visibility::Internal => "internal",
         };
-        let mut connection = self.connection.lock().map_err(|_| StoreError::Conflict)?;
+        let connection = self.connection.lock().map_err(|_| StoreError::Conflict)?;
         let transaction = connection.unchecked_transaction()?;
         if transaction
             .query_row(
@@ -169,7 +171,7 @@ impl Store {
     }
 
     pub fn remove_market_entry(&self, id: &str, version: &str) -> Result<bool, StoreError> {
-        let mut connection = self.connection.lock().map_err(|_| StoreError::Conflict)?;
+        let connection = self.connection.lock().map_err(|_| StoreError::Conflict)?;
         let transaction = connection.unchecked_transaction()?;
         let removed = transaction.execute(
             "DELETE FROM market_entries WHERE id = ?1 AND version = ?2",
@@ -187,7 +189,12 @@ impl Store {
 
     pub fn catalog(&self, query: &CatalogQuery) -> Result<CatalogResult, StoreError> {
         let connection = self.connection.lock().map_err(|_| StoreError::Conflict)?;
-        let payloads = if let Some(text) = query.q.as_deref().map(str::trim).filter(|value| !value.is_empty()) {
+        let payloads = if let Some(text) = query
+            .q
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+        {
             let search = fts_search_query(text);
             let mut statement = connection.prepare(
                 "SELECT market_entries.payload
@@ -200,24 +207,38 @@ impl Store {
             let rows = statement.query_map([search], |row| row.get::<_, String>(0))?;
             rows.collect::<Result<Vec<_>, _>>()?
         } else {
-            let mut statement = connection.prepare("SELECT payload FROM market_entries ORDER BY id, version")?;
+            let mut statement =
+                connection.prepare("SELECT payload FROM market_entries ORDER BY id, version")?;
             let rows = statement.query_map([], |row| row.get::<_, String>(0))?;
             rows.collect::<Result<Vec<_>, _>>()?
         };
         let mut entries = Vec::new();
         for payload in payloads {
-            let entry: MarketEntry = serde_json::from_str(&payload).map_err(|_| StoreError::Conflict)?;
+            let entry: MarketEntry =
+                serde_json::from_str(&payload).map_err(|_| StoreError::Conflict)?;
             if matches_query(&entry, query) {
                 entries.push(entry);
             }
         }
-        if query.q.as_deref().map(str::trim).is_some_and(|value| !value.is_empty()) {
-            entries.sort_by_key(|entry| std::cmp::Reverse(search_score(entry, query.q.as_deref().unwrap_or_default())));
+        if query
+            .q
+            .as_deref()
+            .map(str::trim)
+            .is_some_and(|value| !value.is_empty())
+        {
+            entries.sort_by_key(|entry| {
+                std::cmp::Reverse(search_score(entry, query.q.as_deref().unwrap_or_default()))
+            });
         }
         let total = entries.len();
         let (offset, limit) = query.bounds();
         let entries = entries.into_iter().skip(offset).take(limit).collect();
-        Ok(CatalogResult { entries, total, offset, limit })
+        Ok(CatalogResult {
+            entries,
+            total,
+            offset,
+            limit,
+        })
     }
 }
 
@@ -253,7 +274,10 @@ fn matches_query(entry: &MarketEntry, query: &CatalogQuery) -> bool {
     }
     if let Some(category) = &query.category {
         let wanted = category.split(',').filter(|value| !value.is_empty());
-        if wanted.clone().any(|value| !entry.categories.iter().any(|item| item == value)) {
+        if wanted
+            .clone()
+            .any(|value| !entry.categories.iter().any(|item| item == value))
+        {
             return false;
         }
     }
@@ -267,7 +291,10 @@ fn matches_query(entry: &MarketEntry, query: &CatalogQuery) -> bool {
             return false;
         }
     }
-    if query.supports_agent.is_some_and(|value| value != entry.supports_agent) {
+    if query
+        .supports_agent
+        .is_some_and(|value| value != entry.supports_agent)
+    {
         return false;
     }
     if let Some(policy) = &query.restart_policy {
@@ -275,13 +302,22 @@ fn matches_query(entry: &MarketEntry, query: &CatalogQuery) -> bool {
             return false;
         }
     }
-    if query.platform.as_ref().is_some_and(|value| !entry.platforms.is_empty() && !entry.platforms.iter().any(|item| item == value)) {
+    if query.platform.as_ref().is_some_and(|value| {
+        !entry.platforms.is_empty() && !entry.platforms.iter().any(|item| item == value)
+    }) {
         return false;
     }
-    if query.architecture.as_ref().is_some_and(|value| !entry.architectures.is_empty() && !entry.architectures.iter().any(|item| item == value)) {
+    if query.architecture.as_ref().is_some_and(|value| {
+        !entry.architectures.is_empty() && !entry.architectures.iter().any(|item| item == value)
+    }) {
         return false;
     }
-    if let Some(text) = query.q.as_deref().map(str::trim).filter(|value| !value.is_empty()) {
+    if let Some(text) = query
+        .q
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
         let needle = text.to_lowercase();
         let haystack = [
             entry.name.to_lowercase(),
@@ -289,7 +325,8 @@ fn matches_query(entry: &MarketEntry, query: &CatalogQuery) -> bool {
             entry.description.to_lowercase(),
             entry.keywords.join(" ").to_lowercase(),
             entry.author.clone().unwrap_or_default().to_lowercase(),
-        ].join(" ");
+        ]
+        .join(" ");
         if !haystack.contains(&needle) {
             return false;
         }
@@ -328,6 +365,8 @@ fn search_score(entry: &MarketEntry, query: &str) -> u8 {
 }
 
 fn now_ms() -> u64 {
-    SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_millis() as u64
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64
 }
-

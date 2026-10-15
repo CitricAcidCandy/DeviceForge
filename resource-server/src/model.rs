@@ -160,7 +160,11 @@ pub fn validate_market_entry(entry: &MarketEntry) -> Result<(), MetadataError> {
     {
         return Err(MetadataError::Field("categories"));
     }
-    if entry.applies_to.iter().any(|value| value.trim().is_empty() || value.len() > 100) {
+    if entry
+        .applies_to
+        .iter()
+        .any(|value| value.trim().is_empty() || value.len() > 100)
+    {
         return Err(MetadataError::Field("applies_to"));
     }
     if entry.platforms.iter().any(|value| !valid_id(value))
@@ -168,7 +172,10 @@ pub fn validate_market_entry(entry: &MarketEntry) -> Result<(), MetadataError> {
     {
         return Err(MetadataError::Field("platforms/architectures"));
     }
-    let details = entry.details.as_object().ok_or(MetadataError::Field("details"))?;
+    let details = entry
+        .details
+        .as_object()
+        .ok_or(MetadataError::Field("details"))?;
     match entry.kind {
         ResourceKind::Tool if !details.contains_key("tool_type") => {
             return Err(MetadataError::Details("tool_type"));
@@ -230,7 +237,10 @@ pub struct CatalogQuery {
 
 impl CatalogQuery {
     pub fn bounds(&self) -> (usize, usize) {
-        (self.offset.unwrap_or(0), self.limit.unwrap_or(50).clamp(1, 100))
+        (
+            self.offset.unwrap_or(0),
+            self.limit.unwrap_or(50).clamp(1, 100),
+        )
     }
 }
 
@@ -248,7 +258,14 @@ mod tests {
             summary: "演示摘要".into(),
             description: "演示描述".into(),
             keywords: vec!["设备".into()],
-            categories: vec!["function".into()],
+            categories: vec![
+                match kind {
+                    ResourceKind::Tool => "runtime",
+                    ResourceKind::Config => "preset",
+                    _ => "function",
+                }
+                .into(),
+            ],
             applies_to: vec!["universal".into()],
             supports_mcp: SupportsMcp::Both,
             supports_agent: true,
@@ -269,6 +286,9 @@ mod tests {
         assert!(validate_market_entry(&entry(ResourceKind::Tool)).is_ok());
         let mut invalid = entry(ResourceKind::Config);
         invalid.details = serde_json::json!({"config_type":"preset"});
-        assert!(matches!(validate_market_entry(&invalid), Err(MetadataError::Details(_))));
+        assert!(matches!(
+            validate_market_entry(&invalid),
+            Err(MetadataError::Details(_))
+        ));
     }
 }

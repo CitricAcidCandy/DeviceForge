@@ -8,6 +8,7 @@ import {
   Upload,
   CloudDownload,
   CloudUpload,
+  RotateCcw,
 } from 'lucide-react';
 import { Button } from '../../components/Button/index.tsx';
 import { Input } from '../../components/Input/index.tsx';
@@ -55,6 +56,8 @@ export function SettingsPage({ services }: { services: ProductServices }) {
     () => services.connection?.baseUrl ?? (typeof location === 'undefined' ? '' : location.origin),
   );
   const [token, setToken] = useState('');
+  const [marketplaceUrl, setMarketplaceUrl] = useState(() => services.marketplace.currentUrl());
+  const [marketplaceDraft, setMarketplaceDraft] = useState(() => services.marketplace.currentUrl());
   const [showToken, setShowToken] = useState(false);
   const action = useAction();
   const themes = useSnapshot(services.runtime.themes);
@@ -148,6 +151,49 @@ export function SettingsPage({ services }: { services: ProductServices }) {
           <p>切换后已提交任务仍以原服务器状态为准。令牌仅用于当前会话，不写入网址或持久存储。</p>
           <p>专注模式和减少动态效果在右上角设置，系统的减少动态效果偏好自动生效。</p>
         </details>
+      </FormSection>
+      <FormSection title="市场发现">
+        <FormRow label="市场地址" hint="仅保存在当前浏览器，保存后立即刷新市场目录">
+          {(control) => <div className="inline-action">
+            <Input
+              {...control}
+              value={marketplaceDraft}
+              onChange={(event) => setMarketplaceDraft(event.target.value)}
+              placeholder="http://127.0.0.1:7040"
+            />
+            <Button
+              disabled={action.pending}
+              onClick={() => {
+                void action.run(async () => {
+                  const value = services.marketplace.setUrl(marketplaceDraft);
+                  setMarketplaceUrl(value);
+                  window.dispatchEvent(new Event('deviceforge-marketplace-change'));
+                  return { data: { url: value }, logId: null };
+                });
+              }}
+            >
+              <RefreshCw />
+              保存并刷新
+            </Button>
+            <Button
+              variant="outline"
+              disabled={action.pending}
+              onClick={() => {
+                void action.run(async () => {
+                  const value = services.marketplace.resetUrl();
+                  setMarketplaceUrl(value);
+                  setMarketplaceDraft(value);
+                  window.dispatchEvent(new Event('deviceforge-marketplace-change'));
+                  return { data: { url: value }, logId: null };
+                });
+              }}
+            >
+              <RotateCcw />
+              恢复默认
+            </Button>
+          </div>}
+        </FormRow>
+        <p className="settings-consequence">当前浏览器覆盖：<span className="mono">{marketplaceUrl}</span>。不会写入服务器配置。</p>
       </FormSection>
       <FormSection title="工具配置">
         <OperationNotice services={services} operation="plugin.settings.list" />

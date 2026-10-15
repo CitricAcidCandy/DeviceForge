@@ -1,0 +1,6 @@
+{
+  "sources": [
+    { "name": "团队市场", "url": "https://market.example.com/" },
+    "http://127.0.0.1:7040"
+  ]
+}

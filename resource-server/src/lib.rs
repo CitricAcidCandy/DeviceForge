@@ -4,4 +4,4 @@ mod store;
 
 pub use http::{AppState, router};
 pub use model::{CatalogQuery, MarketEntry, ResourceKind, validate_market_entry};
-pub use store::{ResourceRecord, Store};
+pub use store::{CatalogResult, ResourceRecord, Store};

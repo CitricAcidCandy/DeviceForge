@@ -102,6 +102,10 @@ export async function start(
         APK_MCP_HOSTS: `127.0.0.1:${backendPort}`,
         APK_MCP_ORIGINS: network.origins.join(','),
         DEVICEFORGE_LOG_DIR: logDirectory,
+        DEVICEFORGE_MARKETPLACE_SOURCES: JSON.stringify(options.marketplaceSources ?? []),
+        ...(options.marketplaceConfigPath
+          ? { DEVICEFORGE_MARKETPLACE_CONFIG: options.marketplaceConfigPath }
+          : {}),
       },
     });
     await ready(backend, backendPort, headers, signal);

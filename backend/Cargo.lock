@@ -930,6 +930,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "deviceforge-marketplace-plugin"
+version = "0.1.0"
+dependencies = [
+ "apk-plugin-sdk",
+ "deviceforge-plugin-runtime",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "deviceforge-mirroring-plugin"
 version = "0.1.0"
 dependencies = [

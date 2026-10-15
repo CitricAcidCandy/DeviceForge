@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { help, parseOptions, readApiToken } from '../src/options.mjs';
+import { fileURLToPath } from 'node:url';
+import { help, parseOptions, readApiToken, readMarketplaceConfig, DEFAULT_MARKETPLACE_URL } from '../src/options.mjs';
 import { networkConfig, authority } from '../src/network.mjs';
 import { validateRegistrySource } from '../src/plugin-package.mjs';
 import { packagePath } from '../src/paths.mjs';
@@ -10,6 +11,7 @@ test('默认局域网、分离 MCP 端口，并允许配置 IPv4/IPv6', () => {
   assert.equal(defaults.ip, '0.0.0.0');
   assert.equal(defaults.port, 7030);
   assert.equal(defaults.mcpPort, 7032);
+  assert.deepEqual(defaults.marketplaceSources, [{ name: '本地默认市场', url: DEFAULT_MARKETPLACE_URL }]);
   const custom = parseOptions(['start', '--ip', '::1', '--port', '8080', '--mcp-port', '8081'], {});
   assert.equal(custom.ip, '::1');
   assert.equal(authority(custom.ip, custom.port), '[::1]:8080');
@@ -22,6 +24,19 @@ test('默认局域网、分离 MCP 端口，并允许配置 IPv4/IPv6', () => {
   ])
     assert.throws(() => parseOptions(args, {}));
 });
+
+test('市场来源支持独立配置并拒绝不安全地址', () => {
+  const file = fileURLToPath(new URL('./fixtures/marketplace.json', import.meta.url));
+  assert.deepEqual(readMarketplaceConfig(file), [
+    { name: '团队市场', url: 'https://market.example.com' },
+    { name: '本地市场', url: 'http://127.0.0.1:7040' },
+  ]);
+  assert.throws(() => readMarketplaceConfigFromValue(), /市场配置读取失败/);
+});
+
+function readMarketplaceConfigFromValue() {
+  return readMarketplaceConfig('missing-marketplace-config.json');
+}
 test('本地和局域网默认免令牌，显式空令牌同样保持免鉴权', () => {
   for (const environment of [{}, { APK_API_TOKEN: '' }]) {
     assert.equal(readApiToken(environment), '');

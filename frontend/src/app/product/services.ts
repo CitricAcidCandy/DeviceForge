@@ -20,6 +20,7 @@ import { createMediaDisplay } from './media-display.ts';
 import { createHttpWebRtcMirroring } from '../../features/mirroring-streaming/index.ts';
 import { createPluginDefaults } from '../../features/plugin-defaults/index.ts';
 import { createMessageController } from '../../components/Message/index.ts';
+import { createMarketplace } from '../../features/marketplace/index.ts';
 
 export interface ProductConnection {
   readonly baseUrl: string;
@@ -31,6 +32,7 @@ export function createProductServices(
   options: RuntimeOptions & { readonly connection?: ProductConnection },
 ) {
   const messages = createMessageController();
+  const marketplace = createMarketplace();
   const mediaDisplay = createMediaDisplay();
   const runtime = createFrontendRuntime({
     ...options,
@@ -70,6 +72,7 @@ export function createProductServices(
     runtime,
     pluginDefaults,
     messages,
+    marketplace,
     client,
     mediaDisplay,
     webRtcMirroring,

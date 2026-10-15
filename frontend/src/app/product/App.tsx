@@ -7,6 +7,7 @@ import { DevicesPage } from '../../pages/devices/index.tsx';
 import { PluginsPage } from '../../pages/plugins/index.tsx';
 import { TasksPage } from '../../pages/tasks/index.tsx';
 import { SettingsPage } from '../../pages/settings/index.tsx';
+import { MarketplacePage } from '../../pages/marketplace/index.tsx';
 import { AdvancedPage } from './advanced.tsx';
 import { MessageProvider } from '../../components/Message/index.tsx';
 
@@ -75,6 +76,8 @@ export function App({ services }: { services: ProductServices }) {
               <TasksPage services={services} />
             ) : entry.id === 'settings' ? (
               <SettingsPage services={services} />
+            ) : entry.id === 'marketplace' ? (
+              <MarketplacePage services={services} />
             ) : (
               <AdvancedPage route={entry.id} services={services} active={entry.id === route} />
             )}

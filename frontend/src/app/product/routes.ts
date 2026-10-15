@@ -13,6 +13,7 @@ import {
   ListChecks,
   Settings2,
   Wrench,
+  Store,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
@@ -30,6 +31,7 @@ export type ProductRoute =
   | 'plugins'
   | 'tasks'
   | 'tools'
+  | 'marketplace'
   | 'settings';
 export interface ProductRouteInfo {
   readonly id: ProductRoute;
@@ -129,6 +131,13 @@ export const PRODUCT_ROUTES: readonly ProductRouteInfo[] = [
     group: '工坊',
     description: '所需运行工具的计划、安装与移除',
     icon: Wrench,
+  },
+  {
+    id: 'marketplace',
+    label: '市场',
+    group: '工坊',
+    description: '检索插件、工具、配置与分发资源',
+    icon: Store,
   },
   {
     id: 'settings',

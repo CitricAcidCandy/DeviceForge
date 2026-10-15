@@ -1,0 +1,11 @@
+{
+  "id": "marketplace",
+  "version": "0.1.0",
+  "protocol_version": 4,
+  "executable": "deviceforge-marketplace-plugin.exe",
+  "args": [],
+  "operations": [
+    { "name": "sources", "title": "读取市场来源", "input_schema": { "type": "object", "additionalProperties": false, "properties": {} } },
+    { "name": "catalog", "title": "检索市场目录", "execution": { "api_version": 1, "total_timeout_ms": 30000 }, "input_schema": { "type": "object", "additionalProperties": true } }
+  ]
+}
