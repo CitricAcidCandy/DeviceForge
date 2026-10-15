@@ -94,7 +94,7 @@ export function createMirroringState() {
           ? 'definitions'
           : action === 'input' || action === 'eof'
             ? 'input'
-            : action === 'cancel'
+          : action === 'cancel' || action === 'release'
               ? 'cancel'
               : 'observe';
       if (lane === 'observe' && active.get(lane)?.action === 'output')
@@ -119,6 +119,10 @@ export function createMirroringState() {
         throw new ApiError('protocol', 'mirroring_not_selected', '请先打开或恢复投屏直播会话');
       revoke(lane);
       if (action === 'cancel') revoke('input');
+      if (action === 'release') {
+        revoke('observe');
+        revoke('input');
+      }
       const controller = new AbortController();
       const request: MirroringRequest = Object.freeze({
         action,
@@ -134,7 +138,7 @@ export function createMirroringState() {
         errors: Object.freeze(errors),
         logs: Object.freeze({ ...state.logs, [action]: null }),
         ...(action === 'definitions' ? { definitions: null } : {}),
-        ...(action === 'cancel' ? { inputState: 'uncertain' } : {}),
+        ...(action === 'cancel' || action === 'release' ? { inputState: 'uncertain' } : {}),
       });
       assertCurrent(request);
       return request;

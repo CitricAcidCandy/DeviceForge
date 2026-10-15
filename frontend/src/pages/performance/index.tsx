@@ -39,6 +39,7 @@ import type { ProductServices } from '../../app/product/services.ts';
 import { BlobDownload } from '../../components/BlobDownload/index.tsx';
 import { ProfileArchiveView } from './components/index.ts';
 import { PerformanceReadings } from './components/index.ts';
+import './workspace.css';
 
 function capabilityReason(
   devices: DeviceSnapshot,
@@ -146,12 +147,16 @@ function RootProfilePanel({
   }
 
   return (
-    <section aria-label="Root 堆栈录制">
-      <h3>Root 资格与限时归档</h3>
+    <section className="performance-workspace" aria-label="Root 堆栈录制">
+      <aside className="performance-controls" aria-label="归档配置">
+      <h3>归档配置</h3>
+      <details className="performance-notes">
+        <summary>设备范围</summary>
       <p className="muted">
         固定目标 {reference.localId} · 提供者 {reference.providerId} · 代次 {reference.generation}
         。探测与录制只有点击时才发起。
       </p>
+      </details>
       <div className="action-row">
         <Button
           variant="outline"
@@ -165,7 +170,7 @@ function RootProfilePanel({
             })
           }
         >
-          探测 Root 与 Simpleperf
+          检查录制资格
         </Button>
       </div>
       {probeReason && <p className="capability-notice">{probeReason}</p>}
@@ -184,22 +189,22 @@ function RootProfilePanel({
       )}
       <div className="form-row">
         <Field
-          label="归档时长（秒）"
+          label="时长（秒）"
           type="number"
           min={1}
           max={15}
           value={duration}
           onChange={setDuration}
-          hint="限时 1–15 秒，不替代持续性能会话"
+          hint="1–15 秒"
         />
         <Field
-          label="归档采样间隔（毫秒）"
+          label="间隔（毫秒）"
           type="number"
           min={1000}
           max={15000}
           value={interval}
           onChange={setInterval}
-          hint="至少 1000 毫秒，不超过录制时长"
+          hint="至少 1000，不超过录制时长"
         />
         <div className="form-field">
           <Label htmlFor="profile-capture-frames">采样画面</Label>
@@ -236,11 +241,13 @@ function RootProfilePanel({
           })
         }
       >
-        限时录制并打开归档
+        开始录制
       </Button>
+      <details className="performance-restore">
+        <summary>恢复已有录制</summary>
       <div className="form-row">
         <Field
-          label="恢复录制任务 ID"
+          label="录制任务 ID"
           value={restoreId}
           onChange={setRestoreId}
           hint="使用相同设备引用和应用包读取已有录制任务"
@@ -271,15 +278,19 @@ function RootProfilePanel({
           恢复并读取归档
         </Button>
       </div>
+      </details>
       {(jobId || waitJob) && (
         <p className="log-id">
           录制任务 ID：{jobId || waitJob}（用于任务页重新查询和取消服务端任务）
         </p>
       )}
       <p className="muted">
-        取消等待仅撤销页面请求，不等于停止服务端录制。切页后可在任务页查询实际终态，停止会话与取消任务分别管理。
+        暂停等待不会停止录制，可在任务页查询或取消。
       </p>
       <ActionFeedback {...action} />
+      </aside>
+      <div className="performance-results">
+        <h3>录制结果</h3>
       {published && (
         <div className="action-row">
           <Button
@@ -320,10 +331,11 @@ function RootProfilePanel({
         <ProfileArchiveView archive={archive} />
       ) : (
         <EmptyState
-          title="尚未打开归档"
-          description="录制成功后验证原始 ZIP、索引、栈与 PNG，再展示关联；验证失败不交付部分结果。"
+          title="等待录制结果"
+          description="完成录制或恢复任务后，在这里查看画面与调用栈。"
         />
       )}
+      </div>
     </section>
   );
 }
@@ -412,27 +424,28 @@ function PerformanceSessionPanel({
   }
 
   return (
-    <section aria-label="持续性能会话">
-      <h3>持续指标会话</h3>
+    <section className="performance-workspace" aria-label="持续性能会话">
+      <aside className="performance-controls" aria-label="采集配置">
+      <h3>采集配置</h3>
       <OperationNotice services={services} operation="android.performance.start" />
       <div className="form-row">
         <Field
-          label="会话时长（秒）"
+          label="时长（秒）"
           type="number"
           min={1}
           max={3600}
           value={duration}
           onChange={setDuration}
-          hint="1–3600 秒；达到时长由服务器收敛"
+          hint="1–3600 秒"
         />
         <Field
-          label="会话间隔（毫秒）"
+          label="间隔（毫秒）"
           type="number"
           min={1000}
           max={60000}
           value={interval}
           onChange={setInterval}
-          hint="1000–60000 毫秒，空值与有效零分别保留"
+          hint="1000–60000 毫秒"
         />
       </div>
       {samplingReason && <p className="capability-notice">{samplingReason}</p>}
@@ -467,7 +480,7 @@ function PerformanceSessionPanel({
             })
           }
         >
-          开始性能会话
+          开始采集
         </Button>
         <Button
           variant="outline"
@@ -482,7 +495,7 @@ function PerformanceSessionPanel({
             })
           }
         >
-          查询当前采样能力
+          查询采样能力
         </Button>
       </div>
       {capabilities?.key === sourceKey && (
@@ -491,10 +504,17 @@ function PerformanceSessionPanel({
           {capabilities.data.metrics.join('、')} · 最大 {capabilities.data.maxSamples} 点
         </p>
       )}
+      <details className="performance-notes">
+        <summary>采集范围说明</summary>
       <p className="muted">
         此创建契约只发送设备 ID，实际来源以服务器返回的 plugin_id / generation
         为准，不保证客户端代次 CAS。未注明来源的旧历史不会从当前设备补齐。
       </p>
+      </details>
+      </aside>
+      <div className="performance-results">
+      <h3>采样结果</h3>
+      {!session && <EmptyState title="等待采样" description="开始采集或从历史中读取会话。" />}
       {session && (
         <div className="performance-session">
           <h4>
@@ -504,6 +524,8 @@ function PerformanceSessionPanel({
             设备 {session.request.target.device_id} · 会话 {session.id} · 修订 {session.revision} ·{' '}
             {session.samples} 个采样点
           </p>
+          <details className="performance-notes">
+            <summary>来源详情</summary>
           <p className="muted">
             来源：
             {session.source
@@ -512,6 +534,7 @@ function PerformanceSessionPanel({
             {sourceDevice &&
               ` · 设备 ${sourceDevice.provider_id} / ${sourceDevice.generation} / ${sourceDevice.local_id}`}
           </p>
+          </details>
           {session.error && (
             <p role="alert" className="capability-notice">
               {session.error}
@@ -579,9 +602,12 @@ function PerformanceSessionPanel({
             </Button>
           </div>
           <PerformanceReadings readings={snapshot.readings} />
+          <details className="performance-notes">
+            <summary>指标说明</summary>
           <p className="muted">
             主进程指标与设备电气观测分别归属；净电池功率不是游戏独占功耗。历史样本没有逐点画面，画面关联请使用归档模式。
           </p>
+          </details>
           <JsonResult value={session} />
         </div>
       )}
@@ -593,13 +619,14 @@ function PerformanceSessionPanel({
         </p>
       )}
       {snapshot.error !== action.error && <ErrorNotice error={snapshot.error} />}
-      <h3>历史会话</h3>
+      <details className="performance-history">
+        <summary>历史会话</summary>
       <div className="form-row">
         <Field
-          label="读取性能会话 ID"
+          label="会话 ID"
           value={restoreId}
           onChange={setRestoreId}
-          hint="历史读取不要求当前设备在线"
+          placeholder="输入已知会话 ID"
         />
         <Button
           variant="outline"
@@ -662,8 +689,8 @@ function PerformanceSessionPanel({
         </div>
       ) : (
         <EmptyState
-          title="尚未读取会话历史"
-          description="刷新历史或输入已知会话 ID；当前设备选择不会替换历史对象与来源。"
+          title="尚未读取历史"
+          description="刷新历史或输入会话 ID。"
         />
       )}
       <Button
@@ -674,6 +701,8 @@ function PerformanceSessionPanel({
         下一页历史
       </Button>
       <ActionFeedback {...history} />
+      </details>
+      </div>
     </section>
   );
 }
@@ -684,23 +713,22 @@ export function PerformancePage({ services }: { services: ProductServices }) {
   const reference = devices.selected?.reference;
   const rootCompatible = reference?.providerId === 'android-device';
   return (
-    <section className="product-page">
+    <section className="product-page performance-page">
       <PageTitle
-        eyebrow="性能调试"
-        title="性能与堆栈"
-        description="持续指标会话与限时 Root 归档分开管理。所有结果来自公开服务，历史来源、空值和关联资格原样保留。"
+        title="性能"
       />
+      <div className="performance-target">
       <Field
         label="目标应用包名"
         value={packageId}
         onChange={setPackageId}
         placeholder="输入已运行的应用包名"
-        hint={`当前设备：${devices.selected?.model ?? reference?.localId ?? '尚未选择'}。开始或探测只在点击时执行。`}
       />
+      </div>
       <Tabs defaultValue="session">
         <TabsList aria-label="性能工作范围">
-          <TabsTrigger value="session">持续性能会话</TabsTrigger>
-          <TabsTrigger value="profile">限时画面与调用栈</TabsTrigger>
+          <TabsTrigger value="session">持续采样</TabsTrigger>
+          <TabsTrigger value="profile">画面与调用栈</TabsTrigger>
         </TabsList>
         <TabsContent value="session">
           <PerformanceSessionPanel services={services} devices={devices} packageId={packageId} />
@@ -717,7 +745,7 @@ export function PerformancePage({ services }: { services: ProductServices }) {
           ) : (
             <EmptyState
               title="请选择支持归档的设备"
-              description="当前公开 Android 归档工厂要求 android-device 的完整设备引用；每项入口仍核对 stack.probe / profile.record v1 的声明、可用状态和权限。其他平台不猜测 Root 能力。"
+              description="选择支持画面与调用栈录制的 Android 设备。"
             />
           )}
         </TabsContent>

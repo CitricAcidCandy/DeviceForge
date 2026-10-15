@@ -1,0 +1,136 @@
+.performance-target {
+  max-width: 700px;
+  margin-bottom: 24px;
+}
+.performance-workspace {
+  display: grid;
+  grid-template-columns: 248px minmax(0, 1fr);
+  gap: 28px;
+  align-items: start;
+  padding-top: 16px;
+}
+.performance-controls {
+  min-width: 0;
+  border-right: 1px solid var(--border);
+  padding-right: 24px;
+}
+.performance-controls > h3,
+.performance-results > h3 {
+  margin: 0 0 20px;
+}
+.performance-controls .form-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+}
+.performance-controls .form-row > .form-field {
+  min-width: 0;
+  max-width: none;
+}
+.performance-controls .action-row {
+  gap: 8px;
+}
+.performance-controls .action-row > button {
+  width: 100%;
+  justify-content: flex-start;
+}
+.performance-controls .form-row > button {
+  margin-top: 0;
+  justify-self: start;
+}
+.performance-controls .muted,
+.performance-controls .capability-notice {
+  font-size: 12px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+.performance-notes {
+  margin-block: 12px;
+}
+.performance-notes > summary,
+.performance-restore > summary {
+  color: var(--muted-foreground);
+  font-size: 13px;
+}
+.performance-restore {
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+  margin-top: 20px;
+}
+.performance-restore[open] > summary {
+  margin-bottom: 12px;
+}
+.performance-results {
+  min-width: 0;
+}
+.performance-results > .empty-state {
+  margin: 0;
+  min-height: 280px;
+  padding: 32px 0;
+}
+.performance-session > h4 {
+  font-size: 15px;
+  margin-block: 0 8px;
+}
+.performance-session > p {
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.performance-session > .action-row {
+  padding-block: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.performance-history {
+  border-top: 1px solid var(--border);
+  margin-top: 28px;
+  padding-top: 12px;
+}
+.performance-history > summary {
+  font-size: 14px;
+  font-weight: 500;
+}
+.performance-history[open] > summary {
+  margin-bottom: 16px;
+}
+.performance-history .form-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: end;
+  gap: 10px;
+}
+.performance-history .form-row > .form-field {
+  min-width: 0;
+  max-width: none;
+}
+.performance-history .form-row > button {
+  margin-top: 0;
+}
+@media (max-width: 1100px) {
+  .performance-workspace {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
+  }
+  .performance-controls {
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+    padding: 0 0 20px;
+  }
+  .performance-controls > .form-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    max-width: 680px;
+  }
+  .performance-controls .action-row > button {
+    width: auto;
+  }
+}
+@media (max-width: 680px) {
+  .performance-controls > .form-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .performance-history .form-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .performance-history .form-row > .form-field {
+    grid-column: 1 / -1;
+  }
+}

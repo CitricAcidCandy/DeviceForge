@@ -1,0 +1,62 @@
+[
+  {
+    "filename": "devices-768.png",
+    "route": "#/devices",
+    "title": "DeviceForge · 设备工坊",
+    "viewport": {
+      "width": 768,
+      "height": 1000
+    },
+    "body": {
+      "width": 753,
+      "height": 1026
+    },
+    "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n设备工坊\n设备\n正在连接\n专注\n设备目录\n0\n连接设备\n设备来源\n全部提供者\n还没有可用的设备提供者\n\n连接设备后重新发现，并检查设备端授权。\n\n设备提供者 · 0\n选择工作设备\n\n先在插件页启用设备提供者。\n\n管理插件\n任务记录\n暂无任务\n查看全部\n管理工坊扩展",
+    "overflows": []
+  },
+  {
+    "filename": "settings-768.png",
+    "route": "#/settings",
+    "title": "DeviceForge · 设备工坊",
+    "viewport": {
+      "width": 768,
+      "height": 1000
+    },
+    "body": {
+      "width": 753,
+      "height": 1411
+    },
+    "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n设备工坊\n设置\n服务器已连接\n专注\n设置\n主题与显示\n工作空间主题\n工坊默认主题\n服务连接\n服务地址\n测试并应用\n可选令牌\n显示\n仅用于当前会话，留空免鉴权\n\n应用后将结束当前工作会话。\n\n连接说明\n工具配置\n配置归属\n用户配置\n归属 ID\n读取配置\n配置区\n读取此区\n配置内容 · JSON\n写入使用已读取的修订；出现冲突时重新读取，不会自动覆盖。\n保存此区\nMCP 连接与工具目录\n导入与远端配置\n任务记录\nplugin.tool-supply.catalog · 失败\n查看全部\n管理工坊扩展",
+    "overflows": []
+  },
+  {
+    "filename": "ai-768.png",
+    "route": "#/ai",
+    "title": "DeviceForge · 设备工坊",
+    "viewport": {
+      "width": 768,
+      "height": 1000
+    },
+    "body": {
+      "width": 753,
+      "height": 1026
+    },
+    "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n设备工坊\nAI 助手\n服务器已连接\n专注\nAI 助手\nCodex SDK\n连接设置 · 选择项目后开始\n开始对话\n\n在连接设置中选择项目，然后输入问题。\n\n发给助手\n发送\n暂停等待\n继续读取回答\n停止本次会话\n线程与会话管理\n\n传输会话：尚未建立 · 待发送 · 回答所属项目：尚无\n\n暂停等待不会停止服务器任务。\n\n任务记录\nplugin.tool-supply.catalog · 失败\n查看全部\n管理工坊扩展",
+    "overflows": []
+  },
+  {
+    "filename": "performance-768.png",
+    "route": "#/performance",
+    "title": "DeviceForge · 设备工坊",
+    "viewport": {
+      "width": 768,
+      "height": 1000
+    },
+    "body": {
+      "width": 753,
+      "height": 1228
+    },
+    "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n设备工坊\n性能与调用栈\n服务器已连接\n专注\n工作设备\n尚未选择设备\n设备目录\n性能\n目标应用包名\n持续采样\n画面与调用栈\n采集配置\n时长（秒）\n1–3600 秒\n间隔（毫秒）\n1000–60000 毫秒\n\n先在顶部选择设备。\n\n开始采集\n查询采样能力\n采集范围说明\n采样结果\n等待采样\n\n开始采集或从历史中读取会话。\n\n历史会话\n任务记录\nplugin.tool-supply.catalog · 失败\n查看全部\n管理工坊扩展",
+    "overflows": []
+  }
+]

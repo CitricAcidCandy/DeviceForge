@@ -9,15 +9,14 @@ import {
 import { PageTitle } from '../../components/index.ts';
 import type { ProductServices } from '../../app/product/services.ts';
 import { AiProviderPanel } from './components/AiProviderPanel/index.tsx';
+import './workspace.css';
 
 export function AiPage({ services }: { services: ProductServices }) {
   const [provider, setProvider] = useState<'sdk' | 'cli'>('sdk');
   return (
-    <section className="product-page">
+    <section className="product-page ai-page">
       <PageTitle
-        eyebrow="WORKSHOP / ASSISTANT"
         title="AI 助手"
-        description="让问题、回答和执行过程留在同一处。CLI 与 SDK 各自保留真实项目与线程。"
       >
         <Select
           value={provider}

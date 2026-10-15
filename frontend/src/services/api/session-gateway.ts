@@ -38,12 +38,14 @@ function path(id: string): string {
   return `/api/v2/sessions/${encodedId(normalizeSessionId(id))}`;
 }
 export function isSessionBytes(value: unknown): value is number[] {
-  return (
-    Array.isArray(value) &&
-    value.length <= 8192 &&
-    isJsonData(value) &&
-    value.every((byte: unknown) => naturalNumber(byte) && byte <= 255)
-  );
+  if (!Array.isArray(value) || value.length > 8192) return false;
+  if (Reflect.ownKeys(value).length !== value.length + 1) return false;
+  for (let index = 0; index < value.length; ++index) {
+    const descriptor = Object.getOwnPropertyDescriptor(value, index);
+    const byte: unknown = descriptor?.value;
+    if (!descriptor?.enumerable || !naturalNumber(byte) || byte > 255) return false;
+  }
+  return true;
 }
 export function isSessionDefinitions(value: unknown): value is SessionDefinitions {
   return (
@@ -196,6 +198,10 @@ const cancelEndpoint: Endpoint<SessionPath, SessionInfo> = {
   request: ({ id }) => ({ path: `${path(id)}/cancel`, method: 'POST' }),
   decode: isSessionInfo,
 };
+const releaseEndpoint: Endpoint<SessionPath, SessionInfo> = {
+  request: ({ id }) => ({ path: `${path(id)}/release`, method: 'POST', keepalive: true }),
+  decode: isSessionInfo,
+};
 const removeEndpoint: Endpoint<SessionPath, SessionRemoved> = {
   request: ({ id }) => ({ path: path(id), method: 'DELETE' }),
   decode: isSessionRemoved,
@@ -217,6 +223,7 @@ export interface SessionGateway {
   ) => Promise<ApiResult<unknown>>;
   readonly eof: (id: string, signal: AbortSignal) => Promise<ApiResult<unknown>>;
   readonly cancel: (id: string, signal: AbortSignal) => Promise<ApiResult<unknown>>;
+  readonly release: (id: string, signal: AbortSignal) => Promise<ApiResult<unknown>>;
   readonly remove: (id: string, signal: AbortSignal) => Promise<ApiResult<unknown>>;
 }
 export function createHttpSessionGateway(client: ApiClient): SessionGateway {
@@ -229,6 +236,7 @@ export function createHttpSessionGateway(client: ApiClient): SessionGateway {
     send: (id, bytes, signal) => client.call(inputEndpoint, { id, bytes: [...bytes] }, signal),
     eof: (id, signal) => client.call(eofEndpoint, { id }, signal),
     cancel: (id, signal) => client.call(cancelEndpoint, { id }, signal),
+    release: (id, signal) => client.call(releaseEndpoint, { id }, signal),
     remove: (id, signal) => client.call(removeEndpoint, { id }, signal),
   };
 }

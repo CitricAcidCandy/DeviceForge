@@ -1,7 +1,6 @@
 import { createBrowserMirroringSink } from '../../features/mirroring-streaming/index.ts';
 import type { MirroringStreamSink } from '../../features/mirroring-streaming/index.ts';
 
-// 解码器归产品运行实例持有；页面绑定画布，切页不重置媒体序号。
 export function createMediaDisplay() {
   let canvas: HTMLCanvasElement | null = null;
   let decoder: MirroringStreamSink | null = null;
@@ -24,6 +23,14 @@ export function createMediaDisplay() {
   };
   return {
     sink,
+    stop() {
+      sink.dispose?.();
+      canvas = null;
+      const previous = audio;
+      audio = null;
+      if (previous && previous.state !== 'closed')
+        void previous.close().catch((error: unknown) => { failure = error; });
+    },
     bind(target: HTMLCanvasElement | null) {
       canvas = target;
     },

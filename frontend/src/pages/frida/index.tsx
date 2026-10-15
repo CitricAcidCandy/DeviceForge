@@ -35,6 +35,7 @@ import type { JobOutcome, PublishedResult } from '../../shared/jobs/index.ts';
 import type { DeviceRef } from '../../plugin-sdk/index.ts';
 import { withSelectedDevice } from '../../app/product/device-target.ts';
 import { BlobDownload } from '../../components/BlobDownload/index.tsx';
+import './workspace.css';
 
 type FridaView =
   | FridaDeployment
@@ -105,7 +106,7 @@ export function FridaPage({ services }: { services: ProductServices }) {
       return result.outcome;
     });
   return (
-    <section className="product-page">
+    <section className="product-page frida-page">
       <PageTitle
         eyebrow="深度调试"
         title="Frida"
@@ -122,10 +123,13 @@ export function FridaPage({ services }: { services: ProductServices }) {
       </PageTitle>
       {!ready && (
         <EmptyState
-          title="等待支持 Frida 的在线设备"
-          description="选择声明 Android 设备操作的在线提供者。在线不等于已获得 Root 或注入权限；每项操作还需对应插件贡献。"
+          title="请选择支持 Frida 的在线设备"
+          description="注入与部署需要相应设备权限。"
         />
       )}
+      <div className="frida-workspace">
+      <aside className="frida-controls" aria-label="Frida 执行配置">
+      <h2>脚本与目标</h2>
       <div className="form-row">
         <Field label="应用包名" value={packageId} onChange={setPackageId} />
         <Field
@@ -136,13 +140,15 @@ export function FridaPage({ services }: { services: ProductServices }) {
           min={1000}
           max={120000}
         />
+        <div className="form-field">
+        <Label htmlFor="frida-mode">注入模式</Label>
         <Select
           value={mode}
           onValueChange={(value) => {
             if (value === 'attach' || value === 'spawn') setMode(value);
           }}
         >
-          <SelectTrigger aria-label="注入模式">
+          <SelectTrigger id="frida-mode">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -150,8 +156,9 @@ export function FridaPage({ services }: { services: ProductServices }) {
             <SelectItem value="spawn">启动并注入应用</SelectItem>
           </SelectContent>
         </Select>
+        </div>
       </div>
-      <div className="form-row">
+      <details className="frida-server"><summary>服务器部署与进程</summary><div className="form-row">
         <div className="form-field">
           <Label htmlFor="frida-server-file">Frida 服务器文件</Label>
           <Input
@@ -190,7 +197,7 @@ export function FridaPage({ services }: { services: ProductServices }) {
           <Play />
           限时运行服务器
         </Button>
-      </div>
+      </div></details>
       <div className="form-row">
         <div className="form-field">
           <Label htmlFor="frida-script-file">UTF-8 脚本</Label>
@@ -240,12 +247,12 @@ export function FridaPage({ services }: { services: ProductServices }) {
         </Button>
       </div>
       <ActionFeedback {...action} />
-      {output && (
-        <section className="workspace-section">
-          <PageTitle
-            title="本次执行结果"
-            description={`来源设备 ${output.reference.localId} · 任务 ${output.outcome.job.id}`}
-          />
+      </aside>
+      <div className="frida-output">
+      {output ? (
+        <section>
+          <h2>执行结果</h2>
+          <p className="muted frida-provenance">来源 {output.reference.localId} · 任务 {output.outcome.job.id}</p>
           {JSON.stringify(output.reference) !== JSON.stringify(device.selection) && (
             <p className="capability-notice">以下属于先前设备的历史结果，不是当前设备状态。</p>
           )}
@@ -302,7 +309,9 @@ export function FridaPage({ services }: { services: ProductServices }) {
           )}
           <JsonResult value={output.outcome} />
         </section>
-      )}
+      ) : <EmptyState title="尚无执行结果" description="选择脚本并运行，输出会显示在这里。" />}
+      </div>
+      </div>
     </section>
   );
 }

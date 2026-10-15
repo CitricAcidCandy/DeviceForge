@@ -1,0 +1,183 @@
+.plugin-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 272px;
+  align-items: start;
+  gap: 32px;
+}
+
+.plugin-controls {
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 0;
+  padding-left: 24px;
+  border-left: 1px solid var(--border);
+}
+
+.plugin-directory {
+  grid-column: 1;
+  grid-row: 1;
+  min-width: 0;
+}
+
+.plugin-controls > details + details {
+  margin-top: 24px;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+
+.plugin-controls > details > summary {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.plugin-defaults > summary > span {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.plugin-controls .plugin-upload {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+  margin: 16px 0 10px;
+  padding: 0;
+  border: 0;
+}
+
+.plugin-controls .form-field {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+  max-width: none;
+  margin: 0;
+}
+
+.plugin-controls .form-field > label {
+  padding: 0;
+}
+
+.plugin-controls .plugin-upload > button {
+  justify-self: start;
+  margin: 0;
+}
+
+.plugin-controls p,
+.plugin-controls .result-row,
+.plugin-controls details details {
+  font-size: 12px;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+
+.plugin-defaults .section-heading {
+  display: block;
+  padding-top: 12px;
+}
+
+.plugin-defaults .page-actions {
+  margin-top: 12px;
+}
+
+.plugins-page .plugin-row {
+  gap: 16px;
+  margin: 0;
+  padding: 20px 0;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.plugins-page .plugin-row > svg {
+  display: none;
+}
+
+.plugins-page .plugin-row .grow {
+  min-width: 0;
+}
+
+.plugins-page .plugin-row h3,
+.plugins-page .plugin-row dd {
+  overflow-wrap: anywhere;
+}
+
+.plugins-page .plugin-row h3 {
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+
+.plugins-page .plugin-row details {
+  margin-top: 8px;
+  font-size: 12px;
+}
+
+.plugins-page .plugin-row p {
+  margin-top: 5px;
+  font-size: 12px;
+}
+
+.plugin-secondary {
+  margin-top: 24px;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+
+.plugin-secondary > summary {
+  color: var(--muted-foreground);
+  font-size: 13px;
+}
+
+.plugin-secondary > [data-slot='select-trigger'] {
+  max-width: 320px;
+  margin-top: 12px;
+}
+
+.plugin-secondary > .extension-list {
+  margin-top: 12px;
+}
+
+@media (max-width: 1000px) {
+  .plugin-workspace {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 28px;
+  }
+
+  .plugin-directory {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .plugin-controls {
+    grid-column: 1;
+    grid-row: 2;
+    padding: 20px 0 0;
+    border-left: 0;
+    border-top: 1px solid var(--border);
+  }
+
+  .plugin-controls .plugin-upload {
+    grid-template-columns: minmax(180px, 1fr) minmax(180px, 2fr) auto;
+    align-items: end;
+  }
+}
+
+@media (max-width: 640px) {
+  .plugin-controls .plugin-upload {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .plugins-page .plugin-row {
+    flex-wrap: wrap;
+  }
+
+  .plugins-page .plugin-row .row-actions {
+    width: auto;
+    margin-left: 0;
+    padding-left: 0;
+  }
+}

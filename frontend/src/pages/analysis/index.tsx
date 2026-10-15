@@ -29,6 +29,7 @@ import { OperationNotice, useOperationAvailable } from '../../app/product/capabi
 import { ActionFeedback } from '../../app/product/feedback.tsx';
 import { useAction } from '../../app/product/hooks.ts';
 import type { ProductServices } from '../../app/product/services.ts';
+import './workspace.css';
 const countLabels: Readonly<Record<string, string>> = {
   strings: '字符串',
   types: '类型',
@@ -53,7 +54,7 @@ function DexSection({ services, artifactId }: { services: ProductServices; artif
   return (
     <div className="workspace-section">
       <h2>DEX 直接分析</h2>
-      <p className="muted">统计定义类与文件完整性，SDK 命中只表示静态定义类证据。</p>
+      <details className="analysis-help"><summary>分析范围</summary><p className="muted">统计定义类与文件完整性，SDK 命中只表示静态定义类证据。</p></details>
       <OperationNotice services={services} operation="plugin.dex-analysis.inspect" />
       <Button
         disabled={!artifactId || !inspectAvailable || action.pending}
@@ -199,9 +200,9 @@ function MsgpackSection({
   return (
     <div className="workspace-section">
       <h2>MessagePack</h2>
-      <p className="muted">
+      <details className="analysis-help"><summary>格式与精度</summary><p className="muted">
         标准格式转换与服务器分页；宽整数查询会按现有精度规则拒绝，旧私有 DLL 格式没有兼容保证。
-      </p>
+      </p></details>
       <div className="page-actions">
         <Button
           disabled={!artifactId || !encode || action.pending}
@@ -379,13 +380,14 @@ export function AnalysisPage({ services }: { services: ProductServices }) {
   const [tool, setTool] = useState('dex');
   const upload = useAction();
   return (
-    <section className="product-page">
+    <section className="product-page analysis-page">
       <PageTitle
         eyebrow="离线文件工具"
         title="分析与数据"
         description="DEX 与 MessagePack 使用服务器产物，本页面不使用所选设备。"
       />
-      <div className="workspace-section">
+      <div className="analysis-workspace">
+      <aside className="analysis-source" aria-label="分析文件来源">
         <Label htmlFor="analysis-upload">上传待分析文件</Label>
         <Input
           id="analysis-upload"
@@ -406,9 +408,10 @@ export function AnalysisPage({ services }: { services: ProductServices }) {
           }}
         />
         {filename && <p>{filename}</p>}
-        <Field label="分析产物 ID" value={artifactId} onChange={setArtifactId} />
+        <Field label="产物 ID" value={artifactId} onChange={setArtifactId} />
         <ActionFeedback {...upload} />
-      </div>
+      </aside>
+      <div className="analysis-tool">
       <Tabs value={tool} onValueChange={setTool}>
         <TabsList>
           <TabsTrigger value="dex">DEX</TabsTrigger>
@@ -417,12 +420,14 @@ export function AnalysisPage({ services }: { services: ProductServices }) {
       </Tabs>
       {!artifactId && (
         <EmptyState
-          title="选择真实输入文件"
-          description="上传或填写已存在的产物 ID，再使用对应工具。"
+          title="选择输入文件"
+          description="上传文件或输入产物 ID。"
         />
       )}
       {tool === 'dex' && <DexSection services={services} artifactId={artifactId} />}
       {tool === 'msgpack' && <MsgpackSection services={services} artifactId={artifactId} />}
+      </div>
+      </div>
     </section>
   );
 }

@@ -88,6 +88,7 @@ export function createApiClient(options: ClientOptions): ApiClient {
           redirect: 'error',
           credentials: 'omit',
           cache: 'no-store',
+          ...(spec.keepalive ? { keepalive: true } : {}),
           ...(spec.body === undefined ? {} : { body: spec.body }),
         }),
         signal,

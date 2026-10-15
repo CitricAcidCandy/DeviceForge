@@ -15,6 +15,7 @@ import type { ProductServices } from '../../app/product/services.ts';
 import { useAction, useSnapshot } from '../../app/product/hooks.ts';
 import { EmptyState, JsonResult, PageTitle } from '../../components/index.ts';
 import { TaskArtifacts } from './components/TaskArtifacts/index.tsx';
+import './workspace.css';
 
 const taskStates = {
   queued: '排队中',
@@ -97,12 +98,8 @@ export function TasksPage({ services }: { services: ProductServices }) {
     }
   }
   return (
-    <div className="product-page" ref={root}>
-      <PageTitle
-        eyebrow="WORKSHOP / ACTIVITY"
-        title="任务与日志"
-        description="正在发生的操作，以及每一次真实结果。"
-      >
+    <div className="product-page tasks-page" ref={root}>
+      <PageTitle title="任务">
         <Button
           variant="outline"
           disabled={action.pending}
@@ -116,7 +113,7 @@ export function TasksPage({ services }: { services: ProductServices }) {
       </PageTitle>
       <div className="form-row task-filters">
         <div className="form-field">
-          <Label htmlFor="task-filter">任务状态</Label>
+          <Label htmlFor="task-filter">状态</Label>
           <Select value={filter} onValueChange={setFilter}>
             <SelectTrigger id="task-filter">
               <SelectValue />
@@ -131,21 +128,25 @@ export function TasksPage({ services }: { services: ProductServices }) {
           </Select>
         </div>
         <div className="form-field grow">
-          <Label htmlFor="task-query">操作名或任务 ID</Label>
+          <Label htmlFor="task-query">搜索任务</Label>
           <Input
             id="task-query"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="筛选已加载任务"
+            placeholder="操作名或任务 ID"
           />
         </div>
+      </div>
+      <div className="task-list-heading">
+        <h2>任务记录</h2>
+        <span>{visibleJobs.length} / {jobs.length} 项</span>
       </div>
       {loaded && visibleJobs.length === 0 && (
         <EmptyState
           title={jobs.length === 0 ? '还没有任务记录' : '没有匹配的任务'}
           description={
             jobs.length === 0
-              ? '从任一工具发起操作后，可以在这里查看进度、结果和排查信息。'
+              ? '发起操作后，在这里查看进度和结果。'
               : '调整状态或操作名筛选。'
           }
         />
@@ -208,7 +209,7 @@ export function TasksPage({ services }: { services: ProductServices }) {
                   </Button>
                 </div>
                 {selected.error && <p className="text-danger">{selected.error}</p>}
-                <details open>
+                <details>
                   <summary>任务事件</summary>
                   {events.length === 0 ? (
                     <p className="muted">没有返回任务事件。</p>
@@ -234,10 +235,10 @@ export function TasksPage({ services }: { services: ProductServices }) {
                   logId={selection.result?.logId ?? null}
                 />
                 <JsonResult value={selected.result} />
-                <p className="muted">
-                  任务 ID 用于回查任务；日志 ID
-                  用于排查一次接口请求。取消等待不会撤回已经提交的操作。
-                </p>
+                <details className="task-help">
+                  <summary>任务与日志说明</summary>
+                  <p className="muted">任务 ID 用于回查任务，日志 ID 用于排查接口请求。取消等待不会撤回已提交的操作。</p>
+                </details>
               </div>
             )}
           </article>

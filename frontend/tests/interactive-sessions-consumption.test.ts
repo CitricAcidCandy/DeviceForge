@@ -5,6 +5,7 @@ import {
   createInteractiveSessions,
 } from '../src/features/interactive-sessions/index.ts';
 import { ApiError, createApiClient } from '../src/services/api/index.ts';
+import { isSessionBytes } from '../src/services/api/session-gateway.ts';
 import type {
   ApiResult,
   SessionDefinitions,
@@ -68,10 +69,47 @@ function gateway(changes: Partial<SessionGateway> = {}): SessionGateway {
     send: async (id) => ({ data: { id, accepted: true }, logId: 'input-log' }),
     eof: async (id) => ({ data: { id, accepted: true }, logId: 'eof-log' }),
     cancel: async (id) => ({ data: info({ id, status: 'stopping' }), logId: 'cancel-log' }),
+    release: async (id) => ({ data: info({ id, status: 'stopping' }), logId: 'release-log' }),
     remove: async (id) => ({ data: { id }, logId: 'remove-log' }),
     ...changes,
   };
 }
+
+test('原字节专用校验保留边界并拒绝稀疏、访问器及额外属性', () => {
+  const sparse: number[] = [];
+  sparse.length = 1;
+  const accessor = [0];
+  let getterCalls = 0;
+  Object.defineProperty(accessor, '0', {
+    enumerable: true,
+    get: () => {
+      getterCalls++;
+      return 1;
+    },
+  });
+  const invalid: unknown[] = [
+    [-1],
+    [256],
+    [1.5],
+    [NaN],
+    [Infinity],
+    [true],
+    ['1'],
+    new Uint8Array([1]),
+    Array.from({ length: 8193 }, () => 0),
+    sparse,
+    accessor,
+    Object.defineProperty([1], '0', { enumerable: false }),
+    Object.assign([1], { extra: 2 }),
+    Object.defineProperty([1], 'extra', { value: 2 }),
+    Object.defineProperty([1], Symbol('额外属性'), { value: 2 }),
+    Object.assign(Array<number>(1), { extra: 1 }),
+  ];
+  for (const value of invalid) assert.equal(isSessionBytes(value), false);
+  for (const value of [[], [0, 255], Object.freeze([0, 255]), Array.from({ length: 8192 }, () => 255)])
+    assert.equal(isSessionBytes(value), true);
+  assert.equal(getterCalls, 0);
+});
 
 test('真实生成端点消费所有会话请求并独立保留日志', async () => {
   const requests: { path: string; method: string; body: unknown }[] = [];

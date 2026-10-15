@@ -1,0 +1,422 @@
+[
+  {
+    "filename": "devices-1440.png",
+    "route": "#/devices",
+    "title": "DeviceForge · 设备工坊",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "body": {
+      "width": 1425,
+      "height": 1026
+    },
+    "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n设备工坊\n工作台\n设备\n2026年10月15日星期四\n15:12\nAsia/Shanghai\n服务器已连接\n专注\n工作台\n设备\n应用与包\n文件与产物\n画面与录制\n深度调试\n性能与调用栈\nFrida\n自动化\n终端\n扩展创作\nAI 助手\n数据分析\n工坊\n插件\n任务与日志\n工具供应\n设置\n折叠导航\n设备目录\n1\n连接设备\n设备来源\n全部提供者\n22081212UG\n在线\nandroid · 387ec760\n设备提供者 · 2\n选择工作设备\n\n从目录选择设备，查看可用操作。\n\n任务记录\nandroid.performance.start · 失败\n查看全部\n管理工坊扩展",
+    "overflows": []
+  },
+  {
+    "filename": "packages-1440.png",
+    "route": "#/packages",
+    "title": "DeviceForge · 设备工坊",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "body": {
+      "width": 1425,
+      "height": 1054
+    },
+    "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n设备工坊\n工作台\n应用与包\n2026年10月15日星期四\n15:12\nAsia/Shanghai\n服务器已连接\n专注\n工作台\n设备\n应用与包\n文件与产物\n画面与录制\n深度调试\n性能与调用栈\nFrida\n自动化\n终端\n扩展创作\nAI 助手\n数据分析\n工坊\n插件\n任务与日志\n工具供应\n设置\n折叠导航\n工作设备\n尚未选择设备\n设备目录\n包与应用\n安装包分析\n设备应用\n安装包\n上传安装包\n\n支持 APK、AAB、APKS 和 ZIP。\n\n安装包产物 ID\n可填写任务中心已有的产物 ID。\n处理方式\n清单\n签名\n提取 APK\nAAB 构建\n反编译\nSDK 规则\nAPKS 匹配\nAAB 模块（可选）\nAPK 不填；省略保持服务器默认。\n运行清单\n分析结果\n\n上传安装包或填写产物 ID，选择处理方式后运行。\n\n任务记录\nandroid.performance.start · 失败\n查看全部\n管理工坊扩展",
+    "overflows": []
+  },
+  {
+    "filename": "files-1440.png",
+    "route": "#/files",
+    "title": "DeviceForge · 设备工坊",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "body": {
+      "width": 1425,
+      "height": 1026
+    },
+    "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n设备工坊\n工作台\n文件与产物\n2026年10月15日星期四\n15:12\nAsia/Shanghai\n服务器已连接\n专注\n工作台\n设备\n应用与包\n文件与产物\n画面与录制\n深度调试\n性能与调用栈\nFrida\n自动化\n终端\n扩展创作\nAI 助手\n数据分析\n工坊\n插件\n任务与日志\n工具供应\n设置\n折叠导航\n文件\n使用说明\n上传文件\n产物 ID\n打开文件\n\n服务器产物，不使用当前设备。\n\n尚未选择产物\n\n上传文件或输入产物 ID。\n\n任务记录\nandroid.performance.start · 失败\n查看全部\n管理工坊扩展",
+    "overflows": []
+  },
+  {
+    "filename": "media-1440.png",
+    "route": "#/media",
+    "title": "DeviceForge · 设备工坊",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "body": {
+      "width": 1425,
+      "height": 1140
+    },
+    "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n设备工坊\n工作台\n画面与录制\n2026年10月15日星期四\n15:12\nAsia/Shanghai\n服务器已连接\n专注\n工作台\n设备\n应用与包\n文件与产物\n画面与录制\n深度调试\n性能与调用栈\nFrida\n自动化\n终端\n扩展创作\nAI 助手\n数据分析\n工坊\n插件\n任务与日志\n工具供应\n设置\n折叠导航\n工作设备\n尚未选择设备\n设备目录\n画面与录制\n使用说明\n截取画面\n选择一台设备开始\n\n在上方选择工作设备。\n\n画面参数\n最大画面尺寸\n帧率上限\n播放设备音频\n开启设备控制\n检查直播能力\n开始投屏\n继续读取\n暂停读取\n释放直播\n等待设备画面\n\n选择设备后开始投屏。\n\n来源：尚无画面 · 尚未连接\n恢复已知直播会话\n录像与下载\n任务记录\nandroid.performance.start · 失败\n查看全部\n管理工坊扩展",
+    "overflows": []
+  },
+  {
+    "filename": "performance-1440.png",
+    "route": "#/performance",
+    "title": "DeviceForge · 设备工坊",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "body": {
+      "width": 1425,
+      "height": 1026
+    },
+    "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n设备工坊\n深度调试\n性能与调用栈\n2026年10月15日星期四\n15:12\nAsia/Shanghai\n服务器已连接\n专注\n工作台\n设备\n应用与包\n文件与产物\n画面与录制\n深度调试\n性能与调用栈\nFrida\n自动化\n终端\n扩展创作\nAI 助手\n数据分析\n工坊\n插件\n任务与日志\n工具供应\n设置\n折叠导航\n工作设备\n尚未选择设备\n设备目录\n性能\n目标应用包名\n持续采样\n画面与调用栈\n采集配置\n时长（秒）\n1–3600 秒\n间隔（毫秒）\n1000–60000 毫秒\n\n先在顶部选择设备。\n\n开始采集\n查询采样能力\n采集范围说明\n采样结果\n等待采样\n\n开始采集或从历史中读取会话。\n\n历史会话\n任务记录\nandroid.performance.start · 失败\n查看全部\n管理工坊扩展",
+    "overflows": []
+  },
+  {
+    "filename": "frida-1440.png",
+    "route": "#/frida",
+    "title": "DeviceForge · 设备工坊",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "body": {
+      "width": 1425,
+      "height": 1053
+    },
+    "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n设备工坊\n深度调试\nFrida\n2026年10月15日星期四\n15:12\nAsia/Shanghai\n服务器已连接\n专注\n工作台\n设备\n应用与包\n文件与产物\n画面与录制\n深度调试\n性能与调用栈\nFrida\n自动化\n终端\n扩展创作\nAI 助手\n数据分析\n工坊\n插件\n任务与日志\n工具供应\n设置\n折叠导航\n工作设备\n尚未选择设备\n设备目录\nFrida\n使用说明\n检查状态\n请选择支持 Frida 的在线设备\n\n注入与部署需要相应设备权限。\n\n脚本与目标\n应用包名\n执行时长（毫秒）\n注入模式\n附加运行中的应用\n服务器部署与进程\nUTF-8 脚本\n运行脚本\n分析权限调用\n尚无执行结果\n\n选择脚本并运行，输出会显示在这里。\n\n任务记录\nandroid.performance.start · 失败\n查看全部\n管理工坊扩展",
+    "overflows": []
+  },
+  {
+    "filename": "automation-1440.png",
+    "route": "#/automation",
+    "title": "DeviceForge · 设备工坊",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "body": {
+      "width": 1425,
+      "height": 1026
+    },
+    "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n设备工坊\n深度调试\n自动化\n2026年10月15日星期四\n15:12\nAsia/Shanghai\n服务器已连接\n专注\n工作台\n设备\n应用与包\n文件与产物\n画面与录制\n深度调试\n性能与调用栈\nFrida\n自动化\n终端\n扩展创作\nAI 助手\n数据分析\n工坊\n插件\n任务与日志\n工具供应\n设置\n折叠导航\n工作设备\n尚未选择设备\n设备目录\n自动化\n使用说明\n设备步骤\n桌面操作\n输入录制与回放\n设备流程\n等待支持设备输入的在线设备\n\n选择声明 Android 设备操作的提供者；不同输入操作分别核对服务器目录。\n\n点击\n执行时间（毫秒）\n相对流程开始，时间需按非递减顺序添加\n设备 X 坐标\n设备 Y 坐标\n添加步骤\n\n添加点击、滑动、按键或文本步骤后运行。\n\n运行设备流程\n设备重复点击\n重复点击 X\n重复点击 Y\n设备点击次数\n设备点击间隔（毫秒）\n重复点击设备\n任务记录\nandroid.performance.start · 失败\n查看全部\n管理工坊扩展",
+    "overflows": []
+  },
+  {
+    "filename": "terminal-1440.png",
+    "route": "#/terminal",
+    "title": "DeviceForge · 设备工坊",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "body": {
+      "width": 1425,
+      "height": 1063
+    },
+    "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n设备工坊\n深度调试\n终端\n2026年10月15日星期四\n15:12\nAsia/Shanghai\n服务器已连接\n专注\n工作台\n设备\n应用与包\n文件与产物\n画面与录制\n深度调试\n性能与调用栈\nFrida\n自动化\n终端\n扩展创作\nAI 助手\n数据分析\n工坊\n插件\n任务与日志\n工具供应\n设置\n折叠导航\n工作设备\n尚未选择设备\n设备目录\n终端\n刷新目录\n连接\n终端档案\n打开终端\n恢复已有会话\n\n刷新目录以读取可用终端档案。\n\n尚未打开\n输出 0 · 输入 unknown\n等待终端输出\n\n打开或恢复会话后，输出会显示在这里。\n\n终端输入\n发送\n持续读取\n暂停读取\n会话管理\n\n暂停读取不会停止服务器会话。\n\n任务记录\nandroid.performance.start · 失败\n查看全部\n管理工坊扩展",
+    "overflows": []
+  },
+  {
+    "filename": "ai-1440.png",
+    "route": "#/ai",
+    "title": "DeviceForge · 设备工坊",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "body": {
+      "width": 1425,
+      "height": 1026
+    },
+    "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n设备工坊\n扩展创作\nAI 助手\n2026年10月15日星期四\n15:12\nAsia/Shanghai\n服务器已连接\n专注\n工作台\n设备\n应用与包\n文件与产物\n画面与录制\n深度调试\n性能与调用栈\nFrida\n自动化\n终端\n扩展创作\nAI 助手\n数据分析\n工坊\n插件\n任务与日志\n工具供应\n设置\n折叠导航\nAI 助手\nCodex SDK\n连接设置 · 选择项目后开始\n开始对话\n\n在连接设置中选择项目，然后输入问题。\n\n发给助手\n发送\n暂停等待\n继续读取回答\n停止本次会话\n线程与会话管理\n\n传输会话：尚未建立 · 待发送 · 回答所属项目：尚无\n\n暂停等待不会停止服务器任务。\n\n任务记录\nandroid.performance.start · 失败\n查看全部\n管理工坊扩展",
+    "overflows": []
+  },
+  {
+    "filename": "analysis-1440.png",
+    "route": "#/analysis",
+    "title": "DeviceForge · 设备工坊",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "body": {
+      "width": 1425,
+      "height": 1026
+    },
+    "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n设备工坊\n扩展创作\n数据分析\n2026年10月15日星期四\n15:12\nAsia/Shanghai\n服务器已连接\n专注\n工作台\n设备\n应用与包\n文件与产物\n画面与录制\n深度调试\n性能与调用栈\nFrida\n自动化\n终端\n扩展创作\nAI 助手\n数据分析\n工坊\n插件\n任务与日志\n工具供应\n设置\n折叠导航\n分析与数据\n使用说明\n上传待分析文件\n产物 ID\nDEX\nMessagePack\n选择输入文件\n\n上传文件或输入产物 ID。\n\n分析范围\n读取 DEX 统计\nDEX 规则名称\nDEX 包路径\nDEX 类名（可选）\n检查此 SDK 规则\n任务记录\nandroid.performance.start · 失败\n查看全部\n管理工坊扩展",
+    "overflows": []
+  },
+  {
+    "filename": "plugins-1440.png",
+    "route": "#/plugins",
+    "title": "DeviceForge · 设备工坊",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "body": {
+      "width": 1425,
+      "height": 1026
+    },
+    "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n设备工坊\n工坊\n插件\n2026年10月15日星期四\n15:12\nAsia/Shanghai\n服务器已连接\n专注\n工作台\n设备\n应用与包\n文件与产物\n画面与录制\n深度调试\n性能与调用栈\nFrida\n自动化\n终端\n扩展创作\nAI 助手\n数据分析\n工坊\n插件\n任务与日志\n工具供应\n设置\n折叠导航\n插件\n刷新目录\n安装插件\n部署到\n服务器插件\n插件包 · ZIP / TGZ\n提交插件包\n\n部署后需启用。插件按可信代码运行。\n\n启动核对\n13 项通过\n服务器插件\n浏览器插件\n还没有部署插件包\n\n选择 ZIP 或 TGZ 插件包提交，再按需启用。\n\n插件主题\n服务器运行目录 · 13 项\n扩展入口 · 0 项\n任务记录\nandroid.performance.start · 失败\n查看全部\n管理工坊扩展",
+    "overflows": []
+  },
+  {
+    "filename": "tasks-1440.png",
+    "route": "#/tasks",
+    "title": "DeviceForge · 设备工坊",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "body": {
+      "width": 1425,
+      "height": 3041
+    },
+    "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n设备工坊\n工坊\n任务与日志\n2026年10月15日星期四\n15:12\nAsia/Shanghai\n服务器已连接\n专注\n工作台\n设备\n应用与包\n文件与产物\n画面与录制\n深度调试\n性能与调用栈\nFrida\n自动化\n终端\n扩展创作\nAI 助手\n数据分析\n工坊\n插件\n任务与日志\n工具供应\n设置\n折叠导航\n任务\n刷新任务\n状态\n全部任务\n搜索任务\n任务记录\n29 / 29 项\nandroid.performance.start\nac0d3b73-c63a-42b7-8c35-02694eaa05ee\n2026/10/15 15:04:44\n失败\nandroid.performance.start\ncaa55909-6e37-43cb-a276-e1f827b2ed8d\n2026/10/15 15:03:59\n失败\nplugin.harmony-device.discover\nd5dbcfd4-960c-407e-87ec-3d4b35dcb8b3\n2026/10/15 14:55:11\n失败\nplugin.android-device.discover\na5e2d85f-ac40-4144-9f52-1294cc20c16d\n2026/10/15 14:55:11\n成功\nplugin.harmony-device.discover\n6ec5df32-63d5-4d8f-809d-8f495937552f\n2026/10/15 12:30:20\n失败\nplugin.android-device.discover\n8c55b37d-21c7-4aec-9ea6-cfe3d12de296\n2026/10/15 12:30:19\n成功\nplugin.mirroring.runtime.status\nc2fda025-0d17-4f44-89e5-21056bdde326\n2026/10/15 11:58:56\n成功\nplugin.android-device.packages\n06c9c4bc-1aa3-4139-95b4-11e82a614442\n2026/10/15 11:57:32\n成功\nplugin.android-device.app.start\nf23e980d-4c28-421c-8d8b-0b32840e017b\n2026/10/15 11:54:50\n成功\nplugin.android-device.packages\n58f72cf7-6e6e-4860-876c-1df9d708a224\n2026/10/15 11:54:22\n成功\nplugin.android-device.packages\n4419b1a1-a64e-4f1b-a33b-19c400a0903f\n2026/10/15 11:49:14\n成功\nplugin.android-device.packages\na543f777-0c30-4108-b7c9-a3cf36db9eba\n2026/10/15 11:49:04\n成功\nplugin.android-device.discover\n7051cdf6-b8ec-448f-8f56-c890d5b1a4ea\n2026/10/15 11:48:57\n成功\nplugin.settings.list\nbf6bad10-46d4-451a-a10b-b31f722dabc6\n2026/10/15 11:28:34\n成功\nplugin.settings.list\nbfbf3808-e3f2-44f3-8fbd-92218d67fc42\n2026/10/15 11:28:27\n成功\nplugin.android-device.discover\n4c293530-fd2f-4879-a8dc-ebc30e291d7e\n2026/10/15 10:14:05\n失败\nplugin.harmony-device.discover\nf9a5a365-0acf-4b84-be4b-214a525d8564\n2026/10/14 17:40:33\n失败\nplugin.android-device.discover\neb36a0b0-bfe8-46f2-b76e-8e20372328ca\n2026/10/14 17:40:33\n失败\nplugin.tool-supply.catalog\nc4bdfa63-98d1-4060-b2bb-cf03a3b53cb3\n2026/10/14 17:39:58\n失败\nplugin.tool-supply.catalog\n0230eb51-6f66-46a9-9a58-9d49d4664307\n2026/10/14 17:39:57\n失败\nplugin.harmony-device.discover\n64c5ca39-98e5-4954-ba16-7b2c589531f6\n2026/10/14 17:32:27\n失败\nplugin.android-device.discover\n76d50cea-3a87-4dad-800a-f519618b2b1f\n2026/10/14 17:32:26\n失败\nplugin.harmony-device.discover\n3498f4bd-634d-490f-9ed9-68e7fa462f93\n2026/10/14 17:32:25\n失败\nplugin.android-device.discover\n4d0d8d60-bdd1-4272-9648-a3d60c432eed\n2026/10/14 17:32:25\n失败\nplugin.harmony-device.discover\n3f4d5059-a227-4ec6-a86d-491d45eccf46\n2026/10/14 17:32:06\n失败\nplugin.android-device.discover\n9f909ed0-c56a-4414-a888-93f15834ed03\n2026/10/14 17:32:05\n失败\nplugin.harmony-device.discover\nc753b925-124b-4a1b-bfa5-e30da84957aa\n2026/10/14 17:32:01\n失败\nplugin.android-device.discover\n57b9c329-04fa-44f9-8c1f-091337219f50\n2026/10/14 17:32:01\n失败\nplugin.android-device.discover\ne8bc9823-8a7e-4596-9ea4-bdd08ec1e789\n2026/10/14 17:31:58\n失败\n任务记录\nandroid.performance.start · 失败\n查看全部\n管理工坊扩展",
+    "overflows": []
+  },
+  {
+    "filename": "tools-1440.png",
+    "route": "#/tools",
+    "title": "DeviceForge · 设备工坊",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "body": {
+      "width": 1425,
+      "height": 1026
+    },
+    "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n设备工坊\n工坊\n工具供应\n2026年10月15日星期四\n15:12\nAsia/Shanghai\n服务器已连接\n专注\n工作台\n设备\n应用与包\n文件与产物\n画面与录制\n深度调试\n性能与调用栈\nFrida\n自动化\n终端\n扩展创作\nAI 助手\n数据分析\n工坊\n插件\n任务与日志\n工具供应\n设置\n折叠导航\n工具\n刷新目录\n尚未读取工具目录\n\n刷新目录，查看已安装工具和可用版本。\n\n运行时功能准备\n任务记录\nandroid.performance.start · 失败\n查看全部\n管理工坊扩展",
+    "overflows": []
+  },
+  {
+    "filename": "settings-1440.png",
+    "route": "#/settings",
+    "title": "DeviceForge · 设备工坊",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "body": {
+      "width": 1425,
+      "height": 1423
+    },
+    "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n设备工坊\n工坊\n设置\n2026年10月15日星期四\n15:12\nAsia/Shanghai\n服务器已连接\n专注\n工作台\n设备\n应用与包\n文件与产物\n画面与录制\n深度调试\n性能与调用栈\nFrida\n自动化\n终端\n扩展创作\nAI 助手\n数据分析\n工坊\n插件\n任务与日志\n工具供应\n设置\n折叠导航\n设置\n主题与显示\n工作空间主题\n工坊默认主题\n服务连接\n服务地址\n测试并应用\n可选令牌\n显示\n仅用于当前会话，留空免鉴权\n\n应用后将结束当前工作会话。\n\n连接说明\n工具配置\n配置归属\n用户配置\n归属 ID\n读取配置\n配置区\n读取此区\n配置内容 · JSON\n写入使用已读取的修订；出现冲突时重新读取，不会自动覆盖。\n保存此区\nMCP 连接与工具目录\n导入与远端配置\n任务记录\nandroid.performance.start · 失败\n查看全部\n管理工坊扩展",
+    "overflows": []
+  },
+  {
+    "filename": "devices-390.png",
+    "route": "#/devices",
+    "title": "DeviceForge · 设备工坊",
+    "viewport": {
+      "width": 390,
+      "height": 1000
+    },
+    "body": {
+      "width": 375,
+      "height": 1026
+    },
+    "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n服务器已连接\n设备目录\n1\n连接设备\n设备来源\n全部提供者\n22081212UG\n在线\nandroid · 387ec760\n设备提供者 · 2\n选择工作设备\n\n从目录选择设备，查看可用操作。\n\n任务记录\n查看全部\n管理工坊扩展",
+    "overflows": []
+  },
+  {
+    "filename": "packages-390.png",
+    "route": "#/packages",
+    "title": "DeviceForge · 设备工坊",
+    "viewport": {
+      "width": 390,
+      "height": 1000
+    },
+    "body": {
+      "width": 375,
+      "height": 1485
+    },
+    "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n服务器已连接\n工作设备\n尚未选择设备\n设备目录\n包与应用\n安装包分析\n设备应用\n安装包\n上传安装包\n\n支持 APK、AAB、APKS 和 ZIP。\n\n安装包产物 ID\n可填写任务中心已有的产物 ID。\n处理方式\n清单\n签名\n提取 APK\nAAB 构建\n反编译\nSDK 规则\nAPKS 匹配\nAAB 模块（可选）\nAPK 不填；省略保持服务器默认。\n运行清单\n分析结果\n\n上传安装包或填写产物 ID，选择处理方式后运行。\n\n任务记录\n查看全部\n管理工坊扩展",
+    "overflows": []
+  },
+  {
+    "filename": "files-390.png",
+    "route": "#/files",
+    "title": "DeviceForge · 设备工坊",
+    "viewport": {
+      "width": 390,
+      "height": 1000
+    },
+    "body": {
+      "width": 375,
+      "height": 1026
+    },
+    "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n服务器已连接\n文件\n使用说明\n上传文件\n产物 ID\n打开文件\n\n服务器产物，不使用当前设备。\n\n尚未选择产物\n\n上传文件或输入产物 ID。\n\n任务记录\n查看全部\n管理工坊扩展",
+    "overflows": []
+  },
+  {
+    "filename": "media-390.png",
+    "route": "#/media",
+    "title": "DeviceForge · 设备工坊",
+    "viewport": {
+      "width": 390,
+      "height": 1000
+    },
+    "body": {
+      "width": 375,
+      "height": 1494
+    },
+    "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n服务器已连接\n工作设备\n尚未选择设备\n设备目录\n画面与录制\n使用说明\n截取画面\n选择一台设备开始\n\n在上方选择工作设备。\n\n画面参数\n最大画面尺寸\n帧率上限\n播放设备音频\n开启设备控制\n检查直播能力\n开始投屏\n继续读取\n暂停读取\n释放直播\n等待设备画面\n\n选择设备后开始投屏。\n\n来源：尚无画面 · 尚未连接\n恢复已知直播会话\n录像与下载\n任务记录\n查看全部\n管理工坊扩展",
+    "overflows": []
+  },
+  {
+    "filename": "performance-390.png",
+    "route": "#/performance",
+    "title": "DeviceForge · 设备工坊",
+    "viewport": {
+      "width": 390,
+      "height": 1000
+    },
+    "body": {
+      "width": 375,
+      "height": 1422
+    },
+    "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n服务器已连接\n工作设备\n尚未选择设备\n设备目录\n性能\n目标应用包名\n持续采样\n画面与调用栈\n采集配置\n时长（秒）\n1–3600 秒\n间隔（毫秒）\n1000–60000 毫秒\n\n先在顶部选择设备。\n\n开始采集\n查询采样能力\n采集范围说明\n采样结果\n等待采样\n\n开始采集或从历史中读取会话。\n\n历史会话\n任务记录\n查看全部\n管理工坊扩展",
+    "overflows": []
+  },
+  {
+    "filename": "frida-390.png",
+    "route": "#/frida",
+    "title": "DeviceForge · 设备工坊",
+    "viewport": {
+      "width": 390,
+      "height": 1000
+    },
+    "body": {
+      "width": 375,
+      "height": 1460
+    },
+    "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n服务器已连接\n工作设备\n尚未选择设备\n设备目录\nFrida\n使用说明\n检查状态\n请选择支持 Frida 的在线设备\n\n注入与部署需要相应设备权限。\n\n脚本与目标\n应用包名\n执行时长（毫秒）\n注入模式\n附加运行中的应用\n服务器部署与进程\nUTF-8 脚本\n运行脚本\n分析权限调用\n尚无执行结果\n\n选择脚本并运行，输出会显示在这里。\n\n任务记录\n查看全部\n管理工坊扩展",
+    "overflows": []
+  },
+  {
+    "filename": "automation-390.png",
+    "route": "#/automation",
+    "title": "DeviceForge · 设备工坊",
+    "viewport": {
+      "width": 390,
+      "height": 1000
+    },
+    "body": {
+      "width": 375,
+      "height": 1630
+    },
+    "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n服务器已连接\n工作设备\n尚未选择设备\n设备目录\n自动化\n使用说明\n设备步骤\n桌面操作\n输入录制与回放\n设备流程\n等待支持设备输入的在线设备\n\n选择声明 Android 设备操作的提供者；不同输入操作分别核对服务器目录。\n\n点击\n执行时间（毫秒）\n相对流程开始，时间需按非递减顺序添加\n设备 X 坐标\n设备 Y 坐标\n添加步骤\n\n添加点击、滑动、按键或文本步骤后运行。\n\n运行设备流程\n设备重复点击\n重复点击 X\n重复点击 Y\n设备点击次数\n设备点击间隔（毫秒）\n重复点击设备\n任务记录\n查看全部\n管理工坊扩展",
+    "overflows": []
+  },
+  {
+    "filename": "terminal-390.png",
+    "route": "#/terminal",
+    "title": "DeviceForge · 设备工坊",
+    "viewport": {
+      "width": 390,
+      "height": 1000
+    },
+    "body": {
+      "width": 375,
+      "height": 1571
+    },
+    "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n服务器已连接\n工作设备\n尚未选择设备\n设备目录\n终端\n刷新目录\n终端档案\n打开终端\n恢复已有会话\n\n刷新目录以读取可用终端档案。\n\n尚未打开\n输出 0 · 输入 unknown\n等待终端输出\n\n打开或恢复会话后，输出会显示在这里。\n\n终端输入\n发送\n持续读取\n暂停读取\n会话管理\n\n暂停读取不会停止服务器会话。\n\n任务记录\n查看全部\n管理工坊扩展",
+    "overflows": []
+  },
+  {
+    "filename": "ai-390.png",
+    "route": "#/ai",
+    "title": "DeviceForge · 设备工坊",
+    "viewport": {
+      "width": 390,
+      "height": 1000
+    },
+    "body": {
+      "width": 375,
+      "height": 1026
+    },
+    "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n服务器已连接\nAI 助手\nCodex SDK\n连接设置 · 选择项目后开始\n开始对话\n\n在连接设置中选择项目，然后输入问题。\n\n发给助手\n发送\n暂停等待\n继续读取回答\n停止本次会话\n线程与会话管理\n\n传输会话：尚未建立 · 待发送 · 回答所属项目：尚无\n\n暂停等待不会停止服务器任务。\n\n任务记录\n查看全部\n管理工坊扩展",
+    "overflows": []
+  },
+  {
+    "filename": "analysis-390.png",
+    "route": "#/analysis",
+    "title": "DeviceForge · 设备工坊",
+    "viewport": {
+      "width": 390,
+      "height": 1000
+    },
+    "body": {
+      "width": 375,
+      "height": 1133
+    },
+    "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n服务器已连接\n分析与数据\n使用说明\n上传待分析文件\n产物 ID\nDEX\nMessagePack\n选择输入文件\n\n上传文件或输入产物 ID。\n\n分析范围\n读取 DEX 统计\nDEX 规则名称\nDEX 包路径\nDEX 类名（可选）\n检查此 SDK 规则\n任务记录\n查看全部\n管理工坊扩展",
+    "overflows": []
+  },
+  {
+    "filename": "plugins-390.png",
+    "route": "#/plugins",
+    "title": "DeviceForge · 设备工坊",
+    "viewport": {
+      "width": 390,
+      "height": 1000
+    },
+    "body": {
+      "width": 375,
+      "height": 1171
+    },
+    "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n服务器已连接\n插件\n刷新目录\n安装插件\n部署到\n服务器插件\n插件包 · ZIP / TGZ\n提交插件包\n\n部署后需启用。插件按可信代码运行。\n\n启动核对\n13 项通过\n服务器插件\n浏览器插件\n还没有部署插件包\n\n选择 ZIP 或 TGZ 插件包提交，再按需启用。\n\n插件主题\n服务器运行目录 · 13 项\n扩展入口 · 0 项\n任务记录\n查看全部\n管理工坊扩展",
+    "overflows": []
+  },
+  {
+    "filename": "tasks-390.png",
+    "route": "#/tasks",
+    "title": "DeviceForge · 设备工坊",
+    "viewport": {
+      "width": 390,
+      "height": 1000
+    },
+    "body": {
+      "width": 375,
+      "height": 3084
+    },
+    "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n服务器已连接\n任务\n刷新任务\n状态\n全部任务\n搜索任务\n任务记录\n29 / 29 项\nandroid.performance.start\nac0d3b73-c63a-42b7-8c35-02694eaa05ee\n失败\nandroid.performance.start\ncaa55909-6e37-43cb-a276-e1f827b2ed8d\n失败\nplugin.harmony-device.discover\nd5dbcfd4-960c-407e-87ec-3d4b35dcb8b3\n失败\nplugin.android-device.discover\na5e2d85f-ac40-4144-9f52-1294cc20c16d\n成功\nplugin.harmony-device.discover\n6ec5df32-63d5-4d8f-809d-8f495937552f\n失败\nplugin.android-device.discover\n8c55b37d-21c7-4aec-9ea6-cfe3d12de296\n成功\nplugin.mirroring.runtime.status\nc2fda025-0d17-4f44-89e5-21056bdde326\n成功\nplugin.android-device.packages\n06c9c4bc-1aa3-4139-95b4-11e82a614442\n成功\nplugin.android-device.app.start\nf23e980d-4c28-421c-8d8b-0b32840e017b\n成功\nplugin.android-device.packages\n58f72cf7-6e6e-4860-876c-1df9d708a224\n成功\nplugin.android-device.packages\n4419b1a1-a64e-4f1b-a33b-19c400a0903f\n成功\nplugin.android-device.packages\na543f777-0c30-4108-b7c9-a3cf36db9eba\n成功\nplugin.android-device.discover\n7051cdf6-b8ec-448f-8f56-c890d5b1a4ea\n成功\nplugin.settings.list\nbf6bad10-46d4-451a-a10b-b31f722dabc6\n成功\nplugin.settings.list\nbfbf3808-e3f2-44f3-8fbd-92218d67fc42\n成功\nplugin.android-device.discover\n4c293530-fd2f-4879-a8dc-ebc30e291d7e\n失败\nplugin.harmony-device.discover\nf9a5a365-0acf-4b84-be4b-214a525d8564\n失败\nplugin.android-device.discover\neb36a0b0-bfe8-46f2-b76e-8e20372328ca\n失败\nplugin.tool-supply.catalog\nc4bdfa63-98d1-4060-b2bb-cf03a3b53cb3\n失败\nplugin.tool-supply.catalog\n0230eb51-6f66-46a9-9a58-9d49d4664307\n失败\nplugin.harmony-device.discover\n64c5ca39-98e5-4954-ba16-7b2c589531f6\n失败\nplugin.android-device.discover\n76d50cea-3a87-4dad-800a-f519618b2b1f\n失败\nplugin.harmony-device.discover\n3498f4bd-634d-490f-9ed9-68e7fa462f93\n失败\nplugin.android-device.discover\n4d0d8d60-bdd1-4272-9648-a3d60c432eed\n失败\nplugin.harmony-device.discover\n3f4d5059-a227-4ec6-a86d-491d45eccf46\n失败\nplugin.android-device.discover\n9f909ed0-c56a-4414-a888-93f15834ed03\n失败\nplugin.harmony-device.discover\nc753b925-124b-4a1b-bfa5-e30da84957aa\n失败\nplugin.android-device.discover\n57b9c329-04fa-44f9-8c1f-091337219f50\n失败\nplugin.android-device.discover\ne8bc9823-8a7e-4596-9ea4-bdd08ec1e789\n失败\n任务记录\n查看全部\n管理工坊扩展",
+    "overflows": []
+  },
+  {
+    "filename": "tools-390.png",
+    "route": "#/tools",
+    "title": "DeviceForge · 设备工坊",
+    "viewport": {
+      "width": 390,
+      "height": 1000
+    },
+    "body": {
+      "width": 375,
+      "height": 1026
+    },
+    "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n服务器已连接\n工具\n刷新目录\n尚未读取工具目录\n\n刷新目录，查看已安装工具和可用版本。\n\n运行时功能准备\n任务记录\n查看全部\n管理工坊扩展",
+    "overflows": []
+  },
+  {
+    "filename": "settings-390.png",
+    "route": "#/settings",
+    "title": "DeviceForge · 设备工坊",
+    "viewport": {
+      "width": 390,
+      "height": 1000
+    },
+    "body": {
+      "width": 375,
+      "height": 1736
+    },
+    "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n服务器已连接\n设置\n主题与显示\n工作空间主题\n工坊默认主题\n服务连接\n服务地址\n测试并应用\n可选令牌\n显示\n仅用于当前会话，留空免鉴权\n\n应用后将结束当前工作会话。\n\n连接说明\n工具配置\n配置归属\n用户配置\n归属 ID\n读取配置\n配置区\n读取此区\n配置内容 · JSON\n写入使用已读取的修订；出现冲突时重新读取，不会自动覆盖。\n保存此区\nMCP 连接与工具目录\n导入与远端配置\n任务记录\n查看全部\n管理工坊扩展",
+    "overflows": []
+  }
+]

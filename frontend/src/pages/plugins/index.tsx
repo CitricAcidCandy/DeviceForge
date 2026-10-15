@@ -26,6 +26,7 @@ import type { ProductServices } from '../../app/product/services.ts';
 import { useAction, useSnapshot } from '../../app/product/hooks.ts';
 import { EmptyState, JsonResult, PageTitle } from '../../components/index.ts';
 import { ActionFeedback } from '../../app/product/feedback.tsx';
+import './workspace.css';
 
 export function PluginsPage({ services }: { services: ProductServices }) {
   const [kind, setKind] = useState<PackageKind>('server');
@@ -150,12 +151,8 @@ export function PluginsPage({ services }: { services: ProductServices }) {
     });
   }
   return (
-    <div className="product-page">
-      <PageTitle
-        eyebrow="WORKSHOP / EXTENSIONS"
-        title="给工坊添一项能力"
-        description="服务器插件负责业务执行，浏览器插件扩展当前工作空间。"
-      >
+    <div className="product-page plugins-page">
+      <PageTitle title="插件">
         <Button
           variant="outline"
           disabled={action.pending || defaults.phase === 'running'}
@@ -167,17 +164,74 @@ export function PluginsPage({ services }: { services: ProductServices }) {
           刷新目录
         </Button>
       </PageTitle>
-      <section
-        className="workspace-section"
+      <div className="plugin-workspace">
+      <aside className="plugin-controls" aria-label="插件部署与启动设置">
+      <details className="plugin-install" open>
+        <summary>安装插件</summary>
+        <div className="plugin-upload form-row">
+          <div className="form-field">
+            <Label htmlFor="plugin-kind">部署到</Label>
+            <Select
+              value={kind}
+              onValueChange={(value) => {
+                if (value === 'server' || value === 'browser') setKind(value);
+              }}
+            >
+              <SelectTrigger id="plugin-kind">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="server">服务器插件</SelectItem>
+                <SelectItem value="browser">浏览器插件</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="form-field">
+            <Label htmlFor="plugin-file">插件包 · ZIP / TGZ</Label>
+            <Input
+              id="plugin-file"
+              type="file"
+              accept=".zip,.tgz,.tar.gz"
+              onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+            />
+          </div>
+          <Button
+            disabled={!file || action.pending}
+            onClick={() => {
+              if (file) {
+                const mediaType = file.name.toLowerCase().endsWith('.zip')
+                  ? 'application/zip'
+                  : 'application/gzip';
+                void manage((signal) =>
+                  services.runtime.pluginPackages.upload(kind, file, mediaType, signal),
+                );
+              }
+            }}
+          >
+            <PackagePlus />
+            提交插件包
+          </Button>
+        </div>
+        <p className="muted">部署后需启用。插件按可信代码运行。</p>
+      </details>
+      <details
+        className="plugin-defaults"
         aria-label="已安装插件默认启用"
         data-plugin-defaults={defaults.phase}
         data-phase={defaults.phase}
       >
+        <summary>
+          启动核对
+          <span>
+            {defaults.phase === 'running'
+              ? '核对中'
+              : `${defaultEnabled.length} 项通过${defaultFailures.length ? ` · ${defaultFailures.length} 项失败` : ''}`}
+          </span>
+        </summary>
         <div className="section-heading">
           <div>
-            <h2>已安装插件默认启用</h2>
             <p className="muted">
-              启动时启用本轮已安装插件；本实例手动停用后保持停用。
+              启动时默认启用已安装插件；手动停用后保持停用。
               {defaults.phase === 'running'
                 ? ' 正在核对并启用…'
                 : defaults.phase === 'completed'
@@ -206,7 +260,7 @@ export function PluginsPage({ services }: { services: ProductServices }) {
                 runDefaults(services.pluginDefaults.restart);
               }}
             >
-              重新执行默认启用
+              重新核对并启用
             </Button>
           </div>
         </div>
@@ -261,52 +315,9 @@ export function PluginsPage({ services }: { services: ProductServices }) {
             ))}
           </details>
         )}
-      </section>
-      <div className="plugin-upload form-row">
-        <div className="form-field">
-          <Label htmlFor="plugin-kind">部署到</Label>
-          <Select
-            value={kind}
-            onValueChange={(value) => {
-              if (value === 'server' || value === 'browser') setKind(value);
-            }}
-          >
-            <SelectTrigger id="plugin-kind">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="server">服务器插件</SelectItem>
-              <SelectItem value="browser">浏览器插件</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="form-field grow">
-          <Label htmlFor="plugin-file">插件包 · ZIP / TGZ</Label>
-          <Input
-            id="plugin-file"
-            type="file"
-            accept=".zip,.tgz,.tar.gz"
-            onChange={(event) => setFile(event.target.files?.[0] ?? null)}
-          />
-        </div>
-        <Button
-          disabled={!file || action.pending}
-          onClick={() => {
-            if (file) {
-              const mediaType = file.name.toLowerCase().endsWith('.zip')
-                ? 'application/zip'
-                : 'application/gzip';
-              void manage((signal) =>
-                services.runtime.pluginPackages.upload(kind, file, mediaType, signal),
-              );
-            }
-          }}
-        >
-          <PackagePlus />
-          提交插件包
-        </Button>
-      </div>
-      <p className="muted">提交完成表示包已部署；启用后才运行。插件按可信代码运行。</p>
+      </details>
+      </aside>
+      <div className="plugin-directory">
       <ActionFeedback {...action} />
       <Tabs
         value={kind}
@@ -409,9 +420,8 @@ export function PluginsPage({ services }: { services: ProductServices }) {
           </TabsContent>
         ))}
       </Tabs>
-      <section className="settings-group">
-        <h2>主题贡献</h2>
-        <p className="muted">主题切换保留当前设备、任务和结果。</p>
+      <details className="plugin-secondary">
+        <summary>插件主题</summary>
         <Select
           value={themes.selected?.id ?? 'base'}
           onValueChange={(value) => {
@@ -432,11 +442,10 @@ export function PluginsPage({ services }: { services: ProductServices }) {
             ))}
           </SelectContent>
         </Select>
-      </section>
+      </details>
       {kind === 'server' && (
-        <section className="settings-group">
-          <h2>服务器当前插件</h2>
-          <p className="muted">包括随服务器提供的业务插件。设备提供者与浏览器面板分别运行。</p>
+        <details className="plugin-secondary">
+          <summary>服务器运行目录 · {server.result?.data.length ?? 0} 项</summary>
           {server.result?.data.map((plugin) => (
             <div className="plugin-row" key={plugin.id}>
               <Puzzle aria-hidden="true" />
@@ -486,14 +495,12 @@ export function PluginsPage({ services }: { services: ProductServices }) {
               </Button>
             </div>
           ))}
-        </section>
+        </details>
       )}
-      <section className="settings-group">
-        <h2>当前扩展入口</h2>
-        <p className="muted">
-          公开组件槽位为 <span className="mono">workshop.extensions</span>
-          ，支持追加或替换扩展区。工坊工作区由宿主保留。
-        </p>
+      <details className="plugin-secondary">
+        <summary>
+          扩展入口 · {catalog.modules.length + catalog.commands.length + catalog.components.length} 项
+        </summary>
         {catalog.modules.length === 0 &&
         catalog.commands.length === 0 &&
         catalog.components.length === 0 ? (
@@ -557,7 +564,9 @@ export function PluginsPage({ services }: { services: ProductServices }) {
             ))}
           </div>
         </details>
-      </section>
+      </details>
+      </div>
+      </div>
       <Dialog
         open={extensionCall !== null}
         onOpenChange={(open) => {

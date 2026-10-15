@@ -1,0 +1,116 @@
+.packages-page .packages-workspace-tabs {
+  min-width: 0;
+}
+
+.package-workspace {
+  display: grid;
+  grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
+  gap: 32px;
+  align-items: start;
+  padding-top: 16px;
+}
+
+.package-controls {
+  display: grid;
+  gap: 28px;
+  min-width: 0;
+  padding-right: 28px;
+  border-right: 1px solid var(--border);
+}
+
+.package-controls .form-item {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 7px;
+  margin-block: 0;
+}
+
+.package-controls .form-item > label { padding-top: 0; }
+
+.package-source,
+.package-operation,
+.package-operation-fields,
+.package-report {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.package-source h2,
+.package-operation h2,
+.package-report h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.package-source .muted,
+.package-source .file-name {
+  margin: 0;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.package-operation > [data-slot='select-trigger'] { width: 100%; }
+
+.package-operation-fields .form-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: 16px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+}
+
+.package-operation-fields .page-actions {
+  justify-content: flex-start;
+}
+
+.package-operation-fields details {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.package-operation-fields details .form-field {
+  margin-top: 12px;
+}
+
+.package-result {
+  min-width: 0;
+  min-height: 440px;
+}
+
+.package-result .empty-state {
+  min-height: 320px;
+}
+
+.package-report .metadata-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (max-width: 1100px) {
+  .package-workspace {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 28px;
+  }
+
+  .package-controls {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding-right: 0;
+    padding-bottom: 24px;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+}
+
+@media (max-width: 640px) {
+  .package-controls,
+  .package-report .metadata-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .package-result {
+    min-height: 240px;
+  }
+}

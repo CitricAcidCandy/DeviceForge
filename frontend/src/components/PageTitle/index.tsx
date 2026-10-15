@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react';
 
 export function PageTitle({
-  eyebrow,
   title,
   description,
   children,
@@ -14,9 +13,13 @@ export function PageTitle({
   return (
     <header className="page-heading">
       <div>
-        {eyebrow && <p className="eyebrow">{eyebrow}</p>}
         <h1>{title}</h1>
-        {description && <p className="page-description">{description}</p>}
+        {description && (
+          <details className="page-help">
+            <summary>使用说明</summary>
+            <p className="page-description">{description}</p>
+          </details>
+        )}
       </div>
       {children && <div className="page-actions">{children}</div>}
     </header>

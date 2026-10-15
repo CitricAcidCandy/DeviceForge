@@ -14,9 +14,11 @@ import { ToolsPage } from '../../pages/tools/index.tsx';
 export function AdvancedPage({
   route,
   services,
+  active,
 }: {
   route: ProductRoute;
   services: ProductServices;
+  active: boolean;
 }) {
   switch (route) {
     case 'packages':
@@ -24,7 +26,7 @@ export function AdvancedPage({
     case 'files':
       return <FilesPage services={services} />;
     case 'media':
-      return <MediaPage services={services} />;
+      return <MediaPage services={services} active={active} />;
     case 'performance':
       return <PerformancePage services={services} />;
     case 'frida':

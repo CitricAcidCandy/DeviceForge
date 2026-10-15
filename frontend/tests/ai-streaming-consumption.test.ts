@@ -114,6 +114,7 @@ function gateway(changes: Partial<SessionGateway> = {}): SessionGateway {
     send: async (id) => ({ data: { id, accepted: true }, logId: 'input-log' }),
     eof: async (id) => ({ data: { id, accepted: true }, logId: 'eof-log' }),
     cancel: async (id) => ({ data: info({ id, status: 'stopping' }), logId: 'cancel-log' }),
+    release: async (id) => ({ data: info({ id, status: 'stopping' }), logId: 'release-log' }),
     remove: async (id) => ({ data: { id }, logId: 'remove-log' }),
     ...changes,
   };

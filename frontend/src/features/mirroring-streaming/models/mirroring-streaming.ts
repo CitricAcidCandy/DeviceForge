@@ -44,6 +44,7 @@ export function createMirroringStreaming(
   let tainted = false;
   let streamGeneration = 0;
   let closed = false;
+  let releaseTask: Promise<ApiResult<SessionInfo>> | null = null;
   async function read(
     context: MirroringRequest,
     request: (signal: AbortSignal) => Promise<ApiResult<unknown>>,
@@ -152,16 +153,22 @@ export function createMirroringStreaming(
               context.signal,
             );
           state.assertCurrent(context, result.logId);
-          state.update(
-            context,
-            {
-              ...(newEpoch ? { epoch: packet.epoch, status: null, video: null, audio: null } : {}),
-              ...(packet.kind === 'status' ? { status: packet.status } : {}),
-              ...(packet.kind === 'video_config' ? { video: packet.configuration } : {}),
-              ...(packet.kind === 'audio_config' ? { audio: packet.configuration } : {}),
-            },
-            result.logId,
-          );
+          if (
+            newEpoch ||
+            packet.kind === 'status' ||
+            packet.kind === 'video_config' ||
+            packet.kind === 'audio_config'
+          )
+            state.update(
+              context,
+              {
+                ...(newEpoch ? { epoch: packet.epoch, status: null, video: null, audio: null } : {}),
+                ...(packet.kind === 'status' ? { status: packet.status } : {}),
+                ...(packet.kind === 'video_config' ? { video: packet.configuration } : {}),
+                ...(packet.kind === 'audio_config' ? { audio: packet.configuration } : {}),
+              },
+              result.logId,
+            );
         }
       }
       const session = merge(page.session);
@@ -207,7 +214,7 @@ export function createMirroringStreaming(
       logId: result.logId,
     };
   }
-  function pause(signal: AbortSignal): Promise<void> {
+  function pause(signal: AbortSignal, delay = interval): Promise<void> {
     return new Promise((resolve, reject) => {
       const cancelled = () => {
         clearTimeout(timer);
@@ -216,7 +223,7 @@ export function createMirroringStreaming(
       const timer = setTimeout(() => {
         signal.removeEventListener('abort', cancelled);
         resolve();
-      }, interval);
+      }, delay);
       if (signal.aborted) cancelled();
       else signal.addEventListener('abort', cancelled, { once: true });
     });
@@ -245,9 +252,18 @@ export function createMirroringStreaming(
       controlEnabled = copied.control !== false;
       const context = state.begin('open', signal);
       return run(context, async () => {
-        const result = await read(context, (active) =>
-          gateway.open({ operation: MIRRORING_OPEN, input: { ...copied } }, active),
+        const opening = gateway.open(
+          { operation: MIRRORING_OPEN, input: { ...copied } },
+          AbortSignal.timeout(15000),
         );
+        void opening.then((late) => {
+          if (!context.signal.aborted) return;
+          try {
+            const accepted = decodeStreamInfo(late.data, late.logId);
+            void gateway.release(accepted.id, AbortSignal.timeout(15000)).catch(() => {});
+          } catch {}
+        }, () => {});
+        const result = await read(context, () => opening);
         const data = decodeStreamInfo(result.data, result.logId);
         if (data.status !== 'opening' || data.output_sequence !== 0)
           throw new ApiError(
@@ -368,6 +384,74 @@ export function createMirroringStreaming(
         state.update(context, { session: merge(data), inputState: 'uncertain' }, result.logId);
         return { data, logId: result.logId };
       });
+    },
+    release(signal: AbortSignal): Promise<ApiResult<SessionInfo>> {
+      if (signal.aborted)
+        return Promise.reject(new ApiError('cancelled', 'cancelled', '投屏释放等待已取消'));
+      if (releaseTask) return abortable(releaseTask, signal);
+      const timeout = AbortSignal.timeout(15000);
+      const context = state.begin('release', timeout);
+      const identity = selected();
+      const clearSession = (logId: string | null) => {
+        state.update(
+          context,
+          {
+            session: null, inputState: 'unknown', status: null, video: null, audio: null,
+            cursor: 0, epoch: 0, packets: 0, pendingBytes: 0,
+          },
+          logId,
+        );
+        ++streamGeneration;
+        controlReady = false;
+        stream.reset();
+        options.sink?.reset?.();
+      };
+      releaseTask = run(context, async () => {
+        try {
+          let result: ApiResult<unknown>;
+          try {
+            result = await read(context, (active) => gateway.release(identity.id, active));
+          } catch (error) {
+            if (!(error instanceof ApiError) || error.status !== 404) throw error;
+            clearSession(error.logId);
+            return { data: identity, logId: error.logId };
+          }
+          const data = decodeStreamInfo(result.data, result.logId, identity);
+          let observed = data;
+          let observedLogId = result.logId;
+          state.update(context, { session: data, inputState: 'uncertain' }, result.logId);
+          while (observed.status !== 'finished') {
+            await pause(context.signal, Math.max(interval, 100));
+            let current: ApiResult<unknown>;
+            try {
+              current = await read(context, (active) => gateway.get(identity.id, active));
+            } catch (error) {
+              if (!(error instanceof ApiError) || error.status !== 404) throw error;
+              clearSession(result.logId);
+              return { data, logId: result.logId };
+            }
+            observed = decodeStreamInfo(current.data, current.logId, identity);
+            observedLogId = current.logId;
+            state.update(context, { session: merge(observed) }, current.logId);
+          }
+          if (observed.completion?.cleanup !== 'complete')
+            throw new ApiError(
+              'protocol', 'mirroring_cleanup_failed', '投屏会话清理未确认', null, observedLogId,
+            );
+          clearSession(result.logId);
+          return { data, logId: result.logId };
+        } catch (error) {
+          if (timeout.aborted)
+            throw new ApiError(
+              'network', 'mirroring_release_pending', '释放等待超时，请查询服务端会话状态',
+              null, state.snapshot().logs.release ?? null,
+            );
+          throw error;
+        }
+      }).finally(() => {
+        releaseTask = null;
+      });
+      return abortable(releaseTask, signal);
     },
     snapshot: state.snapshot,
     subscribe: state.subscribe,

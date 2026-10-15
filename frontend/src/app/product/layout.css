@@ -1,83 +1,51 @@
-/* 所有业务页共用侧栏、头部、工作面和任务带。 */
+#app { display: flex; flex-direction: column; height: 100dvh; overflow: hidden; }
+#product-root { flex: 1; min-height: 0; }
+#app > .plugin-extension-root { flex-shrink: 1; max-height: 40dvh; overflow: auto; }
 .workspace-content {
-  grid-template-columns: minmax(0, 1fr) clamp(260px, 20.3vw, 380px);
-  align-items: stretch; gap: 0; padding: 0; flex: 1;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: stretch;
+  gap: 0;
+  padding: 0;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 .workplane {
-  height: auto; min-height: calc(100dvh - 244px); max-height: none; overflow: visible;
-  padding: 26px 30px; border-radius: 9px 0 0 0;
-  background: #f6f1e4; box-shadow: none;
+  height: 100%;
+  min-height: 0;
+  max-height: none;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  padding: 28px clamp(24px, 3.5vw, 56px) 40px;
+  border: 0;
+  border-radius: 0;
+  background: var(--card);
+  box-shadow: none;
 }
-.device-summary {
-  display: block; height: auto; min-height: calc(100dvh - 244px); padding: 26px 24px;
-  border-left: 0; border-radius: 0 9px 0 0; background: #f6f1e4;
-}
+.workplane > [data-route] { min-width: 0; max-width: 1600px; margin-inline: auto; }
 .workspace-taskbar {
-  min-height: 72px; margin: 0 0 12px; padding: 14px 22px;
-  border-top: 0; border-radius: 0 0 9px 9px; background: #f6f1e4;
+  min-height: 40px;
+  margin: 0;
+  padding: 4px 24px;
+  border: 0;
+  border-top: 1px solid var(--border);
+  border-radius: 0;
+  background: var(--card);
+  font-size: 12px;
 }
-.product-shell.is-focused .workspace-content,
-.product-shell.is-focused[data-route='devices'] .workspace-content { grid-template-columns: minmax(0, 1fr); }
+.workspace-taskbar [data-slot='button'] { min-height: 30px; height: 30px; font-size: 12px; }
+.product-shell.is-focused .workspace-content { grid-template-columns: minmax(0, 1fr); }
 .product-shell.is-focused .navigation-desktop-trigger { display: none; }
 .product-shell.reduce-motion, .product-shell.reduce-motion .workspace-sidebar { transition: none; }
-
-/* 设备页使用连续且等高的三栏工作面。 */
-.product-shell[data-route='devices'] .workspace-content {
-  grid-template-columns: minmax(0, 1fr) clamp(260px, 20.3vw, 380px);
-  align-items: stretch; gap: 0; padding: 0; flex: 1;
-}
-.product-shell[data-route='devices'] .workplane,
-.product-shell[data-route='devices'] .workplane:has(> [data-route='devices']:not([hidden])) {
-  height: auto; min-height: 0; max-height: none; overflow: visible; padding: 0;
-  border: 0; border-radius: 0; background: transparent; box-shadow: none;
-}
-.product-shell[data-route='devices'] .workplane > [data-route='devices'] { height: 100%; }
-.product-shell[data-route='devices'] .device-summary {
-  min-height: 0; height: 100%; padding: 26px 24px;
-  border-radius: 0 9px 0 0; border-left: 0;
-  background: #f6f1e4; box-shadow: none;
-}
-.product-shell[data-route='devices'] .device-summary h2 { font-size: 15px; margin-bottom: 20px; }
-.product-shell[data-route='devices'] .device-summary h3 { font-size: 19px; margin: 0 0 10px; }
-.product-shell[data-route='devices'] .device-summary > .muted { font-size: 13px; line-height: 1.7; }
-.product-shell[data-route='devices'] .device-summary-details {
-  border-top: 1px solid var(--border); padding-top: 22px; margin-top: 30px; gap: 15px 12px; font-size: 12px;
-}
-.product-shell[data-route='devices'] .workspace-taskbar {
-  min-height: 72px; margin: 0 0 12px; padding: 14px 22px;
-  border-radius: 0 0 9px 9px; border-top: 0; background: #f6f1e4;
-}
-.product-shell[data-route='devices'] .workspace-taskbar > div { gap: 14px; }
-.product-shell[data-route='devices'] .workspace-taskbar small { font-size: 12px; }
-
-@media (max-width: 1100px) {
-  .workspace-content, .product-shell[data-route='devices'] .workspace-content {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .workspace-content, .product-shell[data-route='devices'] .workspace-content { padding-inline: 14px; }
-  .workspace-taskbar, .product-shell[data-route='devices'] .workspace-taskbar { margin-inline: 14px; }
-  .workplane { border-radius: 9px 9px 0 0; }
-  .device-summary, .product-shell[data-route='devices'] .device-summary {
-    display: block; height: auto; min-height: 0; padding: 22px 26px;
-    border: 1px solid var(--border); border-top: 0; border-radius: 0;
-  }
-  .device-summary-details, .product-shell[data-route='devices'] .device-summary-details {
-    max-width: 620px;
-  }
-}
-@media (max-width: 1000px) and (min-width: 768px) {
-  .product-shell { grid-template-columns: var(--workspace-sidebar-width) minmax(0, 1fr); }
-  .workspace-sidebar { display: flex; }
-  .navigation-mobile-trigger { display: none; }
-}
+.product-shell[data-route='devices'] .workplane { padding: 0; background: var(--card); }
 @media (max-width: 767px) {
-  .workspace-content, .product-shell[data-route='devices'] .workspace-content { padding-inline: 12px; }
-  .workplane { min-height: 0; padding: 22px 18px 28px; }
-  .device-summary, .product-shell[data-route='devices'] .device-summary { padding: 20px; }
-  .workspace-taskbar, .product-shell[data-route='devices'] .workspace-taskbar {
-    margin: 0 12px 12px; padding: 12px;
-  }
+  .workplane { min-height: 0; padding: 20px 16px 32px; }
+  .workspace-content { padding: 0; }
+  .workspace-taskbar { margin: 0; padding: 4px 16px; }
+  .workspace-taskbar [data-slot='button'] { min-height: 44px; }
 }
+
 /* 头部横贯整页；品牌与操作共用同一背景和下缘。 */
 .sidebar-footer { min-height: 58px; padding: 9px 12px; border-top: 1px solid var(--border); }
 .sidebar-collapse { width: 100%; min-height: 38px; justify-content: flex-start; gap: 12px; color: var(--muted-foreground); }
@@ -90,6 +58,9 @@
 .product-shell {
   --workspace-sidebar-width: 240px;
   --workspace-header-height: 76px;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
   grid-template-columns: var(--workspace-sidebar-width) minmax(0, 1fr);
   grid-template-rows: var(--workspace-header-height) minmax(0, 1fr);
 }
@@ -138,13 +109,17 @@
 .workspace-sidebar {
   grid-column: 1;
   grid-row: 2;
-  top: var(--workspace-header-height);
-  height: calc(100dvh - var(--workspace-header-height));
+  top: 0;
+  height: 100%;
+  min-height: 0;
 }
 .workspace-main {
   grid-column: 2;
   grid-row: 2;
-  min-height: calc(100dvh - var(--workspace-header-height));
+  min-height: 0;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  overflow: hidden;
 }
 
 .workspace-toolbar {
@@ -191,7 +166,7 @@
 @media (max-width: 1120px) {
   .header-clock { display: none; }
 }
-@media (max-width: 767px) {
+@media (max-width: 1000px) {
   .product-shell {
     --workspace-header-height: 64px;
     grid-template-columns: minmax(0, 1fr);
@@ -216,7 +191,10 @@
     grid-template-columns: 160px minmax(0, 1fr);
   }
 }
+.compact-header-action { display: none; }
 @media (max-width: 520px) {
+  .header-reconnect, .focus-toggle { display: none; }
+  .compact-header-action { display: flex; }
   .workspace-topbar.global-bar,
   .product-shell.is-focused .workspace-topbar.global-bar {
     grid-template-columns: 144px minmax(0, 1fr);
@@ -224,7 +202,4 @@
   .workspace-breadcrumb { display: none; }
   .header-brand { padding-inline: 9px; gap: 5px; }
   .header-brand .brand-mark { flex-basis: 25px; }
-}
-@media (max-width: 360px) {
-  .focus-toggle { display: none; }
 }

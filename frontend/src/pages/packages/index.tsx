@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { Button } from '../../components/Button/index.tsx';
 import { Input } from '../../components/Input/index.tsx';
 import { Label } from '../../components/Label/index.tsx';
-import { Tabs, TabsList, TabsTrigger } from '../../components/Tabs/index.tsx';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/Tabs/index.tsx';
 import {
   Select,
   SelectContent,
@@ -27,6 +27,7 @@ import { useAction } from '../../app/product/hooks.ts';
 import type { ProductServices } from '../../app/product/services.ts';
 import { AppsPage } from './components/AppsPanel/index.tsx';
 import type { PackageSdkRule } from '../../features/package-analysis/index.ts';
+import './workspace.css';
 
 type PackageAction =
   | 'manifest'
@@ -348,14 +349,21 @@ export function PackagesPage({ services }: { services: ProductServices }) {
     });
   };
   return (
-    <section className="product-page">
-      <PageTitle
-        eyebrow="安装包工作区"
-        title="包与应用"
-        description="设备应用按实际能力操作，安装包解析使用服务器产物。"
-      />
-      <AppsPage services={services} />
-      <div className="workspace-section">
+    <section className="product-page packages-page">
+      <PageTitle title="包与应用" />
+      <Tabs defaultValue="analysis" className="packages-workspace-tabs">
+        <TabsList aria-label="包与应用工作范围">
+          <TabsTrigger value="analysis">安装包分析</TabsTrigger>
+          <TabsTrigger value="apps">设备应用</TabsTrigger>
+        </TabsList>
+        <TabsContent value="apps">
+          <AppsPage services={services} />
+        </TabsContent>
+        <TabsContent value="analysis">
+          <div className="package-workspace">
+            <aside className="package-controls" aria-label="安装包与处理参数">
+      <section className="package-source">
+        <h2>安装包</h2>
         <Label htmlFor="package-upload">上传安装包</Label>
         <Input
           id="package-upload"
@@ -367,7 +375,7 @@ export function PackagesPage({ services }: { services: ProductServices }) {
             if (file) accept(file);
           }}
         />
-        <p className="muted">文件上传生成服务器产物；上传完成不代表安装或解析完成。</p>
+        <p className="muted">支持 APK、AAB、APKS 和 ZIP。</p>
         <ActionFeedback {...upload} />
         {filename && <p className="file-name">当前文件：{filename}</p>}
         <Field
@@ -377,25 +385,28 @@ export function PackagesPage({ services }: { services: ProductServices }) {
             setArtifactId(value);
             setReport(null);
           }}
-          hint="也可使用任务中心中已有的公开产物 ID。"
+          hint="可填写任务中心已有的产物 ID。"
         />
-      </div>
-      <Tabs
+      </section>
+      <section className="package-operation">
+        <h2>处理方式</h2>
+      <Select
         value={action}
         onValueChange={(value) => {
           const selected = actions.find((item) => item.key === value);
           if (selected) setAction(selected.key);
         }}
       >
-        <TabsList className="flex-wrap h-auto">
+        <SelectTrigger aria-label="安装包处理方式"><SelectValue /></SelectTrigger>
+        <SelectContent>
           {actions.map((item) => (
-            <TabsTrigger key={item.key} value={item.key}>
+            <SelectItem key={item.key} value={item.key}>
               {item.title}
-            </TabsTrigger>
+            </SelectItem>
           ))}
-        </TabsList>
-      </Tabs>
-      <div className="workspace-section">
+        </SelectContent>
+      </Select>
+      <div className="package-operation-fields">
         <OperationNotice services={services} operation={operation} />
         <fieldset disabled={execution.pending} className="form-grid">
           {action === 'manifest' && (
@@ -564,8 +575,11 @@ export function PackagesPage({ services }: { services: ProductServices }) {
         </div>
         <ActionFeedback {...execution} />
       </div>
+      </section>
+            </aside>
+            <section className="package-result" aria-label="安装包处理结果">
       {report ? (
-        <div className="workspace-section">
+        <div className="package-report">
           <h2>{report.title}</h2>
           {report.content}
           {report.download && (
@@ -590,10 +604,14 @@ export function PackagesPage({ services }: { services: ProductServices }) {
         </div>
       ) : (
         <EmptyState
-          title="尚未运行包分析"
-          description="选择真实文件与操作，结果将显示在这里；未加载能力不会提交任务。"
+          title="分析结果"
+          description="上传安装包或填写产物 ID，选择处理方式后运行。"
         />
       )}
+            </section>
+          </div>
+        </TabsContent>
+      </Tabs>
     </section>
   );
 }

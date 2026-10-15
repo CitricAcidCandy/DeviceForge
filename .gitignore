@@ -7,3 +7,5 @@
 /runtime/
 /.runtime-staging/
 /artifacts/
+.tmp/
+tmp/

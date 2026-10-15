@@ -46,6 +46,7 @@ export interface RequestSpec {
   readonly method: 'GET' | 'POST' | 'DELETE';
   readonly body?: string | Blob | ArrayBuffer;
   readonly contentType?: string;
+  readonly keepalive?: boolean;
 }
 export interface Endpoint<I, O> {
   readonly request: (input: I) => RequestSpec;

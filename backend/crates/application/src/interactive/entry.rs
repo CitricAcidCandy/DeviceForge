@@ -1,6 +1,9 @@
 use super::output_cache::OutputCache;
 use apk_domain::{Error, Result, interactive::*};
-use std::sync::{Arc, Mutex};
+use std::sync::{
+    Arc, Mutex,
+    atomic::{AtomicBool, Ordering},
+};
 use tokio_util::sync::CancellationToken;
 
 pub(super) struct Record {
@@ -23,6 +26,8 @@ pub(super) struct Entry {
     pub deadline: tokio::time::Instant,
     pub admission: tokio::sync::Mutex<InputAdmission>,
     pub ready: tokio::sync::watch::Sender<Option<SessionResult<()>>>,
+    pub finished: tokio::sync::watch::Sender<bool>,
+    pub release_requested: AtomicBool,
 }
 
 impl Entry {
@@ -34,6 +39,7 @@ impl Entry {
         retention: SessionOutputRetention,
     ) -> Self {
         let (ready, _) = tokio::sync::watch::channel(None);
+        let (finished, _) = tokio::sync::watch::channel(false);
         Self {
             record: Mutex::new(Record {
                 info,
@@ -45,6 +51,8 @@ impl Entry {
             deadline,
             admission: Default::default(),
             ready,
+            finished,
+            release_requested: AtomicBool::new(false),
         }
     }
 
@@ -180,6 +188,12 @@ impl Entry {
                 .clone()
                 .unwrap_or_else(|| Arc::new(Error::Conflict("会话已结束".into()))))));
         }
+        drop(record);
+        self.finished.send_replace(true);
+    }
+
+    pub fn request_release(&self) -> bool {
+        !self.release_requested.swap(true, Ordering::AcqRel)
     }
 }
 

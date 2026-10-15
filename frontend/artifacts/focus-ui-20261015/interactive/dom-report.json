@@ -1,0 +1,42 @@
+[
+  {
+    "filename": "automation-390.png",
+    "route": "#/automation",
+    "title": "DeviceForge · 设备工坊",
+    "viewport": {
+      "width": 390,
+      "height": 1000
+    },
+    "body": {
+      "width": 375,
+      "height": 1604
+    },
+    "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n服务器已连接\n工作设备\n尚未选择设备\n设备目录\n自动化\n使用说明\n设备步骤\n桌面操作\n输入录制与回放\n设备流程\n等待支持设备输入的在线设备\n\n选择声明 Android 设备操作的提供者；不同输入操作分别核对服务器目录。\n\n点击\n执行时间（毫秒）\n相对流程开始，时间需按非递减顺序添加\n设备 X 坐标\n设备 Y 坐标\n添加步骤\n\n添加点击、滑动、按键或文本步骤后运行。\n\n运行设备流程\n设备重复点击\n重复点击 X\n重复点击 Y\n设备点击次数\n设备点击间隔（毫秒）\n重复点击设备\n任务记录\n查看全部\n管理工坊扩展",
+    "unlinkedRows": [],
+    "overflows": []
+  },
+  {
+    "width": 390,
+    "interaction": {
+      "states": [
+        {
+          "tab": "桌面操作",
+          "selected": "true",
+          "visiblePanels": 1
+        },
+        {
+          "tab": "输入录制与回放",
+          "selected": "true",
+          "visiblePanels": 1
+        },
+        {
+          "tab": "设备步骤",
+          "selected": "true",
+          "visiblePanels": 1
+        }
+      ],
+      "preserved": true,
+      "allMountedPanels": 3
+    }
+  }
+]

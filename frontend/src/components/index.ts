@@ -74,6 +74,8 @@ export { PageTitle } from './PageTitle/index.tsx';
 export { EmptyState } from './EmptyState/index.tsx';
 export { JsonResult } from './JsonResult/index.tsx';
 export { Field } from './FormField/index.tsx';
+export { FormSection, FormRow, FormGrid, FormActions } from './Form/index.tsx';
+export type { FormControlProps } from './Form/index.tsx';
 export { ErrorNotice } from './ErrorNotice/index.tsx';
 export type { ErrorNoticeProps } from './ErrorNotice/index.tsx';
 export { BlobDownload, useBlobUrl } from './BlobDownload/index.tsx';

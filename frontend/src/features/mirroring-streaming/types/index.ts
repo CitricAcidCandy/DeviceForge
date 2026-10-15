@@ -79,7 +79,8 @@ export type MirroringStreamAction =
   | 'output'
   | 'input'
   | 'eof'
-  | 'cancel';
+  | 'cancel'
+  | 'release';
 export type MirroringDefinitionsView = Readonly<
   Omit<SessionDefinitions, 'sessions'> & {
     readonly sessions: readonly Readonly<SessionDefinitions['sessions'][number]>[];

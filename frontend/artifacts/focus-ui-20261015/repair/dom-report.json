@@ -1,0 +1,130 @@
+[
+  {
+    "filename": "devices-1440.png",
+    "route": "#/devices",
+    "title": "DeviceForge · 设备工坊",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "body": {
+      "width": 1440,
+      "height": 1000
+    },
+    "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n设备工坊\n工作台\n设备\n2026年10月15日星期四\n15:20\nAsia/Shanghai\n正在连接\n专注\n工作台\n设备\n应用与包\n文件与产物\n画面与录制\n深度调试\n性能与调用栈\nFrida\n自动化\n终端\n扩展创作\nAI 助手\n数据分析\n工坊\n插件\n任务与日志\n工具供应\n设置\n折叠导航\n设备目录\n0\n连接设备\n设备来源\n全部提供者\n还没有可用的设备提供者\n\n连接设备后重新发现，并检查设备端授权。\n\n设备提供者 · 0\n选择工作设备\n\n先在插件页启用设备提供者。\n\n管理插件\n任务记录\n暂无任务\n查看全部\n管理工坊扩展",
+    "unlinkedRows": [],
+    "overflows": []
+  },
+  {
+    "filename": "settings-1440.png",
+    "route": "#/settings",
+    "title": "DeviceForge · 设备工坊",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "body": {
+      "width": 1425,
+      "height": 1398
+    },
+    "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n设备工坊\n工坊\n设置\n2026年10月15日星期四\n15:20\nAsia/Shanghai\n服务器已连接\n专注\n工作台\n设备\n应用与包\n文件与产物\n画面与录制\n深度调试\n性能与调用栈\nFrida\n自动化\n终端\n扩展创作\nAI 助手\n数据分析\n工坊\n插件\n任务与日志\n工具供应\n设置\n折叠导航\n设置\n主题与显示\n工作空间主题\n工坊默认主题\n服务连接\n服务地址\n测试并应用\n可选令牌\n显示\n仅用于当前会话，留空免鉴权\n\n应用后将结束当前工作会话。\n\n连接说明\n工具配置\n配置归属\n用户配置\n归属 ID\n读取配置\n配置区\n读取此区\n配置内容 · JSON\n写入使用已读取的修订；出现冲突时重新读取，不会自动覆盖。\n保存此区\nMCP 连接与工具目录\n导入与远端配置\n任务记录\nandroid.performance.list · 已完成\n查看全部\n管理工坊扩展",
+    "unlinkedRows": [],
+    "overflows": []
+  },
+  {
+    "filename": "packages-1440.png",
+    "route": "#/packages",
+    "title": "DeviceForge · 设备工坊",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "body": {
+      "width": 1440,
+      "height": 1000
+    },
+    "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n设备工坊\n工作台\n应用与包\n2026年10月15日星期四\n15:20\nAsia/Shanghai\n服务器已连接\n专注\n工作台\n设备\n应用与包\n文件与产物\n画面与录制\n深度调试\n性能与调用栈\nFrida\n自动化\n终端\n扩展创作\nAI 助手\n数据分析\n工坊\n插件\n任务与日志\n工具供应\n设置\n折叠导航\n工作设备\n尚未选择设备\n设备目录\n包与应用\n安装包分析\n设备应用\n安装包\n上传安装包\n\n支持 APK、AAB、APKS 和 ZIP。\n\n安装包产物 ID\n可填写任务中心已有的产物 ID。\n处理方式\n清单\nAAB 模块（可选）\nAPK 不填；省略保持服务器默认。\n运行清单\n分析结果\n\n上传安装包或填写产物 ID，选择处理方式后运行。\n\n任务记录\nandroid.performance.list · 已完成\n查看全部\n管理工坊扩展",
+    "unlinkedRows": [],
+    "overflows": []
+  },
+  {
+    "filename": "ai-1440.png",
+    "route": "#/ai",
+    "title": "DeviceForge · 设备工坊",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "body": {
+      "width": 1440,
+      "height": 1000
+    },
+    "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n设备工坊\n扩展创作\nAI 助手\n2026年10月15日星期四\n15:20\nAsia/Shanghai\n服务器已连接\n专注\n工作台\n设备\n应用与包\n文件与产物\n画面与录制\n深度调试\n性能与调用栈\nFrida\n自动化\n终端\n扩展创作\nAI 助手\n数据分析\n工坊\n插件\n任务与日志\n工具供应\n设置\n折叠导航\nAI 助手\nCodex SDK\n连接设置 · 选择项目后开始\n开始对话\n\n在连接设置中选择项目，然后输入问题。\n\n发给助手\n发送\n暂停等待\n继续读取回答\n停止本次会话\n线程与会话管理\n\n传输会话：尚未建立 · 待发送 · 回答所属项目：尚无\n\n暂停等待不会停止服务器任务。\n\n任务记录\nandroid.performance.list · 已完成\n查看全部\n管理工坊扩展",
+    "unlinkedRows": [],
+    "overflows": []
+  },
+  {
+    "filename": "devices-390.png",
+    "route": "#/devices",
+    "title": "DeviceForge · 设备工坊",
+    "viewport": {
+      "width": 390,
+      "height": 1000
+    },
+    "body": {
+      "width": 390,
+      "height": 1000
+    },
+    "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n服务器已连接\n设备目录\n1\n连接设备\n设备来源\n全部提供者\n22081212UG\n在线\nandroid · 387ec760\n设备提供者 · 2\n选择工作设备\n\n从目录选择设备，查看可用操作。\n\n任务记录\n查看全部\n管理工坊扩展",
+    "unlinkedRows": [],
+    "overflows": []
+  },
+  {
+    "filename": "settings-390.png",
+    "route": "#/settings",
+    "title": "DeviceForge · 设备工坊",
+    "viewport": {
+      "width": 390,
+      "height": 1000
+    },
+    "body": {
+      "width": 375,
+      "height": 1658
+    },
+    "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n服务器已连接\n设置\n主题与显示\n工作空间主题\n工坊默认主题\n服务连接\n服务地址\n测试并应用\n可选令牌\n显示\n仅用于当前会话，留空免鉴权\n\n应用后将结束当前工作会话。\n\n连接说明\n工具配置\n配置归属\n用户配置\n归属 ID\n读取配置\n配置区\n读取此区\n配置内容 · JSON\n写入使用已读取的修订；出现冲突时重新读取，不会自动覆盖。\n保存此区\nMCP 连接与工具目录\n导入与远端配置\n任务记录\n查看全部\n管理工坊扩展",
+    "unlinkedRows": [],
+    "overflows": []
+  },
+  {
+    "filename": "packages-390.png",
+    "route": "#/packages",
+    "title": "DeviceForge · 设备工坊",
+    "viewport": {
+      "width": 390,
+      "height": 1000
+    },
+    "body": {
+      "width": 375,
+      "height": 1392
+    },
+    "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n服务器已连接\n工作设备\n尚未选择设备\n设备目录\n包与应用\n安装包分析\n设备应用\n安装包\n上传安装包\n\n支持 APK、AAB、APKS 和 ZIP。\n\n安装包产物 ID\n可填写任务中心已有的产物 ID。\n处理方式\n清单\nAAB 模块（可选）\nAPK 不填；省略保持服务器默认。\n运行清单\n分析结果\n\n上传安装包或填写产物 ID，选择处理方式后运行。\n\n任务记录\n查看全部\n管理工坊扩展",
+    "unlinkedRows": [],
+    "overflows": []
+  },
+  {
+    "filename": "ai-390.png",
+    "route": "#/ai",
+    "title": "DeviceForge · 设备工坊",
+    "viewport": {
+      "width": 390,
+      "height": 1000
+    },
+    "body": {
+      "width": 390,
+      "height": 1000
+    },
+    "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n服务器已连接\nAI 助手\nCodex SDK\n连接设置 · 选择项目后开始\n开始对话\n\n在连接设置中选择项目，然后输入问题。\n\n发给助手\n发送\n暂停等待\n继续读取回答\n停止本次会话\n线程与会话管理\n\n传输会话：尚未建立 · 待发送 · 回答所属项目：尚无\n\n暂停等待不会停止服务器任务。\n\n任务记录\n查看全部\n管理工坊扩展",
+    "unlinkedRows": [],
+    "overflows": []
+  }
+]

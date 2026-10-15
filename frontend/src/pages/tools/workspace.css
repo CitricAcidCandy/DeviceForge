@@ -1,0 +1,81 @@
+.tools-catalog {
+  position: relative;
+  min-width: 0;
+}
+
+.tools-manifest {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 28px;
+  padding: 0 110px 14px 0;
+  font-size: 12px;
+}
+
+.tools-manifest > div {
+  display: flex;
+  gap: 8px;
+}
+
+.tools-manifest dt {
+  color: var(--muted-foreground);
+}
+
+.tools-manifest dd {
+  margin: 0;
+}
+
+.tools-source {
+  margin-bottom: 16px;
+}
+
+.tools-source > summary {
+  position: absolute;
+  top: -4px;
+  right: 0;
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+
+.tools-source p {
+  margin: 4px 0;
+  font-size: 12px;
+}
+
+.tools-catalog > .page-actions {
+  padding-top: 16px;
+}
+
+.tools-page .table-scroll {
+  border-top: 1px solid var(--border);
+}
+
+.tools-runtime {
+  margin-top: 28px;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+
+.tools-runtime > summary {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.tools-runtime-content {
+  max-width: 760px;
+  padding-top: 20px;
+}
+
+.tools-runtime-content > .page-actions {
+  margin-left: 164px;
+  padding-top: 4px;
+}
+
+.tools-plan > p {
+  font-size: 13px;
+}
+
+@media (max-width: 640px) {
+  .tools-runtime-content > .page-actions {
+    margin-left: 0;
+  }
+}

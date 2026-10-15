@@ -153,11 +153,8 @@ export function DeviceDirectory({
           />
         )}
       </div>
-      <section className="device-provider-list" aria-label="运行中的设备提供者">
-        <div className="device-section-heading">
-          <h3>设备提供者</h3>
-          <span className="muted">{snapshot.providers.length}</span>
-        </div>
+      <details className="device-provider-list" aria-label="运行中的设备提供者">
+        <summary>设备提供者 · {snapshot.providers.length}</summary>
         {snapshot.providers.length === 0 && (
           <p className="muted">请在插件页加载设备提供者，再读取目录。</p>
         )}
@@ -187,7 +184,7 @@ export function DeviceDirectory({
             </div>
           );
         })}
-      </section>
+      </details>
     </aside>
   );
 }

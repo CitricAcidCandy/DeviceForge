@@ -199,6 +199,45 @@ impl Application {
         Ok(entry.snapshot())
     }
 
+    pub fn session_release(self: &Arc<Self>, id: &str) -> Result<SessionInfo> {
+        let entry = self.sessions.find(id)?;
+        let info = entry.snapshot();
+        if info.status == SessionStatus::Finished {
+            if info
+                .completion
+                .as_ref()
+                .is_some_and(|completion| completion.cleanup == SessionCleanup::Complete)
+            {
+                self.session_remove(id)?;
+                return Ok(info);
+            }
+            return Err(Error::CleanupFailed);
+        }
+        entry.cancel();
+        if entry.request_release() {
+            let app = self.clone();
+            let session_id = id.to_owned();
+            let released = entry.clone();
+            let mut finished = entry.finished.subscribe();
+            self.tracker.spawn(LogContext::propagate(async move {
+                while !*finished.borrow_and_update() {
+                    if finished.changed().await.is_err() {
+                        return;
+                    }
+                }
+                if released
+                    .snapshot()
+                    .completion
+                    .as_ref()
+                    .is_some_and(|completion| completion.cleanup == SessionCleanup::Complete)
+                {
+                    let _ = app.session_remove(&session_id);
+                }
+            }));
+        }
+        Ok(entry.snapshot())
+    }
+
     pub fn session_remove(&self, id: &str) -> Result<()> {
         apk_domain::identifier(id)?;
         let mut entries = self

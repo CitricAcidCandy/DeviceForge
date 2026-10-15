@@ -103,7 +103,7 @@ export function WorkspaceHeader({
         <span className={'connection-state' + (connectionError ? ' is-error' : '')} role="status">
           <span className="connection-dot" aria-hidden="true" /><span>{connectionText}</span>
         </span>
-        <Button variant="ghost" size="icon" onClick={onRefreshConnection} aria-label="重新连接服务器"><RefreshCw /></Button>
+        <Button variant="ghost" size="icon" className="header-reconnect" onClick={onRefreshConnection} aria-label="重新连接服务器"><RefreshCw /></Button>
         <Button variant="outline" size="sm" className="focus-toggle" onClick={() => onFocusedChange(!focused)}
           aria-pressed={focused} aria-label={focused ? '退出专注' : '专注'}>
           {focused ? <Minimize2 /> : <Expand />}<span>{focused ? '退出专注' : '专注'}</span>
@@ -111,6 +111,8 @@ export function WorkspaceHeader({
         <DropdownMenu>
           <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" aria-label="更多设置"><Ellipsis /></Button></DropdownMenuTrigger>
           <DropdownMenuContent align="end">
+            <DropdownMenuItem className="compact-header-action" onSelect={onRefreshConnection}>重新连接服务器</DropdownMenuItem>
+            <DropdownMenuItem className="compact-header-action" onSelect={() => onFocusedChange(!focused)}>{focused ? '退出专注' : '专注模式'}</DropdownMenuItem>
             <DropdownMenuCheckboxItem checked={reduced} onCheckedChange={onReducedChange}>减少动态效果</DropdownMenuCheckboxItem>
             <DropdownMenuItem onSelect={() => onNavigate('settings')}>主题与设置</DropdownMenuItem>
             <DropdownMenuItem onSelect={() => onNavigate('plugins')}>管理插件</DropdownMenuItem>

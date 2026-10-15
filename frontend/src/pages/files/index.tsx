@@ -23,6 +23,7 @@ import { EmptyState, Field, PageTitle } from '../../components/index.ts';
 import { ActionFeedback } from '../../app/product/feedback.tsx';
 import { useAction, useSnapshot } from '../../app/product/hooks.ts';
 import type { ProductServices } from '../../app/product/services.ts';
+import './workspace.css';
 
 function saveArtifact(content: Blob, filename: string): void {
   const url = URL.createObjectURL(content);
@@ -57,17 +58,14 @@ export function FilesPage({ services }: { services: ProductServices }) {
         if (!open) setDeletion(null);
       }}
     >
-      <section className="product-page">
+      <section className="product-page files-page">
         <PageTitle
           eyebrow="服务器产物"
           title="文件"
-          description="浏览任务发布的文件与 ZIP 目录。当前公开能力没有设备文件目录、推送或拉取接口。"
+          description="浏览服务器任务产物与 ZIP 目录。从任务结果复制产物 ID，或直接上传文件。"
         />
-        <div className="capability-notice">
-          此页面不使用所选设备；文件由服务器产物 ID 定位。服务器尚未开放全产物目录，请从任务结果选取
-          ID 或上传文件。
-        </div>
-        <div className="workspace-section">
+        <div className="file-workspace">
+        <aside className="file-source" aria-label="选择服务器文件">
           <Label htmlFor="artifact-upload">上传文件</Label>
           <Input
             id="artifact-upload"
@@ -87,20 +85,22 @@ export function FilesPage({ services }: { services: ProductServices }) {
             }}
           />
           <div className="form-grid">
-            <Field label="公开产物 ID" value={id} onChange={setId} />
+            <Field label="产物 ID" value={id} onChange={setId} />
             <Button
               disabled={!id || action.pending}
               onClick={() => {
                 void action.run((signal) => services.artifactBrowser.select(id, signal));
               }}
             >
-              读取文件元数据
+              打开文件
             </Button>
           </div>
           <ActionFeedback {...action} />
-        </div>
+          <p className="muted">服务器产物，不使用当前设备。</p>
+        </aside>
+        <div className="file-content">
         {metadata ? (
-          <div className="workspace-section">
+          <div className="file-detail">
             <h2>{metadata.filename}</h2>
             <dl className="metadata-grid">
               <div>
@@ -229,9 +229,11 @@ export function FilesPage({ services }: { services: ProductServices }) {
         ) : (
           <EmptyState
             title="尚未选择产物"
-            description="上传文件或输入任务结果中的产物 ID，查询真实元数据与文件内容。"
+            description="上传文件或输入产物 ID。"
           />
         )}
+        </div>
+        </div>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>删除服务器产物？</DialogTitle>

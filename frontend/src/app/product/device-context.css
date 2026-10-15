@@ -1,0 +1,19 @@
+.device-context {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 0 0 16px;
+  margin-bottom: 22px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+.device-context-label { display: inline-flex; align-items: center; gap: 8px; color: var(--muted-foreground); }
+.device-context [data-slot='select-trigger'] { width: min(320px, 100%); min-width: 180px; min-height: 36px; }
+.device-context > a { color: var(--primary); text-underline-offset: 4px; }
+.device-context > a:hover { text-decoration: underline; }
+@media (max-width: 520px) {
+  .device-context { gap: 8px; margin-bottom: 20px; }
+  .device-context [data-slot='select-trigger'] { flex: 1; min-width: 0; min-height: 44px; }
+  .device-context-label { flex-basis: 100%; }
+}

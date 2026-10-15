@@ -77,6 +77,8 @@ function fixtureTransport(sent: unknown[] = []): typeof fetch {
     if (url.pathname.endsWith('/eof')) return success({ id: sessionId, accepted: true }, 'eof-log');
     if (url.pathname.endsWith('/cancel'))
       return success(info('stopping', media.length), 'cancel-log');
+    if (url.pathname.endsWith('/release'))
+      return success(info('finished', media.length), 'release-log', 202);
     if (url.pathname.endsWith(sessionId))
       return success(info('running', media.length), 'resume-log');
     throw new Error('未声明请求');

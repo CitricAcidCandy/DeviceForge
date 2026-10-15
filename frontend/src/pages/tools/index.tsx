@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Button } from '../../components/Button/index.tsx';
 import { Checkbox } from '../../components/Checkbox/index.tsx';
-import { Label } from '../../components/Label/index.tsx';
 import {
   Table,
   TableBody,
@@ -30,6 +29,7 @@ import { OperationNotice, useOperationAvailable } from '../../app/product/capabi
 import { ActionFeedback } from '../../app/product/feedback.tsx';
 import { useAction } from '../../app/product/hooks.ts';
 import type { ProductServices } from '../../app/product/services.ts';
+import './workspace.css';
 
 const decisions: Readonly<Record<ToolModule['action'], string>> = {
   install: '待安装',
@@ -86,24 +86,20 @@ export function ToolsPage({ services }: { services: ProductServices }) {
     });
   };
   return (
-    <section className="product-page">
-      <PageTitle
-        eyebrow="部署运行时"
-        title="工具供应"
-        description="版本、清单来源与运行时功能准备。程序路径和下载来源由服务器部署管理。"
-      >
+    <section className="product-page tools-page">
+      <PageTitle title="工具">
         <Button
           disabled={!catalogAvailable || catalogAction.pending || action.pending}
           onClick={refresh}
         >
-          刷新工具目录
+          刷新目录
         </Button>
       </PageTitle>
       <OperationNotice services={services} operation="plugin.tool-supply.catalog" />
       <ActionFeedback {...catalogAction} />
       {catalog ? (
-        <div className="workspace-section">
-          <dl className="metadata-grid">
+        <div className="tools-catalog">
+          <dl className="tools-manifest">
             <div>
               <dt>清单版本</dt>
               <dd>{catalog.manifest_version ?? '没有有效清单'}</dd>
@@ -118,14 +114,15 @@ export function ToolsPage({ services }: { services: ProductServices }) {
                     : '来源未声明'}
               </dd>
             </div>
-            <div>
-              <dt>清单摘要</dt>
-              <dd className="break-all">{catalog.manifest_sha256 ?? '—'}</dd>
-            </div>
           </dl>
+          <details className="tools-source">
+            <summary>清单详情</summary>
+            <p className="mono break-all">{catalog.manifest_sha256 ?? '没有清单摘要'}</p>
+            <p className="muted">程序路径和下载来源由服务器部署管理。</p>
+          </details>
           {catalog.source_error && (
             <p className="capability-notice">
-              来源诊断：{catalog.source_error}。本地记录仍可查看，缓存不表示真实工具已通过运行资格。
+              来源诊断：{catalog.source_error}
             </p>
           )}
           {catalog.modules.length > 0 ? (
@@ -230,12 +227,12 @@ export function ToolsPage({ services }: { services: ProductServices }) {
         </div>
       ) : (
         <EmptyState
-          title="读取真实工具目录"
-          description="清单查询失败仍可能保留服务器本地记录；当前尚未查询，不显示模拟工具版本。"
+          title="尚未读取工具目录"
+          description="刷新目录，查看已安装工具和可用版本。"
         />
       )}
       {plan && (
-        <div className="workspace-section">
+        <div className="workspace-section tools-plan">
           <h2>更新计划</h2>
           <p>
             版本 {plan.manifest_version} · 预计下载 {plan.download_bytes.toLocaleString()} 字节 ·{' '}
@@ -251,8 +248,9 @@ export function ToolsPage({ services }: { services: ProductServices }) {
           <p className="muted">计划不执行安装；单个模块安装失败或取消不代表整个目录已经回滚。</p>
         </div>
       )}
-      <div className="workspace-section">
-        <h2>运行时功能准备</h2>
+      <details className="tools-runtime">
+        <summary>运行时功能准备</summary>
+        <div className="tools-runtime-content">
         <Field
           label="功能标识"
           value={feature}
@@ -260,7 +258,7 @@ export function ToolsPage({ services }: { services: ProductServices }) {
             setFeature(value);
             setFeatureResult(null);
           }}
-          placeholder="填写部署清单中真实存在的 feature_key"
+          placeholder="部署清单中的 feature_key"
         />
         <div className="page-actions">
           <Button
@@ -302,7 +300,8 @@ export function ToolsPage({ services }: { services: ProductServices }) {
             <JsonResult value={featureResult} />
           </>
         )}
-      </div>
+        </div>
+      </details>
       <ActionFeedback {...action} />
       <JsonResult value={action.result} />
       <Dialog

@@ -26,7 +26,7 @@
 
 ## 使用边界
 
-`createHttpMirroringStreaming(client, options)` 返回 `refreshDefinitions/open/resume/readOutput/readPackets/pollOutput/sendControl/eof/cancel/snapshot/subscribe/dispose`。`sink.packet(packet, signal)` 可用于浏览器解码或无界面消费；`readPackets` 只返回本次完成包的原字节与元数据，不积累全部媒体历史。默认没有 sink 也可由调用方使用公开媒体批次自行播放；具体投屏页面、输入控件和音量界面等待设计稿。
+`createHttpMirroringStreaming(client, options)` 返回 `refreshDefinitions/open/resume/readOutput/readPackets/pollOutput/sendControl/eof/cancel/release/snapshot/subscribe/dispose`。`sink.packet(packet, signal)` 可用于浏览器解码或无界面消费；`readPackets` 只返回本次完成包的原字节与元数据，不积累全部媒体历史。默认没有 sink 也可由调用方使用公开媒体批次自行播放。
 
 `readOutput/pollOutput` 的计数消费与 `readPackets` 的媒体消费共用同一游标，只能选择一个消费者读取当前页。已读取的数据不会因切换方法重放。每批最多 100 个 8192 字节输出块；完成媒体原字节不超过 4MiB 加 819200 字节，完成包最多 32768 个。快照不保存这些媒体原字节。
 
@@ -34,8 +34,10 @@
 
 控制在已观察本代 `streaming` 状态后允许发送，门面自动添加当前 `epoch`。输入收据只证明后端接受控制队列，不能证明设备执行。收据失败后控制状态为不确定，不自动重发。EOF 只关闭控制输入，媒体继续读取。取消返回 Stopping 不等价资源已清理；持续读取到 Finished 的 completion 才能判断后端证据。
 
+`release` 调用服务端释放接口并查询清理终态；确认清理完成或记录已不存在后清空本地会话，清理失败保留会话身份与日志。释放等待上限为15秒，取消调用方等待不撤销已发起的释放，重复调用共用一次提交；超时须重新查询服务端状态。产品页面离开活动路由时撤销打开等待、画面读取和控制队列并发起释放，迟到的打开结果补发释放，运行实例关闭也调用释放。HTTP释放请求启用 `keepalive`，供正常关页时继续发送；浏览器崩溃或网络中断仍可能阻止请求送达。服务端202仅表示已接收释放请求；请求中断后后端仍负责完成已登记的资源监督与记录回收。
+
 `createBrowserMirroringSink` 需要宿主提供 `videoOutput(frame)`。回调必须同步消费或复制画面，返回后 VideoFrame 会关闭；未消费/旧代帧也关闭。可选 AudioContext 由宿主在用户交互中启动并拥有，sink 只回收自己创建的音源，不关闭共享上下文。浏览器不支持 H264 时明确拒绝，不自动降级为假画面。
 
 `runtime.mirroringStreaming` 已装配；插件通过现有 `context.extensions.callService('host.mirroring.stream', '1', input, signal)` 调用公开服务。`action:'packets'` 返回本次媒体批次，视频/音频字节映射为 JSON 数组。宿主可在 runtime 构造时注入 `mirroringSink`，插件服务不接受替换 sink 或任意回调字段，插件可以自行消费媒体包创建自己的播放器。
 
-合同详见 [投屏直播消费契约](../../../docs/投屏直播消费契约.md)。功能测试与真实性分开记录，性能测试按用户决定延后全部业务完成后执行。
+合同详见 [投屏直播消费契约](../../../docs/contracts/投屏直播消费契约.md)。功能测试与真实性分开记录，性能测试按用户决定延后全部业务完成后执行。

@@ -7776,6 +7776,196 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v2/sessions/{id}/release": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+
+                202: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            data: {
+                                completion?: {
+                                    cleanup: "complete" | "failed" | "unconfirmed";
+                                    failure?: {
+                                        code: string;
+                                        message: string;
+                                    } | null;
+
+                                    outcome?: {
+                                        artifacts: {
+
+                                            created_at: number;
+                                            filename: string;
+                                            id: string;
+                                            media_type: string;
+                                            sha256: string;
+
+                                            size: number;
+                                        }[];
+                                        error?: string | null;
+                                        result?: unknown;
+                                    } | null;
+                                    process_exited: boolean;
+
+                                    sequence?: number | null;
+                                } | null;
+
+                                created_at: number;
+                                generation: string;
+                                id: string;
+                                operation: string;
+
+                                output_sequence: number;
+                                plugin_id: string;
+
+                                status: "opening" | "running" | "stopping" | "finished";
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                400: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                401: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                404: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                409: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                429: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                500: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v2/system/shutdown": {
         parameters: {
             query?: never;

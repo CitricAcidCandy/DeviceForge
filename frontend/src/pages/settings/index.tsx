@@ -2,8 +2,6 @@ import { useState } from 'react';
 import {
   Save,
   RefreshCw,
-  Palette,
-  Settings2,
   Eye,
   EyeOff,
   Trash2,
@@ -41,10 +39,11 @@ import type {
 } from '../../features/settings/index.ts';
 import type { ProductServices } from '../../app/product/services.ts';
 import { useAction, useSnapshot } from '../../app/product/hooks.ts';
-import { Field, JsonResult, PageTitle } from '../../components/index.ts';
+import { Field, FormActions, FormRow, FormSection, JsonResult, PageTitle } from '../../components/index.ts';
 import { OperationNotice, useOperationAvailable } from '../../app/product/capabilities.tsx';
 import { ActionFeedback } from '../../app/product/feedback.tsx';
 import { McpConnection } from './components/McpConnection/index.tsx';
+import './workspace.css';
 
 export function SettingsPage({ services }: { services: ProductServices }) {
   const [scope, setScope] = useState<'user' | 'workspace'>('user');
@@ -67,23 +66,15 @@ export function SettingsPage({ services }: { services: ProductServices }) {
     setConfiguration(null);
   }
   return (
-    <div className="product-page">
+    <div className="product-page settings-page">
       <PageTitle
         eyebrow="WORKSHOP / PREFERENCES"
-        title="把工坊调整得顺手"
-        description="主题、服务和当前工具配置，各归其位。"
+        title="设置"
       />
-      <section className="settings-group">
-        <div className="section-heading">
-          <h2>
-            <Palette />
-            主题与显示
-          </h2>
-        </div>
+      <FormSection title="主题与显示">
         <div className="setting-row">
           <div>
             <Label htmlFor="settings-theme">工作空间主题</Label>
-            <p className="muted">即时应用真实主题贡献，不改变设备和任务状态。</p>
           </div>
           <Select
             value={themes.selected?.id ?? 'base'}
@@ -106,34 +97,18 @@ export function SettingsPage({ services }: { services: ProductServices }) {
             </SelectContent>
           </Select>
         </div>
-        <p className="muted">
-          专注模式和减少动态效果可在页面右上方随时调整。系统的减少动态效果设置会自动生效。
-        </p>
-      </section>
-      <section className="settings-group">
-        <h2>服务连接</h2>
-        <p>
-          当前服务：
-          <span className="mono">
-            {services.connection?.baseUrl ??
-              (typeof location === 'undefined' ? '同源服务' : location.origin)}
-          </span>
-        </p>
-        <p className="muted">
-          本地与同事局域网部署默认免鉴权。可选令牌由运行会话提供，不进入网址或浏览器持久存储。
-        </p>
+      </FormSection>
+      <FormSection title="服务连接">
         {services.connection && (
           <>
-            <div className="form-row">
-              <div className="grow">
-                <Field
-                  label="服务地址"
+            <FormRow label="服务地址">
+              {(control) => <div className="inline-action">
+                <Input
+                  {...control}
                   value={baseUrl}
-                  onChange={setBaseUrl}
+                  onChange={(event) => setBaseUrl(event.target.value)}
                   placeholder="http://127.0.0.1:7031"
-                  hint="此处是待应用的地址，测试成功后切换工作会话"
                 />
-              </div>
               <Button
                 disabled={action.pending}
                 onClick={() => {
@@ -145,17 +120,16 @@ export function SettingsPage({ services }: { services: ProductServices }) {
                 <RefreshCw />
                 测试并应用
               </Button>
-            </div>
-            <div className="form-row">
-              <div className="grow">
-                <Field
-                  label="可选服务令牌"
+              </div>}
+            </FormRow>
+            <FormRow label="可选令牌" hint="仅用于当前会话，留空免鉴权">
+              {(control) => <div className="inline-action">
+                <Input
+                  {...control}
                   value={token}
-                  onChange={setToken}
+                  onChange={(event) => setToken(event.target.value)}
                   type={showToken ? 'text' : 'password'}
-                  hint="留空使用免鉴权服务；仅保存在当前工作会话"
                 />
-              </div>
               <Button
                 variant="outline"
                 onClick={() => setShowToken(!showToken)}
@@ -164,18 +138,18 @@ export function SettingsPage({ services }: { services: ProductServices }) {
                 {showToken ? <EyeOff /> : <Eye />}
                 {showToken ? '隐藏' : '显示'}
               </Button>
-            </div>
-            <p className="muted">
-              切换服务会结束当前浏览器工作会话；已提交任务仍以原服务器状态为准。
-            </p>
+              </div>}
+            </FormRow>
+            <p className="settings-consequence">应用后将结束当前工作会话。</p>
           </>
         )}
-      </section>
-      <section className="settings-group">
-        <h2>
-          <Settings2 />
-          工具配置
-        </h2>
+        <details className="settings-note"><summary>连接说明</summary>
+          <p>当前服务：<span className="mono">{services.connection?.baseUrl ?? (typeof location === 'undefined' ? '同源服务' : location.origin)}</span></p>
+          <p>切换后已提交任务仍以原服务器状态为准。令牌仅用于当前会话，不写入网址或持久存储。</p>
+          <p>专注模式和减少动态效果在右上角设置，系统的减少动态效果偏好自动生效。</p>
+        </details>
+      </FormSection>
+      <FormSection title="工具配置">
         <OperationNotice services={services} operation="plugin.settings.list" />
         <div className="form-row">
           <div className="form-field">
@@ -203,7 +177,6 @@ export function SettingsPage({ services }: { services: ProductServices }) {
             label="归属 ID"
             value={owner}
             onChange={changeOwner}
-            hint="显式归属，避免覆盖其他配置"
           />
           <Button
             variant="outline"
@@ -266,7 +239,7 @@ export function SettingsPage({ services }: { services: ProductServices }) {
           />
           <small>写入使用已读取的修订；出现冲突时重新读取，不会自动覆盖。</small>
         </div>
-        <Button
+        <FormActions><Button
           disabled={!configuration || !canWrite || action.pending}
           onClick={() => {
             if (!configuration) return;
@@ -290,14 +263,15 @@ export function SettingsPage({ services }: { services: ProductServices }) {
         >
           <Save />
           保存此区
-        </Button>
-      </section>
+        </Button></FormActions>
+      </FormSection>
       <ActionFeedback {...action} />
       <JsonResult value={action.result} />
-      <section className="settings-group">
-        <h2>MCP 连接与工具目录</h2>
+      <details className="settings-disclosure">
+        <summary>MCP 连接与工具目录</summary>
         <McpConnection services={services} />
-      </section>
+      </details>
+      <details className="settings-disclosure"><summary>导入与远端配置</summary>
       <SettingsTransfers
         key={`${scope}:${owner}`}
         services={services}
@@ -306,6 +280,7 @@ export function SettingsPage({ services }: { services: ProductServices }) {
         configuration={configuration}
         onUpdated={setConfiguration}
       />
+      </details>
     </div>
   );
 }

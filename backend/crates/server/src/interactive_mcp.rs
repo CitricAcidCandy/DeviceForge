@@ -9,7 +9,7 @@ pub(crate) fn session_tool(definition: SessionDefinition) -> Tool {
     Tool::new(
         definition.id,
         format!(
-            "{}。打开持续会话并返回会话ID；使用会话输出、输入、EOF及取消工具继续交互。",
+            "{}。打开持续会话并返回会话ID；使用会话输出、输入、EOF及释放工具继续交互。",
             definition.title
         ),
         definition
@@ -59,6 +59,11 @@ pub(crate) fn tools() -> Vec<Tool> {
             schema::<SessionIdInput>(),
         ),
         (
+            "deviceforge.release_session",
+            "请求释放会话，清理确认后自动删除记录；失败记录保留",
+            schema::<SessionIdInput>(),
+        ),
+        (
             "deviceforge.remove_session",
             "删除已结束会话的内存记录",
             schema::<SessionIdInput>(),
@@ -85,6 +90,7 @@ pub(crate) fn manages(name: &str) -> bool {
             | "deviceforge.session_input"
             | "deviceforge.session_eof"
             | "deviceforge.cancel_session"
+            | "deviceforge.release_session"
             | "deviceforge.remove_session"
     )
 }
@@ -133,6 +139,10 @@ pub(crate) async fn invoke(
         "deviceforge.cancel_session" => {
             let request: SessionIdInput = decode(input)?;
             encode(app.session_cancel(&request.id)?)
+        }
+        "deviceforge.release_session" => {
+            let request: SessionIdInput = decode(input)?;
+            encode(app.session_release(&request.id)?)
         }
         "deviceforge.remove_session" => {
             let request: SessionIdInput = decode(input)?;

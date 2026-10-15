@@ -36,6 +36,7 @@ export async function startFrontendApp(documentRef: Document, windowRef: Window)
       renderDefault(slotRoot) {
         const link = documentRef.createElement('a');
         link.href = '#plugins';
+        link.className = 'skip-link';
         link.textContent = '管理工坊扩展';
         slotRoot.append(link);
         return () => link.remove();

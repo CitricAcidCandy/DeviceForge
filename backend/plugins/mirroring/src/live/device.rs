@@ -14,7 +14,6 @@ use tokio::net::TcpStream;
 static NEXT: AtomicU64 = AtomicU64::new(1);
 pub(crate) struct Device {
     pub directory: String,
-    pub nonce: String,
     pub scid: String,
     pub port: Option<u16>,
     pub forward_attempted: bool,
@@ -40,7 +39,6 @@ impl Device {
         );
         Self {
             directory: format!("/data/local/tmp/deviceforge_{nonce}"),
-            nonce,
             scid: format!("{:08x}", ((value as u32) & 0x7fff_ffff).max(1)),
             port: None,
             forward_attempted: false,
@@ -149,25 +147,33 @@ impl Device {
         let encoder = video_encoder
             .map(|name| format!(" video_encoder={name}"))
             .unwrap_or_default();
+        let audio_codec = if open.audio { " audio_codec=raw" } else { "" };
         format!(
-            "echo $$ > {dir}/pid && CLASSPATH={dir}/server.jar exec app_process / --nice-name=deviceforge_{nonce} com.genymobile.scrcpy.Server 3.3.1 scid={scid} tunnel_forward=true video=true audio={audio} control={control} video_codec=h264 audio_codec=raw max_size={size} max_fps={fps} video_bit_rate={rate}{encoder} send_device_meta=false send_dummy_byte=false send_codec_meta=true send_frame_meta=true clipboard_autosync=false cleanup=false power_on=false",
+            "echo $$ > {dir}/pid && CLASSPATH={dir}/server.jar exec app_process / com.genymobile.scrcpy.Server 3.3.1 scid={scid} tunnel_forward=true video_bit_rate={rate} audio={audio}{audio_codec} max_size={size} max_fps={fps} control={control}{encoder} send_device_meta=false send_dummy_byte=false cleanup=false",
             dir = self.directory,
-            nonce = self.nonce,
             scid = self.scid,
             audio = open.audio,
             control = open.control,
             size = open.max_size,
             fps = open.max_fps,
             rate = open.video_bit_rate,
-            encoder = encoder
+            encoder = encoder,
+            audio_codec = audio_codec
+        )
+    }
+    fn pid_identity_script(&self) -> String {
+        format!(
+            "a=$(tr '\\000' '\\n' < /proc/$p/cmdline); n=$(printf '%s\\n' \"$a\" | head -n 1); [ \"$n\" = app_process ] && printf '%s\\n' \"$a\" | grep -Fxq com.genymobile.scrcpy.Server && printf '%s\\n' \"$a\" | grep -Fxq 3.3.1 && printf '%s\\n' \"$a\" | grep -Fxq scid={scid} && printf '%s\\n' \"$a\" | grep -Fxq tunnel_forward=true",
+            scid = self.scid
         )
     }
     pub(crate) fn ready_script(&self) -> String {
         // 本地 ADB 转发端口可先于远端服务接入，须等待本次进程和套接字同时就绪。
+        let identity = self.pid_identity_script();
         format!(
-            "i=0; while [ $i -lt 100 ]; do if [ -f {dir}/pid ]; then p=$(cat {dir}/pid); case $p in ''|*[!0-9]*) exit 71;; esac; if [ -e /proc/$p ]; then n=$(tr '\\000' '\\n' < /proc/$p/cmdline | head -n 1); if [ \"$n\" = deviceforge_{nonce} ] && grep -q ' @scrcpy_{scid}$' /proc/net/unix; then echo DFML_READY; exit 0; fi; fi; fi; i=$((i+1)); sleep 0.05; done; exit 78",
+            "i=0; while [ $i -lt 100 ]; do if [ -f {dir}/pid ]; then p=$(cat {dir}/pid); case $p in ''|*[!0-9]*) exit 71;; esac; if [ -e /proc/$p ]; then if {identity} && grep -q ' @scrcpy_{scid}$' /proc/net/unix; then echo DFML_READY; exit 0; fi; fi; fi; i=$((i+1)); sleep 0.05; done; exit 78",
             dir = self.directory,
-            nonce = self.nonce,
+            identity = identity,
             scid = self.scid
         )
     }
@@ -192,7 +198,7 @@ impl Device {
         .await
     }
     pub(crate) fn cleanup_script(&self) -> String {
-        // 首字段身份精确匹配；PID 复用或无法核对时拒绝杀其他进程。
+        // PID 与命令行身份精确匹配；PID 复用或无法核对时拒绝杀其他进程。
         let await_pid = if self.server_attempted {
             format!(
                 "i=0; while [ ! -f {dir}/pid ]; do i=$((i+1)); [ $i -le 10 ] || exit 77; sleep 0.05; done; ",
@@ -201,10 +207,11 @@ impl Device {
         } else {
             String::new()
         };
+        let identity = self.pid_identity_script();
         format!(
-            "{await_pid}if [ -f {dir}/pid ]; then p=$(cat {dir}/pid); case $p in ''|*[!0-9]*) exit 71;; esac; if [ -e /proc/$p ]; then n=$(tr '\\000' '\\n' < /proc/$p/cmdline | head -n 1); [ \"$n\" = deviceforge_{nonce} ] || exit 72; kill -TERM $p || exit 73; i=0; while kill -0 $p 2>/dev/null; do i=$((i+1)); [ $i -le 20 ] || exit 74; sleep 0.05; done; fi; fi; rm -rf {dir} || exit 75; [ ! -e {dir} ] || exit 76; echo DFML_CLEAN",
+            "{await_pid}if [ -f {dir}/pid ]; then p=$(cat {dir}/pid); case $p in ''|*[!0-9]*) exit 71;; esac; if [ -e /proc/$p ]; then {identity} || exit 72; kill -TERM $p || exit 73; i=0; while kill -0 $p 2>/dev/null; do i=$((i+1)); [ $i -le 20 ] || exit 74; sleep 0.05; done; fi; fi; rm -rf {dir} || exit 75; [ ! -e {dir} ] || exit 76; echo DFML_CLEAN",
             dir = self.directory,
-            nonce = self.nonce
+            identity = identity
         )
     }
     pub(crate) async fn cleanup(&mut self, config: &Config, open: &Open) -> bool {
@@ -374,7 +381,9 @@ mod tests {
         assert_ne!(first.directory, second.directory);
         assert!(first.directory.starts_with("/data/local/tmp/deviceforge_"));
         let script = first.cleanup_script();
-        assert!(script.contains(&format!("deviceforge_{}", first.nonce)));
+        assert!(script.contains(&format!("grep -Fxq scid={}", first.scid)));
+        assert!(script.contains("grep -Fxq com.genymobile.scrcpy.Server"));
+        assert!(script.contains("|| exit 72"));
         assert!(!script.contains("pkill"));
         assert!(!script.contains("kill-server"));
     }
@@ -469,7 +478,8 @@ mod tests {
         let device = Device::new();
         let script = device.ready_script();
         assert!(script.contains(&format!("{}/pid", device.directory)));
-        assert!(script.contains(&format!("deviceforge_{}", device.nonce)));
+        assert!(script.contains(&format!("grep -Fxq scid={}", device.scid)));
+        assert!(script.contains("grep -Fxq com.genymobile.scrcpy.Server"));
         assert!(script.contains(&format!(" @scrcpy_{}$", device.scid)));
         assert!(script.contains("exit 78"));
     }
@@ -483,5 +493,10 @@ mod tests {
                 .contains(" video_encoder=c2.android.avc.encoder ")
         );
         assert!(!device.script(&open, None).contains(" video_encoder="));
+        assert!(!device.script(&open, None).contains("--nice-name"));
+        assert!(!device.script(&open, None).contains("power_on=false"));
+        assert!(device.script(&open, None).contains(" audio_codec=raw"));
+        let silent: Open = serde_json::from_str(r#"{"device_id":"demo","audio":false}"#).unwrap();
+        assert!(!device.script(&silent, None).contains(" audio_codec="));
     }
 }

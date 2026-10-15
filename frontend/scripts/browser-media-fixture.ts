@@ -173,7 +173,10 @@ export async function createMediaFixture(material: MediaMaterial) {
       url.pathname.endsWith('/eof')
     )
       return response({ id: mediaSessionId, accepted: true });
-    if (url.pathname === `/api/v2/sessions/${mediaSessionId}/cancel`) {
+    if (
+      url.pathname === `/api/v2/sessions/${mediaSessionId}/cancel` ||
+      url.pathname === `/api/v2/sessions/${mediaSessionId}/release`
+    ) {
       session = {
         ...session,
         status: 'finished',
@@ -181,7 +184,7 @@ export async function createMediaFixture(material: MediaMaterial) {
         completion: { cleanup: 'complete', process_exited: true },
       };
       for (const entry of [...held]) entry.finish();
-      return response(session);
+      return response(session, url.pathname.endsWith('/release') ? 202 : 200);
     }
     if (url.pathname === `/api/v2/sessions/${mediaSessionId}`)
       return response({ ...session, output_sequence: chunks.length });

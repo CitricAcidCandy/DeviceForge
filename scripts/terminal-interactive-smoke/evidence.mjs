@@ -87,5 +87,5 @@ export async function verifyLogs(directory, host, report) {
     })),
     normal_stop_records: stops,
   };
-  report.checks.push({ name: '全部响应日志ID及六会话准入结束关联落盘', passed: true });
+  report.checks.push({ name: '全部响应日志ID及会话准入结束关联落盘', passed: true });
 }

@@ -1,0 +1,182 @@
+[
+  {
+    "filename": "devices-1440.png",
+    "route": "#/devices",
+    "title": "DeviceForge · 设备工坊",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "body": {
+      "width": 1425,
+      "height": 1026
+    },
+    "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n设备工坊\n工作台\n设备\n2026年10月15日星期四\n15:07\nAsia/Shanghai\n服务器已连接\n专注\n工作台\n设备\n应用与包\n文件与产物\n画面与录制\n深度调试\n性能与调用栈\nFrida\n自动化\n终端\n扩展创作\nAI 助手\n数据分析\n工坊\n插件\n任务与日志\n工具供应\n设置\n折叠导航\n设备目录\n1\n连接设备\n设备来源\n全部提供者\n22081212UG\n在线\nandroid · 387ec760\n设备提供者 · 2\n选择工作设备\n\n从目录选择设备，查看可用操作。\n\n任务记录\nandroid.performance.start · 失败\n查看全部\n管理工坊扩展",
+    "overflows": []
+  },
+  {
+    "filename": "settings-1440.png",
+    "route": "#/settings",
+    "title": "DeviceForge · 设备工坊",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "body": {
+      "width": 1425,
+      "height": 1609
+    },
+    "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n设备工坊\n工坊\n设置\n2026年10月15日星期四\n15:07\nAsia/Shanghai\n服务器已连接\n专注\n工作台\n设备\n应用与包\n文件与产物\n画面与录制\n深度调试\n性能与调用栈\nFrida\n自动化\n终端\n扩展创作\nAI 助手\n数据分析\n工坊\n插件\n任务与日志\n工具供应\n设置\n折叠导航\n设置\n主题与显示\n工作空间主题\n工坊默认主题\n服务连接\n服务地址\n测试并应用\n可选令牌\n仅用于当前会话，留空免鉴权\n显示\n\n应用后将结束当前工作会话。\n\n连接说明\n工具配置\n配置归属\n用户配置\n归属 ID\n读取配置\n配置区\n读取此区\n配置内容 · JSON\n写入使用已读取的修订；出现冲突时重新读取，不会自动覆盖。\n保存此区\nMCP 连接与工具目录\n导入与远端配置\n任务记录\nandroid.performance.start · 失败\n查看全部\n管理工坊扩展",
+    "overflows": []
+  },
+  {
+    "filename": "ai-1440.png",
+    "route": "#/ai",
+    "title": "DeviceForge · 设备工坊",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "body": {
+      "width": 1425,
+      "height": 1026
+    },
+    "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n设备工坊\n扩展创作\nAI 助手\n2026年10月15日星期四\n15:07\nAsia/Shanghai\n服务器已连接\n专注\n工作台\n设备\n应用与包\n文件与产物\n画面与录制\n深度调试\n性能与调用栈\nFrida\n自动化\n终端\n扩展创作\nAI 助手\n数据分析\n工坊\n插件\n任务与日志\n工具供应\n设置\n折叠导航\n工作设备\n尚未选择设备\n设备目录\nAI 助手\n使用说明\nCodex SDK\n刷新助手目录\n检查运行资格\nSDK 项目 ID\n线程 ID（可选）\n执行方式\n实时回答\n从一个明确的问题开始\n\n回答和过程来自服务器的真实会话。缺少工具、模型或项目配置时会显示对应原因。\n\n发给助手\n发送并读取实时回答\n暂停等待\n继续读取回答\n停止本次会话\n查询线程\n关闭线程\n查询会话状态\n恢复已有实时会话\n\n传输会话：尚未建立 · 待发送 · 回答所属项目：尚无。暂停等待不会停止服务器任务；CLI 和 SDK 各自保留草稿与线程。\n\n任务记录\nandroid.performance.start · 失败\n查看全部\n管理工坊扩展",
+    "overflows": []
+  },
+  {
+    "filename": "performance-1440.png",
+    "route": "#/performance",
+    "title": "DeviceForge · 设备工坊",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "body": {
+      "width": 1425,
+      "height": 1086
+    },
+    "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n设备工坊\n深度调试\n性能与调用栈\n2026年10月15日星期四\n15:07\nAsia/Shanghai\n服务器已连接\n专注\n工作台\n设备\n应用与包\n文件与产物\n画面与录制\n深度调试\n性能与调用栈\nFrida\n自动化\n终端\n扩展创作\nAI 助手\n数据分析\n工坊\n插件\n任务与日志\n工具供应\n设置\n折叠导航\n工作设备\n尚未选择设备\n设备目录\n性能与堆栈\n使用说明\n目标应用包名\n当前设备：尚未选择。开始或探测只在点击时执行。\n持续性能会话\n限时画面与调用栈\n持续指标会话\n会话时长（秒）\n1–3600 秒；达到时长由服务器收敛\n会话间隔（毫秒）\n1000–60000 毫秒，空值与有效零分别保留\n\n先在顶部选择设备。\n\n开始性能会话\n查询当前采样能力\n\n此创建契约只发送设备 ID，实际来源以服务器返回的 plugin_id / generation 为准，不保证客户端代次 CAS。未注明来源的旧历史不会从当前设备补齐。\n\n历史会话\n读取性能会话 ID\n历史读取不要求当前设备在线\n读取会话\n刷新历史\n尚未读取会话历史\n\n刷新历史或输入已知会话 ID；当前设备选择不会替换历史对象与来源。\n\n下一页历史\n任务记录\nandroid.performance.start · 失败\n查看全部\n管理工坊扩展",
+    "overflows": []
+  },
+  {
+    "filename": "devices-768.png",
+    "route": "#/devices",
+    "title": "DeviceForge · 设备工坊",
+    "viewport": {
+      "width": 768,
+      "height": 1000
+    },
+    "body": {
+      "width": 753,
+      "height": 1026
+    },
+    "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n设备工坊\n设备\n服务器已连接\n专注\n设备目录\n1\n连接设备\n设备来源\n全部提供者\n22081212UG\n在线\nandroid · 387ec760\n设备提供者 · 2\n选择工作设备\n\n从目录选择设备，查看可用操作。\n\n任务记录\nandroid.performance.start · 失败\n查看全部\n管理工坊扩展",
+    "overflows": []
+  },
+  {
+    "filename": "settings-768.png",
+    "route": "#/settings",
+    "title": "DeviceForge · 设备工坊",
+    "viewport": {
+      "width": 768,
+      "height": 1000
+    },
+    "body": {
+      "width": 753,
+      "height": 1627
+    },
+    "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n设备工坊\n设置\n服务器已连接\n专注\n设置\n主题与显示\n工作空间主题\n工坊默认主题\n服务连接\n服务地址\n测试并应用\n可选令牌\n仅用于当前会话，留空免鉴权\n显示\n\n应用后将结束当前工作会话。\n\n连接说明\n工具配置\n配置归属\n用户配置\n归属 ID\n读取配置\n配置区\n读取此区\n配置内容 · JSON\n写入使用已读取的修订；出现冲突时重新读取，不会自动覆盖。\n保存此区\nMCP 连接与工具目录\n导入与远端配置\n任务记录\nandroid.performance.start · 失败\n查看全部\n管理工坊扩展",
+    "overflows": []
+  },
+  {
+    "filename": "ai-768.png",
+    "route": "#/ai",
+    "title": "DeviceForge · 设备工坊",
+    "viewport": {
+      "width": 768,
+      "height": 1000
+    },
+    "body": {
+      "width": 753,
+      "height": 1026
+    },
+    "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n设备工坊\nAI 助手\n服务器已连接\n专注\n工作设备\n尚未选择设备\n设备目录\nAI 助手\n使用说明\nCodex SDK\n刷新助手目录\n检查运行资格\nSDK 项目 ID\n线程 ID（可选）\n执行方式\n实时回答\n从一个明确的问题开始\n\n回答和过程来自服务器的真实会话。缺少工具、模型或项目配置时会显示对应原因。\n\n发给助手\n发送并读取实时回答\n暂停等待\n继续读取回答\n停止本次会话\n查询线程\n关闭线程\n查询会话状态\n恢复已有实时会话\n\n传输会话：尚未建立 · 待发送 · 回答所属项目：尚无。暂停等待不会停止服务器任务；CLI 和 SDK 各自保留草稿与线程。\n\n任务记录\nandroid.performance.start · 失败\n查看全部\n管理工坊扩展",
+    "overflows": []
+  },
+  {
+    "filename": "performance-768.png",
+    "route": "#/performance",
+    "title": "DeviceForge · 设备工坊",
+    "viewport": {
+      "width": 768,
+      "height": 1000
+    },
+    "body": {
+      "width": 753,
+      "height": 1130
+    },
+    "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n设备工坊\n性能与调用栈\n服务器已连接\n专注\n工作设备\n尚未选择设备\n设备目录\n性能与堆栈\n使用说明\n目标应用包名\n当前设备：尚未选择。开始或探测只在点击时执行。\n持续性能会话\n限时画面与调用栈\n持续指标会话\n会话时长（秒）\n1–3600 秒；达到时长由服务器收敛\n会话间隔（毫秒）\n1000–60000 毫秒，空值与有效零分别保留\n\n先在顶部选择设备。\n\n开始性能会话\n查询当前采样能力\n\n此创建契约只发送设备 ID，实际来源以服务器返回的 plugin_id / generation 为准，不保证客户端代次 CAS。未注明来源的旧历史不会从当前设备补齐。\n\n历史会话\n读取性能会话 ID\n历史读取不要求当前设备在线\n读取会话\n刷新历史\n尚未读取会话历史\n\n刷新历史或输入已知会话 ID；当前设备选择不会替换历史对象与来源。\n\n下一页历史\n任务记录\nandroid.performance.start · 失败\n查看全部\n管理工坊扩展",
+    "overflows": []
+  },
+  {
+    "filename": "devices-390.png",
+    "route": "#/devices",
+    "title": "DeviceForge · 设备工坊",
+    "viewport": {
+      "width": 390,
+      "height": 1000
+    },
+    "body": {
+      "width": 375,
+      "height": 1026
+    },
+    "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n服务器已连接\n设备目录\n1\n连接设备\n设备来源\n全部提供者\n22081212UG\n在线\nandroid · 387ec760\n设备提供者 · 2\n选择工作设备\n\n从目录选择设备，查看可用操作。\n\n任务记录\n查看全部\n管理工坊扩展",
+    "overflows": []
+  },
+  {
+    "filename": "settings-390.png",
+    "route": "#/settings",
+    "title": "DeviceForge · 设备工坊",
+    "viewport": {
+      "width": 390,
+      "height": 1000
+    },
+    "body": {
+      "width": 375,
+      "height": 1886
+    },
+    "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n服务器已连接\n设置\n主题与显示\n工作空间主题\n工坊默认主题\n服务连接\n服务地址\n测试并应用\n可选令牌\n仅用于当前会话，留空免鉴权\n显示\n\n应用后将结束当前工作会话。\n\n连接说明\n工具配置\n配置归属\n用户配置\n归属 ID\n读取配置\n配置区\n读取此区\n配置内容 · JSON\n写入使用已读取的修订；出现冲突时重新读取，不会自动覆盖。\n保存此区\nMCP 连接与工具目录\n导入与远端配置\n任务记录\n查看全部\n管理工坊扩展",
+    "overflows": []
+  },
+  {
+    "filename": "ai-390.png",
+    "route": "#/ai",
+    "title": "DeviceForge · 设备工坊",
+    "viewport": {
+      "width": 390,
+      "height": 1000
+    },
+    "body": {
+      "width": 375,
+      "height": 1244
+    },
+    "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n服务器已连接\n工作设备\n尚未选择设备\n设备目录\nAI 助手\n使用说明\nCodex SDK\n刷新助手目录\n检查运行资格\nSDK 项目 ID\n线程 ID（可选）\n执行方式\n实时回答\n从一个明确的问题开始\n\n回答和过程来自服务器的真实会话。缺少工具、模型或项目配置时会显示对应原因。\n\n发给助手\n发送并读取实时回答\n暂停等待\n继续读取回答\n停止本次会话\n查询线程\n关闭线程\n查询会话状态\n恢复已有实时会话\n\n传输会话：尚未建立 · 待发送 · 回答所属项目：尚无。暂停等待不会停止服务器任务；CLI 和 SDK 各自保留草稿与线程。\n\n任务记录\n查看全部\n管理工坊扩展",
+    "overflows": []
+  },
+  {
+    "filename": "performance-390.png",
+    "route": "#/performance",
+    "title": "DeviceForge · 设备工坊",
+    "viewport": {
+      "width": 390,
+      "height": 1000
+    },
+    "body": {
+      "width": 375,
+      "height": 1432
+    },
+    "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n服务器已连接\n工作设备\n尚未选择设备\n设备目录\n性能与堆栈\n使用说明\n目标应用包名\n当前设备：尚未选择。开始或探测只在点击时执行。\n持续性能会话\n限时画面与调用栈\n持续指标会话\n会话时长（秒）\n1–3600 秒；达到时长由服务器收敛\n会话间隔（毫秒）\n1000–60000 毫秒，空值与有效零分别保留\n\n先在顶部选择设备。\n\n开始性能会话\n查询当前采样能力\n\n此创建契约只发送设备 ID，实际来源以服务器返回的 plugin_id / generation 为准，不保证客户端代次 CAS。未注明来源的旧历史不会从当前设备补齐。\n\n历史会话\n读取性能会话 ID\n历史读取不要求当前设备在线\n读取会话\n刷新历史\n尚未读取会话历史\n\n刷新历史或输入已知会话 ID；当前设备选择不会替换历史对象与来源。\n\n下一页历史\n任务记录\n查看全部\n管理工坊扩展",
+    "overflows": []
+  }
+]

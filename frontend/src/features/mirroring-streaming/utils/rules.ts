@@ -187,7 +187,13 @@ export function decodeStreamPage(
     )
   )
     throw invalidStream('投屏输出缺块、重排、越界或包含未声明诊断通道', logId);
-  return copyFrozen({ ...value, session });
+  const chunks = value.chunks.map((chunk) => {
+    const bytes = chunk.bytes.slice();
+    Object.freeze(bytes);
+    return Object.freeze({ sequence: chunk.sequence, stream: chunk.stream, bytes });
+  });
+  Object.freeze(chunks);
+  return Object.freeze({ session, chunks, next_sequence: value.next_sequence });
 }
 export function decodeStreamReceipt(
   value: unknown,

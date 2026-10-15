@@ -94,6 +94,8 @@ try {
     ['echo_mcp', 'echo'],
     ['bad_exit', 'nonzero'],
     ['hold_cancel', 'hang'],
+    ['release_http', 'hang'],
+    ['release_mcp', 'hang'],
     ['hold_unload', 'hang'],
     ['hold_shutdown', 'hang'],
   ]) {
@@ -129,6 +131,12 @@ try {
     assert.equal(opened.generation, loaded.generation);
     recordOpen(host, opened, report);
     await echo(host, opened.id, join(directory, `${name}.pid`), mcp, report);
+    const released = mcp
+      ? await host.client.tool('deviceforge.release_session', { id: opened.id })
+      : await host.client.post(`/api/v2/sessions/${opened.id}/release`, undefined, { status: 202 });
+    assert.equal(released.status, 'finished');
+    assert.ok(!(await host.client.json('/api/v2/sessions')).some((entry) => entry.id === opened.id));
+    report.checks.push({ name: `${mcp ? 'MCP' : 'HTTP'}释放已结束记录`, passed: true });
   }
   const failed = await host.client.tool('plugin.terminal.open', { profile: 'bad_exit' });
   recordOpen(host, failed, report);
@@ -153,6 +161,22 @@ try {
   const cancelling = await held(host, 'hold_cancel', join(directory, 'hold_cancel.pid'), report);
   await host.client.tool('deviceforge.cancel_session', { id: cancelling.id });
   await stopped(host, cancelling, report, '显式取消并确认工具PID消失');
+  for (const mcp of [false, true]) {
+    const name = mcp ? 'release_mcp' : 'release_http';
+    const current = await held(host, name, join(directory, `${name}.pid`), report);
+    const accepted = mcp
+      ? await host.client.tool('deviceforge.release_session', { id: current.id })
+      : await host.client.post(`/api/v2/sessions/${current.id}/release`, undefined, { status: 202 });
+    assert.ok(['stopping', 'finished'].includes(accepted.status));
+    await poll(
+      () => host.client.json('/api/v2/sessions'),
+      (records) => !records.some((entry) => entry.id === current.id),
+      '清理确认后自动移除记录',
+    );
+    await assertPidGone(current.pid);
+    report.sessions.push({ ...current, entry: name, pid_absent: true, record_removed: true });
+    report.checks.push({ name: `${mcp ? 'MCP' : 'HTTP'}释放活动会话并自动回收记录`, passed: true });
+  }
   const unloading = await held(host, 'hold_unload', join(directory, 'hold_unload.pid'), report);
   const unloaded = await host.client.post('/api/v2/plugins/terminal/unload');
   assert.equal(unloaded.state, 'unloaded');

@@ -12,15 +12,16 @@ import {
 import { Field, PageTitle, EmptyState, JsonResult } from '../../components/index.ts';
 import { useOperationAvailable } from '../../app/product/capabilities.tsx';
 import { ActionFeedback, ErrorNotice } from '../../app/product/feedback.tsx';
-import { useAction, useSnapshot } from '../../app/product/hooks.ts';
+import { errorLogId, useAction, useSnapshot } from '../../app/product/hooks.ts';
 import { withSelectedDevice } from '../../app/product/device-target.ts';
 import { createMediaControlQueue } from './media-controls.ts';
 import { useBlobUrl } from '../../components/BlobDownload/index.tsx';
 import type { ProductServices } from '../../app/product/services.ts';
 import type { MirroringControl } from '../../features/mirroring-streaming/index.ts';
 import type { DeviceRef } from '../../plugin-sdk/index.ts';
+import './workspace.css';
 
-export function MediaPage({ services }: { services: ProductServices }) {
+export function MediaPage({ services, active }: { services: ProductServices; active: boolean }) {
   const device = useSnapshot(services.runtime.devices);
   const live = services.runtime.mirroringStreaming;
   const snapshot = useSnapshot(live);
@@ -44,6 +45,7 @@ export function MediaPage({ services }: { services: ProductServices }) {
   const [controlError, setControlError] = useState<unknown>(null);
   const controls = useRef<ReturnType<typeof createMediaControlQueue> | null>(null);
   useEffect(() => {
+    if (!active) return;
     const queue = createMediaControlQueue({
       identity: () => {
         const view = live.snapshot();
@@ -56,8 +58,19 @@ export function MediaPage({ services }: { services: ProductServices }) {
     return () => {
       queue.dispose();
       controls.current = null;
+      action.cancel();
+      reader.cancel();
+      services.mediaDisplay.stop();
+      if (live.snapshot().session) {
+        void live.release(new AbortController().signal).catch((error: unknown) => {
+          services.messages.warning('投屏会话释放失败', {
+            description: error instanceof Error ? error.message : '请重新查询会话状态',
+            logId: errorLogId(error),
+          });
+        });
+      }
     };
-  }, [live]);
+  }, [active, live, action.cancel, reader.cancel, services]);
   const canvas = useRef<HTMLCanvasElement | null>(null);
   const imageUrl = useBlobUrl(image);
   const movieUrl = useBlobUrl(movie);
@@ -131,7 +144,7 @@ export function MediaPage({ services }: { services: ProductServices }) {
     ]);
   };
   return (
-    <section className="product-page">
+    <section className="product-page media-page">
       <PageTitle
         eyebrow="WORKSHOP / SCREEN"
         title="画面与录制"
@@ -196,9 +209,12 @@ export function MediaPage({ services }: { services: ProductServices }) {
       {!device.selection && (
         <EmptyState
           title="选择一台设备开始"
-          description="顶部选择工作对象。截图按当前设备能力开放，投屏和录像还需要服务端投屏插件。"
+          description="在上方选择工作设备。"
         />
       )}
+      <div className="media-workspace">
+      <aside className="media-session-controls" aria-label="画面参数与会话控制">
+      <h2>画面参数</h2>
       <div className="form-row">
         <Field
           label="最大画面尺寸"
@@ -275,13 +291,18 @@ export function MediaPage({ services }: { services: ProductServices }) {
         </Button>
         <Button
           variant="destructive"
-          disabled={!activeSession || action.pending}
-          onClick={() => void action.run((signal) => live.cancel(signal))}
+          disabled={!snapshot.session || action.pending}
+          onClick={() => {
+            reader.cancel();
+            services.mediaDisplay.stop();
+            void action.run((signal) => live.release(signal), { pending: '正在释放投屏会话…' });
+          }}
         >
           <Square />
-          停止直播
+          释放直播
         </Button>
       </div>
+      </aside>
       <div className="media-stage">
         <canvas
           ref={(target) => {
@@ -298,17 +319,16 @@ export function MediaPage({ services }: { services: ProductServices }) {
         />
         {!snapshot.video && (
           <EmptyState
-            title="等待真实直播画面"
-            description="先检查直播能力，再开始投屏。浏览器通过 WebCodecs 解码服务端媒体流。"
+            title="等待设备画面"
+            description="选择设备后开始投屏。"
           />
         )}
       </div>
-      <p className="muted">
-        来源：{source || '尚无画面'} · {snapshot.status?.state ?? '尚未连接'} · 代次{' '}
-        {snapshot.epoch} ·{' '}
-        {snapshot.video ? `${snapshot.video.width} × ${snapshot.video.height}` : '尺寸待返回'} ·
-        已交付 {snapshot.packets} 个媒体包
-      </p>
+      </div>
+      <details className="media-observation">
+        <summary>来源：{source || '尚无画面'} · {snapshot.status?.state ?? '尚未连接'}</summary>
+        <p>{snapshot.video ? `${snapshot.video.width} × ${snapshot.video.height}` : '尺寸待返回'} · 代次 {snapshot.epoch} · 已交付 {snapshot.packets} 个媒体包</p>
+      </details>
       <ErrorNotice error={services.mediaDisplay.error()} />
       <ErrorNotice error={controlError} />
       <ActionFeedback {...reader} />
@@ -378,9 +398,10 @@ export function MediaPage({ services }: { services: ProductServices }) {
           恢复其它会话时控制入口关闭。暂停读取不停止服务；帧交付撤销后可能需要重新打开直播。
         </p>
       </details>
-      <section className="settings-group">
+      <details className="settings-group media-recording">
+        <summary>录像与下载</summary>
         <div className="section-heading">
-          <h2>有界录像</h2>
+          <h2>限时录像</h2>
           <Button
             variant="ghost"
             disabled={recording.pending}
@@ -457,7 +478,7 @@ export function MediaPage({ services }: { services: ProductServices }) {
         )}
         <ActionFeedback {...recording} />
         <JsonResult value={recording.result} />
-      </section>
+      </details>
       {imageUrl && (
         <section className="settings-group">
           <h2>最近截图 · {imageSource}</h2>

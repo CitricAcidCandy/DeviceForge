@@ -121,6 +121,7 @@ function gateway(changes: Partial<SessionGateway> = {}): SessionGateway {
       throw new Error('不自动EOF');
     },
     cancel: async (id) => ({ data: info({ id, status: 'stopping' }), logId: 'cancel-log' }),
+    release: async (id) => ({ data: info({ id, status: 'stopping' }), logId: 'release-log' }),
     remove: async () => {
       throw new Error('不自动删除');
     },

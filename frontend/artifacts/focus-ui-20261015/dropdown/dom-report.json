@@ -1,0 +1,122 @@
+[
+  {
+    "filename": "packages-1440.png",
+    "route": "#/packages",
+    "title": "DeviceForge · 设备工坊",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "body": {
+      "width": 1425,
+      "height": 1059
+    },
+    "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n设备工坊\n工作台\n应用与包\n2026年10月15日星期四\n15:22\nAsia/Shanghai\n服务器连接失败\n专注\n工作台\n设备\n应用与包\n文件与产物\n画面与录制\n深度调试\n性能与调用栈\nFrida\n自动化\n终端\n扩展创作\nAI 助手\n数据分析\n工坊\n插件\n任务与日志\n工具供应\n设置\n折叠导航\n工作设备\n尚未选择设备\n设备目录\n包与应用\n安装包分析\n设备应用\n安装包\n上传安装包\n\n支持 APK、AAB、APKS 和 ZIP。\n\n安装包产物 ID\n可填写任务中心已有的产物 ID。\n处理方式\n清单\n\n当前服务器尚未提供此功能。请在插件页安装或加载对应插件，再刷新目录。\n\nAAB 模块（可选）\nAPK 不填；省略保持服务器默认。\n运行清单\n分析结果\n\n上传安装包或填写产物 ID，选择处理方式后运行。\n\n任务记录\n暂无任务\n查看全部\n服务器未返回有效 JSON\n查看详情\n有 2 项插件未能默认启用\n可到插件页重试失败项。\n查看详情\n管理工坊扩展",
+    "formItemCount": 2,
+    "unlinkedRows": [],
+    "overflows": []
+  },
+  {
+    "width": 1440,
+    "dropdown": {
+      "options": [
+        "清单",
+        "签名",
+        "提取 APK",
+        "AAB 构建",
+        "反编译",
+        "SDK 规则",
+        "APKS 匹配"
+      ],
+      "bounds": {
+        "left": 291.03125,
+        "right": 581.375,
+        "top": 649.453125,
+        "bottom": 883.453125
+      }
+    }
+  },
+  {
+    "width": 1440,
+    "selection": {
+      "selected": "签名"
+    }
+  },
+  {
+    "filename": "settings-1440.png",
+    "route": "#/settings",
+    "title": "DeviceForge · 设备工坊",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "body": {
+      "width": 1425,
+      "height": 1456
+    },
+    "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n设备工坊\n工坊\n设置\n2026年10月15日星期四\n15:22\nAsia/Shanghai\n服务器连接失败\n专注\n工作台\n设备\n应用与包\n文件与产物\n画面与录制\n深度调试\n性能与调用栈\nFrida\n自动化\n终端\n扩展创作\nAI 助手\n数据分析\n工坊\n插件\n任务与日志\n工具供应\n设置\n折叠导航\n设置\n主题与显示\n工作空间主题\n工坊默认主题\n服务连接\n服务地址\n测试并应用\n可选令牌\n显示\n仅用于当前会话，留空免鉴权\n\n应用后将结束当前工作会话。\n\n连接说明\n工具配置\n\n当前服务器尚未提供此功能。请在插件页安装或加载对应插件，再刷新目录。\n\n配置归属\n用户配置\n归属 ID\n读取配置\n配置区\n读取此区\n配置内容 · JSON\n写入使用已读取的修订；出现冲突时重新读取，不会自动覆盖。\n保存此区\nMCP 连接与工具目录\n导入与远端配置\n任务记录\n暂无任务\n查看全部\n服务器未返回有效 JSON\n查看详情\n有 2 项插件未能默认启用\n可到插件页重试失败项。\n查看详情\n管理工坊扩展",
+    "formItemCount": 5,
+    "unlinkedRows": [],
+    "overflows": []
+  },
+  {
+    "filename": "packages-390.png",
+    "route": "#/packages",
+    "title": "DeviceForge · 设备工坊",
+    "viewport": {
+      "width": 390,
+      "height": 1000
+    },
+    "body": {
+      "width": 375,
+      "height": 1402
+    },
+    "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n服务器连接失败\n工作设备\n尚未选择设备\n设备目录\n包与应用\n安装包分析\n设备应用\n安装包\n上传安装包\n\n支持 APK、AAB、APKS 和 ZIP。\n\n安装包产物 ID\n可填写任务中心已有的产物 ID。\n处理方式\n签名\n\n当前服务器尚未提供此功能。请在插件页安装或加载对应插件，再刷新目录。\n\n运行签名\n分析结果\n\n上传安装包或填写产物 ID，选择处理方式后运行。\n\n任务记录\n查看全部\n服务器未返回有效 JSON\n查看详情\n有 2 项插件未能默认启用\n可到插件页重试失败项。\n查看详情\n管理工坊扩展",
+    "formItemCount": 5,
+    "unlinkedRows": [],
+    "overflows": []
+  },
+  {
+    "width": 390,
+    "dropdown": {
+      "options": [
+        "清单",
+        "签名",
+        "提取 APK",
+        "AAB 构建",
+        "反编译",
+        "SDK 规则",
+        "APKS 匹配"
+      ],
+      "bounds": {
+        "left": 16.640625,
+        "right": 358.984375,
+        "top": 642.640625,
+        "bottom": 876.640625
+      }
+    }
+  },
+  {
+    "width": 390,
+    "selection": {
+      "selected": "签名"
+    }
+  },
+  {
+    "filename": "settings-390.png",
+    "route": "#/settings",
+    "title": "DeviceForge · 设备工坊",
+    "viewport": {
+      "width": 390,
+      "height": 1000
+    },
+    "body": {
+      "width": 375,
+      "height": 1739
+    },
+    "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n服务器连接失败\n设置\n主题与显示\n工作空间主题\n工坊默认主题\n服务连接\n服务地址\n测试并应用\n可选令牌\n显示\n仅用于当前会话，留空免鉴权\n\n应用后将结束当前工作会话。\n\n连接说明\n工具配置\n\n当前服务器尚未提供此功能。请在插件页安装或加载对应插件，再刷新目录。\n\n配置归属\n用户配置\n归属 ID\n读取配置\n配置区\n读取此区\n配置内容 · JSON\n写入使用已读取的修订；出现冲突时重新读取，不会自动覆盖。\n保存此区\nMCP 连接与工具目录\n导入与远端配置\n任务记录\n查看全部\n服务器未返回有效 JSON\n查看详情\n有 2 项插件未能默认启用\n可到插件页重试失败项。\n查看详情\n管理工坊扩展",
+    "formItemCount": 5,
+    "unlinkedRows": [],
+    "overflows": []
+  }
+]

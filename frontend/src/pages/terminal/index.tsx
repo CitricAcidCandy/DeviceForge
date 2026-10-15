@@ -4,6 +4,7 @@ import { Field, PageTitle, EmptyState, JsonResult } from '../../components/index
 import { ActionFeedback } from '../../app/product/feedback.tsx';
 import { useAction, useSnapshot } from '../../app/product/hooks.ts';
 import type { ProductServices } from '../../app/product/services.ts';
+import './workspace.css';
 
 export function TerminalPage({ services }: { services: ProductServices }) {
   const session = services.sessions;
@@ -21,11 +22,9 @@ export function TerminalPage({ services }: { services: ProductServices }) {
       .map((chunk) => decoder.decode(Uint8Array.from(chunk.bytes), { stream: true }))
       .join('') + (snapshot.session?.status === 'finished' ? decoder.decode() : '');
   return (
-    <section className="product-page">
+    <section className="product-page terminal-page">
       <PageTitle
-        eyebrow="深度调试"
         title="终端"
-        description="使用服务器已配置的终端档案。会话、输入回执和输出序号均来自真实服务。"
       >
         <Button
           variant="outline"
@@ -36,15 +35,18 @@ export function TerminalPage({ services }: { services: ProductServices }) {
             })
           }
         >
-          刷新会话目录
+          刷新目录
         </Button>
       </PageTitle>
+      <div className="terminal-workspace">
+        <aside className="terminal-connections" aria-label="终端连接">
+          <h3>连接</h3>
       <div className="form-row">
         <Field
           label="终端档案"
           value={profile}
           onChange={setProfile}
-          hint="仅使用服务器预先配置的档案 ID"
+          placeholder="服务器档案 ID"
         />
         <Button
           disabled={!terminalAvailable || action.pending}
@@ -52,6 +54,10 @@ export function TerminalPage({ services }: { services: ProductServices }) {
         >
           打开终端
         </Button>
+      </div>
+      <details className="terminal-restore">
+        <summary>恢复已有会话</summary>
+        <div className="form-row">
         <Field label="恢复会话 ID" value={resumeId} onChange={setResumeId} />
         <Button
           variant="outline"
@@ -61,11 +67,12 @@ export function TerminalPage({ services }: { services: ProductServices }) {
           恢复
         </Button>
       </div>
+      </details>
       {!terminalAvailable && (
-        <p className="capability-notice">先刷新目录；服务器需要发布终端插件，并配置可用档案。</p>
+        <p className="capability-notice">刷新目录以读取可用终端档案。</p>
       )}
       {snapshot.records.length > 0 && (
-        <div className="session-list">
+        <div className="session-list" aria-label="终端会话记录">
           {snapshot.records
             .filter((item) => item.operation === 'plugin.terminal.open')
             .map((item) => (
@@ -79,17 +86,23 @@ export function TerminalPage({ services }: { services: ProductServices }) {
             ))}
         </div>
       )}
+        </aside>
+        <div className="terminal-workarea">
+      <div className="terminal-status" role="status">
+        <span>{snapshot.session?.status ?? '尚未打开'}</span>
+        <span>输出 {snapshot.cursor} · 输入 {snapshot.inputState}</span>
+      </div>
       <div className="terminal-output" role="log" aria-label="终端输出">
         {text ? (
           <pre>{text}</pre>
         ) : (
           <EmptyState
             title="等待终端输出"
-            description="打开或恢复会话后读取输出。取消页面等待不会自动终止服务器会话。"
+            description="打开或恢复会话后，输出会显示在这里。"
           />
         )}
       </div>
-      <div className="form-row">
+      <div className="form-row terminal-command">
         <Field
           label="终端输入"
           value={command}
@@ -122,6 +135,8 @@ export function TerminalPage({ services }: { services: ProductServices }) {
           暂停读取
         </Button>
       </div>
+      <details className="terminal-session-tools">
+        <summary>会话管理</summary>
       <div className="action-row">
         <Button
           variant="outline"
@@ -152,13 +167,13 @@ export function TerminalPage({ services }: { services: ProductServices }) {
           删除已结束记录
         </Button>
       </div>
-      <p className="muted">
-        状态：{snapshot.session?.status ?? '尚未打开'} · 输出序号 {snapshot.cursor} · 输入{' '}
-        {snapshot.inputState}
-      </p>
+      </details>
+      <p className="muted terminal-hint">暂停读取不会停止服务器会话。</p>
       <ActionFeedback {...action} />
       <ActionFeedback {...reader} />
       <JsonResult value={snapshot.session} />
+        </div>
+      </div>
     </section>
   );
 }

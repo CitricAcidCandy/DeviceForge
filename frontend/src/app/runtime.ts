@@ -161,6 +161,9 @@ export function createFrontendRuntime(options: RuntimeOptions) {
     mcp,
     dispose(): Promise<void> {
       if (disposal) return disposal;
+      const release = mirroringStreaming.snapshot().session
+        ? mirroringStreaming.release(new AbortController().signal)
+        : Promise.resolve();
       lifetime.abort();
       aiSdk.dispose();
       aiSdkStreaming.dispose();
@@ -175,7 +178,7 @@ export function createFrontendRuntime(options: RuntimeOptions) {
           webPlugins.dispose(),
           host.dispose(),
           mcp.dispose(),
-          Promise.resolve().then(() => mirroringStreaming.dispose()),
+          release.finally(() => mirroringStreaming.dispose()),
         ]);
         extensions.dispose();
         browserPackages.clearSources();

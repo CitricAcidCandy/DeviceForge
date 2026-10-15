@@ -1,0 +1,28 @@
+.settings-page { max-width: 1100px; }
+.settings-page .setting-row { display: grid; grid-template-columns: 144px minmax(0, 480px); justify-content: start; gap: 20px; margin-block: 12px; }
+.settings-page .setting-row [data-slot='select-trigger'] { width: 100%; min-width: 0; }
+.settings-page .form-row { display: block; margin: 0; }
+.settings-page .form-row > .form-item { grid-template-columns: 144px minmax(0, 1fr); gap: 20px; margin-block: 16px; max-width: 900px; }
+.settings-page .form-row > .form-item > label { padding-top: 8px; }
+.settings-page .form-row > .form-field:not(.form-item) { display: grid; grid-template-columns: 144px minmax(0, 480px); gap: 20px; margin-block: 16px; max-width: none; }
+.settings-page .form-row > .form-field:not(.form-item) > label { padding-top: 8px; }
+.settings-page .form-row > [data-slot='button'] { margin: 0 0 16px 164px; }
+.settings-page .form-field > .form-item-content { max-width: 720px; }
+.settings-page .form-item-content > [data-slot='input'] { max-width: 480px; }
+.settings-page .form-row .grow .form-item { margin-bottom: 12px; }
+.settings-page .form-section > .form-field:not(.form-item) { display: grid; grid-template-columns: 144px minmax(0, 720px); gap: 7px 20px; }
+.settings-page .form-section > .form-field:not(.form-item) > label { grid-row: 1 / 3; padding-top: 8px; }
+.settings-page .form-section > .form-field:not(.form-item) > small { grid-column: 2; font-size: 12px; }
+.settings-page .code-input { min-height: 220px; }
+.settings-consequence, .settings-note { margin: 8px 0 0 164px; font-size: 12px; color: var(--muted-foreground); }
+.settings-disclosure { padding-block: 12px; border-top: 1px solid var(--border); }
+.settings-disclosure > summary { font-weight: 600; font-size: 14px; }
+.settings-disclosure .settings-group { margin-top: 8px; padding-top: 12px; border: 0; }
+@media (max-width: 640px) {
+  .settings-page .setting-row, .settings-page .form-row > .form-item,
+  .settings-page .form-row > .form-field:not(.form-item),
+  .settings-page .form-section > .form-field:not(.form-item) { grid-template-columns: minmax(0, 1fr); gap: 7px; }
+  .settings-page .form-section > .form-field:not(.form-item) > label { grid-row: auto; }
+  .settings-page .form-section > .form-field:not(.form-item) > small { grid-column: 1; }
+  .settings-page .form-row > [data-slot='button'], .settings-consequence, .settings-note { margin-left: 0; }
+}

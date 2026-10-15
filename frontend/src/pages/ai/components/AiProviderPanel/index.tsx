@@ -130,9 +130,12 @@ export function AiProviderPanel({
   }
   return (
     <div className="ai-provider">
+      <details className="ai-connection">
+        <summary>连接设置 · {project || '选择项目后开始'}</summary>
+        <div className="ai-connection-content">
       <div className="action-row">
         <Button variant="outline" disabled={busy} onClick={() => void action.run(refresh)}>
-          刷新助手目录
+          刷新目录
         </Button>
         <Button
           variant="outline"
@@ -161,7 +164,7 @@ export function AiProviderPanel({
             })
           }
         >
-          检查运行资格
+          检查配置
         </Button>
       </div>
       {qualification && (
@@ -173,7 +176,7 @@ export function AiProviderPanel({
       )}
       <div className="form-row">
         <Field
-          label={`${provider === 'sdk' ? 'SDK' : 'CLI'} 项目 ID`}
+          label="项目 ID"
           value={project}
           onChange={(value) => {
             turn.cancel();
@@ -184,7 +187,7 @@ export function AiProviderPanel({
           placeholder="服务器项目白名单中的 ID"
         />
         <Field
-          label="线程 ID（可选）"
+          label="线程 ID"
           value={thread}
           onChange={(value) => {
             turn.cancel();
@@ -219,6 +222,8 @@ export function AiProviderPanel({
           </Select>
         </div>
       </div>
+        </div>
+      </details>
       <div className="ai-transcript" role="log" aria-label={`${provider} 助手回答`}>
         {mode === 'stream' && current.stream.text ? (
           <div className="ai-answer">{current.stream.text}</div>
@@ -231,8 +236,8 @@ export function AiProviderPanel({
           </>
         ) : (
           <EmptyState
-            title="从一个明确的问题开始"
-            description="回答和过程来自服务器的真实会话。缺少工具、模型或项目配置时会显示对应原因。"
+            title="开始对话"
+            description="在连接设置中选择项目，然后输入问题。"
           />
         )}
         {current.stream.items.length > 0 && mode === 'stream' && (
@@ -252,13 +257,14 @@ export function AiProviderPanel({
           </details>
         )}
       </div>
+      <div className="ai-composer">
       <Label htmlFor={`assistant-prompt-${provider}`}>发给助手</Label>
       <Textarea
         id={`assistant-prompt-${provider}`}
         value={prompt}
         onChange={(event) => setPrompt(event.target.value)}
         placeholder="描述要完成的任务…"
-        rows={4}
+        rows={3}
       />
       <div className="action-row">
         <Button
@@ -272,7 +278,7 @@ export function AiProviderPanel({
           onClick={() => void turn.run(submit)}
         >
           {mode === 'stream'
-            ? '发送并读取实时回答'
+            ? '发送'
             : mode === 'single'
               ? '发起单次任务'
               : mode === 'assistant'
@@ -297,6 +303,9 @@ export function AiProviderPanel({
           停止本次会话
         </Button>
       </div>
+      </div>
+      <details className="ai-thread-tools">
+        <summary>线程与会话管理</summary>
       <div className="action-row">
         <Button
           variant="ghost"
@@ -388,11 +397,12 @@ export function AiProviderPanel({
           </Button>
         ))}
       </details>
+      </details>
       <p className="muted">
         传输会话：{current.session?.id ?? '尚未建立'} · {current.session?.status ?? '待发送'} ·
-        回答所属项目：{current.owner?.project_id ?? '尚无'}。暂停等待不会停止服务器任务；CLI 和 SDK
-        各自保留草稿与线程。
+        回答所属项目：{current.owner?.project_id ?? '尚无'}
       </p>
+      <p className="muted ai-session-hint">暂停等待不会停止服务器任务。</p>
       <ErrorNotice error={current.terminalError} />
       <ActionFeedback {...turn} />
       <ActionFeedback {...action} />

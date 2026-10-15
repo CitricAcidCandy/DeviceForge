@@ -98,7 +98,7 @@ export async function verifyMediaPage() {
       generation: provider.generation,
       localId: 'emulator-fixture',
     });
-    root.render(createElement(StrictMode, null, createElement(MediaPage, { services })));
+    root.render(createElement(StrictMode, null, createElement(MediaPage, { services, active: true })));
     await wait();
     check(button('开始投屏').disabled, '未查询公开直播目录仍允许打开');
     await click('检查直播能力');
@@ -358,18 +358,18 @@ export async function verifyMediaPage() {
       button('返回').disabled && count(`/api/v2/sessions/${mediaSessionId}/eof`) === 1,
       '关闭控制输入没有真实 EOF 或保留了入口',
     );
-    await click('停止直播');
+    await click('释放直播');
     await until(
       () =>
-        services.runtime.mirroringStreaming.snapshot().session?.status === 'finished' &&
+        services.runtime.mirroringStreaming.snapshot().session === null &&
         fixture.held() === 0,
-      '停止直播没有完成当前输出与会话',
+      '释放直播没有完成当前输出与会话',
     );
     check(
-      count(`/api/v2/sessions/${mediaSessionId}/cancel`) === 1,
-      '停止按钮没有仅提交一次服务器 cancel',
+      count(`/api/v2/sessions/${mediaSessionId}/release`) === 1,
+      '释放按钮没有仅提交一次服务器 release',
     );
-    passed('EOF 禁用控制、停止直播仅一次 cancel 并终结输出');
+    passed('EOF 禁用控制、释放直播仅一次 release 并终结输出');
     root.unmount();
     await services.dispose();
     disposed = true;

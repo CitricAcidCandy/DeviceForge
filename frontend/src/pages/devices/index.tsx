@@ -123,7 +123,6 @@ export function DevicesPage({ services, active }: { services: ProductServices; a
                   <Smartphone aria-hidden="true" />
                 </span>
                 <div>
-                  <p className="eyebrow">当前工作设备</p>
                   <h2>{selected.model ?? selected.reference.localId}</h2>
                   <p>
                     <span className={`text-state state-${selected.state}`}>
@@ -221,29 +220,9 @@ export function DevicesPage({ services, active }: { services: ProductServices; a
             </>
           ) : (
             <div className="device-detail-empty">
-              <div className="device-empty-main">
-                <span className="device-detail-icon"><Smartphone aria-hidden="true" /></span>
-                <div>
-                  <p className="eyebrow">下一步</p>
-                  <h3>连接或选择设备</h3>
-                  <p className="muted">{snapshot.providers.length
-                    ? '从左侧目录选择设备；连接或重新发现后，选择最新观测中的设备。'
-                    : '先在插件页启用设备提供者，再连接或发现设备。'}</p>
-                </div>
-                <div className="device-empty-actions">
-                  <Button onClick={() => setConnectionOpen(true)} disabled={snapshot.providers.length === 0}>
-                    <Cable />连接设备
-                  </Button>
-                  <Button variant="outline" onClick={discoverAll} disabled={refresh.pending || snapshot.providers.length === 0}>
-                    <RefreshCw />重新发现
-                  </Button>
-                  <Button variant="ghost" asChild><a href="#plugins">管理插件<ArrowUpRight /></a></Button>
-                </div>
-              </div>
-              <div className="device-empty-lower">
-                <p>选中设备后，这里会显示可用操作和任务结果。</p>
-                <a href="#tasks">查看任务记录 <ArrowUpRight aria-hidden="true" /></a>
-              </div>
+              <h3>选择工作设备</h3>
+              <p>{snapshot.providers.length ? '从目录选择设备，查看可用操作。' : '先在插件页启用设备提供者。'}</p>
+              {!snapshot.providers.length && <Button variant="outline" asChild><a href="#plugins">管理插件</a></Button>}
             </div>
           )}
         </section>

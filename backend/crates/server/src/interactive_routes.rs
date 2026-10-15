@@ -27,6 +27,7 @@ pub(crate) fn router() -> Router<ApiState> {
         .route("/api/v2/sessions/{id}/input", post(input))
         .route("/api/v2/sessions/{id}/eof", post(eof))
         .route("/api/v2/sessions/{id}/cancel", post(cancel))
+        .route("/api/v2/sessions/{id}/release", post(release))
 }
 
 async fn definitions(State(state): State<ApiState>) -> Json<SessionDefinitions> {
@@ -100,6 +101,13 @@ async fn cancel(
     Path(id): Path<String>,
 ) -> std::result::Result<Json<SessionInfo>, ApiError> {
     Ok(Json(state.app.session_cancel(&id)?))
+}
+
+async fn release(
+    State(state): State<ApiState>,
+    Path(id): Path<String>,
+) -> std::result::Result<(StatusCode, Json<SessionInfo>), ApiError> {
+    Ok((StatusCode::ACCEPTED, Json(state.app.session_release(&id)?)))
 }
 
 async fn remove(

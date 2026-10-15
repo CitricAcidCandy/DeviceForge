@@ -65,6 +65,69 @@ async fn four_active_and_eight_retained_records_only_reclaim_after_terminal_remo
 }
 
 #[tokio::test]
+async fn release_cancels_active_session_and_reclaims_record_after_confirmed_cleanup() {
+    let provider = Provider::standard();
+    provider.hold_cleanup.store(true, Ordering::SeqCst);
+    let (harness, _) = Harness::loaded(provider.clone()).await;
+    let opened = harness.open("主动释放");
+    let control = provider.control(0);
+    assert_eq!(
+        harness.app.session_release(&opened.id).unwrap().status,
+        apk_domain::interactive::SessionStatus::Stopping
+    );
+    control.wait_cancelled().await;
+    assert!(harness.app.session(&opened.id).is_ok());
+    control.finish(completed(1));
+    tokio::time::timeout(Duration::from_secs(3), async {
+        while harness.app.session(&opened.id).is_ok() {
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .unwrap();
+    assert!(matches!(
+        harness.app.session(&opened.id),
+        Err(Error::NotFound(_))
+    ));
+    let reopened = harness.open("释放后重新准入");
+    provider.control(1).finish(completed(1));
+    finished(&harness.app, &reopened.id).await;
+    harness.stop().await;
+}
+
+#[tokio::test]
+async fn release_removes_finished_record_but_preserves_failed_cleanup() {
+    let (harness, _) = Harness::loaded(Provider::standard()).await;
+    let complete = harness.open("已结束记录");
+    harness.provider.control(0).finish(completed(1));
+    finished(&harness.app, &complete.id).await;
+    assert_eq!(
+        harness.app.session_release(&complete.id).unwrap().status,
+        apk_domain::interactive::SessionStatus::Finished
+    );
+    assert!(matches!(
+        harness.app.session(&complete.id),
+        Err(Error::NotFound(_))
+    ));
+    let failed = harness.open("清理失败记录");
+    harness
+        .provider
+        .control(1)
+        .finish(apk_domain::interactive::SessionExit {
+            cleanup: SessionCleanup::Unconfirmed,
+            process_exited: false,
+            ..completed(1)
+        });
+    finished(&harness.app, &failed.id).await;
+    assert!(matches!(
+        harness.app.session_release(&failed.id),
+        Err(Error::CleanupFailed)
+    ));
+    assert!(harness.app.session(&failed.id).is_ok());
+    harness.stop().await;
+}
+
+#[tokio::test]
 async fn total_output_byte_limit_keeps_exact_prefix_and_waits_cancel_cleanup() {
     let (harness, _) = Harness::loaded(Provider::standard()).await;
     let opened = harness.open("总字节上限");

@@ -7,6 +7,7 @@ import {
 import type { MirroringPacket } from '../src/features/mirroring-streaming/index.ts';
 import { ApiError, createApiClient } from '../src/services/api/index.ts';
 import type { SessionGateway, SessionInfo, SessionOutputPage } from '../src/services/api/index.ts';
+import { decodeStreamPage } from '../src/features/mirroring-streaming/utils/rules.ts';
 import { deferred, requestUrl, signal, success } from './fixtures.ts';
 
 const id = '12345678-1234-1234-1234-123456789abc';
@@ -80,6 +81,7 @@ function gateway(changes: Partial<SessionGateway> = {}): SessionGateway {
     send: async () => ({ data: { id, accepted: true }, logId: 'input-log' }),
     eof: async () => ({ data: { id, accepted: true }, logId: 'eof-log' }),
     cancel: async () => ({ data: info('stopping'), logId: 'cancel-log' }),
+    release: async () => ({ data: info('stopping'), logId: 'release-log' }),
     remove: async () => ({ data: { id }, logId: 'remove-log' }),
     ...changes,
   };
@@ -188,6 +190,64 @@ test('同会话网络暂停后恢复保存半包与游标，读取失败不重�
   assert.equal(packets.length, 3);
   assert.equal(mirror.snapshot().cursor, 4);
   mirror.dispose();
+});
+
+test('媒体输出页建立独立冻结副本，源字节与元数据修改不会污染消费', () => {
+  const source = page([status(), config(), sps()]);
+  const decoded = decodeStreamPage(source, info(), 0, 50, 'copy-log');
+  assert.deepEqual(decoded, source);
+  assert.ok(Object.isFrozen(decoded));
+  assert.ok(Object.isFrozen(decoded.session));
+  assert.ok(Object.isFrozen(decoded.chunks));
+  for (const chunk of decoded.chunks) {
+    assert.ok(Object.isFrozen(chunk));
+    assert.ok(Object.isFrozen(chunk.bytes));
+  }
+  const first = source.chunks[0];
+  assert.ok(first);
+  first.bytes[0] = 0;
+  first.sequence = 100;
+  source.chunks.splice(0);
+  source.session.generation = 'changed';
+  assert.equal(decoded.chunks[0]?.bytes[0], 68);
+  assert.equal(decoded.chunks[0]?.sequence, 1);
+  assert.equal(decoded.chunks.length, 3);
+  assert.equal(decoded.session.generation, 'generation-1');
+});
+
+test('同页连续媒体包完整按序交付且不会逐包通知界面', async (context) => {
+  const notifications: number[] = [];
+  for (const count of [1, 200]) {
+    const delta = frame(2, new Uint8Array([0, 0, 0, 1, 65, 1]));
+    const bytes = [status(), config(), sps(), ...Array.from({ length: count }, () => delta)].flat();
+    const observed: MirroringPacket[] = [];
+    const mirror = await opened(
+      { output: async () => ({ data: page([bytes]), logId: 'continuous-output-log' }) },
+      observed,
+    );
+    context.after(() => mirror.dispose());
+    let updates = 0;
+    const unsubscribe = mirror.subscribe(() => ++updates);
+    const result = await mirror.readOutput({}, signal());
+    unsubscribe();
+    notifications.push(updates);
+    assert.equal(result.data.cursor, 1);
+    assert.equal(result.data.packets, count + 3);
+    assert.equal(observed.length, count + 3);
+    assert.deepEqual(
+      observed.slice(0, 3).map((packet) => packet.kind),
+      ['status', 'video_config', 'video'],
+    );
+    assert.ok(observed.slice(3).every((packet) =>
+      packet.kind === 'video' &&
+      !packet.configuration &&
+      Buffer.from(packet.bytes).equals(Buffer.from(delta.slice(24))),
+    ));
+    assert.equal(mirror.snapshot().logs.output, 'continuous-output-log');
+    assert.equal(mirror.snapshot().pendingBytes, 0);
+  }
+  assert.ok((notifications[0] ?? 0) > 0);
+  assert.equal(notifications[0], notifications[1]);
 });
 
 test('媒体读取只返回本次完成包，与计数读取共享游标且跨页大帧保持有界', async () => {
@@ -375,4 +435,120 @@ test('输入收据失败保留不确定状态，EOF只收敛控制而视频继�
   assert.equal(failed.snapshot().logs.input, 'lost-log');
   assert.throws(() => failed.sendControl({ type: 'rotate' }, signal()), ApiError);
   failed.dispose();
+});
+
+test('释放投屏请求等待服务端清理并撤销本地会话', async () => {
+  let releases = 0;
+  const mirror = await opened({
+    release: async () => {
+      releases++;
+      return { data: info('stopping'), logId: 'release-log' };
+    },
+    get: async () => {
+      throw new ApiError('http', 'not_found', '会话记录不存在', 404, 'query-log');
+    },
+  });
+  const result = await mirror.release(signal());
+  assert.equal(releases, 1);
+  assert.equal(result.logId, 'release-log');
+  assert.equal(mirror.snapshot().session, null);
+  mirror.dispose();
+});
+
+test('HTTP释放请求允许关页后继续发送，已不存在的记录撤销本地选择', async () => {
+  let keepalive: boolean | undefined;
+  const mirror = createHttpMirroringStreaming(createApiClient({
+    baseUrl: 'http://localhost:3000',
+    transport: async (request, init) => {
+      const path = requestUrl(request).pathname;
+      if (path.endsWith('/session-definitions')) return success(definitions, 'definitions-log');
+      if (path === '/api/v2/sessions') return success(info(), 'open-log');
+      assert.equal(path, `/api/v2/sessions/${id}/release`);
+      keepalive = init?.keepalive;
+      return new Response(JSON.stringify({
+        log_id: 'missing-log', error: { code: 'not_found', message: '会话记录不存在' },
+      }), { status: 404, headers: { 'content-type': 'application/json' } });
+    },
+  }));
+  await mirror.refreshDefinitions(signal());
+  await mirror.open(input, signal());
+  const result = await mirror.release(signal());
+  assert.equal(keepalive, true);
+  assert.equal(result.logId, 'missing-log');
+  assert.equal(mirror.snapshot().session, null);
+  mirror.dispose();
+});
+
+test('取消打开等待或关闭实例后，迟到的会话会提交释放', async () => {
+  for (const dispose of [false, true]) {
+    const delayed = deferred<{ data: SessionInfo; logId: string }>();
+    const released = deferred<string>();
+    let openingSignal: AbortSignal | undefined;
+    const mirror = createMirroringStreaming(gateway({
+      open: (_, active) => {
+        openingSignal = active;
+        return delayed.promise;
+      },
+      release: async (sessionId) => {
+        released.resolve(sessionId);
+        return { data: info('stopping'), logId: 'late-release-log' };
+      },
+    }));
+    await mirror.refreshDefinitions(signal());
+    const controller = new AbortController();
+    const waiting = mirror.open(input, controller.signal);
+    if (dispose) mirror.dispose();
+    else controller.abort();
+    await assert.rejects(waiting, ApiError);
+    assert.equal(openingSignal?.aborted, false);
+    delayed.resolve({ data: info(), logId: 'late-open-log' });
+    assert.equal(await released.promise, id);
+    assert.equal(mirror.snapshot().session, null);
+    mirror.dispose();
+  }
+});
+
+test('取消释放等待不撤销清理请求，重复释放共用一次提交', async () => {
+  const delayed = deferred<{ data: SessionInfo; logId: string }>();
+  let releases = 0;
+  let releaseSignal: AbortSignal | undefined;
+  const mirror = await opened({
+    release: (_, active) => {
+      releases++;
+      releaseSignal = active;
+      return delayed.promise;
+    },
+  });
+  const controller = new AbortController();
+  const waiting = mirror.release(controller.signal);
+  controller.abort();
+  await assert.rejects(waiting, ApiError);
+  assert.equal(releaseSignal?.aborted, false);
+  const continued = mirror.release(signal());
+  delayed.resolve({ data: info('finished'), logId: 'release-log' });
+  await continued;
+  assert.equal(releases, 1);
+  assert.equal(mirror.snapshot().session, null);
+  mirror.dispose();
+});
+
+test('投屏清理失败保留会话记录和错误日志', async () => {
+  const mirror = await opened({
+    release: async () => ({ data: info('stopping'), logId: 'release-log' }),
+    get: async () => ({
+      data: info('finished', 0, {
+        completion: { cleanup: 'unconfirmed', process_exited: false },
+      }),
+      logId: 'failed-cleanup-log',
+    }),
+  });
+  await assert.rejects(
+    mirror.release(signal()),
+    (error: unknown) =>
+      error instanceof ApiError &&
+      error.code === 'mirroring_cleanup_failed' &&
+      error.logId === 'failed-cleanup-log',
+  );
+  assert.equal(mirror.snapshot().session?.id, id);
+  mirror.dispose();
 });
