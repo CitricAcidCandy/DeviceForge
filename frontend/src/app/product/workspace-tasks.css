@@ -1,5 +1,5 @@
-.workspace-taskbar { min-width: 0; padding-block: 0; }
-.workspace-taskbar .workspace-task-trigger { width: 100%; height: auto; min-height: 40px; justify-content: flex-start; gap: 10px; padding-inline: 0; }
+.workspace-taskbar { min-width: 0; padding-block: 4px calc(4px + env(safe-area-inset-bottom)); }
+.workspace-taskbar .workspace-task-trigger { width: 100%; height: auto; min-height: calc(var(--workspace-footer-height) - 9px); justify-content: flex-start; gap: 10px; padding-inline: 0; }
 .workspace-task-trigger > small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; color: var(--muted-foreground); font-weight: 400; }
 .workspace-task-trigger > svg:last-child { margin-left: auto; flex-shrink: 0; }
 .workspace-task-count { font-size: 12px; color: var(--primary); }
@@ -29,7 +29,6 @@ body:has(.product-shell.reduce-motion) .task-tray-summary > svg { animation: non
 }
 @media (max-width: 640px) {
   .workspace-task-tray { height: 78dvh; }
-  .workspace-taskbar .workspace-task-trigger { min-height: 48px; }
   .workspace-task-tray [data-slot='sheet-header'] { padding-left: 16px; }
   .task-tray-scroll { padding-inline: 16px; }
   .task-tray-record > .task-tray-summary { grid-template-columns: 16px minmax(0, 1fr) 56px; gap: 8px; }

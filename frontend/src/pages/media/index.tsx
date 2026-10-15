@@ -24,14 +24,27 @@ import './workspace.css';
 export function MediaPage({ services, active }: { services: ProductServices; active: boolean }) {
   const device = useSnapshot(services.runtime.devices);
   const live = services.runtime.mirroringStreaming;
-  const snapshot = useSnapshot(live);
+  const legacySnapshot = useSnapshot(live);
+  const webRtc = services.webRtcMirroring;
+  const webSnapshot = useSnapshot(webRtc);
   const action = useAction();
   const reader = useAction();
   const recording = useAction();
+  const [transport, setTransport] = useState<'webrtc' | 'legacy'>('webrtc');
+  const [openingTransport, setOpeningTransport] = useState<'webrtc' | 'legacy' | null>(null);
+  const webAvailable = typeof RTCPeerConnection !== 'undefined' && (webSnapshot.definitions?.sessions.some(
+    (item) => item.id === 'plugin.mirroring.open_webrtc',
+  ) ?? false);
+  const webMode = Boolean(webSnapshot.session) ||
+    (!legacySnapshot.session && (reader.pending && openingTransport
+      ? openingTransport === 'webrtc'
+      : transport === 'webrtc' && webAvailable));
+  const [webVideoSize, setWebVideoSize] = useState<{ width: number; height: number } | null>(null);
+  const [displayError, setDisplayError] = useState<unknown>(null);
+  const snapshot = legacySnapshot;
   const [duration, setDuration] = useState('10000');
   const [size, setSize] = useState('1280');
   const [fps, setFps] = useState('30');
-  const [audio, setAudio] = useState(false);
   const [control, setControl] = useState(false);
   const [text, setText] = useState('');
   const [sessionId, setSessionId] = useState('');
@@ -48,10 +61,12 @@ export function MediaPage({ services, active }: { services: ProductServices; act
     if (!active) return;
     const queue = createMediaControlQueue({
       identity: () => {
-        const view = live.snapshot();
+        const view = webMode ? webRtc.snapshot() : live.snapshot();
         return `${view.session?.id ?? ''}:${view.epoch}:${view.inputState}`;
       },
-      send: live.sendControl,
+      send: (value, signal) => webMode
+        ? webRtc.sendControl(value, signal)
+        : live.sendControl(value, signal),
       failed: setControlError,
     });
     controls.current = queue;
@@ -61,8 +76,9 @@ export function MediaPage({ services, active }: { services: ProductServices; act
       action.cancel();
       reader.cancel();
       services.mediaDisplay.stop();
-      if (live.snapshot().session) {
-        void live.release(new AbortController().signal).catch((error: unknown) => {
+      const selected = webMode ? webRtc : live;
+      if (selected.snapshot().session) {
+        void selected.release(new AbortController().signal).catch((error: unknown) => {
           services.messages.warning('投屏会话释放失败', {
             description: error instanceof Error ? error.message : '请重新查询会话状态',
             logId: errorLogId(error),
@@ -70,8 +86,17 @@ export function MediaPage({ services, active }: { services: ProductServices; act
         });
       }
     };
-  }, [active, live, action.cancel, reader.cancel, services]);
+  }, [active, live, webRtc, webMode, action.cancel, reader.cancel, services]);
   const canvas = useRef<HTMLCanvasElement | null>(null);
+  useEffect(() => {
+    if (!active || !webMode) return;
+    if (!webSnapshot.stream) {
+      setWebVideoSize(null);
+      void services.mediaDisplay.playWebRtc(null, false);
+      return;
+    }
+    void services.mediaDisplay.playWebRtc(webSnapshot.stream, false).catch(setDisplayError);
+  }, [active, webMode, webSnapshot.stream, services]);
   const imageUrl = useBlobUrl(image);
   const movieUrl = useBlobUrl(movie);
   const provider = device.providers.find(
@@ -98,27 +123,37 @@ export function MediaPage({ services, active }: { services: ProductServices; act
       ),
   );
   const canRecord = useOperationAvailable(services, 'plugin.mirroring.record');
-  const liveAvailable =
+  const legacyAvailable =
     snapshot.definitions?.sessions.some((item) => item.id === 'plugin.mirroring.open') ?? false;
-  const activeSession = snapshot.session && snapshot.session.status !== 'finished';
+  const liveAvailable = webMode ? webAvailable : legacyAvailable;
+  const selectedSession = webMode ? webSnapshot.session : snapshot.session;
+  const activeSession = Boolean(
+    (snapshot.session && snapshot.session.status !== 'finished') ||
+    (webSnapshot.session && webSnapshot.session.status !== 'finished'),
+  );
+  const status = webMode ? webSnapshot.status : snapshot.status?.state ?? null;
+  const inputState = webMode ? webSnapshot.inputState : snapshot.inputState;
+  const videoSize = webMode ? webVideoSize : snapshot.video;
   const controlReady =
     control &&
     liveReference !== null &&
     JSON.stringify(liveReference) === JSON.stringify(device.selection) &&
     device.selected?.state === 'online' &&
-    snapshot.status?.state === 'streaming' &&
-    snapshot.inputState === 'writable' &&
-    snapshot.session?.status === 'running';
+    status === 'streaming' &&
+    (!webMode || webSnapshot.controlReady) &&
+    (!webMode || !webSnapshot.opening) &&
+    inputState === 'writable' &&
+    selectedSession?.status === 'running';
   const send = (value: MirroringControl) => {
     setControlError(null);
     controls.current?.enqueue([value]);
   };
-  function pointer(event: PointerEvent<HTMLCanvasElement>, type: 'down' | 'move' | 'up') {
-    if (!controlReady || !snapshot.video || (type === 'move' && !event.buttons)) return;
+  function pointer(event: PointerEvent<HTMLCanvasElement | HTMLVideoElement>, type: 'down' | 'move' | 'up') {
+    if (!controlReady || !videoSize || (type === 'move' && !event.buttons)) return;
     const rect = event.currentTarget.getBoundingClientRect();
     if (type === 'down') event.currentTarget.setPointerCapture(event.pointerId);
-    const width = snapshot.video.width;
-    const height = snapshot.video.height;
+    const width = videoSize.width;
+    const height = videoSize.height;
     void send({
       type: 'touch',
       action: type,
@@ -215,6 +250,23 @@ export function MediaPage({ services, active }: { services: ProductServices; act
       <div className="media-workspace">
       <aside className="media-session-controls" aria-label="画面参数与会话控制">
       <h2>画面参数</h2>
+      <div className="form-row" role="group" aria-label="投屏传输方式">
+        <Button
+          variant={webMode ? 'default' : 'outline'}
+          disabled={!webAvailable || activeSession || reader.pending}
+          onClick={() => setTransport('webrtc')}
+        >
+          WebRTC 低延迟
+        </Button>
+        <Button
+          variant={!webMode ? 'default' : 'outline'}
+          disabled={!legacyAvailable || activeSession || reader.pending}
+          onClick={() => setTransport('legacy')}
+        >
+          兼容模式
+        </Button>
+      </div>
+      {!webAvailable && <p className="muted">检查直播能力后，若服务器提供 WebRTC，将默认使用低延迟模式。</p>}
       <div className="form-row">
         <Field
           label="最大画面尺寸"
@@ -225,15 +277,6 @@ export function MediaPage({ services, active }: { services: ProductServices; act
           max={8192}
         />
         <Field label="帧率上限" value={fps} onChange={setFps} type="number" min={1} max={240} />
-        <div className="setting-toggle">
-          <Switch
-            id="media-audio"
-            checked={audio}
-            onCheckedChange={setAudio}
-            disabled={Boolean(activeSession)}
-          />
-          <Label htmlFor="media-audio">播放设备音频</Label>
-        </div>
         <div className="setting-toggle">
           <Switch
             id="media-control"
@@ -248,40 +291,54 @@ export function MediaPage({ services, active }: { services: ProductServices; act
         <Button
           variant="outline"
           disabled={action.pending}
-          onClick={() => void action.run((signal) => live.refreshDefinitions(signal))}
+          onClick={() => void action.run(async (signal) => {
+            const results = await Promise.allSettled([
+              webRtc.refreshDefinitions(signal), live.refreshDefinitions(signal),
+            ]);
+            const available = results.find((result) => result.status === 'fulfilled');
+            if (available?.status === 'fulfilled') return available.value;
+            const failed = results[0];
+            if (failed?.status === 'rejected') throw failed.reason;
+            throw new Error('投屏会话目录未返回');
+          })}
         >
           检查直播能力
         </Button>
         <Button
           disabled={!androidTarget || !liveAvailable || Boolean(activeSession) || reader.pending}
-          onClick={() =>
+          onClick={() => {
+            setOpeningTransport(webMode ? 'webrtc' : 'legacy');
             void reader.run((signal) =>
               withSelectedDevice(services, signal, async (reference, active) => {
-                await services.mediaDisplay.prepare(audio);
-                services.mediaDisplay.bind(canvas.current);
-                await live.open(
-                  {
-                    device_id: reference.localId,
-                    max_size: Number(size),
-                    max_fps: Number(fps),
-                    audio,
-                    control,
-                  },
-                  active,
-                );
+                const input = {
+                  device_id: reference.localId,
+                  max_size: Number(size),
+                  max_fps: Number(fps),
+                  audio: false,
+                  control,
+                };
+                if (webMode) {
+                  setWebVideoSize(null);
+                  setDisplayError(null);
+                  await webRtc.open(input, active);
+                } else {
+                  await services.mediaDisplay.prepare(false);
+                  services.mediaDisplay.bind(canvas.current);
+                  await live.open(input, active);
+                }
                 setSource(reference.localId);
                 setLiveReference(reference);
-                return live.pollOutput({ limit: 100 }, active);
+                return webMode ? webRtc.snapshot() : live.pollOutput({ limit: 100 }, active);
               }),
-            )
-          }
+            );
+          }}
         >
           <Play />
           开始投屏
         </Button>
         <Button
           variant="outline"
-          disabled={!activeSession || reader.pending}
+          disabled={webMode || !activeSession || reader.pending}
           onClick={() => void reader.run((signal) => live.pollOutput({ limit: 100 }, signal))}
         >
           继续读取
@@ -291,11 +348,12 @@ export function MediaPage({ services, active }: { services: ProductServices; act
         </Button>
         <Button
           variant="destructive"
-          disabled={!snapshot.session || action.pending}
+          disabled={!selectedSession || action.pending}
           onClick={() => {
             reader.cancel();
             services.mediaDisplay.stop();
-            void action.run((signal) => live.release(signal), { pending: '正在释放投屏会话…' });
+            void action.run((signal) => webMode ? webRtc.release(signal) : live.release(signal),
+              { pending: '正在释放投屏会话…' });
           }}
         >
           <Square />
@@ -312,12 +370,28 @@ export function MediaPage({ services, active }: { services: ProductServices; act
           aria-label="设备实时投屏画面"
           role="img"
           className={controlReady ? 'media-canvas is-interactive' : 'media-canvas'}
+          hidden={webMode}
           onPointerDown={(event) => pointer(event, 'down')}
           onPointerMove={(event) => pointer(event, 'move')}
           onPointerUp={(event) => pointer(event, 'up')}
           onPointerCancel={(event) => pointer(event, 'up')}
         />
-        {!snapshot.video && (
+        <video
+          ref={services.mediaDisplay.bindVideo}
+          autoPlay
+          playsInline
+          muted
+          aria-label="设备 WebRTC 实时投屏画面"
+          className={controlReady ? 'media-canvas is-interactive' : 'media-canvas'}
+          hidden={!webMode}
+          onResize={() => setWebVideoSize(services.mediaDisplay.videoSize())}
+          onLoadedMetadata={() => setWebVideoSize(services.mediaDisplay.videoSize())}
+          onPointerDown={(event) => pointer(event, 'down')}
+          onPointerMove={(event) => pointer(event, 'move')}
+          onPointerUp={(event) => pointer(event, 'up')}
+          onPointerCancel={(event) => pointer(event, 'up')}
+        />
+        {!videoSize && (
           <EmptyState
             title="等待设备画面"
             description="选择设备后开始投屏。"
@@ -326,10 +400,12 @@ export function MediaPage({ services, active }: { services: ProductServices; act
       </div>
       </div>
       <details className="media-observation">
-        <summary>来源：{source || '尚无画面'} · {snapshot.status?.state ?? '尚未连接'}</summary>
-        <p>{snapshot.video ? `${snapshot.video.width} × ${snapshot.video.height}` : '尺寸待返回'} · 代次 {snapshot.epoch} · 已交付 {snapshot.packets} 个媒体包</p>
+        <summary>来源：{source || '尚无画面'} · {status ?? '尚未连接'}</summary>
+        <p>{videoSize ? `${videoSize.width} × ${videoSize.height}` : '尺寸待返回'} · 代次 {webMode ? webSnapshot.epoch : snapshot.epoch}{webMode ? ' · WebRTC 媒体直连' : ` · 已交付 ${snapshot.packets} 个媒体包`}</p>
       </details>
       <ErrorNotice error={services.mediaDisplay.error()} />
+      <ErrorNotice error={displayError} />
+      <ErrorNotice error={webSnapshot.errors.output ?? webSnapshot.errors.connection ?? null} />
       <ErrorNotice error={controlError} />
       <ActionFeedback {...reader} />
       {control && (
@@ -364,7 +440,7 @@ export function MediaPage({ services, active }: { services: ProductServices; act
           </Button>
           <Button
             variant="ghost"
-            disabled={!activeSession || snapshot.inputState === 'eof'}
+            disabled={webMode || !activeSession || snapshot.inputState === 'eof'}
             onClick={() => void action.run((signal) => live.eof(signal))}
           >
             关闭控制输入
@@ -372,15 +448,15 @@ export function MediaPage({ services, active }: { services: ProductServices; act
         </div>
       )}
       <details>
-        <summary>恢复已知直播会话</summary>
+        <summary>恢复已知兼容直播会话</summary>
         <div className="form-row">
           <Field label="直播会话 ID" value={sessionId} onChange={setSessionId} />
           <Button
             variant="outline"
-            disabled={!sessionId || action.pending}
+            disabled={webMode || !sessionId || action.pending}
             onClick={() =>
               void action.run(async (signal) => {
-                await services.mediaDisplay.prepare(audio);
+                await services.mediaDisplay.prepare(false);
                 const sameSession = live.snapshot().session?.id === sessionId;
                 const result = await live.resume(sessionId, signal);
                 if (!signal.aborted && !sameSession) {

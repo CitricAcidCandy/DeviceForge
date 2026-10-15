@@ -10,7 +10,7 @@ import type { ProductServices } from './services.ts';
 import { PRODUCT_ROUTES } from './routes.ts';
 import type { ProductRoute } from './routes.ts';
 import { taskBelongsToRoute, taskStateLabels } from './task-scope.ts';
-import { usePageTasks } from './use-page-tasks.ts';
+import { PAGE_TASK_LIMIT, usePageTasks } from './use-page-tasks.ts';
 import './workspace-tasks.css';
 
 export function WorkspaceTasks({ services, route, onNavigate }: {
@@ -55,7 +55,7 @@ export function WorkspaceTasks({ services, route, onNavigate }: {
               <RefreshCw aria-hidden="true" />刷新
             </Button>
           </div>
-          <SheetDescription>{route === 'tasks' ? '全部页面的任务' : '仅显示本页面相关任务'} · {jobs.length} 条{history.jobs.length >= 500 ? ' · 最近 500 条中筛选' : ''}</SheetDescription>
+          <SheetDescription>{route === 'tasks' ? '全部页面的任务' : '仅显示本页面相关任务'} · {jobs.length} 条{history.jobs.length >= PAGE_TASK_LIMIT ? ` · 最近 ${PAGE_TASK_LIMIT} 条中筛选` : ''}</SheetDescription>
         </SheetHeader>
         <div className="task-tray-scroll" aria-label="任务记录列表" tabIndex={0}>
           <ErrorNotice error={history.error} />
@@ -92,12 +92,16 @@ function TrayTaskDetails({ services, job }: { services: ProductServices; job: Jo
       services.runtime.tasks.get(job.id, controller.signal),
       services.runtime.tasks.events(job.id, {}, controller.signal),
     ]).then(([response, updates]) => {
-      if (!controller.signal.aborted) { setResult(response); setEvents(updates.data); }
+      if (!controller.signal.aborted) {
+        setResult(response);
+        setEvents(updates.data);
+        setError(null);
+      }
     }).catch((failure: unknown) => {
       if (!controller.signal.aborted) setError(failure);
     });
     return () => controller.abort();
-  }, [services, job.id, job.status]);
+  }, [services, job]);
   const current = result?.data ?? job;
   const copyId = async () => {
     try { await navigator.clipboard.writeText(job.id); services.messages.success('任务 ID 已复制'); }

@@ -15,22 +15,13 @@ import {
   PanelLeftClose, PanelLeftOpen, RefreshCw,
 } from 'lucide-react';
 
-export function WorkspaceSidebar({ route, collapsed, onCollapse, onNavigate }: {
+export function WorkspaceSidebar({ route, collapsed, onNavigate }: {
   route: ProductRoute;
   collapsed: boolean;
-  onCollapse(): void;
   onNavigate(route: ProductRoute): void;
 }) {
   return <aside id="workspace-sidebar" className="workspace-sidebar" aria-label="主导航区域">
     <ProductNavigation route={route} collapsed={collapsed} onNavigate={onNavigate} />
-    <div className="sidebar-footer">
-      <Button variant="ghost" size="sm" className="sidebar-collapse" onClick={onCollapse}
-        aria-label={collapsed ? '展开导航' : '折叠导航'} aria-controls="workspace-sidebar" aria-expanded={!collapsed}
-        title={collapsed ? '展开导航' : '折叠导航'}>
-        {collapsed ? <PanelLeftOpen aria-hidden="true" /> : <PanelLeftClose aria-hidden="true" />}
-        <span className="navigation-label">{collapsed ? '展开导航' : '折叠导航'}</span>
-      </Button>
-    </div>
   </aside>;
 }
 

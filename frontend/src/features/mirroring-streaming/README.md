@@ -1,5 +1,13 @@
 # 投屏直播消费
 
+## WebRTC 低延迟路径
+
+`createHttpWebRtcMirroring` 通过现有会话网关打开 `plugin.mirroring.open_webrtc`。模型按 UTF-8 JSON 行消费信令，跨块、跨页组装服务端 offer，等待本机 ICE 完成后按每次最多 8192 字节发送 answer。`open` 在 answer 收据、媒体连接、视频轨和启用控制时的可靠有序 `deviceforge.control` 通道就绪后返回。服务端状态与媒体连接失败分别报告；连接断开超过 5 秒会释放会话。
+
+首期媒体页不提供音频，WebRTC 和兼容模式均以 `audio:false` 打开，画面保持静音。WebRTC 只接收视频远端轨；控制在 DataChannel 上发送 UTF-8 JSON 行。该发送成功只表示浏览器本地已排队，不代表设备执行或服务端收据。背压、取消、释放清理失败保留明确错误。旧 `plugin.mirroring.open`、DFML/WebCodecs 和公开 `host.mirroring.stream` v1 保留原 API 音频能力；媒体页可手动选择兼容模式。
+
+WebRTC 释放会先停止本地媒体，再等待服务端终态。服务端清理成功后可能回收会话记录，因此释放或随后查询返回 404 时会清空本地身份；返回数据保留已观察的真实终态，若未观察终态则保留原会话观测，不补造 `finished` 或清理完成证据。重复释放共用一次提交，销毁与读取失败的同步回调也不会重复发起释放。
+
 ## 当前目录结构
 
 2026-10-14按用户最新约束采用 Ant Design Pro 风格的功能组织。此前 domain/application/infrastructure/ui 方案已被覆盖，不再作为当前目录约束。根 `index.ts` 保留核心公开API且不加载TSX，目录仅按实际职责创建。

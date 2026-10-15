@@ -1,0 +1,2090 @@
+{
+  "layout": [],
+  "filtering": [
+    {
+      "route": "settings",
+      "width": 1440,
+      "observed": [
+        "bf6bad10-46d4-451a-a10b-b31f722dabc6",
+        "bfbf3808-e3f2-44f3-8fbd-92218d67fc42"
+      ],
+      "expected": [
+        "bf6bad10-46d4-451a-a10b-b31f722dabc6",
+        "bfbf3808-e3f2-44f3-8fbd-92218d67fc42"
+      ],
+      "matches": true,
+      "state": {
+        "route": "#/settings",
+        "view": {
+          "width": 1440,
+          "height": 900
+        },
+        "document": {
+          "width": 1440,
+          "height": 900,
+          "top": 0
+        },
+        "body": {
+          "width": 1440,
+          "height": 900
+        },
+        "header": {
+          "x": 0,
+          "y": 0,
+          "width": 1440,
+          "height": 76,
+          "bottom": 76
+        },
+        "footer": {
+          "x": 240,
+          "y": 851,
+          "width": 1200,
+          "height": 49,
+          "bottom": 900
+        },
+        "main": {
+          "rect": {
+            "x": 240,
+            "y": 76,
+            "width": 1200,
+            "height": 775,
+            "bottom": 851
+          },
+          "scrollTop": 0,
+          "height": 775,
+          "contentHeight": 1282
+        },
+        "tray": {
+          "x": 0,
+          "y": 340,
+          "width": 1440,
+          "height": 560,
+          "bottom": 900
+        },
+        "trayScroll": {
+          "top": 0,
+          "height": 418,
+          "contentHeight": 418
+        },
+        "active": {
+          "tag": "DIV",
+          "text": "列出配置bf6bad10-46d4-451a-a10b-b31f722dabc62026/10/15 11:28:34成功列出配置bfbf3808-e3f2-44f3-8fbd-92218d67fc4",
+          "insideTray": true
+        },
+        "trayItems": [
+          {
+            "id": "bf6bad10-46d4-451a-a10b-b31f722dabc6",
+            "text": "列出配置bf6bad10-46d4-451a-a10b-b31f722dabc6"
+          },
+          {
+            "id": "bfbf3808-e3f2-44f3-8fbd-92218d67fc42",
+            "text": "列出配置bfbf3808-e3f2-44f3-8fbd-92218d67fc42"
+          }
+        ],
+        "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n设备工坊\n工坊\n设置\n2026年10月15日星期四\n15:50\nAsia/Shanghai\n服务器已连接\n专注\n工作台\n设备\n应用与包\n文件与产物\n画面与录制\n深度调试\n性能与调用栈\nFrida\n自动化\n终端\n扩展创作\nAI 助手\n数据分析\n工坊\n插件\n任务与日志\n工具供应\n设置\n折叠导航\n设置\n主题与显示\n工作空间主题\n工坊默认主题\n服务连接\n服务地址\n测试并应用\n可选令牌\n显示\n仅用于当前会话，留空免鉴权\n\n应用后将结束当前工作会话。\n\n连接说明\n工具配置\n配置归属\n用户配置\n归属 ID\n读取配置\n配置区\n读取此区\n配置内容 · JSON\n写入使用已读取的修订；出现冲突时重新读取，不会自动覆盖。\n保存此区\nMCP 连接与工具目录\n导入与远端配置\n当前页任务\n列出配置 · 成功\n管理工坊扩展\n设置 · 任务记录\n刷新\n\n仅显示本页面相关任务 · 2 条\n\n列出配置\nbf6bad10-46d4-451a-a10b-b31f722dabc6\n2026/10/15 11:28:34\n成功\n列出配置\nbfbf3808-e3f2-44f3-8fbd-92218d67fc42\n2026/10/15 11:28:27\n成功\n前往任务与日志\n收起\n关闭"
+      },
+      "scrolled": {
+        "route": "#/settings",
+        "view": {
+          "width": 1440,
+          "height": 900
+        },
+        "document": {
+          "width": 1440,
+          "height": 900,
+          "top": 0
+        },
+        "body": {
+          "width": 1440,
+          "height": 900
+        },
+        "header": {
+          "x": 0,
+          "y": 0,
+          "width": 1440,
+          "height": 76,
+          "bottom": 76
+        },
+        "footer": {
+          "x": 240,
+          "y": 851,
+          "width": 1200,
+          "height": 49,
+          "bottom": 900
+        },
+        "main": {
+          "rect": {
+            "x": 240,
+            "y": 76,
+            "width": 1200,
+            "height": 775,
+            "bottom": 851
+          },
+          "scrollTop": 0,
+          "height": 775,
+          "contentHeight": 1282
+        },
+        "tray": {
+          "x": 0,
+          "y": 340,
+          "width": 1440,
+          "height": 560,
+          "bottom": 900
+        },
+        "trayScroll": {
+          "top": 0,
+          "height": 418,
+          "contentHeight": 418
+        },
+        "active": {
+          "tag": "DIV",
+          "text": "列出配置bf6bad10-46d4-451a-a10b-b31f722dabc62026/10/15 11:28:34成功列出配置bfbf3808-e3f2-44f3-8fbd-92218d67fc4",
+          "insideTray": true
+        },
+        "trayItems": [
+          {
+            "id": "bf6bad10-46d4-451a-a10b-b31f722dabc6",
+            "text": "列出配置bf6bad10-46d4-451a-a10b-b31f722dabc6"
+          },
+          {
+            "id": "bfbf3808-e3f2-44f3-8fbd-92218d67fc42",
+            "text": "列出配置bfbf3808-e3f2-44f3-8fbd-92218d67fc42"
+          }
+        ],
+        "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n设备工坊\n工坊\n设置\n2026年10月15日星期四\n15:50\nAsia/Shanghai\n服务器已连接\n专注\n工作台\n设备\n应用与包\n文件与产物\n画面与录制\n深度调试\n性能与调用栈\nFrida\n自动化\n终端\n扩展创作\nAI 助手\n数据分析\n工坊\n插件\n任务与日志\n工具供应\n设置\n折叠导航\n设置\n主题与显示\n工作空间主题\n工坊默认主题\n服务连接\n服务地址\n测试并应用\n可选令牌\n显示\n仅用于当前会话，留空免鉴权\n\n应用后将结束当前工作会话。\n\n连接说明\n工具配置\n配置归属\n用户配置\n归属 ID\n读取配置\n配置区\n读取此区\n配置内容 · JSON\n写入使用已读取的修订；出现冲突时重新读取，不会自动覆盖。\n保存此区\nMCP 连接与工具目录\n导入与远端配置\n当前页任务\n列出配置 · 成功\n管理工坊扩展\n设置 · 任务记录\n刷新\n\n仅显示本页面相关任务 · 2 条\n\n列出配置\nbf6bad10-46d4-451a-a10b-b31f722dabc6\n2026/10/15 11:28:34\n成功\n列出配置\nbfbf3808-e3f2-44f3-8fbd-92218d67fc42\n2026/10/15 11:28:27\n成功\n前往任务与日志\n收起\n关闭"
+      },
+      "details": null,
+      "changed": {
+        "open": false,
+        "detail": false,
+        "label": "当前页任务暂无记录"
+      }
+    },
+    {
+      "route": "performance",
+      "width": 1440,
+      "observed": [
+        "1654f197-c6b3-4a43-901e-df1e0ae84023",
+        "bf19c186-d715-4ba4-87a5-b6308ebc5fcf",
+        "19ccd4fc-6288-4a17-b7ac-51e7e466bc18",
+        "ca147e06-44b8-45e6-a86a-2f31c68c43d5",
+        "ac0d3b73-c63a-42b7-8c35-02694eaa05ee",
+        "caa55909-6e37-43cb-a276-e1f827b2ed8d"
+      ],
+      "expected": [
+        "1654f197-c6b3-4a43-901e-df1e0ae84023",
+        "bf19c186-d715-4ba4-87a5-b6308ebc5fcf",
+        "19ccd4fc-6288-4a17-b7ac-51e7e466bc18",
+        "ca147e06-44b8-45e6-a86a-2f31c68c43d5",
+        "ac0d3b73-c63a-42b7-8c35-02694eaa05ee",
+        "caa55909-6e37-43cb-a276-e1f827b2ed8d"
+      ],
+      "matches": true,
+      "state": {
+        "route": "#/performance",
+        "view": {
+          "width": 1440,
+          "height": 900
+        },
+        "document": {
+          "width": 1440,
+          "height": 900,
+          "top": 0
+        },
+        "body": {
+          "width": 1440,
+          "height": 900
+        },
+        "header": {
+          "x": 0,
+          "y": 0,
+          "width": 1440,
+          "height": 76,
+          "bottom": 76
+        },
+        "footer": {
+          "x": 240,
+          "y": 851,
+          "width": 1200,
+          "height": 49,
+          "bottom": 900
+        },
+        "main": {
+          "rect": {
+            "x": 240,
+            "y": 76,
+            "width": 1200,
+            "height": 775,
+            "bottom": 851
+          },
+          "scrollTop": 0,
+          "height": 775,
+          "contentHeight": 806
+        },
+        "tray": {
+          "x": 0,
+          "y": 340,
+          "width": 1440,
+          "height": 560,
+          "bottom": 900
+        },
+        "trayScroll": {
+          "top": 0,
+          "height": 418,
+          "contentHeight": 433
+        },
+        "active": {
+          "tag": "DIV",
+          "text": "分页读取性能会话1654f197-c6b3-4a43-901e-df1e0ae840232026/10/15 15:23:07成功查看性能采样能力bf19c186-d715-4ba4-87a5-b63",
+          "insideTray": true
+        },
+        "trayItems": [
+          {
+            "id": "1654f197-c6b3-4a43-901e-df1e0ae84023",
+            "text": "分页读取性能会话1654f197-c6b3-4a43-901e-df1e0ae84023"
+          },
+          {
+            "id": "bf19c186-d715-4ba4-87a5-b6308ebc5fcf",
+            "text": "查看性能采样能力bf19c186-d715-4ba4-87a5-b6308ebc5fcf"
+          },
+          {
+            "id": "19ccd4fc-6288-4a17-b7ac-51e7e466bc18",
+            "text": "分页读取性能会话19ccd4fc-6288-4a17-b7ac-51e7e466bc18"
+          },
+          {
+            "id": "ca147e06-44b8-45e6-a86a-2f31c68c43d5",
+            "text": "查看性能采样能力ca147e06-44b8-45e6-a86a-2f31c68c43d5"
+          },
+          {
+            "id": "ac0d3b73-c63a-42b7-8c35-02694eaa05ee",
+            "text": "开始性能采样ac0d3b73-c63a-42b7-8c35-02694eaa05ee"
+          },
+          {
+            "id": "caa55909-6e37-43cb-a276-e1f827b2ed8d",
+            "text": "开始性能采样caa55909-6e37-43cb-a276-e1f827b2ed8d"
+          }
+        ],
+        "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n设备工坊\n深度调试\n性能与调用栈\n2026年10月15日星期四\n15:50\nAsia/Shanghai\n服务器已连接\n专注\n工作台\n设备\n应用与包\n文件与产物\n画面与录制\n深度调试\n性能与调用栈\nFrida\n自动化\n终端\n扩展创作\nAI 助手\n数据分析\n工坊\n插件\n任务与日志\n工具供应\n设置\n折叠导航\n工作设备\n尚未选择设备\n设备目录\n性能\n目标应用包名\n持续采样\n画面与调用栈\n采集配置\n时长（秒）\n1–3600 秒\n间隔（毫秒）\n1000–60000 毫秒\n\n先在顶部选择设备。\n\n开始采集\n查询采样能力\n采集范围说明\n采样结果\n等待采样\n\n开始采集或从历史中读取会话。\n\n历史会话\n当前页任务\n分页读取性能会话 · 成功\n管理工坊扩展\n性能与调用栈 · 任务记录\n刷新\n\n仅显示本页面相关任务 · 6 条\n\n分页读取性能会话\n1654f197-c6b3-4a43-901e-df1e0ae84023\n2026/10/15 15:23:07\n成功\n查看性能采样能力\nbf19c186-d715-4ba4-87a5-b6308ebc5fcf\n2026/10/15 15:23:07\n成功\n分页读取性能会话\n19ccd4fc-6288-4a17-b7ac-51e7e466bc18\n2026/10/15 15:19:48\n成功\n查看性能采样能力\nca147e06-44b8-45e6-a86a-2f31c68c43d5\n2026/10/15 15:19:48\n失败\n开始性能采样\nac0d3b73-c63a-42b7-8c35-02694eaa05ee\n2026/10/15 15:04:44\n失败\n开始性能采样\ncaa55909-6e37-43cb-a276-e1f827b2ed8d\n2026/10/15 15:03:59\n失败\n前往任务与日志\n收起\n关闭"
+      },
+      "scrolled": {
+        "route": "#/performance",
+        "view": {
+          "width": 1440,
+          "height": 900
+        },
+        "document": {
+          "width": 1440,
+          "height": 900,
+          "top": 0
+        },
+        "body": {
+          "width": 1440,
+          "height": 900
+        },
+        "header": {
+          "x": 0,
+          "y": 0,
+          "width": 1440,
+          "height": 76,
+          "bottom": 76
+        },
+        "footer": {
+          "x": 240,
+          "y": 851,
+          "width": 1200,
+          "height": 49,
+          "bottom": 900
+        },
+        "main": {
+          "rect": {
+            "x": 240,
+            "y": 76,
+            "width": 1200,
+            "height": 775,
+            "bottom": 851
+          },
+          "scrollTop": 0,
+          "height": 775,
+          "contentHeight": 806
+        },
+        "tray": {
+          "x": 0,
+          "y": 340,
+          "width": 1440,
+          "height": 560,
+          "bottom": 900
+        },
+        "trayScroll": {
+          "top": 15,
+          "height": 418,
+          "contentHeight": 433
+        },
+        "active": {
+          "tag": "DIV",
+          "text": "分页读取性能会话1654f197-c6b3-4a43-901e-df1e0ae840232026/10/15 15:23:07成功查看性能采样能力bf19c186-d715-4ba4-87a5-b63",
+          "insideTray": true
+        },
+        "trayItems": [
+          {
+            "id": "1654f197-c6b3-4a43-901e-df1e0ae84023",
+            "text": "分页读取性能会话1654f197-c6b3-4a43-901e-df1e0ae84023"
+          },
+          {
+            "id": "bf19c186-d715-4ba4-87a5-b6308ebc5fcf",
+            "text": "查看性能采样能力bf19c186-d715-4ba4-87a5-b6308ebc5fcf"
+          },
+          {
+            "id": "19ccd4fc-6288-4a17-b7ac-51e7e466bc18",
+            "text": "分页读取性能会话19ccd4fc-6288-4a17-b7ac-51e7e466bc18"
+          },
+          {
+            "id": "ca147e06-44b8-45e6-a86a-2f31c68c43d5",
+            "text": "查看性能采样能力ca147e06-44b8-45e6-a86a-2f31c68c43d5"
+          },
+          {
+            "id": "ac0d3b73-c63a-42b7-8c35-02694eaa05ee",
+            "text": "开始性能采样ac0d3b73-c63a-42b7-8c35-02694eaa05ee"
+          },
+          {
+            "id": "caa55909-6e37-43cb-a276-e1f827b2ed8d",
+            "text": "开始性能采样caa55909-6e37-43cb-a276-e1f827b2ed8d"
+          }
+        ],
+        "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n设备工坊\n深度调试\n性能与调用栈\n2026年10月15日星期四\n15:50\nAsia/Shanghai\n服务器已连接\n专注\n工作台\n设备\n应用与包\n文件与产物\n画面与录制\n深度调试\n性能与调用栈\nFrida\n自动化\n终端\n扩展创作\nAI 助手\n数据分析\n工坊\n插件\n任务与日志\n工具供应\n设置\n折叠导航\n工作设备\n尚未选择设备\n设备目录\n性能\n目标应用包名\n持续采样\n画面与调用栈\n采集配置\n时长（秒）\n1–3600 秒\n间隔（毫秒）\n1000–60000 毫秒\n\n先在顶部选择设备。\n\n开始采集\n查询采样能力\n采集范围说明\n采样结果\n等待采样\n\n开始采集或从历史中读取会话。\n\n历史会话\n当前页任务\n分页读取性能会话 · 成功\n管理工坊扩展\n性能与调用栈 · 任务记录\n刷新\n\n仅显示本页面相关任务 · 6 条\n\n分页读取性能会话\n1654f197-c6b3-4a43-901e-df1e0ae84023\n2026/10/15 15:23:07\n成功\n查看性能采样能力\nbf19c186-d715-4ba4-87a5-b6308ebc5fcf\n2026/10/15 15:23:07\n成功\n分页读取性能会话\n19ccd4fc-6288-4a17-b7ac-51e7e466bc18\n2026/10/15 15:19:48\n成功\n查看性能采样能力\nca147e06-44b8-45e6-a86a-2f31c68c43d5\n2026/10/15 15:19:48\n失败\n开始性能采样\nac0d3b73-c63a-42b7-8c35-02694eaa05ee\n2026/10/15 15:04:44\n失败\n开始性能采样\ncaa55909-6e37-43cb-a276-e1f827b2ed8d\n2026/10/15 15:03:59\n失败\n前往任务与日志\n收起\n关闭"
+      },
+      "details": null,
+      "changed": {
+        "open": false,
+        "detail": false,
+        "label": "当前页任务暂无记录"
+      }
+    },
+    {
+      "route": "tools",
+      "width": 1440,
+      "observed": [
+        "c8e5b987-fc75-4764-b6f1-1201a507dc23",
+        "c4bdfa63-98d1-4060-b2bb-cf03a3b53cb3",
+        "0230eb51-6f66-46a9-9a58-9d49d4664307"
+      ],
+      "expected": [
+        "c8e5b987-fc75-4764-b6f1-1201a507dc23",
+        "c4bdfa63-98d1-4060-b2bb-cf03a3b53cb3",
+        "0230eb51-6f66-46a9-9a58-9d49d4664307"
+      ],
+      "matches": true,
+      "state": {
+        "route": "#/tools",
+        "view": {
+          "width": 1440,
+          "height": 900
+        },
+        "document": {
+          "width": 1440,
+          "height": 900,
+          "top": 0
+        },
+        "body": {
+          "width": 1440,
+          "height": 900
+        },
+        "header": {
+          "x": 0,
+          "y": 0,
+          "width": 1440,
+          "height": 76,
+          "bottom": 76
+        },
+        "footer": {
+          "x": 240,
+          "y": 851,
+          "width": 1200,
+          "height": 49,
+          "bottom": 900
+        },
+        "main": {
+          "rect": {
+            "x": 240,
+            "y": 76,
+            "width": 1200,
+            "height": 775,
+            "bottom": 851
+          },
+          "scrollTop": 0,
+          "height": 775,
+          "contentHeight": 775
+        },
+        "tray": {
+          "x": 0,
+          "y": 340,
+          "width": 1440,
+          "height": 560,
+          "bottom": 900
+        },
+        "trayScroll": {
+          "top": 0,
+          "height": 418,
+          "contentHeight": 418
+        },
+        "active": {
+          "tag": "DIV",
+          "text": "查看工具供应与本地安装差异c8e5b987-fc75-4764-b6f1-1201a507dc232026/10/15 15:16:28失败查看工具供应与本地安装差异c4bdfa63-98d1-406",
+          "insideTray": true
+        },
+        "trayItems": [
+          {
+            "id": "c8e5b987-fc75-4764-b6f1-1201a507dc23",
+            "text": "查看工具供应与本地安装差异c8e5b987-fc75-4764-b6f1-1201a507dc23"
+          },
+          {
+            "id": "c4bdfa63-98d1-4060-b2bb-cf03a3b53cb3",
+            "text": "查看工具供应与本地安装差异c4bdfa63-98d1-4060-b2bb-cf03a3b53cb3"
+          },
+          {
+            "id": "0230eb51-6f66-46a9-9a58-9d49d4664307",
+            "text": "查看工具供应与本地安装差异0230eb51-6f66-46a9-9a58-9d49d4664307"
+          }
+        ],
+        "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n设备工坊\n工坊\n工具供应\n2026年10月15日星期四\n15:50\nAsia/Shanghai\n服务器已连接\n专注\n工作台\n设备\n应用与包\n文件与产物\n画面与录制\n深度调试\n性能与调用栈\nFrida\n自动化\n终端\n扩展创作\nAI 助手\n数据分析\n工坊\n插件\n任务与日志\n工具供应\n设置\n折叠导航\n工具\n刷新目录\n尚未读取工具目录\n\n刷新目录，查看已安装工具和可用版本。\n\n运行时功能准备\n当前页任务\n查看工具供应与本地安装差异 · 失败\n管理工坊扩展\n工具供应 · 任务记录\n刷新\n\n仅显示本页面相关任务 · 3 条\n\n查看工具供应与本地安装差异\nc8e5b987-fc75-4764-b6f1-1201a507dc23\n2026/10/15 15:16:28\n失败\n查看工具供应与本地安装差异\nc4bdfa63-98d1-4060-b2bb-cf03a3b53cb3\n2026/10/14 17:39:58\n失败\n查看工具供应与本地安装差异\n0230eb51-6f66-46a9-9a58-9d49d4664307\n2026/10/14 17:39:57\n失败\n前往任务与日志\n收起\n关闭"
+      },
+      "scrolled": {
+        "route": "#/tools",
+        "view": {
+          "width": 1440,
+          "height": 900
+        },
+        "document": {
+          "width": 1440,
+          "height": 900,
+          "top": 0
+        },
+        "body": {
+          "width": 1440,
+          "height": 900
+        },
+        "header": {
+          "x": 0,
+          "y": 0,
+          "width": 1440,
+          "height": 76,
+          "bottom": 76
+        },
+        "footer": {
+          "x": 240,
+          "y": 851,
+          "width": 1200,
+          "height": 49,
+          "bottom": 900
+        },
+        "main": {
+          "rect": {
+            "x": 240,
+            "y": 76,
+            "width": 1200,
+            "height": 775,
+            "bottom": 851
+          },
+          "scrollTop": 0,
+          "height": 775,
+          "contentHeight": 775
+        },
+        "tray": {
+          "x": 0,
+          "y": 340,
+          "width": 1440,
+          "height": 560,
+          "bottom": 900
+        },
+        "trayScroll": {
+          "top": 0,
+          "height": 418,
+          "contentHeight": 418
+        },
+        "active": {
+          "tag": "DIV",
+          "text": "查看工具供应与本地安装差异c8e5b987-fc75-4764-b6f1-1201a507dc232026/10/15 15:16:28失败查看工具供应与本地安装差异c4bdfa63-98d1-406",
+          "insideTray": true
+        },
+        "trayItems": [
+          {
+            "id": "c8e5b987-fc75-4764-b6f1-1201a507dc23",
+            "text": "查看工具供应与本地安装差异c8e5b987-fc75-4764-b6f1-1201a507dc23"
+          },
+          {
+            "id": "c4bdfa63-98d1-4060-b2bb-cf03a3b53cb3",
+            "text": "查看工具供应与本地安装差异c4bdfa63-98d1-4060-b2bb-cf03a3b53cb3"
+          },
+          {
+            "id": "0230eb51-6f66-46a9-9a58-9d49d4664307",
+            "text": "查看工具供应与本地安装差异0230eb51-6f66-46a9-9a58-9d49d4664307"
+          }
+        ],
+        "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n设备工坊\n工坊\n工具供应\n2026年10月15日星期四\n15:50\nAsia/Shanghai\n服务器已连接\n专注\n工作台\n设备\n应用与包\n文件与产物\n画面与录制\n深度调试\n性能与调用栈\nFrida\n自动化\n终端\n扩展创作\nAI 助手\n数据分析\n工坊\n插件\n任务与日志\n工具供应\n设置\n折叠导航\n工具\n刷新目录\n尚未读取工具目录\n\n刷新目录，查看已安装工具和可用版本。\n\n运行时功能准备\n当前页任务\n查看工具供应与本地安装差异 · 失败\n管理工坊扩展\n工具供应 · 任务记录\n刷新\n\n仅显示本页面相关任务 · 3 条\n\n查看工具供应与本地安装差异\nc8e5b987-fc75-4764-b6f1-1201a507dc23\n2026/10/15 15:16:28\n失败\n查看工具供应与本地安装差异\nc4bdfa63-98d1-4060-b2bb-cf03a3b53cb3\n2026/10/14 17:39:58\n失败\n查看工具供应与本地安装差异\n0230eb51-6f66-46a9-9a58-9d49d4664307\n2026/10/14 17:39:57\n失败\n前往任务与日志\n收起\n关闭"
+      },
+      "details": null,
+      "changed": {
+        "open": false,
+        "detail": false,
+        "label": "当前页任务暂无记录"
+      }
+    },
+    {
+      "route": "tasks",
+      "width": 1440,
+      "observed": [
+        "6c427116-6e64-4ec1-8ee0-292f7fd6899c",
+        "3e1f6535-5271-45b2-9f71-ef78fb86e126",
+        "9202d2b0-8329-43e5-b1eb-ef60bbc2cced",
+        "1654f197-c6b3-4a43-901e-df1e0ae84023",
+        "bf19c186-d715-4ba4-87a5-b6308ebc5fcf",
+        "19ccd4fc-6288-4a17-b7ac-51e7e466bc18",
+        "ca147e06-44b8-45e6-a86a-2f31c68c43d5",
+        "c8e5b987-fc75-4764-b6f1-1201a507dc23",
+        "ac0d3b73-c63a-42b7-8c35-02694eaa05ee",
+        "caa55909-6e37-43cb-a276-e1f827b2ed8d",
+        "d5dbcfd4-960c-407e-87ec-3d4b35dcb8b3",
+        "a5e2d85f-ac40-4144-9f52-1294cc20c16d",
+        "6ec5df32-63d5-4d8f-809d-8f495937552f",
+        "8c55b37d-21c7-4aec-9ea6-cfe3d12de296",
+        "c2fda025-0d17-4f44-89e5-21056bdde326",
+        "06c9c4bc-1aa3-4139-95b4-11e82a614442",
+        "f23e980d-4c28-421c-8d8b-0b32840e017b",
+        "58f72cf7-6e6e-4860-876c-1df9d708a224",
+        "4419b1a1-a64e-4f1b-a33b-19c400a0903f",
+        "a543f777-0c30-4108-b7c9-a3cf36db9eba",
+        "7051cdf6-b8ec-448f-8f56-c890d5b1a4ea",
+        "bf6bad10-46d4-451a-a10b-b31f722dabc6",
+        "bfbf3808-e3f2-44f3-8fbd-92218d67fc42",
+        "4c293530-fd2f-4879-a8dc-ebc30e291d7e",
+        "f9a5a365-0acf-4b84-be4b-214a525d8564",
+        "eb36a0b0-bfe8-46f2-b76e-8e20372328ca",
+        "c4bdfa63-98d1-4060-b2bb-cf03a3b53cb3",
+        "0230eb51-6f66-46a9-9a58-9d49d4664307",
+        "64c5ca39-98e5-4954-ba16-7b2c589531f6",
+        "76d50cea-3a87-4dad-800a-f519618b2b1f",
+        "3498f4bd-634d-490f-9ed9-68e7fa462f93",
+        "4d0d8d60-bdd1-4272-9648-a3d60c432eed",
+        "3f4d5059-a227-4ec6-a86d-491d45eccf46",
+        "9f909ed0-c56a-4414-a888-93f15834ed03",
+        "c753b925-124b-4a1b-bfa5-e30da84957aa",
+        "57b9c329-04fa-44f9-8c1f-091337219f50",
+        "e8bc9823-8a7e-4596-9ea4-bdd08ec1e789"
+      ],
+      "expected": [
+        "6c427116-6e64-4ec1-8ee0-292f7fd6899c",
+        "3e1f6535-5271-45b2-9f71-ef78fb86e126",
+        "9202d2b0-8329-43e5-b1eb-ef60bbc2cced",
+        "1654f197-c6b3-4a43-901e-df1e0ae84023",
+        "bf19c186-d715-4ba4-87a5-b6308ebc5fcf",
+        "19ccd4fc-6288-4a17-b7ac-51e7e466bc18",
+        "ca147e06-44b8-45e6-a86a-2f31c68c43d5",
+        "c8e5b987-fc75-4764-b6f1-1201a507dc23",
+        "ac0d3b73-c63a-42b7-8c35-02694eaa05ee",
+        "caa55909-6e37-43cb-a276-e1f827b2ed8d",
+        "d5dbcfd4-960c-407e-87ec-3d4b35dcb8b3",
+        "a5e2d85f-ac40-4144-9f52-1294cc20c16d",
+        "6ec5df32-63d5-4d8f-809d-8f495937552f",
+        "8c55b37d-21c7-4aec-9ea6-cfe3d12de296",
+        "c2fda025-0d17-4f44-89e5-21056bdde326",
+        "06c9c4bc-1aa3-4139-95b4-11e82a614442",
+        "f23e980d-4c28-421c-8d8b-0b32840e017b",
+        "58f72cf7-6e6e-4860-876c-1df9d708a224",
+        "4419b1a1-a64e-4f1b-a33b-19c400a0903f",
+        "a543f777-0c30-4108-b7c9-a3cf36db9eba",
+        "7051cdf6-b8ec-448f-8f56-c890d5b1a4ea",
+        "bf6bad10-46d4-451a-a10b-b31f722dabc6",
+        "bfbf3808-e3f2-44f3-8fbd-92218d67fc42",
+        "4c293530-fd2f-4879-a8dc-ebc30e291d7e",
+        "f9a5a365-0acf-4b84-be4b-214a525d8564",
+        "eb36a0b0-bfe8-46f2-b76e-8e20372328ca",
+        "c4bdfa63-98d1-4060-b2bb-cf03a3b53cb3",
+        "0230eb51-6f66-46a9-9a58-9d49d4664307",
+        "64c5ca39-98e5-4954-ba16-7b2c589531f6",
+        "76d50cea-3a87-4dad-800a-f519618b2b1f",
+        "3498f4bd-634d-490f-9ed9-68e7fa462f93",
+        "4d0d8d60-bdd1-4272-9648-a3d60c432eed",
+        "3f4d5059-a227-4ec6-a86d-491d45eccf46",
+        "9f909ed0-c56a-4414-a888-93f15834ed03",
+        "c753b925-124b-4a1b-bfa5-e30da84957aa",
+        "57b9c329-04fa-44f9-8c1f-091337219f50",
+        "e8bc9823-8a7e-4596-9ea4-bdd08ec1e789"
+      ],
+      "matches": true,
+      "state": {
+        "route": "#/tasks",
+        "view": {
+          "width": 1440,
+          "height": 900
+        },
+        "document": {
+          "width": 1440,
+          "height": 900,
+          "top": 0
+        },
+        "body": {
+          "width": 1440,
+          "height": 900
+        },
+        "header": {
+          "x": 0,
+          "y": 0,
+          "width": 1440,
+          "height": 76,
+          "bottom": 76
+        },
+        "footer": {
+          "x": 240,
+          "y": 851,
+          "width": 1200,
+          "height": 49,
+          "bottom": 900
+        },
+        "main": {
+          "rect": {
+            "x": 240,
+            "y": 76,
+            "width": 1200,
+            "height": 775,
+            "bottom": 851
+          },
+          "scrollTop": 0,
+          "height": 775,
+          "contentHeight": 3520
+        },
+        "tray": {
+          "x": 0,
+          "y": 340,
+          "width": 1440,
+          "height": 560,
+          "bottom": 900
+        },
+        "trayScroll": {
+          "top": 0,
+          "height": 418,
+          "contentHeight": 2671
+        },
+        "active": {
+          "tag": "DIV",
+          "text": "列出Android应用6c427116-6e64-4ec1-8ee0-292f7fd6899c2026/10/15 15:39:59成功发现Harmony设备3e1f6535-5271-45b2-9f",
+          "insideTray": true
+        },
+        "trayItems": [
+          {
+            "id": "6c427116-6e64-4ec1-8ee0-292f7fd6899c",
+            "text": "列出Android应用6c427116-6e64-4ec1-8ee0-292f7fd6899c"
+          },
+          {
+            "id": "3e1f6535-5271-45b2-9f71-ef78fb86e126",
+            "text": "发现Harmony设备3e1f6535-5271-45b2-9f71-ef78fb86e126"
+          },
+          {
+            "id": "9202d2b0-8329-43e5-b1eb-ef60bbc2cced",
+            "text": "发现Android设备9202d2b0-8329-43e5-b1eb-ef60bbc2cced"
+          },
+          {
+            "id": "1654f197-c6b3-4a43-901e-df1e0ae84023",
+            "text": "分页读取性能会话1654f197-c6b3-4a43-901e-df1e0ae84023"
+          },
+          {
+            "id": "bf19c186-d715-4ba4-87a5-b6308ebc5fcf",
+            "text": "查看性能采样能力bf19c186-d715-4ba4-87a5-b6308ebc5fcf"
+          },
+          {
+            "id": "19ccd4fc-6288-4a17-b7ac-51e7e466bc18",
+            "text": "分页读取性能会话19ccd4fc-6288-4a17-b7ac-51e7e466bc18"
+          },
+          {
+            "id": "ca147e06-44b8-45e6-a86a-2f31c68c43d5",
+            "text": "查看性能采样能力ca147e06-44b8-45e6-a86a-2f31c68c43d5"
+          },
+          {
+            "id": "c8e5b987-fc75-4764-b6f1-1201a507dc23",
+            "text": "查看工具供应与本地安装差异c8e5b987-fc75-4764-b6f1-1201a507dc23"
+          },
+          {
+            "id": "ac0d3b73-c63a-42b7-8c35-02694eaa05ee",
+            "text": "开始性能采样ac0d3b73-c63a-42b7-8c35-02694eaa05ee"
+          },
+          {
+            "id": "caa55909-6e37-43cb-a276-e1f827b2ed8d",
+            "text": "开始性能采样caa55909-6e37-43cb-a276-e1f827b2ed8d"
+          },
+          {
+            "id": "d5dbcfd4-960c-407e-87ec-3d4b35dcb8b3",
+            "text": "发现Harmony设备d5dbcfd4-960c-407e-87ec-3d4b35dcb8b3"
+          },
+          {
+            "id": "a5e2d85f-ac40-4144-9f52-1294cc20c16d",
+            "text": "发现Android设备a5e2d85f-ac40-4144-9f52-1294cc20c16d"
+          },
+          {
+            "id": "6ec5df32-63d5-4d8f-809d-8f495937552f",
+            "text": "发现Harmony设备6ec5df32-63d5-4d8f-809d-8f495937552f"
+          },
+          {
+            "id": "8c55b37d-21c7-4aec-9ea6-cfe3d12de296",
+            "text": "发现Android设备8c55b37d-21c7-4aec-9ea6-cfe3d12de296"
+          },
+          {
+            "id": "c2fda025-0d17-4f44-89e5-21056bdde326",
+            "text": "检查投屏运行工具c2fda025-0d17-4f44-89e5-21056bdde326"
+          },
+          {
+            "id": "06c9c4bc-1aa3-4139-95b4-11e82a614442",
+            "text": "列出Android应用06c9c4bc-1aa3-4139-95b4-11e82a614442"
+          },
+          {
+            "id": "f23e980d-4c28-421c-8d8b-0b32840e017b",
+            "text": "启动Android应用f23e980d-4c28-421c-8d8b-0b32840e017b"
+          },
+          {
+            "id": "58f72cf7-6e6e-4860-876c-1df9d708a224",
+            "text": "列出Android应用58f72cf7-6e6e-4860-876c-1df9d708a224"
+          },
+          {
+            "id": "4419b1a1-a64e-4f1b-a33b-19c400a0903f",
+            "text": "列出Android应用4419b1a1-a64e-4f1b-a33b-19c400a0903f"
+          },
+          {
+            "id": "a543f777-0c30-4108-b7c9-a3cf36db9eba",
+            "text": "列出Android应用a543f777-0c30-4108-b7c9-a3cf36db9eba"
+          },
+          {
+            "id": "7051cdf6-b8ec-448f-8f56-c890d5b1a4ea",
+            "text": "发现Android设备7051cdf6-b8ec-448f-8f56-c890d5b1a4ea"
+          },
+          {
+            "id": "bf6bad10-46d4-451a-a10b-b31f722dabc6",
+            "text": "列出配置bf6bad10-46d4-451a-a10b-b31f722dabc6"
+          },
+          {
+            "id": "bfbf3808-e3f2-44f3-8fbd-92218d67fc42",
+            "text": "列出配置bfbf3808-e3f2-44f3-8fbd-92218d67fc42"
+          },
+          {
+            "id": "4c293530-fd2f-4879-a8dc-ebc30e291d7e",
+            "text": "发现Android设备4c293530-fd2f-4879-a8dc-ebc30e291d7e"
+          },
+          {
+            "id": "f9a5a365-0acf-4b84-be4b-214a525d8564",
+            "text": "发现Harmony设备f9a5a365-0acf-4b84-be4b-214a525d8564"
+          },
+          {
+            "id": "eb36a0b0-bfe8-46f2-b76e-8e20372328ca",
+            "text": "发现Android设备eb36a0b0-bfe8-46f2-b76e-8e20372328ca"
+          },
+          {
+            "id": "c4bdfa63-98d1-4060-b2bb-cf03a3b53cb3",
+            "text": "查看工具供应与本地安装差异c4bdfa63-98d1-4060-b2bb-cf03a3b53cb3"
+          },
+          {
+            "id": "0230eb51-6f66-46a9-9a58-9d49d4664307",
+            "text": "查看工具供应与本地安装差异0230eb51-6f66-46a9-9a58-9d49d4664307"
+          },
+          {
+            "id": "64c5ca39-98e5-4954-ba16-7b2c589531f6",
+            "text": "发现Harmony设备64c5ca39-98e5-4954-ba16-7b2c589531f6"
+          },
+          {
+            "id": "76d50cea-3a87-4dad-800a-f519618b2b1f",
+            "text": "发现Android设备76d50cea-3a87-4dad-800a-f519618b2b1f"
+          },
+          {
+            "id": "3498f4bd-634d-490f-9ed9-68e7fa462f93",
+            "text": "发现Harmony设备3498f4bd-634d-490f-9ed9-68e7fa462f93"
+          },
+          {
+            "id": "4d0d8d60-bdd1-4272-9648-a3d60c432eed",
+            "text": "发现Android设备4d0d8d60-bdd1-4272-9648-a3d60c432eed"
+          },
+          {
+            "id": "3f4d5059-a227-4ec6-a86d-491d45eccf46",
+            "text": "发现Harmony设备3f4d5059-a227-4ec6-a86d-491d45eccf46"
+          },
+          {
+            "id": "9f909ed0-c56a-4414-a888-93f15834ed03",
+            "text": "发现Android设备9f909ed0-c56a-4414-a888-93f15834ed03"
+          },
+          {
+            "id": "c753b925-124b-4a1b-bfa5-e30da84957aa",
+            "text": "发现Harmony设备c753b925-124b-4a1b-bfa5-e30da84957aa"
+          },
+          {
+            "id": "57b9c329-04fa-44f9-8c1f-091337219f50",
+            "text": "发现Android设备57b9c329-04fa-44f9-8c1f-091337219f50"
+          },
+          {
+            "id": "e8bc9823-8a7e-4596-9ea4-bdd08ec1e789",
+            "text": "发现Android设备e8bc9823-8a7e-4596-9ea4-bdd08ec1e789"
+          }
+        ],
+        "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n设备工坊\n工坊\n任务与日志\n2026年10月15日星期四\n15:50\nAsia/Shanghai\n服务器已连接\n专注\n工作台\n设备\n应用与包\n文件与产物\n画面与录制\n深度调试\n性能与调用栈\nFrida\n自动化\n终端\n扩展创作\nAI 助手\n数据分析\n工坊\n插件\n任务与日志\n工具供应\n设置\n折叠导航\n任务\n刷新任务\n状态\n全部任务\n搜索任务\n任务记录\n37 / 37 项\nplugin.android-device.packages\n6c427116-6e64-4ec1-8ee0-292f7fd6899c\n2026/10/15 15:39:59\n成功\nplugin.harmony-device.discover\n3e1f6535-5271-45b2-9f71-ef78fb86e126\n2026/10/15 15:39:40\n失败\nplugin.android-device.discover\n9202d2b0-8329-43e5-b1eb-ef60bbc2cced\n2026/10/15 15:39:39\n成功\nandroid.performance.list\n1654f197-c6b3-4a43-901e-df1e0ae84023\n2026/10/15 15:23:07\n成功\nandroid.performance.capabilities\nbf19c186-d715-4ba4-87a5-b6308ebc5fcf\n2026/10/15 15:23:07\n成功\nandroid.performance.list\n19ccd4fc-6288-4a17-b7ac-51e7e466bc18\n2026/10/15 15:19:48\n成功\nandroid.performance.capabilities\nca147e06-44b8-45e6-a86a-2f31c68c43d5\n2026/10/15 15:19:48\n失败\nplugin.tool-supply.catalog\nc8e5b987-fc75-4764-b6f1-1201a507dc23\n2026/10/15 15:16:28\n失败\nandroid.performance.start\nac0d3b73-c63a-42b7-8c35-02694eaa05ee\n2026/10/15 15:04:44\n失败\nandroid.performance.start\ncaa55909-6e37-43cb-a276-e1f827b2ed8d\n2026/10/15 15:03:59\n失败\nplugin.harmony-device.discover\nd5dbcfd4-960c-407e-87ec-3d4b35dcb8b3\n2026/10/15 14:55:11\n失败\nplugin.android-device.discover\na5e2d85f-ac40-4144-9f52-1294cc20c16d\n2026/10/15 14:55:11\n成功\nplugin.harmony-device.discover\n6ec5df32-63d5-4d8f-809d-8f495937552f\n2026/10/15 12:30:20\n失败\nplugin.android-device.discover\n8c55b37d-21c7-4aec-9ea6-cfe3d12de296\n2026/10/15 12:30:19\n成功\nplugin.mirroring.runtime.status\nc2fda025-0d17-4f44-89e5-21056bdde326\n2026/10/15 11:58:56\n成功\nplugin.android-device.packages\n06c9c4bc-1aa3-4139-95b4-11e82a614442\n2026/10/15 11:57:32\n成功\nplugin.android-device.app.start\nf23e980d-4c28-421c-8d8b-0b32840e017b\n2026/10/15 11:54:50\n成功\nplugin.android-device.packages\n58f72cf7-6e6e-4860-876c-1df9d708a224\n2026/10/15 11:54:22\n成功\nplugin.android-device.packages\n4419b1a1-a64e-4f1b-a33b-19c400a0903f\n2026/10/15 11:49:14\n成功\nplugin.android-device.packages\na543f777-0c30-4108-b7c9-a3cf36db9eba\n2026/10/15 11:49:04\n成功\nplugin.android-device.discover\n7051cdf6-b8ec-448f-8f56-c890d5b1a4ea\n2026/10/15 11:48:57\n成功\nplugin.settings.list\nbf6bad10-46d4-451a-a10b-b31f722dabc6\n2026/10/15 11:28:34\n成功\nplugin.settings.list\nbfbf3808-e3f2-44f3-8fbd-92218d67fc42\n2026/10/15 11:28:27\n成功\nplugin.android-device.discover\n4c293530-fd2f-4879-a8dc-ebc30e291d7e\n2026/10/15 10:14:05\n失败\nplugin.harmony-device.discover\nf9a5a365-0acf-4b84-be4b-214a525d8564\n2026/10/14 17:40:33\n失败\nplugin.android-device.discover\neb36a0b0-bfe8-46f2-b76e-8e20372328ca\n2026/10/14 17:40:33\n失败\nplugin.tool-supply.catalog\nc4bdfa63-98d1-4060-b2bb-cf03a3b53cb3\n2026/10/14 17:39:58\n失败\nplugin.tool-supply.catalog\n0230eb51-6f66-46a9-9a58-9d49d4664307\n2026/10/14 17:39:57\n失败\nplugin.harmony-device.discover\n64c5ca39-98e5-4954-ba16-7b2c589531f6\n2026/10/14 17:32:27\n失败\nplugin.android-device.discover\n76d50cea-3a87-4dad-800a-f519618b2b1f\n2026/10/14 17:32:26\n失败\nplugin.harmony-device.discover\n3498f4bd-634d-490f-9ed9-68e7fa462f93\n2026/10/14 17:32:25\n失败\nplugin.android-device.discover\n4d0d8d60-bdd1-4272-9648-a3d60c432eed\n2026/10/14 17:32:25\n失败\nplugin.harmony-device.discover\n3f4d5059-a227-4ec6-a86d-491d45eccf46\n2026/10/14 17:32:06\n失败\nplugin.android-device.discover\n9f909ed0-c56a-4414-a888-93f15834ed03\n2026/10/14 17:32:05\n失败\nplugin.harmony-device.discover\nc753b925-124b-4a1b-bfa5-e30da84957aa\n2026/10/14 17:32:01\n失败\nplugin.android-device.discover\n57b9c329-04fa-44f9-8c1f-091337219f50\n2026/10/14 17:32:01\n失败\nplugin.android-device.discover\ne8bc9823-8a7e-4596-9ea4-bdd08ec1e789\n2026/10/14 17:31:58\n失败\n全部任务记录\n列出Android应用 · 成功\n管理工坊扩展\n全部任务记录\n刷新\n\n全部页面的任务 · 37 条\n\n列出Android应用\n6c427116-6e64-4ec1-8ee0-292f7fd6899c\n2026/10/15 15:39:59\n成功\n发现Harmony设备\n3e1f6535-5271-45b2-9f71-ef78fb86e126\n2026/10/15 15:39:40\n失败\n发现Android设备\n9202d2b0-8329-43e5-b1eb-ef60bbc2cced\n2026/10/15 15:39:39\n成功\n分页读取性能会话\n1654f197-c6b3-4a43-901e-df1e0ae84023\n2026/10/15 15:23:07\n成功\n查看性能采样能力\nbf19c186-d715-4ba4-87a5-b6308ebc5fcf\n2026/10/15 15:23:07\n成功\n分页读取性能会话\n19ccd4fc-6288-4a17-b7ac-51e7e466bc18\n2026/10/15 15:19:48\n成功\n查看性能采样能力\nca147e06-44b8-45e6-a86a-2f31c68c43d5\n2026/10/15 15:19:48\n失败\n查看工具供应与本地安装差异\nc8e5b987-fc75-4764-b6f1-1201a507dc23\n2026/10/15 15:16:28\n失败\n开始性能采样\nac0d3b73-c63a-42b7-8c35-02694eaa05ee\n2026/10/15 15:04:44\n失败\n开始性能采样\ncaa55909-6e37-43cb-a276-e1f827b2ed8d\n2026/10/15 15:03:59\n失败\n发现Harmony设备\nd5dbcfd4-960c-407e-87ec-3d4b35dcb8b3\n2026/10/15 14:55:11\n失败\n发现Android设备\na5e2d85f-ac40-4144-9f52-1294cc20c16d\n2026/10/15 14:55:11\n成功\n发现Harmony设备\n6ec5df32-63d5-4d8f-809d-8f495937552f\n2026/10/15 12:30:20\n失败\n发现Android设备\n8c55b37d-21c7-4aec-9ea6-cfe3d12de296\n2026/10/15 12:30:19\n成功\n检查投屏运行工具\nc2fda025-0d17-4f44-89e5-21056bdde326\n2026/10/15 11:58:56\n成功\n列出Android应用\n06c9c4bc-1aa3-4139-95b4-11e82a614442\n2026/10/15 11:57:32\n成功\n启动Android应用\nf23e980d-4c28-421c-8d8b-0b32840e017b\n2026/10/15 11:54:50\n成功\n列出Android应用\n58f72cf7-6e6e-4860-876c-1df9d708a224\n2026/10/15 11:54:22\n成功\n列出Android应用\n4419b1a1-a64e-4f1b-a33b-19c400a0903f\n2026/10/15 11:49:14\n成功\n列出Android应用\na543f777-0c30-4108-b7c9-a3cf36db9eba\n2026/10/15 11:49:04\n成功\n发现Android设备\n7051cdf6-b8ec-448f-8f56-c890d5b1a4ea\n2026/10/15 11:48:57\n成功\n列出配置\nbf6bad10-46d4-451a-a10b-b31f722dabc6\n2026/10/15 11:28:34\n成功\n列出配置\nbfbf3808-e3f2-44f3-8fbd-92218d67fc42\n2026/10/15 11:28:27\n成功\n发现Android设备\n4c293530-fd2f-4879-a8dc-ebc30e291d7e\n2026/10/15 10:14:05\n失败\n发现Harmony设备\nf9a5a365-0acf-4b84-be4b-214a525d8564\n2026/10/14 17:40:33\n失败\n发现Android设备\neb36a0b0-bfe8-46f2-b76e-8e20372328ca\n2026/10/14 17:40:33\n失败\n查看工具供应与本地安装差异\nc4bdfa63-98d1-4060-b2bb-cf03a3b53cb3\n2026/10/14 17:39:58\n失败\n查看工具供应与本地安装差异\n0230eb51-6f66-46a9-9a58-9d49d4664307\n2026/10/14 17:39:57\n失败\n发现Harmony设备\n64c5ca39-98e5-4954-ba16-7b2c589531f6\n2026/10/14 17:32:27\n失败\n发现Android设备\n76d50cea-3a87-4dad-800a-f519618b2b1f\n2026/10/14 17:32:26\n失败\n发现Harmony设备\n3498f4bd-634d-490f-9ed9-68e7fa462f93\n2026/10/14 17:32:25\n失败\n发现Android设备\n4d0d8d60-bdd1-4272-9648-a3d60c432eed\n2026/10/14 17:32:25\n失败\n发现Harmony设备\n3f4d5059-a227-4ec6-a86d-491d45eccf46\n2026/10/14 17:32:06\n失败\n发现Android设备\n9f909ed0-c56a-4414-a888-93f15834ed03\n2026/10/14 17:32:05\n失败\n发现Harmony设备\nc753b925-124b-4a1b-bfa5-e30da84957aa\n2026/10/14 17:32:01\n失败\n发现Android设备\n57b9c329-04fa-44f9-8c1f-091337219f50\n2026/10/14 17:32:01\n失败\n发现Android设备\ne8bc9823-8a7e-4596-9ea4-bdd08ec1e789\n2026/10/14 17:31:58\n失败\n收起\n关闭"
+      },
+      "scrolled": {
+        "route": "#/tasks",
+        "view": {
+          "width": 1440,
+          "height": 900
+        },
+        "document": {
+          "width": 1440,
+          "height": 900,
+          "top": 0
+        },
+        "body": {
+          "width": 1440,
+          "height": 900
+        },
+        "header": {
+          "x": 0,
+          "y": 0,
+          "width": 1440,
+          "height": 76,
+          "bottom": 76
+        },
+        "footer": {
+          "x": 240,
+          "y": 851,
+          "width": 1200,
+          "height": 49,
+          "bottom": 900
+        },
+        "main": {
+          "rect": {
+            "x": 240,
+            "y": 76,
+            "width": 1200,
+            "height": 775,
+            "bottom": 851
+          },
+          "scrollTop": 0,
+          "height": 775,
+          "contentHeight": 3520
+        },
+        "tray": {
+          "x": 0,
+          "y": 340,
+          "width": 1440,
+          "height": 560,
+          "bottom": 900
+        },
+        "trayScroll": {
+          "top": 2253,
+          "height": 418,
+          "contentHeight": 2671
+        },
+        "active": {
+          "tag": "DIV",
+          "text": "列出Android应用6c427116-6e64-4ec1-8ee0-292f7fd6899c2026/10/15 15:39:59成功发现Harmony设备3e1f6535-5271-45b2-9f",
+          "insideTray": true
+        },
+        "trayItems": [
+          {
+            "id": "6c427116-6e64-4ec1-8ee0-292f7fd6899c",
+            "text": "列出Android应用6c427116-6e64-4ec1-8ee0-292f7fd6899c"
+          },
+          {
+            "id": "3e1f6535-5271-45b2-9f71-ef78fb86e126",
+            "text": "发现Harmony设备3e1f6535-5271-45b2-9f71-ef78fb86e126"
+          },
+          {
+            "id": "9202d2b0-8329-43e5-b1eb-ef60bbc2cced",
+            "text": "发现Android设备9202d2b0-8329-43e5-b1eb-ef60bbc2cced"
+          },
+          {
+            "id": "1654f197-c6b3-4a43-901e-df1e0ae84023",
+            "text": "分页读取性能会话1654f197-c6b3-4a43-901e-df1e0ae84023"
+          },
+          {
+            "id": "bf19c186-d715-4ba4-87a5-b6308ebc5fcf",
+            "text": "查看性能采样能力bf19c186-d715-4ba4-87a5-b6308ebc5fcf"
+          },
+          {
+            "id": "19ccd4fc-6288-4a17-b7ac-51e7e466bc18",
+            "text": "分页读取性能会话19ccd4fc-6288-4a17-b7ac-51e7e466bc18"
+          },
+          {
+            "id": "ca147e06-44b8-45e6-a86a-2f31c68c43d5",
+            "text": "查看性能采样能力ca147e06-44b8-45e6-a86a-2f31c68c43d5"
+          },
+          {
+            "id": "c8e5b987-fc75-4764-b6f1-1201a507dc23",
+            "text": "查看工具供应与本地安装差异c8e5b987-fc75-4764-b6f1-1201a507dc23"
+          },
+          {
+            "id": "ac0d3b73-c63a-42b7-8c35-02694eaa05ee",
+            "text": "开始性能采样ac0d3b73-c63a-42b7-8c35-02694eaa05ee"
+          },
+          {
+            "id": "caa55909-6e37-43cb-a276-e1f827b2ed8d",
+            "text": "开始性能采样caa55909-6e37-43cb-a276-e1f827b2ed8d"
+          },
+          {
+            "id": "d5dbcfd4-960c-407e-87ec-3d4b35dcb8b3",
+            "text": "发现Harmony设备d5dbcfd4-960c-407e-87ec-3d4b35dcb8b3"
+          },
+          {
+            "id": "a5e2d85f-ac40-4144-9f52-1294cc20c16d",
+            "text": "发现Android设备a5e2d85f-ac40-4144-9f52-1294cc20c16d"
+          },
+          {
+            "id": "6ec5df32-63d5-4d8f-809d-8f495937552f",
+            "text": "发现Harmony设备6ec5df32-63d5-4d8f-809d-8f495937552f"
+          },
+          {
+            "id": "8c55b37d-21c7-4aec-9ea6-cfe3d12de296",
+            "text": "发现Android设备8c55b37d-21c7-4aec-9ea6-cfe3d12de296"
+          },
+          {
+            "id": "c2fda025-0d17-4f44-89e5-21056bdde326",
+            "text": "检查投屏运行工具c2fda025-0d17-4f44-89e5-21056bdde326"
+          },
+          {
+            "id": "06c9c4bc-1aa3-4139-95b4-11e82a614442",
+            "text": "列出Android应用06c9c4bc-1aa3-4139-95b4-11e82a614442"
+          },
+          {
+            "id": "f23e980d-4c28-421c-8d8b-0b32840e017b",
+            "text": "启动Android应用f23e980d-4c28-421c-8d8b-0b32840e017b"
+          },
+          {
+            "id": "58f72cf7-6e6e-4860-876c-1df9d708a224",
+            "text": "列出Android应用58f72cf7-6e6e-4860-876c-1df9d708a224"
+          },
+          {
+            "id": "4419b1a1-a64e-4f1b-a33b-19c400a0903f",
+            "text": "列出Android应用4419b1a1-a64e-4f1b-a33b-19c400a0903f"
+          },
+          {
+            "id": "a543f777-0c30-4108-b7c9-a3cf36db9eba",
+            "text": "列出Android应用a543f777-0c30-4108-b7c9-a3cf36db9eba"
+          },
+          {
+            "id": "7051cdf6-b8ec-448f-8f56-c890d5b1a4ea",
+            "text": "发现Android设备7051cdf6-b8ec-448f-8f56-c890d5b1a4ea"
+          },
+          {
+            "id": "bf6bad10-46d4-451a-a10b-b31f722dabc6",
+            "text": "列出配置bf6bad10-46d4-451a-a10b-b31f722dabc6"
+          },
+          {
+            "id": "bfbf3808-e3f2-44f3-8fbd-92218d67fc42",
+            "text": "列出配置bfbf3808-e3f2-44f3-8fbd-92218d67fc42"
+          },
+          {
+            "id": "4c293530-fd2f-4879-a8dc-ebc30e291d7e",
+            "text": "发现Android设备4c293530-fd2f-4879-a8dc-ebc30e291d7e"
+          },
+          {
+            "id": "f9a5a365-0acf-4b84-be4b-214a525d8564",
+            "text": "发现Harmony设备f9a5a365-0acf-4b84-be4b-214a525d8564"
+          },
+          {
+            "id": "eb36a0b0-bfe8-46f2-b76e-8e20372328ca",
+            "text": "发现Android设备eb36a0b0-bfe8-46f2-b76e-8e20372328ca"
+          },
+          {
+            "id": "c4bdfa63-98d1-4060-b2bb-cf03a3b53cb3",
+            "text": "查看工具供应与本地安装差异c4bdfa63-98d1-4060-b2bb-cf03a3b53cb3"
+          },
+          {
+            "id": "0230eb51-6f66-46a9-9a58-9d49d4664307",
+            "text": "查看工具供应与本地安装差异0230eb51-6f66-46a9-9a58-9d49d4664307"
+          },
+          {
+            "id": "64c5ca39-98e5-4954-ba16-7b2c589531f6",
+            "text": "发现Harmony设备64c5ca39-98e5-4954-ba16-7b2c589531f6"
+          },
+          {
+            "id": "76d50cea-3a87-4dad-800a-f519618b2b1f",
+            "text": "发现Android设备76d50cea-3a87-4dad-800a-f519618b2b1f"
+          },
+          {
+            "id": "3498f4bd-634d-490f-9ed9-68e7fa462f93",
+            "text": "发现Harmony设备3498f4bd-634d-490f-9ed9-68e7fa462f93"
+          },
+          {
+            "id": "4d0d8d60-bdd1-4272-9648-a3d60c432eed",
+            "text": "发现Android设备4d0d8d60-bdd1-4272-9648-a3d60c432eed"
+          },
+          {
+            "id": "3f4d5059-a227-4ec6-a86d-491d45eccf46",
+            "text": "发现Harmony设备3f4d5059-a227-4ec6-a86d-491d45eccf46"
+          },
+          {
+            "id": "9f909ed0-c56a-4414-a888-93f15834ed03",
+            "text": "发现Android设备9f909ed0-c56a-4414-a888-93f15834ed03"
+          },
+          {
+            "id": "c753b925-124b-4a1b-bfa5-e30da84957aa",
+            "text": "发现Harmony设备c753b925-124b-4a1b-bfa5-e30da84957aa"
+          },
+          {
+            "id": "57b9c329-04fa-44f9-8c1f-091337219f50",
+            "text": "发现Android设备57b9c329-04fa-44f9-8c1f-091337219f50"
+          },
+          {
+            "id": "e8bc9823-8a7e-4596-9ea4-bdd08ec1e789",
+            "text": "发现Android设备e8bc9823-8a7e-4596-9ea4-bdd08ec1e789"
+          }
+        ],
+        "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n设备工坊\n工坊\n任务与日志\n2026年10月15日星期四\n15:50\nAsia/Shanghai\n服务器已连接\n专注\n工作台\n设备\n应用与包\n文件与产物\n画面与录制\n深度调试\n性能与调用栈\nFrida\n自动化\n终端\n扩展创作\nAI 助手\n数据分析\n工坊\n插件\n任务与日志\n工具供应\n设置\n折叠导航\n任务\n刷新任务\n状态\n全部任务\n搜索任务\n任务记录\n37 / 37 项\nplugin.android-device.packages\n6c427116-6e64-4ec1-8ee0-292f7fd6899c\n2026/10/15 15:39:59\n成功\nplugin.harmony-device.discover\n3e1f6535-5271-45b2-9f71-ef78fb86e126\n2026/10/15 15:39:40\n失败\nplugin.android-device.discover\n9202d2b0-8329-43e5-b1eb-ef60bbc2cced\n2026/10/15 15:39:39\n成功\nandroid.performance.list\n1654f197-c6b3-4a43-901e-df1e0ae84023\n2026/10/15 15:23:07\n成功\nandroid.performance.capabilities\nbf19c186-d715-4ba4-87a5-b6308ebc5fcf\n2026/10/15 15:23:07\n成功\nandroid.performance.list\n19ccd4fc-6288-4a17-b7ac-51e7e466bc18\n2026/10/15 15:19:48\n成功\nandroid.performance.capabilities\nca147e06-44b8-45e6-a86a-2f31c68c43d5\n2026/10/15 15:19:48\n失败\nplugin.tool-supply.catalog\nc8e5b987-fc75-4764-b6f1-1201a507dc23\n2026/10/15 15:16:28\n失败\nandroid.performance.start\nac0d3b73-c63a-42b7-8c35-02694eaa05ee\n2026/10/15 15:04:44\n失败\nandroid.performance.start\ncaa55909-6e37-43cb-a276-e1f827b2ed8d\n2026/10/15 15:03:59\n失败\nplugin.harmony-device.discover\nd5dbcfd4-960c-407e-87ec-3d4b35dcb8b3\n2026/10/15 14:55:11\n失败\nplugin.android-device.discover\na5e2d85f-ac40-4144-9f52-1294cc20c16d\n2026/10/15 14:55:11\n成功\nplugin.harmony-device.discover\n6ec5df32-63d5-4d8f-809d-8f495937552f\n2026/10/15 12:30:20\n失败\nplugin.android-device.discover\n8c55b37d-21c7-4aec-9ea6-cfe3d12de296\n2026/10/15 12:30:19\n成功\nplugin.mirroring.runtime.status\nc2fda025-0d17-4f44-89e5-21056bdde326\n2026/10/15 11:58:56\n成功\nplugin.android-device.packages\n06c9c4bc-1aa3-4139-95b4-11e82a614442\n2026/10/15 11:57:32\n成功\nplugin.android-device.app.start\nf23e980d-4c28-421c-8d8b-0b32840e017b\n2026/10/15 11:54:50\n成功\nplugin.android-device.packages\n58f72cf7-6e6e-4860-876c-1df9d708a224\n2026/10/15 11:54:22\n成功\nplugin.android-device.packages\n4419b1a1-a64e-4f1b-a33b-19c400a0903f\n2026/10/15 11:49:14\n成功\nplugin.android-device.packages\na543f777-0c30-4108-b7c9-a3cf36db9eba\n2026/10/15 11:49:04\n成功\nplugin.android-device.discover\n7051cdf6-b8ec-448f-8f56-c890d5b1a4ea\n2026/10/15 11:48:57\n成功\nplugin.settings.list\nbf6bad10-46d4-451a-a10b-b31f722dabc6\n2026/10/15 11:28:34\n成功\nplugin.settings.list\nbfbf3808-e3f2-44f3-8fbd-92218d67fc42\n2026/10/15 11:28:27\n成功\nplugin.android-device.discover\n4c293530-fd2f-4879-a8dc-ebc30e291d7e\n2026/10/15 10:14:05\n失败\nplugin.harmony-device.discover\nf9a5a365-0acf-4b84-be4b-214a525d8564\n2026/10/14 17:40:33\n失败\nplugin.android-device.discover\neb36a0b0-bfe8-46f2-b76e-8e20372328ca\n2026/10/14 17:40:33\n失败\nplugin.tool-supply.catalog\nc4bdfa63-98d1-4060-b2bb-cf03a3b53cb3\n2026/10/14 17:39:58\n失败\nplugin.tool-supply.catalog\n0230eb51-6f66-46a9-9a58-9d49d4664307\n2026/10/14 17:39:57\n失败\nplugin.harmony-device.discover\n64c5ca39-98e5-4954-ba16-7b2c589531f6\n2026/10/14 17:32:27\n失败\nplugin.android-device.discover\n76d50cea-3a87-4dad-800a-f519618b2b1f\n2026/10/14 17:32:26\n失败\nplugin.harmony-device.discover\n3498f4bd-634d-490f-9ed9-68e7fa462f93\n2026/10/14 17:32:25\n失败\nplugin.android-device.discover\n4d0d8d60-bdd1-4272-9648-a3d60c432eed\n2026/10/14 17:32:25\n失败\nplugin.harmony-device.discover\n3f4d5059-a227-4ec6-a86d-491d45eccf46\n2026/10/14 17:32:06\n失败\nplugin.android-device.discover\n9f909ed0-c56a-4414-a888-93f15834ed03\n2026/10/14 17:32:05\n失败\nplugin.harmony-device.discover\nc753b925-124b-4a1b-bfa5-e30da84957aa\n2026/10/14 17:32:01\n失败\nplugin.android-device.discover\n57b9c329-04fa-44f9-8c1f-091337219f50\n2026/10/14 17:32:01\n失败\nplugin.android-device.discover\ne8bc9823-8a7e-4596-9ea4-bdd08ec1e789\n2026/10/14 17:31:58\n失败\n全部任务记录\n列出Android应用 · 成功\n管理工坊扩展\n全部任务记录\n刷新\n\n全部页面的任务 · 37 条\n\n列出Android应用\n6c427116-6e64-4ec1-8ee0-292f7fd6899c\n2026/10/15 15:39:59\n成功\n发现Harmony设备\n3e1f6535-5271-45b2-9f71-ef78fb86e126\n2026/10/15 15:39:40\n失败\n发现Android设备\n9202d2b0-8329-43e5-b1eb-ef60bbc2cced\n2026/10/15 15:39:39\n成功\n分页读取性能会话\n1654f197-c6b3-4a43-901e-df1e0ae84023\n2026/10/15 15:23:07\n成功\n查看性能采样能力\nbf19c186-d715-4ba4-87a5-b6308ebc5fcf\n2026/10/15 15:23:07\n成功\n分页读取性能会话\n19ccd4fc-6288-4a17-b7ac-51e7e466bc18\n2026/10/15 15:19:48\n成功\n查看性能采样能力\nca147e06-44b8-45e6-a86a-2f31c68c43d5\n2026/10/15 15:19:48\n失败\n查看工具供应与本地安装差异\nc8e5b987-fc75-4764-b6f1-1201a507dc23\n2026/10/15 15:16:28\n失败\n开始性能采样\nac0d3b73-c63a-42b7-8c35-02694eaa05ee\n2026/10/15 15:04:44\n失败\n开始性能采样\ncaa55909-6e37-43cb-a276-e1f827b2ed8d\n2026/10/15 15:03:59\n失败\n发现Harmony设备\nd5dbcfd4-960c-407e-87ec-3d4b35dcb8b3\n2026/10/15 14:55:11\n失败\n发现Android设备\na5e2d85f-ac40-4144-9f52-1294cc20c16d\n2026/10/15 14:55:11\n成功\n发现Harmony设备\n6ec5df32-63d5-4d8f-809d-8f495937552f\n2026/10/15 12:30:20\n失败\n发现Android设备\n8c55b37d-21c7-4aec-9ea6-cfe3d12de296\n2026/10/15 12:30:19\n成功\n检查投屏运行工具\nc2fda025-0d17-4f44-89e5-21056bdde326\n2026/10/15 11:58:56\n成功\n列出Android应用\n06c9c4bc-1aa3-4139-95b4-11e82a614442\n2026/10/15 11:57:32\n成功\n启动Android应用\nf23e980d-4c28-421c-8d8b-0b32840e017b\n2026/10/15 11:54:50\n成功\n列出Android应用\n58f72cf7-6e6e-4860-876c-1df9d708a224\n2026/10/15 11:54:22\n成功\n列出Android应用\n4419b1a1-a64e-4f1b-a33b-19c400a0903f\n2026/10/15 11:49:14\n成功\n列出Android应用\na543f777-0c30-4108-b7c9-a3cf36db9eba\n2026/10/15 11:49:04\n成功\n发现Android设备\n7051cdf6-b8ec-448f-8f56-c890d5b1a4ea\n2026/10/15 11:48:57\n成功\n列出配置\nbf6bad10-46d4-451a-a10b-b31f722dabc6\n2026/10/15 11:28:34\n成功\n列出配置\nbfbf3808-e3f2-44f3-8fbd-92218d67fc42\n2026/10/15 11:28:27\n成功\n发现Android设备\n4c293530-fd2f-4879-a8dc-ebc30e291d7e\n2026/10/15 10:14:05\n失败\n发现Harmony设备\nf9a5a365-0acf-4b84-be4b-214a525d8564\n2026/10/14 17:40:33\n失败\n发现Android设备\neb36a0b0-bfe8-46f2-b76e-8e20372328ca\n2026/10/14 17:40:33\n失败\n查看工具供应与本地安装差异\nc4bdfa63-98d1-4060-b2bb-cf03a3b53cb3\n2026/10/14 17:39:58\n失败\n查看工具供应与本地安装差异\n0230eb51-6f66-46a9-9a58-9d49d4664307\n2026/10/14 17:39:57\n失败\n发现Harmony设备\n64c5ca39-98e5-4954-ba16-7b2c589531f6\n2026/10/14 17:32:27\n失败\n发现Android设备\n76d50cea-3a87-4dad-800a-f519618b2b1f\n2026/10/14 17:32:26\n失败\n发现Harmony设备\n3498f4bd-634d-490f-9ed9-68e7fa462f93\n2026/10/14 17:32:25\n失败\n发现Android设备\n4d0d8d60-bdd1-4272-9648-a3d60c432eed\n2026/10/14 17:32:25\n失败\n发现Harmony设备\n3f4d5059-a227-4ec6-a86d-491d45eccf46\n2026/10/14 17:32:06\n失败\n发现Android设备\n9f909ed0-c56a-4414-a888-93f15834ed03\n2026/10/14 17:32:05\n失败\n发现Harmony设备\nc753b925-124b-4a1b-bfa5-e30da84957aa\n2026/10/14 17:32:01\n失败\n发现Android设备\n57b9c329-04fa-44f9-8c1f-091337219f50\n2026/10/14 17:32:01\n失败\n发现Android设备\ne8bc9823-8a7e-4596-9ea4-bdd08ec1e789\n2026/10/14 17:31:58\n失败\n收起\n关闭"
+      },
+      "details": {
+        "count": 1,
+        "text": "复制任务 ID\n\n日志 ID：d9fd2fac-0a6e-47f9-9f35-96133d3a8301\n\n任务事件 · 3\n提交内容\n查看完整结果"
+      },
+      "changed": {
+        "open": false,
+        "detail": false,
+        "label": "当前页任务暂无记录"
+      }
+    },
+    {
+      "route": "settings",
+      "width": 390,
+      "observed": [
+        "bf6bad10-46d4-451a-a10b-b31f722dabc6",
+        "bfbf3808-e3f2-44f3-8fbd-92218d67fc42"
+      ],
+      "expected": [
+        "bf6bad10-46d4-451a-a10b-b31f722dabc6",
+        "bfbf3808-e3f2-44f3-8fbd-92218d67fc42"
+      ],
+      "matches": true,
+      "state": {
+        "route": "#/settings",
+        "view": {
+          "width": 390,
+          "height": 844
+        },
+        "document": {
+          "width": 390,
+          "height": 844,
+          "top": 0
+        },
+        "body": {
+          "width": 390,
+          "height": 844
+        },
+        "header": {
+          "x": 0,
+          "y": 0,
+          "width": 390,
+          "height": 64,
+          "bottom": 64
+        },
+        "footer": {
+          "x": 0,
+          "y": 787,
+          "width": 390,
+          "height": 57,
+          "bottom": 844
+        },
+        "main": {
+          "rect": {
+            "x": 0,
+            "y": 64,
+            "width": 390,
+            "height": 723,
+            "bottom": 787
+          },
+          "scrollTop": 0,
+          "height": 723,
+          "contentHeight": 1541
+        },
+        "tray": {
+          "x": 0,
+          "y": 185.6875,
+          "width": 390,
+          "height": 658.3125,
+          "bottom": 844
+        },
+        "trayScroll": {
+          "top": 0,
+          "height": 496,
+          "contentHeight": 496
+        },
+        "active": {
+          "tag": "DIV",
+          "text": "列出配置bf6bad10-46d4-451a-a10b-b31f722dabc62026/10/15 11:28:34成功列出配置bfbf3808-e3f2-44f3-8fbd-92218d67fc4",
+          "insideTray": true
+        },
+        "trayItems": [
+          {
+            "id": "bf6bad10-46d4-451a-a10b-b31f722dabc6",
+            "text": "列出配置bf6bad10-46d4-451a-a10b-b31f722dabc6"
+          },
+          {
+            "id": "bfbf3808-e3f2-44f3-8fbd-92218d67fc42",
+            "text": "列出配置bfbf3808-e3f2-44f3-8fbd-92218d67fc42"
+          }
+        ],
+        "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n服务器已连接\n设置\n主题与显示\n工作空间主题\n工坊默认主题\n服务连接\n服务地址\n测试并应用\n可选令牌\n显示\n仅用于当前会话，留空免鉴权\n\n应用后将结束当前工作会话。\n\n连接说明\n工具配置\n配置归属\n用户配置\n归属 ID\n读取配置\n配置区\n读取此区\n配置内容 · JSON\n写入使用已读取的修订；出现冲突时重新读取，不会自动覆盖。\n保存此区\nMCP 连接与工具目录\n导入与远端配置\n当前页任务\n管理工坊扩展\n设置 · 任务记录\n刷新\n\n仅显示本页面相关任务 · 2 条\n\n列出配置\nbf6bad10-46d4-451a-a10b-b31f722dabc6\n2026/10/15 11:28:34\n成功\n列出配置\nbfbf3808-e3f2-44f3-8fbd-92218d67fc42\n2026/10/15 11:28:27\n成功\n前往任务与日志\n收起\n关闭"
+      },
+      "scrolled": {
+        "route": "#/settings",
+        "view": {
+          "width": 390,
+          "height": 844
+        },
+        "document": {
+          "width": 390,
+          "height": 844,
+          "top": 0
+        },
+        "body": {
+          "width": 390,
+          "height": 844
+        },
+        "header": {
+          "x": 0,
+          "y": 0,
+          "width": 390,
+          "height": 64,
+          "bottom": 64
+        },
+        "footer": {
+          "x": 0,
+          "y": 787,
+          "width": 390,
+          "height": 57,
+          "bottom": 844
+        },
+        "main": {
+          "rect": {
+            "x": 0,
+            "y": 64,
+            "width": 390,
+            "height": 723,
+            "bottom": 787
+          },
+          "scrollTop": 0,
+          "height": 723,
+          "contentHeight": 1541
+        },
+        "tray": {
+          "x": 0,
+          "y": 185.6875,
+          "width": 390,
+          "height": 658.3125,
+          "bottom": 844
+        },
+        "trayScroll": {
+          "top": 0,
+          "height": 496,
+          "contentHeight": 496
+        },
+        "active": {
+          "tag": "DIV",
+          "text": "列出配置bf6bad10-46d4-451a-a10b-b31f722dabc62026/10/15 11:28:34成功列出配置bfbf3808-e3f2-44f3-8fbd-92218d67fc4",
+          "insideTray": true
+        },
+        "trayItems": [
+          {
+            "id": "bf6bad10-46d4-451a-a10b-b31f722dabc6",
+            "text": "列出配置bf6bad10-46d4-451a-a10b-b31f722dabc6"
+          },
+          {
+            "id": "bfbf3808-e3f2-44f3-8fbd-92218d67fc42",
+            "text": "列出配置bfbf3808-e3f2-44f3-8fbd-92218d67fc42"
+          }
+        ],
+        "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n服务器已连接\n设置\n主题与显示\n工作空间主题\n工坊默认主题\n服务连接\n服务地址\n测试并应用\n可选令牌\n显示\n仅用于当前会话，留空免鉴权\n\n应用后将结束当前工作会话。\n\n连接说明\n工具配置\n配置归属\n用户配置\n归属 ID\n读取配置\n配置区\n读取此区\n配置内容 · JSON\n写入使用已读取的修订；出现冲突时重新读取，不会自动覆盖。\n保存此区\nMCP 连接与工具目录\n导入与远端配置\n当前页任务\n管理工坊扩展\n设置 · 任务记录\n刷新\n\n仅显示本页面相关任务 · 2 条\n\n列出配置\nbf6bad10-46d4-451a-a10b-b31f722dabc6\n2026/10/15 11:28:34\n成功\n列出配置\nbfbf3808-e3f2-44f3-8fbd-92218d67fc42\n2026/10/15 11:28:27\n成功\n前往任务与日志\n收起\n关闭"
+      },
+      "details": null,
+      "changed": {
+        "open": false,
+        "detail": false,
+        "label": "当前页任务暂无记录"
+      }
+    },
+    {
+      "route": "performance",
+      "width": 390,
+      "observed": [
+        "1654f197-c6b3-4a43-901e-df1e0ae84023",
+        "bf19c186-d715-4ba4-87a5-b6308ebc5fcf",
+        "19ccd4fc-6288-4a17-b7ac-51e7e466bc18",
+        "ca147e06-44b8-45e6-a86a-2f31c68c43d5",
+        "ac0d3b73-c63a-42b7-8c35-02694eaa05ee",
+        "caa55909-6e37-43cb-a276-e1f827b2ed8d"
+      ],
+      "expected": [
+        "1654f197-c6b3-4a43-901e-df1e0ae84023",
+        "bf19c186-d715-4ba4-87a5-b6308ebc5fcf",
+        "19ccd4fc-6288-4a17-b7ac-51e7e466bc18",
+        "ca147e06-44b8-45e6-a86a-2f31c68c43d5",
+        "ac0d3b73-c63a-42b7-8c35-02694eaa05ee",
+        "caa55909-6e37-43cb-a276-e1f827b2ed8d"
+      ],
+      "matches": true,
+      "state": {
+        "route": "#/performance",
+        "view": {
+          "width": 390,
+          "height": 844
+        },
+        "document": {
+          "width": 390,
+          "height": 844,
+          "top": 0
+        },
+        "body": {
+          "width": 390,
+          "height": 844
+        },
+        "header": {
+          "x": 0,
+          "y": 0,
+          "width": 390,
+          "height": 64,
+          "bottom": 64
+        },
+        "footer": {
+          "x": 0,
+          "y": 787,
+          "width": 390,
+          "height": 57,
+          "bottom": 844
+        },
+        "main": {
+          "rect": {
+            "x": 0,
+            "y": 64,
+            "width": 390,
+            "height": 723,
+            "bottom": 787
+          },
+          "scrollTop": 0,
+          "height": 723,
+          "contentHeight": 1280
+        },
+        "tray": {
+          "x": 0,
+          "y": 185.6875,
+          "width": 390,
+          "height": 658.3125,
+          "bottom": 844
+        },
+        "trayScroll": {
+          "top": 0,
+          "height": 496,
+          "contentHeight": 596
+        },
+        "active": {
+          "tag": "DIV",
+          "text": "分页读取性能会话1654f197-c6b3-4a43-901e-df1e0ae840232026/10/15 15:23:07成功查看性能采样能力bf19c186-d715-4ba4-87a5-b63",
+          "insideTray": true
+        },
+        "trayItems": [
+          {
+            "id": "1654f197-c6b3-4a43-901e-df1e0ae84023",
+            "text": "分页读取性能会话1654f197-c6b3-4a43-901e-df1e0ae84023"
+          },
+          {
+            "id": "bf19c186-d715-4ba4-87a5-b6308ebc5fcf",
+            "text": "查看性能采样能力bf19c186-d715-4ba4-87a5-b6308ebc5fcf"
+          },
+          {
+            "id": "19ccd4fc-6288-4a17-b7ac-51e7e466bc18",
+            "text": "分页读取性能会话19ccd4fc-6288-4a17-b7ac-51e7e466bc18"
+          },
+          {
+            "id": "ca147e06-44b8-45e6-a86a-2f31c68c43d5",
+            "text": "查看性能采样能力ca147e06-44b8-45e6-a86a-2f31c68c43d5"
+          },
+          {
+            "id": "ac0d3b73-c63a-42b7-8c35-02694eaa05ee",
+            "text": "开始性能采样ac0d3b73-c63a-42b7-8c35-02694eaa05ee"
+          },
+          {
+            "id": "caa55909-6e37-43cb-a276-e1f827b2ed8d",
+            "text": "开始性能采样caa55909-6e37-43cb-a276-e1f827b2ed8d"
+          }
+        ],
+        "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n服务器已连接\n工作设备\n尚未选择设备\n设备目录\n性能\n目标应用包名\n持续采样\n画面与调用栈\n采集配置\n时长（秒）\n1–3600 秒\n间隔（毫秒）\n1000–60000 毫秒\n\n先在顶部选择设备。\n\n开始采集\n查询采样能力\n采集范围说明\n采样结果\n等待采样\n\n开始采集或从历史中读取会话。\n\n历史会话\n当前页任务\n管理工坊扩展\n性能与调用栈 · 任务记录\n刷新\n\n仅显示本页面相关任务 · 6 条\n\n分页读取性能会话\n1654f197-c6b3-4a43-901e-df1e0ae84023\n2026/10/15 15:23:07\n成功\n查看性能采样能力\nbf19c186-d715-4ba4-87a5-b6308ebc5fcf\n2026/10/15 15:23:07\n成功\n分页读取性能会话\n19ccd4fc-6288-4a17-b7ac-51e7e466bc18\n2026/10/15 15:19:48\n成功\n查看性能采样能力\nca147e06-44b8-45e6-a86a-2f31c68c43d5\n2026/10/15 15:19:48\n失败\n开始性能采样\nac0d3b73-c63a-42b7-8c35-02694eaa05ee\n2026/10/15 15:04:44\n失败\n开始性能采样\ncaa55909-6e37-43cb-a276-e1f827b2ed8d\n2026/10/15 15:03:59\n失败\n前往任务与日志\n收起\n关闭"
+      },
+      "scrolled": {
+        "route": "#/performance",
+        "view": {
+          "width": 390,
+          "height": 844
+        },
+        "document": {
+          "width": 390,
+          "height": 844,
+          "top": 0
+        },
+        "body": {
+          "width": 390,
+          "height": 844
+        },
+        "header": {
+          "x": 0,
+          "y": 0,
+          "width": 390,
+          "height": 64,
+          "bottom": 64
+        },
+        "footer": {
+          "x": 0,
+          "y": 787,
+          "width": 390,
+          "height": 57,
+          "bottom": 844
+        },
+        "main": {
+          "rect": {
+            "x": 0,
+            "y": 64,
+            "width": 390,
+            "height": 723,
+            "bottom": 787
+          },
+          "scrollTop": 0,
+          "height": 723,
+          "contentHeight": 1280
+        },
+        "tray": {
+          "x": 0,
+          "y": 185.6875,
+          "width": 390,
+          "height": 658.3125,
+          "bottom": 844
+        },
+        "trayScroll": {
+          "top": 100,
+          "height": 496,
+          "contentHeight": 596
+        },
+        "active": {
+          "tag": "DIV",
+          "text": "分页读取性能会话1654f197-c6b3-4a43-901e-df1e0ae840232026/10/15 15:23:07成功查看性能采样能力bf19c186-d715-4ba4-87a5-b63",
+          "insideTray": true
+        },
+        "trayItems": [
+          {
+            "id": "1654f197-c6b3-4a43-901e-df1e0ae84023",
+            "text": "分页读取性能会话1654f197-c6b3-4a43-901e-df1e0ae84023"
+          },
+          {
+            "id": "bf19c186-d715-4ba4-87a5-b6308ebc5fcf",
+            "text": "查看性能采样能力bf19c186-d715-4ba4-87a5-b6308ebc5fcf"
+          },
+          {
+            "id": "19ccd4fc-6288-4a17-b7ac-51e7e466bc18",
+            "text": "分页读取性能会话19ccd4fc-6288-4a17-b7ac-51e7e466bc18"
+          },
+          {
+            "id": "ca147e06-44b8-45e6-a86a-2f31c68c43d5",
+            "text": "查看性能采样能力ca147e06-44b8-45e6-a86a-2f31c68c43d5"
+          },
+          {
+            "id": "ac0d3b73-c63a-42b7-8c35-02694eaa05ee",
+            "text": "开始性能采样ac0d3b73-c63a-42b7-8c35-02694eaa05ee"
+          },
+          {
+            "id": "caa55909-6e37-43cb-a276-e1f827b2ed8d",
+            "text": "开始性能采样caa55909-6e37-43cb-a276-e1f827b2ed8d"
+          }
+        ],
+        "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n服务器已连接\n工作设备\n尚未选择设备\n设备目录\n性能\n目标应用包名\n持续采样\n画面与调用栈\n采集配置\n时长（秒）\n1–3600 秒\n间隔（毫秒）\n1000–60000 毫秒\n\n先在顶部选择设备。\n\n开始采集\n查询采样能力\n采集范围说明\n采样结果\n等待采样\n\n开始采集或从历史中读取会话。\n\n历史会话\n当前页任务\n管理工坊扩展\n性能与调用栈 · 任务记录\n刷新\n\n仅显示本页面相关任务 · 6 条\n\n分页读取性能会话\n1654f197-c6b3-4a43-901e-df1e0ae84023\n2026/10/15 15:23:07\n成功\n查看性能采样能力\nbf19c186-d715-4ba4-87a5-b6308ebc5fcf\n2026/10/15 15:23:07\n成功\n分页读取性能会话\n19ccd4fc-6288-4a17-b7ac-51e7e466bc18\n2026/10/15 15:19:48\n成功\n查看性能采样能力\nca147e06-44b8-45e6-a86a-2f31c68c43d5\n2026/10/15 15:19:48\n失败\n开始性能采样\nac0d3b73-c63a-42b7-8c35-02694eaa05ee\n2026/10/15 15:04:44\n失败\n开始性能采样\ncaa55909-6e37-43cb-a276-e1f827b2ed8d\n2026/10/15 15:03:59\n失败\n前往任务与日志\n收起\n关闭"
+      },
+      "details": null,
+      "changed": {
+        "open": false,
+        "detail": false,
+        "label": "当前页任务暂无记录"
+      }
+    },
+    {
+      "route": "tools",
+      "width": 390,
+      "observed": [
+        "c8e5b987-fc75-4764-b6f1-1201a507dc23",
+        "c4bdfa63-98d1-4060-b2bb-cf03a3b53cb3",
+        "0230eb51-6f66-46a9-9a58-9d49d4664307"
+      ],
+      "expected": [
+        "c8e5b987-fc75-4764-b6f1-1201a507dc23",
+        "c4bdfa63-98d1-4060-b2bb-cf03a3b53cb3",
+        "0230eb51-6f66-46a9-9a58-9d49d4664307"
+      ],
+      "matches": true,
+      "state": {
+        "route": "#/tools",
+        "view": {
+          "width": 390,
+          "height": 844
+        },
+        "document": {
+          "width": 390,
+          "height": 844,
+          "top": 0
+        },
+        "body": {
+          "width": 390,
+          "height": 844
+        },
+        "header": {
+          "x": 0,
+          "y": 0,
+          "width": 390,
+          "height": 64,
+          "bottom": 64
+        },
+        "footer": {
+          "x": 0,
+          "y": 787,
+          "width": 390,
+          "height": 57,
+          "bottom": 844
+        },
+        "main": {
+          "rect": {
+            "x": 0,
+            "y": 64,
+            "width": 390,
+            "height": 723,
+            "bottom": 787
+          },
+          "scrollTop": 0,
+          "height": 723,
+          "contentHeight": 723
+        },
+        "tray": {
+          "x": 0,
+          "y": 185.6875,
+          "width": 390,
+          "height": 658.3125,
+          "bottom": 844
+        },
+        "trayScroll": {
+          "top": 0,
+          "height": 496,
+          "contentHeight": 496
+        },
+        "active": {
+          "tag": "DIV",
+          "text": "查看工具供应与本地安装差异c8e5b987-fc75-4764-b6f1-1201a507dc232026/10/15 15:16:28失败查看工具供应与本地安装差异c4bdfa63-98d1-406",
+          "insideTray": true
+        },
+        "trayItems": [
+          {
+            "id": "c8e5b987-fc75-4764-b6f1-1201a507dc23",
+            "text": "查看工具供应与本地安装差异c8e5b987-fc75-4764-b6f1-1201a507dc23"
+          },
+          {
+            "id": "c4bdfa63-98d1-4060-b2bb-cf03a3b53cb3",
+            "text": "查看工具供应与本地安装差异c4bdfa63-98d1-4060-b2bb-cf03a3b53cb3"
+          },
+          {
+            "id": "0230eb51-6f66-46a9-9a58-9d49d4664307",
+            "text": "查看工具供应与本地安装差异0230eb51-6f66-46a9-9a58-9d49d4664307"
+          }
+        ],
+        "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n服务器已连接\n工具\n刷新目录\n尚未读取工具目录\n\n刷新目录，查看已安装工具和可用版本。\n\n运行时功能准备\n当前页任务\n管理工坊扩展\n工具供应 · 任务记录\n刷新\n\n仅显示本页面相关任务 · 3 条\n\n查看工具供应与本地安装差异\nc8e5b987-fc75-4764-b6f1-1201a507dc23\n2026/10/15 15:16:28\n失败\n查看工具供应与本地安装差异\nc4bdfa63-98d1-4060-b2bb-cf03a3b53cb3\n2026/10/14 17:39:58\n失败\n查看工具供应与本地安装差异\n0230eb51-6f66-46a9-9a58-9d49d4664307\n2026/10/14 17:39:57\n失败\n前往任务与日志\n收起\n关闭"
+      },
+      "scrolled": {
+        "route": "#/tools",
+        "view": {
+          "width": 390,
+          "height": 844
+        },
+        "document": {
+          "width": 390,
+          "height": 844,
+          "top": 0
+        },
+        "body": {
+          "width": 390,
+          "height": 844
+        },
+        "header": {
+          "x": 0,
+          "y": 0,
+          "width": 390,
+          "height": 64,
+          "bottom": 64
+        },
+        "footer": {
+          "x": 0,
+          "y": 787,
+          "width": 390,
+          "height": 57,
+          "bottom": 844
+        },
+        "main": {
+          "rect": {
+            "x": 0,
+            "y": 64,
+            "width": 390,
+            "height": 723,
+            "bottom": 787
+          },
+          "scrollTop": 0,
+          "height": 723,
+          "contentHeight": 723
+        },
+        "tray": {
+          "x": 0,
+          "y": 185.6875,
+          "width": 390,
+          "height": 658.3125,
+          "bottom": 844
+        },
+        "trayScroll": {
+          "top": 0,
+          "height": 496,
+          "contentHeight": 496
+        },
+        "active": {
+          "tag": "DIV",
+          "text": "查看工具供应与本地安装差异c8e5b987-fc75-4764-b6f1-1201a507dc232026/10/15 15:16:28失败查看工具供应与本地安装差异c4bdfa63-98d1-406",
+          "insideTray": true
+        },
+        "trayItems": [
+          {
+            "id": "c8e5b987-fc75-4764-b6f1-1201a507dc23",
+            "text": "查看工具供应与本地安装差异c8e5b987-fc75-4764-b6f1-1201a507dc23"
+          },
+          {
+            "id": "c4bdfa63-98d1-4060-b2bb-cf03a3b53cb3",
+            "text": "查看工具供应与本地安装差异c4bdfa63-98d1-4060-b2bb-cf03a3b53cb3"
+          },
+          {
+            "id": "0230eb51-6f66-46a9-9a58-9d49d4664307",
+            "text": "查看工具供应与本地安装差异0230eb51-6f66-46a9-9a58-9d49d4664307"
+          }
+        ],
+        "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n服务器已连接\n工具\n刷新目录\n尚未读取工具目录\n\n刷新目录，查看已安装工具和可用版本。\n\n运行时功能准备\n当前页任务\n管理工坊扩展\n工具供应 · 任务记录\n刷新\n\n仅显示本页面相关任务 · 3 条\n\n查看工具供应与本地安装差异\nc8e5b987-fc75-4764-b6f1-1201a507dc23\n2026/10/15 15:16:28\n失败\n查看工具供应与本地安装差异\nc4bdfa63-98d1-4060-b2bb-cf03a3b53cb3\n2026/10/14 17:39:58\n失败\n查看工具供应与本地安装差异\n0230eb51-6f66-46a9-9a58-9d49d4664307\n2026/10/14 17:39:57\n失败\n前往任务与日志\n收起\n关闭"
+      },
+      "details": null,
+      "changed": {
+        "open": false,
+        "detail": false,
+        "label": "当前页任务暂无记录"
+      }
+    },
+    {
+      "route": "tasks",
+      "width": 390,
+      "observed": [
+        "6c427116-6e64-4ec1-8ee0-292f7fd6899c",
+        "3e1f6535-5271-45b2-9f71-ef78fb86e126",
+        "9202d2b0-8329-43e5-b1eb-ef60bbc2cced",
+        "1654f197-c6b3-4a43-901e-df1e0ae84023",
+        "bf19c186-d715-4ba4-87a5-b6308ebc5fcf",
+        "19ccd4fc-6288-4a17-b7ac-51e7e466bc18",
+        "ca147e06-44b8-45e6-a86a-2f31c68c43d5",
+        "c8e5b987-fc75-4764-b6f1-1201a507dc23",
+        "ac0d3b73-c63a-42b7-8c35-02694eaa05ee",
+        "caa55909-6e37-43cb-a276-e1f827b2ed8d",
+        "d5dbcfd4-960c-407e-87ec-3d4b35dcb8b3",
+        "a5e2d85f-ac40-4144-9f52-1294cc20c16d",
+        "6ec5df32-63d5-4d8f-809d-8f495937552f",
+        "8c55b37d-21c7-4aec-9ea6-cfe3d12de296",
+        "c2fda025-0d17-4f44-89e5-21056bdde326",
+        "06c9c4bc-1aa3-4139-95b4-11e82a614442",
+        "f23e980d-4c28-421c-8d8b-0b32840e017b",
+        "58f72cf7-6e6e-4860-876c-1df9d708a224",
+        "4419b1a1-a64e-4f1b-a33b-19c400a0903f",
+        "a543f777-0c30-4108-b7c9-a3cf36db9eba",
+        "7051cdf6-b8ec-448f-8f56-c890d5b1a4ea",
+        "bf6bad10-46d4-451a-a10b-b31f722dabc6",
+        "bfbf3808-e3f2-44f3-8fbd-92218d67fc42",
+        "4c293530-fd2f-4879-a8dc-ebc30e291d7e",
+        "f9a5a365-0acf-4b84-be4b-214a525d8564",
+        "eb36a0b0-bfe8-46f2-b76e-8e20372328ca",
+        "c4bdfa63-98d1-4060-b2bb-cf03a3b53cb3",
+        "0230eb51-6f66-46a9-9a58-9d49d4664307",
+        "64c5ca39-98e5-4954-ba16-7b2c589531f6",
+        "76d50cea-3a87-4dad-800a-f519618b2b1f",
+        "3498f4bd-634d-490f-9ed9-68e7fa462f93",
+        "4d0d8d60-bdd1-4272-9648-a3d60c432eed",
+        "3f4d5059-a227-4ec6-a86d-491d45eccf46",
+        "9f909ed0-c56a-4414-a888-93f15834ed03",
+        "c753b925-124b-4a1b-bfa5-e30da84957aa",
+        "57b9c329-04fa-44f9-8c1f-091337219f50",
+        "e8bc9823-8a7e-4596-9ea4-bdd08ec1e789"
+      ],
+      "expected": [
+        "6c427116-6e64-4ec1-8ee0-292f7fd6899c",
+        "3e1f6535-5271-45b2-9f71-ef78fb86e126",
+        "9202d2b0-8329-43e5-b1eb-ef60bbc2cced",
+        "1654f197-c6b3-4a43-901e-df1e0ae84023",
+        "bf19c186-d715-4ba4-87a5-b6308ebc5fcf",
+        "19ccd4fc-6288-4a17-b7ac-51e7e466bc18",
+        "ca147e06-44b8-45e6-a86a-2f31c68c43d5",
+        "c8e5b987-fc75-4764-b6f1-1201a507dc23",
+        "ac0d3b73-c63a-42b7-8c35-02694eaa05ee",
+        "caa55909-6e37-43cb-a276-e1f827b2ed8d",
+        "d5dbcfd4-960c-407e-87ec-3d4b35dcb8b3",
+        "a5e2d85f-ac40-4144-9f52-1294cc20c16d",
+        "6ec5df32-63d5-4d8f-809d-8f495937552f",
+        "8c55b37d-21c7-4aec-9ea6-cfe3d12de296",
+        "c2fda025-0d17-4f44-89e5-21056bdde326",
+        "06c9c4bc-1aa3-4139-95b4-11e82a614442",
+        "f23e980d-4c28-421c-8d8b-0b32840e017b",
+        "58f72cf7-6e6e-4860-876c-1df9d708a224",
+        "4419b1a1-a64e-4f1b-a33b-19c400a0903f",
+        "a543f777-0c30-4108-b7c9-a3cf36db9eba",
+        "7051cdf6-b8ec-448f-8f56-c890d5b1a4ea",
+        "bf6bad10-46d4-451a-a10b-b31f722dabc6",
+        "bfbf3808-e3f2-44f3-8fbd-92218d67fc42",
+        "4c293530-fd2f-4879-a8dc-ebc30e291d7e",
+        "f9a5a365-0acf-4b84-be4b-214a525d8564",
+        "eb36a0b0-bfe8-46f2-b76e-8e20372328ca",
+        "c4bdfa63-98d1-4060-b2bb-cf03a3b53cb3",
+        "0230eb51-6f66-46a9-9a58-9d49d4664307",
+        "64c5ca39-98e5-4954-ba16-7b2c589531f6",
+        "76d50cea-3a87-4dad-800a-f519618b2b1f",
+        "3498f4bd-634d-490f-9ed9-68e7fa462f93",
+        "4d0d8d60-bdd1-4272-9648-a3d60c432eed",
+        "3f4d5059-a227-4ec6-a86d-491d45eccf46",
+        "9f909ed0-c56a-4414-a888-93f15834ed03",
+        "c753b925-124b-4a1b-bfa5-e30da84957aa",
+        "57b9c329-04fa-44f9-8c1f-091337219f50",
+        "e8bc9823-8a7e-4596-9ea4-bdd08ec1e789"
+      ],
+      "matches": true,
+      "state": {
+        "route": "#/tasks",
+        "view": {
+          "width": 390,
+          "height": 844
+        },
+        "document": {
+          "width": 390,
+          "height": 844,
+          "top": 0
+        },
+        "body": {
+          "width": 390,
+          "height": 844
+        },
+        "header": {
+          "x": 0,
+          "y": 0,
+          "width": 390,
+          "height": 64,
+          "bottom": 64
+        },
+        "footer": {
+          "x": 0,
+          "y": 787,
+          "width": 390,
+          "height": 57,
+          "bottom": 844
+        },
+        "main": {
+          "rect": {
+            "x": 0,
+            "y": 64,
+            "width": 390,
+            "height": 723,
+            "bottom": 787
+          },
+          "scrollTop": 0,
+          "height": 723,
+          "contentHeight": 4651
+        },
+        "tray": {
+          "x": 0,
+          "y": 185.6875,
+          "width": 390,
+          "height": 658.3125,
+          "bottom": 844
+        },
+        "trayScroll": {
+          "top": 0,
+          "height": 496,
+          "contentHeight": 3677
+        },
+        "active": {
+          "tag": "DIV",
+          "text": "列出Android应用6c427116-6e64-4ec1-8ee0-292f7fd6899c2026/10/15 15:39:59成功发现Harmony设备3e1f6535-5271-45b2-9f",
+          "insideTray": true
+        },
+        "trayItems": [
+          {
+            "id": "6c427116-6e64-4ec1-8ee0-292f7fd6899c",
+            "text": "列出Android应用6c427116-6e64-4ec1-8ee0-292f7fd6899c"
+          },
+          {
+            "id": "3e1f6535-5271-45b2-9f71-ef78fb86e126",
+            "text": "发现Harmony设备3e1f6535-5271-45b2-9f71-ef78fb86e126"
+          },
+          {
+            "id": "9202d2b0-8329-43e5-b1eb-ef60bbc2cced",
+            "text": "发现Android设备9202d2b0-8329-43e5-b1eb-ef60bbc2cced"
+          },
+          {
+            "id": "1654f197-c6b3-4a43-901e-df1e0ae84023",
+            "text": "分页读取性能会话1654f197-c6b3-4a43-901e-df1e0ae84023"
+          },
+          {
+            "id": "bf19c186-d715-4ba4-87a5-b6308ebc5fcf",
+            "text": "查看性能采样能力bf19c186-d715-4ba4-87a5-b6308ebc5fcf"
+          },
+          {
+            "id": "19ccd4fc-6288-4a17-b7ac-51e7e466bc18",
+            "text": "分页读取性能会话19ccd4fc-6288-4a17-b7ac-51e7e466bc18"
+          },
+          {
+            "id": "ca147e06-44b8-45e6-a86a-2f31c68c43d5",
+            "text": "查看性能采样能力ca147e06-44b8-45e6-a86a-2f31c68c43d5"
+          },
+          {
+            "id": "c8e5b987-fc75-4764-b6f1-1201a507dc23",
+            "text": "查看工具供应与本地安装差异c8e5b987-fc75-4764-b6f1-1201a507dc23"
+          },
+          {
+            "id": "ac0d3b73-c63a-42b7-8c35-02694eaa05ee",
+            "text": "开始性能采样ac0d3b73-c63a-42b7-8c35-02694eaa05ee"
+          },
+          {
+            "id": "caa55909-6e37-43cb-a276-e1f827b2ed8d",
+            "text": "开始性能采样caa55909-6e37-43cb-a276-e1f827b2ed8d"
+          },
+          {
+            "id": "d5dbcfd4-960c-407e-87ec-3d4b35dcb8b3",
+            "text": "发现Harmony设备d5dbcfd4-960c-407e-87ec-3d4b35dcb8b3"
+          },
+          {
+            "id": "a5e2d85f-ac40-4144-9f52-1294cc20c16d",
+            "text": "发现Android设备a5e2d85f-ac40-4144-9f52-1294cc20c16d"
+          },
+          {
+            "id": "6ec5df32-63d5-4d8f-809d-8f495937552f",
+            "text": "发现Harmony设备6ec5df32-63d5-4d8f-809d-8f495937552f"
+          },
+          {
+            "id": "8c55b37d-21c7-4aec-9ea6-cfe3d12de296",
+            "text": "发现Android设备8c55b37d-21c7-4aec-9ea6-cfe3d12de296"
+          },
+          {
+            "id": "c2fda025-0d17-4f44-89e5-21056bdde326",
+            "text": "检查投屏运行工具c2fda025-0d17-4f44-89e5-21056bdde326"
+          },
+          {
+            "id": "06c9c4bc-1aa3-4139-95b4-11e82a614442",
+            "text": "列出Android应用06c9c4bc-1aa3-4139-95b4-11e82a614442"
+          },
+          {
+            "id": "f23e980d-4c28-421c-8d8b-0b32840e017b",
+            "text": "启动Android应用f23e980d-4c28-421c-8d8b-0b32840e017b"
+          },
+          {
+            "id": "58f72cf7-6e6e-4860-876c-1df9d708a224",
+            "text": "列出Android应用58f72cf7-6e6e-4860-876c-1df9d708a224"
+          },
+          {
+            "id": "4419b1a1-a64e-4f1b-a33b-19c400a0903f",
+            "text": "列出Android应用4419b1a1-a64e-4f1b-a33b-19c400a0903f"
+          },
+          {
+            "id": "a543f777-0c30-4108-b7c9-a3cf36db9eba",
+            "text": "列出Android应用a543f777-0c30-4108-b7c9-a3cf36db9eba"
+          },
+          {
+            "id": "7051cdf6-b8ec-448f-8f56-c890d5b1a4ea",
+            "text": "发现Android设备7051cdf6-b8ec-448f-8f56-c890d5b1a4ea"
+          },
+          {
+            "id": "bf6bad10-46d4-451a-a10b-b31f722dabc6",
+            "text": "列出配置bf6bad10-46d4-451a-a10b-b31f722dabc6"
+          },
+          {
+            "id": "bfbf3808-e3f2-44f3-8fbd-92218d67fc42",
+            "text": "列出配置bfbf3808-e3f2-44f3-8fbd-92218d67fc42"
+          },
+          {
+            "id": "4c293530-fd2f-4879-a8dc-ebc30e291d7e",
+            "text": "发现Android设备4c293530-fd2f-4879-a8dc-ebc30e291d7e"
+          },
+          {
+            "id": "f9a5a365-0acf-4b84-be4b-214a525d8564",
+            "text": "发现Harmony设备f9a5a365-0acf-4b84-be4b-214a525d8564"
+          },
+          {
+            "id": "eb36a0b0-bfe8-46f2-b76e-8e20372328ca",
+            "text": "发现Android设备eb36a0b0-bfe8-46f2-b76e-8e20372328ca"
+          },
+          {
+            "id": "c4bdfa63-98d1-4060-b2bb-cf03a3b53cb3",
+            "text": "查看工具供应与本地安装差异c4bdfa63-98d1-4060-b2bb-cf03a3b53cb3"
+          },
+          {
+            "id": "0230eb51-6f66-46a9-9a58-9d49d4664307",
+            "text": "查看工具供应与本地安装差异0230eb51-6f66-46a9-9a58-9d49d4664307"
+          },
+          {
+            "id": "64c5ca39-98e5-4954-ba16-7b2c589531f6",
+            "text": "发现Harmony设备64c5ca39-98e5-4954-ba16-7b2c589531f6"
+          },
+          {
+            "id": "76d50cea-3a87-4dad-800a-f519618b2b1f",
+            "text": "发现Android设备76d50cea-3a87-4dad-800a-f519618b2b1f"
+          },
+          {
+            "id": "3498f4bd-634d-490f-9ed9-68e7fa462f93",
+            "text": "发现Harmony设备3498f4bd-634d-490f-9ed9-68e7fa462f93"
+          },
+          {
+            "id": "4d0d8d60-bdd1-4272-9648-a3d60c432eed",
+            "text": "发现Android设备4d0d8d60-bdd1-4272-9648-a3d60c432eed"
+          },
+          {
+            "id": "3f4d5059-a227-4ec6-a86d-491d45eccf46",
+            "text": "发现Harmony设备3f4d5059-a227-4ec6-a86d-491d45eccf46"
+          },
+          {
+            "id": "9f909ed0-c56a-4414-a888-93f15834ed03",
+            "text": "发现Android设备9f909ed0-c56a-4414-a888-93f15834ed03"
+          },
+          {
+            "id": "c753b925-124b-4a1b-bfa5-e30da84957aa",
+            "text": "发现Harmony设备c753b925-124b-4a1b-bfa5-e30da84957aa"
+          },
+          {
+            "id": "57b9c329-04fa-44f9-8c1f-091337219f50",
+            "text": "发现Android设备57b9c329-04fa-44f9-8c1f-091337219f50"
+          },
+          {
+            "id": "e8bc9823-8a7e-4596-9ea4-bdd08ec1e789",
+            "text": "发现Android设备e8bc9823-8a7e-4596-9ea4-bdd08ec1e789"
+          }
+        ],
+        "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n服务器已连接\n任务\n刷新任务\n状态\n全部任务\n搜索任务\n任务记录\n37 / 37 项\nplugin.android-device.packages\n6c427116-6e64-4ec1-8ee0-292f7fd6899c\n2026/10/15 15:39:59\n成功\nplugin.harmony-device.discover\n3e1f6535-5271-45b2-9f71-ef78fb86e126\n2026/10/15 15:39:40\n失败\nplugin.android-device.discover\n9202d2b0-8329-43e5-b1eb-ef60bbc2cced\n2026/10/15 15:39:39\n成功\nandroid.performance.list\n1654f197-c6b3-4a43-901e-df1e0ae84023\n2026/10/15 15:23:07\n成功\nandroid.performance.capabilities\nbf19c186-d715-4ba4-87a5-b6308ebc5fcf\n2026/10/15 15:23:07\n成功\nandroid.performance.list\n19ccd4fc-6288-4a17-b7ac-51e7e466bc18\n2026/10/15 15:19:48\n成功\nandroid.performance.capabilities\nca147e06-44b8-45e6-a86a-2f31c68c43d5\n2026/10/15 15:19:48\n失败\nplugin.tool-supply.catalog\nc8e5b987-fc75-4764-b6f1-1201a507dc23\n2026/10/15 15:16:28\n失败\nandroid.performance.start\nac0d3b73-c63a-42b7-8c35-02694eaa05ee\n2026/10/15 15:04:44\n失败\nandroid.performance.start\ncaa55909-6e37-43cb-a276-e1f827b2ed8d\n2026/10/15 15:03:59\n失败\nplugin.harmony-device.discover\nd5dbcfd4-960c-407e-87ec-3d4b35dcb8b3\n2026/10/15 14:55:11\n失败\nplugin.android-device.discover\na5e2d85f-ac40-4144-9f52-1294cc20c16d\n2026/10/15 14:55:11\n成功\nplugin.harmony-device.discover\n6ec5df32-63d5-4d8f-809d-8f495937552f\n2026/10/15 12:30:20\n失败\nplugin.android-device.discover\n8c55b37d-21c7-4aec-9ea6-cfe3d12de296\n2026/10/15 12:30:19\n成功\nplugin.mirroring.runtime.status\nc2fda025-0d17-4f44-89e5-21056bdde326\n2026/10/15 11:58:56\n成功\nplugin.android-device.packages\n06c9c4bc-1aa3-4139-95b4-11e82a614442\n2026/10/15 11:57:32\n成功\nplugin.android-device.app.start\nf23e980d-4c28-421c-8d8b-0b32840e017b\n2026/10/15 11:54:50\n成功\nplugin.android-device.packages\n58f72cf7-6e6e-4860-876c-1df9d708a224\n2026/10/15 11:54:22\n成功\nplugin.android-device.packages\n4419b1a1-a64e-4f1b-a33b-19c400a0903f\n2026/10/15 11:49:14\n成功\nplugin.android-device.packages\na543f777-0c30-4108-b7c9-a3cf36db9eba\n2026/10/15 11:49:04\n成功\nplugin.android-device.discover\n7051cdf6-b8ec-448f-8f56-c890d5b1a4ea\n2026/10/15 11:48:57\n成功\nplugin.settings.list\nbf6bad10-46d4-451a-a10b-b31f722dabc6\n2026/10/15 11:28:34\n成功\nplugin.settings.list\nbfbf3808-e3f2-44f3-8fbd-92218d67fc42\n2026/10/15 11:28:27\n成功\nplugin.android-device.discover\n4c293530-fd2f-4879-a8dc-ebc30e291d7e\n2026/10/15 10:14:05\n失败\nplugin.harmony-device.discover\nf9a5a365-0acf-4b84-be4b-214a525d8564\n2026/10/14 17:40:33\n失败\nplugin.android-device.discover\neb36a0b0-bfe8-46f2-b76e-8e20372328ca\n2026/10/14 17:40:33\n失败\nplugin.tool-supply.catalog\nc4bdfa63-98d1-4060-b2bb-cf03a3b53cb3\n2026/10/14 17:39:58\n失败\nplugin.tool-supply.catalog\n0230eb51-6f66-46a9-9a58-9d49d4664307\n2026/10/14 17:39:57\n失败\nplugin.harmony-device.discover\n64c5ca39-98e5-4954-ba16-7b2c589531f6\n2026/10/14 17:32:27\n失败\nplugin.android-device.discover\n76d50cea-3a87-4dad-800a-f519618b2b1f\n2026/10/14 17:32:26\n失败\nplugin.harmony-device.discover\n3498f4bd-634d-490f-9ed9-68e7fa462f93\n2026/10/14 17:32:25\n失败\nplugin.android-device.discover\n4d0d8d60-bdd1-4272-9648-a3d60c432eed\n2026/10/14 17:32:25\n失败\nplugin.harmony-device.discover\n3f4d5059-a227-4ec6-a86d-491d45eccf46\n2026/10/14 17:32:06\n失败\nplugin.android-device.discover\n9f909ed0-c56a-4414-a888-93f15834ed03\n2026/10/14 17:32:05\n失败\nplugin.harmony-device.discover\nc753b925-124b-4a1b-bfa5-e30da84957aa\n2026/10/14 17:32:01\n失败\nplugin.android-device.discover\n57b9c329-04fa-44f9-8c1f-091337219f50\n2026/10/14 17:32:01\n失败\nplugin.android-device.discover\ne8bc9823-8a7e-4596-9ea4-bdd08ec1e789\n2026/10/14 17:31:58\n失败\n全部任务记录\n管理工坊扩展\n全部任务记录\n刷新\n\n全部页面的任务 · 37 条\n\n列出Android应用\n6c427116-6e64-4ec1-8ee0-292f7fd6899c\n2026/10/15 15:39:59\n成功\n发现Harmony设备\n3e1f6535-5271-45b2-9f71-ef78fb86e126\n2026/10/15 15:39:40\n失败\n发现Android设备\n9202d2b0-8329-43e5-b1eb-ef60bbc2cced\n2026/10/15 15:39:39\n成功\n分页读取性能会话\n1654f197-c6b3-4a43-901e-df1e0ae84023\n2026/10/15 15:23:07\n成功\n查看性能采样能力\nbf19c186-d715-4ba4-87a5-b6308ebc5fcf\n2026/10/15 15:23:07\n成功\n分页读取性能会话\n19ccd4fc-6288-4a17-b7ac-51e7e466bc18\n2026/10/15 15:19:48\n成功\n查看性能采样能力\nca147e06-44b8-45e6-a86a-2f31c68c43d5\n2026/10/15 15:19:48\n失败\n查看工具供应与本地安装差异\nc8e5b987-fc75-4764-b6f1-1201a507dc23\n2026/10/15 15:16:28\n失败\n开始性能采样\nac0d3b73-c63a-42b7-8c35-02694eaa05ee\n2026/10/15 15:04:44\n失败\n开始性能采样\ncaa55909-6e37-43cb-a276-e1f827b2ed8d\n2026/10/15 15:03:59\n失败\n发现Harmony设备\nd5dbcfd4-960c-407e-87ec-3d4b35dcb8b3\n2026/10/15 14:55:11\n失败\n发现Android设备\na5e2d85f-ac40-4144-9f52-1294cc20c16d\n2026/10/15 14:55:11\n成功\n发现Harmony设备\n6ec5df32-63d5-4d8f-809d-8f495937552f\n2026/10/15 12:30:20\n失败\n发现Android设备\n8c55b37d-21c7-4aec-9ea6-cfe3d12de296\n2026/10/15 12:30:19\n成功\n检查投屏运行工具\nc2fda025-0d17-4f44-89e5-21056bdde326\n2026/10/15 11:58:56\n成功\n列出Android应用\n06c9c4bc-1aa3-4139-95b4-11e82a614442\n2026/10/15 11:57:32\n成功\n启动Android应用\nf23e980d-4c28-421c-8d8b-0b32840e017b\n2026/10/15 11:54:50\n成功\n列出Android应用\n58f72cf7-6e6e-4860-876c-1df9d708a224\n2026/10/15 11:54:22\n成功\n列出Android应用\n4419b1a1-a64e-4f1b-a33b-19c400a0903f\n2026/10/15 11:49:14\n成功\n列出Android应用\na543f777-0c30-4108-b7c9-a3cf36db9eba\n2026/10/15 11:49:04\n成功\n发现Android设备\n7051cdf6-b8ec-448f-8f56-c890d5b1a4ea\n2026/10/15 11:48:57\n成功\n列出配置\nbf6bad10-46d4-451a-a10b-b31f722dabc6\n2026/10/15 11:28:34\n成功\n列出配置\nbfbf3808-e3f2-44f3-8fbd-92218d67fc42\n2026/10/15 11:28:27\n成功\n发现Android设备\n4c293530-fd2f-4879-a8dc-ebc30e291d7e\n2026/10/15 10:14:05\n失败\n发现Harmony设备\nf9a5a365-0acf-4b84-be4b-214a525d8564\n2026/10/14 17:40:33\n失败\n发现Android设备\neb36a0b0-bfe8-46f2-b76e-8e20372328ca\n2026/10/14 17:40:33\n失败\n查看工具供应与本地安装差异\nc4bdfa63-98d1-4060-b2bb-cf03a3b53cb3\n2026/10/14 17:39:58\n失败\n查看工具供应与本地安装差异\n0230eb51-6f66-46a9-9a58-9d49d4664307\n2026/10/14 17:39:57\n失败\n发现Harmony设备\n64c5ca39-98e5-4954-ba16-7b2c589531f6\n2026/10/14 17:32:27\n失败\n发现Android设备\n76d50cea-3a87-4dad-800a-f519618b2b1f\n2026/10/14 17:32:26\n失败\n发现Harmony设备\n3498f4bd-634d-490f-9ed9-68e7fa462f93\n2026/10/14 17:32:25\n失败\n发现Android设备\n4d0d8d60-bdd1-4272-9648-a3d60c432eed\n2026/10/14 17:32:25\n失败\n发现Harmony设备\n3f4d5059-a227-4ec6-a86d-491d45eccf46\n2026/10/14 17:32:06\n失败\n发现Android设备\n9f909ed0-c56a-4414-a888-93f15834ed03\n2026/10/14 17:32:05\n失败\n发现Harmony设备\nc753b925-124b-4a1b-bfa5-e30da84957aa\n2026/10/14 17:32:01\n失败\n发现Android设备\n57b9c329-04fa-44f9-8c1f-091337219f50\n2026/10/14 17:32:01\n失败\n发现Android设备\ne8bc9823-8a7e-4596-9ea4-bdd08ec1e789\n2026/10/14 17:31:58\n失败\n收起\n关闭"
+      },
+      "scrolled": {
+        "route": "#/tasks",
+        "view": {
+          "width": 390,
+          "height": 844
+        },
+        "document": {
+          "width": 390,
+          "height": 844,
+          "top": 0
+        },
+        "body": {
+          "width": 390,
+          "height": 844
+        },
+        "header": {
+          "x": 0,
+          "y": 0,
+          "width": 390,
+          "height": 64,
+          "bottom": 64
+        },
+        "footer": {
+          "x": 0,
+          "y": 787,
+          "width": 390,
+          "height": 57,
+          "bottom": 844
+        },
+        "main": {
+          "rect": {
+            "x": 0,
+            "y": 64,
+            "width": 390,
+            "height": 723,
+            "bottom": 787
+          },
+          "scrollTop": 0,
+          "height": 723,
+          "contentHeight": 4651
+        },
+        "tray": {
+          "x": 0,
+          "y": 185.6875,
+          "width": 390,
+          "height": 658.3125,
+          "bottom": 844
+        },
+        "trayScroll": {
+          "top": 3181,
+          "height": 496,
+          "contentHeight": 3677
+        },
+        "active": {
+          "tag": "DIV",
+          "text": "列出Android应用6c427116-6e64-4ec1-8ee0-292f7fd6899c2026/10/15 15:39:59成功发现Harmony设备3e1f6535-5271-45b2-9f",
+          "insideTray": true
+        },
+        "trayItems": [
+          {
+            "id": "6c427116-6e64-4ec1-8ee0-292f7fd6899c",
+            "text": "列出Android应用6c427116-6e64-4ec1-8ee0-292f7fd6899c"
+          },
+          {
+            "id": "3e1f6535-5271-45b2-9f71-ef78fb86e126",
+            "text": "发现Harmony设备3e1f6535-5271-45b2-9f71-ef78fb86e126"
+          },
+          {
+            "id": "9202d2b0-8329-43e5-b1eb-ef60bbc2cced",
+            "text": "发现Android设备9202d2b0-8329-43e5-b1eb-ef60bbc2cced"
+          },
+          {
+            "id": "1654f197-c6b3-4a43-901e-df1e0ae84023",
+            "text": "分页读取性能会话1654f197-c6b3-4a43-901e-df1e0ae84023"
+          },
+          {
+            "id": "bf19c186-d715-4ba4-87a5-b6308ebc5fcf",
+            "text": "查看性能采样能力bf19c186-d715-4ba4-87a5-b6308ebc5fcf"
+          },
+          {
+            "id": "19ccd4fc-6288-4a17-b7ac-51e7e466bc18",
+            "text": "分页读取性能会话19ccd4fc-6288-4a17-b7ac-51e7e466bc18"
+          },
+          {
+            "id": "ca147e06-44b8-45e6-a86a-2f31c68c43d5",
+            "text": "查看性能采样能力ca147e06-44b8-45e6-a86a-2f31c68c43d5"
+          },
+          {
+            "id": "c8e5b987-fc75-4764-b6f1-1201a507dc23",
+            "text": "查看工具供应与本地安装差异c8e5b987-fc75-4764-b6f1-1201a507dc23"
+          },
+          {
+            "id": "ac0d3b73-c63a-42b7-8c35-02694eaa05ee",
+            "text": "开始性能采样ac0d3b73-c63a-42b7-8c35-02694eaa05ee"
+          },
+          {
+            "id": "caa55909-6e37-43cb-a276-e1f827b2ed8d",
+            "text": "开始性能采样caa55909-6e37-43cb-a276-e1f827b2ed8d"
+          },
+          {
+            "id": "d5dbcfd4-960c-407e-87ec-3d4b35dcb8b3",
+            "text": "发现Harmony设备d5dbcfd4-960c-407e-87ec-3d4b35dcb8b3"
+          },
+          {
+            "id": "a5e2d85f-ac40-4144-9f52-1294cc20c16d",
+            "text": "发现Android设备a5e2d85f-ac40-4144-9f52-1294cc20c16d"
+          },
+          {
+            "id": "6ec5df32-63d5-4d8f-809d-8f495937552f",
+            "text": "发现Harmony设备6ec5df32-63d5-4d8f-809d-8f495937552f"
+          },
+          {
+            "id": "8c55b37d-21c7-4aec-9ea6-cfe3d12de296",
+            "text": "发现Android设备8c55b37d-21c7-4aec-9ea6-cfe3d12de296"
+          },
+          {
+            "id": "c2fda025-0d17-4f44-89e5-21056bdde326",
+            "text": "检查投屏运行工具c2fda025-0d17-4f44-89e5-21056bdde326"
+          },
+          {
+            "id": "06c9c4bc-1aa3-4139-95b4-11e82a614442",
+            "text": "列出Android应用06c9c4bc-1aa3-4139-95b4-11e82a614442"
+          },
+          {
+            "id": "f23e980d-4c28-421c-8d8b-0b32840e017b",
+            "text": "启动Android应用f23e980d-4c28-421c-8d8b-0b32840e017b"
+          },
+          {
+            "id": "58f72cf7-6e6e-4860-876c-1df9d708a224",
+            "text": "列出Android应用58f72cf7-6e6e-4860-876c-1df9d708a224"
+          },
+          {
+            "id": "4419b1a1-a64e-4f1b-a33b-19c400a0903f",
+            "text": "列出Android应用4419b1a1-a64e-4f1b-a33b-19c400a0903f"
+          },
+          {
+            "id": "a543f777-0c30-4108-b7c9-a3cf36db9eba",
+            "text": "列出Android应用a543f777-0c30-4108-b7c9-a3cf36db9eba"
+          },
+          {
+            "id": "7051cdf6-b8ec-448f-8f56-c890d5b1a4ea",
+            "text": "发现Android设备7051cdf6-b8ec-448f-8f56-c890d5b1a4ea"
+          },
+          {
+            "id": "bf6bad10-46d4-451a-a10b-b31f722dabc6",
+            "text": "列出配置bf6bad10-46d4-451a-a10b-b31f722dabc6"
+          },
+          {
+            "id": "bfbf3808-e3f2-44f3-8fbd-92218d67fc42",
+            "text": "列出配置bfbf3808-e3f2-44f3-8fbd-92218d67fc42"
+          },
+          {
+            "id": "4c293530-fd2f-4879-a8dc-ebc30e291d7e",
+            "text": "发现Android设备4c293530-fd2f-4879-a8dc-ebc30e291d7e"
+          },
+          {
+            "id": "f9a5a365-0acf-4b84-be4b-214a525d8564",
+            "text": "发现Harmony设备f9a5a365-0acf-4b84-be4b-214a525d8564"
+          },
+          {
+            "id": "eb36a0b0-bfe8-46f2-b76e-8e20372328ca",
+            "text": "发现Android设备eb36a0b0-bfe8-46f2-b76e-8e20372328ca"
+          },
+          {
+            "id": "c4bdfa63-98d1-4060-b2bb-cf03a3b53cb3",
+            "text": "查看工具供应与本地安装差异c4bdfa63-98d1-4060-b2bb-cf03a3b53cb3"
+          },
+          {
+            "id": "0230eb51-6f66-46a9-9a58-9d49d4664307",
+            "text": "查看工具供应与本地安装差异0230eb51-6f66-46a9-9a58-9d49d4664307"
+          },
+          {
+            "id": "64c5ca39-98e5-4954-ba16-7b2c589531f6",
+            "text": "发现Harmony设备64c5ca39-98e5-4954-ba16-7b2c589531f6"
+          },
+          {
+            "id": "76d50cea-3a87-4dad-800a-f519618b2b1f",
+            "text": "发现Android设备76d50cea-3a87-4dad-800a-f519618b2b1f"
+          },
+          {
+            "id": "3498f4bd-634d-490f-9ed9-68e7fa462f93",
+            "text": "发现Harmony设备3498f4bd-634d-490f-9ed9-68e7fa462f93"
+          },
+          {
+            "id": "4d0d8d60-bdd1-4272-9648-a3d60c432eed",
+            "text": "发现Android设备4d0d8d60-bdd1-4272-9648-a3d60c432eed"
+          },
+          {
+            "id": "3f4d5059-a227-4ec6-a86d-491d45eccf46",
+            "text": "发现Harmony设备3f4d5059-a227-4ec6-a86d-491d45eccf46"
+          },
+          {
+            "id": "9f909ed0-c56a-4414-a888-93f15834ed03",
+            "text": "发现Android设备9f909ed0-c56a-4414-a888-93f15834ed03"
+          },
+          {
+            "id": "c753b925-124b-4a1b-bfa5-e30da84957aa",
+            "text": "发现Harmony设备c753b925-124b-4a1b-bfa5-e30da84957aa"
+          },
+          {
+            "id": "57b9c329-04fa-44f9-8c1f-091337219f50",
+            "text": "发现Android设备57b9c329-04fa-44f9-8c1f-091337219f50"
+          },
+          {
+            "id": "e8bc9823-8a7e-4596-9ea4-bdd08ec1e789",
+            "text": "发现Android设备e8bc9823-8a7e-4596-9ea4-bdd08ec1e789"
+          }
+        ],
+        "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n服务器已连接\n任务\n刷新任务\n状态\n全部任务\n搜索任务\n任务记录\n37 / 37 项\nplugin.android-device.packages\n6c427116-6e64-4ec1-8ee0-292f7fd6899c\n2026/10/15 15:39:59\n成功\nplugin.harmony-device.discover\n3e1f6535-5271-45b2-9f71-ef78fb86e126\n2026/10/15 15:39:40\n失败\nplugin.android-device.discover\n9202d2b0-8329-43e5-b1eb-ef60bbc2cced\n2026/10/15 15:39:39\n成功\nandroid.performance.list\n1654f197-c6b3-4a43-901e-df1e0ae84023\n2026/10/15 15:23:07\n成功\nandroid.performance.capabilities\nbf19c186-d715-4ba4-87a5-b6308ebc5fcf\n2026/10/15 15:23:07\n成功\nandroid.performance.list\n19ccd4fc-6288-4a17-b7ac-51e7e466bc18\n2026/10/15 15:19:48\n成功\nandroid.performance.capabilities\nca147e06-44b8-45e6-a86a-2f31c68c43d5\n2026/10/15 15:19:48\n失败\nplugin.tool-supply.catalog\nc8e5b987-fc75-4764-b6f1-1201a507dc23\n2026/10/15 15:16:28\n失败\nandroid.performance.start\nac0d3b73-c63a-42b7-8c35-02694eaa05ee\n2026/10/15 15:04:44\n失败\nandroid.performance.start\ncaa55909-6e37-43cb-a276-e1f827b2ed8d\n2026/10/15 15:03:59\n失败\nplugin.harmony-device.discover\nd5dbcfd4-960c-407e-87ec-3d4b35dcb8b3\n2026/10/15 14:55:11\n失败\nplugin.android-device.discover\na5e2d85f-ac40-4144-9f52-1294cc20c16d\n2026/10/15 14:55:11\n成功\nplugin.harmony-device.discover\n6ec5df32-63d5-4d8f-809d-8f495937552f\n2026/10/15 12:30:20\n失败\nplugin.android-device.discover\n8c55b37d-21c7-4aec-9ea6-cfe3d12de296\n2026/10/15 12:30:19\n成功\nplugin.mirroring.runtime.status\nc2fda025-0d17-4f44-89e5-21056bdde326\n2026/10/15 11:58:56\n成功\nplugin.android-device.packages\n06c9c4bc-1aa3-4139-95b4-11e82a614442\n2026/10/15 11:57:32\n成功\nplugin.android-device.app.start\nf23e980d-4c28-421c-8d8b-0b32840e017b\n2026/10/15 11:54:50\n成功\nplugin.android-device.packages\n58f72cf7-6e6e-4860-876c-1df9d708a224\n2026/10/15 11:54:22\n成功\nplugin.android-device.packages\n4419b1a1-a64e-4f1b-a33b-19c400a0903f\n2026/10/15 11:49:14\n成功\nplugin.android-device.packages\na543f777-0c30-4108-b7c9-a3cf36db9eba\n2026/10/15 11:49:04\n成功\nplugin.android-device.discover\n7051cdf6-b8ec-448f-8f56-c890d5b1a4ea\n2026/10/15 11:48:57\n成功\nplugin.settings.list\nbf6bad10-46d4-451a-a10b-b31f722dabc6\n2026/10/15 11:28:34\n成功\nplugin.settings.list\nbfbf3808-e3f2-44f3-8fbd-92218d67fc42\n2026/10/15 11:28:27\n成功\nplugin.android-device.discover\n4c293530-fd2f-4879-a8dc-ebc30e291d7e\n2026/10/15 10:14:05\n失败\nplugin.harmony-device.discover\nf9a5a365-0acf-4b84-be4b-214a525d8564\n2026/10/14 17:40:33\n失败\nplugin.android-device.discover\neb36a0b0-bfe8-46f2-b76e-8e20372328ca\n2026/10/14 17:40:33\n失败\nplugin.tool-supply.catalog\nc4bdfa63-98d1-4060-b2bb-cf03a3b53cb3\n2026/10/14 17:39:58\n失败\nplugin.tool-supply.catalog\n0230eb51-6f66-46a9-9a58-9d49d4664307\n2026/10/14 17:39:57\n失败\nplugin.harmony-device.discover\n64c5ca39-98e5-4954-ba16-7b2c589531f6\n2026/10/14 17:32:27\n失败\nplugin.android-device.discover\n76d50cea-3a87-4dad-800a-f519618b2b1f\n2026/10/14 17:32:26\n失败\nplugin.harmony-device.discover\n3498f4bd-634d-490f-9ed9-68e7fa462f93\n2026/10/14 17:32:25\n失败\nplugin.android-device.discover\n4d0d8d60-bdd1-4272-9648-a3d60c432eed\n2026/10/14 17:32:25\n失败\nplugin.harmony-device.discover\n3f4d5059-a227-4ec6-a86d-491d45eccf46\n2026/10/14 17:32:06\n失败\nplugin.android-device.discover\n9f909ed0-c56a-4414-a888-93f15834ed03\n2026/10/14 17:32:05\n失败\nplugin.harmony-device.discover\nc753b925-124b-4a1b-bfa5-e30da84957aa\n2026/10/14 17:32:01\n失败\nplugin.android-device.discover\n57b9c329-04fa-44f9-8c1f-091337219f50\n2026/10/14 17:32:01\n失败\nplugin.android-device.discover\ne8bc9823-8a7e-4596-9ea4-bdd08ec1e789\n2026/10/14 17:31:58\n失败\n全部任务记录\n管理工坊扩展\n全部任务记录\n刷新\n\n全部页面的任务 · 37 条\n\n列出Android应用\n6c427116-6e64-4ec1-8ee0-292f7fd6899c\n2026/10/15 15:39:59\n成功\n发现Harmony设备\n3e1f6535-5271-45b2-9f71-ef78fb86e126\n2026/10/15 15:39:40\n失败\n发现Android设备\n9202d2b0-8329-43e5-b1eb-ef60bbc2cced\n2026/10/15 15:39:39\n成功\n分页读取性能会话\n1654f197-c6b3-4a43-901e-df1e0ae84023\n2026/10/15 15:23:07\n成功\n查看性能采样能力\nbf19c186-d715-4ba4-87a5-b6308ebc5fcf\n2026/10/15 15:23:07\n成功\n分页读取性能会话\n19ccd4fc-6288-4a17-b7ac-51e7e466bc18\n2026/10/15 15:19:48\n成功\n查看性能采样能力\nca147e06-44b8-45e6-a86a-2f31c68c43d5\n2026/10/15 15:19:48\n失败\n查看工具供应与本地安装差异\nc8e5b987-fc75-4764-b6f1-1201a507dc23\n2026/10/15 15:16:28\n失败\n开始性能采样\nac0d3b73-c63a-42b7-8c35-02694eaa05ee\n2026/10/15 15:04:44\n失败\n开始性能采样\ncaa55909-6e37-43cb-a276-e1f827b2ed8d\n2026/10/15 15:03:59\n失败\n发现Harmony设备\nd5dbcfd4-960c-407e-87ec-3d4b35dcb8b3\n2026/10/15 14:55:11\n失败\n发现Android设备\na5e2d85f-ac40-4144-9f52-1294cc20c16d\n2026/10/15 14:55:11\n成功\n发现Harmony设备\n6ec5df32-63d5-4d8f-809d-8f495937552f\n2026/10/15 12:30:20\n失败\n发现Android设备\n8c55b37d-21c7-4aec-9ea6-cfe3d12de296\n2026/10/15 12:30:19\n成功\n检查投屏运行工具\nc2fda025-0d17-4f44-89e5-21056bdde326\n2026/10/15 11:58:56\n成功\n列出Android应用\n06c9c4bc-1aa3-4139-95b4-11e82a614442\n2026/10/15 11:57:32\n成功\n启动Android应用\nf23e980d-4c28-421c-8d8b-0b32840e017b\n2026/10/15 11:54:50\n成功\n列出Android应用\n58f72cf7-6e6e-4860-876c-1df9d708a224\n2026/10/15 11:54:22\n成功\n列出Android应用\n4419b1a1-a64e-4f1b-a33b-19c400a0903f\n2026/10/15 11:49:14\n成功\n列出Android应用\na543f777-0c30-4108-b7c9-a3cf36db9eba\n2026/10/15 11:49:04\n成功\n发现Android设备\n7051cdf6-b8ec-448f-8f56-c890d5b1a4ea\n2026/10/15 11:48:57\n成功\n列出配置\nbf6bad10-46d4-451a-a10b-b31f722dabc6\n2026/10/15 11:28:34\n成功\n列出配置\nbfbf3808-e3f2-44f3-8fbd-92218d67fc42\n2026/10/15 11:28:27\n成功\n发现Android设备\n4c293530-fd2f-4879-a8dc-ebc30e291d7e\n2026/10/15 10:14:05\n失败\n发现Harmony设备\nf9a5a365-0acf-4b84-be4b-214a525d8564\n2026/10/14 17:40:33\n失败\n发现Android设备\neb36a0b0-bfe8-46f2-b76e-8e20372328ca\n2026/10/14 17:40:33\n失败\n查看工具供应与本地安装差异\nc4bdfa63-98d1-4060-b2bb-cf03a3b53cb3\n2026/10/14 17:39:58\n失败\n查看工具供应与本地安装差异\n0230eb51-6f66-46a9-9a58-9d49d4664307\n2026/10/14 17:39:57\n失败\n发现Harmony设备\n64c5ca39-98e5-4954-ba16-7b2c589531f6\n2026/10/14 17:32:27\n失败\n发现Android设备\n76d50cea-3a87-4dad-800a-f519618b2b1f\n2026/10/14 17:32:26\n失败\n发现Harmony设备\n3498f4bd-634d-490f-9ed9-68e7fa462f93\n2026/10/14 17:32:25\n失败\n发现Android设备\n4d0d8d60-bdd1-4272-9648-a3d60c432eed\n2026/10/14 17:32:25\n失败\n发现Harmony设备\n3f4d5059-a227-4ec6-a86d-491d45eccf46\n2026/10/14 17:32:06\n失败\n发现Android设备\n9f909ed0-c56a-4414-a888-93f15834ed03\n2026/10/14 17:32:05\n失败\n发现Harmony设备\nc753b925-124b-4a1b-bfa5-e30da84957aa\n2026/10/14 17:32:01\n失败\n发现Android设备\n57b9c329-04fa-44f9-8c1f-091337219f50\n2026/10/14 17:32:01\n失败\n发现Android设备\ne8bc9823-8a7e-4596-9ea4-bdd08ec1e789\n2026/10/14 17:31:58\n失败\n收起\n关闭"
+      },
+      "details": {
+        "count": 1,
+        "text": "复制任务 ID\n\n日志 ID：0771b354-1cae-4ce8-a3ef-712d13e2e514\n\n任务事件 · 3\n提交内容\n查看完整结果"
+      },
+      "changed": {
+        "open": false,
+        "detail": false,
+        "label": "当前页任务暂无记录"
+      }
+    }
+  ],
+  "motion": {
+    "prefers": true,
+    "trayAnimation": "none",
+    "trayDuration": "1e-05s",
+    "overlayAnimation": "none"
+  },
+  "totalJobs": 37
+}

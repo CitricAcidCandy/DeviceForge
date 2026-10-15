@@ -17,6 +17,7 @@ import type { JobGateway } from '../../shared/jobs/index.ts';
 import type { RuntimeOptions } from '../runtime.ts';
 import { createFrontendRuntime } from '../runtime.ts';
 import { createMediaDisplay } from './media-display.ts';
+import { createHttpWebRtcMirroring } from '../../features/mirroring-streaming/index.ts';
 import { createPluginDefaults } from '../../features/plugin-defaults/index.ts';
 import { createMessageController } from '../../components/Message/index.ts';
 
@@ -42,6 +43,7 @@ export function createProductServices(
     signal: runtime.host.signal,
   });
   const client = createApiClient(options);
+  const webRtcMirroring = createHttpWebRtcMirroring(client);
   const gateway: JobGateway = {
     submit: (operation, input, signal) => runtime.tasks.submit({ operation, input }, signal),
     getJob: runtime.tasks.get,
@@ -70,6 +72,7 @@ export function createProductServices(
     messages,
     client,
     mediaDisplay,
+    webRtcMirroring,
     connection: options.connection ?? null,
     packageAnalysis,
     frida,
@@ -101,7 +104,9 @@ export function createProductServices(
         artifactBrowser.dispose();
         mirroring.dispose();
         aiStreaming.dispose();
-        const results = await Promise.allSettled([runtime.dispose(), mediaDisplay.dispose()]);
+        const results = await Promise.allSettled([
+          webRtcMirroring.dispose(), runtime.dispose(), mediaDisplay.dispose(),
+        ]);
         const errors = results.flatMap((result) =>
           result.status === 'rejected' ? [result.reason] : [],
         );

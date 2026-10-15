@@ -1,0 +1,524 @@
+[
+  {
+    "width": 1440,
+    "height": 900,
+    "route": "devices",
+    "state": {
+      "route": "#/devices",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "document": {
+        "width": 1440,
+        "height": 900,
+        "top": 0
+      },
+      "mainScroll": 0,
+      "elements": [
+        {
+          "selector": ".workshop-scene",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "width": 1440,
+            "height": 900,
+            "bottom": 900
+          },
+          "background": "rgb(230, 220, 199) url(\"http://127.0.0.1:5173/src/app/product/assets/workshop-background.png\") no-repeat scroll 50% 0% / cover padding-box border-box",
+          "backgroundColor": "rgb(230, 220, 199)",
+          "backgroundImage": "url(\"http://127.0.0.1:5173/src/app/product/assets/workshop-background.png\")",
+          "opacity": "1",
+          "backdropFilter": "none",
+          "overflow": "visible",
+          "text": ""
+        },
+        {
+          "selector": ".product-shell",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "width": 1440,
+            "height": 900,
+            "bottom": 900
+          },
+          "background": "rgba(0, 0, 0, 0) none repeat scroll 0% 0% / auto padding-box border-box",
+          "backgroundColor": "rgba(0, 0, 0, 0)",
+          "backgroundImage": "none",
+          "opacity": "1",
+          "backdropFilter": "none",
+          "overflow": "hidden",
+          "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n设备工坊\n工作台\n设备\n2026年10月15日星期四\n16:06\nAsia/Shanghai\n服务器已连接\n专注\n工作台\n设备\n应用与包\n文件与产物\n画面与录制\n深度调试\n性能与调用栈\nFrida\n自动化\n终端\n扩展创作\nAI"
+        },
+        {
+          "selector": ".workspace-sidebar",
+          "rect": {
+            "x": 0,
+            "y": 76,
+            "width": 240,
+            "height": 766,
+            "bottom": 842
+          },
+          "background": "color(srgb 0.972549 0.956863 0.905882 / 0.9) none repeat scroll 0% 0% / auto padding-box border-box",
+          "backgroundColor": "color(srgb 0.972549 0.956863 0.905882 / 0.9)",
+          "backgroundImage": "none",
+          "opacity": "1",
+          "backdropFilter": "blur(8px)",
+          "overflow": "visible",
+          "text": "工作台\n设备\n应用与包\n文件与产物\n画面与录制\n深度调试\n性能与调用栈\nFrida\n自动化\n终端\n扩展创作\nAI 助手\n数据分析\n工坊\n插件\n任务与日志\n工具供应\n设置"
+        },
+        null,
+        {
+          "selector": ".workspace-main",
+          "rect": {
+            "x": 240,
+            "y": 76,
+            "width": 1200,
+            "height": 766,
+            "bottom": 842
+          },
+          "background": "rgba(0, 0, 0, 0) none repeat scroll 0% 0% / auto padding-box border-box",
+          "backgroundColor": "rgba(0, 0, 0, 0)",
+          "backgroundImage": "none",
+          "opacity": "1",
+          "backdropFilter": "none",
+          "overflow": "hidden",
+          "text": "设备目录\n1\n连接设备\n设备来源\n全部提供者\n22081212UG\n在线\nandroid · 387ec760\n设备提供者 · 2\n选择工作设备\n\n从目录选择设备，查看可用操作。"
+        },
+        {
+          "selector": ".workspace-content",
+          "rect": {
+            "x": 240,
+            "y": 76,
+            "width": 1200,
+            "height": 766,
+            "bottom": 842
+          },
+          "background": "rgba(0, 0, 0, 0) none repeat scroll 0% 0% / auto padding-box border-box",
+          "backgroundColor": "rgba(0, 0, 0, 0)",
+          "backgroundImage": "none",
+          "opacity": "1",
+          "backdropFilter": "none",
+          "overflow": "hidden",
+          "text": "设备目录\n1\n连接设备\n设备来源\n全部提供者\n22081212UG\n在线\nandroid · 387ec760\n设备提供者 · 2\n选择工作设备\n\n从目录选择设备，查看可用操作。"
+        },
+        {
+          "selector": ".workplane",
+          "rect": {
+            "x": 240,
+            "y": 76,
+            "width": 1200,
+            "height": 766,
+            "bottom": 842
+          },
+          "background": "color(srgb 0.972549 0.956863 0.905882 / 0.98) none repeat scroll 0% 0% / auto padding-box border-box",
+          "backgroundColor": "color(srgb 0.972549 0.956863 0.905882 / 0.98)",
+          "backgroundImage": "none",
+          "opacity": "1",
+          "backdropFilter": "none",
+          "overflow": "auto",
+          "text": "设备目录\n1\n连接设备\n设备来源\n全部提供者\n22081212UG\n在线\nandroid · 387ec760\n设备提供者 · 2\n选择工作设备\n\n从目录选择设备，查看可用操作。"
+        },
+        {
+          "selector": ".workspace-taskbar",
+          "rect": {
+            "x": 0,
+            "y": 842,
+            "width": 1440,
+            "height": 58,
+            "bottom": 900
+          },
+          "background": "color(srgb 0.972549 0.956863 0.905882 / 0.9) none repeat scroll 0% 0% / auto padding-box border-box",
+          "backgroundColor": "color(srgb 0.972549 0.956863 0.905882 / 0.9)",
+          "backgroundImage": "none",
+          "opacity": "1",
+          "backdropFilter": "none",
+          "overflow": "visible",
+          "text": "当前页任务\n列出Android应用 · 成功"
+        },
+        {
+          "selector": ".workspace-topbar",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "width": 1440,
+            "height": 76,
+            "bottom": 76
+          },
+          "background": "color(srgb 0.972549 0.956863 0.905882 / 0.9) none repeat scroll 0% 0% / auto padding-box border-box",
+          "backgroundColor": "color(srgb 0.972549 0.956863 0.905882 / 0.9)",
+          "backgroundImage": "none",
+          "opacity": "1",
+          "backdropFilter": "blur(8px)",
+          "overflow": "visible",
+          "text": "F\n·\nDeviceForge\n设备工坊\n设备工坊\n工作台\n设备\n2026年10月15日星期四\n16:06\nAsia/Shanghai\n服务器已连接\n专注"
+        }
+      ],
+      "images": [],
+      "links": [
+        {
+          "text": "",
+          "label": "折叠侧边导航",
+          "rect": {
+            "x": 264,
+            "y": 19.5,
+            "width": 36,
+            "height": 36,
+            "top": 19.5,
+            "right": 300,
+            "bottom": 55.5,
+            "left": 264
+          }
+        }
+      ]
+    }
+  },
+  {
+    "width": 1440,
+    "height": 900,
+    "route": "settings",
+    "state": {
+      "route": "#/settings",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "document": {
+        "width": 1440,
+        "height": 900,
+        "top": 0
+      },
+      "mainScroll": 0,
+      "elements": [
+        {
+          "selector": ".workshop-scene",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "width": 1440,
+            "height": 900,
+            "bottom": 900
+          },
+          "background": "rgb(230, 220, 199) url(\"http://127.0.0.1:5173/src/app/product/assets/workshop-background.png\") no-repeat scroll 50% 0% / cover padding-box border-box",
+          "backgroundColor": "rgb(230, 220, 199)",
+          "backgroundImage": "url(\"http://127.0.0.1:5173/src/app/product/assets/workshop-background.png\")",
+          "opacity": "1",
+          "backdropFilter": "none",
+          "overflow": "visible",
+          "text": ""
+        },
+        {
+          "selector": ".product-shell",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "width": 1440,
+            "height": 900,
+            "bottom": 900
+          },
+          "background": "rgba(0, 0, 0, 0) none repeat scroll 0% 0% / auto padding-box border-box",
+          "backgroundColor": "rgba(0, 0, 0, 0)",
+          "backgroundImage": "none",
+          "opacity": "1",
+          "backdropFilter": "none",
+          "overflow": "hidden",
+          "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n设备工坊\n工坊\n设置\n2026年10月15日星期四\n16:06\nAsia/Shanghai\n服务器已连接\n专注\n工作台\n设备\n应用与包\n文件与产物\n画面与录制\n深度调试\n性能与调用栈\nFrida\n自动化\n终端\n扩展创作\nAI "
+        },
+        {
+          "selector": ".workspace-sidebar",
+          "rect": {
+            "x": 0,
+            "y": 76,
+            "width": 240,
+            "height": 766,
+            "bottom": 842
+          },
+          "background": "color(srgb 0.972549 0.956863 0.905882 / 0.9) none repeat scroll 0% 0% / auto padding-box border-box",
+          "backgroundColor": "color(srgb 0.972549 0.956863 0.905882 / 0.9)",
+          "backgroundImage": "none",
+          "opacity": "1",
+          "backdropFilter": "blur(8px)",
+          "overflow": "visible",
+          "text": "工作台\n设备\n应用与包\n文件与产物\n画面与录制\n深度调试\n性能与调用栈\nFrida\n自动化\n终端\n扩展创作\nAI 助手\n数据分析\n工坊\n插件\n任务与日志\n工具供应\n设置"
+        },
+        null,
+        {
+          "selector": ".workspace-main",
+          "rect": {
+            "x": 240,
+            "y": 76,
+            "width": 1200,
+            "height": 766,
+            "bottom": 842
+          },
+          "background": "rgba(0, 0, 0, 0) none repeat scroll 0% 0% / auto padding-box border-box",
+          "backgroundColor": "rgba(0, 0, 0, 0)",
+          "backgroundImage": "none",
+          "opacity": "1",
+          "backdropFilter": "none",
+          "overflow": "hidden",
+          "text": "设置\n主题与显示\n工作空间主题\n工坊默认主题\n服务连接\n服务地址\n测试并应用\n可选令牌\n显示\n仅用于当前会话，留空免鉴权\n\n应用后将结束当前工作会话。\n\n连接说明\n工具配置\n配置归属\n用户配置\n归属 ID\n读取配置\n配置区\n读取此区\n配置内容 · JSON\n写入使用已读取的修订；"
+        },
+        {
+          "selector": ".workspace-content",
+          "rect": {
+            "x": 240,
+            "y": 76,
+            "width": 1200,
+            "height": 766,
+            "bottom": 842
+          },
+          "background": "rgba(0, 0, 0, 0) none repeat scroll 0% 0% / auto padding-box border-box",
+          "backgroundColor": "rgba(0, 0, 0, 0)",
+          "backgroundImage": "none",
+          "opacity": "1",
+          "backdropFilter": "none",
+          "overflow": "hidden",
+          "text": "设置\n主题与显示\n工作空间主题\n工坊默认主题\n服务连接\n服务地址\n测试并应用\n可选令牌\n显示\n仅用于当前会话，留空免鉴权\n\n应用后将结束当前工作会话。\n\n连接说明\n工具配置\n配置归属\n用户配置\n归属 ID\n读取配置\n配置区\n读取此区\n配置内容 · JSON\n写入使用已读取的修订；"
+        },
+        {
+          "selector": ".workplane",
+          "rect": {
+            "x": 240,
+            "y": 76,
+            "width": 1200,
+            "height": 766,
+            "bottom": 842
+          },
+          "background": "color(srgb 0.972549 0.956863 0.905882 / 0.98) none repeat scroll 0% 0% / auto padding-box border-box",
+          "backgroundColor": "color(srgb 0.972549 0.956863 0.905882 / 0.98)",
+          "backgroundImage": "none",
+          "opacity": "1",
+          "backdropFilter": "none",
+          "overflow": "auto",
+          "text": "设置\n主题与显示\n工作空间主题\n工坊默认主题\n服务连接\n服务地址\n测试并应用\n可选令牌\n显示\n仅用于当前会话，留空免鉴权\n\n应用后将结束当前工作会话。\n\n连接说明\n工具配置\n配置归属\n用户配置\n归属 ID\n读取配置\n配置区\n读取此区\n配置内容 · JSON\n写入使用已读取的修订；"
+        },
+        {
+          "selector": ".workspace-taskbar",
+          "rect": {
+            "x": 0,
+            "y": 842,
+            "width": 1440,
+            "height": 58,
+            "bottom": 900
+          },
+          "background": "color(srgb 0.972549 0.956863 0.905882 / 0.9) none repeat scroll 0% 0% / auto padding-box border-box",
+          "backgroundColor": "color(srgb 0.972549 0.956863 0.905882 / 0.9)",
+          "backgroundImage": "none",
+          "opacity": "1",
+          "backdropFilter": "none",
+          "overflow": "visible",
+          "text": "当前页任务\n列出配置 · 成功"
+        },
+        {
+          "selector": ".workspace-topbar",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "width": 1440,
+            "height": 76,
+            "bottom": 76
+          },
+          "background": "color(srgb 0.972549 0.956863 0.905882 / 0.9) none repeat scroll 0% 0% / auto padding-box border-box",
+          "backgroundColor": "color(srgb 0.972549 0.956863 0.905882 / 0.9)",
+          "backgroundImage": "none",
+          "opacity": "1",
+          "backdropFilter": "blur(8px)",
+          "overflow": "visible",
+          "text": "F\n·\nDeviceForge\n设备工坊\n设备工坊\n工坊\n设置\n2026年10月15日星期四\n16:06\nAsia/Shanghai\n服务器已连接\n专注"
+        }
+      ],
+      "images": [],
+      "links": [
+        {
+          "text": "",
+          "label": "折叠侧边导航",
+          "rect": {
+            "x": 264,
+            "y": 19.5,
+            "width": 36,
+            "height": 36,
+            "top": 19.5,
+            "right": 300,
+            "bottom": 55.5,
+            "left": 264
+          }
+        }
+      ]
+    }
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "route": "settings",
+    "state": {
+      "route": "#/settings",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "document": {
+        "width": 390,
+        "height": 844,
+        "top": 0
+      },
+      "mainScroll": 0,
+      "elements": [
+        {
+          "selector": ".workshop-scene",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "width": 390,
+            "height": 844,
+            "bottom": 844
+          },
+          "background": "rgb(230, 220, 199) url(\"http://127.0.0.1:5173/src/app/product/assets/workshop-background.png\") no-repeat scroll 50% 0% / cover padding-box border-box",
+          "backgroundColor": "rgb(230, 220, 199)",
+          "backgroundImage": "url(\"http://127.0.0.1:5173/src/app/product/assets/workshop-background.png\")",
+          "opacity": "1",
+          "backdropFilter": "none",
+          "overflow": "visible",
+          "text": ""
+        },
+        {
+          "selector": ".product-shell",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "width": 390,
+            "height": 844,
+            "bottom": 844
+          },
+          "background": "rgba(0, 0, 0, 0) none repeat scroll 0% 0% / auto padding-box border-box",
+          "backgroundColor": "rgba(0, 0, 0, 0)",
+          "backgroundImage": "none",
+          "opacity": "1",
+          "backdropFilter": "none",
+          "overflow": "hidden",
+          "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n服务器已连接\n设置\n主题与显示\n工作空间主题\n工坊默认主题\n服务连接\n服务地址\n测试并应用\n可选令牌\n显示\n仅用于当前会话，留空免鉴权\n\n应用后将结束当前工作会话。\n\n连接说明\n工具配置\n配置归属\n用户配置\n归属 ID\n读取配"
+        },
+        {
+          "selector": ".workspace-sidebar",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "width": 0,
+            "height": 0,
+            "bottom": 0
+          },
+          "background": "color(srgb 0.972549 0.956863 0.905882 / 0.9) none repeat scroll 0% 0% / auto padding-box border-box",
+          "backgroundColor": "color(srgb 0.972549 0.956863 0.905882 / 0.9)",
+          "backgroundImage": "none",
+          "opacity": "1",
+          "backdropFilter": "blur(8px)",
+          "overflow": "visible",
+          "text": "工作台设备应用与包文件与产物画面与录制深度调试性能与调用栈Frida自动化终端扩展创作AI 助手数据分析工坊插件任务与日志工具供应设置"
+        },
+        null,
+        {
+          "selector": ".workspace-main",
+          "rect": {
+            "x": 0,
+            "y": 64,
+            "width": 390,
+            "height": 722,
+            "bottom": 786
+          },
+          "background": "rgba(0, 0, 0, 0) none repeat scroll 0% 0% / auto padding-box border-box",
+          "backgroundColor": "rgba(0, 0, 0, 0)",
+          "backgroundImage": "none",
+          "opacity": "1",
+          "backdropFilter": "none",
+          "overflow": "hidden",
+          "text": "设置\n主题与显示\n工作空间主题\n工坊默认主题\n服务连接\n服务地址\n测试并应用\n可选令牌\n显示\n仅用于当前会话，留空免鉴权\n\n应用后将结束当前工作会话。\n\n连接说明\n工具配置\n配置归属\n用户配置\n归属 ID\n读取配置\n配置区\n读取此区\n配置内容 · JSON\n写入使用已读取的修订；"
+        },
+        {
+          "selector": ".workspace-content",
+          "rect": {
+            "x": 0,
+            "y": 64,
+            "width": 390,
+            "height": 722,
+            "bottom": 786
+          },
+          "background": "rgba(0, 0, 0, 0) none repeat scroll 0% 0% / auto padding-box border-box",
+          "backgroundColor": "rgba(0, 0, 0, 0)",
+          "backgroundImage": "none",
+          "opacity": "1",
+          "backdropFilter": "none",
+          "overflow": "hidden",
+          "text": "设置\n主题与显示\n工作空间主题\n工坊默认主题\n服务连接\n服务地址\n测试并应用\n可选令牌\n显示\n仅用于当前会话，留空免鉴权\n\n应用后将结束当前工作会话。\n\n连接说明\n工具配置\n配置归属\n用户配置\n归属 ID\n读取配置\n配置区\n读取此区\n配置内容 · JSON\n写入使用已读取的修订；"
+        },
+        {
+          "selector": ".workplane",
+          "rect": {
+            "x": 0,
+            "y": 64,
+            "width": 390,
+            "height": 722,
+            "bottom": 786
+          },
+          "background": "color(srgb 0.972549 0.956863 0.905882 / 0.98) none repeat scroll 0% 0% / auto padding-box border-box",
+          "backgroundColor": "color(srgb 0.972549 0.956863 0.905882 / 0.98)",
+          "backgroundImage": "none",
+          "opacity": "1",
+          "backdropFilter": "none",
+          "overflow": "auto",
+          "text": "设置\n主题与显示\n工作空间主题\n工坊默认主题\n服务连接\n服务地址\n测试并应用\n可选令牌\n显示\n仅用于当前会话，留空免鉴权\n\n应用后将结束当前工作会话。\n\n连接说明\n工具配置\n配置归属\n用户配置\n归属 ID\n读取配置\n配置区\n读取此区\n配置内容 · JSON\n写入使用已读取的修订；"
+        },
+        {
+          "selector": ".workspace-taskbar",
+          "rect": {
+            "x": 0,
+            "y": 786,
+            "width": 390,
+            "height": 58,
+            "bottom": 844
+          },
+          "background": "color(srgb 0.972549 0.956863 0.905882 / 0.9) none repeat scroll 0% 0% / auto padding-box border-box",
+          "backgroundColor": "color(srgb 0.972549 0.956863 0.905882 / 0.9)",
+          "backgroundImage": "none",
+          "opacity": "1",
+          "backdropFilter": "none",
+          "overflow": "visible",
+          "text": "当前页任务"
+        },
+        {
+          "selector": ".workspace-topbar",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "width": 390,
+            "height": 64,
+            "bottom": 64
+          },
+          "background": "color(srgb 0.972549 0.956863 0.905882 / 0.9) none repeat scroll 0% 0% / auto padding-box border-box",
+          "backgroundColor": "color(srgb 0.972549 0.956863 0.905882 / 0.9)",
+          "backgroundImage": "none",
+          "opacity": "1",
+          "backdropFilter": "blur(8px)",
+          "overflow": "visible",
+          "text": "F\n·\nDeviceForge\n设备工坊\n服务器已连接"
+        }
+      ],
+      "images": [],
+      "links": [
+        {
+          "text": "",
+          "label": "折叠侧边导航",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "width": 0,
+            "height": 0,
+            "top": 0,
+            "right": 0,
+            "bottom": 0,
+            "left": 0
+          }
+        }
+      ]
+    }
+  }
+]

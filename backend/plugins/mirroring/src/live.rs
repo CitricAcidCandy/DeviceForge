@@ -3,6 +3,7 @@ mod control;
 mod device;
 mod lifecycle;
 mod model;
+mod webrtc;
 mod wire;
 use apk_plugin_sdk::session::SessionOpen;
 use deviceforge_plugin_runtime::{
@@ -17,6 +18,7 @@ pub async fn execute(
     input: SessionInput,
     output: SessionOutput,
 ) -> Execution {
+    let webrtc = open.operation == "open_webrtc";
     let result = async {
         context.check().map_err(|error| error.to_string())?;
         validate_access(&open)?;
@@ -31,6 +33,9 @@ pub async fn execute(
     }
     .await;
     match result {
+        Ok((parameters, config)) if webrtc => {
+            webrtc::run(parameters, config, context, input, output).await
+        }
         Ok((parameters, config)) => {
             lifecycle::run(parameters, config, context, input, output).await
         }
@@ -39,7 +44,7 @@ pub async fn execute(
 }
 fn validate_access(open: &SessionOpen) -> Result<(), String> {
     // 宿主可为共用录像权限提供空输入和输出目录；直播只传媒体，不使用产物目录。
-    if open.operation != "open"
+    if !matches!(open.operation.as_str(), "open" | "open_webrtc")
         || open
             .artifacts
             .as_ref()

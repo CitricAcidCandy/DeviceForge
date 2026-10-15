@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { JobDto } from '../../services/api/index.ts';
 import type { ProductServices } from './services.ts';
 
+export const PAGE_TASK_LIMIT = 200;
+
 export function usePageTasks(services: ProductServices, expanded: boolean) {
   const [jobs, setJobs] = useState<readonly JobDto[]>([]);
   const [pending, setPending] = useState(false);
@@ -14,14 +16,14 @@ export function usePageTasks(services: ProductServices, expanded: boolean) {
     active.current = controller;
     setPending(true);
     try {
-      const response = await services.runtime.tasks.list({ limit: 500 }, controller.signal);
+      const response = await services.runtime.tasks.list({ limit: PAGE_TASK_LIMIT }, controller.signal);
       if (!controller.signal.aborted) {
         setJobs(response.data);
         setLoaded(true);
         setError(null);
       }
     } catch (failure) {
-      if (!controller.signal.aborted) setError(failure);
+      if (!controller.signal.aborted) setError((current: unknown) => current ?? failure);
     } finally {
       if (active.current === controller) {
         active.current = null;

@@ -20,25 +20,28 @@
   padding: 28px clamp(24px, 3.5vw, 56px) 40px;
   border: 0;
   border-radius: 0;
-  background: var(--card);
+  background: var(--workspace-surface);
+  backdrop-filter: blur(4px);
   box-shadow: none;
 }
 .workplane > [data-route] { min-width: 0; max-width: 1600px; margin-inline: auto; }
 .workspace-taskbar {
-  min-height: 40px;
+  grid-column: 1 / -1;
+  grid-row: 3;
+  min-height: var(--workspace-footer-height);
   margin: 0;
   padding: 4px 24px;
   border: 0;
   border-top: 1px solid var(--border);
   border-radius: 0;
-  background: var(--card);
+  background: var(--workspace-chrome-surface);
   font-size: 12px;
 }
 .workspace-taskbar [data-slot='button'] { min-height: 30px; height: 30px; font-size: 12px; }
 .product-shell.is-focused .workspace-content { grid-template-columns: minmax(0, 1fr); }
 .product-shell.is-focused .navigation-desktop-trigger { display: none; }
 .product-shell.reduce-motion, .product-shell.reduce-motion .workspace-sidebar { transition: none; }
-.product-shell[data-route='devices'] .workplane { padding: 0; background: var(--card); }
+.product-shell[data-route='devices'] .workplane { padding: 0; background: var(--workspace-surface); }
 @media (max-width: 767px) {
   .workplane { min-height: 0; padding: 20px 16px 32px; }
   .workspace-content { padding: 0; }
@@ -47,22 +50,20 @@
 }
 
 /* 头部横贯整页；品牌与操作共用同一背景和下缘。 */
-.sidebar-footer { min-height: 58px; padding: 9px 12px; border-top: 1px solid var(--border); }
-.sidebar-collapse { width: 100%; min-height: 38px; justify-content: flex-start; gap: 12px; color: var(--muted-foreground); }
-.sidebar-collapse svg { width: 18px; height: 18px; }
-.product-shell[data-navigation-collapsed='true'] .sidebar-footer { padding-inline: 12px; }
-.product-shell[data-navigation-collapsed='true'] .sidebar-collapse { justify-content: center; padding-inline: 0; }
 .product-shell[data-navigation-collapsed='true'] .tool-navigation { padding-inline: 8px; }
 .product-shell[data-navigation-collapsed='true'] .tool-link { padding-inline: 10px; }
 
 .product-shell {
   --workspace-sidebar-width: 240px;
   --workspace-header-height: 76px;
+  --workspace-footer-height: 58px;
+  --workspace-surface: color-mix(in srgb, var(--card) 80%, transparent);
+  --workspace-chrome-surface: color-mix(in srgb, var(--card) 90%, transparent);
   height: 100%;
   min-height: 0;
   overflow: hidden;
   grid-template-columns: var(--workspace-sidebar-width) minmax(0, 1fr);
-  grid-template-rows: var(--workspace-header-height) minmax(0, 1fr);
+  grid-template-rows: var(--workspace-header-height) minmax(0, 1fr) auto;
 }
 .product-shell[data-navigation-collapsed='true'] { --workspace-sidebar-width: 68px; }
 .workspace-topbar.global-bar {
@@ -80,8 +81,8 @@
   gap: 0;
   border: 0;
   border-bottom: 1px solid var(--border);
-  background: color-mix(in srgb, var(--card) 96%, transparent);
-  backdrop-filter: blur(18px);
+  background: var(--workspace-chrome-surface);
+  backdrop-filter: blur(8px);
 }
 .header-brand {
   display: flex;
@@ -112,13 +113,15 @@
   top: 0;
   height: 100%;
   min-height: 0;
+  background: var(--workspace-chrome-surface);
+  backdrop-filter: blur(8px);
 }
 .workspace-main {
   grid-column: 2;
   grid-row: 2;
   min-height: 0;
   display: grid;
-  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-rows: minmax(0, 1fr);
   overflow: hidden;
 }
 

@@ -3,6 +3,8 @@ import type { MirroringStreamSink } from '../../features/mirroring-streaming/ind
 
 export function createMediaDisplay() {
   let canvas: HTMLCanvasElement | null = null;
+  let video: HTMLVideoElement | null = null;
+  let remoteStream: MediaStream | null = null;
   let decoder: MirroringStreamSink | null = null;
   let audio: AudioContext | null = null;
   let closed = false;
@@ -24,6 +26,11 @@ export function createMediaDisplay() {
   return {
     sink,
     stop() {
+      if (video) {
+        video.pause();
+        video.srcObject = null;
+      }
+      remoteStream = null;
       sink.dispose?.();
       canvas = null;
       const previous = audio;
@@ -33,6 +40,32 @@ export function createMediaDisplay() {
     },
     bind(target: HTMLCanvasElement | null) {
       canvas = target;
+    },
+    bindVideo(target: HTMLVideoElement | null) {
+      if (video === target) return;
+      if (video && video !== target) video.srcObject = null;
+      video = target;
+      if (video) video.srcObject = remoteStream;
+    },
+    async playWebRtc(stream: MediaStream | null, withAudio: boolean) {
+      if (closed) throw new Error('媒体显示实例已关闭');
+      remoteStream = stream;
+      if (!video) return;
+      video.muted = !withAudio;
+      for (const track of stream?.getAudioTracks() ?? []) track.enabled = withAudio;
+      if (video.srcObject !== stream) video.srcObject = stream;
+      if (stream) {
+        try {
+          await video.play();
+          failure = null;
+        }
+        catch (error) { failure = error; throw error; }
+      }
+    },
+    videoSize() {
+      return video && video.videoWidth > 0 && video.videoHeight > 0
+        ? { width: video.videoWidth, height: video.videoHeight }
+        : null;
     },
     error: () => failure,
     async prepare(withAudio: boolean) {
@@ -72,6 +105,12 @@ export function createMediaDisplay() {
     async dispose() {
       if (closed) return;
       closed = true;
+      if (video) {
+        video.pause();
+        video.srcObject = null;
+      }
+      video = null;
+      remoteStream = null;
       sink.dispose?.();
       canvas = null;
       const previous = audio;

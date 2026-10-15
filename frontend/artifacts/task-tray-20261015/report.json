@@ -1,0 +1,3161 @@
+[
+  {
+    "route": "settings",
+    "width": 1440,
+    "height": 900,
+    "before": {
+      "route": "#/settings",
+      "view": {
+        "width": 1440,
+        "height": 900
+      },
+      "document": {
+        "width": 1440,
+        "height": 900,
+        "top": 0
+      },
+      "body": {
+        "width": 1440,
+        "height": 900
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 1440,
+        "height": 76,
+        "bottom": 76
+      },
+      "footer": {
+        "x": 240,
+        "y": 859,
+        "width": 1200,
+        "height": 41,
+        "bottom": 900
+      },
+      "main": {
+        "rect": {
+          "x": 240,
+          "y": 76,
+          "width": 1200,
+          "height": 783,
+          "bottom": 859
+        },
+        "scrollTop": 0,
+        "height": 783,
+        "contentHeight": 1304
+      },
+      "tray": null,
+      "trayScroll": null,
+      "active": {
+        "tag": "BODY",
+        "text": "\n    跳到工作区F·DeviceForge设备工坊设备工坊工坊设置2026年10月15日星期四15:43Asia/Shanghai正在连接专注工作台设备应用与包文件与产物画面与录制深度调试性能与调",
+        "insideTray": false
+      },
+      "trayItems": [],
+      "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n设备工坊\n工坊\n设置\n2026年10月15日星期四\n15:43\nAsia/Shanghai\n正在连接\n专注\n工作台\n设备\n应用与包\n文件与产物\n画面与录制\n深度调试\n性能与调用栈\nFrida\n自动化\n终端\n扩展创作\nAI 助手\n数据分析\n工坊\n插件\n任务与日志\n工具供应\n设置\n折叠导航\n设置\n主题与显示\n工作空间主题\n工坊默认主题\n服务连接\n服务地址\n测试并应用\n可选令牌\n显示\n仅用于当前会话，留空免鉴权\n\n应用后将结束当前工作会话。\n\n连接说明\n工具配置\n\n正在核对能力\n\n配置归属\n用户配置\n归属 ID\n读取配置\n配置区\n读取此区\n配置内容 · JSON\n写入使用已读取的修订；出现冲突时重新读取，不会自动覆盖。\n保存此区\nMCP 连接与工具目录\n导入与远端配置\n当前页任务\n正在读取…\n管理工坊扩展"
+    },
+    "after": {
+      "route": "#/settings",
+      "view": {
+        "width": 1440,
+        "height": 900
+      },
+      "document": {
+        "width": 1440,
+        "height": 900,
+        "top": 0
+      },
+      "body": {
+        "width": 1440,
+        "height": 900
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 1440,
+        "height": 76,
+        "bottom": 76
+      },
+      "footer": {
+        "x": 240,
+        "y": 859,
+        "width": 1200,
+        "height": 41,
+        "bottom": 900
+      },
+      "main": {
+        "rect": {
+          "x": 240,
+          "y": 76,
+          "width": 1200,
+          "height": 783,
+          "bottom": 859
+        },
+        "scrollTop": 499,
+        "height": 783,
+        "contentHeight": 1282
+      },
+      "tray": null,
+      "trayScroll": null,
+      "active": {
+        "tag": "BODY",
+        "text": "\n    跳到工作区F·DeviceForge设备工坊设备工坊工坊设置2026年10月15日星期四15:43Asia/Shanghai服务器已连接专注工作台设备应用与包文件与产物画面与录制深度调试性能",
+        "insideTray": false
+      },
+      "trayItems": [],
+      "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n设备工坊\n工坊\n设置\n2026年10月15日星期四\n15:43\nAsia/Shanghai\n服务器已连接\n专注\n工作台\n设备\n应用与包\n文件与产物\n画面与录制\n深度调试\n性能与调用栈\nFrida\n自动化\n终端\n扩展创作\nAI 助手\n数据分析\n工坊\n插件\n任务与日志\n工具供应\n设置\n折叠导航\n设置\n主题与显示\n工作空间主题\n工坊默认主题\n服务连接\n服务地址\n测试并应用\n可选令牌\n显示\n仅用于当前会话，留空免鉴权\n\n应用后将结束当前工作会话。\n\n连接说明\n工具配置\n配置归属\n用户配置\n归属 ID\n读取配置\n配置区\n读取此区\n配置内容 · JSON\n写入使用已读取的修订；出现冲突时重新读取，不会自动覆盖。\n保存此区\nMCP 连接与工具目录\n导入与远端配置\n当前页任务\n列出配置 · 成功\n管理工坊扩展"
+    },
+    "opened": {
+      "route": "#/settings",
+      "view": {
+        "width": 1440,
+        "height": 900
+      },
+      "document": {
+        "width": 1440,
+        "height": 900,
+        "top": 0
+      },
+      "body": {
+        "width": 1440,
+        "height": 900
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 1440,
+        "height": 76,
+        "bottom": 76
+      },
+      "footer": {
+        "x": 240,
+        "y": 859,
+        "width": 1200,
+        "height": 41,
+        "bottom": 900
+      },
+      "main": {
+        "rect": {
+          "x": 240,
+          "y": 76,
+          "width": 1200,
+          "height": 783,
+          "bottom": 859
+        },
+        "scrollTop": 499,
+        "height": 783,
+        "contentHeight": 1282
+      },
+      "tray": {
+        "x": 0,
+        "y": 359.5220947265625,
+        "width": 1440,
+        "height": 560,
+        "bottom": 919.5220947265625
+      },
+      "trayScroll": {
+        "top": 0,
+        "height": 418,
+        "contentHeight": 418
+      },
+      "active": {
+        "tag": "DIV",
+        "text": "列出配置bf6bad10-46d4-451a-a10b-b31f722dabc62026/10/15 11:28:34成功列出配置bfbf3808-e3f2-44f3-8fbd-92218d67fc4",
+        "insideTray": true
+      },
+      "trayItems": [
+        {
+          "id": "bf6bad10-46d4-451a-a10b-b31f722dabc6",
+          "text": "列出配置bf6bad10-46d4-451a-a10b-b31f722dabc6"
+        },
+        {
+          "id": "bfbf3808-e3f2-44f3-8fbd-92218d67fc42",
+          "text": "列出配置bfbf3808-e3f2-44f3-8fbd-92218d67fc42"
+        }
+      ],
+      "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n设备工坊\n工坊\n设置\n2026年10月15日星期四\n15:43\nAsia/Shanghai\n服务器已连接\n专注\n工作台\n设备\n应用与包\n文件与产物\n画面与录制\n深度调试\n性能与调用栈\nFrida\n自动化\n终端\n扩展创作\nAI 助手\n数据分析\n工坊\n插件\n任务与日志\n工具供应\n设置\n折叠导航\n设置\n主题与显示\n工作空间主题\n工坊默认主题\n服务连接\n服务地址\n测试并应用\n可选令牌\n显示\n仅用于当前会话，留空免鉴权\n\n应用后将结束当前工作会话。\n\n连接说明\n工具配置\n配置归属\n用户配置\n归属 ID\n读取配置\n配置区\n读取此区\n配置内容 · JSON\n写入使用已读取的修订；出现冲突时重新读取，不会自动覆盖。\n保存此区\nMCP 连接与工具目录\n导入与远端配置\n当前页任务\n列出配置 · 成功\n管理工坊扩展\n设置 · 任务记录\n刷新\n\n仅显示本页面相关任务 · 2 条\n\n列出配置\nbf6bad10-46d4-451a-a10b-b31f722dabc6\n2026/10/15 11:28:34\n成功\n列出配置\nbfbf3808-e3f2-44f3-8fbd-92218d67fc42\n2026/10/15 11:28:27\n成功\n前往任务与日志\n收起\n关闭"
+    },
+    "trayScrolled": {
+      "route": "#/settings",
+      "view": {
+        "width": 1440,
+        "height": 900
+      },
+      "document": {
+        "width": 1440,
+        "height": 900,
+        "top": 0
+      },
+      "body": {
+        "width": 1440,
+        "height": 900
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 1440,
+        "height": 76,
+        "bottom": 76
+      },
+      "footer": {
+        "x": 240,
+        "y": 859,
+        "width": 1200,
+        "height": 41,
+        "bottom": 900
+      },
+      "main": {
+        "rect": {
+          "x": 240,
+          "y": 76,
+          "width": 1200,
+          "height": 783,
+          "bottom": 859
+        },
+        "scrollTop": 499,
+        "height": 783,
+        "contentHeight": 1282
+      },
+      "tray": {
+        "x": 0,
+        "y": 340,
+        "width": 1440,
+        "height": 560,
+        "bottom": 900
+      },
+      "trayScroll": {
+        "top": 0,
+        "height": 418,
+        "contentHeight": 418
+      },
+      "active": {
+        "tag": "DIV",
+        "text": "列出配置bf6bad10-46d4-451a-a10b-b31f722dabc62026/10/15 11:28:34成功列出配置bfbf3808-e3f2-44f3-8fbd-92218d67fc4",
+        "insideTray": true
+      },
+      "trayItems": [
+        {
+          "id": "bf6bad10-46d4-451a-a10b-b31f722dabc6",
+          "text": "列出配置bf6bad10-46d4-451a-a10b-b31f722dabc6"
+        },
+        {
+          "id": "bfbf3808-e3f2-44f3-8fbd-92218d67fc42",
+          "text": "列出配置bfbf3808-e3f2-44f3-8fbd-92218d67fc42"
+        }
+      ],
+      "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n设备工坊\n工坊\n设置\n2026年10月15日星期四\n15:43\nAsia/Shanghai\n服务器已连接\n专注\n工作台\n设备\n应用与包\n文件与产物\n画面与录制\n深度调试\n性能与调用栈\nFrida\n自动化\n终端\n扩展创作\nAI 助手\n数据分析\n工坊\n插件\n任务与日志\n工具供应\n设置\n折叠导航\n设置\n主题与显示\n工作空间主题\n工坊默认主题\n服务连接\n服务地址\n测试并应用\n可选令牌\n显示\n仅用于当前会话，留空免鉴权\n\n应用后将结束当前工作会话。\n\n连接说明\n工具配置\n配置归属\n用户配置\n归属 ID\n读取配置\n配置区\n读取此区\n配置内容 · JSON\n写入使用已读取的修订；出现冲突时重新读取，不会自动覆盖。\n保存此区\nMCP 连接与工具目录\n导入与远端配置\n当前页任务\n列出配置 · 成功\n管理工坊扩展\n设置 · 任务记录\n刷新\n\n仅显示本页面相关任务 · 2 条\n\n列出配置\nbf6bad10-46d4-451a-a10b-b31f722dabc6\n2026/10/15 11:28:34\n成功\n列出配置\nbfbf3808-e3f2-44f3-8fbd-92218d67fc42\n2026/10/15 11:28:27\n成功\n前往任务与日志\n收起\n关闭"
+    },
+    "tabFocus": {
+      "route": "#/settings",
+      "view": {
+        "width": 1440,
+        "height": 900
+      },
+      "document": {
+        "width": 1440,
+        "height": 900,
+        "top": 0
+      },
+      "body": {
+        "width": 1440,
+        "height": 900
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 1440,
+        "height": 76,
+        "bottom": 76
+      },
+      "footer": {
+        "x": 240,
+        "y": 859,
+        "width": 1200,
+        "height": 41,
+        "bottom": 900
+      },
+      "main": {
+        "rect": {
+          "x": 240,
+          "y": 76,
+          "width": 1200,
+          "height": 783,
+          "bottom": 859
+        },
+        "scrollTop": 499,
+        "height": 783,
+        "contentHeight": 1282
+      },
+      "tray": {
+        "x": 0,
+        "y": 340,
+        "width": 1440,
+        "height": 560,
+        "bottom": 900
+      },
+      "trayScroll": {
+        "top": 0,
+        "height": 418,
+        "contentHeight": 418
+      },
+      "active": {
+        "tag": "BUTTON",
+        "text": "列出配置bf6bad10-46d4-451a-a10b-b31f722dabc62026/10/15 11:28:34成功",
+        "insideTray": true
+      },
+      "trayItems": [
+        {
+          "id": "bf6bad10-46d4-451a-a10b-b31f722dabc6",
+          "text": "列出配置bf6bad10-46d4-451a-a10b-b31f722dabc6"
+        },
+        {
+          "id": "bfbf3808-e3f2-44f3-8fbd-92218d67fc42",
+          "text": "列出配置bfbf3808-e3f2-44f3-8fbd-92218d67fc42"
+        }
+      ],
+      "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n设备工坊\n工坊\n设置\n2026年10月15日星期四\n15:43\nAsia/Shanghai\n服务器已连接\n专注\n工作台\n设备\n应用与包\n文件与产物\n画面与录制\n深度调试\n性能与调用栈\nFrida\n自动化\n终端\n扩展创作\nAI 助手\n数据分析\n工坊\n插件\n任务与日志\n工具供应\n设置\n折叠导航\n设置\n主题与显示\n工作空间主题\n工坊默认主题\n服务连接\n服务地址\n测试并应用\n可选令牌\n显示\n仅用于当前会话，留空免鉴权\n\n应用后将结束当前工作会话。\n\n连接说明\n工具配置\n配置归属\n用户配置\n归属 ID\n读取配置\n配置区\n读取此区\n配置内容 · JSON\n写入使用已读取的修订；出现冲突时重新读取，不会自动覆盖。\n保存此区\nMCP 连接与工具目录\n导入与远端配置\n当前页任务\n列出配置 · 成功\n管理工坊扩展\n设置 · 任务记录\n刷新\n\n仅显示本页面相关任务 · 2 条\n\n列出配置\nbf6bad10-46d4-451a-a10b-b31f722dabc6\n2026/10/15 11:28:34\n成功\n列出配置\nbfbf3808-e3f2-44f3-8fbd-92218d67fc42\n2026/10/15 11:28:27\n成功\n前往任务与日志\n收起\n关闭"
+    },
+    "closed": {
+      "route": "#/settings",
+      "view": {
+        "width": 1440,
+        "height": 900
+      },
+      "document": {
+        "width": 1440,
+        "height": 900,
+        "top": 0
+      },
+      "body": {
+        "width": 1440,
+        "height": 900
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 1440,
+        "height": 76,
+        "bottom": 76
+      },
+      "footer": {
+        "x": 240,
+        "y": 859,
+        "width": 1200,
+        "height": 41,
+        "bottom": 900
+      },
+      "main": {
+        "rect": {
+          "x": 240,
+          "y": 76,
+          "width": 1200,
+          "height": 783,
+          "bottom": 859
+        },
+        "scrollTop": 499,
+        "height": 783,
+        "contentHeight": 1282
+      },
+      "tray": null,
+      "trayScroll": null,
+      "active": {
+        "tag": "BUTTON",
+        "text": "当前页任务列出配置 · 成功",
+        "insideTray": false
+      },
+      "trayItems": [],
+      "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n设备工坊\n工坊\n设置\n2026年10月15日星期四\n15:43\nAsia/Shanghai\n服务器已连接\n专注\n工作台\n设备\n应用与包\n文件与产物\n画面与录制\n深度调试\n性能与调用栈\nFrida\n自动化\n终端\n扩展创作\nAI 助手\n数据分析\n工坊\n插件\n任务与日志\n工具供应\n设置\n折叠导航\n设置\n主题与显示\n工作空间主题\n工坊默认主题\n服务连接\n服务地址\n测试并应用\n可选令牌\n显示\n仅用于当前会话，留空免鉴权\n\n应用后将结束当前工作会话。\n\n连接说明\n工具配置\n配置归属\n用户配置\n归属 ID\n读取配置\n配置区\n读取此区\n配置内容 · JSON\n写入使用已读取的修订；出现冲突时重新读取，不会自动覆盖。\n保存此区\nMCP 连接与工具目录\n导入与远端配置\n当前页任务\n列出配置 · 成功\n管理工坊扩展"
+    },
+    "restored": true
+  },
+  {
+    "route": "plugins",
+    "width": 1440,
+    "height": 900,
+    "before": {
+      "route": "#/plugins",
+      "view": {
+        "width": 1440,
+        "height": 900
+      },
+      "document": {
+        "width": 1440,
+        "height": 900,
+        "top": 0
+      },
+      "body": {
+        "width": 1440,
+        "height": 900
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 1440,
+        "height": 76,
+        "bottom": 76
+      },
+      "footer": {
+        "x": 240,
+        "y": 859,
+        "width": 1200,
+        "height": 41,
+        "bottom": 900
+      },
+      "main": {
+        "rect": {
+          "x": 240,
+          "y": 76,
+          "width": 1200,
+          "height": 783,
+          "bottom": 859
+        },
+        "scrollTop": 0,
+        "height": 783,
+        "contentHeight": 783
+      },
+      "tray": null,
+      "trayScroll": null,
+      "active": {
+        "tag": "BODY",
+        "text": "\n    跳到工作区F·DeviceForge设备工坊设备工坊工坊插件2026年10月15日星期四15:43Asia/Shanghai服务器已连接专注工作台设备应用与包文件与产物画面与录制深度调试性能",
+        "insideTray": false
+      },
+      "trayItems": [],
+      "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n设备工坊\n工坊\n插件\n2026年10月15日星期四\n15:43\nAsia/Shanghai\n服务器已连接\n专注\n工作台\n设备\n应用与包\n文件与产物\n画面与录制\n深度调试\n性能与调用栈\nFrida\n自动化\n终端\n扩展创作\nAI 助手\n数据分析\n工坊\n插件\n任务与日志\n工具供应\n设置\n折叠导航\n插件\n刷新目录\n安装插件\n部署到\n服务器插件\n插件包 · ZIP / TGZ\n提交插件包\n\n部署后需启用。插件按可信代码运行。\n\n启动核对\n13 项通过\n服务器插件\n浏览器插件\n还没有部署插件包\n\n选择 ZIP 或 TGZ 插件包提交，再按需启用。\n\n插件主题\n服务器运行目录 · 13 项\n扩展入口 · 0 项\n当前页任务\n暂无记录\n管理工坊扩展"
+    },
+    "after": {
+      "route": "#/plugins",
+      "view": {
+        "width": 1440,
+        "height": 900
+      },
+      "document": {
+        "width": 1440,
+        "height": 900,
+        "top": 0
+      },
+      "body": {
+        "width": 1440,
+        "height": 900
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 1440,
+        "height": 76,
+        "bottom": 76
+      },
+      "footer": {
+        "x": 240,
+        "y": 859,
+        "width": 1200,
+        "height": 41,
+        "bottom": 900
+      },
+      "main": {
+        "rect": {
+          "x": 240,
+          "y": 76,
+          "width": 1200,
+          "height": 783,
+          "bottom": 859
+        },
+        "scrollTop": 0,
+        "height": 783,
+        "contentHeight": 783
+      },
+      "tray": null,
+      "trayScroll": null,
+      "active": {
+        "tag": "BODY",
+        "text": "\n    跳到工作区F·DeviceForge设备工坊设备工坊工坊插件2026年10月15日星期四15:43Asia/Shanghai服务器已连接专注工作台设备应用与包文件与产物画面与录制深度调试性能",
+        "insideTray": false
+      },
+      "trayItems": [],
+      "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n设备工坊\n工坊\n插件\n2026年10月15日星期四\n15:43\nAsia/Shanghai\n服务器已连接\n专注\n工作台\n设备\n应用与包\n文件与产物\n画面与录制\n深度调试\n性能与调用栈\nFrida\n自动化\n终端\n扩展创作\nAI 助手\n数据分析\n工坊\n插件\n任务与日志\n工具供应\n设置\n折叠导航\n插件\n刷新目录\n安装插件\n部署到\n服务器插件\n插件包 · ZIP / TGZ\n提交插件包\n\n部署后需启用。插件按可信代码运行。\n\n启动核对\n13 项通过\n服务器插件\n浏览器插件\n还没有部署插件包\n\n选择 ZIP 或 TGZ 插件包提交，再按需启用。\n\n插件主题\n服务器运行目录 · 13 项\n扩展入口 · 0 项\n当前页任务\n暂无记录\n管理工坊扩展"
+    },
+    "opened": {
+      "route": "#/plugins",
+      "view": {
+        "width": 1440,
+        "height": 900
+      },
+      "document": {
+        "width": 1440,
+        "height": 900,
+        "top": 0
+      },
+      "body": {
+        "width": 1440,
+        "height": 900
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 1440,
+        "height": 76,
+        "bottom": 76
+      },
+      "footer": {
+        "x": 240,
+        "y": 859,
+        "width": 1200,
+        "height": 41,
+        "bottom": 900
+      },
+      "main": {
+        "rect": {
+          "x": 240,
+          "y": 76,
+          "width": 1200,
+          "height": 783,
+          "bottom": 859
+        },
+        "scrollTop": 0,
+        "height": 783,
+        "contentHeight": 783
+      },
+      "tray": {
+        "x": 0,
+        "y": 366.36090087890625,
+        "width": 1440,
+        "height": 560,
+        "bottom": 926.3609008789062
+      },
+      "trayScroll": {
+        "top": 0,
+        "height": 418,
+        "contentHeight": 418
+      },
+      "active": {
+        "tag": "DIV",
+        "text": "当前没有相关任务此页面的任务会显示在这里。",
+        "insideTray": true
+      },
+      "trayItems": [],
+      "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n设备工坊\n工坊\n插件\n2026年10月15日星期四\n15:43\nAsia/Shanghai\n服务器已连接\n专注\n工作台\n设备\n应用与包\n文件与产物\n画面与录制\n深度调试\n性能与调用栈\nFrida\n自动化\n终端\n扩展创作\nAI 助手\n数据分析\n工坊\n插件\n任务与日志\n工具供应\n设置\n折叠导航\n插件\n刷新目录\n安装插件\n部署到\n服务器插件\n插件包 · ZIP / TGZ\n提交插件包\n\n部署后需启用。插件按可信代码运行。\n\n启动核对\n13 项通过\n服务器插件\n浏览器插件\n还没有部署插件包\n\n选择 ZIP 或 TGZ 插件包提交，再按需启用。\n\n插件主题\n服务器运行目录 · 13 项\n扩展入口 · 0 项\n当前页任务\n暂无记录\n管理工坊扩展\n插件 · 任务记录\n刷新\n\n仅显示本页面相关任务 · 0 条\n\n当前没有相关任务\n\n此页面的任务会显示在这里。\n\n前往任务与日志\n收起\n关闭"
+    },
+    "trayScrolled": {
+      "route": "#/plugins",
+      "view": {
+        "width": 1440,
+        "height": 900
+      },
+      "document": {
+        "width": 1440,
+        "height": 900,
+        "top": 0
+      },
+      "body": {
+        "width": 1440,
+        "height": 900
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 1440,
+        "height": 76,
+        "bottom": 76
+      },
+      "footer": {
+        "x": 240,
+        "y": 859,
+        "width": 1200,
+        "height": 41,
+        "bottom": 900
+      },
+      "main": {
+        "rect": {
+          "x": 240,
+          "y": 76,
+          "width": 1200,
+          "height": 783,
+          "bottom": 859
+        },
+        "scrollTop": 0,
+        "height": 783,
+        "contentHeight": 783
+      },
+      "tray": {
+        "x": 0,
+        "y": 340.3324890136719,
+        "width": 1440,
+        "height": 560,
+        "bottom": 900.3324890136719
+      },
+      "trayScroll": {
+        "top": 0,
+        "height": 418,
+        "contentHeight": 418
+      },
+      "active": {
+        "tag": "DIV",
+        "text": "当前没有相关任务此页面的任务会显示在这里。",
+        "insideTray": true
+      },
+      "trayItems": [],
+      "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n设备工坊\n工坊\n插件\n2026年10月15日星期四\n15:43\nAsia/Shanghai\n服务器已连接\n专注\n工作台\n设备\n应用与包\n文件与产物\n画面与录制\n深度调试\n性能与调用栈\nFrida\n自动化\n终端\n扩展创作\nAI 助手\n数据分析\n工坊\n插件\n任务与日志\n工具供应\n设置\n折叠导航\n插件\n刷新目录\n安装插件\n部署到\n服务器插件\n插件包 · ZIP / TGZ\n提交插件包\n\n部署后需启用。插件按可信代码运行。\n\n启动核对\n13 项通过\n服务器插件\n浏览器插件\n还没有部署插件包\n\n选择 ZIP 或 TGZ 插件包提交，再按需启用。\n\n插件主题\n服务器运行目录 · 13 项\n扩展入口 · 0 项\n当前页任务\n暂无记录\n管理工坊扩展\n插件 · 任务记录\n刷新\n\n仅显示本页面相关任务 · 0 条\n\n当前没有相关任务\n\n此页面的任务会显示在这里。\n\n前往任务与日志\n收起\n关闭"
+    },
+    "tabFocus": {
+      "route": "#/plugins",
+      "view": {
+        "width": 1440,
+        "height": 900
+      },
+      "document": {
+        "width": 1440,
+        "height": 900,
+        "top": 0
+      },
+      "body": {
+        "width": 1440,
+        "height": 900
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 1440,
+        "height": 76,
+        "bottom": 76
+      },
+      "footer": {
+        "x": 240,
+        "y": 859,
+        "width": 1200,
+        "height": 41,
+        "bottom": 900
+      },
+      "main": {
+        "rect": {
+          "x": 240,
+          "y": 76,
+          "width": 1200,
+          "height": 783,
+          "bottom": 859
+        },
+        "scrollTop": 0,
+        "height": 783,
+        "contentHeight": 783
+      },
+      "tray": {
+        "x": 0,
+        "y": 340.3324890136719,
+        "width": 1440,
+        "height": 560,
+        "bottom": 900.3324890136719
+      },
+      "trayScroll": {
+        "top": 0,
+        "height": 418,
+        "contentHeight": 418
+      },
+      "active": {
+        "tag": "BUTTON",
+        "text": "前往任务与日志",
+        "insideTray": true
+      },
+      "trayItems": [],
+      "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n设备工坊\n工坊\n插件\n2026年10月15日星期四\n15:43\nAsia/Shanghai\n服务器已连接\n专注\n工作台\n设备\n应用与包\n文件与产物\n画面与录制\n深度调试\n性能与调用栈\nFrida\n自动化\n终端\n扩展创作\nAI 助手\n数据分析\n工坊\n插件\n任务与日志\n工具供应\n设置\n折叠导航\n插件\n刷新目录\n安装插件\n部署到\n服务器插件\n插件包 · ZIP / TGZ\n提交插件包\n\n部署后需启用。插件按可信代码运行。\n\n启动核对\n13 项通过\n服务器插件\n浏览器插件\n还没有部署插件包\n\n选择 ZIP 或 TGZ 插件包提交，再按需启用。\n\n插件主题\n服务器运行目录 · 13 项\n扩展入口 · 0 项\n当前页任务\n暂无记录\n管理工坊扩展\n插件 · 任务记录\n刷新\n\n仅显示本页面相关任务 · 0 条\n\n当前没有相关任务\n\n此页面的任务会显示在这里。\n\n前往任务与日志\n收起\n关闭"
+    },
+    "closed": {
+      "route": "#/plugins",
+      "view": {
+        "width": 1440,
+        "height": 900
+      },
+      "document": {
+        "width": 1440,
+        "height": 900,
+        "top": 0
+      },
+      "body": {
+        "width": 1440,
+        "height": 900
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 1440,
+        "height": 76,
+        "bottom": 76
+      },
+      "footer": {
+        "x": 240,
+        "y": 859,
+        "width": 1200,
+        "height": 41,
+        "bottom": 900
+      },
+      "main": {
+        "rect": {
+          "x": 240,
+          "y": 76,
+          "width": 1200,
+          "height": 783,
+          "bottom": 859
+        },
+        "scrollTop": 0,
+        "height": 783,
+        "contentHeight": 783
+      },
+      "tray": null,
+      "trayScroll": null,
+      "active": {
+        "tag": "BUTTON",
+        "text": "当前页任务暂无记录",
+        "insideTray": false
+      },
+      "trayItems": [],
+      "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n设备工坊\n工坊\n插件\n2026年10月15日星期四\n15:43\nAsia/Shanghai\n服务器已连接\n专注\n工作台\n设备\n应用与包\n文件与产物\n画面与录制\n深度调试\n性能与调用栈\nFrida\n自动化\n终端\n扩展创作\nAI 助手\n数据分析\n工坊\n插件\n任务与日志\n工具供应\n设置\n折叠导航\n插件\n刷新目录\n安装插件\n部署到\n服务器插件\n插件包 · ZIP / TGZ\n提交插件包\n\n部署后需启用。插件按可信代码运行。\n\n启动核对\n13 项通过\n服务器插件\n浏览器插件\n还没有部署插件包\n\n选择 ZIP 或 TGZ 插件包提交，再按需启用。\n\n插件主题\n服务器运行目录 · 13 项\n扩展入口 · 0 项\n当前页任务\n暂无记录\n管理工坊扩展"
+    },
+    "restored": true
+  },
+  {
+    "route": "automation",
+    "width": 1440,
+    "height": 900,
+    "before": {
+      "route": "#/automation",
+      "view": {
+        "width": 1440,
+        "height": 900
+      },
+      "document": {
+        "width": 1440,
+        "height": 900,
+        "top": 0
+      },
+      "body": {
+        "width": 1440,
+        "height": 900
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 1440,
+        "height": 76,
+        "bottom": 76
+      },
+      "footer": {
+        "x": 240,
+        "y": 859,
+        "width": 1200,
+        "height": 41,
+        "bottom": 900
+      },
+      "main": {
+        "rect": {
+          "x": 240,
+          "y": 76,
+          "width": 1200,
+          "height": 783,
+          "bottom": 859
+        },
+        "scrollTop": 0,
+        "height": 783,
+        "contentHeight": 783
+      },
+      "tray": null,
+      "trayScroll": null,
+      "active": {
+        "tag": "BODY",
+        "text": "\n    跳到工作区F·DeviceForge设备工坊设备工坊深度调试自动化2026年10月15日星期四15:43Asia/Shanghai服务器已连接专注工作台设备应用与包文件与产物画面与录制深度调",
+        "insideTray": false
+      },
+      "trayItems": [],
+      "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n设备工坊\n深度调试\n自动化\n2026年10月15日星期四\n15:43\nAsia/Shanghai\n服务器已连接\n专注\n工作台\n设备\n应用与包\n文件与产物\n画面与录制\n深度调试\n性能与调用栈\nFrida\n自动化\n终端\n扩展创作\nAI 助手\n数据分析\n工坊\n插件\n任务与日志\n工具供应\n设置\n折叠导航\n工作设备\n尚未选择设备\n设备目录\n自动化\n使用说明\n设备步骤\n桌面操作\n输入录制与回放\n设备流程\n等待支持设备输入的在线设备\n\n选择声明 Android 设备操作的提供者；不同输入操作分别核对服务器目录。\n\n点击\n执行时间（毫秒）\n相对流程开始，时间需按非递减顺序添加\n设备 X 坐标\n设备 Y 坐标\n添加步骤\n\n添加点击、滑动、按键或文本步骤后运行。\n\n运行设备流程\n设备重复点击\n重复点击 X\n重复点击 Y\n设备点击次数\n设备点击间隔（毫秒）\n重复点击设备\n当前页任务\n暂无记录\n管理工坊扩展"
+    },
+    "after": {
+      "route": "#/automation",
+      "view": {
+        "width": 1440,
+        "height": 900
+      },
+      "document": {
+        "width": 1440,
+        "height": 900,
+        "top": 0
+      },
+      "body": {
+        "width": 1440,
+        "height": 900
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 1440,
+        "height": 76,
+        "bottom": 76
+      },
+      "footer": {
+        "x": 240,
+        "y": 859,
+        "width": 1200,
+        "height": 41,
+        "bottom": 900
+      },
+      "main": {
+        "rect": {
+          "x": 240,
+          "y": 76,
+          "width": 1200,
+          "height": 783,
+          "bottom": 859
+        },
+        "scrollTop": 0,
+        "height": 783,
+        "contentHeight": 783
+      },
+      "tray": null,
+      "trayScroll": null,
+      "active": {
+        "tag": "BODY",
+        "text": "\n    跳到工作区F·DeviceForge设备工坊设备工坊深度调试自动化2026年10月15日星期四15:43Asia/Shanghai服务器已连接专注工作台设备应用与包文件与产物画面与录制深度调",
+        "insideTray": false
+      },
+      "trayItems": [],
+      "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n设备工坊\n深度调试\n自动化\n2026年10月15日星期四\n15:43\nAsia/Shanghai\n服务器已连接\n专注\n工作台\n设备\n应用与包\n文件与产物\n画面与录制\n深度调试\n性能与调用栈\nFrida\n自动化\n终端\n扩展创作\nAI 助手\n数据分析\n工坊\n插件\n任务与日志\n工具供应\n设置\n折叠导航\n工作设备\n尚未选择设备\n设备目录\n自动化\n使用说明\n设备步骤\n桌面操作\n输入录制与回放\n设备流程\n等待支持设备输入的在线设备\n\n选择声明 Android 设备操作的提供者；不同输入操作分别核对服务器目录。\n\n点击\n执行时间（毫秒）\n相对流程开始，时间需按非递减顺序添加\n设备 X 坐标\n设备 Y 坐标\n添加步骤\n\n添加点击、滑动、按键或文本步骤后运行。\n\n运行设备流程\n设备重复点击\n重复点击 X\n重复点击 Y\n设备点击次数\n设备点击间隔（毫秒）\n重复点击设备\n当前页任务\n暂无记录\n管理工坊扩展"
+    },
+    "opened": {
+      "route": "#/automation",
+      "view": {
+        "width": 1440,
+        "height": 900
+      },
+      "document": {
+        "width": 1440,
+        "height": 900,
+        "top": 0
+      },
+      "body": {
+        "width": 1440,
+        "height": 900
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 1440,
+        "height": 76,
+        "bottom": 76
+      },
+      "footer": {
+        "x": 240,
+        "y": 859,
+        "width": 1200,
+        "height": 41,
+        "bottom": 900
+      },
+      "main": {
+        "rect": {
+          "x": 240,
+          "y": 76,
+          "width": 1200,
+          "height": 783,
+          "bottom": 859
+        },
+        "scrollTop": 0,
+        "height": 783,
+        "contentHeight": 783
+      },
+      "tray": {
+        "x": 0,
+        "y": 359.4974365234375,
+        "width": 1440,
+        "height": 560,
+        "bottom": 919.4974365234375
+      },
+      "trayScroll": {
+        "top": 0,
+        "height": 418,
+        "contentHeight": 418
+      },
+      "active": {
+        "tag": "DIV",
+        "text": "当前没有相关任务此页面的任务会显示在这里。",
+        "insideTray": true
+      },
+      "trayItems": [],
+      "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n设备工坊\n深度调试\n自动化\n2026年10月15日星期四\n15:43\nAsia/Shanghai\n服务器已连接\n专注\n工作台\n设备\n应用与包\n文件与产物\n画面与录制\n深度调试\n性能与调用栈\nFrida\n自动化\n终端\n扩展创作\nAI 助手\n数据分析\n工坊\n插件\n任务与日志\n工具供应\n设置\n折叠导航\n工作设备\n尚未选择设备\n设备目录\n自动化\n使用说明\n设备步骤\n桌面操作\n输入录制与回放\n设备流程\n等待支持设备输入的在线设备\n\n选择声明 Android 设备操作的提供者；不同输入操作分别核对服务器目录。\n\n点击\n执行时间（毫秒）\n相对流程开始，时间需按非递减顺序添加\n设备 X 坐标\n设备 Y 坐标\n添加步骤\n\n添加点击、滑动、按键或文本步骤后运行。\n\n运行设备流程\n设备重复点击\n重复点击 X\n重复点击 Y\n设备点击次数\n设备点击间隔（毫秒）\n重复点击设备\n当前页任务\n暂无记录\n管理工坊扩展\n自动化 · 任务记录\n刷新\n\n仅显示本页面相关任务 · 0 条\n\n当前没有相关任务\n\n此页面的任务会显示在这里。\n\n前往任务与日志\n收起\n关闭"
+    },
+    "trayScrolled": {
+      "route": "#/automation",
+      "view": {
+        "width": 1440,
+        "height": 900
+      },
+      "document": {
+        "width": 1440,
+        "height": 900,
+        "top": 0
+      },
+      "body": {
+        "width": 1440,
+        "height": 900
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 1440,
+        "height": 76,
+        "bottom": 76
+      },
+      "footer": {
+        "x": 240,
+        "y": 859,
+        "width": 1200,
+        "height": 41,
+        "bottom": 900
+      },
+      "main": {
+        "rect": {
+          "x": 240,
+          "y": 76,
+          "width": 1200,
+          "height": 783,
+          "bottom": 859
+        },
+        "scrollTop": 0,
+        "height": 783,
+        "contentHeight": 783
+      },
+      "tray": {
+        "x": 0,
+        "y": 340,
+        "width": 1440,
+        "height": 560,
+        "bottom": 900
+      },
+      "trayScroll": {
+        "top": 0,
+        "height": 418,
+        "contentHeight": 418
+      },
+      "active": {
+        "tag": "DIV",
+        "text": "当前没有相关任务此页面的任务会显示在这里。",
+        "insideTray": true
+      },
+      "trayItems": [],
+      "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n设备工坊\n深度调试\n自动化\n2026年10月15日星期四\n15:43\nAsia/Shanghai\n服务器已连接\n专注\n工作台\n设备\n应用与包\n文件与产物\n画面与录制\n深度调试\n性能与调用栈\nFrida\n自动化\n终端\n扩展创作\nAI 助手\n数据分析\n工坊\n插件\n任务与日志\n工具供应\n设置\n折叠导航\n工作设备\n尚未选择设备\n设备目录\n自动化\n使用说明\n设备步骤\n桌面操作\n输入录制与回放\n设备流程\n等待支持设备输入的在线设备\n\n选择声明 Android 设备操作的提供者；不同输入操作分别核对服务器目录。\n\n点击\n执行时间（毫秒）\n相对流程开始，时间需按非递减顺序添加\n设备 X 坐标\n设备 Y 坐标\n添加步骤\n\n添加点击、滑动、按键或文本步骤后运行。\n\n运行设备流程\n设备重复点击\n重复点击 X\n重复点击 Y\n设备点击次数\n设备点击间隔（毫秒）\n重复点击设备\n当前页任务\n暂无记录\n管理工坊扩展\n自动化 · 任务记录\n刷新\n\n仅显示本页面相关任务 · 0 条\n\n当前没有相关任务\n\n此页面的任务会显示在这里。\n\n前往任务与日志\n收起\n关闭"
+    },
+    "tabFocus": {
+      "route": "#/automation",
+      "view": {
+        "width": 1440,
+        "height": 900
+      },
+      "document": {
+        "width": 1440,
+        "height": 900,
+        "top": 0
+      },
+      "body": {
+        "width": 1440,
+        "height": 900
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 1440,
+        "height": 76,
+        "bottom": 76
+      },
+      "footer": {
+        "x": 240,
+        "y": 859,
+        "width": 1200,
+        "height": 41,
+        "bottom": 900
+      },
+      "main": {
+        "rect": {
+          "x": 240,
+          "y": 76,
+          "width": 1200,
+          "height": 783,
+          "bottom": 859
+        },
+        "scrollTop": 0,
+        "height": 783,
+        "contentHeight": 783
+      },
+      "tray": {
+        "x": 0,
+        "y": 340,
+        "width": 1440,
+        "height": 560,
+        "bottom": 900
+      },
+      "trayScroll": {
+        "top": 0,
+        "height": 418,
+        "contentHeight": 418
+      },
+      "active": {
+        "tag": "BUTTON",
+        "text": "前往任务与日志",
+        "insideTray": true
+      },
+      "trayItems": [],
+      "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n设备工坊\n深度调试\n自动化\n2026年10月15日星期四\n15:43\nAsia/Shanghai\n服务器已连接\n专注\n工作台\n设备\n应用与包\n文件与产物\n画面与录制\n深度调试\n性能与调用栈\nFrida\n自动化\n终端\n扩展创作\nAI 助手\n数据分析\n工坊\n插件\n任务与日志\n工具供应\n设置\n折叠导航\n工作设备\n尚未选择设备\n设备目录\n自动化\n使用说明\n设备步骤\n桌面操作\n输入录制与回放\n设备流程\n等待支持设备输入的在线设备\n\n选择声明 Android 设备操作的提供者；不同输入操作分别核对服务器目录。\n\n点击\n执行时间（毫秒）\n相对流程开始，时间需按非递减顺序添加\n设备 X 坐标\n设备 Y 坐标\n添加步骤\n\n添加点击、滑动、按键或文本步骤后运行。\n\n运行设备流程\n设备重复点击\n重复点击 X\n重复点击 Y\n设备点击次数\n设备点击间隔（毫秒）\n重复点击设备\n当前页任务\n暂无记录\n管理工坊扩展\n自动化 · 任务记录\n刷新\n\n仅显示本页面相关任务 · 0 条\n\n当前没有相关任务\n\n此页面的任务会显示在这里。\n\n前往任务与日志\n收起\n关闭"
+    },
+    "closed": {
+      "route": "#/automation",
+      "view": {
+        "width": 1440,
+        "height": 900
+      },
+      "document": {
+        "width": 1440,
+        "height": 900,
+        "top": 0
+      },
+      "body": {
+        "width": 1440,
+        "height": 900
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 1440,
+        "height": 76,
+        "bottom": 76
+      },
+      "footer": {
+        "x": 240,
+        "y": 859,
+        "width": 1200,
+        "height": 41,
+        "bottom": 900
+      },
+      "main": {
+        "rect": {
+          "x": 240,
+          "y": 76,
+          "width": 1200,
+          "height": 783,
+          "bottom": 859
+        },
+        "scrollTop": 0,
+        "height": 783,
+        "contentHeight": 783
+      },
+      "tray": null,
+      "trayScroll": null,
+      "active": {
+        "tag": "BUTTON",
+        "text": "当前页任务暂无记录",
+        "insideTray": false
+      },
+      "trayItems": [],
+      "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n设备工坊\n深度调试\n自动化\n2026年10月15日星期四\n15:43\nAsia/Shanghai\n服务器已连接\n专注\n工作台\n设备\n应用与包\n文件与产物\n画面与录制\n深度调试\n性能与调用栈\nFrida\n自动化\n终端\n扩展创作\nAI 助手\n数据分析\n工坊\n插件\n任务与日志\n工具供应\n设置\n折叠导航\n工作设备\n尚未选择设备\n设备目录\n自动化\n使用说明\n设备步骤\n桌面操作\n输入录制与回放\n设备流程\n等待支持设备输入的在线设备\n\n选择声明 Android 设备操作的提供者；不同输入操作分别核对服务器目录。\n\n点击\n执行时间（毫秒）\n相对流程开始，时间需按非递减顺序添加\n设备 X 坐标\n设备 Y 坐标\n添加步骤\n\n添加点击、滑动、按键或文本步骤后运行。\n\n运行设备流程\n设备重复点击\n重复点击 X\n重复点击 Y\n设备点击次数\n设备点击间隔（毫秒）\n重复点击设备\n当前页任务\n暂无记录\n管理工坊扩展"
+    },
+    "restored": true
+  },
+  {
+    "route": "settings",
+    "width": 390,
+    "height": 844,
+    "before": {
+      "route": "#/settings",
+      "view": {
+        "width": 390,
+        "height": 844
+      },
+      "document": {
+        "width": 390,
+        "height": 844,
+        "top": 0
+      },
+      "body": {
+        "width": 390,
+        "height": 844
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 390,
+        "height": 64,
+        "bottom": 64
+      },
+      "footer": {
+        "x": 0,
+        "y": 795,
+        "width": 390,
+        "height": 49,
+        "bottom": 844
+      },
+      "main": {
+        "rect": {
+          "x": 0,
+          "y": 64,
+          "width": 390,
+          "height": 731,
+          "bottom": 795
+        },
+        "scrollTop": 0,
+        "height": 731,
+        "contentHeight": 1541
+      },
+      "tray": null,
+      "trayScroll": null,
+      "active": {
+        "tag": "BODY",
+        "text": "\n    跳到工作区F·DeviceForge设备工坊设备工坊工坊设置2026年10月15日星期四15:43Asia/Shanghai服务器已连接专注工作台设备应用与包文件与产物画面与录制深度调试性能",
+        "insideTray": false
+      },
+      "trayItems": [],
+      "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n服务器已连接\n设置\n主题与显示\n工作空间主题\n工坊默认主题\n服务连接\n服务地址\n测试并应用\n可选令牌\n显示\n仅用于当前会话，留空免鉴权\n\n应用后将结束当前工作会话。\n\n连接说明\n工具配置\n配置归属\n用户配置\n归属 ID\n读取配置\n配置区\n读取此区\n配置内容 · JSON\n写入使用已读取的修订；出现冲突时重新读取，不会自动覆盖。\n保存此区\nMCP 连接与工具目录\n导入与远端配置\n当前页任务\n管理工坊扩展"
+    },
+    "after": {
+      "route": "#/settings",
+      "view": {
+        "width": 390,
+        "height": 844
+      },
+      "document": {
+        "width": 390,
+        "height": 844,
+        "top": 0
+      },
+      "body": {
+        "width": 390,
+        "height": 844
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 390,
+        "height": 64,
+        "bottom": 64
+      },
+      "footer": {
+        "x": 0,
+        "y": 795,
+        "width": 390,
+        "height": 49,
+        "bottom": 844
+      },
+      "main": {
+        "rect": {
+          "x": 0,
+          "y": 64,
+          "width": 390,
+          "height": 731,
+          "bottom": 795
+        },
+        "scrollTop": 810,
+        "height": 731,
+        "contentHeight": 1541
+      },
+      "tray": null,
+      "trayScroll": null,
+      "active": {
+        "tag": "BODY",
+        "text": "\n    跳到工作区F·DeviceForge设备工坊设备工坊工坊设置2026年10月15日星期四15:43Asia/Shanghai服务器已连接专注工作台设备应用与包文件与产物画面与录制深度调试性能",
+        "insideTray": false
+      },
+      "trayItems": [],
+      "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n服务器已连接\n设置\n主题与显示\n工作空间主题\n工坊默认主题\n服务连接\n服务地址\n测试并应用\n可选令牌\n显示\n仅用于当前会话，留空免鉴权\n\n应用后将结束当前工作会话。\n\n连接说明\n工具配置\n配置归属\n用户配置\n归属 ID\n读取配置\n配置区\n读取此区\n配置内容 · JSON\n写入使用已读取的修订；出现冲突时重新读取，不会自动覆盖。\n保存此区\nMCP 连接与工具目录\n导入与远端配置\n当前页任务\n管理工坊扩展"
+    },
+    "opened": {
+      "route": "#/settings",
+      "view": {
+        "width": 390,
+        "height": 844
+      },
+      "document": {
+        "width": 390,
+        "height": 844,
+        "top": 0
+      },
+      "body": {
+        "width": 390,
+        "height": 844
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 390,
+        "height": 64,
+        "bottom": 64
+      },
+      "footer": {
+        "x": 0,
+        "y": 795,
+        "width": 390,
+        "height": 49,
+        "bottom": 844
+      },
+      "main": {
+        "rect": {
+          "x": 0,
+          "y": 64,
+          "width": 390,
+          "height": 731,
+          "bottom": 795
+        },
+        "scrollTop": 810,
+        "height": 731,
+        "contentHeight": 1541
+      },
+      "tray": {
+        "x": 0,
+        "y": 201.9927978515625,
+        "width": 390,
+        "height": 658.3125,
+        "bottom": 860.3052978515625
+      },
+      "trayScroll": {
+        "top": 0,
+        "height": 496,
+        "contentHeight": 496
+      },
+      "active": {
+        "tag": "DIV",
+        "text": "列出配置bf6bad10-46d4-451a-a10b-b31f722dabc62026/10/15 11:28:34成功列出配置bfbf3808-e3f2-44f3-8fbd-92218d67fc4",
+        "insideTray": true
+      },
+      "trayItems": [
+        {
+          "id": "bf6bad10-46d4-451a-a10b-b31f722dabc6",
+          "text": "列出配置bf6bad10-46d4-451a-a10b-b31f722dabc6"
+        },
+        {
+          "id": "bfbf3808-e3f2-44f3-8fbd-92218d67fc42",
+          "text": "列出配置bfbf3808-e3f2-44f3-8fbd-92218d67fc42"
+        }
+      ],
+      "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n服务器已连接\n设置\n主题与显示\n工作空间主题\n工坊默认主题\n服务连接\n服务地址\n测试并应用\n可选令牌\n显示\n仅用于当前会话，留空免鉴权\n\n应用后将结束当前工作会话。\n\n连接说明\n工具配置\n配置归属\n用户配置\n归属 ID\n读取配置\n配置区\n读取此区\n配置内容 · JSON\n写入使用已读取的修订；出现冲突时重新读取，不会自动覆盖。\n保存此区\nMCP 连接与工具目录\n导入与远端配置\n当前页任务\n管理工坊扩展\n设置 · 任务记录\n刷新\n\n仅显示本页面相关任务 · 2 条\n\n列出配置\nbf6bad10-46d4-451a-a10b-b31f722dabc6\n2026/10/15 11:28:34\n成功\n列出配置\nbfbf3808-e3f2-44f3-8fbd-92218d67fc42\n2026/10/15 11:28:27\n成功\n前往任务与日志\n收起\n关闭"
+    },
+    "trayScrolled": {
+      "route": "#/settings",
+      "view": {
+        "width": 390,
+        "height": 844
+      },
+      "document": {
+        "width": 390,
+        "height": 844,
+        "top": 0
+      },
+      "body": {
+        "width": 390,
+        "height": 844
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 390,
+        "height": 64,
+        "bottom": 64
+      },
+      "footer": {
+        "x": 0,
+        "y": 795,
+        "width": 390,
+        "height": 49,
+        "bottom": 844
+      },
+      "main": {
+        "rect": {
+          "x": 0,
+          "y": 64,
+          "width": 390,
+          "height": 731,
+          "bottom": 795
+        },
+        "scrollTop": 810,
+        "height": 731,
+        "contentHeight": 1541
+      },
+      "tray": {
+        "x": 0,
+        "y": 185.6875,
+        "width": 390,
+        "height": 658.3125,
+        "bottom": 844
+      },
+      "trayScroll": {
+        "top": 0,
+        "height": 496,
+        "contentHeight": 496
+      },
+      "active": {
+        "tag": "DIV",
+        "text": "列出配置bf6bad10-46d4-451a-a10b-b31f722dabc62026/10/15 11:28:34成功列出配置bfbf3808-e3f2-44f3-8fbd-92218d67fc4",
+        "insideTray": true
+      },
+      "trayItems": [
+        {
+          "id": "bf6bad10-46d4-451a-a10b-b31f722dabc6",
+          "text": "列出配置bf6bad10-46d4-451a-a10b-b31f722dabc6"
+        },
+        {
+          "id": "bfbf3808-e3f2-44f3-8fbd-92218d67fc42",
+          "text": "列出配置bfbf3808-e3f2-44f3-8fbd-92218d67fc42"
+        }
+      ],
+      "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n服务器已连接\n设置\n主题与显示\n工作空间主题\n工坊默认主题\n服务连接\n服务地址\n测试并应用\n可选令牌\n显示\n仅用于当前会话，留空免鉴权\n\n应用后将结束当前工作会话。\n\n连接说明\n工具配置\n配置归属\n用户配置\n归属 ID\n读取配置\n配置区\n读取此区\n配置内容 · JSON\n写入使用已读取的修订；出现冲突时重新读取，不会自动覆盖。\n保存此区\nMCP 连接与工具目录\n导入与远端配置\n当前页任务\n管理工坊扩展\n设置 · 任务记录\n刷新\n\n仅显示本页面相关任务 · 2 条\n\n列出配置\nbf6bad10-46d4-451a-a10b-b31f722dabc6\n2026/10/15 11:28:34\n成功\n列出配置\nbfbf3808-e3f2-44f3-8fbd-92218d67fc42\n2026/10/15 11:28:27\n成功\n前往任务与日志\n收起\n关闭"
+    },
+    "tabFocus": {
+      "route": "#/settings",
+      "view": {
+        "width": 390,
+        "height": 844
+      },
+      "document": {
+        "width": 390,
+        "height": 844,
+        "top": 0
+      },
+      "body": {
+        "width": 390,
+        "height": 844
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 390,
+        "height": 64,
+        "bottom": 64
+      },
+      "footer": {
+        "x": 0,
+        "y": 795,
+        "width": 390,
+        "height": 49,
+        "bottom": 844
+      },
+      "main": {
+        "rect": {
+          "x": 0,
+          "y": 64,
+          "width": 390,
+          "height": 731,
+          "bottom": 795
+        },
+        "scrollTop": 810,
+        "height": 731,
+        "contentHeight": 1541
+      },
+      "tray": {
+        "x": 0,
+        "y": 185.6875,
+        "width": 390,
+        "height": 658.3125,
+        "bottom": 844
+      },
+      "trayScroll": {
+        "top": 0,
+        "height": 496,
+        "contentHeight": 496
+      },
+      "active": {
+        "tag": "BUTTON",
+        "text": "列出配置bf6bad10-46d4-451a-a10b-b31f722dabc62026/10/15 11:28:34成功",
+        "insideTray": true
+      },
+      "trayItems": [
+        {
+          "id": "bf6bad10-46d4-451a-a10b-b31f722dabc6",
+          "text": "列出配置bf6bad10-46d4-451a-a10b-b31f722dabc6"
+        },
+        {
+          "id": "bfbf3808-e3f2-44f3-8fbd-92218d67fc42",
+          "text": "列出配置bfbf3808-e3f2-44f3-8fbd-92218d67fc42"
+        }
+      ],
+      "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n服务器已连接\n设置\n主题与显示\n工作空间主题\n工坊默认主题\n服务连接\n服务地址\n测试并应用\n可选令牌\n显示\n仅用于当前会话，留空免鉴权\n\n应用后将结束当前工作会话。\n\n连接说明\n工具配置\n配置归属\n用户配置\n归属 ID\n读取配置\n配置区\n读取此区\n配置内容 · JSON\n写入使用已读取的修订；出现冲突时重新读取，不会自动覆盖。\n保存此区\nMCP 连接与工具目录\n导入与远端配置\n当前页任务\n管理工坊扩展\n设置 · 任务记录\n刷新\n\n仅显示本页面相关任务 · 2 条\n\n列出配置\nbf6bad10-46d4-451a-a10b-b31f722dabc6\n2026/10/15 11:28:34\n成功\n列出配置\nbfbf3808-e3f2-44f3-8fbd-92218d67fc42\n2026/10/15 11:28:27\n成功\n前往任务与日志\n收起\n关闭"
+    },
+    "closed": {
+      "route": "#/settings",
+      "view": {
+        "width": 390,
+        "height": 844
+      },
+      "document": {
+        "width": 390,
+        "height": 844,
+        "top": 0
+      },
+      "body": {
+        "width": 390,
+        "height": 844
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 390,
+        "height": 64,
+        "bottom": 64
+      },
+      "footer": {
+        "x": 0,
+        "y": 795,
+        "width": 390,
+        "height": 49,
+        "bottom": 844
+      },
+      "main": {
+        "rect": {
+          "x": 0,
+          "y": 64,
+          "width": 390,
+          "height": 731,
+          "bottom": 795
+        },
+        "scrollTop": 810,
+        "height": 731,
+        "contentHeight": 1541
+      },
+      "tray": null,
+      "trayScroll": null,
+      "active": {
+        "tag": "BUTTON",
+        "text": "当前页任务列出配置 · 成功",
+        "insideTray": false
+      },
+      "trayItems": [],
+      "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n服务器已连接\n设置\n主题与显示\n工作空间主题\n工坊默认主题\n服务连接\n服务地址\n测试并应用\n可选令牌\n显示\n仅用于当前会话，留空免鉴权\n\n应用后将结束当前工作会话。\n\n连接说明\n工具配置\n配置归属\n用户配置\n归属 ID\n读取配置\n配置区\n读取此区\n配置内容 · JSON\n写入使用已读取的修订；出现冲突时重新读取，不会自动覆盖。\n保存此区\nMCP 连接与工具目录\n导入与远端配置\n当前页任务\n管理工坊扩展"
+    },
+    "restored": true
+  },
+  {
+    "route": "plugins",
+    "width": 390,
+    "height": 844,
+    "before": {
+      "route": "#/plugins",
+      "view": {
+        "width": 390,
+        "height": 844
+      },
+      "document": {
+        "width": 390,
+        "height": 844,
+        "top": 0
+      },
+      "body": {
+        "width": 390,
+        "height": 844
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 390,
+        "height": 64,
+        "bottom": 64
+      },
+      "footer": {
+        "x": 0,
+        "y": 787,
+        "width": 390,
+        "height": 57,
+        "bottom": 844
+      },
+      "main": {
+        "rect": {
+          "x": 0,
+          "y": 64,
+          "width": 390,
+          "height": 723,
+          "bottom": 787
+        },
+        "scrollTop": 305,
+        "height": 723,
+        "contentHeight": 1028
+      },
+      "tray": null,
+      "trayScroll": null,
+      "active": {
+        "tag": "BODY",
+        "text": "\n    跳到工作区F·DeviceForge设备工坊设备工坊工坊插件2026年10月15日星期四15:43Asia/Shanghai服务器已连接专注工作台设备应用与包文件与产物画面与录制深度调试性能",
+        "insideTray": false
+      },
+      "trayItems": [],
+      "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n服务器已连接\n插件\n刷新目录\n安装插件\n部署到\n服务器插件\n插件包 · ZIP / TGZ\n提交插件包\n\n部署后需启用。插件按可信代码运行。\n\n启动核对\n13 项通过\n服务器插件\n浏览器插件\n还没有部署插件包\n\n选择 ZIP 或 TGZ 插件包提交，再按需启用。\n\n插件主题\n服务器运行目录 · 13 项\n扩展入口 · 0 项\n当前页任务\n管理工坊扩展"
+    },
+    "after": {
+      "route": "#/plugins",
+      "view": {
+        "width": 390,
+        "height": 844
+      },
+      "document": {
+        "width": 390,
+        "height": 844,
+        "top": 0
+      },
+      "body": {
+        "width": 390,
+        "height": 844
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 390,
+        "height": 64,
+        "bottom": 64
+      },
+      "footer": {
+        "x": 0,
+        "y": 787,
+        "width": 390,
+        "height": 57,
+        "bottom": 844
+      },
+      "main": {
+        "rect": {
+          "x": 0,
+          "y": 64,
+          "width": 390,
+          "height": 723,
+          "bottom": 787
+        },
+        "scrollTop": 305,
+        "height": 723,
+        "contentHeight": 1028
+      },
+      "tray": null,
+      "trayScroll": null,
+      "active": {
+        "tag": "BODY",
+        "text": "\n    跳到工作区F·DeviceForge设备工坊设备工坊工坊插件2026年10月15日星期四15:43Asia/Shanghai服务器已连接专注工作台设备应用与包文件与产物画面与录制深度调试性能",
+        "insideTray": false
+      },
+      "trayItems": [],
+      "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n服务器已连接\n插件\n刷新目录\n安装插件\n部署到\n服务器插件\n插件包 · ZIP / TGZ\n提交插件包\n\n部署后需启用。插件按可信代码运行。\n\n启动核对\n13 项通过\n服务器插件\n浏览器插件\n还没有部署插件包\n\n选择 ZIP 或 TGZ 插件包提交，再按需启用。\n\n插件主题\n服务器运行目录 · 13 项\n扩展入口 · 0 项\n当前页任务\n管理工坊扩展"
+    },
+    "opened": {
+      "route": "#/plugins",
+      "view": {
+        "width": 390,
+        "height": 844
+      },
+      "document": {
+        "width": 390,
+        "height": 844,
+        "top": 0
+      },
+      "body": {
+        "width": 390,
+        "height": 844
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 390,
+        "height": 64,
+        "bottom": 64
+      },
+      "footer": {
+        "x": 0,
+        "y": 787,
+        "width": 390,
+        "height": 57,
+        "bottom": 844
+      },
+      "main": {
+        "rect": {
+          "x": 0,
+          "y": 64,
+          "width": 390,
+          "height": 723,
+          "bottom": 787
+        },
+        "scrollTop": 305,
+        "height": 723,
+        "contentHeight": 1028
+      },
+      "tray": {
+        "x": 0,
+        "y": 216.67733764648438,
+        "width": 390,
+        "height": 658.3125,
+        "bottom": 874.9898376464844
+      },
+      "trayScroll": {
+        "top": 0,
+        "height": 496,
+        "contentHeight": 496
+      },
+      "active": {
+        "tag": "DIV",
+        "text": "正在读取任务…",
+        "insideTray": true
+      },
+      "trayItems": [],
+      "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n服务器已连接\n插件\n刷新目录\n安装插件\n部署到\n服务器插件\n插件包 · ZIP / TGZ\n提交插件包\n\n部署后需启用。插件按可信代码运行。\n\n启动核对\n13 项通过\n服务器插件\n浏览器插件\n还没有部署插件包\n\n选择 ZIP 或 TGZ 插件包提交，再按需启用。\n\n插件主题\n服务器运行目录 · 13 项\n扩展入口 · 0 项\n当前页任务\n管理工坊扩展\n插件 · 任务记录\n刷新\n\n仅显示本页面相关任务 · 0 条\n\n正在读取任务…\n\n前往任务与日志\n收起\n关闭"
+    },
+    "trayScrolled": {
+      "route": "#/plugins",
+      "view": {
+        "width": 390,
+        "height": 844
+      },
+      "document": {
+        "width": 390,
+        "height": 844,
+        "top": 0
+      },
+      "body": {
+        "width": 390,
+        "height": 844
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 390,
+        "height": 64,
+        "bottom": 64
+      },
+      "footer": {
+        "x": 0,
+        "y": 787,
+        "width": 390,
+        "height": 57,
+        "bottom": 844
+      },
+      "main": {
+        "rect": {
+          "x": 0,
+          "y": 64,
+          "width": 390,
+          "height": 723,
+          "bottom": 787
+        },
+        "scrollTop": 305,
+        "height": 723,
+        "contentHeight": 1028
+      },
+      "tray": {
+        "x": 0,
+        "y": 189.39910888671875,
+        "width": 390,
+        "height": 658.3125,
+        "bottom": 847.7116088867188
+      },
+      "trayScroll": {
+        "top": 0,
+        "height": 496,
+        "contentHeight": 496
+      },
+      "active": {
+        "tag": "DIV",
+        "text": "正在读取任务…",
+        "insideTray": true
+      },
+      "trayItems": [],
+      "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n服务器已连接\n插件\n刷新目录\n安装插件\n部署到\n服务器插件\n插件包 · ZIP / TGZ\n提交插件包\n\n部署后需启用。插件按可信代码运行。\n\n启动核对\n13 项通过\n服务器插件\n浏览器插件\n还没有部署插件包\n\n选择 ZIP 或 TGZ 插件包提交，再按需启用。\n\n插件主题\n服务器运行目录 · 13 项\n扩展入口 · 0 项\n当前页任务\n管理工坊扩展\n插件 · 任务记录\n刷新\n\n仅显示本页面相关任务 · 0 条\n\n正在读取任务…\n\n前往任务与日志\n收起\n关闭"
+    },
+    "tabFocus": {
+      "route": "#/plugins",
+      "view": {
+        "width": 390,
+        "height": 844
+      },
+      "document": {
+        "width": 390,
+        "height": 844,
+        "top": 0
+      },
+      "body": {
+        "width": 390,
+        "height": 844
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 390,
+        "height": 64,
+        "bottom": 64
+      },
+      "footer": {
+        "x": 0,
+        "y": 787,
+        "width": 390,
+        "height": 57,
+        "bottom": 844
+      },
+      "main": {
+        "rect": {
+          "x": 0,
+          "y": 64,
+          "width": 390,
+          "height": 723,
+          "bottom": 787
+        },
+        "scrollTop": 305,
+        "height": 723,
+        "contentHeight": 1028
+      },
+      "tray": {
+        "x": 0,
+        "y": 189.39910888671875,
+        "width": 390,
+        "height": 658.3125,
+        "bottom": 847.7116088867188
+      },
+      "trayScroll": {
+        "top": 0,
+        "height": 496,
+        "contentHeight": 496
+      },
+      "active": {
+        "tag": "BUTTON",
+        "text": "前往任务与日志",
+        "insideTray": true
+      },
+      "trayItems": [],
+      "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n服务器已连接\n插件\n刷新目录\n安装插件\n部署到\n服务器插件\n插件包 · ZIP / TGZ\n提交插件包\n\n部署后需启用。插件按可信代码运行。\n\n启动核对\n13 项通过\n服务器插件\n浏览器插件\n还没有部署插件包\n\n选择 ZIP 或 TGZ 插件包提交，再按需启用。\n\n插件主题\n服务器运行目录 · 13 项\n扩展入口 · 0 项\n当前页任务\n管理工坊扩展\n插件 · 任务记录\n刷新\n\n仅显示本页面相关任务 · 0 条\n\n正在读取任务…\n\n前往任务与日志\n收起\n关闭"
+    },
+    "closed": {
+      "route": "#/plugins",
+      "view": {
+        "width": 390,
+        "height": 844
+      },
+      "document": {
+        "width": 390,
+        "height": 844,
+        "top": 0
+      },
+      "body": {
+        "width": 390,
+        "height": 844
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 390,
+        "height": 64,
+        "bottom": 64
+      },
+      "footer": {
+        "x": 0,
+        "y": 787,
+        "width": 390,
+        "height": 57,
+        "bottom": 844
+      },
+      "main": {
+        "rect": {
+          "x": 0,
+          "y": 64,
+          "width": 390,
+          "height": 723,
+          "bottom": 787
+        },
+        "scrollTop": 305,
+        "height": 723,
+        "contentHeight": 1028
+      },
+      "tray": null,
+      "trayScroll": null,
+      "active": {
+        "tag": "BUTTON",
+        "text": "当前页任务正在读取…",
+        "insideTray": false
+      },
+      "trayItems": [],
+      "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n服务器已连接\n插件\n刷新目录\n安装插件\n部署到\n服务器插件\n插件包 · ZIP / TGZ\n提交插件包\n\n部署后需启用。插件按可信代码运行。\n\n启动核对\n13 项通过\n服务器插件\n浏览器插件\n还没有部署插件包\n\n选择 ZIP 或 TGZ 插件包提交，再按需启用。\n\n插件主题\n服务器运行目录 · 13 项\n扩展入口 · 0 项\n当前页任务\n管理工坊扩展"
+    },
+    "restored": true
+  },
+  {
+    "route": "automation",
+    "width": 390,
+    "height": 844,
+    "before": {
+      "route": "#/automation",
+      "view": {
+        "width": 390,
+        "height": 844
+      },
+      "document": {
+        "width": 390,
+        "height": 844,
+        "top": 0
+      },
+      "body": {
+        "width": 390,
+        "height": 844
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 390,
+        "height": 64,
+        "bottom": 64
+      },
+      "footer": {
+        "x": 0,
+        "y": 787,
+        "width": 390,
+        "height": 57,
+        "bottom": 844
+      },
+      "main": {
+        "rect": {
+          "x": 0,
+          "y": 64,
+          "width": 390,
+          "height": 723,
+          "bottom": 787
+        },
+        "scrollTop": 305,
+        "height": 723,
+        "contentHeight": 1487
+      },
+      "tray": null,
+      "trayScroll": null,
+      "active": {
+        "tag": "BODY",
+        "text": "\n    跳到工作区F·DeviceForge设备工坊设备工坊深度调试自动化2026年10月15日星期四15:43Asia/Shanghai服务器已连接专注工作台设备应用与包文件与产物画面与录制深度调",
+        "insideTray": false
+      },
+      "trayItems": [],
+      "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n服务器已连接\n工作设备\n尚未选择设备\n设备目录\n自动化\n使用说明\n设备步骤\n桌面操作\n输入录制与回放\n设备流程\n等待支持设备输入的在线设备\n\n选择声明 Android 设备操作的提供者；不同输入操作分别核对服务器目录。\n\n点击\n执行时间（毫秒）\n相对流程开始，时间需按非递减顺序添加\n设备 X 坐标\n设备 Y 坐标\n添加步骤\n\n添加点击、滑动、按键或文本步骤后运行。\n\n运行设备流程\n设备重复点击\n重复点击 X\n重复点击 Y\n设备点击次数\n设备点击间隔（毫秒）\n重复点击设备\n当前页任务\n管理工坊扩展"
+    },
+    "after": {
+      "route": "#/automation",
+      "view": {
+        "width": 390,
+        "height": 844
+      },
+      "document": {
+        "width": 390,
+        "height": 844,
+        "top": 0
+      },
+      "body": {
+        "width": 390,
+        "height": 844
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 390,
+        "height": 64,
+        "bottom": 64
+      },
+      "footer": {
+        "x": 0,
+        "y": 787,
+        "width": 390,
+        "height": 57,
+        "bottom": 844
+      },
+      "main": {
+        "rect": {
+          "x": 0,
+          "y": 64,
+          "width": 390,
+          "height": 723,
+          "bottom": 787
+        },
+        "scrollTop": 764,
+        "height": 723,
+        "contentHeight": 1487
+      },
+      "tray": null,
+      "trayScroll": null,
+      "active": {
+        "tag": "BODY",
+        "text": "\n    跳到工作区F·DeviceForge设备工坊设备工坊深度调试自动化2026年10月15日星期四15:43Asia/Shanghai服务器已连接专注工作台设备应用与包文件与产物画面与录制深度调",
+        "insideTray": false
+      },
+      "trayItems": [],
+      "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n服务器已连接\n工作设备\n尚未选择设备\n设备目录\n自动化\n使用说明\n设备步骤\n桌面操作\n输入录制与回放\n设备流程\n等待支持设备输入的在线设备\n\n选择声明 Android 设备操作的提供者；不同输入操作分别核对服务器目录。\n\n点击\n执行时间（毫秒）\n相对流程开始，时间需按非递减顺序添加\n设备 X 坐标\n设备 Y 坐标\n添加步骤\n\n添加点击、滑动、按键或文本步骤后运行。\n\n运行设备流程\n设备重复点击\n重复点击 X\n重复点击 Y\n设备点击次数\n设备点击间隔（毫秒）\n重复点击设备\n当前页任务\n管理工坊扩展"
+    },
+    "opened": {
+      "route": "#/automation",
+      "view": {
+        "width": 390,
+        "height": 844
+      },
+      "document": {
+        "width": 390,
+        "height": 844,
+        "top": 0
+      },
+      "body": {
+        "width": 390,
+        "height": 844
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 390,
+        "height": 64,
+        "bottom": 64
+      },
+      "footer": {
+        "x": 0,
+        "y": 787,
+        "width": 390,
+        "height": 57,
+        "bottom": 844
+      },
+      "main": {
+        "rect": {
+          "x": 0,
+          "y": 64,
+          "width": 390,
+          "height": 723,
+          "bottom": 787
+        },
+        "scrollTop": 764,
+        "height": 723,
+        "contentHeight": 1487
+      },
+      "tray": {
+        "x": 0,
+        "y": 216.69326782226562,
+        "width": 390,
+        "height": 658.3125,
+        "bottom": 875.0057678222656
+      },
+      "trayScroll": {
+        "top": 0,
+        "height": 496,
+        "contentHeight": 496
+      },
+      "active": {
+        "tag": "DIV",
+        "text": "正在读取任务…",
+        "insideTray": true
+      },
+      "trayItems": [],
+      "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n服务器已连接\n工作设备\n尚未选择设备\n设备目录\n自动化\n使用说明\n设备步骤\n桌面操作\n输入录制与回放\n设备流程\n等待支持设备输入的在线设备\n\n选择声明 Android 设备操作的提供者；不同输入操作分别核对服务器目录。\n\n点击\n执行时间（毫秒）\n相对流程开始，时间需按非递减顺序添加\n设备 X 坐标\n设备 Y 坐标\n添加步骤\n\n添加点击、滑动、按键或文本步骤后运行。\n\n运行设备流程\n设备重复点击\n重复点击 X\n重复点击 Y\n设备点击次数\n设备点击间隔（毫秒）\n重复点击设备\n当前页任务\n管理工坊扩展\n自动化 · 任务记录\n刷新\n\n仅显示本页面相关任务 · 0 条\n\n正在读取任务…\n\n前往任务与日志\n收起\n关闭"
+    },
+    "trayScrolled": {
+      "route": "#/automation",
+      "view": {
+        "width": 390,
+        "height": 844
+      },
+      "document": {
+        "width": 390,
+        "height": 844,
+        "top": 0
+      },
+      "body": {
+        "width": 390,
+        "height": 844
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 390,
+        "height": 64,
+        "bottom": 64
+      },
+      "footer": {
+        "x": 0,
+        "y": 787,
+        "width": 390,
+        "height": 57,
+        "bottom": 844
+      },
+      "main": {
+        "rect": {
+          "x": 0,
+          "y": 64,
+          "width": 390,
+          "height": 723,
+          "bottom": 787
+        },
+        "scrollTop": 764,
+        "height": 723,
+        "contentHeight": 1487
+      },
+      "tray": {
+        "x": 0,
+        "y": 189.40374755859375,
+        "width": 390,
+        "height": 658.3125,
+        "bottom": 847.7162475585938
+      },
+      "trayScroll": {
+        "top": 0,
+        "height": 496,
+        "contentHeight": 496
+      },
+      "active": {
+        "tag": "DIV",
+        "text": "正在读取任务…",
+        "insideTray": true
+      },
+      "trayItems": [],
+      "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n服务器已连接\n工作设备\n尚未选择设备\n设备目录\n自动化\n使用说明\n设备步骤\n桌面操作\n输入录制与回放\n设备流程\n等待支持设备输入的在线设备\n\n选择声明 Android 设备操作的提供者；不同输入操作分别核对服务器目录。\n\n点击\n执行时间（毫秒）\n相对流程开始，时间需按非递减顺序添加\n设备 X 坐标\n设备 Y 坐标\n添加步骤\n\n添加点击、滑动、按键或文本步骤后运行。\n\n运行设备流程\n设备重复点击\n重复点击 X\n重复点击 Y\n设备点击次数\n设备点击间隔（毫秒）\n重复点击设备\n当前页任务\n管理工坊扩展\n自动化 · 任务记录\n刷新\n\n仅显示本页面相关任务 · 0 条\n\n正在读取任务…\n\n前往任务与日志\n收起\n关闭"
+    },
+    "tabFocus": {
+      "route": "#/automation",
+      "view": {
+        "width": 390,
+        "height": 844
+      },
+      "document": {
+        "width": 390,
+        "height": 844,
+        "top": 0
+      },
+      "body": {
+        "width": 390,
+        "height": 844
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 390,
+        "height": 64,
+        "bottom": 64
+      },
+      "footer": {
+        "x": 0,
+        "y": 787,
+        "width": 390,
+        "height": 57,
+        "bottom": 844
+      },
+      "main": {
+        "rect": {
+          "x": 0,
+          "y": 64,
+          "width": 390,
+          "height": 723,
+          "bottom": 787
+        },
+        "scrollTop": 764,
+        "height": 723,
+        "contentHeight": 1487
+      },
+      "tray": {
+        "x": 0,
+        "y": 186.07986450195312,
+        "width": 390,
+        "height": 658.3125,
+        "bottom": 844.3923645019531
+      },
+      "trayScroll": {
+        "top": 0,
+        "height": 496,
+        "contentHeight": 496
+      },
+      "active": {
+        "tag": "BUTTON",
+        "text": "前往任务与日志",
+        "insideTray": true
+      },
+      "trayItems": [],
+      "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n服务器已连接\n工作设备\n尚未选择设备\n设备目录\n自动化\n使用说明\n设备步骤\n桌面操作\n输入录制与回放\n设备流程\n等待支持设备输入的在线设备\n\n选择声明 Android 设备操作的提供者；不同输入操作分别核对服务器目录。\n\n点击\n执行时间（毫秒）\n相对流程开始，时间需按非递减顺序添加\n设备 X 坐标\n设备 Y 坐标\n添加步骤\n\n添加点击、滑动、按键或文本步骤后运行。\n\n运行设备流程\n设备重复点击\n重复点击 X\n重复点击 Y\n设备点击次数\n设备点击间隔（毫秒）\n重复点击设备\n当前页任务\n管理工坊扩展\n自动化 · 任务记录\n刷新\n\n仅显示本页面相关任务 · 0 条\n\n正在读取任务…\n\n前往任务与日志\n收起\n关闭"
+    },
+    "closed": {
+      "route": "#/automation",
+      "view": {
+        "width": 390,
+        "height": 844
+      },
+      "document": {
+        "width": 390,
+        "height": 844,
+        "top": 0
+      },
+      "body": {
+        "width": 390,
+        "height": 844
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 390,
+        "height": 64,
+        "bottom": 64
+      },
+      "footer": {
+        "x": 0,
+        "y": 787,
+        "width": 390,
+        "height": 57,
+        "bottom": 844
+      },
+      "main": {
+        "rect": {
+          "x": 0,
+          "y": 64,
+          "width": 390,
+          "height": 723,
+          "bottom": 787
+        },
+        "scrollTop": 764,
+        "height": 723,
+        "contentHeight": 1487
+      },
+      "tray": null,
+      "trayScroll": null,
+      "active": {
+        "tag": "BUTTON",
+        "text": "当前页任务正在读取…",
+        "insideTray": false
+      },
+      "trayItems": [],
+      "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n服务器已连接\n工作设备\n尚未选择设备\n设备目录\n自动化\n使用说明\n设备步骤\n桌面操作\n输入录制与回放\n设备流程\n等待支持设备输入的在线设备\n\n选择声明 Android 设备操作的提供者；不同输入操作分别核对服务器目录。\n\n点击\n执行时间（毫秒）\n相对流程开始，时间需按非递减顺序添加\n设备 X 坐标\n设备 Y 坐标\n添加步骤\n\n添加点击、滑动、按键或文本步骤后运行。\n\n运行设备流程\n设备重复点击\n重复点击 X\n重复点击 Y\n设备点击次数\n设备点击间隔（毫秒）\n重复点击设备\n当前页任务\n管理工坊扩展"
+    },
+    "restored": true
+  },
+  {
+    "route": "settings",
+    "width": 768,
+    "height": 900,
+    "before": {
+      "route": "#/settings",
+      "view": {
+        "width": 768,
+        "height": 900
+      },
+      "document": {
+        "width": 768,
+        "height": 900,
+        "top": 0
+      },
+      "body": {
+        "width": 768,
+        "height": 900
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 768,
+        "height": 64,
+        "bottom": 64
+      },
+      "footer": {
+        "x": 0,
+        "y": 851,
+        "width": 768,
+        "height": 49,
+        "bottom": 900
+      },
+      "main": {
+        "rect": {
+          "x": 0,
+          "y": 64,
+          "width": 768,
+          "height": 787,
+          "bottom": 851
+        },
+        "scrollTop": 133,
+        "height": 787,
+        "contentHeight": 1282
+      },
+      "tray": null,
+      "trayScroll": null,
+      "active": {
+        "tag": "BODY",
+        "text": "\n    跳到工作区F·DeviceForge设备工坊设备工坊工坊设置2026年10月15日星期四15:43Asia/Shanghai服务器已连接专注工作台设备应用与包文件与产物画面与录制深度调试性能",
+        "insideTray": false
+      },
+      "trayItems": [],
+      "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n设备工坊\n设置\n服务器已连接\n专注\n设置\n主题与显示\n工作空间主题\n工坊默认主题\n服务连接\n服务地址\n测试并应用\n可选令牌\n显示\n仅用于当前会话，留空免鉴权\n\n应用后将结束当前工作会话。\n\n连接说明\n工具配置\n配置归属\n用户配置\n归属 ID\n读取配置\n配置区\n读取此区\n配置内容 · JSON\n写入使用已读取的修订；出现冲突时重新读取，不会自动覆盖。\n保存此区\nMCP 连接与工具目录\n导入与远端配置\n当前页任务\n列出配置 · 成功\n管理工坊扩展"
+    },
+    "after": {
+      "route": "#/settings",
+      "view": {
+        "width": 768,
+        "height": 900
+      },
+      "document": {
+        "width": 768,
+        "height": 900,
+        "top": 0
+      },
+      "body": {
+        "width": 768,
+        "height": 900
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 768,
+        "height": 64,
+        "bottom": 64
+      },
+      "footer": {
+        "x": 0,
+        "y": 851,
+        "width": 768,
+        "height": 49,
+        "bottom": 900
+      },
+      "main": {
+        "rect": {
+          "x": 0,
+          "y": 64,
+          "width": 768,
+          "height": 787,
+          "bottom": 851
+        },
+        "scrollTop": 495,
+        "height": 787,
+        "contentHeight": 1282
+      },
+      "tray": null,
+      "trayScroll": null,
+      "active": {
+        "tag": "BODY",
+        "text": "\n    跳到工作区F·DeviceForge设备工坊设备工坊工坊设置2026年10月15日星期四15:43Asia/Shanghai服务器已连接专注工作台设备应用与包文件与产物画面与录制深度调试性能",
+        "insideTray": false
+      },
+      "trayItems": [],
+      "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n设备工坊\n设置\n服务器已连接\n专注\n设置\n主题与显示\n工作空间主题\n工坊默认主题\n服务连接\n服务地址\n测试并应用\n可选令牌\n显示\n仅用于当前会话，留空免鉴权\n\n应用后将结束当前工作会话。\n\n连接说明\n工具配置\n配置归属\n用户配置\n归属 ID\n读取配置\n配置区\n读取此区\n配置内容 · JSON\n写入使用已读取的修订；出现冲突时重新读取，不会自动覆盖。\n保存此区\nMCP 连接与工具目录\n导入与远端配置\n当前页任务\n列出配置 · 成功\n管理工坊扩展"
+    },
+    "opened": {
+      "route": "#/settings",
+      "view": {
+        "width": 768,
+        "height": 900
+      },
+      "document": {
+        "width": 768,
+        "height": 900,
+        "top": 0
+      },
+      "body": {
+        "width": 768,
+        "height": 900
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 768,
+        "height": 64,
+        "bottom": 64
+      },
+      "footer": {
+        "x": 0,
+        "y": 851,
+        "width": 768,
+        "height": 49,
+        "bottom": 900
+      },
+      "main": {
+        "rect": {
+          "x": 0,
+          "y": 64,
+          "width": 768,
+          "height": 787,
+          "bottom": 851
+        },
+        "scrollTop": 495,
+        "height": 787,
+        "contentHeight": 1282
+      },
+      "tray": {
+        "x": 0,
+        "y": 374.63641357421875,
+        "width": 768,
+        "height": 560,
+        "bottom": 934.6364135742188
+      },
+      "trayScroll": {
+        "top": 0,
+        "height": 418,
+        "contentHeight": 418
+      },
+      "active": {
+        "tag": "DIV",
+        "text": "列出配置bf6bad10-46d4-451a-a10b-b31f722dabc62026/10/15 11:28:34成功列出配置bfbf3808-e3f2-44f3-8fbd-92218d67fc4",
+        "insideTray": true
+      },
+      "trayItems": [
+        {
+          "id": "bf6bad10-46d4-451a-a10b-b31f722dabc6",
+          "text": "列出配置bf6bad10-46d4-451a-a10b-b31f722dabc6"
+        },
+        {
+          "id": "bfbf3808-e3f2-44f3-8fbd-92218d67fc42",
+          "text": "列出配置bfbf3808-e3f2-44f3-8fbd-92218d67fc42"
+        }
+      ],
+      "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n设备工坊\n设置\n服务器已连接\n专注\n设置\n主题与显示\n工作空间主题\n工坊默认主题\n服务连接\n服务地址\n测试并应用\n可选令牌\n显示\n仅用于当前会话，留空免鉴权\n\n应用后将结束当前工作会话。\n\n连接说明\n工具配置\n配置归属\n用户配置\n归属 ID\n读取配置\n配置区\n读取此区\n配置内容 · JSON\n写入使用已读取的修订；出现冲突时重新读取，不会自动覆盖。\n保存此区\nMCP 连接与工具目录\n导入与远端配置\n当前页任务\n列出配置 · 成功\n管理工坊扩展\n设置 · 任务记录\n刷新\n\n仅显示本页面相关任务 · 2 条\n\n列出配置\nbf6bad10-46d4-451a-a10b-b31f722dabc6\n2026/10/15 11:28:34\n成功\n列出配置\nbfbf3808-e3f2-44f3-8fbd-92218d67fc42\n2026/10/15 11:28:27\n成功\n前往任务与日志\n收起\n关闭"
+    },
+    "trayScrolled": {
+      "route": "#/settings",
+      "view": {
+        "width": 768,
+        "height": 900
+      },
+      "document": {
+        "width": 768,
+        "height": 900,
+        "top": 0
+      },
+      "body": {
+        "width": 768,
+        "height": 900
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 768,
+        "height": 64,
+        "bottom": 64
+      },
+      "footer": {
+        "x": 0,
+        "y": 851,
+        "width": 768,
+        "height": 49,
+        "bottom": 900
+      },
+      "main": {
+        "rect": {
+          "x": 0,
+          "y": 64,
+          "width": 768,
+          "height": 787,
+          "bottom": 851
+        },
+        "scrollTop": 495,
+        "height": 787,
+        "contentHeight": 1282
+      },
+      "tray": {
+        "x": 0,
+        "y": 353.8805847167969,
+        "width": 768,
+        "height": 560,
+        "bottom": 913.8805847167969
+      },
+      "trayScroll": {
+        "top": 0,
+        "height": 418,
+        "contentHeight": 418
+      },
+      "active": {
+        "tag": "DIV",
+        "text": "列出配置bf6bad10-46d4-451a-a10b-b31f722dabc62026/10/15 11:28:34成功列出配置bfbf3808-e3f2-44f3-8fbd-92218d67fc4",
+        "insideTray": true
+      },
+      "trayItems": [
+        {
+          "id": "bf6bad10-46d4-451a-a10b-b31f722dabc6",
+          "text": "列出配置bf6bad10-46d4-451a-a10b-b31f722dabc6"
+        },
+        {
+          "id": "bfbf3808-e3f2-44f3-8fbd-92218d67fc42",
+          "text": "列出配置bfbf3808-e3f2-44f3-8fbd-92218d67fc42"
+        }
+      ],
+      "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n设备工坊\n设置\n服务器已连接\n专注\n设置\n主题与显示\n工作空间主题\n工坊默认主题\n服务连接\n服务地址\n测试并应用\n可选令牌\n显示\n仅用于当前会话，留空免鉴权\n\n应用后将结束当前工作会话。\n\n连接说明\n工具配置\n配置归属\n用户配置\n归属 ID\n读取配置\n配置区\n读取此区\n配置内容 · JSON\n写入使用已读取的修订；出现冲突时重新读取，不会自动覆盖。\n保存此区\nMCP 连接与工具目录\n导入与远端配置\n当前页任务\n列出配置 · 成功\n管理工坊扩展\n设置 · 任务记录\n刷新\n\n仅显示本页面相关任务 · 2 条\n\n列出配置\nbf6bad10-46d4-451a-a10b-b31f722dabc6\n2026/10/15 11:28:34\n成功\n列出配置\nbfbf3808-e3f2-44f3-8fbd-92218d67fc42\n2026/10/15 11:28:27\n成功\n前往任务与日志\n收起\n关闭"
+    },
+    "tabFocus": {
+      "route": "#/settings",
+      "view": {
+        "width": 768,
+        "height": 900
+      },
+      "document": {
+        "width": 768,
+        "height": 900,
+        "top": 0
+      },
+      "body": {
+        "width": 768,
+        "height": 900
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 768,
+        "height": 64,
+        "bottom": 64
+      },
+      "footer": {
+        "x": 0,
+        "y": 851,
+        "width": 768,
+        "height": 49,
+        "bottom": 900
+      },
+      "main": {
+        "rect": {
+          "x": 0,
+          "y": 64,
+          "width": 768,
+          "height": 787,
+          "bottom": 851
+        },
+        "scrollTop": 495,
+        "height": 787,
+        "contentHeight": 1282
+      },
+      "tray": {
+        "x": 0,
+        "y": 349.3352355957031,
+        "width": 768,
+        "height": 560,
+        "bottom": 909.3352355957031
+      },
+      "trayScroll": {
+        "top": 0,
+        "height": 418,
+        "contentHeight": 418
+      },
+      "active": {
+        "tag": "BUTTON",
+        "text": "列出配置bf6bad10-46d4-451a-a10b-b31f722dabc62026/10/15 11:28:34成功",
+        "insideTray": true
+      },
+      "trayItems": [
+        {
+          "id": "bf6bad10-46d4-451a-a10b-b31f722dabc6",
+          "text": "列出配置bf6bad10-46d4-451a-a10b-b31f722dabc6"
+        },
+        {
+          "id": "bfbf3808-e3f2-44f3-8fbd-92218d67fc42",
+          "text": "列出配置bfbf3808-e3f2-44f3-8fbd-92218d67fc42"
+        }
+      ],
+      "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n设备工坊\n设置\n服务器已连接\n专注\n设置\n主题与显示\n工作空间主题\n工坊默认主题\n服务连接\n服务地址\n测试并应用\n可选令牌\n显示\n仅用于当前会话，留空免鉴权\n\n应用后将结束当前工作会话。\n\n连接说明\n工具配置\n配置归属\n用户配置\n归属 ID\n读取配置\n配置区\n读取此区\n配置内容 · JSON\n写入使用已读取的修订；出现冲突时重新读取，不会自动覆盖。\n保存此区\nMCP 连接与工具目录\n导入与远端配置\n当前页任务\n列出配置 · 成功\n管理工坊扩展\n设置 · 任务记录\n刷新\n\n仅显示本页面相关任务 · 2 条\n\n列出配置\nbf6bad10-46d4-451a-a10b-b31f722dabc6\n2026/10/15 11:28:34\n成功\n列出配置\nbfbf3808-e3f2-44f3-8fbd-92218d67fc42\n2026/10/15 11:28:27\n成功\n前往任务与日志\n收起\n关闭"
+    },
+    "closed": {
+      "route": "#/settings",
+      "view": {
+        "width": 768,
+        "height": 900
+      },
+      "document": {
+        "width": 768,
+        "height": 900,
+        "top": 0
+      },
+      "body": {
+        "width": 768,
+        "height": 900
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 768,
+        "height": 64,
+        "bottom": 64
+      },
+      "footer": {
+        "x": 0,
+        "y": 851,
+        "width": 768,
+        "height": 49,
+        "bottom": 900
+      },
+      "main": {
+        "rect": {
+          "x": 0,
+          "y": 64,
+          "width": 768,
+          "height": 787,
+          "bottom": 851
+        },
+        "scrollTop": 495,
+        "height": 787,
+        "contentHeight": 1282
+      },
+      "tray": null,
+      "trayScroll": null,
+      "active": {
+        "tag": "BUTTON",
+        "text": "当前页任务列出配置 · 成功",
+        "insideTray": false
+      },
+      "trayItems": [],
+      "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n设备工坊\n设置\n服务器已连接\n专注\n设置\n主题与显示\n工作空间主题\n工坊默认主题\n服务连接\n服务地址\n测试并应用\n可选令牌\n显示\n仅用于当前会话，留空免鉴权\n\n应用后将结束当前工作会话。\n\n连接说明\n工具配置\n配置归属\n用户配置\n归属 ID\n读取配置\n配置区\n读取此区\n配置内容 · JSON\n写入使用已读取的修订；出现冲突时重新读取，不会自动覆盖。\n保存此区\nMCP 连接与工具目录\n导入与远端配置\n当前页任务\n列出配置 · 成功\n管理工坊扩展"
+    },
+    "restored": true
+  },
+  {
+    "route": "plugins",
+    "width": 768,
+    "height": 900,
+    "before": {
+      "route": "#/plugins",
+      "view": {
+        "width": 768,
+        "height": 900
+      },
+      "document": {
+        "width": 768,
+        "height": 900,
+        "top": 0
+      },
+      "body": {
+        "width": 768,
+        "height": 900
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 768,
+        "height": 64,
+        "bottom": 64
+      },
+      "footer": {
+        "x": 0,
+        "y": 851,
+        "width": 768,
+        "height": 49,
+        "bottom": 900
+      },
+      "main": {
+        "rect": {
+          "x": 0,
+          "y": 64,
+          "width": 768,
+          "height": 787,
+          "bottom": 851
+        },
+        "scrollTop": 37,
+        "height": 787,
+        "contentHeight": 824
+      },
+      "tray": null,
+      "trayScroll": null,
+      "active": {
+        "tag": "BODY",
+        "text": "\n    跳到工作区F·DeviceForge设备工坊设备工坊工坊插件2026年10月15日星期四15:43Asia/Shanghai服务器已连接专注工作台设备应用与包文件与产物画面与录制深度调试性能",
+        "insideTray": false
+      },
+      "trayItems": [],
+      "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n设备工坊\n插件\n服务器已连接\n专注\n插件\n刷新目录\n安装插件\n部署到\n服务器插件\n插件包 · ZIP / TGZ\n提交插件包\n\n部署后需启用。插件按可信代码运行。\n\n启动核对\n13 项通过\n服务器插件\n浏览器插件\n还没有部署插件包\n\n选择 ZIP 或 TGZ 插件包提交，再按需启用。\n\n插件主题\n服务器运行目录 · 13 项\n扩展入口 · 0 项\n当前页任务\n暂无记录\n管理工坊扩展"
+    },
+    "after": {
+      "route": "#/plugins",
+      "view": {
+        "width": 768,
+        "height": 900
+      },
+      "document": {
+        "width": 768,
+        "height": 900,
+        "top": 0
+      },
+      "body": {
+        "width": 768,
+        "height": 900
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 768,
+        "height": 64,
+        "bottom": 64
+      },
+      "footer": {
+        "x": 0,
+        "y": 851,
+        "width": 768,
+        "height": 49,
+        "bottom": 900
+      },
+      "main": {
+        "rect": {
+          "x": 0,
+          "y": 64,
+          "width": 768,
+          "height": 787,
+          "bottom": 851
+        },
+        "scrollTop": 37,
+        "height": 787,
+        "contentHeight": 824
+      },
+      "tray": null,
+      "trayScroll": null,
+      "active": {
+        "tag": "BODY",
+        "text": "\n    跳到工作区F·DeviceForge设备工坊设备工坊工坊插件2026年10月15日星期四15:43Asia/Shanghai服务器已连接专注工作台设备应用与包文件与产物画面与录制深度调试性能",
+        "insideTray": false
+      },
+      "trayItems": [],
+      "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n设备工坊\n插件\n服务器已连接\n专注\n插件\n刷新目录\n安装插件\n部署到\n服务器插件\n插件包 · ZIP / TGZ\n提交插件包\n\n部署后需启用。插件按可信代码运行。\n\n启动核对\n13 项通过\n服务器插件\n浏览器插件\n还没有部署插件包\n\n选择 ZIP 或 TGZ 插件包提交，再按需启用。\n\n插件主题\n服务器运行目录 · 13 项\n扩展入口 · 0 项\n当前页任务\n暂无记录\n管理工坊扩展"
+    },
+    "opened": {
+      "route": "#/plugins",
+      "view": {
+        "width": 768,
+        "height": 900
+      },
+      "document": {
+        "width": 768,
+        "height": 900,
+        "top": 0
+      },
+      "body": {
+        "width": 768,
+        "height": 900
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 768,
+        "height": 64,
+        "bottom": 64
+      },
+      "footer": {
+        "x": 0,
+        "y": 851,
+        "width": 768,
+        "height": 49,
+        "bottom": 900
+      },
+      "main": {
+        "rect": {
+          "x": 0,
+          "y": 64,
+          "width": 768,
+          "height": 787,
+          "bottom": 851
+        },
+        "scrollTop": 37,
+        "height": 787,
+        "contentHeight": 824
+      },
+      "tray": {
+        "x": 0,
+        "y": 366.3916320800781,
+        "width": 768,
+        "height": 560,
+        "bottom": 926.3916320800781
+      },
+      "trayScroll": {
+        "top": 0,
+        "height": 418,
+        "contentHeight": 418
+      },
+      "active": {
+        "tag": "DIV",
+        "text": "当前没有相关任务此页面的任务会显示在这里。",
+        "insideTray": true
+      },
+      "trayItems": [],
+      "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n设备工坊\n插件\n服务器已连接\n专注\n插件\n刷新目录\n安装插件\n部署到\n服务器插件\n插件包 · ZIP / TGZ\n提交插件包\n\n部署后需启用。插件按可信代码运行。\n\n启动核对\n13 项通过\n服务器插件\n浏览器插件\n还没有部署插件包\n\n选择 ZIP 或 TGZ 插件包提交，再按需启用。\n\n插件主题\n服务器运行目录 · 13 项\n扩展入口 · 0 项\n当前页任务\n暂无记录\n管理工坊扩展\n插件 · 任务记录\n刷新\n\n仅显示本页面相关任务 · 0 条\n\n当前没有相关任务\n\n此页面的任务会显示在这里。\n\n前往任务与日志\n收起\n关闭"
+    },
+    "trayScrolled": {
+      "route": "#/plugins",
+      "view": {
+        "width": 768,
+        "height": 900
+      },
+      "document": {
+        "width": 768,
+        "height": 900,
+        "top": 0
+      },
+      "body": {
+        "width": 768,
+        "height": 900
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 768,
+        "height": 64,
+        "bottom": 64
+      },
+      "footer": {
+        "x": 0,
+        "y": 851,
+        "width": 768,
+        "height": 49,
+        "bottom": 900
+      },
+      "main": {
+        "rect": {
+          "x": 0,
+          "y": 64,
+          "width": 768,
+          "height": 787,
+          "bottom": 851
+        },
+        "scrollTop": 37,
+        "height": 787,
+        "contentHeight": 824
+      },
+      "tray": {
+        "x": 0,
+        "y": 349.34295654296875,
+        "width": 768,
+        "height": 560,
+        "bottom": 909.3429565429688
+      },
+      "trayScroll": {
+        "top": 0,
+        "height": 418,
+        "contentHeight": 418
+      },
+      "active": {
+        "tag": "DIV",
+        "text": "当前没有相关任务此页面的任务会显示在这里。",
+        "insideTray": true
+      },
+      "trayItems": [],
+      "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n设备工坊\n插件\n服务器已连接\n专注\n插件\n刷新目录\n安装插件\n部署到\n服务器插件\n插件包 · ZIP / TGZ\n提交插件包\n\n部署后需启用。插件按可信代码运行。\n\n启动核对\n13 项通过\n服务器插件\n浏览器插件\n还没有部署插件包\n\n选择 ZIP 或 TGZ 插件包提交，再按需启用。\n\n插件主题\n服务器运行目录 · 13 项\n扩展入口 · 0 项\n当前页任务\n暂无记录\n管理工坊扩展\n插件 · 任务记录\n刷新\n\n仅显示本页面相关任务 · 0 条\n\n当前没有相关任务\n\n此页面的任务会显示在这里。\n\n前往任务与日志\n收起\n关闭"
+    },
+    "tabFocus": {
+      "route": "#/plugins",
+      "view": {
+        "width": 768,
+        "height": 900
+      },
+      "document": {
+        "width": 768,
+        "height": 900,
+        "top": 0
+      },
+      "body": {
+        "width": 768,
+        "height": 900
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 768,
+        "height": 64,
+        "bottom": 64
+      },
+      "footer": {
+        "x": 0,
+        "y": 851,
+        "width": 768,
+        "height": 49,
+        "bottom": 900
+      },
+      "main": {
+        "rect": {
+          "x": 0,
+          "y": 64,
+          "width": 768,
+          "height": 787,
+          "bottom": 851
+        },
+        "scrollTop": 37,
+        "height": 787,
+        "contentHeight": 824
+      },
+      "tray": {
+        "x": 0,
+        "y": 345.8048400878906,
+        "width": 768,
+        "height": 560,
+        "bottom": 905.8048400878906
+      },
+      "trayScroll": {
+        "top": 0,
+        "height": 418,
+        "contentHeight": 418
+      },
+      "active": {
+        "tag": "BUTTON",
+        "text": "前往任务与日志",
+        "insideTray": true
+      },
+      "trayItems": [],
+      "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n设备工坊\n插件\n服务器已连接\n专注\n插件\n刷新目录\n安装插件\n部署到\n服务器插件\n插件包 · ZIP / TGZ\n提交插件包\n\n部署后需启用。插件按可信代码运行。\n\n启动核对\n13 项通过\n服务器插件\n浏览器插件\n还没有部署插件包\n\n选择 ZIP 或 TGZ 插件包提交，再按需启用。\n\n插件主题\n服务器运行目录 · 13 项\n扩展入口 · 0 项\n当前页任务\n暂无记录\n管理工坊扩展\n插件 · 任务记录\n刷新\n\n仅显示本页面相关任务 · 0 条\n\n当前没有相关任务\n\n此页面的任务会显示在这里。\n\n前往任务与日志\n收起\n关闭"
+    },
+    "closed": {
+      "route": "#/plugins",
+      "view": {
+        "width": 768,
+        "height": 900
+      },
+      "document": {
+        "width": 768,
+        "height": 900,
+        "top": 0
+      },
+      "body": {
+        "width": 768,
+        "height": 900
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 768,
+        "height": 64,
+        "bottom": 64
+      },
+      "footer": {
+        "x": 0,
+        "y": 851,
+        "width": 768,
+        "height": 49,
+        "bottom": 900
+      },
+      "main": {
+        "rect": {
+          "x": 0,
+          "y": 64,
+          "width": 768,
+          "height": 787,
+          "bottom": 851
+        },
+        "scrollTop": 37,
+        "height": 787,
+        "contentHeight": 824
+      },
+      "tray": null,
+      "trayScroll": null,
+      "active": {
+        "tag": "BUTTON",
+        "text": "当前页任务暂无记录",
+        "insideTray": false
+      },
+      "trayItems": [],
+      "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n设备工坊\n插件\n服务器已连接\n专注\n插件\n刷新目录\n安装插件\n部署到\n服务器插件\n插件包 · ZIP / TGZ\n提交插件包\n\n部署后需启用。插件按可信代码运行。\n\n启动核对\n13 项通过\n服务器插件\n浏览器插件\n还没有部署插件包\n\n选择 ZIP 或 TGZ 插件包提交，再按需启用。\n\n插件主题\n服务器运行目录 · 13 项\n扩展入口 · 0 项\n当前页任务\n暂无记录\n管理工坊扩展"
+    },
+    "restored": true
+  },
+  {
+    "route": "automation",
+    "width": 768,
+    "height": 900,
+    "before": {
+      "route": "#/automation",
+      "view": {
+        "width": 768,
+        "height": 900
+      },
+      "document": {
+        "width": 768,
+        "height": 900,
+        "top": 0
+      },
+      "body": {
+        "width": 768,
+        "height": 900
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 768,
+        "height": 64,
+        "bottom": 64
+      },
+      "footer": {
+        "x": 0,
+        "y": 851,
+        "width": 768,
+        "height": 49,
+        "bottom": 900
+      },
+      "main": {
+        "rect": {
+          "x": 0,
+          "y": 64,
+          "width": 768,
+          "height": 787,
+          "bottom": 851
+        },
+        "scrollTop": 37,
+        "height": 787,
+        "contentHeight": 912
+      },
+      "tray": null,
+      "trayScroll": null,
+      "active": {
+        "tag": "BODY",
+        "text": "\n    跳到工作区F·DeviceForge设备工坊设备工坊深度调试自动化2026年10月15日星期四15:43Asia/Shanghai服务器已连接专注工作台设备应用与包文件与产物画面与录制深度调",
+        "insideTray": false
+      },
+      "trayItems": [],
+      "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n设备工坊\n自动化\n服务器已连接\n专注\n工作设备\n尚未选择设备\n设备目录\n自动化\n使用说明\n设备步骤\n桌面操作\n输入录制与回放\n设备流程\n等待支持设备输入的在线设备\n\n选择声明 Android 设备操作的提供者；不同输入操作分别核对服务器目录。\n\n点击\n执行时间（毫秒）\n相对流程开始，时间需按非递减顺序添加\n设备 X 坐标\n设备 Y 坐标\n添加步骤\n\n添加点击、滑动、按键或文本步骤后运行。\n\n运行设备流程\n设备重复点击\n重复点击 X\n重复点击 Y\n设备点击次数\n设备点击间隔（毫秒）\n重复点击设备\n当前页任务\n暂无记录\n管理工坊扩展"
+    },
+    "after": {
+      "route": "#/automation",
+      "view": {
+        "width": 768,
+        "height": 900
+      },
+      "document": {
+        "width": 768,
+        "height": 900,
+        "top": 0
+      },
+      "body": {
+        "width": 768,
+        "height": 900
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 768,
+        "height": 64,
+        "bottom": 64
+      },
+      "footer": {
+        "x": 0,
+        "y": 851,
+        "width": 768,
+        "height": 49,
+        "bottom": 900
+      },
+      "main": {
+        "rect": {
+          "x": 0,
+          "y": 64,
+          "width": 768,
+          "height": 787,
+          "bottom": 851
+        },
+        "scrollTop": 125,
+        "height": 787,
+        "contentHeight": 912
+      },
+      "tray": null,
+      "trayScroll": null,
+      "active": {
+        "tag": "BODY",
+        "text": "\n    跳到工作区F·DeviceForge设备工坊设备工坊深度调试自动化2026年10月15日星期四15:43Asia/Shanghai服务器已连接专注工作台设备应用与包文件与产物画面与录制深度调",
+        "insideTray": false
+      },
+      "trayItems": [],
+      "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n设备工坊\n自动化\n服务器已连接\n专注\n工作设备\n尚未选择设备\n设备目录\n自动化\n使用说明\n设备步骤\n桌面操作\n输入录制与回放\n设备流程\n等待支持设备输入的在线设备\n\n选择声明 Android 设备操作的提供者；不同输入操作分别核对服务器目录。\n\n点击\n执行时间（毫秒）\n相对流程开始，时间需按非递减顺序添加\n设备 X 坐标\n设备 Y 坐标\n添加步骤\n\n添加点击、滑动、按键或文本步骤后运行。\n\n运行设备流程\n设备重复点击\n重复点击 X\n重复点击 Y\n设备点击次数\n设备点击间隔（毫秒）\n重复点击设备\n当前页任务\n暂无记录\n管理工坊扩展"
+    },
+    "opened": {
+      "route": "#/automation",
+      "view": {
+        "width": 768,
+        "height": 900
+      },
+      "document": {
+        "width": 768,
+        "height": 900,
+        "top": 0
+      },
+      "body": {
+        "width": 768,
+        "height": 900
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 768,
+        "height": 64,
+        "bottom": 64
+      },
+      "footer": {
+        "x": 0,
+        "y": 851,
+        "width": 768,
+        "height": 49,
+        "bottom": 900
+      },
+      "main": {
+        "rect": {
+          "x": 0,
+          "y": 64,
+          "width": 768,
+          "height": 787,
+          "bottom": 851
+        },
+        "scrollTop": 125,
+        "height": 787,
+        "contentHeight": 912
+      },
+      "tray": {
+        "x": 0,
+        "y": 366.33203125,
+        "width": 768,
+        "height": 560,
+        "bottom": 926.33203125
+      },
+      "trayScroll": {
+        "top": 0,
+        "height": 418,
+        "contentHeight": 418
+      },
+      "active": {
+        "tag": "DIV",
+        "text": "当前没有相关任务此页面的任务会显示在这里。",
+        "insideTray": true
+      },
+      "trayItems": [],
+      "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n设备工坊\n自动化\n服务器已连接\n专注\n工作设备\n尚未选择设备\n设备目录\n自动化\n使用说明\n设备步骤\n桌面操作\n输入录制与回放\n设备流程\n等待支持设备输入的在线设备\n\n选择声明 Android 设备操作的提供者；不同输入操作分别核对服务器目录。\n\n点击\n执行时间（毫秒）\n相对流程开始，时间需按非递减顺序添加\n设备 X 坐标\n设备 Y 坐标\n添加步骤\n\n添加点击、滑动、按键或文本步骤后运行。\n\n运行设备流程\n设备重复点击\n重复点击 X\n重复点击 Y\n设备点击次数\n设备点击间隔（毫秒）\n重复点击设备\n当前页任务\n暂无记录\n管理工坊扩展\n自动化 · 任务记录\n刷新\n\n仅显示本页面相关任务 · 0 条\n\n当前没有相关任务\n\n此页面的任务会显示在这里。\n\n前往任务与日志\n收起\n关闭"
+    },
+    "trayScrolled": {
+      "route": "#/automation",
+      "view": {
+        "width": 768,
+        "height": 900
+      },
+      "document": {
+        "width": 768,
+        "height": 900,
+        "top": 0
+      },
+      "body": {
+        "width": 768,
+        "height": 900
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 768,
+        "height": 64,
+        "bottom": 64
+      },
+      "footer": {
+        "x": 0,
+        "y": 851,
+        "width": 768,
+        "height": 49,
+        "bottom": 900
+      },
+      "main": {
+        "rect": {
+          "x": 0,
+          "y": 64,
+          "width": 768,
+          "height": 787,
+          "bottom": 851
+        },
+        "scrollTop": 125,
+        "height": 787,
+        "contentHeight": 912
+      },
+      "tray": {
+        "x": 0,
+        "y": 349.3111267089844,
+        "width": 768,
+        "height": 560,
+        "bottom": 909.3111267089844
+      },
+      "trayScroll": {
+        "top": 0,
+        "height": 418,
+        "contentHeight": 418
+      },
+      "active": {
+        "tag": "DIV",
+        "text": "当前没有相关任务此页面的任务会显示在这里。",
+        "insideTray": true
+      },
+      "trayItems": [],
+      "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n设备工坊\n自动化\n服务器已连接\n专注\n工作设备\n尚未选择设备\n设备目录\n自动化\n使用说明\n设备步骤\n桌面操作\n输入录制与回放\n设备流程\n等待支持设备输入的在线设备\n\n选择声明 Android 设备操作的提供者；不同输入操作分别核对服务器目录。\n\n点击\n执行时间（毫秒）\n相对流程开始，时间需按非递减顺序添加\n设备 X 坐标\n设备 Y 坐标\n添加步骤\n\n添加点击、滑动、按键或文本步骤后运行。\n\n运行设备流程\n设备重复点击\n重复点击 X\n重复点击 Y\n设备点击次数\n设备点击间隔（毫秒）\n重复点击设备\n当前页任务\n暂无记录\n管理工坊扩展\n自动化 · 任务记录\n刷新\n\n仅显示本页面相关任务 · 0 条\n\n当前没有相关任务\n\n此页面的任务会显示在这里。\n\n前往任务与日志\n收起\n关闭"
+    },
+    "tabFocus": {
+      "route": "#/automation",
+      "view": {
+        "width": 768,
+        "height": 900
+      },
+      "document": {
+        "width": 768,
+        "height": 900,
+        "top": 0
+      },
+      "body": {
+        "width": 768,
+        "height": 900
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 768,
+        "height": 64,
+        "bottom": 64
+      },
+      "footer": {
+        "x": 0,
+        "y": 851,
+        "width": 768,
+        "height": 49,
+        "bottom": 900
+      },
+      "main": {
+        "rect": {
+          "x": 0,
+          "y": 64,
+          "width": 768,
+          "height": 787,
+          "bottom": 851
+        },
+        "scrollTop": 125,
+        "height": 787,
+        "contentHeight": 912
+      },
+      "tray": {
+        "x": 0,
+        "y": 345.7805480957031,
+        "width": 768,
+        "height": 560,
+        "bottom": 905.7805480957031
+      },
+      "trayScroll": {
+        "top": 0,
+        "height": 418,
+        "contentHeight": 418
+      },
+      "active": {
+        "tag": "BUTTON",
+        "text": "前往任务与日志",
+        "insideTray": true
+      },
+      "trayItems": [],
+      "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n设备工坊\n自动化\n服务器已连接\n专注\n工作设备\n尚未选择设备\n设备目录\n自动化\n使用说明\n设备步骤\n桌面操作\n输入录制与回放\n设备流程\n等待支持设备输入的在线设备\n\n选择声明 Android 设备操作的提供者；不同输入操作分别核对服务器目录。\n\n点击\n执行时间（毫秒）\n相对流程开始，时间需按非递减顺序添加\n设备 X 坐标\n设备 Y 坐标\n添加步骤\n\n添加点击、滑动、按键或文本步骤后运行。\n\n运行设备流程\n设备重复点击\n重复点击 X\n重复点击 Y\n设备点击次数\n设备点击间隔（毫秒）\n重复点击设备\n当前页任务\n暂无记录\n管理工坊扩展\n自动化 · 任务记录\n刷新\n\n仅显示本页面相关任务 · 0 条\n\n当前没有相关任务\n\n此页面的任务会显示在这里。\n\n前往任务与日志\n收起\n关闭"
+    },
+    "closed": {
+      "route": "#/automation",
+      "view": {
+        "width": 768,
+        "height": 900
+      },
+      "document": {
+        "width": 768,
+        "height": 900,
+        "top": 0
+      },
+      "body": {
+        "width": 768,
+        "height": 900
+      },
+      "header": {
+        "x": 0,
+        "y": 0,
+        "width": 768,
+        "height": 64,
+        "bottom": 64
+      },
+      "footer": {
+        "x": 0,
+        "y": 851,
+        "width": 768,
+        "height": 49,
+        "bottom": 900
+      },
+      "main": {
+        "rect": {
+          "x": 0,
+          "y": 64,
+          "width": 768,
+          "height": 787,
+          "bottom": 851
+        },
+        "scrollTop": 125,
+        "height": 787,
+        "contentHeight": 912
+      },
+      "tray": null,
+      "trayScroll": null,
+      "active": {
+        "tag": "BUTTON",
+        "text": "当前页任务暂无记录",
+        "insideTray": false
+      },
+      "trayItems": [],
+      "text": "跳到工作区\nF\n·\nDeviceForge\n设备工坊\n设备工坊\n自动化\n服务器已连接\n专注\n工作设备\n尚未选择设备\n设备目录\n自动化\n使用说明\n设备步骤\n桌面操作\n输入录制与回放\n设备流程\n等待支持设备输入的在线设备\n\n选择声明 Android 设备操作的提供者；不同输入操作分别核对服务器目录。\n\n点击\n执行时间（毫秒）\n相对流程开始，时间需按非递减顺序添加\n设备 X 坐标\n设备 Y 坐标\n添加步骤\n\n添加点击、滑动、按键或文本步骤后运行。\n\n运行设备流程\n设备重复点击\n重复点击 X\n重复点击 Y\n设备点击次数\n设备点击间隔（毫秒）\n重复点击设备\n当前页任务\n暂无记录\n管理工坊扩展"
+    },
+    "restored": true
+  }
+]

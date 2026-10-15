@@ -54,6 +54,16 @@ impl Device {
         open: &Open,
         context: &InvocationContext,
     ) -> Result<(), String> {
+        self.prepare_with_audio_codec(config, open, context, "raw")
+            .await
+    }
+    pub(crate) async fn prepare_with_audio_codec(
+        &mut self,
+        config: &Config,
+        open: &Open,
+        context: &InvocationContext,
+        audio_codec: &str,
+    ) -> Result<(), String> {
         let live = config.live.as_ref().ok_or("未配置直播服务器")?;
         let meta = checked(context, async {
             tokio::fs::symlink_metadata(&live.scrcpy_server)
@@ -117,7 +127,11 @@ impl Device {
             "-s".into(),
             open.device_id.clone(),
             "shell".into(),
-            self.script(open, live.video_encoder.as_deref()),
+            if audio_codec == "raw" {
+                self.script(open, live.video_encoder.as_deref())
+            } else {
+                self.script_with_audio_codec(open, live.video_encoder.as_deref(), audio_codec)
+            },
         ];
         let mut tool = ToolCommand::new(&config.adb, &args);
         tool.environment = Environment::Restricted;
@@ -144,10 +158,22 @@ impl Device {
         Ok(())
     }
     pub(crate) fn script(&self, open: &Open, video_encoder: Option<&str>) -> String {
+        self.script_with_audio_codec(open, video_encoder, "raw")
+    }
+    fn script_with_audio_codec(
+        &self,
+        open: &Open,
+        video_encoder: Option<&str>,
+        codec: &str,
+    ) -> String {
         let encoder = video_encoder
             .map(|name| format!(" video_encoder={name}"))
             .unwrap_or_default();
-        let audio_codec = if open.audio { " audio_codec=raw" } else { "" };
+        let audio_codec = if open.audio {
+            format!(" audio_codec={codec}")
+        } else {
+            String::new()
+        };
         format!(
             "echo $$ > {dir}/pid && CLASSPATH={dir}/server.jar exec app_process / com.genymobile.scrcpy.Server 3.3.1 scid={scid} tunnel_forward=true video_bit_rate={rate} audio={audio}{audio_codec} max_size={size} max_fps={fps} control={control}{encoder} send_device_meta=false send_dummy_byte=false cleanup=false",
             dir = self.directory,

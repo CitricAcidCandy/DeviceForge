@@ -79,7 +79,7 @@ export function ProductShell({
         }}
         onNavigate={navigate}
       />
-      <WorkspaceSidebar route={route} collapsed={collapsed} onCollapse={() => setCollapsed(!collapsed)} onNavigate={navigate} />
+      <WorkspaceSidebar route={route} collapsed={collapsed} onNavigate={navigate} />
       <div className="workspace-main">
         <div className="workspace-content">
           <main id="workplane" className="workplane" tabIndex={-1} data-product-workspace>
@@ -87,8 +87,8 @@ export function ProductShell({
             {children}
           </main>
         </div>
-        <WorkspaceTasks key={route} services={services} route={route} onNavigate={navigate} />
       </div>
+      <WorkspaceTasks key={route} services={services} route={route} onNavigate={navigate} />
     </div>
   );
 }
