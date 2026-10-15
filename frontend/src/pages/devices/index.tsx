@@ -1,7 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ArrowUpRight, Cable, ClipboardList, RefreshCw, Smartphone } from 'lucide-react';
 import { Button } from '../../components/Button/index.tsx';
-import { EmptyState, PageTitle } from '../../components/index.ts';
 import {
   Dialog,
   DialogContent,
@@ -20,15 +19,14 @@ import { DeviceCapabilities } from './components/DeviceCapabilities/index.tsx';
 import { deviceKey, deviceStates, discoverProviders, providerKey } from './workspace.ts';
 import './workspace.css';
 
-type DiscoveryReport = Awaited<ReturnType<typeof discoverProviders>>['data'];
-
-export function DevicesPage({ services }: { services: ProductServices }) {
+export function DevicesPage({ services, active }: { services: ProductServices; active: boolean }) {
   const snapshot = useSnapshot(services.runtime.devices);
   const catalog = useSnapshot(services.runtime.operations);
   const refresh = useAction();
   const [connectionOpen, setConnectionOpen] = useState(false);
-  const [report, setReport] = useState<DiscoveryReport | null>(null);
-  const [copyState, setCopyState] = useState('');
+  useEffect(() => {
+    if (!active) setConnectionOpen(false);
+  }, [active]);
   const selected = snapshot.selected;
   const selectedProvider = snapshot.providers.find(
     (provider) =>
@@ -46,83 +44,76 @@ export function DevicesPage({ services }: { services: ProductServices }) {
     'packages',
   );
   const discover = (provider: DeviceProviderInfo) => {
-    setReport(null);
-    void refresh.run((signal) =>
-      services.runtime.devices.refreshProvider(provider.id, provider.generation, signal),
+    void refresh.run(
+      async (signal) => {
+        const result = await services.runtime.devices.refreshProvider(
+          provider.id,
+          provider.generation,
+          signal,
+        );
+        if (!signal.aborted)
+          services.messages.success('设备发现已完成', {
+            description: `${provider.definition.platform}：发现 ${result.data.devices.length} 台设备`,
+            logId: result.logId,
+          });
+        return result;
+      },
+      { success: null, pending: '正在发现设备' },
+    );
+  };
+  const discoverAll = () => {
+    void refresh.run(
+      async (signal) => {
+        const result = await discoverProviders(services.runtime.devices, signal);
+        if (!signal.aborted) {
+          const title = result.data.failures.length
+            ? result.data.discovered
+              ? '部分设备提供者发现失败'
+              : '设备发现未完成'
+            : '设备发现已完成';
+          const options = {
+            description: `已完成 ${result.data.discovered} 个提供者的发现${result.data.failures.length ? `，${result.data.failures.length} 个失败` : ''}`,
+            logId: result.logId,
+            details: result.data.failures.map((failure) => ({
+              label: failure.provider,
+              message: failure.message,
+              logId: failure.logId,
+            })),
+          };
+          if (result.data.failures.length) services.messages.warning(title, options);
+          else if (result.data.discovered === 0)
+            services.messages.info('暂无运行中的设备提供者', {
+              description: '在插件页启用设备提供者后重新发现。',
+              logId: result.logId,
+            });
+          else services.messages.success(title, options);
+        }
+        return result;
+      },
+      { success: null, pending: '正在发现设备' },
     );
   };
   return (
-    <div className="product-page device-workspace-page" data-product-page="devices">
-      <PageTitle
-        eyebrow="WORKSHOP / DEVICES"
-        title="设备工作台"
-        description="选择设备，查看可用能力，开始你的工作。"
-      >
-        <Button
-          variant="outline"
-          disabled={refresh.pending}
-          onClick={() => {
-            setReport(null);
-            void refresh.run(services.runtime.devices.refreshDirectories);
-          }}
-          title="读取服务器已有观测，不触发设备发现"
-        >
-          读取目录
-        </Button>
-        <Button
-          disabled={refresh.pending}
-          onClick={() => {
-            setReport(null);
-            void refresh.run(async (signal) => {
-              const result = await discoverProviders(services.runtime.devices, signal);
-              if (!signal.aborted) setReport(result.data);
-              return result;
-            });
-          }}
-        >
-          <RefreshCw />
-          重新发现设备
-        </Button>
-      </PageTitle>
-      <div className="device-page-feedback">
-        <ActionFeedback {...refresh} />
-        {report && (
-          <div className="device-discovery-report" aria-live="polite">
-            <p>
-              已完成 {report.discovered} 个提供者的设备发现
-              {report.failures.length ? `，${report.failures.length} 个失败` : ''}。
-            </p>
-            {report.failures.map((failure) => (
-              <p key={failure.provider}>
-                {failure.provider}：{failure.message}
-                {failure.logId && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      void Promise.resolve()
-                        .then(() => navigator.clipboard.writeText(failure.logId ?? ''))
-                        .then(
-                          () => setCopyState('日志 ID 已复制'),
-                          () => setCopyState('复制失败，请手动选择日志 ID'),
-                        );
-                    }}
-                  >
-                    复制日志 ID：{failure.logId}
-                  </Button>
-                )}
-              </p>
-            ))}
-            <span role="status">{copyState}</span>
-          </div>
-        )}
-      </div>
+    <section
+      className="product-page device-workspace-page"
+      data-product-page="devices"
+      aria-label="设备工作台"
+    >
+      <ActionFeedback {...refresh} />
       <div className="device-workspace-grid">
         <DeviceDirectory
           snapshot={snapshot}
           pending={refresh.pending}
           select={services.runtime.devices.select}
           discover={discover}
+          discoverAll={discoverAll}
+          read={() => {
+            void refresh.run(services.runtime.devices.refreshDirectories, {
+              success: '设备目录已更新',
+              pending: '正在读取设备目录',
+            });
+          }}
+          connect={() => setConnectionOpen(true)}
         />
         <section className="device-detail-card workspace-card" aria-label="设备详细工作台">
           {selected && selectedProvider ? (
@@ -230,40 +221,34 @@ export function DevicesPage({ services }: { services: ProductServices }) {
             </>
           ) : (
             <div className="device-detail-empty">
-              <span className="device-detail-icon">
-                <Smartphone aria-hidden="true" />
-              </span>
-              <EmptyState
-                title="选择一台设备开始工作"
-                description={
-                  snapshot.providers.length
-                    ? '从左侧目录选择设备。连接或重新发现后，选择最新观测中的设备。'
-                    : '先在插件页加载设备提供者，再连接或发现设备。'
-                }
-              />
-              <div className="page-actions">
-                <Button
-                  onClick={() => setConnectionOpen(true)}
-                  disabled={snapshot.providers.length === 0}
-                >
-                  <Cable />
-                  连接设备
-                </Button>
-                <Button variant="outline" asChild>
-                  <a href="#plugins">
-                    管理插件
-                    <ArrowUpRight />
-                  </a>
-                </Button>
+              <div className="device-empty-main">
+                <span className="device-detail-icon"><Smartphone aria-hidden="true" /></span>
+                <div>
+                  <p className="eyebrow">下一步</p>
+                  <h3>连接或选择设备</h3>
+                  <p className="muted">{snapshot.providers.length
+                    ? '从左侧目录选择设备；连接或重新发现后，选择最新观测中的设备。'
+                    : '先在插件页启用设备提供者，再连接或发现设备。'}</p>
+                </div>
+                <div className="device-empty-actions">
+                  <Button onClick={() => setConnectionOpen(true)} disabled={snapshot.providers.length === 0}>
+                    <Cable />连接设备
+                  </Button>
+                  <Button variant="outline" onClick={discoverAll} disabled={refresh.pending || snapshot.providers.length === 0}>
+                    <RefreshCw />重新发现
+                  </Button>
+                  <Button variant="ghost" asChild><a href="#plugins">管理插件<ArrowUpRight /></a></Button>
+                </div>
+              </div>
+              <div className="device-empty-lower">
+                <p>选中设备后，这里会显示可用操作和任务结果。</p>
+                <a href="#tasks">查看任务记录 <ArrowUpRight aria-hidden="true" /></a>
               </div>
             </div>
           )}
-          <footer className="device-observation-note">
-            设备状态来自显式观测；设备断线或提供者变化后，请重新发现。任务与产物在任务记录中查询。
-          </footer>
         </section>
       </div>
-      <Dialog open={connectionOpen} onOpenChange={setConnectionOpen}>
+      <Dialog open={active && connectionOpen} onOpenChange={setConnectionOpen}>
         <DialogContent className="device-connect-dialog">
           <DialogHeader>
             <DialogTitle>连接与断开设备</DialogTitle>
@@ -271,11 +256,11 @@ export function DevicesPage({ services }: { services: ProductServices }) {
               通过当前运行的设备提供者连接地址，任务完成后刷新观测。
             </DialogDescription>
           </DialogHeader>
-          {connectionOpen && (
+          {active && connectionOpen && (
             <DevicesConnect services={services} initialProvider={selectedProvider ?? null} />
           )}
         </DialogContent>
       </Dialog>
-    </div>
+    </section>
   );
 }

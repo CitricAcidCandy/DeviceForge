@@ -11,6 +11,7 @@
 - `src/features/<功能>`：只保留跨页面业务逻辑，根 index.ts 和中文 README；models 放用例、状态、订阅与编排，services 放适配与解码，types 放类型，utils 放纯规则。不含业务 UI、components 或 TSX；页面专属能力优先留 pages，不为目录完整制造空层。
 - 功能内部方向：types/utils 不依 models/services；services 可依自身与 types/utils，不依 models；models 可依 services/types/utils。跨功能只引用对方 index.ts 核心公开入口，不读取内部路径且不得形成循环；核心入口不得引用 pages 或公共展示组件。
 - `src/components/<PascalCase组件>/index.tsx`：仅跨页面公共组件，官方基础、组合和第三方封装使用相同结构。私有 children/types/styles/hooks 放本组件目录；外部读取组件入口或 components/index.ts，组件内部不导入汇总，不读取其他组件私有文件。
+- 公共组件如需向非浏览器装配提供控制器和类型，可以额外保留同目录`index.ts`公共入口；该入口不加载或重导出TSX/CSS，展示入口仍为`index.tsx`。私有实现路径不因此开放。
 - 公共组件只依公共组件和 `src/utils` 纯工具，不读取业务 API、features、pages、app、plugins 或 SDK。纯工具只依 utils，不承接业务状态和网络副作用。
 - `src/services/api`：公共请求、生成类型、错误、取消和日志适配；页面调用公开请求，不直接 fetch。现有共享基础设施和 SDK 保留原边界，本轮不额外扩大业务重构。
 - 页面另可消费 shared/jobs/index.ts 的公共作业能力，以及 plugin-sdk/index.ts、plugin-sdk/json.ts 的公开契约；不开放其他 shared 文件或 SDK 私有路径。

@@ -34,13 +34,12 @@ export function PluginsPage({ services }: { services: ProductServices }) {
   const defaults = useSnapshot(services.pluginDefaults);
   const defaultFailures = defaults.results.filter((entry) => entry.status === 'failed');
   const defaultEnabled = defaults.results.filter((entry) => entry.status !== 'failed');
-  const [defaultCopy, setDefaultCopy] = useState('');
   async function copyDefaultLog(value: string) {
     try {
       await navigator.clipboard.writeText(value);
-      setDefaultCopy('日志 ID 已复制');
+      services.messages.success('日志 ID 已复制');
     } catch {
-      setDefaultCopy('复制失败，请手动选择日志 ID');
+      services.messages.warning('复制失败，请手动选择日志 ID');
     }
   }
   const server = useSnapshot(services.runtime.serverPlugins);
@@ -91,7 +90,7 @@ export function PluginsPage({ services }: { services: ProductServices }) {
   }
   useEffect(() => {
     if (defaults.phase === 'running') return;
-    void action.run(refresh);
+    void action.run(refresh, { quiet: true });
   }, [services, kind, defaults.phase]);
   useEffect(() => {
     if (defaults.phase !== 'running') syncExtensions();
@@ -104,6 +103,23 @@ export function PluginsPage({ services }: { services: ProductServices }) {
         syncExtensions();
       }
     });
+  const runDefaults = (run: typeof services.pluginDefaults.restart) => {
+    void action.run(
+      async (signal) => {
+        try {
+          const result = await run(signal);
+          if (!signal.aborted && result.results.every((entry) => entry.status !== 'failed'))
+            services.messages.success('已安装插件核对完成', {
+              description: `共 ${result.results.length} 项已启用或保持运行。`,
+            });
+          return result;
+        } finally {
+          syncExtensions();
+        }
+      },
+      { success: null, pending: '正在启用已安装插件' },
+    );
+  };
   function toggleExtension(id: string, module: boolean) {
     void action.run(async () => {
       const currentCatalog = services.runtime.extensions.catalog();
@@ -165,7 +181,7 @@ export function PluginsPage({ services }: { services: ProductServices }) {
               {defaults.phase === 'running'
                 ? ' 正在核对并启用…'
                 : defaults.phase === 'completed'
-                  ? ` 本轮 ${defaultEnabled.length} 项已启用${defaultFailures.length ? `，${defaultFailures.length} 项失败` : ''}。`
+                  ? ` 本轮 ${defaultEnabled.length} 项核对通过${defaultFailures.length ? `，${defaultFailures.length} 项失败` : ''}。`
                   : defaults.phase === 'cancelled'
                     ? ' 本轮等待已取消，可重新执行。'
                     : ' 等待启动核对。'}
@@ -177,7 +193,7 @@ export function PluginsPage({ services }: { services: ProductServices }) {
                 variant="outline"
                 disabled={action.pending || defaults.phase === 'running'}
                 onClick={() => {
-                  void manage(services.pluginDefaults.retryFailures);
+                  runDefaults(services.pluginDefaults.retryFailures);
                 }}
               >
                 重试失败项
@@ -187,43 +203,46 @@ export function PluginsPage({ services }: { services: ProductServices }) {
               variant="outline"
               disabled={action.pending || defaults.phase === 'running'}
               onClick={() => {
-                void manage(services.pluginDefaults.restart);
+                runDefaults(services.pluginDefaults.restart);
               }}
             >
               重新执行默认启用
             </Button>
           </div>
         </div>
-        {defaultFailures.map((entry) => (
-          <div
-            className="result-row"
-            key={JSON.stringify([entry.kind, entry.id])}
-            data-default-plugin-id={entry.id ?? ''}
-            data-default-plugin-kind={entry.kind}
-            data-default-plugin-status={entry.status}
-          >
-            <span>
-              {entry.kind === 'server' ? '服务器' : '浏览器'} · {entry.id ?? '安装或运行目录'}
-            </span>
-            <span className={entry.status === 'failed' ? 'text-danger' : 'muted'}>
-              启用失败：{entry.message}
-            </span>
-            {entry.status === 'failed' && entry.logId && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  void copyDefaultLog(entry.logId ?? '');
-                }}
+        {defaultFailures.length > 0 && (
+          <details>
+            <summary>本轮 {defaultFailures.length} 项失败 · 查看原因和日志 ID</summary>
+            {defaultFailures.map((entry) => (
+              <div
+                className="result-row"
+                key={JSON.stringify([entry.kind, entry.id])}
+                data-default-plugin-id={entry.id ?? ''}
+                data-default-plugin-kind={entry.kind}
+                data-default-plugin-status={entry.status}
               >
-                复制日志 ID：{entry.logId}
-              </Button>
-            )}
-          </div>
-        ))}
+                <span>
+                  {entry.kind === 'server' ? '服务器' : '浏览器'} · {entry.id ?? '安装或运行目录'}
+                </span>
+                <span className="text-danger">{entry.message}</span>
+                {entry.logId && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      void copyDefaultLog(entry.logId ?? '');
+                    }}
+                  >
+                    复制日志 ID：{entry.logId}
+                  </Button>
+                )}
+              </div>
+            ))}
+          </details>
+        )}
         {defaultEnabled.length > 0 && (
           <details>
-            <summary>本轮已启用 {defaultEnabled.length} 项 · 查看启动核对结果</summary>
+            <summary>本轮核对通过 {defaultEnabled.length} 项 · 查看详情</summary>
             {defaultEnabled.map((entry) => (
               <div
                 className="result-row"
@@ -242,7 +261,6 @@ export function PluginsPage({ services }: { services: ProductServices }) {
             ))}
           </details>
         )}
-        <span role="status">{defaultCopy}</span>
       </section>
       <div className="plugin-upload form-row">
         <div className="form-field">
@@ -314,6 +332,10 @@ export function PluginsPage({ services }: { services: ProductServices }) {
                   ? server.result?.data.find((entry) => entry.id === pkg.id)
                   : browserRunning.find((entry) => entry.id === pkg.id);
               const running = runtime?.state === 'loaded';
+              const cleanupFailed = Boolean(
+                runtime && 'cleanup_failed' in runtime && runtime.cleanup_failed,
+              );
+              const guarded = cleanupFailed || runtime?.state === 'draining';
               return (
                 <div className="plugin-row" key={pkg.id}>
                   <Puzzle aria-hidden="true" />
@@ -322,16 +344,18 @@ export function PluginsPage({ services }: { services: ProductServices }) {
                       {pkg.id}
                       <small>{pkg.version}</small>
                     </h3>
-                    <p className="muted">
+                    <p className={cleanupFailed ? 'text-danger' : 'muted'}>
                       {kind === 'server' ? '服务器插件' : '浏览器插件'} ·{' '}
-                      {running
-                        ? '已启用'
+                      {cleanupFailed
+                        ? '资源清理未确认'
                         : runtime?.state === 'draining'
                           ? '正在排空'
-                          : '已部署，未启用'}
+                          : running
+                            ? '已启用'
+                            : '已部署，未启用'}
                     </p>
-                    {runtime && 'cleanup_failed' in runtime && runtime.cleanup_failed && (
-                      <p className="text-danger">上次资源清理未完成，请重新查询状态。</p>
+                    {cleanupFailed && (
+                      <p className="text-danger">该代次的外部资源清理未确认，管理操作已暂停。</p>
                     )}
                     <details>
                       <summary>来源与运行信息</summary>
@@ -347,8 +371,8 @@ export function PluginsPage({ services }: { services: ProductServices }) {
                   </div>
                   <div className="row-actions">
                     <Button
-                      variant={running ? 'outline' : 'default'}
-                      disabled={action.pending || defaults.phase === 'running'}
+                      variant={running || guarded ? 'outline' : 'default'}
+                      disabled={action.pending || defaults.phase === 'running' || guarded}
                       onClick={() => {
                         void manage((signal) =>
                           running
@@ -357,12 +381,18 @@ export function PluginsPage({ services }: { services: ProductServices }) {
                         );
                       }}
                     >
-                      {running ? <Square /> : <Play />}
-                      {running ? '停用' : '启用'}
+                      {running || guarded ? <Square /> : <Play />}
+                      {cleanupFailed
+                        ? '清理待确认'
+                        : runtime?.state === 'draining'
+                          ? '正在排空'
+                          : running
+                            ? '停用'
+                            : '启用'}
                     </Button>
                     <Button
                       variant="ghost"
-                      disabled={action.pending || running}
+                      disabled={action.pending || running || guarded}
                       aria-label={`删除已部署的 ${pkg.id}`}
                       onClick={() => {
                         void manage((signal) =>

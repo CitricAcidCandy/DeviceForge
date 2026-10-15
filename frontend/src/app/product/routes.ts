@@ -106,7 +106,7 @@ export const PRODUCT_ROUTES: readonly ProductRouteInfo[] = [
     id: 'analysis',
     label: '数据分析',
     group: '扩展创作',
-    description: 'DEX、MessagePack 与表格数据',
+    description: 'DEX 与 MessagePack 数据检查',
     icon: ScanSearch,
   },
   {

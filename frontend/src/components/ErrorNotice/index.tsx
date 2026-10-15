@@ -1,7 +1,6 @@
-import { useState } from 'react';
-import { AlertCircle, Copy } from 'lucide-react';
-import { Alert, AlertDescription, AlertTitle } from '../Alert/index.tsx';
-import { Button } from '../Button/index.tsx';
+import { useEffect, useRef } from 'react';
+import { useMessage } from '../Message/index.tsx';
+import type { MessageController } from '../Message/index.ts';
 
 export interface ErrorNoticeProps {
   readonly message: string;
@@ -10,33 +9,42 @@ export interface ErrorNoticeProps {
 }
 
 export function ErrorNotice({ message, logId, copyLogId }: ErrorNoticeProps) {
-  const [copyState, setCopyState] = useState('');
-  return (
-    <Alert variant="destructive" role="alert">
-      <AlertCircle />
-      <AlertTitle>操作未完成</AlertTitle>
-      <AlertDescription>
-        <p>{message}</p>
-        {logId &&
-          (copyLogId ? (
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => {
-                void copyLogId(logId).then(
-                  () => setCopyState('日志 ID 已复制'),
-                  () => setCopyState('复制失败，请手动选择日志 ID'),
-                );
-              }}
-            >
-              <Copy />
-              复制日志 ID：{logId}
-            </Button>
-          ) : (
-            <p>日志 ID：{logId}</p>
-          ))}
-        <span role="status">{copyState}</span>
-      </AlertDescription>
-    </Alert>
-  );
+  const messages = useMessage();
+  const copyLogIdRef = useRef(copyLogId);
+  copyLogIdRef.current = copyLogId;
+  const previous = useRef<{
+    message: string;
+    logId: string | null;
+    controller: MessageController;
+  } | null>(null);
+  useEffect(() => {
+    if (!messages || !message) {
+      previous.current = null;
+      return;
+    }
+    const currentLogId = logId ?? null;
+    if (
+      previous.current?.message === message &&
+      previous.current.logId === currentLogId &&
+      previous.current.controller === messages
+    ) return;
+    previous.current = { message, logId: currentLogId, controller: messages };
+    messages.error(message, {
+      logId: currentLogId,
+      ...(currentLogId && copyLogId ? {
+        action: {
+          label: '复制日志 ID',
+          onClick: () => {
+            const copy = copyLogIdRef.current;
+            if (!copy) return;
+            void copy(currentLogId).then(
+              () => messages.success('日志 ID 已复制'),
+              () => messages.warning('复制失败，请手动选择日志 ID'),
+            );
+          },
+        },
+      } : {}),
+    });
+  }, [message, logId, copyLogId, messages]);
+  return null;
 }

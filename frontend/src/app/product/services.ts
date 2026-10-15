@@ -7,7 +7,6 @@ import { createAiAssistant } from '../../features/ai-assistant/index.ts';
 import { createDexAnalysis } from '../../features/dex-analysis/index.ts';
 import { createMsgpack } from '../../features/msgpack/index.ts';
 import { createToolSupply } from '../../features/tool-supply/index.ts';
-import { createSpreadsheet } from '../../features/spreadsheet/index.ts';
 import { createHttpInteractiveSessions } from '../../features/interactive-sessions/index.ts';
 import { createHttpArtifactBrowser } from '../../features/artifact-browser/index.ts';
 import { createMirroring } from '../../features/mirroring/index.ts';
@@ -19,6 +18,7 @@ import type { RuntimeOptions } from '../runtime.ts';
 import { createFrontendRuntime } from '../runtime.ts';
 import { createMediaDisplay } from './media-display.ts';
 import { createPluginDefaults } from '../../features/plugin-defaults/index.ts';
+import { createMessageController } from '../../components/Message/index.ts';
 
 export interface ProductConnection {
   readonly baseUrl: string;
@@ -29,6 +29,7 @@ export interface ProductConnection {
 export function createProductServices(
   options: RuntimeOptions & { readonly connection?: ProductConnection },
 ) {
+  const messages = createMessageController();
   const mediaDisplay = createMediaDisplay();
   const runtime = createFrontendRuntime({
     ...options,
@@ -58,7 +59,6 @@ export function createProductServices(
   const dex = createDexAnalysis(gateway, operations);
   const msgpack = createMsgpack(gateway, {}, artifacts);
   const toolSupply = createToolSupply(gateway);
-  const spreadsheet = createSpreadsheet(gateway, operations);
   const sessions = createHttpInteractiveSessions(client);
   const artifactBrowser = createHttpArtifactBrowser(client);
   const mirroring = createMirroring(gateway, artifacts, { operations });
@@ -67,6 +67,7 @@ export function createProductServices(
   return {
     runtime,
     pluginDefaults,
+    messages,
     client,
     mediaDisplay,
     connection: options.connection ?? null,
@@ -78,7 +79,6 @@ export function createProductServices(
     dex,
     msgpack,
     toolSupply,
-    spreadsheet,
     sessions,
     artifactBrowser,
     mirroring,
@@ -88,6 +88,7 @@ export function createProductServices(
       if (closing) return closing;
       closing = (async () => {
         pluginDefaults.dispose();
+        messages.dispose();
         packageAnalysis.dispose();
         frida.dispose();
         automation.dispose();
@@ -96,7 +97,6 @@ export function createProductServices(
         dex.dispose();
         msgpack.dispose();
         toolSupply.dispose();
-        spreadsheet.dispose();
         sessions.dispose();
         artifactBrowser.dispose();
         mirroring.dispose();

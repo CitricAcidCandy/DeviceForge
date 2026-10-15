@@ -1,6 +1,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { buildProfileFlamegraph } from '../../../../features/android-profile/index.ts';
+import { useMessage } from '../../../../components/Message/index.tsx';
 import type {
   ProfileFlamegraph,
   ProfileFlameOptions,
@@ -21,6 +22,8 @@ interface GraphState {
 
 export function ProfileFlamegraphView({ stacks, intervals = [] }: ProfileFlamegraphViewProps) {
   const id = useId();
+  const messages = useMessage();
+  const messageId = `${id}-flamegraph-filter`;
   const scroll = useRef<HTMLDivElement>(null);
   const [weight, setWeight] = useState<'samples' | 'event_count'>('samples');
   const [process, setProcess] = useState('');
@@ -65,6 +68,14 @@ export function ProfileFlamegraphView({ stacks, intervals = [] }: ProfileFlamegr
       return { graph: null, error: error instanceof Error ? error.message : String(error) };
     }
   }, [stacks, weight, process, thread, begin, end]);
+  useEffect(() => {
+    if (state.error) {
+      messages?.error('火焰图筛选条件无效', { id: messageId, description: state.error });
+    } else {
+      messages?.dismiss(messageId);
+    }
+    return () => messages?.dismiss(messageId);
+  }, [state.error, messages, messageId]);
   const graph = state.graph;
   const focusId = focus?.graph === graph ? focus.id : null;
   const layout = useMemo(() => (graph ? layoutFlamegraph(graph, focusId) : null), [graph, focusId]);
@@ -212,7 +223,6 @@ export function ProfileFlamegraphView({ stacks, intervals = [] }: ProfileFlamegr
           上一级
         </button>
       </div>
-      {state.error && <p role="alert">{state.error}</p>}
       {graph && layout && (
         <>
           <p role="status" data-flame-summary>

@@ -17,16 +17,14 @@ import {
   DialogTitle,
 } from '../../../../components/Dialog/index.tsx';
 import type { DeviceProviderInfo } from '../../../../plugin-sdk/index.ts';
-import { EmptyState, Field, JsonResult } from '../../../../components/index.ts';
-import { ActionFeedback } from '../../../../app/product/feedback.tsx';
-import { useAction, useSnapshot } from '../../../../app/product/hooks.ts';
+import { EmptyState, Field } from '../../../../components/index.ts';
+import { errorLogId, isCancelledAction, useAction, useSnapshot } from '../../../../app/product/hooks.ts';
 import type { ProductServices } from '../../../../app/product/services.ts';
 import {
   capabilityGate,
   decodeDeviceBusinessResult,
   executeDeviceTask,
 } from '../../../../features/device-apps/index.ts';
-import type { DeviceBusinessResult } from '../../../../features/device-apps/index.ts';
 
 const providerKey = (provider: DeviceProviderInfo) =>
   JSON.stringify([provider.id, provider.generation]);
@@ -46,15 +44,8 @@ export function DevicesConnect({
   const catalog = useSnapshot(services.runtime.operations);
   const action = useAction();
   const [selection, setSelection] = useState(initialProvider ? providerKey(initialProvider) : '');
-  const [actionKey, setActionKey] = useState('');
   const [address, setAddress] = useState('');
   const [confirmation, setConfirmation] = useState<DisconnectTarget | null>(null);
-  const [report, setReport] = useState<{
-    key: string;
-    title: string;
-    data: DeviceBusinessResult;
-    observed: boolean;
-  } | null>(null);
   const provider = snapshot.providers.find((item) => providerKey(item) === selection) ?? null;
   const key = provider ? providerKey(provider) : '';
   const operations = catalog.pending ? [] : (catalog.result?.data ?? []);
@@ -65,55 +56,79 @@ export function DevicesConnect({
     : null;
   useEffect(() => {
     action.cancel();
-    setReport(null);
     setConfirmation(null);
   }, [key, action.cancel]);
   const run = (id: 'connect' | 'disconnect', target: DeviceProviderInfo, targetAddress: string) => {
-    const gate = capabilityGate(services.runtime.devices.snapshot(), operations, id, target);
-    if (!gate.capability) return;
-    setActionKey(providerKey(target));
-    setReport(null);
-    void action.run(async (signal) => {
-      const response = await executeDeviceTask(
-        services,
-        id,
-        {
-          providerId: target.id,
-          generation: target.generation,
-          deviceId: null,
-          capability: gate.capability?.id ?? id,
-          version: 1,
-          input: { address: targetAddress },
-        },
-        signal,
-        decodeDeviceBusinessResult,
-      );
-      if (
-        !signal.aborted &&
-        services.runtime.devices
-          .snapshot()
-          .providers.some((item) => providerKey(item) === providerKey(target))
-      )
-        setReport({
-          key: providerKey(target),
-          title: id === 'connect' ? '连接任务完成' : '断开任务完成',
-          data: response.data,
-          observed: false,
-        });
-      const discovered = await services.runtime.devices.refreshProvider(
-        target.id,
-        target.generation,
-        signal,
-      );
-      if (!signal.aborted)
-        setReport({
-          key: providerKey(target),
-          title: id === 'connect' ? '连接任务完成' : '断开任务完成',
-          data: response.data,
-          observed: true,
-        });
-      return { ...response, logId: discovered.logId ?? response.logId };
-    });
+    const latestCatalog = services.runtime.operations.snapshot();
+    const gate = capabilityGate(
+      services.runtime.devices.snapshot(),
+      latestCatalog.pending ? [] : (latestCatalog.result?.data ?? []),
+      id,
+      target,
+    );
+    if (!gate.capability) {
+      services.messages.warning(id === 'connect' ? '连接入口暂不可用' : '断开入口暂不可用', {
+        description: gate.reason ?? '提供者能力已变化，请重新读取目录。',
+      });
+      return;
+    }
+    void action.run(
+      async (signal) => {
+        const response = await executeDeviceTask(
+          services,
+          id,
+          {
+            providerId: target.id,
+            generation: target.generation,
+            deviceId: null,
+            capability: gate.capability?.id ?? id,
+            version: 1,
+            input: { address: targetAddress },
+          },
+          signal,
+          decodeDeviceBusinessResult,
+        );
+        let discovered;
+        try {
+          discovered = await services.runtime.devices.refreshProvider(
+            target.id,
+            target.generation,
+            signal,
+          );
+        } catch (error) {
+          if (signal.aborted || isCancelledAction(error)) throw error;
+          const message = error instanceof Error ? error.message : '设备发现未完成';
+          const discoveryLogId = errorLogId(error);
+          services.messages.warning(
+            id === 'connect' ? '连接已完成，设备目录未更新' : '断开已完成，设备目录未更新',
+            {
+              description: '设备发现未完成，请重新发现后查看最新状态。',
+              logId: discoveryLogId ?? response.logId,
+              details: [
+                { label: '设备发现', message, logId: discoveryLogId },
+                ...(response.logId
+                  ? [
+                      {
+                        label: '设备任务',
+                        message: id === 'connect' ? '连接已完成' : '断开已完成',
+                        logId: response.logId,
+                      },
+                    ]
+                  : []),
+              ],
+            },
+          );
+          return response;
+        }
+        if (!signal.aborted)
+          services.messages.success(id === 'connect' ? '设备连接已完成' : '设备断开已完成', {
+            description: `已重新发现 ${discovered.data.devices.length} 台设备`,
+            logId: discovered.logId,
+          });
+        return { ...response, logId: discovered.logId ?? response.logId };
+      },
+      { success: null, pending: id === 'connect' ? '正在连接设备' : '正在断开设备' },
+    );
   };
   return (
     <div className="workspace-section" data-product-section="devices-connect">
@@ -179,18 +194,6 @@ export function DevicesConnect({
           title="没有运行中的设备提供者"
           description="先加载支持设备能力的服务器插件并刷新目录。"
         />
-      )}
-      {actionKey === key && <ActionFeedback {...action} />}
-      {report?.key === key && (
-        <div className="result-row">
-          <h3>{report.title}</h3>
-          <p className="muted">
-            {report.observed
-              ? '已重新发现并更新设备目录。'
-              : '连接任务已经完成，设备发现尚未完成；可关闭对话框后重新发现。'}
-          </p>
-          <JsonResult value={report.data.result} />
-        </div>
       )}
       <Dialog
         open={confirmation !== null}

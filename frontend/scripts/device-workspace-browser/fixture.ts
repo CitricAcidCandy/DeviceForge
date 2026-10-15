@@ -12,6 +12,8 @@ export function createDeviceWorkspaceFixture() {
   const providers = original.providers;
   let failDiscovery = false;
   let missingOperations = false;
+  let holdDiscovery = false;
+  const pendingDiscovery = new Set<() => void>();
   const response = (data: unknown, status = 200) =>
     new Response(JSON.stringify({ log_id: 'device-workspace-fixture-log', data }), {
       status,
@@ -65,6 +67,8 @@ export function createDeviceWorkspaceFixture() {
     if (url.pathname === '/api/v2/devices') return response(providers.map(directory));
     if (url.pathname === '/api/v2/operations' && missingOperations) return response([]);
     if (url.pathname.startsWith('/api/v2/device-providers/') && url.pathname.endsWith('/refresh')) {
+      // 受控响应可忽略取消而晚到，验收页面不得继续发布旧反馈。
+      if (holdDiscovery) await new Promise<void>((done) => pendingDiscovery.add(done));
       if (failDiscovery)
         return new Response(
           JSON.stringify({
@@ -91,5 +95,14 @@ export function createDeviceWorkspaceFixture() {
     setMissingOperations(value: boolean) {
       missingOperations = value;
     },
+    holdDiscovery(value: boolean) {
+      holdDiscovery = value;
+    },
+    releaseDiscovery() {
+      holdDiscovery = false;
+      for (const done of pendingDiscovery) done();
+      pendingDiscovery.clear();
+    },
+    pendingDiscovery: () => pendingDiscovery.size,
   };
 }

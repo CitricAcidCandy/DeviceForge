@@ -226,8 +226,11 @@ export function decodeAppList(value: unknown, logId: string | null): AppList {
   for (const raw of output.split(/\r?\n/)) {
     const line = raw.trim();
     if (!line) continue;
-    const identifier = line.startsWith('package:') ? line.slice(8) : line;
-    if (/^[A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*)+$/.test(identifier))
+    const androidPackage = line.startsWith('package:');
+    const identifier = androidPackage ? line.slice(8) : line;
+    const qualified = /^[A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*)+$/.test(identifier);
+    const singleAndroidPackage = androidPackage && /^[A-Za-z][A-Za-z0-9_]*$/.test(identifier);
+    if (qualified || singleAndroidPackage)
       identifiers.push(identifier);
     else unrecognized.push(line);
   }

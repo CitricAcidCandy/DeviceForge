@@ -35,9 +35,36 @@ export async function refreshOperations(missing: boolean) {
 export function failDiscovery(fail: boolean) {
   fixture.setDiscoveryFailure(fail);
 }
+export function holdDiscovery(hold: boolean) {
+  fixture.holdDiscovery(hold);
+}
+export function releaseDiscovery() {
+  fixture.releaseDiscovery();
+}
+export function pendingDiscovery() {
+  return fixture.pendingDiscovery();
+}
+export function messages() {
+  return services?.messages.snapshot() ?? [];
+}
+export function clearMessages() {
+  services?.messages.clear();
+}
+export function publishMessage(title: string) {
+  return services?.messages.info(title, { id: 'route-message-probe' });
+}
+export async function disposeWithLateDiscovery() {
+  const previous = services?.messages;
+  await dispose();
+  fixture.releaseDiscovery();
+  await new Promise<void>((done) => setTimeout(done, 150));
+  previous?.success('已销毁实例不应显示的消息');
+  return { messages: previous?.snapshot() ?? [], pending: fixture.pendingDiscovery() };
+}
 export async function dispose() {
   root?.unmount();
   root = null;
   await services?.dispose();
   services = null;
+  fixture.releaseDiscovery();
 }

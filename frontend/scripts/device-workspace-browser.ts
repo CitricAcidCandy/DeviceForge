@@ -10,6 +10,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { build, createServer } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
+import { checkDisposedMessages, runMessageCases } from './device-workspace-browser/message-cases.ts';
 
 type RecordValue = Record<string, unknown>;
 interface Protocol {
@@ -187,12 +188,20 @@ try {
   assert.equal(typeof target['webSocketDebuggerUrl'], 'string');
   page = await module.themeProtocol(String(target['webSocketDebuggerUrl']), evidence);
   await page.call('Runtime.enable');
+  await page.call('Page.enable');
   await wait('window.__harness && document.querySelector("[data-route=devices]") && document.body.textContent.includes("设备甲")', '设备目录');
   await capture('desktop-initial', 1536, 1024);
   await runCases();
   report['console_errors'] = await evaluate('window.__errors');
   assert.deepEqual(report['console_errors'], [], '浏览器控制台发生错误');
   assert.ok(cases.every((item) => item.passed), '设备页行为存在失败项');
+  if (process.argv.includes('--live-devices')) {
+    await page.call('Page.navigate', { url: 'http://127.0.0.1:5173/#devices' });
+    await wait('location.href==="http://127.0.0.1:5173/#devices"&&document.querySelector("[data-route=devices]")&&document.body.textContent.includes("服务器已连接")', '正式设备页');
+    await capture('live-devices-desktop', 1536, 1024);
+    await capture('live-devices-mobile', 390, 844);
+    report['live_devices'] = await evaluate('({url:location.href,text:document.body.innerText,width:innerWidth,scrollWidth:document.documentElement.scrollWidth})');
+  }
   report['passed'] = true;
 } catch (error) {
   report['passed'] = false;
@@ -274,14 +283,14 @@ async function runCases() {
   await check('公开设备读取动作保留完整引用与日志', async () => {
     await openReadCapability();
     await click('执行读取任务', '.device-capability-action');
-    await wait('document.body.textContent.includes("任务已完成")', '设备读取任务');
+    await wait('window.__harness.messages().some(message=>message.title==="设备读取任务已完成")', '设备读取任务');
     const action = record(await evaluate('window.__harness.requests().filter(r=>r.path==="/api/v2/device-actions").at(-1).input'));
     assert.equal(action['provider_id'], 'fixture.first');
     assert.equal(action['generation'], 'generation-1');
     assert.equal(action['device_id'], 'device-a');
     assert.equal(action['capability'], 'packages');
     assert.equal(action['version'], 1);
-    assert.equal(await evaluate('document.body.textContent.includes("fixture-log")'), true);
+    assert.equal(await evaluate('window.__harness.messages().some(message=>message.logId==="fixture-log")'), true);
     return action;
   });
   await check('公开连接动作与发现回读', async () => {
@@ -291,7 +300,7 @@ async function runCases() {
     assert.equal(typeof selector, 'string');
     await fill(String(selector), 'fixture-only:5555');
     await click('连接地址', '[role="dialog"]');
-    await wait('document.querySelector("[role=dialog]")?.textContent.includes("已重新发现并更新设备目录")', '连接后发现');
+    await wait('window.__harness.messages().some(message=>message.title==="设备连接已完成")', '连接后发现');
     const action = record(await evaluate('window.__harness.requests().filter(r=>r.path==="/api/v2/device-actions").at(-1).input'));
     assert.equal(action['device_id'], null);
     assert.equal(action['capability'], 'connect');
@@ -309,19 +318,36 @@ async function runCases() {
     assert.ok(Array.isArray(requests) && requests.length >= 2);
     return requests;
   });
-  await check('发现失败暴露实际日志 ID 且可重新发现', async () => {
+  await check('发现失败进入全局消息并保留实际日志 ID 且可重新发现', async () => {
+    await evaluate('window.__harness.clearMessages()');
     await evaluate('window.__harness.failDiscovery(true)');
     await click('重新发现 fixture.first');
-    await wait('document.body.textContent.includes("受控提供者发现失败")', '发现错误');
-    assert.equal(await evaluate('[...document.querySelectorAll("button")].some(b=>b.getAttribute("aria-label")==="复制日志 ID：device-workspace-fixture-log"||b.textContent.includes("复制日志 ID：device-workspace-fixture-log"))'), true);
+    await wait('window.__harness.messages().some(message=>message.level==="error"&&JSON.stringify(message).includes("受控提供者发现失败"))', '发现错误');
+    assert.equal(await evaluate('window.__harness.messages().some(message=>message.logId==="device-workspace-fixture-log")'), true);
     assert.equal(await evaluate('window.__harness.selected()'), null);
     await evaluate('window.__harness.failDiscovery(false)');
     await click('重新发现设备');
     await wait('document.querySelectorAll("[data-device-reference]").length===3', '发现恢复');
-    assert.equal(await evaluate('document.body.textContent.includes("已完成 2 个提供者的设备发现")'), true);
+    await wait('window.__harness.messages().some(message=>message.level==="success"&&message.description?.includes("已完成 2 个提供者的发现"))', '发现成功消息');
   });
+  await runMessageCases({ evaluate, wait, click, capture, check });
+  assert.ok(page);
+  await page.call('Emulation.setDeviceMetricsOverride', { width: 1536, height: 1024, deviceScaleFactor: 1, mobile: false });
+  await delay(120);
+  await evaluate('window.__harness.clearMessages()');
+  await click('重新发现设备');
+  await wait('document.querySelectorAll("[data-device-reference]").length===3', '取消和错误验收后恢复目录');
   await choose('fixture.first', 'device-a');
-  await evaluate('document.querySelector(".device-advanced").open=false;document.querySelector("#workplane").scrollTop=0;window.scrollTo(0,0)');
+  await evaluate('window.__harness.clearMessages();document.querySelector(".device-advanced").open=false;document.querySelector("#workplane").scrollTop=0;window.scrollTo(0,0)');
+  await check('设备页移除三条横幅且三栏紧凑齐头', async () => {
+    assert.equal(await evaluate('document.querySelectorAll(".device-context,[data-product-page=devices] .page-heading,.device-page-feedback,.device-discovery-report").length'), 0);
+    const values = await evaluate('[".device-directory-card",".device-detail-card",".device-summary"].map(selector=>document.querySelector(selector).getBoundingClientRect().top)');
+    assert.ok(Array.isArray(values) && values.every((value: unknown) => typeof value === 'number'));
+    const tops = values.map(Number);
+    assert.ok(Math.max(...tops) <= 220, '设备主区起点仍过低');
+    assert.ok(Math.max(...tops) - Math.min(...tops) <= 12, '三栏顶部不齐');
+    return { tops };
+  });
   await capture('desktop-selected', 1536, 1024);
   await capture('mobile-selected', 390, 844);
   await check('390px 页面和工作区无横向溢出', async () => {
@@ -338,4 +364,5 @@ async function runCases() {
     await wait('document.querySelector("[data-route=packages]")?.hidden===false', '应用管理导航');
     assert.equal(record(await evaluate('window.__harness.selected().reference'))['localId'], 'device-a');
   });
+  await checkDisposedMessages({ evaluate, wait, click, capture, check });
 }

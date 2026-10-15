@@ -24,13 +24,6 @@ import type {
   MsgpackFilter,
   MsgpackPage,
 } from '../../features/msgpack/index.ts';
-import { prepareSpreadsheetImportPage } from '../../features/spreadsheet/index.ts';
-import type {
-  SpreadsheetInspection,
-  SpreadsheetPage,
-  SpreadsheetFieldMapping,
-} from '../../features/spreadsheet/index.ts';
-import type { SpreadsheetImportPage } from '../../features/spreadsheet/index.ts';
 import { EmptyState, Field, JsonResult, PageTitle } from '../../components/index.ts';
 import { OperationNotice, useOperationAvailable } from '../../app/product/capabilities.tsx';
 import { ActionFeedback } from '../../app/product/feedback.tsx';
@@ -380,266 +373,6 @@ function MsgpackSection({
   );
 }
 
-function SpreadsheetSection({
-  services,
-  artifactId,
-}: {
-  services: ProductServices;
-  artifactId: string;
-}) {
-  const action = useAction();
-  const preparation = useAction();
-  const [inspection, setInspection] = useState<SpreadsheetInspection | null>(null);
-  const [page, setPage] = useState<SpreadsheetPage | null>(null);
-  const [sheet, setSheet] = useState('');
-  const [offset, setOffset] = useState('0');
-  const [limit, setLimit] = useState('100');
-  const [fieldNames, setFieldNames] = useState('');
-  const [mapping, setMapping] = useState<SpreadsheetFieldMapping>({});
-  const [prepared, setPrepared] = useState<SpreadsheetImportPage | null>(null);
-  const inspect = useOperationAvailable(services, 'plugin.spreadsheet.inspect');
-  const readAvailable = useOperationAvailable(services, 'plugin.spreadsheet.read');
-  useEffect(() => {
-    action.cancel();
-    preparation.cancel();
-    setInspection(null);
-    setPage(null);
-    setPrepared(null);
-    setMapping({});
-  }, [artifactId, action.cancel, preparation.cancel]);
-  const fields = fieldNames
-    .split(',')
-    .map((key) => key.trim())
-    .filter(Boolean);
-  const read = (next: number) => {
-    void action.run(async (signal) => {
-      await services.spreadsheet.refreshOperations(signal);
-      const response = await services.spreadsheet.read(
-        {
-          artifact_id: artifactId,
-          ...(sheet ? { sheet } : {}),
-          offset: next,
-          limit: Number(limit),
-        },
-        signal,
-      );
-      if (!signal.aborted) {
-        setPage(response.data);
-        setOffset(String(next));
-        setPrepared(null);
-      }
-      return response;
-    });
-  };
-  return (
-    <div className="workspace-section">
-      <h2>表格读取与字段映射</h2>
-      <p className="muted">
-        XLSX、XLS、UTF-8 CSV；读取公式缓存，不执行公式或宏。这里只准备当前页数据，未接入 GM 提交。
-      </p>
-      <OperationNotice services={services} operation="plugin.spreadsheet.inspect" />
-      <Button
-        disabled={!artifactId || !inspect || action.pending}
-        onClick={() => {
-          void action.run(async (signal) => {
-            await services.spreadsheet.refreshOperations(signal);
-            const response = await services.spreadsheet.inspect(
-              { artifact_id: artifactId },
-              signal,
-            );
-            if (!signal.aborted) {
-              setInspection(response.data);
-              setSheet(response.data.sheets[0]?.name ?? '');
-              setPage(null);
-              setPrepared(null);
-            }
-            return response;
-          });
-        }}
-      >
-        读取工作簿
-      </Button>
-      {inspection && (
-        <>
-          <p>
-            {inspection.source_filename} · {inspection.format.toUpperCase()} ·{' '}
-            {inspection.sheets.length} 张工作表
-          </p>
-          <div className="form-grid">
-            <div className="form-field">
-              <Label>工作表</Label>
-              <Select
-                value={sheet}
-                onValueChange={(next) => {
-                  setSheet(next);
-                  setPage(null);
-                  setPrepared(null);
-                }}
-              >
-                <SelectTrigger aria-label="工作表">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {inspection.sheets.map((item) => (
-                    <SelectItem value={item.name} key={item.index}>
-                      {item.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <Field
-              label="表格行偏移"
-              type="number"
-              min={0}
-              max={10000}
-              value={offset}
-              onChange={setOffset}
-            />
-            <Field
-              label="表格页长"
-              type="number"
-              min={1}
-              max={500}
-              value={limit}
-              onChange={setLimit}
-            />
-            <Button
-              variant="outline"
-              disabled={!readAvailable || action.pending}
-              onClick={() => read(Number(offset))}
-            >
-              读取当前页
-            </Button>
-          </div>
-          <OperationNotice services={services} operation="plugin.spreadsheet.read" />
-        </>
-      )}
-      <ActionFeedback {...action} />
-      {page && (
-        <>
-          <p>
-            {page.sheet_name} · 共 {page.total_rows} 行 · 本页 {page.rows.length} 行（从{' '}
-            {page.offset} 开始）
-          </p>
-          <div className="table-scroll">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  {page.headers.map((header) => (
-                    <TableHead key={header}>{header}</TableHead>
-                  ))}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {page.rows.map((row, index) => (
-                  <TableRow key={page.offset + index}>
-                    {page.headers.map((header) => (
-                      <TableCell key={header}>
-                        {row[header] === null || row[header] === undefined
-                          ? '—'
-                          : String(row[header])}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-          <div className="page-actions">
-            <Button
-              variant="outline"
-              disabled={action.pending || page.offset === 0}
-              onClick={() => read(Math.max(0, page.offset - page.limit))}
-            >
-              上一页
-            </Button>
-            <Button
-              variant="outline"
-              disabled={action.pending || page.offset + page.rows.length >= page.total_rows}
-              onClick={() => read(page.offset + page.limit)}
-            >
-              下一页
-            </Button>
-          </div>
-          <h3>当前页字段映射</h3>
-          <Field
-            label="目标必填字段"
-            value={fieldNames}
-            onChange={(value) => {
-              setFieldNames(value);
-              setPrepared(null);
-            }}
-            placeholder="逗号分隔填写业务字段名"
-            hint="每项作为必填字段；缺映射和行内空值会分别报告，0 与 false 保留。"
-          />
-          <div className="form-grid">
-            {fields.map((key, index) => (
-              <div className="form-field" key={`${key}-${index}`}>
-                <Label>{key} 对应表头</Label>
-                <Select
-                  value={mapping[key] ?? '__auto__'}
-                  onValueChange={(value) => {
-                    setMapping((old) => ({
-                      ...old,
-                      [key]: value === '__auto__' ? undefined : value,
-                    }));
-                    setPrepared(null);
-                  }}
-                >
-                  <SelectTrigger aria-label={`${key} 对应表头`}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__auto__">按字段名称自动匹配</SelectItem>
-                    {page.headers.map((header) => (
-                      <SelectItem value={header} key={header}>
-                        {header}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            ))}
-          </div>
-          <Button
-            variant="outline"
-            disabled={fields.length === 0 || preparation.pending}
-            onClick={() => {
-              void preparation.run(async () => {
-                const result = prepareSpreadsheetImportPage(
-                  page,
-                  fields.map((key) => ({ key, label: key, required: true })),
-                  { previousMapping: mapping },
-                );
-                setPrepared(result);
-                return result;
-              });
-            }}
-          >
-            核对当前页映射
-          </Button>
-          <ActionFeedback {...preparation} />
-          {prepared && (
-            <div className="result-row">
-              <p>
-                {prepared.ready ? '当前页数据已具备映射资格' : '当前页存在待处理的必填项'} · 缺映射{' '}
-                {prepared.missing_mappings.length} · 行内缺值 {prepared.missing_values.length}
-              </p>
-              <p className="muted">
-                {prepared.pagination.full_sheet_read
-                  ? '本次已读完整工作表'
-                  : '仅处理当前分页，其他行尚未导入'}
-              </p>
-              <JsonResult value={prepared} />
-            </div>
-          )}
-        </>
-      )}
-    </div>
-  );
-}
-
 export function AnalysisPage({ services }: { services: ProductServices }) {
   const [artifactId, setArtifactId] = useState('');
   const [filename, setFilename] = useState('');
@@ -650,14 +383,14 @@ export function AnalysisPage({ services }: { services: ProductServices }) {
       <PageTitle
         eyebrow="离线文件工具"
         title="分析与数据"
-        description="DEX、MessagePack 与表格使用服务器产物，本页面不使用所选设备。"
+        description="DEX 与 MessagePack 使用服务器产物，本页面不使用所选设备。"
       />
       <div className="workspace-section">
         <Label htmlFor="analysis-upload">上传待分析文件</Label>
         <Input
           id="analysis-upload"
           type="file"
-          accept=".dex,.json,.msgpack,.xlsx,.xls,.csv"
+          accept=".dex,.json,.msgpack"
           disabled={upload.pending}
           onChange={(event) => {
             const file = event.target.files?.[0];
@@ -680,7 +413,6 @@ export function AnalysisPage({ services }: { services: ProductServices }) {
         <TabsList>
           <TabsTrigger value="dex">DEX</TabsTrigger>
           <TabsTrigger value="msgpack">MessagePack</TabsTrigger>
-          <TabsTrigger value="spreadsheet">表格导入</TabsTrigger>
         </TabsList>
       </Tabs>
       {!artifactId && (
@@ -691,7 +423,6 @@ export function AnalysisPage({ services }: { services: ProductServices }) {
       )}
       {tool === 'dex' && <DexSection services={services} artifactId={artifactId} />}
       {tool === 'msgpack' && <MsgpackSection services={services} artifactId={artifactId} />}
-      {tool === 'spreadsheet' && <SpreadsheetSection services={services} artifactId={artifactId} />}
     </section>
   );
 }

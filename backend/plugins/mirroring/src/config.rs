@@ -14,6 +14,14 @@ pub(crate) struct Config {
 pub(crate) struct Live {
     pub scrcpy_server: PathBuf,
     pub server_version: String,
+    pub video_encoder: Option<String>,
+}
+fn valid_video_encoder(value: &str) -> bool {
+    !value.is_empty()
+        && value.len() <= 128
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || b"._-".contains(&byte))
 }
 pub(crate) async fn read() -> Result<Config, String> {
     let args: Vec<_> = std::env::args_os().skip(1).collect();
@@ -47,5 +55,26 @@ pub(crate) async fn read() -> Result<Config, String> {
     {
         return Err("直播服务文件须为绝对路径且版本须为3.3.1".into());
     }
+    if config
+        .live
+        .as_ref()
+        .and_then(|live| live.video_encoder.as_deref())
+        .is_some_and(|value| !valid_video_encoder(value))
+    {
+        return Err("直播视频编码器名称无效".into());
+    }
     Ok(config)
+}
+#[cfg(test)]
+mod tests {
+    use super::valid_video_encoder;
+
+    #[test]
+    fn encoder_name_cannot_escape_server_argument() {
+        assert!(valid_video_encoder("c2.android.avc.encoder"));
+        assert!(!valid_video_encoder(""));
+        assert!(!valid_video_encoder("codec;rm"));
+        assert!(!valid_video_encoder("codec name"));
+        assert!(!valid_video_encoder(&"a".repeat(129)));
+    }
 }

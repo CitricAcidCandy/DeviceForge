@@ -14,6 +14,18 @@ import type {
   ProfileFlamegraphViewProps,
 } from '../src/pages/performance/components/ProfileFlamegraph/index.tsx';
 import type { StackFrame, StackSample } from '../src/features/android-profile/types/index.ts';
+import type { MessageController } from '../src/components/Message/index.ts';
+import type { MessageProvider } from '../src/components/Message/index.tsx';
+
+type MessageModule = {
+  MessageProvider: typeof MessageProvider;
+  createMessageController(): MessageController;
+};
+function messageModule(value: unknown): value is MessageModule {
+  return value !== null && typeof value === 'object' &&
+    'MessageProvider' in value && typeof value.MessageProvider === 'function' &&
+    'createMessageController' in value && typeof value.createMessageController === 'function';
+}
 
 const begin = '90071992547409930';
 const middle = '90071992547409932';
@@ -79,7 +91,7 @@ function componentModule(
 test('React 火焰图在真实 DOM 中筛选、搜索、缩放并保留大整数权重', async (context) => {
   const browser = new JSDOM(
     '<!doctype html><html><body><div id="flame-test"></div></body></html>',
-    { url: 'http://localhost:7031' },
+    { url: 'http://localhost:7031', pretendToBeVisual: true },
   );
   const windowRef = browser.window;
   const globals: Readonly<Record<string, unknown>> = {
@@ -91,6 +103,12 @@ test('React 火焰图在真实 DOM 中筛选、搜索、缩放并保留大整数
     HTMLInputElement: windowRef.HTMLInputElement,
     HTMLSelectElement: windowRef.HTMLSelectElement,
     Node: windowRef.Node,
+    DocumentFragment: windowRef.DocumentFragment,
+    CustomEvent: windowRef.CustomEvent,
+    HTMLButtonElement: windowRef.HTMLButtonElement,
+    getComputedStyle: windowRef.getComputedStyle.bind(windowRef),
+    requestAnimationFrame: windowRef.requestAnimationFrame.bind(windowRef),
+    cancelAnimationFrame: windowRef.cancelAnimationFrame.bind(windowRef),
     Event: windowRef.Event,
     MutationObserver: windowRef.MutationObserver,
     IS_REACT_ACT_ENVIRONMENT: true,
@@ -105,6 +123,9 @@ test('React 火焰图在真实 DOM 中筛选、搜索、缩放并保留大整数
   assert.ok(target);
   const { createRoot } = await import('react-dom/client');
   const viewRoot = createRoot(target);
+  const messageLoaded: unknown = await server.ssrLoadModule('/src/components/Message/index.tsx');
+  assert.ok(messageModule(messageLoaded));
+  const messages = messageLoaded.createMessageController();
   try {
     const loaded: unknown = await server.ssrLoadModule(
       '/src/pages/performance/components/ProfileFlamegraph/index.tsx',
@@ -112,11 +133,13 @@ test('React 火焰图在真实 DOM 中筛选、搜索、缩放并保留大整数
     assert.ok(componentModule(loaded));
     let generation = 0;
     const reset = async () => {
-      await act(async () =>
+      await act(async () => {
+        messages.clear();
         viewRoot.render(
-          createElement(loaded.ProfileFlamegraphView, { stacks, intervals, key: ++generation }),
-        ),
-      );
+          createElement(messageLoaded.MessageProvider, { controller: messages,
+            children: createElement(loaded.ProfileFlamegraphView, { stacks, intervals, key: ++generation }) }),
+        );
+      });
     };
     const button = (text: string) => {
       const node = Array.from(target.querySelectorAll('button')).find(
@@ -259,26 +282,31 @@ test('React 火焰图在真实 DOM 中筛选、搜索、缩放并保留大整数
       await setValue('宽度权重', 'samples');
       assert.match(summary(), /总样本数 2/);
     });
-    await context.test('非法区间展示 alert，空范围不借相邻样本补齐', async () => {
+    await context.test('非法区间走全局消息，恢复条件撤销提示且空范围不借相邻样本补齐', async () => {
       await reset();
       await setValue('开始时间', end);
       await setValue('结束时间', begin);
       assert.match(
-        target.querySelector('[role="alert"]')?.textContent ?? '',
+        target.querySelector('[data-message-kind="error"]')?.textContent ?? '',
         /Android 火焰图输入、筛选或资源范围无效/,
       );
       assert.equal(target.querySelector('svg'), null);
+      assert.equal(messages.snapshot().length, 1);
+      assert.ok(target.querySelector('[data-global-message-root]'));
+      assert.equal(target.querySelector('.profile-flamegraph [role="alert"]'), null);
       assert.equal(target.querySelector('[data-flame-summary]'), null);
       await setValue('结束时间', end);
-      assert.equal(target.querySelector('[role="alert"]'), null);
+      assert.equal(target.querySelector('[data-message-kind="error"]'), null);
+      assert.equal(messages.snapshot().length, 0);
       assert.match(summary(), /筛选 0 条样本/);
       assert.match(target.textContent ?? '', /此筛选范围没有有效权重；没有用相邻样本补齐/);
       assert.equal(target.querySelector('svg'), null);
       await setValue('开始时间', '020');
-      assert.ok(target.querySelector('[role="alert"]'));
+      assert.ok(target.querySelector('[data-message-kind="error"]'));
     });
   } finally {
     await act(async () => viewRoot.unmount());
+    messages.dispose();
     await server.close();
     browser.window.close();
     for (const [key, descriptor] of descriptors) {

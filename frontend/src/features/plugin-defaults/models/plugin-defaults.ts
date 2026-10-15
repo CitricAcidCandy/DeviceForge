@@ -126,7 +126,17 @@ export function createPluginDefaults(gateway: PluginDefaultsGateway) {
                   !targets.some((item) => item.id === null || item.id === plugin.id)
                 )
                   continue;
-                if (plugin.state === 'loaded' && !plugin.cleanup_failed)
+                if (plugin.cleanup_failed || plugin.state === 'draining') {
+                  accept({
+                    kind,
+                    id: plugin.id,
+                    status: 'failed',
+                    message: plugin.cleanup_failed
+                      ? '插件资源清理未确认，当前运行代次不可继续使用'
+                      : '插件正在排空，尚未进入可用状态',
+                    logId: running.logId,
+                  });
+                } else if (plugin.state === 'loaded') {
                   accept({
                     kind,
                     id: plugin.id,
@@ -134,6 +144,7 @@ export function createPluginDefaults(gateway: PluginDefaultsGateway) {
                     message: null,
                     logId: running.logId,
                   });
+                }
               }
             } catch (error) {
               check();

@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Check, PlugZap, RefreshCw, Search, Smartphone } from 'lucide-react';
+import { Cable, Check, ListRestart, PlugZap, RefreshCw, Search, Smartphone } from 'lucide-react';
 import { Button } from '../../../../components/Button/index.tsx';
 import { Input } from '../../../../components/Input/index.tsx';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../../components/Select/index.tsx';
 import { EmptyState } from '../../../../components/index.ts';
 import type {
   DeviceProviderInfo,
@@ -15,23 +16,29 @@ export function DeviceDirectory({
   pending,
   select,
   discover,
+  discoverAll,
+  read,
+  connect,
 }: {
   snapshot: DeviceSnapshot;
   pending: boolean;
   select(reference: DeviceRef): void;
   discover(provider: DeviceProviderInfo): void;
+  discoverAll(): void;
+  read(): void;
+  connect(): void;
 }) {
   const [query, setQuery] = useState('');
-  const [source, setSource] = useState('');
+  const [source, setSource] = useState('all');
   const effectiveSource = snapshot.providers.some((item) => providerKey(item) === source)
     ? source
-    : '';
+    : 'all';
   const devices = snapshot.directories.flatMap((directory) =>
     directory.devices.map((device) => ({ directory, device })),
   );
   const matching = devices.filter(
     ({ directory, device }) =>
-      (!effectiveSource || effectiveSource === providerKey(directory.provider)) &&
+      (effectiveSource === 'all' || effectiveSource === providerKey(directory.provider)) &&
       [
         device.model ?? '',
         device.reference.localId,
@@ -41,10 +48,34 @@ export function DeviceDirectory({
   );
   return (
     <aside className="device-directory-card workspace-card" aria-label="设备目录">
-      <div className="device-section-heading">
-        <h2>设备目录</h2>
-        <span className="device-count">{devices.length}</span>
-      </div>
+      <header className="device-directory-heading">
+        <div>
+          <h2>设备目录</h2>
+          <span className="device-count">{devices.length}</span>
+        </div>
+        <div className="device-directory-actions">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            disabled={pending}
+            aria-label="读取目录"
+            title="读取服务器已有观测"
+            onClick={read}
+          >
+            <ListRestart />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            disabled={pending}
+            aria-label="重新发现设备"
+            title="重新发现所有提供者的设备"
+            onClick={discoverAll}
+          >
+            <RefreshCw />
+          </Button>
+        </div>
+      </header>
       <div className="device-search">
         <Search aria-hidden="true" />
         <Input
@@ -54,21 +85,28 @@ export function DeviceDirectory({
           onChange={(event) => setQuery(event.target.value)}
         />
       </div>
-      <label className="device-source-filter">
-        设备来源
-        <select
-          aria-label="筛选设备来源"
-          value={effectiveSource}
-          onChange={(event) => setSource(event.target.value)}
-        >
-          <option value="">全部提供者</option>
-          {snapshot.providers.map((provider) => (
-            <option value={providerKey(provider)} key={providerKey(provider)}>
-              {provider.definition.platform} · {provider.id}
-            </option>
-          ))}
-        </select>
-      </label>
+      <div className="device-directory-connect">
+        <Button variant="outline" onClick={connect} disabled={snapshot.providers.length === 0}>
+          <Cable />
+          连接设备
+        </Button>
+      </div>
+      <div className="device-source-filter">
+        <span>设备来源</span>
+        <Select value={effectiveSource} onValueChange={setSource}>
+          <SelectTrigger aria-label="筛选设备来源" size="sm">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">全部提供者</SelectItem>
+            {snapshot.providers.map((provider) => (
+              <SelectItem value={providerKey(provider)} key={providerKey(provider)}>
+                {provider.definition.platform} · {provider.id}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
       <div className="device-directory-list" aria-label="已发现设备">
         {matching.map(({ directory, device }) => {
           const current = sameDevice(snapshot.selection, device.reference);

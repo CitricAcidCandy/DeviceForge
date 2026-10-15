@@ -119,7 +119,7 @@ impl Device {
             "-s".into(),
             open.device_id.clone(),
             "shell".into(),
-            self.script(open),
+            self.script(open, live.video_encoder.as_deref()),
         ];
         let mut tool = ToolCommand::new(&config.adb, &args);
         tool.environment = Environment::Restricted;
@@ -132,11 +132,25 @@ impl Device {
                 .await
                 .map_err(|_| "无法启动设备直播服务器")?,
         );
+        let ready = command(
+            config,
+            &open.device_id,
+            vec!["shell".into(), self.ready_script()],
+            context.deadline().into(),
+            context.cancellation(),
+        )
+        .await?;
+        if ready != b"DFML_READY\n" && ready != b"DFML_READY\r\n" {
+            return Err("设备直播套接字未就绪".into());
+        }
         Ok(())
     }
-    pub(crate) fn script(&self, open: &Open) -> String {
+    pub(crate) fn script(&self, open: &Open, video_encoder: Option<&str>) -> String {
+        let encoder = video_encoder
+            .map(|name| format!(" video_encoder={name}"))
+            .unwrap_or_default();
         format!(
-            "echo $$ > {dir}/pid && CLASSPATH={dir}/server.jar exec app_process / --nice-name=deviceforge_{nonce} com.genymobile.scrcpy.Server 3.3.1 scid={scid} tunnel_forward=true video=true audio={audio} control={control} video_codec=h264 audio_codec=raw max_size={size} max_fps={fps} video_bit_rate={rate} send_device_meta=false send_dummy_byte=false send_codec_meta=true send_frame_meta=true clipboard_autosync=false cleanup=false power_on=false",
+            "echo $$ > {dir}/pid && CLASSPATH={dir}/server.jar exec app_process / --nice-name=deviceforge_{nonce} com.genymobile.scrcpy.Server 3.3.1 scid={scid} tunnel_forward=true video=true audio={audio} control={control} video_codec=h264 audio_codec=raw max_size={size} max_fps={fps} video_bit_rate={rate}{encoder} send_device_meta=false send_dummy_byte=false send_codec_meta=true send_frame_meta=true clipboard_autosync=false cleanup=false power_on=false",
             dir = self.directory,
             nonce = self.nonce,
             scid = self.scid,
@@ -144,7 +158,17 @@ impl Device {
             control = open.control,
             size = open.max_size,
             fps = open.max_fps,
-            rate = open.video_bit_rate
+            rate = open.video_bit_rate,
+            encoder = encoder
+        )
+    }
+    pub(crate) fn ready_script(&self) -> String {
+        // 本地 ADB 转发端口可先于远端服务接入，须等待本次进程和套接字同时就绪。
+        format!(
+            "i=0; while [ $i -lt 100 ]; do if [ -f {dir}/pid ]; then p=$(cat {dir}/pid); case $p in ''|*[!0-9]*) exit 71;; esac; if [ -e /proc/$p ]; then n=$(tr '\\000' '\\n' < /proc/$p/cmdline | head -n 1); if [ \"$n\" = deviceforge_{nonce} ] && grep -q ' @scrcpy_{scid}$' /proc/net/unix; then echo DFML_READY; exit 0; fi; fi; fi; i=$((i+1)); sleep 0.05; done; exit 78",
+            dir = self.directory,
+            nonce = self.nonce,
+            scid = self.scid
         )
     }
     pub(crate) async fn connect(&self, context: &InvocationContext) -> Result<TcpStream, String> {
@@ -439,5 +463,25 @@ mod tests {
         assert!(script.starts_with("i=0; while [ ! -f "));
         assert!(script.contains("[ $i -le 10 ] || exit 77"));
         assert!(script.find("exit 77").unwrap() < script.find("rm -rf").unwrap());
+    }
+    #[test]
+    fn readiness_requires_owned_process_and_socket() {
+        let device = Device::new();
+        let script = device.ready_script();
+        assert!(script.contains(&format!("{}/pid", device.directory)));
+        assert!(script.contains(&format!("deviceforge_{}", device.nonce)));
+        assert!(script.contains(&format!(" @scrcpy_{}$", device.scid)));
+        assert!(script.contains("exit 78"));
+    }
+    #[test]
+    fn deployment_encoder_is_fixed_in_server_command() {
+        let device = Device::new();
+        let open: Open = serde_json::from_str(r#"{"device_id":"demo"}"#).unwrap();
+        assert!(
+            device
+                .script(&open, Some("c2.android.avc.encoder"))
+                .contains(" video_encoder=c2.android.avc.encoder ")
+        );
+        assert!(!device.script(&open, None).contains(" video_encoder="));
     }
 }

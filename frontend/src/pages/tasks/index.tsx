@@ -14,7 +14,6 @@ import type { JobDto, JobEventDto } from '../../services/api/index.ts';
 import type { ProductServices } from '../../app/product/services.ts';
 import { useAction, useSnapshot } from '../../app/product/hooks.ts';
 import { EmptyState, JsonResult, PageTitle } from '../../components/index.ts';
-import { ActionFeedback } from '../../app/product/feedback.tsx';
 import { TaskArtifacts } from './components/TaskArtifacts/index.tsx';
 
 const taskStates = {
@@ -31,7 +30,6 @@ export function TasksPage({ services }: { services: ProductServices }) {
   const [filter, setFilter] = useState('all');
   const [query, setQuery] = useState('');
   const [loaded, setLoaded] = useState(false);
-  const [copyState, setCopyState] = useState('');
   const limit = useRef(50);
   const root = useRef<HTMLDivElement>(null);
   const action = useAction();
@@ -42,6 +40,8 @@ export function TasksPage({ services }: { services: ProductServices }) {
   selectedId.current = selected?.id ?? null;
   const detailsPending = useRef(false);
   detailsPending.current = details.pending;
+  const refreshState = useRef<{ pending: boolean; error: unknown }>({ pending: false, error: null });
+  refreshState.current = { pending: action.pending, error: action.error };
   async function refresh(signal: AbortSignal, requestedLimit = limit.current) {
     const response = await services.runtime.tasks.list({ limit: requestedLimit }, signal);
     if (!signal.aborted) {
@@ -52,11 +52,16 @@ export function TasksPage({ services }: { services: ProductServices }) {
     return response;
   }
   useEffect(() => {
-    void action.run(refresh);
+    void action.run(refresh, { quiet: true });
     const timer = window.setInterval(() => {
-      if (document.visibilityState === 'visible' && !root.current?.closest('[hidden]')) {
-        void action.run(refresh);
-        if (selectedId.current && !detailsPending.current) select(selectedId.current);
+      if (
+        document.visibilityState === 'visible' &&
+        !root.current?.closest('[hidden]') &&
+        !refreshState.current.pending &&
+        !refreshState.current.error
+      ) {
+        void action.run(refresh, { quiet: true });
+        if (selectedId.current && !detailsPending.current) select(selectedId.current, true);
       }
     }, 10000);
     return () => window.clearInterval(timer);
@@ -73,7 +78,7 @@ export function TasksPage({ services }: { services: ProductServices }) {
       (left, right) =>
         Number(running(right)) - Number(running(left)) || right.created_at - left.created_at,
     );
-  function select(id: string) {
+  function select(id: string, quiet = false) {
     void details.run(async (signal) => {
       const [job, updates] = await Promise.all([
         services.runtime.tasks.select(id, signal),
@@ -81,7 +86,15 @@ export function TasksPage({ services }: { services: ProductServices }) {
       ]);
       if (!signal.aborted) setEvents(updates.data);
       return job;
-    });
+    }, { quiet, success: null, pending: '正在读取任务…' });
+  }
+  async function copyTaskId(id: string) {
+    try {
+      await navigator.clipboard.writeText(id);
+      services.messages.success('任务 ID 已复制');
+    } catch {
+      services.messages.warning('复制失败，请手动选择任务 ID');
+    }
   }
   return (
     <div className="product-page" ref={root}>
@@ -94,7 +107,7 @@ export function TasksPage({ services }: { services: ProductServices }) {
           variant="outline"
           disabled={action.pending}
           onClick={() => {
-            void action.run(refresh);
+            void action.run(refresh, { success: '任务列表已更新', pending: '正在刷新任务…' });
           }}
         >
           <RefreshCw />
@@ -127,7 +140,6 @@ export function TasksPage({ services }: { services: ProductServices }) {
           />
         </div>
       </div>
-      <ActionFeedback {...action} />
       {loaded && visibleJobs.length === 0 && (
         <EmptyState
           title={jobs.length === 0 ? '还没有任务记录' : '没有匹配的任务'}
@@ -172,7 +184,7 @@ export function TasksPage({ services }: { services: ProductServices }) {
                       await refresh(signal);
                       await services.runtime.tasks.select(job.id, signal);
                       return response;
-                    });
+                    }, { success: '已发送任务取消请求', pending: '正在取消任务…' });
                   }}
                 >
                   <Square />
@@ -182,24 +194,19 @@ export function TasksPage({ services }: { services: ProductServices }) {
             </div>
             {selected?.id === job.id && (
               <div className="task-detail">
-                <ActionFeedback {...details} />
                 <div className="section-heading">
                   <p>实际状态：{taskStates[selected.status]}</p>
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => {
-                      void navigator.clipboard.writeText(selected.id).then(
-                        () => setCopyState('任务 ID 已复制'),
-                        () => setCopyState('复制失败，请手动选择任务 ID'),
-                      );
+                      void copyTaskId(selected.id);
                     }}
                   >
                     <Copy />
                     复制任务 ID
                   </Button>
                 </div>
-                <span role="status">{copyState}</span>
                 {selected.error && <p className="text-danger">{selected.error}</p>}
                 <details open>
                   <summary>任务事件</summary>
@@ -242,7 +249,10 @@ export function TasksPage({ services }: { services: ProductServices }) {
           variant="outline"
           disabled={action.pending}
           onClick={() => {
-            void action.run((signal) => refresh(signal, Math.min(500, limit.current + 50)));
+            void action.run((signal) => refresh(signal, Math.min(500, limit.current + 50)), {
+              success: '历史任务已更新',
+              pending: '正在读取历史任务…',
+            });
           }}
         >
           显示更多历史

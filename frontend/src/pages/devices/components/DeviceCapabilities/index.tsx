@@ -140,17 +140,35 @@ function CapabilityAction({
   const [report, setReport] = useState<JobOutcome<JsonData> | null>(null);
   const run = () => {
     setReport(null);
-    void action.run(async (signal) => {
-      const result = await executeCapability(
-        services,
-        device.reference,
-        capability,
-        parseCapabilityInput(input),
-        signal,
-      );
-      if (!signal.aborted) setReport(result);
-      return result;
-    });
+    void action.run(
+      async (signal) => {
+        const result = await executeCapability(
+          services,
+          device.reference,
+          capability,
+          parseCapabilityInput(input),
+          signal,
+        );
+        if (!signal.aborted) {
+          setReport(result);
+          services.messages.success(
+            capability.access === 'write' ? '设备写入任务已完成' : '设备读取任务已完成',
+            {
+              description: `任务 ${result.job.id}`,
+              logId: result.logId,
+              details: result.submitLogId
+                ? [{ label: '提交日志', message: capability.operation, logId: result.submitLogId }]
+                : [],
+            },
+          );
+        }
+        return result;
+      },
+      {
+        success: null,
+        pending: capability.access === 'write' ? '正在执行设备写入任务' : '正在执行设备读取任务',
+      },
+    );
   };
   return (
     <details className="device-capability-action">
@@ -183,27 +201,21 @@ function CapabilityAction({
           variant={capability.access === 'write' ? 'outline' : 'secondary'}
           disabled={reason !== null || action.pending}
           onClick={run}
+          title={capability.access === 'write' ? '取消等待不会回滚已执行的写入操作' : undefined}
         >
           {capability.access === 'write' ? '提交写入任务' : '执行读取任务'}
         </Button>
       </div>
       <ActionFeedback {...action} />
-      {capability.access === 'write' && (
-        <p className="muted">取消等待不会回滚服务器已经执行的写入操作。</p>
-      )}
       {report && (
         <div className="device-task-result">
           <p>
-            <strong>任务已完成</strong> <a href="#tasks">查看任务记录</a>
+            <strong>任务结果</strong> <a href="#tasks">查看任务记录</a>
           </p>
           <dl className="device-facts">
             <div>
               <dt>任务 ID</dt>
               <dd className="mono">{report.job.id}</dd>
-            </div>
-            <div>
-              <dt>提交日志 ID</dt>
-              <dd className="mono">{report.submitLogId ?? '未提供'}</dd>
             </div>
           </dl>
           <JsonResult value={report.data} />

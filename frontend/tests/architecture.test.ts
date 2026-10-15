@@ -96,6 +96,7 @@ test('公共组件统一按PascalCase入口组织，组件私有实现不反向�
     ['components/index.ts', 'components/Widget/index.tsx'],
     ['app/product/shell.tsx', 'components/index.ts'],
     ['app/product/shell.tsx', 'components/Button/index.tsx'],
+    ['app/product/services.ts', 'components/Message/index.ts'],
     ['plugins/example.ts', 'plugin-sdk/index.ts'],
   ];
   for (const [from, to] of accepted)

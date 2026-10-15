@@ -12,7 +12,9 @@ function publicComponentEntry(parts: readonly string[]): boolean {
   return (
     parts[0] === 'components' &&
     ((parts.length === 2 && parts[1] === 'index.ts') ||
-      (parts.length === 3 && componentName.test(parts[1] ?? '') && parts[2] === 'index.tsx'))
+      (parts.length === 3 &&
+        componentName.test(parts[1] ?? '') &&
+        ['index.tsx', 'index.ts'].includes(parts[2] ?? '')))
   );
 }
 function componentPlacement(parts: readonly string[]): boolean {
