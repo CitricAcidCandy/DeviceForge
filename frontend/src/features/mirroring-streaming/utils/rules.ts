@@ -61,6 +61,7 @@ function isStreamInput(value: unknown): value is MirroringStreamInput {
       'video_bit_rate',
       'audio',
       'control',
+      'clipboard_autosync',
       'reconnect_attempts',
     ]) &&
     typeof value.device_id === 'string' &&
@@ -71,7 +72,8 @@ function isStreamInput(value: unknown): value is MirroringStreamInput {
     optional(value, 'video_bit_rate', (item) => integer(item, 128000, 16000000)) &&
     optional(value, 'reconnect_attempts', (item) => integer(item, 0, 5)) &&
     optional(value, 'audio', (item) => typeof item === 'boolean') &&
-    optional(value, 'control', (item) => typeof item === 'boolean')
+    optional(value, 'control', (item) => typeof item === 'boolean') &&
+    optional(value, 'clipboard_autosync', (item) => typeof item === 'boolean')
   );
 }
 export function normalizeStreamInput(value: unknown): MirroringStreamInput {
@@ -85,6 +87,9 @@ function text(value: unknown, maxBytes: number): boolean {
     unicode(value) &&
     new TextEncoder().encode(value).length <= maxBytes
   );
+}
+export function isDeviceClipboardText(value: unknown): value is string {
+  return text(value, 262139);
 }
 function isMirroringControl(value: unknown): value is MirroringControl {
   if (!jsonObject(value)) return false;
@@ -117,6 +122,9 @@ function isMirroringControl(value: unknown): value is MirroringControl {
       onlyKeys(value, ['type', 'text', 'paste']) &&
       text(value.text, 2048) &&
       optional(value, 'paste', (item) => typeof item === 'boolean');
+  else if (value.type === 'get_clipboard')
+    valid = onlyKeys(value, ['type', 'copy_key']) &&
+      (value.copy_key === 'none' || value.copy_key === 'copy' || value.copy_key === 'cut');
   else if (value.type === 'rotate' || value.type === 'reset_video')
     valid = onlyKeys(value, ['type']);
   return valid;

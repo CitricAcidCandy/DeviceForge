@@ -14,7 +14,7 @@ use tokio::{
     io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt},
 };
 use tokio_util::io::ReaderStream;
-use tower_http::cors::CorsLayer;
+use tower_http::cors::{Any, CorsLayer};
 
 use crate::{
     CatalogResult, MarketEntry, ResourceRecord, Store, model::CatalogQuery, store::StoreError,
@@ -41,7 +41,7 @@ pub fn router(store: Store) -> Router {
             "/api/v1/catalog/{id}/{version}",
             delete(delete_catalog_entry),
         )
-        .layer(CorsLayer::permissive())
+        .layer(CorsLayer::permissive().expose_headers(Any))
         .with_state(AppState { store })
 }
 
@@ -128,8 +128,8 @@ async fn download_resource(
         set_common_headers(response.headers_mut(), &record);
         return Ok(response);
     }
-    let is_partial = start != 0 || end + 1 != record.size;
-    let length = end - start + 1;
+    let is_partial = record.size > 0 && (start != 0 || end + 1 != record.size);
+    let length = if record.size == 0 { 0 } else { end - start + 1 };
     let mut response = if method == Method::HEAD {
         Response::new(Body::empty())
     } else {
@@ -325,5 +325,52 @@ impl IntoResponse for ApiError {
             Json(json!({ "error": { "code": code, "message": message } })),
         )
             .into_response()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::body::Body;
+    use http_body_util::BodyExt;
+    use tower::ServiceExt;
+
+    #[tokio::test]
+    async fn upload_and_range_download_keep_original_bytes() {
+        let directory = tempfile::tempdir().expect("临时目录");
+        let app = router(Store::open(directory.path()).expect("打开资源存储"));
+        let request = axum::http::Request::builder()
+            .method(Method::POST)
+            .uri("/api/v1/resources")
+            .header("content-type", "text/plain")
+            .header("x-resource-filename", "hello.txt")
+            .header("x-resource-kind", "resource")
+            .body(Body::from("hello world"))
+            .expect("构造上传请求");
+        let response = app.clone().oneshot(request).await.expect("上传响应");
+        assert_eq!(response.status(), StatusCode::CREATED);
+        let bytes = response
+            .into_body()
+            .collect()
+            .await
+            .expect("读取上传响应")
+            .to_bytes();
+        let record: ResourceRecord = serde_json::from_slice(&bytes).expect("资源记录");
+        let request = axum::http::Request::builder()
+            .method(Method::GET)
+            .uri(format!("/api/v1/resources/{}", record.sha256))
+            .header(header::RANGE, "bytes=6-10")
+            .body(Body::empty())
+            .expect("构造下载请求");
+        let response = app.oneshot(request).await.expect("下载响应");
+        assert_eq!(response.status(), StatusCode::PARTIAL_CONTENT);
+        assert_eq!(response.headers()[header::CONTENT_RANGE], "bytes 6-10/11");
+        let bytes = response
+            .into_body()
+            .collect()
+            .await
+            .expect("读取下载响应")
+            .to_bytes();
+        assert_eq!(&bytes[..], b"world");
     }
 }

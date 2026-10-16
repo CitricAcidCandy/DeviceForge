@@ -1,0 +1,27 @@
+.ui-badge {
+  --badge-tone: var(--primary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  width: fit-content;
+  max-width: 100%;
+  padding: 3px 9px;
+  border: 1px solid color-mix(in srgb, var(--badge-tone) 22%, transparent);
+  border-radius: 6px;
+  color: var(--badge-tone);
+  background: color-mix(in srgb, var(--badge-tone) 9%, var(--card));
+  font-size: 0.72rem;
+  font-weight: 550;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+.ui-badge[data-variant='default'] { color: var(--primary-foreground); background: var(--primary); }
+.ui-badge[data-variant='secondary'] { --badge-tone: var(--muted-foreground); }
+.ui-badge[data-variant='outline'] { --badge-tone: var(--muted-foreground); background: transparent; border-color: var(--border); }
+.ui-badge[data-variant='success'] { --badge-tone: var(--success); }
+.ui-badge[data-variant='warning'] { --badge-tone: var(--warning); }
+.ui-badge[data-variant='info'] { --badge-tone: var(--info); }
+.ui-badge[data-variant='danger'] { --badge-tone: var(--destructive); }
+.ui-badge[data-variant='warm'] { --badge-tone: var(--accent-warm); }
+.ui-badge[data-variant='violet'] { --badge-tone: var(--accent-violet); }

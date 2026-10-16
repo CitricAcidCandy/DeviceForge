@@ -74,6 +74,15 @@ impl Application {
     }
 
     pub fn open_session(self: &Arc<Self>, operation: &str, input: Value) -> Result<SessionInfo> {
+        self.open_session_with_client(operation, input, None)
+    }
+
+    pub fn open_session_with_client(
+        self: &Arc<Self>,
+        operation: &str,
+        input: Value,
+        client_is_local: Option<bool>,
+    ) -> Result<SessionInfo> {
         let admitted_at = tokio::time::Instant::now();
         let registered = self.registry.session(operation)?;
         registered
@@ -133,6 +142,10 @@ impl Application {
                 session_id: info.id.clone(),
                 operation: operation.into(),
                 input,
+                client: client_is_local.map(|is_local| SessionClient {
+                    id: info.id.clone(),
+                    is_local,
+                }),
                 deadline: deadline.into_std(),
             },
             cancel.clone(),

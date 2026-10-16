@@ -6,7 +6,8 @@ mod view;
 
 pub use definition::{SessionDefinition, SessionOutputRetention};
 pub use model::{
-    SessionChunk, SessionCleanup, SessionExit, SessionOutcome, SessionRequest, SessionStream,
+    SessionChunk, SessionCleanup, SessionClient, SessionExit, SessionOutcome, SessionRequest,
+    SessionStream,
 };
 pub use ports::{InteractiveSession, SessionInput, SessionLaunch, SessionProvider};
 use std::sync::Arc;

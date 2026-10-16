@@ -2,13 +2,15 @@ import { ApiError, createHttpSessionGateway, isSessionDefinitions } from '../../
 import type { ApiClient, ApiResult, SessionGateway, SessionInfo } from '../../../services/api/index.ts';
 import { abortable } from '../../../services/api/abort.ts';
 import { decodeStreamReceipt, normalizeStreamInput } from '../utils/rules.ts';
-import type { MirroringControl, MirroringStreamInput } from '../types/index.ts';
+import type { MirroringClipboard, MirroringControl, MirroringOwnership, MirroringStreamInput } from '../types/index.ts';
 import {
   createWebRtcSignalDecoder, decodeWebRtcPage, decodeWebRtcSession, encodeWebRtcAnswer,
   encodeWebRtcControl, WEBRTC_OPEN,
 } from '../services/webrtc-signaling.ts';
 import { createWebRtcPeer } from '../services/webrtc.ts';
 import type { WebRtcConnectionPort } from '../services/webrtc.ts';
+import { createWebRtcOwnershipRequestId, encodeWebRtcOwnershipCommand } from '../services/webrtc-ownership.ts';
+import type { WebRtcOwnershipCommand } from '../services/webrtc-ownership.ts';
 
 export interface WebRtcMirroringOptions {
   readonly pollIntervalMs?: number;
@@ -24,6 +26,8 @@ export interface WebRtcMirroringSnapshot {
   readonly epoch: 1;
   readonly status: 'connecting' | 'streaming' | 'audio_unavailable' | null;
   readonly stream: MediaStream | null;
+  readonly clipboard: MirroringClipboard | null;
+  readonly ownership: MirroringOwnership | null;
   readonly inputState: 'unknown' | 'writable' | 'uncertain';
   readonly controlReady: boolean;
   readonly opening: boolean;
@@ -64,7 +68,7 @@ export function createWebRtcMirroring(gateway: SessionGateway, options: WebRtcMi
   if (!Number.isInteger(interval) || interval < 1 || interval > 60000)
     throw new ApiError('protocol', 'mirroring_webrtc_interval', 'WebRTC 轮询间隔无效');
   let view: WebRtcMirroringSnapshot = Object.freeze({
-    definitions: null, session: null, cursor: 0, epoch: 1, status: null, stream: null,
+    definitions: null, session: null, cursor: 0, epoch: 1, status: null, stream: null, clipboard: null, ownership: null,
     inputState: 'unknown', controlReady: false, opening: false, releasing: false, logs: {}, errors: {},
   });
   const listeners = new Set<(snapshot: WebRtcMirroringSnapshot) => void>();
@@ -74,8 +78,14 @@ export function createWebRtcMirroring(gateway: SessionGateway, options: WebRtcMi
   let inputTail: Promise<void> = Promise.resolve();
   let negotiated = false;
   let controlEnabled = false;
+  let clipboardEnabled = false;
+  let clipboardSequence = 0;
   let releaseTask: Promise<ApiResult<SessionInfo>> | null = null;
   let terminalEvidence: SessionInfo | null = null;
+  const ownershipPending = new Map<string, {
+    resolve(): void;
+    reject(error: ApiError): void;
+  }>();
   let closed = false;
 
   function publish(patch: Partial<WebRtcMirroringSnapshot>) {
@@ -95,11 +105,14 @@ export function createWebRtcMirroring(gateway: SessionGateway, options: WebRtcMi
   }
   function stopLocal() {
     ++generation;
+    for (const pending of ownershipPending.values())
+      pending.reject(new ApiError('cancelled', 'mirroring_webrtc_closed', 'WebRTC 控制申请已随连接关闭'));
+    ownershipPending.clear();
     controller?.abort();
     controller = null;
     peer?.close();
     peer = null;
-    publish({ stream: null, status: null, inputState: 'uncertain', controlReady: false });
+    publish({ stream: null, status: null, inputState: 'uncertain', controlReady: false, clipboard: null, ownership: null });
   }
   async function sendLine(identity: SessionInfo, bytes: readonly number[], signal: AbortSignal) {
     const task = inputTail.catch(() => {}).then(async () => {
@@ -128,6 +141,29 @@ export function createWebRtcMirroring(gateway: SessionGateway, options: WebRtcMi
       onControlReady: (ready) => {
         if (admitted === generation && !signal.aborted) publish({ controlReady: ready });
       },
+      onOwnership: (ownership) => {
+        if (admitted !== generation || signal.aborted) return;
+        const previous = view.ownership;
+        publish({ ownership,
+          ...(!ownership.hasControl || previous?.controlRevision !== ownership.controlRevision ? { clipboard: null } : {}),
+        });
+      },
+      onOwnershipResult: (result) => {
+        if (admitted !== generation || signal.aborted) return;
+        const pending = ownershipPending.get(result.requestId);
+        if (!pending) return;
+        if (result.ok) pending.resolve();
+        else pending.reject(new ApiError('protocol', 'mirroring_webrtc_control_rejected',
+          result.error ?? '服务器拒绝了控制权操作'));
+      },
+      ...(controlEnabled && clipboardEnabled ? {
+        onClipboard: (text: string, controlRevision?: number) => {
+          if (admitted === generation && !signal.aborted)
+            publish({ clipboard: Object.freeze({ text, sequence: ++clipboardSequence,
+              ...(controlRevision === undefined ? {} : { controlRevision }),
+            }) });
+        },
+      } : {}),
       onFailure: (error) => {
         if (admitted !== generation || signal.aborted) return;
         report('connection', error);
@@ -262,6 +298,51 @@ export function createWebRtcMirroring(gateway: SessionGateway, options: WebRtcMi
     );
     return abortable(pending, signal);
   }
+  async function ownershipCommand(command: WebRtcOwnershipCommand, signal: AbortSignal) {
+    const identity = view.session;
+    if (!identity || !controlEnabled || !negotiated || !view.controlReady || view.status !== 'streaming' ||
+      view.inputState !== 'writable' || identity.status !== 'running')
+      throw new ApiError('protocol', 'mirroring_webrtc_control_unavailable', 'WebRTC 设备控制尚未就绪');
+    try {
+      if (signal.aborted) throw new ApiError('cancelled', 'cancelled', 'WebRTC 控制申请已取消');
+      if (!peer) throw new ApiError('protocol', 'mirroring_webrtc_peer_missing', 'WebRTC 控制连接已关闭');
+      if (ownershipPending.size >= 64)
+        throw new ApiError('protocol', 'mirroring_webrtc_control_pending', '控制权操作积压，请等待回执');
+      const requestId = createWebRtcOwnershipRequestId();
+      const bytes = encodeWebRtcOwnershipCommand(command, requestId);
+      let withdraw = () => {};
+      const result = new Promise<void>((resolve, reject) => {
+        const cleanup = () => {
+          clearTimeout(timer);
+          signal.removeEventListener('abort', cancelled);
+          ownershipPending.delete(requestId);
+        };
+        const cancelled = () => {
+          cleanup();
+          reject(new ApiError('cancelled', 'cancelled', 'WebRTC 控制申请等待已取消'));
+        };
+        const timer = setTimeout(() => {
+          cleanup();
+          reject(new ApiError('network', 'mirroring_webrtc_control_timeout', '服务器未在 5 秒内确认控制权操作'));
+        }, 5000);
+        withdraw = cleanup;
+        ownershipPending.set(requestId, {
+          resolve: () => { cleanup(); resolve(); },
+          reject: (error) => { cleanup(); reject(error); },
+        });
+        signal.addEventListener('abort', cancelled, { once: true });
+      });
+      try { peer.sendControl(bytes); }
+      catch (error) {
+        withdraw();
+        throw error;
+      }
+      await result;
+      return { data: { id: identity.id, accepted: true }, logId: null };
+    } catch (error) {
+      throw report('ownership', error);
+    }
+  }
   return {
     snapshot: () => view,
     subscribe(listener: (snapshot: WebRtcMirroringSnapshot) => void) {
@@ -287,6 +368,8 @@ export function createWebRtcMirroring(gateway: SessionGateway, options: WebRtcMi
       if (signal.aborted) throw new ApiError('cancelled', 'cancelled', '投屏打开等待已取消');
       const admitted = ++generation;
       controlEnabled = normalized.control !== false;
+      clipboardEnabled = normalized.clipboard_autosync === true;
+      clipboardSequence = 0;
       controlAudio = normalized.audio !== false;
       terminalEvidence = null;
       negotiated = false;
@@ -294,7 +377,7 @@ export function createWebRtcMirroring(gateway: SessionGateway, options: WebRtcMi
       const lifetime = new AbortController();
       controller = lifetime;
       publish({ opening: true, status: 'connecting', cursor: 0, inputState: 'unknown', controlReady: false,
-        errors: {}, stream: null });
+        errors: {}, stream: null, clipboard: null, ownership: null });
       const opening = gateway.open({ operation: WEBRTC_OPEN, input: normalized }, signal);
       void opening.then((late) => {
         if (admitted === generation && !signal.aborted) return;
@@ -344,15 +427,24 @@ export function createWebRtcMirroring(gateway: SessionGateway, options: WebRtcMi
       if (!identity || !controlEnabled || !negotiated || !view.controlReady || view.status !== 'streaming' ||
         view.inputState !== 'writable' || identity.status !== 'running')
         throw new ApiError('protocol', 'mirroring_webrtc_control_unavailable', 'WebRTC 设备控制尚未就绪');
+      if (command.type !== 'reset_video' && !view.ownership)
+        throw new ApiError('protocol', 'mirroring_webrtc_ownership_unconfirmed', '尚未确认设备控制权');
+      if (command.type !== 'reset_video' && view.ownership && !view.ownership.hasControl)
+        throw new ApiError('protocol', 'mirroring_webrtc_control_not_owner', '当前观看者没有设备控制权');
       try {
         if (signal.aborted) throw new ApiError('cancelled', 'cancelled', 'WebRTC 控制已取消');
         if (!peer) throw new ApiError('protocol', 'mirroring_webrtc_peer_missing', 'WebRTC 控制连接已关闭');
-        peer.sendControl(encodeWebRtcControl(command));
+        peer.sendControl(encodeWebRtcControl(command, view.epoch, view.ownership?.controlRevision));
         return { data: { id: identity.id, accepted: true }, logId: null };
       } catch (error) {
         throw report('input', error);
       }
     },
+    requestControl: (signal: AbortSignal) => ownershipCommand({ type: 'control_request' }, signal),
+    respondControl: (clientId: string, accept: boolean, signal: AbortSignal) =>
+      ownershipCommand({ type: 'control_respond', clientId, accept }, signal),
+    reclaimControl: (signal: AbortSignal) => ownershipCommand({ type: 'control_reclaim' }, signal),
+    releaseControl: (signal: AbortSignal) => ownershipCommand({ type: 'control_release' }, signal),
     release,
     async dispose() {
       if (closed) return;

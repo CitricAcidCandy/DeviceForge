@@ -56,7 +56,7 @@ impl Wire {
     }
 }
 fn header(kind: u8, flags: u16, pts: u64, length: usize, epoch: u32) -> Result<[u8; 24], String> {
-    if !(1..=5).contains(&kind)
+    if !(1..=6).contains(&kind)
         || (kind == 2 && flags > 2)
         || (kind != 2 && flags != 0)
         || length > PAYLOAD_LIMIT
@@ -187,6 +187,7 @@ mod tests {
         assert!(header(0, 0, 0, 0, 1).is_err());
         assert!(header(2, 3, 0, 0, 1).is_err());
         assert!(header(5, 1, 0, 0, 1).is_err());
+        assert!(header(6, 0, 0, 0, 1).is_ok());
     }
     #[test]
     fn codec_flags_lengths_and_public_timestamp_precision() {

@@ -10,6 +10,8 @@
 
 `SessionRequest` 包含 `session_id`、完整 `operation`、打开参数 `input` 与必须给出的单调时钟 `deadline`。原截止点覆盖排队、准备、打开、握手和业务，不因 Ready/Start 重计。
 
+可选 `SessionRequest.client` 由可信传输边界提供，包含宿主生成且与会话 ID 一致的 `id`、连接是否来自服务器本机的 `is_local`。领域不读取 HTTP 头或网络接口；缺失上下文不表示本机。应用的旧 `open_session` 保持缺失上下文，HTTP 使用 `open_session_with_client` 绑定新会话身份。
+
 `SessionProvider::open(request, cancel)` 只同步构造 `SessionLaunch { handle, supervisor }`，不启动进程或访问文件。应用须在原子资格判断时固定所属 Owner 与 generation，并将 supervisor 登记到该 owner 的 tracker，随后锁外运行。tracker 必须覆盖整场监督，不能只跟踪 open。
 
 ## 输入、输出与终态

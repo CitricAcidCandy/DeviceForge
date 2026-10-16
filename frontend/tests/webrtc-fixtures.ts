@@ -49,6 +49,7 @@ export class FakeControlChannel implements WebRtcControlPort {
   readonly sent: string[] = [];
   closed = 0;
   private readonly listeners = new Set<() => void>();
+  private readonly messages = new Set<(value: unknown) => void>();
   send(value: string) { this.sent.push(value); }
   close() { ++this.closed; this.readyState = 'closed'; this.changed(); }
   onState(listener: () => void) {
@@ -56,6 +57,12 @@ export class FakeControlChannel implements WebRtcControlPort {
     return () => { this.listeners.delete(listener); };
   }
   changed() { for (const listener of this.listeners) listener(); }
+  onMessage(listener: (value: unknown) => void) {
+    this.messages.add(listener);
+    return () => { this.messages.delete(listener); };
+  }
+  emitMessage(value: unknown) { for (const listener of this.messages) listener(value); }
+  get messageListenerCount() { return this.messages.size; }
 }
 
 export class FakeWebRtcConnection implements WebRtcConnectionPort {

@@ -17,11 +17,89 @@ pub(super) enum Message {
     Control {
         version: u8,
         epoch: u8,
+        #[serde(default)]
+        control_revision: Option<u64>,
         command: Value,
+    },
+    ControlRequest {
+        version: u8,
+        epoch: u8,
+        request_id: String,
+    },
+    ControlRespond {
+        version: u8,
+        epoch: u8,
+        request_id: String,
+        client_id: String,
+        accept: bool,
+    },
+    ControlReclaim {
+        version: u8,
+        epoch: u8,
+        request_id: String,
+    },
+    ControlRelease {
+        version: u8,
+        epoch: u8,
+        request_id: String,
     },
 }
 
-pub(super) fn control_line(bytes: &[u8]) -> Result<Vec<u8>, String> {
+pub(super) enum EncodedControl {
+    Input {
+        bytes: Vec<u8>,
+        revision: Option<u64>,
+    },
+    Ownership {
+        request_id: String,
+        command: crate::live::ownership::Command,
+    },
+}
+
+pub(super) fn ownership(
+    message: Message,
+) -> Result<(String, crate::live::ownership::Command), String> {
+    use crate::live::ownership::Command;
+    let (request_id, command) = match message {
+        Message::ControlRequest {
+            version: 1,
+            epoch: 1,
+            request_id,
+        } => (request_id, Command::Request),
+        Message::ControlRespond {
+            version: 1,
+            epoch: 1,
+            request_id,
+            client_id,
+            accept,
+        } => (request_id, Command::Respond { client_id, accept }),
+        Message::ControlReclaim {
+            version: 1,
+            epoch: 1,
+            request_id,
+        } => (request_id, Command::Reclaim),
+        Message::ControlRelease {
+            version: 1,
+            epoch: 1,
+            request_id,
+        } => (request_id, Command::Release),
+        _ => return Err("WebRTC 控制权消息版本或类型无效".into()),
+    };
+    if request_id.len() != 36
+        || !request_id.bytes().enumerate().all(|(index, byte)| {
+            if [8, 13, 18, 23].contains(&index) {
+                byte == b'-'
+            } else {
+                byte.is_ascii_hexdigit()
+            }
+        })
+    {
+        return Err("WebRTC 控制权请求标识无效".into());
+    }
+    Ok((request_id, command))
+}
+
+pub(super) fn control_line(bytes: &[u8]) -> Result<EncodedControl, String> {
     if bytes.is_empty()
         || bytes.len() > 4096
         || !bytes.ends_with(b"\n")
@@ -34,13 +112,23 @@ pub(super) fn control_line(bytes: &[u8]) -> Result<Vec<u8>, String> {
         Message::Control {
             version: 1,
             epoch: 1,
+            control_revision,
             command,
         } => {
             let command: super::Control =
                 serde_json::from_value(command).map_err(|_| "WebRTC 控制命令无效")?;
-            command.encode()
+            Ok(EncodedControl::Input {
+                bytes: command.encode()?,
+                revision: control_revision,
+            })
         }
-        _ => Err("WebRTC 控制版本、代次或类型无效".into()),
+        message => {
+            let (request_id, command) = ownership(message)?;
+            Ok(EncodedControl::Ownership {
+                request_id,
+                command,
+            })
+        }
     }
 }
 
@@ -87,6 +175,14 @@ impl Reader {
                         Message::Control { version, epoch, .. } => {
                             if *version != 1 || *epoch != 1 || !self.answered || line.len() > 4096 {
                                 return Err("WebRTC 控制版本、代次、顺序或长度无效".into());
+                            }
+                        }
+                        Message::ControlRequest { version, epoch, .. }
+                        | Message::ControlRespond { version, epoch, .. }
+                        | Message::ControlReclaim { version, epoch, .. }
+                        | Message::ControlRelease { version, epoch, .. } => {
+                            if *version != 1 || *epoch != 1 || !self.answered || line.len() > 4096 {
+                                return Err("WebRTC 控制权版本、代次或顺序无效".into());
                             }
                         }
                     }
@@ -147,5 +243,22 @@ mod tests {
             )
             .is_ok()
         );
+    }
+
+    #[test]
+    fn data_channel_accepts_ownership_requests_and_keeps_input_revision() {
+        let message = control_line(b"{\"version\":1,\"epoch\":1,\"type\":\"control_request\",\"request_id\":\"12345678-1234-1234-1234-123456789abc\"}\n").unwrap();
+        assert!(matches!(
+            message,
+            EncodedControl::Ownership {
+                command: crate::live::ownership::Command::Request,
+                ..
+            }
+        ));
+        let message = control_line(b"{\"version\":1,\"epoch\":1,\"type\":\"control\",\"control_revision\":7,\"command\":{\"type\":\"rotate\"}}\n").unwrap();
+        assert!(
+            matches!(message, EncodedControl::Input { bytes, revision: Some(7) } if bytes == [11])
+        );
+        assert!(control_line(b"{\"version\":1,\"epoch\":1,\"type\":\"control_reclaim\",\"request_id\":\"invalid\"}\n").is_err());
     }
 }

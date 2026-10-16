@@ -2,7 +2,11 @@ import { mkdir, mkdtemp, rm, rmdir, writeFile, lstat, readdir, realpath } from '
 import { dirname, basename, join, resolve } from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { materializeManifest, validateRegistrySource } from './plugin-package.mjs';
+import {
+  materializeManifest,
+  readMarketMetadata,
+  validateRegistrySource,
+} from './plugin-package.mjs';
 import { copyPackage } from './plugin-files.mjs';
 import { readJson, inside, atomicRename } from './paths.mjs';
 import { loadRuntime } from './runtime.mjs';
@@ -86,6 +90,7 @@ export async function installPlugin(options, { signal, runtime, environment = pr
     }
     signal?.throwIfAborted();
     const stageManifest = await materializeManifest(packageRoot, packageRoot);
+    const marketMetadata = await readMarketMetadata(packageRoot, stageManifest);
     const destination = join(pluginDirectory, stageManifest.id);
     const lockPath = join(stagingRoot, `lock-${stageManifest.id}`);
     try {
@@ -127,6 +132,7 @@ export async function installPlugin(options, { signal, runtime, environment = pr
       id: published.id,
       version: published.version,
       operations: published.operations.length,
+      metadata_complete: marketMetadata !== null,
     };
   } finally {
     if (!inside(stagingRoot, temporary) || temporary === stagingRoot)
@@ -149,11 +155,13 @@ export async function listPlugins(options, environment = process.env) {
   for (const entry of entries) {
     if (!entry.isDirectory() || entry.isSymbolicLink() || entry.name.startsWith('.')) continue;
     const manifest = await readJson(join(directory, entry.name, 'manifest.json'));
+    const marketMetadata = await readMarketMetadata(join(directory, entry.name), manifest);
     result.push({
       id: manifest.id,
       version: manifest.version,
       protocol_version: manifest.protocol_version,
       operations: manifest.operations.length,
+      metadata_complete: marketMetadata !== null,
     });
   }
   return result.sort((left, right) => left.id.localeCompare(right.id));

@@ -49,17 +49,25 @@ pub struct Fixture {
 }
 impl Fixture {
     pub fn new() -> Self {
+        Self::with_client_context(false)
+    }
+
+    pub fn with_client_context(client_context: bool) -> Self {
         let directory = tempfile::Builder::new()
             .prefix("interactive-process-")
             .tempdir()
             .unwrap();
-        let manifest: Manifest = serde_json::from_value(json!({
+        let mut manifest = json!({
             "id":"independent-session","version":"1","protocol_version":4,"executable":node(),
             "args":[Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/interactive_sessions/provider.mjs"),directory.path()],
             "operations":[],"sessions":{"protocol_version":5,"operations":[
                 {"name":"terminal","title":"独立会话","input_schema":{"type":"object"}}
             ]}
-        })).expect("公开会话-only清单");
+        });
+        if client_context {
+            manifest["sessions"]["client_context"] = json!(true);
+        }
+        let manifest: Manifest = serde_json::from_value(manifest).expect("公开会话-only清单");
         Self {
             directory: Some(directory),
             plugin: Arc::new(ProcessPlugin::new(manifest).expect("公开会话提供者")),
@@ -159,6 +167,17 @@ impl Fixture {
         deadline: Instant,
         cancel: CancellationToken,
     ) -> Running {
+        self.launch_with_client(id, input, deadline, cancel, None)
+    }
+
+    pub fn launch_with_client(
+        &self,
+        id: &str,
+        input: Value,
+        deadline: Instant,
+        cancel: CancellationToken,
+        client: Option<apk_domain::interactive::SessionClient>,
+    ) -> Running {
         let provider = self.plugin.session_provider().expect("显式会话提供者");
         let before = std::fs::read(self.marker("started")).ok();
         let launch = provider
@@ -167,6 +186,7 @@ impl Fixture {
                     session_id: id.into(),
                     operation: "plugin.independent-session.terminal".into(),
                     input,
+                    client,
                     deadline: deadline.into_std(),
                 },
                 cancel,

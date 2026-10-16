@@ -69,6 +69,7 @@ impl McpAdapter {
             return crate::interactive_mcp::invoke(&self.app, name, input).await;
         }
         match name {
+            crate::plugin_guide::TOOL_NAME => crate::plugin_guide::get(input),
             "deviceforge.list_device_providers"
             | "deviceforge.list_devices"
             | "deviceforge.refresh_devices"
@@ -115,7 +116,7 @@ impl ServerHandler for McpAdapter {
     fn get_info(&self) -> ServerConfig {
         ServerConfig::new(ServerCapabilities::builder().enable_tools().enable_tool_list_changed().build())
             .with_server_info(Implementation::new("deviceforge", env!("CARGO_PKG_VERSION")))
-            .with_instructions("设备操作以异步任务执行。工具返回排队任务时应读取任务最终状态；需要中止时显式调用取消工具。")
+            .with_instructions(crate::plugin_guide::INSTRUCTIONS)
     }
     fn accepted_subscription_filter(
         &self,

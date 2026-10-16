@@ -2,6 +2,7 @@
 use super::{
     checked, control,
     device::Device,
+    device_messages::{self, DeviceMessage},
     model::Open,
     wire::{self, Wire},
 };
@@ -140,8 +141,8 @@ async fn pump(
     let control_read = async {
         if let Some(mut socket) = control_read {
             let mut bytes = [0; 8192];
+            let mut decoder = device_messages::Decoder::new();
             loop {
-                // 自动剪贴板同步已关闭；仍排空有限块，防止设备 ACK 阻塞写路。
                 let count = checked(context, async {
                     socket
                         .read(&mut bytes)
@@ -150,7 +151,16 @@ async fn pump(
                 })
                 .await?;
                 if count == 0 {
+                    decoder.finish()?;
                     return Err("设备控制连接已断开".into());
+                }
+                for message in decoder.push(&bytes[..count])? {
+                    match message {
+                        DeviceMessage::ClipboardAck(sequence) => {
+                            let _ = sequence;
+                        }
+                        DeviceMessage::Clipboard(_) | DeviceMessage::Uhid => {}
+                    }
                 }
             }
         } else {

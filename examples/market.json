@@ -1,0 +1,21 @@
+{
+  "metadata_version": 1,
+  "id": "example-device-analyzer",
+  "kind": "plugin",
+  "name": "示例设备分析器",
+  "version": "1.0.0",
+  "summary": "按公开设备能力执行分析与自动化操作",
+  "description": "展示市场条目的检索字段、兼容性和生命周期要求。实际运行入口仍由 manifest.json 提供。",
+  "keywords": ["设备", "分析", "自动化"],
+  "categories": ["function", "integration"],
+  "applies_to": ["deviceforge", "universal"],
+  "supports_mcp": "both",
+  "supports_agent": true,
+  "restart_policy": "plugin_reload",
+  "platforms": ["windows"],
+  "architectures": ["x64"],
+  "author": "DeviceForge",
+  "license": "MIT",
+  "visibility": "market",
+  "details": { "operation_count": 2 }
+}

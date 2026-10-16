@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createWebRtcMirroring } from '../src/features/mirroring-streaming/index.ts';
+import type { MirroringStreamInput } from '../src/features/mirroring-streaming/index.ts';
 import { createWebRtcSignalDecoder, encodeWebRtcAnswer, encodeWebRtcControl } from '../src/features/mirroring-streaming/services/webrtc-signaling.ts';
 import { ApiError } from '../src/services/api/index.ts';
 import type { SessionGateway, SessionInfo, SessionOutputPage } from '../src/services/api/index.ts';
-import { FakeMediaStream, FakeMediaTrack, FakeWebRtcConnection } from './webrtc-fixtures.ts';
+import { FakeControlChannel, FakeMediaStream, FakeMediaTrack, FakeWebRtcConnection } from './webrtc-fixtures.ts';
 
 const sessionId = '12345678-1234-1234-1234-123456789abc';
 const operation = 'plugin.mirroring.open_webrtc';
@@ -47,6 +48,60 @@ function gateway(changes: Partial<SessionGateway> = {}): SessionGateway {
   };
 }
 
+const clientId = '12345678-1234-4234-8234-123456789abc';
+const otherId = '12345678-1234-4234-8234-123456789def';
+function ownership(revision: number, hasControl: boolean, controlRevision = revision) {
+  return JSON.stringify({ version: 1, type: 'control_state', epoch: 1, revision, control_revision: controlRevision,
+    client_id: clientId, owner_id: hasControl ? clientId : otherId, is_master: false,
+    can_control: true, has_control: hasControl, transitioning: false, blocked: false, requests: [] });
+}
+
+async function openedMirror(input: Partial<MirroringStreamInput> = {}, automaticReceipt = true) {
+  const channels: FakeControlChannel[] = [];
+  const messages = [
+    { version: 1, epoch: 1, type: 'offer', sdp: 'offer' },
+    { version: 1, epoch: 1, type: 'status', state: 'streaming' },
+  ];
+  const offer = [...encoder.encode(messages.map((message) => `${JSON.stringify(message)}\n`).join(''))];
+  const mirror = createWebRtcMirroring(gateway({
+    output: async (_id, query) => ({
+      data: query.after === 0 ? page([offer]) : { ...page([], 1), session: info('running', 1) },
+      logId: 'output-log',
+    }),
+  }), {
+    connectionFactory: () => {
+      const connection = new FakeWebRtcConnection();
+      connection.setLocalDescription = async () => {
+        queueMicrotask(() => {
+          const channel = new FakeControlChannel();
+          channel.send = (message) => {
+            channel.sent.push(message);
+            const command: unknown = JSON.parse(message);
+            if (automaticReceipt && command !== null && typeof command === 'object' &&
+              'request_id' in command && typeof command.request_id === 'string') {
+              queueMicrotask(() => channel.emitMessage(JSON.stringify({ version: 1, epoch: 1,
+                type: 'control_result', request_id: command.request_id, ok: true })));
+            }
+          };
+          channels.push(channel);
+          connection.emitTrack(new FakeMediaTrack());
+          connection.emitChannel(channel);
+          channel.readyState = 'open';
+          channel.changed();
+          connection.setState('connected');
+        });
+      };
+      return connection;
+    },
+    mediaStreamFactory: () => new FakeMediaStream(),
+  });
+  await mirror.refreshDefinitions(signal());
+  await mirror.open({ device_id: 'emulator-5554', control: true, clipboard_autosync: true, ...input }, signal());
+  const channel = channels[0];
+  if (!channel) throw new Error('WebRTC 控制通道未创建');
+  return { mirror, channel };
+}
+
 test('WebRTC 信令跨块解析且严格拒绝错误代次与过长行', () => {
   const decoder = createWebRtcSignalDecoder();
   const line = [...encoder.encode(`${JSON.stringify({ version: 1, epoch: 1, type: 'offer', sdp: '测试🙂' })}\n`)];
@@ -58,6 +113,199 @@ test('WebRTC 信令跨块解析且严格拒绝错误代次与过长行', () => {
   assert.equal(encodeWebRtcAnswer('answer').at(-1), 10);
   assert.deepEqual(JSON.parse(new TextDecoder().decode(new Uint8Array(encodeWebRtcControl({ type: 'rotate' })))),
     { version: 1, epoch: 1, type: 'control', command: { type: 'rotate' } });
+  assert.deepEqual(JSON.parse(new TextDecoder().decode(new Uint8Array(encodeWebRtcControl({ type: 'rotate' }, 1, 3)))),
+    { version: 1, epoch: 1, type: 'control', command: { type: 'rotate' }, control_revision: 3 });
+  assert.throws(() => encodeWebRtcControl({ type: 'rotate' }, 1, 0));
+});
+
+test('WebRTC 模型只在控制与剪贴板自动同步均启用时发布完整回传', async () => {
+  let connection: FakeWebRtcConnection | null = null;
+  let channel: FakeControlChannel | null = null;
+  const offer = [...encoder.encode(`${JSON.stringify({ version: 1, epoch: 1, type: 'offer', sdp: 'offer' })}\n`)];
+  const mirror = createWebRtcMirroring(gateway({
+    output: async (_id, query) => ({
+      data: query.after === 0 ? page([offer]) : { ...page([], 1), session: info('running', 1) },
+      logId: 'output-log',
+    }),
+  }), {
+    connectionFactory: () => {
+      connection = new FakeWebRtcConnection();
+      connection.setLocalDescription = async () => {
+        queueMicrotask(() => {
+          if (!connection) return;
+          connection.emitTrack(new FakeMediaTrack());
+          channel = new FakeControlChannel();
+          connection.emitChannel(channel);
+          channel.readyState = 'open';
+          channel.changed();
+          connection.setState('connected');
+        });
+      };
+      return connection;
+    },
+    mediaStreamFactory: () => new FakeMediaStream(),
+  });
+  await mirror.refreshDefinitions(signal());
+  await mirror.open({ device_id: 'emulator-5554', control: true, clipboard_autosync: true }, signal());
+  const currentChannel = channel as FakeControlChannel | null;
+  if (currentChannel === null) throw new Error('WebRTC 控制通道未创建');
+  currentChannel.emitMessage(JSON.stringify({ version: 1, type: 'clipboard', epoch: 1, sequence: 1, part: 0, total: 1, text: '设备剪贴板' }));
+  assert.equal(mirror.snapshot().clipboard?.text, '设备剪贴板');
+  assert.equal(mirror.snapshot().clipboard?.sequence, 1);
+  await mirror.release(signal());
+  assert.equal(mirror.snapshot().clipboard, null);
+  mirror.dispose();
+});
+
+test('WebRTC 归属撤销立即清剪贴板并拒绝设备输入，但允许申请响应抢回及释放控制', async () => {
+  const { mirror, channel } = await openedMirror();
+  await assert.rejects(mirror.sendControl({ type: 'rotate' }, signal()),
+    { code: 'mirroring_webrtc_ownership_unconfirmed' });
+  channel.emitMessage(ownership(1, true));
+  await mirror.sendControl({ type: 'rotate' }, signal());
+  assert.deepEqual(JSON.parse(channel.sent.at(-1) ?? ''),
+    { version: 1, epoch: 1, type: 'control', command: { type: 'rotate' }, control_revision: 1 });
+  channel.emitMessage(ownership(2, false));
+  assert.equal(mirror.snapshot().ownership?.hasControl, false);
+  await assert.rejects(mirror.sendControl({ type: 'rotate' }, signal()),
+    { code: 'mirroring_webrtc_control_not_owner' });
+  const sentBefore = channel.sent.length;
+  await mirror.requestControl(signal());
+  await mirror.respondControl(otherId, true, signal());
+  await mirror.respondControl(otherId, false, signal());
+  await mirror.reclaimControl(signal());
+  await mirror.releaseControl(signal());
+  const ownershipCommands = channel.sent.slice(sentBefore).map((message) => {
+    const { request_id, ...command }: { request_id: string; [key: string]: unknown } = JSON.parse(message);
+    assert.match(request_id, /^[0-9a-f-]{36}$/i);
+    return command;
+  });
+  assert.deepEqual(ownershipCommands, [
+    { version: 1, epoch: 1, type: 'control_request' },
+    { version: 1, epoch: 1, type: 'control_respond', client_id: otherId, accept: true },
+    { version: 1, epoch: 1, type: 'control_respond', client_id: otherId, accept: false },
+    { version: 1, epoch: 1, type: 'control_reclaim' },
+    { version: 1, epoch: 1, type: 'control_release' },
+  ]);
+  assert.equal(channel.sent.slice(sentBefore).every((message) => message.endsWith('\n')), true);
+  await assert.rejects(mirror.respondControl('无效客户端', true, signal()),
+    { code: 'mirroring_webrtc_ownership_invalid' });
+  const cancelled = new AbortController();
+  cancelled.abort();
+  await assert.rejects(mirror.requestControl(cancelled.signal), { code: 'cancelled' });
+  channel.emitMessage(ownership(3, true));
+  await mirror.sendControl({ type: 'rotate' }, signal());
+  channel.emitMessage(JSON.stringify({ version: 1, type: 'clipboard', epoch: 1,
+    sequence: 1, part: 0, total: 1, text: '控制者原生复制', control_revision: 3 }));
+  assert.deepEqual(mirror.snapshot().clipboard, { text: '控制者原生复制', sequence: 1, controlRevision: 3 });
+  channel.emitMessage(ownership(4, true, 3));
+  assert.deepEqual(mirror.snapshot().clipboard, { text: '控制者原生复制', sequence: 1, controlRevision: 3 });
+  await mirror.sendControl({ type: 'key', action: 'up', keycode: 51 }, signal());
+  assert.deepEqual(JSON.parse(channel.sent.at(-1) ?? ''), { version: 1, epoch: 1, type: 'control',
+    command: { type: 'key', action: 'up', keycode: 51 }, control_revision: 3 });
+  channel.emitMessage(ownership(5, false, 4));
+  assert.equal(mirror.snapshot().clipboard, null);
+  channel.emitMessage(JSON.stringify({ version: 1, type: 'clipboard', epoch: 1,
+    sequence: 2, part: 0, total: 1, text: '迟到正文', control_revision: 3 }));
+  assert.equal(mirror.snapshot().clipboard, null);
+  await mirror.release(signal());
+  assert.equal(mirror.snapshot().ownership, null);
+  await assert.rejects(mirror.requestControl(signal()), { code: 'mirroring_webrtc_control_unavailable' });
+  await mirror.dispose();
+});
+
+test('WebRTC 控制申请等待对应回执，拒绝取消关闭不改变所有权或中断观看', async () => {
+  const { mirror, channel } = await openedMirror({}, false);
+  channel.emitMessage(ownership(1, false));
+  let resolved = false;
+  const requested = mirror.requestControl(signal()).then(() => { resolved = true; });
+  const request: unknown = JSON.parse(channel.sent.at(-1) ?? '');
+  assert.ok(request !== null && typeof request === 'object' && 'request_id' in request &&
+    typeof request.request_id === 'string');
+  await Promise.resolve();
+  assert.equal(resolved, false);
+  channel.emitMessage(JSON.stringify({ version: 1, epoch: 1, type: 'control_result',
+    request_id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', ok: true }));
+  await Promise.resolve();
+  assert.equal(resolved, false);
+  const rejected = assert.rejects(requested, { code: 'mirroring_webrtc_control_rejected', message: '当前控制者不存在' });
+  channel.emitMessage(JSON.stringify({ version: 1, epoch: 1, type: 'control_result',
+    request_id: request.request_id, ok: false, error: '当前控制者不存在' }));
+  await rejected;
+  assert.equal(mirror.snapshot().ownership?.hasControl, false);
+  assert.equal(mirror.snapshot().session?.status, 'running');
+  assert.equal(mirror.snapshot().stream?.getVideoTracks().length, 1);
+  const cancelled = new AbortController();
+  const waiting = mirror.requestControl(cancelled.signal);
+  const cancellation = assert.rejects(waiting, { code: 'cancelled' });
+  cancelled.abort();
+  await cancellation;
+  const closing = mirror.requestControl(signal());
+  const closed = assert.rejects(closing, { code: 'mirroring_webrtc_closed' });
+  await mirror.release(signal());
+  await closed;
+  await mirror.dispose();
+});
+
+test('WebRTC 控制申请五秒未回执明确超时，迟到成功不恢复已经结束的等待', async (context) => {
+  const { mirror, channel } = await openedMirror({}, false);
+  context.mock.timers.enable({ apis: ['setTimeout'] });
+  try {
+    const requested = mirror.requestControl(signal());
+    const timeout = assert.rejects(requested, { code: 'mirroring_webrtc_control_timeout' });
+    const request: unknown = JSON.parse(channel.sent.at(-1) ?? '');
+    assert.ok(request !== null && typeof request === 'object' && 'request_id' in request);
+    context.mock.timers.tick(5000);
+    await timeout;
+    channel.emitMessage(JSON.stringify({ version: 1, epoch: 1, type: 'control_result',
+      request_id: request.request_id, ok: true }));
+    assert.equal(mirror.snapshot().errors.ownership?.code, 'mirroring_webrtc_control_timeout');
+    assert.equal(mirror.snapshot().session?.status, 'running');
+  } finally {
+    context.mock.timers.reset();
+    await mirror.dispose();
+  }
+});
+
+test('局域网 HTTP 缺少 crypto.randomUUID 时仍用安全随机 UUID 完成申请和批准', async () => {
+  const { mirror, channel } = await openedMirror();
+  const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'crypto');
+  const secureCrypto = globalThis.crypto;
+  Object.defineProperty(globalThis, 'crypto', { configurable: true, value: {
+    getRandomValues: secureCrypto.getRandomValues.bind(secureCrypto),
+  } });
+  try {
+    assert.equal(globalThis.crypto.randomUUID, undefined);
+    await mirror.requestControl(signal());
+    await mirror.respondControl(otherId, true, signal());
+    const requests = channel.sent.map((value) => {
+      const message: unknown = JSON.parse(value);
+      assert.ok(message !== null && typeof message === 'object' && 'request_id' in message &&
+        typeof message.request_id === 'string' && 'type' in message);
+      assert.match(message.request_id, /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+      return { id: message.request_id, type: message.type };
+    });
+    assert.deepEqual(requests.map((request) => request.type), ['control_request', 'control_respond']);
+    assert.equal(new Set(requests.map((request) => request.id)).size, 2);
+    assert.equal(mirror.snapshot().session?.status, 'running');
+  } finally {
+    if (descriptor) Object.defineProperty(globalThis, 'crypto', descriptor);
+    else Reflect.deleteProperty(globalThis, 'crypto');
+    await mirror.dispose();
+  }
+});
+
+test('WebRTC 仅观看实例仍收到所有权信息，控制功能关闭时禁止申请或接管', async () => {
+  const { mirror, channel } = await openedMirror({ control: false, clipboard_autosync: false });
+  channel.emitMessage(JSON.stringify({ version: 1, type: 'control_state', epoch: 1, revision: 1, control_revision: 1,
+    client_id: clientId, owner_id: otherId, is_master: false, can_control: false,
+    has_control: false, transitioning: false, blocked: false, requests: [] }));
+  assert.equal(mirror.snapshot().ownership?.canControl, false);
+  await assert.rejects(mirror.requestControl(signal()), { code: 'mirroring_webrtc_control_unavailable' });
+  await assert.rejects(mirror.reclaimControl(signal()), { code: 'mirroring_webrtc_control_unavailable' });
+  await assert.rejects(mirror.releaseControl(signal()), { code: 'mirroring_webrtc_control_unavailable' });
+  assert.equal(channel.sent.length, 0);
+  await mirror.dispose();
 });
 
 test('WebRTC 完整 answer 按 8192 字节拆片，释放去重并确认清理', async () => {

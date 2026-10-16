@@ -64,7 +64,7 @@ test('最多4MiB帧跨8192字节输出块，有界重组；错误头与截断尾
       bytes[4] = 2;
     },
     (bytes: number[]) => {
-      bytes[5] = 6;
+      bytes[5] = 7;
     },
     (bytes: number[]) => {
       bytes[7] = 3;
@@ -126,6 +126,10 @@ test('控制严格UTF8逐行编码，拒绝越界坐标、断代理字符、客�
     '{"type":"text","text":"中文🙂\\n第二行","epoch":3}\n',
   );
   assert.ok(Object.isFrozen(bytes));
+  for (const copy_key of ['none', 'copy', 'cut'])
+    assert.equal(JSON.parse(new TextDecoder().decode(Uint8Array.from(
+      encodeMirroringControl({ type: 'get_clipboard', copy_key }, 1),
+    ))).copy_key, copy_key);
   encodeMirroringControl(
     { type: 'touch', action: 'down', x: 639, y: 479, width: 640, height: 480, pressure: 1 },
     1,
@@ -135,6 +139,8 @@ test('控制严格UTF8逐行编码，拒绝越界坐标、断代理字符、客�
     { type: 'text', text: '\ud800' },
     { type: 'text', text: '中'.repeat(101) },
     { type: 'clipboard', text: 'a'.repeat(2049) },
+    { type: 'get_clipboard', copy_key: 'paste' },
+    { type: 'get_clipboard', copy_key: 'none', text: 'private' },
     { type: 'key', action: 'down', keycode: -1 },
     { type: 'rotate', path: 'client.exe' },
     { type: 'text', text: '\0' },
@@ -144,6 +150,7 @@ test('控制严格UTF8逐行编码，拒绝越界坐标、断代理字符、客�
     device_id: 'host:5555',
     reconnect_attempts: 5,
     control: false,
+    clipboard_autosync: true,
   });
   assert.ok(Object.isFrozen(value));
   for (const input of [
@@ -151,8 +158,38 @@ test('控制严格UTF8逐行编码，拒绝越界坐标、断代理字符、客�
     { device_id: 'valid', duration_ms: 1000 },
     { device_id: 'valid', max_size: 63 },
     { device_id: 'valid', audio: undefined },
+    { device_id: 'valid', clipboard_autosync: 1 },
   ])
     assert.throws(() => normalizeStreamInput(input), ApiError);
+});
+
+test('剪贴板DFML包跨块重组并严格验证文本和字节限额', () => {
+  const bytes = frame(6, { text: '中文🙂\n剪贴板' });
+  for (let split = 1; split < bytes.length; ++split) {
+    const parser = createMirroringFramer();
+    assert.deepEqual(parser.push(bytes.slice(0, split)), []);
+    assert.deepEqual(parser.push(bytes.slice(split)), [{
+      kind: 'clipboard', epoch: 1, timestampUs: 0, text: '中文🙂\n剪贴板',
+    }]);
+  }
+  assert.deepEqual(createMirroringFramer().push(frame(6, { text: '' }))[0], {
+    kind: 'clipboard', epoch: 1, timestampUs: 0, text: '',
+  });
+  for (const value of [{ text: '\0' }, { text: '\ud800' }, { text: 'private', extra: true }, new Uint8Array([255])])
+    assert.throws(() => createMirroringFramer().push(frame(6, value)), ApiError);
+  const large = frame(6, { text: 'a'.repeat(262140) });
+  const parser = createMirroringFramer();
+  assert.throws(() => {
+    for (let offset = 0; offset < large.length; offset += 8192)
+      parser.push(large.slice(offset, offset + 8192));
+  }, ApiError);
+  const stream = createMirroringStream();
+  assert.throws(() => stream.push(frame(6, { text: '先于代次' })), ApiError);
+  stream.reset();
+  stream.push(frame(5, { state: 'streaming', attempt: 0 }));
+  stream.push(frame(6, { text: '本代' }));
+  stream.push(frame(5, { state: 'reconnecting', attempt: 1 }, 0, 2));
+  assert.throws(() => stream.push(frame(6, { text: '旧代' })), ApiError);
 });
 
 test('H264 SPS派生实际codec，PCM16交错双声道转换保留符号与幅度', () => {

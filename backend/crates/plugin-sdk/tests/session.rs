@@ -3,8 +3,8 @@ use apk_plugin_sdk::{
     context::MAX_REMAINING_TIMEOUT_NS,
     cooperative::{CancelReason, CleanupOutcome},
     session::{
-        SESSION_CHUNK_LIMIT, SESSION_PROTOCOL_VERSION, SessionControl, SessionEvent, SessionOpen,
-        SessionOutcome, SessionReady, SessionStart, SessionStream,
+        SESSION_CHUNK_LIMIT, SESSION_PROTOCOL_VERSION, SessionClient, SessionControl, SessionEvent,
+        SessionOpen, SessionOutcome, SessionReady, SessionStart, SessionStream,
     },
 };
 use serde::{Serialize, de::DeserializeOwned};
@@ -79,6 +79,54 @@ fn handshake_preserves_complete_wire_and_optional_artifacts() {
             "protocol_version": 5, "session_id": "s", "command": "ready",
         })
     );
+}
+
+#[test]
+fn optional_client_context_has_closed_fields_and_preserves_legacy_bytes() {
+    let legacy = SessionOpen::new("session", "live", json!({}));
+    assert!(
+        serde_json::to_value(&legacy)
+            .unwrap()
+            .get("client")
+            .is_none()
+    );
+    let mut current = legacy;
+    current.client = Some(SessionClient {
+        id: "session".into(),
+        is_local: true,
+    });
+    let wire = serde_json::to_value(&current).unwrap();
+    let decoded: SessionOpen = serde_json::from_value(wire.clone()).unwrap();
+    assert!(decoded.validate().is_ok());
+    assert!(decoded.client.unwrap().is_local);
+    for client in [
+        json!({"id":"", "is_local":true}),
+        json!({"id":"session"}),
+        json!({"id":"session", "is_local":"true"}),
+        json!({"id":"session", "is_local":true,"master":true}),
+    ] {
+        let mut malformed = wire.clone();
+        malformed["client"] = client;
+        assert!(serde_json::from_value::<SessionOpen>(malformed).is_err());
+    }
+    current.client.as_mut().unwrap().id.clear();
+    assert_literal_matches_wire(&current, SessionOpen::validate);
+}
+
+#[test]
+fn client_context_requires_an_explicit_manifest_opt_in() {
+    let wire = json!({
+        "protocol_version":5,
+        "operations":[{"name":"live","title":"直播","input_schema":{"type":"object"}}],
+    });
+    let mut access: apk_plugin_sdk::session_access::SessionAccess =
+        serde_json::from_value(wire.clone()).unwrap();
+    assert!(!access.client_context);
+    assert_eq!(serde_json::to_value(&access).unwrap(), wire);
+    access.client_context = true;
+    let mut current = wire;
+    current["client_context"] = json!(true);
+    assert_eq!(serde_json::to_value(access).unwrap(), current);
 }
 
 #[test]

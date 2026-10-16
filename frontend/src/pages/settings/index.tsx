@@ -40,7 +40,14 @@ import type {
 } from '../../features/settings/index.ts';
 import type { ProductServices } from '../../app/product/services.ts';
 import { useAction, useSnapshot } from '../../app/product/hooks.ts';
-import { Field, FormActions, FormRow, FormSection, JsonResult, PageTitle } from '../../components/index.ts';
+import {
+  Field,
+  FormActions,
+  FormRow,
+  FormSection,
+  JsonResult,
+  PageTitle,
+} from '../../components/index.ts';
 import { OperationNotice, useOperationAvailable } from '../../app/product/capabilities.tsx';
 import { ActionFeedback } from '../../app/product/feedback.tsx';
 import { McpConnection } from './components/McpConnection/index.tsx';
@@ -70,10 +77,7 @@ export function SettingsPage({ services }: { services: ProductServices }) {
   }
   return (
     <div className="product-page settings-page">
-      <PageTitle
-        eyebrow="WORKSHOP / PREFERENCES"
-        title="设置"
-      />
+      <PageTitle eyebrow="WORKSHOP / PREFERENCES" title="设置" />
       <FormSection title="主题与显示">
         <div className="setting-row">
           <div>
@@ -105,95 +109,110 @@ export function SettingsPage({ services }: { services: ProductServices }) {
         {services.connection && (
           <>
             <FormRow label="服务地址">
-              {(control) => <div className="inline-action">
-                <Input
-                  {...control}
-                  value={baseUrl}
-                  onChange={(event) => setBaseUrl(event.target.value)}
-                  placeholder="http://127.0.0.1:7031"
-                />
-              <Button
-                disabled={action.pending}
-                onClick={() => {
-                  void action.run(async (signal) =>
-                    services.connection?.reconnect(baseUrl, token, signal),
-                  );
-                }}
-              >
-                <RefreshCw />
-                测试并应用
-              </Button>
-              </div>}
+              {(control) => (
+                <div className="inline-action">
+                  <Input
+                    {...control}
+                    value={baseUrl}
+                    onChange={(event) => setBaseUrl(event.target.value)}
+                    placeholder="http://127.0.0.1:7031"
+                  />
+                  <Button
+                    disabled={action.pending}
+                    onClick={() => {
+                      void action.run(async (signal) =>
+                        services.connection?.reconnect(baseUrl, token, signal),
+                      );
+                    }}
+                  >
+                    <RefreshCw />
+                    测试并应用
+                  </Button>
+                </div>
+              )}
             </FormRow>
             <FormRow label="可选令牌" hint="仅用于当前会话，留空免鉴权">
-              {(control) => <div className="inline-action">
-                <Input
-                  {...control}
-                  value={token}
-                  onChange={(event) => setToken(event.target.value)}
-                  type={showToken ? 'text' : 'password'}
-                />
-              <Button
-                variant="outline"
-                onClick={() => setShowToken(!showToken)}
-                aria-label={showToken ? '隐藏服务令牌' : '显示服务令牌'}
-              >
-                {showToken ? <EyeOff /> : <Eye />}
-                {showToken ? '隐藏' : '显示'}
-              </Button>
-              </div>}
+              {(control) => (
+                <div className="inline-action">
+                  <Input
+                    {...control}
+                    value={token}
+                    onChange={(event) => setToken(event.target.value)}
+                    type={showToken ? 'text' : 'password'}
+                  />
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowToken(!showToken)}
+                    aria-label={showToken ? '隐藏服务令牌' : '显示服务令牌'}
+                  >
+                    {showToken ? <EyeOff /> : <Eye />}
+                    {showToken ? '隐藏' : '显示'}
+                  </Button>
+                </div>
+              )}
             </FormRow>
             <p className="settings-consequence">应用后将结束当前工作会话。</p>
           </>
         )}
-        <details className="settings-note"><summary>连接说明</summary>
-          <p>当前服务：<span className="mono">{services.connection?.baseUrl ?? (typeof location === 'undefined' ? '同源服务' : location.origin)}</span></p>
+        <details className="settings-note">
+          <summary>连接说明</summary>
+          <p>
+            当前服务：
+            <span className="mono">
+              {services.connection?.baseUrl ??
+                (typeof location === 'undefined' ? '同源服务' : location.origin)}
+            </span>
+          </p>
           <p>切换后已提交任务仍以原服务器状态为准。令牌仅用于当前会话，不写入网址或持久存储。</p>
           <p>专注模式和减少动态效果在右上角设置，系统的减少动态效果偏好自动生效。</p>
         </details>
       </FormSection>
       <FormSection title="市场发现">
         <FormRow label="市场地址" hint="仅保存在当前浏览器，保存后立即刷新市场目录">
-          {(control) => <div className="inline-action">
-            <Input
-              {...control}
-              value={marketplaceDraft}
-              onChange={(event) => setMarketplaceDraft(event.target.value)}
-              placeholder="http://127.0.0.1:7040"
-            />
-            <Button
-              disabled={action.pending}
-              onClick={() => {
-                void action.run(async () => {
-                  const value = services.marketplace.setUrl(marketplaceDraft);
-                  setMarketplaceUrl(value);
-                  window.dispatchEvent(new Event('deviceforge-marketplace-change'));
-                  return { data: { url: value }, logId: null };
-                });
-              }}
-            >
-              <RefreshCw />
-              保存并刷新
-            </Button>
-            <Button
-              variant="outline"
-              disabled={action.pending}
-              onClick={() => {
-                void action.run(async () => {
-                  const value = services.marketplace.resetUrl();
-                  setMarketplaceUrl(value);
-                  setMarketplaceDraft(value);
-                  window.dispatchEvent(new Event('deviceforge-marketplace-change'));
-                  return { data: { url: value }, logId: null };
-                });
-              }}
-            >
-              <RotateCcw />
-              恢复默认
-            </Button>
-          </div>}
+          {(control) => (
+            <div className="inline-action">
+              <Input
+                {...control}
+                value={marketplaceDraft}
+                onChange={(event) => setMarketplaceDraft(event.target.value)}
+                placeholder="http://127.0.0.1:7040"
+              />
+              <Button
+                disabled={action.pending}
+                onClick={() => {
+                  void action.run(async () => {
+                    const value = services.marketplace.setUrl(marketplaceDraft);
+                    setMarketplaceUrl(value);
+                    window.dispatchEvent(new Event('deviceforge-marketplace-change'));
+                    return { data: { url: value }, logId: null };
+                  });
+                }}
+              >
+                <RefreshCw />
+                保存并刷新
+              </Button>
+              <Button
+                variant="outline"
+                disabled={action.pending}
+                onClick={() => {
+                  void action.run(async () => {
+                    const value = services.marketplace.resetUrl();
+                    setMarketplaceUrl(value);
+                    setMarketplaceDraft(value);
+                    window.dispatchEvent(new Event('deviceforge-marketplace-change'));
+                    return { data: { url: value }, logId: null };
+                  });
+                }}
+              >
+                <RotateCcw />
+                恢复默认
+              </Button>
+            </div>
+          )}
         </FormRow>
-        <p className="settings-consequence">当前浏览器覆盖：<span className="mono">{marketplaceUrl}</span>。不会写入服务器配置。</p>
+        <p className="settings-consequence">
+          当前浏览器覆盖：<span className="mono">{marketplaceUrl}</span>。不会写入服务器配置。
+        </p>
       </FormSection>
       <FormSection title="工具配置">
         <OperationNotice services={services} operation="plugin.settings.list" />
@@ -219,11 +238,7 @@ export function SettingsPage({ services }: { services: ProductServices }) {
               </SelectContent>
             </Select>
           </div>
-          <Field
-            label="归属 ID"
-            value={owner}
-            onChange={changeOwner}
-          />
+          <Field label="归属 ID" value={owner} onChange={changeOwner} />
           <Button
             variant="outline"
             disabled={action.pending || !canRead}
@@ -285,31 +300,33 @@ export function SettingsPage({ services }: { services: ProductServices }) {
           />
           <small>写入使用已读取的修订；出现冲突时重新读取，不会自动覆盖。</small>
         </div>
-        <FormActions><Button
-          disabled={!configuration || !canWrite || action.pending}
-          onClick={() => {
-            if (!configuration) return;
-            void action.run(async (signal) => {
-              const value: unknown = JSON.parse(draft);
-              if (!isJsonData(value)) throw new Error('配置必须为合法的 JSON 数据');
-              const result = await services.settings.set(
-                {
-                  scope,
-                  owner_id: owner,
-                  section,
-                  expected_revision: configuration.revision,
-                  value,
-                },
-                signal,
-              );
-              if (!signal.aborted) setConfiguration(result.data);
-              return result;
-            });
-          }}
-        >
-          <Save />
-          保存此区
-        </Button></FormActions>
+        <FormActions>
+          <Button
+            disabled={!configuration || !canWrite || action.pending}
+            onClick={() => {
+              if (!configuration) return;
+              void action.run(async (signal) => {
+                const value: unknown = JSON.parse(draft);
+                if (!isJsonData(value)) throw new Error('配置必须为合法的 JSON 数据');
+                const result = await services.settings.set(
+                  {
+                    scope,
+                    owner_id: owner,
+                    section,
+                    expected_revision: configuration.revision,
+                    value,
+                  },
+                  signal,
+                );
+                if (!signal.aborted) setConfiguration(result.data);
+                return result;
+              });
+            }}
+          >
+            <Save />
+            保存此区
+          </Button>
+        </FormActions>
       </FormSection>
       <ActionFeedback {...action} />
       <JsonResult value={action.result} />
@@ -317,15 +334,16 @@ export function SettingsPage({ services }: { services: ProductServices }) {
         <summary>MCP 连接与工具目录</summary>
         <McpConnection services={services} />
       </details>
-      <details className="settings-disclosure"><summary>导入与远端配置</summary>
-      <SettingsTransfers
-        key={`${scope}:${owner}`}
-        services={services}
-        owner={{ scope, owner_id: owner }}
-        section={section}
-        configuration={configuration}
-        onUpdated={setConfiguration}
-      />
+      <details className="settings-disclosure">
+        <summary>导入与远端配置</summary>
+        <SettingsTransfers
+          key={`${scope}:${owner}`}
+          services={services}
+          owner={{ scope, owner_id: owner }}
+          section={section}
+          configuration={configuration}
+          onUpdated={setConfiguration}
+        />
       </details>
     </div>
   );

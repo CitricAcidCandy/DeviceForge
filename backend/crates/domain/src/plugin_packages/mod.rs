@@ -41,6 +41,10 @@ pub trait PreparedPackage: Send {
     fn operations(&self) -> &[Operation];
     /// 消费暂存所有权，验证结束后才原子发布。
     async fn commit(self: Box<Self>) -> Result<PackageInfo>;
+    /// 新包已完成验证后替换旧部署；失败须保留可用的旧部署。
+    async fn replace(self: Box<Self>) -> Result<PackageInfo> {
+        Err(crate::Error::Conflict("包存储不支持安全更新".into()))
+    }
 }
 
 #[async_trait]

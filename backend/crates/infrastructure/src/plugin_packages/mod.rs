@@ -5,6 +5,8 @@ mod archive_tests;
 mod manifest;
 mod paths;
 mod storage;
+#[cfg(test)]
+mod storage_tests;
 use apk_domain::{Error, Operation, Result, artifacts::ArtifactStream, plugin_packages::*};
 use std::{
     fs,
@@ -241,5 +243,18 @@ impl PreparedPackage for Prepared {
         })
         .await
         .map_err(|_| Error::Storage("包发布工作异常".into()))?
+    }
+    async fn replace(self: Box<Self>) -> Result<PackageInfo> {
+        let permit = self
+            .workers
+            .clone()
+            .try_acquire_owned()
+            .map_err(|_| Error::Conflict("包更新工作池已满".into()))?;
+        tokio::task::spawn_blocking(move || {
+            let _permit = permit;
+            storage::replace(*self)
+        })
+        .await
+        .map_err(|_| Error::Storage("包更新工作异常".into()))?
     }
 }

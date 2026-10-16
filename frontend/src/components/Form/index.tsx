@@ -21,11 +21,12 @@ export function FormSection({ title, children, className = '' }: {
   );
 }
 
-export function FormRow({ label, id, hint, error, children, className = '' }: {
+export function FormRow({ label, id, hint, error, children, required = false, className = '' }: {
   label: string;
   id?: string;
   hint?: string;
   error?: string;
+  required?: boolean;
   children: ReactNode | ((props: FormControlProps) => ReactNode);
   className?: string;
 }) {
@@ -41,7 +42,7 @@ export function FormRow({ label, id, hint, error, children, className = '' }: {
   };
   return (
     <div className={`form-item ${className}`}>
-      <label htmlFor={controlId}>{label}</label>
+      <label htmlFor={controlId}>{label}{required && <span className="form-required" aria-hidden="true"> *</span>}</label>
       <div className="form-item-content">
         {typeof children === 'function' ? children(controlProps) : children}
         {hint && <small id={`${controlId}-hint`} className="form-hint">{hint}</small>}

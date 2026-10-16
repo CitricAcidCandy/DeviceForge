@@ -1,4 +1,4 @@
-//! MCP 工具发现读取当前注册快照，管理工具只在注入管理服务后贡献。
+//! MCP 工具发现读取当前注册快照；开发指南常驻，插件管理工具按装配贡献。
 use apk_application::Application;
 use rmcp::model::Tool;
 use serde_json::json;
@@ -32,7 +32,7 @@ pub(crate) fn operation_tool(operation: apk_domain::Operation) -> Tool {
     )
 }
 pub(crate) fn management_tools(management: bool) -> Vec<Tool> {
-    let mut tools = Vec::new();
+    let mut tools = vec![crate::plugin_guide::tool()];
     let job = json!({"type":"object","properties":{"id":{"type":"string"}},"required":["id"],"additionalProperties":false});
     for (name, description, schema) in [
         (

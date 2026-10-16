@@ -108,7 +108,9 @@ export function createProductServices(
         mirroring.dispose();
         aiStreaming.dispose();
         const results = await Promise.allSettled([
-          webRtcMirroring.dispose(), runtime.dispose(), mediaDisplay.dispose(),
+          webRtcMirroring.dispose(),
+          runtime.dispose(),
+          mediaDisplay.dispose(),
         ]);
         const errors = results.flatMap((result) =>
           result.status === 'rejected' ? [result.reason] : [],

@@ -58,6 +58,36 @@ pub fn commit(prepared: Prepared) -> Result<PackageInfo> {
     Ok(prepared.info.clone())
 }
 
+pub fn replace(mut prepared: Prepared) -> Result<PackageInfo> {
+    let _change = prepared
+        .root
+        .changes
+        .lock()
+        .map_err(|_| Error::Storage("包更新状态异常".into()))?;
+    let destination = paths::existing(&prepared.root.path, &prepared.info.id, true)?;
+    let previous = read_info(&destination, prepared.info.kind, &prepared.info.id)?;
+    if previous.version == prepared.info.version {
+        return Err(Error::Conflict("同版本包已部署，无需更新".into()));
+    }
+    // 旧部署先移到本次暂存目录；发布失败时在持锁期间恢复，绝不先删除。
+    let backup = prepared.staging.path().join("previous");
+    fs::rename(&destination, &backup)
+        .map_err(|_| Error::Storage("旧包暂存失败，部署未更改".into()))?;
+    if fs::rename(prepared.staging.path().join("content"), &destination).is_err() {
+        if fs::rename(&backup, &destination).is_err() {
+            // 恢复失败时保留唯一旧副本，禁止随暂存清理删除。
+            if let Some(directory) = prepared.staging.directory.take() {
+                directory.keep();
+            }
+            return Err(Error::Storage(
+                "包更新及回滚失败，旧包保留于部署根的暂存目录".into(),
+            ));
+        }
+        return Err(Error::Storage("新包发布失败，旧部署已恢复".into()));
+    }
+    Ok(prepared.info.clone())
+}
+
 pub fn list(root: &Root, kind: PackageKind) -> Result<Vec<PackageInfo>> {
     let _change = root
         .changes

@@ -101,6 +101,7 @@ async fn later_success_on_same_provider_cannot_clear_prior_unconfirmed_risk() {
     let blocked = provider.open(
         SessionRequest {
             session_id: "sticky-blocked".into(),
+            client: None,
             operation: "plugin.independent-session.terminal".into(),
             input: json!({"mode":"hold"}),
             deadline: (Instant::now() + BUDGET).into_std(),
@@ -162,6 +163,7 @@ async fn input_pending_without_polling_supervisor_closes_on_cancel_or_deadline()
             .open(
                 SessionRequest {
                     session_id: format!("unpolled-input-{expire}"),
+                    client: None,
                     operation: "plugin.independent-session.terminal".into(),
                     input: json!({"mode":"hold"}),
                     deadline: (Instant::now() + BUDGET).into_std(),
@@ -214,6 +216,7 @@ async fn dropping_unpolled_supervisor_caches_ready_failure_and_unconfirmed_exit_
         .open(
             SessionRequest {
                 session_id: "unpolled-drop".into(),
+                client: None,
                 operation: "plugin.independent-session.terminal".into(),
                 input: json!({"mode":"hold"}),
                 deadline: (Instant::now() + BUDGET).into_std(),
@@ -291,6 +294,7 @@ async fn pending_ready_preserves_published_protocol_error_before_revocation_fall
         .open(
             SessionRequest {
                 session_id: "ready-error-cache".into(),
+                client: None,
                 operation: "plugin.independent-session.terminal".into(),
                 input: json!({"mode":"wrong-ready-id","ready_gate":true}),
                 deadline: (Instant::now() + BUDGET).into_std(),

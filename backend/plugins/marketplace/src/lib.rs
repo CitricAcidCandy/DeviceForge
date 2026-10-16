@@ -6,6 +6,7 @@
 use apk_plugin_sdk::Request;
 use deviceforge_plugin_runtime::{Execution, InvocationContext, Output};
 use serde_json::{Value, json};
+use std::collections::BTreeMap;
 
 const DEFAULT_SOURCE: &str = "http://127.0.0.1:7040";
 
@@ -26,27 +27,57 @@ async fn catalog(input: Value, context: &InvocationContext) -> Result<Output, St
     let query = input.as_object().cloned().unwrap_or_default();
     let suffix = query_string(&query);
     let client = reqwest::Client::new();
-    let mut entries = Vec::new();
+    let mut entries = BTreeMap::new();
     for source in sources() {
         context.check().map_err(|error| error.to_string())?;
-        let url = format!("{}/api/v1/catalog{}", source["url"].as_str().unwrap_or(DEFAULT_SOURCE), suffix);
-        let response = client.get(url).send().await.map_err(|error| format!("市场来源请求失败：{error}"))?;
+        let url = format!(
+            "{}/api/v1/catalog{}",
+            source["url"].as_str().unwrap_or(DEFAULT_SOURCE),
+            suffix
+        );
+        let response = client
+            .get(url)
+            .send()
+            .await
+            .map_err(|error| format!("市场来源请求失败：{error}"))?;
         if !response.status().is_success() {
             return Err(format!("市场来源返回 HTTP {}", response.status()));
         }
-        let value: Value = response.json().await.map_err(|error| format!("市场目录 JSON 无效：{error}"))?;
+        let value: Value = response
+            .json()
+            .await
+            .map_err(|error| format!("市场目录 JSON 无效：{error}"))?;
         if let Some(items) = value.get("entries").and_then(Value::as_array) {
             for item in items {
                 let mut item = item.clone();
                 if let Some(object) = item.as_object_mut() {
-                    object.insert("source".into(), Value::String(source["url"].as_str().unwrap_or(DEFAULT_SOURCE).into()));
-                    object.insert("source_name".into(), source.get("name").cloned().unwrap_or_else(|| Value::String("市场来源".into())));
+                    object.insert(
+                        "source".into(),
+                        Value::String(source["url"].as_str().unwrap_or(DEFAULT_SOURCE).into()),
+                    );
+                    object.insert(
+                        "source_name".into(),
+                        source
+                            .get("name")
+                            .cloned()
+                            .unwrap_or_else(|| Value::String("市场来源".into())),
+                    );
                 }
-                entries.push(item);
+                let key = format!(
+                    "{}@{}",
+                    item.get("id").and_then(Value::as_str).unwrap_or_default(),
+                    item.get("version")
+                        .and_then(Value::as_str)
+                        .unwrap_or_default()
+                );
+                entries.entry(key).or_insert(item);
             }
         }
     }
-    Ok(Output::from(json!({ "entries": entries, "total": entries.len() })))
+    let entries: Vec<Value> = entries.into_values().collect();
+    Ok(Output::from(
+        json!({ "entries": entries, "total": entries.len() }),
+    ))
 }
 
 fn sources() -> Vec<Value> {
@@ -58,15 +89,27 @@ fn sources() -> Vec<Value> {
 }
 
 fn query_string(query: &serde_json::Map<String, Value>) -> String {
-    let pairs = query.iter().filter_map(|(key, value)| value.as_str().map(|value| (key, value)));
-    let encoded = pairs.map(|(key, value)| format!("{}={}", urlencoding(key), urlencoding(value))).collect::<Vec<_>>();
-    if encoded.is_empty() { String::new() } else { format!("?{}", encoded.join("&")) }
+    let pairs = query
+        .iter()
+        .filter_map(|(key, value)| value.as_str().map(|value| (key, value)));
+    let encoded = pairs
+        .map(|(key, value)| format!("{}={}", urlencoding(key), urlencoding(value)))
+        .collect::<Vec<_>>();
+    if encoded.is_empty() {
+        String::new()
+    } else {
+        format!("?{}", encoded.join("&"))
+    }
 }
 
 fn urlencoding(value: &str) -> String {
-    value.bytes().map(|byte| match byte {
-        b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => (byte as char).to_string(),
-        _ => format!("%{byte:02X}"),
-    }).collect()
+    value
+        .bytes()
+        .map(|byte| match byte {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                (byte as char).to_string()
+            }
+            _ => format!("%{byte:02X}"),
+        })
+        .collect()
 }
-

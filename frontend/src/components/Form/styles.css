@@ -8,6 +8,7 @@
 .form-item-content > .inline-action > [data-slot='input'] { width: 100%; min-width: 0; }
 .form-hint { color: var(--muted-foreground); font-size: 12px; line-height: 1.6; }
 .form-error { color: var(--destructive); font-size: 12px; line-height: 1.6; }
+.form-required { color: var(--accent-warm); }
 .form-item.form-field { display: grid; }
 .form-row > .form-item, .form-grid > .form-item { grid-template-columns: minmax(0, 1fr); gap: 7px; margin: 0; }
 .form-row > .form-item > label, .form-grid > .form-item > label { padding-top: 0; }

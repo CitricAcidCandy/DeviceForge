@@ -10,6 +10,7 @@
   },
   "sessions": {
     "protocol_version": 5,
+    "client_context": true,
     "output_retention": "bounded_tail",
     "operations": [
       {
@@ -23,7 +24,7 @@
             "max_size":{"type":"integer","minimum":64,"maximum":4096},
             "max_fps":{"type":"integer","minimum":1,"maximum":60},
             "video_bit_rate":{"type":"integer","minimum":128000,"maximum":16000000},
-            "audio":{"type":"boolean"},"control":{"type":"boolean"},
+            "audio":{"type":"boolean"},"control":{"type":"boolean"},"clipboard_autosync":{"type":"boolean"},
             "reconnect_attempts":{"type":"integer","minimum":0,"maximum":5}
           },
           "required":["device_id"]
@@ -40,7 +41,7 @@
             "max_size":{"type":"integer","minimum":64,"maximum":4096},
             "max_fps":{"type":"integer","minimum":1,"maximum":60},
             "video_bit_rate":{"type":"integer","minimum":128000,"maximum":16000000},
-            "audio":{"type":"boolean"},"control":{"type":"boolean"},
+            "audio":{"type":"boolean"},"control":{"type":"boolean"},"clipboard_autosync":{"type":"boolean"},
             "reconnect_attempts":{"type":"integer","minimum":0,"maximum":0}
           },
           "required":["device_id"]

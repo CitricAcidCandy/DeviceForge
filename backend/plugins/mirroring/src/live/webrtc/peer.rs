@@ -7,6 +7,7 @@ use webrtc::{
         interceptor_registry::register_default_interceptors,
         media_engine::{MIME_TYPE_H264, MIME_TYPE_OPUS, MediaEngine},
     },
+    data_channel::RTCDataChannel,
     data_channel::data_channel_init::RTCDataChannelInit,
     peer_connection::{
         RTCPeerConnection, configuration::RTCConfiguration,
@@ -27,8 +28,9 @@ pub(super) struct Peer {
     pub(crate) states: mpsc::Receiver<RTCPeerConnectionState>,
     pub video_sender: Arc<webrtc::rtp_transceiver::rtp_sender::RTCRtpSender>,
     pub audio_sender: Option<Arc<webrtc::rtp_transceiver::rtp_sender::RTCRtpSender>>,
-    pub controls: mpsc::Receiver<Result<Vec<u8>, String>>,
+    pub controls: mpsc::Receiver<Result<super::signaling::EncodedControl, String>>,
     pub control_failed: CancellationToken,
+    pub channel: Arc<RTCDataChannel>,
 }
 
 impl Peer {
@@ -179,6 +181,7 @@ impl Peer {
             audio_sender,
             controls,
             control_failed,
+            channel,
         })
     }
 

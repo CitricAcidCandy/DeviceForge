@@ -8,6 +8,7 @@ license.workspace = true
 apk-domain.workspace = true
 apk-application.workspace = true
 apk-infrastructure.workspace = true
+apk-plugin-sdk.workspace = true
 axum.workspace = true
 serde.workspace = true
 serde_json.workspace = true

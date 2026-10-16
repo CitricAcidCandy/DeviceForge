@@ -100,7 +100,11 @@ try {
   assert.ok(packed[0].files.some((item) => item.path === 'runtime/manifest.json'));
   assert.ok(
     !packed[0].files.some(
-      (item) => item.path.startsWith('backend/') || item.path.startsWith('frontend/node_modules/'),
+      (item) =>
+        item.path.startsWith('backend/') ||
+        item.path.startsWith('frontend/node_modules/') ||
+        item.path.startsWith('resource-server/') ||
+        item.path.includes('deviceforge-resource-server'),
     ),
   );
   const archive = join(temporary, packed[0].filename);
@@ -143,6 +147,7 @@ try {
   );
   const webPort = await port();
   const mcpPort = await port();
+  const marketplaceUrl = `http://127.0.0.1:${await port()}`;
   shutdownTarget = {
     url: `http://127.0.0.1:${webPort}/api/v2/system/shutdown`,
     webPort,
@@ -163,6 +168,8 @@ try {
       String(mcpPort),
       '--data-dir',
       dataDirectory,
+      '--marketplace-url',
+      marketplaceUrl,
     ],
     { env: environment, stdio: ['ignore', 'pipe', 'pipe'] },
   );
@@ -178,6 +185,10 @@ try {
   }
   assert.match(output, /监听 0.0.0.0/);
   assert.ok(!output.includes(token));
+  assert.ok(output.includes(`市场来源：${marketplaceUrl}`));
+  assert.equal((await readdir(dataDirectory)).includes('resources'), false);
+  evidence.marketplace_url = marketplaceUrl;
+  evidence.resource_server_bundled = false;
   evidence.stage = '显式令牌阶段';
   const authorizedPhase = await captureNpxRuntime(
     environment.npm_config_cache,
@@ -346,6 +357,7 @@ try {
     await delay(50);
   }
   assert.match(anonymousOutput, /DeviceForge 已启动/);
+  assert.ok(anonymousOutput.includes('市场来源：http://127.0.0.1:7040'));
   assert.match(anonymousOutput, /监听 0.0.0.0/);
   assert.ok(!anonymousOutput.includes(token));
   const anonymousHeaders = { 'content-type': 'application/json' };

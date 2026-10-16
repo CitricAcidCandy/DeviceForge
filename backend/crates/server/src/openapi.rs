@@ -237,7 +237,16 @@ fn plugin_package_paths(document: &mut Value) {
         "201",
         schema::<PackageInfo>(),
     ));
-    install["parameters"] = json!([kind.clone(),{"name":"format","in":"query","required":true,"schema":schema::<PackageFormat>()}]);
+    let format =
+        json!({"name":"format","in":"query","required":true,"schema":schema::<PackageFormat>()});
+    let expected_id = json!({"name":"expected_id","in":"query","required":false,"schema":{"type":"string","minLength":1,"maxLength":99},"description":"发布前核对包内真实 ID"});
+    let expected_version = json!({"name":"expected_version","in":"query","required":false,"schema":{"type":"string","minLength":1,"maxLength":100},"description":"发布前核对包内真实版本"});
+    install["parameters"] = json!([
+        kind.clone(),
+        format.clone(),
+        expected_id.clone(),
+        expected_version.clone()
+    ]);
     install["requestBody"] = json!({"required":true,"content":{"application/zip":{"schema":{"type":"string","format":"binary"}},"application/gzip":{"schema":{"type":"string","format":"binary"}}}});
     install["responses"]["413"] = response(
         "包上传或结构超过上限",
@@ -247,6 +256,20 @@ fn plugin_package_paths(document: &mut Value) {
         "归档媒体类型与 format 不匹配",
         schema::<crate::responses::ErrorResponse>(),
     );
+    let mut update = install.clone();
+    update["summary"] = json!("暂存并验证后替换已卸载部署，发布失败恢复旧包，不自动启用");
+    update["parameters"] = json!([
+        kind.clone(),
+        id.clone(),
+        format,
+        expected_id,
+        expected_version
+    ]);
+    update["responses"]["200"] = update["responses"]["201"].take();
+    update["responses"]
+        .as_object_mut()
+        .expect("响应集合为对象")
+        .remove("201");
     document["paths"]["/api/v2/plugin-packages/{kind}"] = json!({"get":list,"post":install});
     let mut remove = v2_endpoint(endpoint(
         "删除已卸载部署，清理未确认时拒绝",
@@ -254,7 +277,8 @@ fn plugin_package_paths(document: &mut Value) {
         schema::<PackageInfo>(),
     ));
     remove["parameters"] = json!([kind, id.clone()]);
-    document["paths"]["/api/v2/plugin-packages/{kind}/{id}"] = json!({"delete":remove});
+    document["paths"]["/api/v2/plugin-packages/{kind}/{id}"] =
+        json!({"delete":remove,"put":update});
     for path in [
         "/api/v2/browser-plugins/{id}/assets/{path}",
         "/api/v2/browser-plugins/{id}/runs/{run_id}/assets/{path}",

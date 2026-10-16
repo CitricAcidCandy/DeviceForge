@@ -240,7 +240,9 @@ fn build_router(
         )
         .route(
             "/api/v2/plugin-packages/{kind}/{id}",
-            axum::routing::delete(plugin_package_routes::delete),
+            axum::routing::delete(plugin_package_routes::delete)
+                .put(plugin_package_routes::update)
+                .layer(DefaultBodyLimit::max(64 * 1024 * 1024)),
         )
         .route(BROWSER_ASSET_ROUTE, get(plugin_package_routes::asset))
         .route(
@@ -258,6 +260,7 @@ fn build_router(
         })
         .layer(DefaultBodyLimit::max(256 * 1024))
         .layer(middleware::from_fn_with_state(state.clone(), guard))
+        .layer(middleware::from_fn(cors::allow_browser))
         .layer(middleware::from_fn(correlation::audit))
         .with_state(state))
 }
@@ -422,13 +425,16 @@ pub fn openapi_document() -> Value {
 }
 
 mod artifacts;
+pub mod client_connection;
 mod correlation;
+mod cors;
 mod device_mcp;
 mod device_routes;
 mod mcp_notifications;
 mod mcp_observability;
 mod mcp_tools;
 mod mcp_wire;
+mod plugin_guide;
 mod plugin_package_routes;
 mod plugin_routes;
 mod response_stream;

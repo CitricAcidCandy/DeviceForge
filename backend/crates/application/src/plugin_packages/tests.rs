@@ -42,6 +42,10 @@ impl PreparedPackage for Pending {
         self.commits.fetch_add(1, Ordering::SeqCst);
         Ok(self.info.clone())
     }
+    async fn replace(self: Box<Self>) -> Result<PackageInfo> {
+        self.commits.fetch_add(1, Ordering::SeqCst);
+        Ok(self.info.clone())
+    }
 }
 struct Store {
     gate: Arc<Gate>,
@@ -85,6 +89,95 @@ impl Drop for Release {
     fn drop(&mut self) {
         self.0.release();
     }
+}
+
+#[tokio::test]
+async fn expected_market_identity_is_checked_before_publication() {
+    let directory = tempfile::tempdir().unwrap();
+    let artifacts = Arc::new(
+        FileArtifacts::open(directory.path().join("artifacts"))
+            .await
+            .unwrap(),
+    );
+    tokio::fs::create_dir(directory.path().join("plugins"))
+        .await
+        .unwrap();
+    let catalog = Arc::new(
+        FilePluginCatalog::open(&directory.path().join("plugins"), artifacts)
+            .await
+            .unwrap(),
+    );
+    let app = crate::Application::new(
+        Arc::new(SqliteStore::open(":memory:").unwrap()),
+        vec![],
+        1,
+        8,
+    )
+    .unwrap();
+    let plugins = PluginService::new(app.clone(), catalog, Default::default());
+    let commits = Arc::new(AtomicUsize::new(0));
+    let service = PackageService::new(
+        Arc::new(Store {
+            gate: Arc::new(Gate {
+                entered: AtomicUsize::new(0),
+                open: Mutex::new(true),
+                wake: Condvar::new(),
+            }),
+            commits: commits.clone(),
+        }),
+        plugins.clone(),
+    );
+    for (id, version) in [("other", "1"), ("test", "2")] {
+        assert!(matches!(
+            service
+                .install_expected(
+                    PackageKind::Browser,
+                    PackageFormat::Zip,
+                    Box::pin(futures_util::stream::empty()),
+                    Some(id.into()),
+                    Some(version.into()),
+                )
+                .await,
+            Err(Error::Invalid(_))
+        ));
+        assert!(matches!(
+            service
+                .update(
+                    PackageKind::Browser,
+                    id.into(),
+                    PackageFormat::Zip,
+                    Box::pin(futures_util::stream::empty()),
+                    Some(version.into()),
+                )
+                .await,
+            Err(Error::Invalid(_))
+        ));
+    }
+    assert_eq!(commits.load(Ordering::SeqCst), 0);
+    service
+        .install_expected(
+            PackageKind::Browser,
+            PackageFormat::Zip,
+            Box::pin(futures_util::stream::empty()),
+            Some("test".into()),
+            Some("1".into()),
+        )
+        .await
+        .unwrap();
+    service
+        .update(
+            PackageKind::Browser,
+            "test".into(),
+            PackageFormat::Zip,
+            Box::pin(futures_util::stream::empty()),
+            Some("1".into()),
+        )
+        .await
+        .unwrap();
+    assert_eq!(commits.load(Ordering::SeqCst), 2);
+    plugins.close();
+    plugins.wait().await;
+    app.shutdown().await.unwrap();
 }
 
 #[tokio::test]

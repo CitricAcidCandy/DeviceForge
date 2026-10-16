@@ -1,5 +1,10 @@
 import { ApiError } from '../../../services/api/index.ts';
 import { abortable } from '../../../services/api/abort.ts';
+import { jsonObject, onlyKeys } from '../../../shared/jobs/index.ts';
+import { isDeviceClipboardText } from '../utils/rules.ts';
+import type { MirroringOwnership } from '../types/index.ts';
+import { decodeWebRtcOwnership, decodeWebRtcOwnershipResult } from './webrtc-ownership.ts';
+import type { WebRtcOwnershipResult } from './webrtc-ownership.ts';
 
 export interface WebRtcControlPort {
   readonly label: string;
@@ -11,6 +16,7 @@ export interface WebRtcControlPort {
   send(value: string): void;
   close(): void;
   onState(listener: () => void): () => void;
+  onMessage?(listener: (value: unknown) => void): () => void;
 }
 
 export interface WebRtcConnectionPort {
@@ -59,6 +65,11 @@ export function createBrowserWebRtcConnection(connection: RTCPeerConnection = ne
               channel.removeEventListener('error', changed);
             };
           },
+          onMessage(receive) {
+            const handler = (event: MessageEvent) => receive(event.data);
+            channel.addEventListener('message', handler);
+            return () => channel.removeEventListener('message', handler);
+          },
         });
       };
       connection.addEventListener('datachannel', handler);
@@ -88,6 +99,9 @@ export interface WebRtcPeerOptions {
   readonly onStream: (stream: MediaStream) => void;
   readonly onFailure: (error: ApiError) => void;
   readonly onControlReady: (ready: boolean) => void;
+  readonly onClipboard?: (text: string, controlRevision?: number) => void;
+  readonly onOwnership?: (ownership: MirroringOwnership) => void;
+  readonly onOwnershipResult?: (result: WebRtcOwnershipResult) => void;
 }
 
 export function createWebRtcPeer(options: WebRtcPeerOptions) {
@@ -97,6 +111,12 @@ export function createWebRtcPeer(options: WebRtcPeerOptions) {
   const tracks = new Set<MediaStreamTrack>();
   let control: WebRtcControlPort | null = null;
   let unsubscribeChannel: (() => void) | null = null;
+  let unsubscribeMessages: (() => void) | null = null;
+  let clipboardParts: { sequence: number; total: number; next: number; text: string; bytes: number;
+    controlRevision?: number } | null = null;
+  let clipboardSequence = 0;
+  let clipboardFailed = false;
+  let ownership: MirroringOwnership | null = null;
   let closed = false;
   let videoSeen = false;
   let disconnectTimer: ReturnType<typeof setTimeout> | null = null;
@@ -123,6 +143,98 @@ export function createWebRtcPeer(options: WebRtcPeerOptions) {
     }
     control = candidate;
     unsubscribeChannel = candidate.onState(channelChanged);
+    unsubscribeMessages = candidate.onMessage?.((data) => {
+      if (!active() || (!options.onClipboard && !options.onOwnership && !options.onOwnershipResult)) return;
+      let message: unknown;
+      try {
+        if (typeof data !== 'string' || data.length > 65536 ||
+          new TextEncoder().encode(data).length > 65536)
+          throw new Error('invalid clipboard');
+        message = JSON.parse(data);
+      } catch {
+        if (!clipboardFailed) {
+          clipboardParts = null;
+          clipboardFailed = true;
+          options.onFailure(new ApiError('protocol', 'mirroring_webrtc_clipboard_invalid',
+            'WebRTC 控制通道消息无效'));
+        }
+        return;
+      }
+      if (jsonObject(message) && message.type === 'control_state') {
+        try {
+          const next = decodeWebRtcOwnership(message);
+          if (ownership && next.clientId !== ownership.clientId)
+            throw new ApiError('protocol', 'mirroring_webrtc_ownership_invalid', 'WebRTC 控制客户端身份改变');
+          if (ownership && next.revision < ownership.revision) return;
+          if (ownership && next.controlRevision < ownership.controlRevision)
+            throw new ApiError('protocol', 'mirroring_webrtc_ownership_invalid', 'WebRTC 控制修订倒退');
+          if (!ownership || next.controlRevision !== ownership.controlRevision) {
+            clipboardParts = null;
+            clipboardSequence = 0;
+          } else if (!next.hasControl) clipboardParts = null;
+          ownership = next;
+          options.onOwnership?.(next);
+        } catch (error) {
+          clipboardParts = null;
+          options.onFailure(error instanceof ApiError ? error :
+            new ApiError('protocol', 'mirroring_webrtc_ownership_invalid', 'WebRTC 控制所有权消息无效'));
+        }
+        return;
+      }
+      if (jsonObject(message) && message.type === 'control_result') {
+        try { options.onOwnershipResult?.(decodeWebRtcOwnershipResult(message)); }
+        catch (error) {
+          options.onFailure(error instanceof ApiError ? error :
+            new ApiError('protocol', 'mirroring_webrtc_ownership_invalid', 'WebRTC 控制申请回执无效'));
+        }
+        return;
+      }
+      if (!options.onClipboard || clipboardFailed) return;
+      if (ownership && (!ownership.hasControl || !jsonObject(message) ||
+        message.control_revision !== ownership.controlRevision)) {
+        return;
+      }
+      try {
+        if (!jsonObject(message) || !onlyKeys(message, ['version', 'type', 'epoch', 'sequence', 'part', 'total', 'text', 'control_revision']) ||
+          message.version !== 1 || message.type !== 'clipboard' || message.epoch !== 1 ||
+          typeof message.sequence !== 'number' || !Number.isInteger(message.sequence) ||
+          message.sequence < 1 || message.sequence > 0xffffffff ||
+          typeof message.total !== 'number' || !Number.isInteger(message.total) ||
+          message.total < 1 || message.total > 33 ||
+          typeof message.part !== 'number' || !Number.isInteger(message.part) ||
+          message.part < 0 || message.part >= message.total ||
+          (message.control_revision !== undefined && (typeof message.control_revision !== 'number' ||
+            !Number.isSafeInteger(message.control_revision) || message.control_revision < 1)) ||
+          !isDeviceClipboardText(message.text)) throw new Error('invalid clipboard');
+        const bytes = new TextEncoder().encode(message.text).length;
+        if (bytes > 8192) throw new Error('invalid clipboard');
+        if (!clipboardParts) {
+          if (message.part !== 0 || message.sequence <= clipboardSequence)
+            throw new Error('invalid clipboard');
+          clipboardParts = { sequence: message.sequence, total: message.total, next: 0, text: '', bytes: 0,
+            ...(typeof message.control_revision === 'number' ? { controlRevision: message.control_revision } : {}) };
+        }
+        if (message.sequence !== clipboardParts.sequence || message.total !== clipboardParts.total ||
+          message.part !== clipboardParts.next || clipboardParts.bytes + bytes > 262139 ||
+          message.control_revision !== clipboardParts.controlRevision)
+          throw new Error('invalid clipboard');
+        clipboardParts.text += message.text;
+        clipboardParts.bytes += bytes;
+        ++clipboardParts.next;
+        if (clipboardParts.next === clipboardParts.total) {
+          const text = clipboardParts.text;
+          const controlRevision = clipboardParts.controlRevision;
+          clipboardSequence = clipboardParts.sequence;
+          clipboardParts = null;
+          options.onClipboard(text, ownership ? controlRevision : undefined);
+        }
+      } catch {
+        clipboardParts = null;
+        clipboardFailed = true;
+        options.onFailure(new ApiError('protocol', 'mirroring_webrtc_clipboard_invalid',
+          'WebRTC 设备剪贴板消息无效'));
+      }
+    }) ?? null;
     channelChanged();
   }
 
@@ -239,6 +351,8 @@ export function createWebRtcPeer(options: WebRtcPeerOptions) {
     close() {
       if (closed) return;
       closed = true;
+      clipboardParts = null;
+      ownership = null;
       if (disconnectTimer) clearTimeout(disconnectTimer);
       disconnectTimer = null;
       for (const waiter of [...waiters]) waiter();
@@ -248,6 +362,7 @@ export function createWebRtcPeer(options: WebRtcPeerOptions) {
       unsubscribeConnection();
       if (control) {
         unsubscribeChannel?.();
+        unsubscribeMessages?.();
         control.close();
       }
       control = null;

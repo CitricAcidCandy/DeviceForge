@@ -148,5 +148,6 @@ export const PRODUCT_ROUTES: readonly ProductRouteInfo[] = [
   },
 ];
 export function parseProductRoute(value: string): ProductRoute {
-  return PRODUCT_ROUTES.find((route) => route.id === value.replace(/^#\/?/, ''))?.id ?? 'devices';
+  const route = value.replace(/^#\/?/, '').split('?', 1)[0];
+  return PRODUCT_ROUTES.find((item) => item.id === route)?.id ?? 'devices';
 }

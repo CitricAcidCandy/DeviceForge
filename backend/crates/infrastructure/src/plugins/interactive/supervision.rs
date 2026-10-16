@@ -208,6 +208,21 @@ async fn handshake(
         call.request.input.clone(),
     );
     open.artifacts = Some(files.context.clone());
+    if call
+        .manifest
+        .sessions
+        .as_ref()
+        .is_some_and(|access| access.client_context)
+    {
+        open.client =
+            call.request
+                .client
+                .as_ref()
+                .map(|client| apk_plugin_sdk::session::SessionClient {
+                    id: client.id.clone(),
+                    is_local: client.is_local,
+                });
+    }
     let bytes = transport::frame(&open, SESSION_OPEN_LIMIT)?;
     let input = process.input();
     tokio::select! {

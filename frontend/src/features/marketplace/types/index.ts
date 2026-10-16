@@ -31,6 +31,7 @@ export interface MarketplaceEntry {
   readonly details: Record<string, unknown>;
   readonly source: string;
   readonly sourceName: string;
+  readonly metadataIssues?: readonly string[];
 }
 
 export interface MarketplaceQuery {
@@ -54,3 +55,23 @@ export interface MarketplaceSnapshot {
   readonly limit: number;
 }
 
+export type MarketplacePublishEntry = Omit<MarketplaceEntry, 'source' | 'sourceName'>;
+
+export interface MarketplaceResourceRecord {
+  readonly id: string;
+  readonly sha256: string;
+  readonly filename: string;
+  readonly media_type: string;
+  readonly kind: string;
+  readonly size: number;
+  readonly created_at: number;
+}
+
+export interface MarketplaceDownloadedResource {
+  readonly blob: Blob;
+  readonly filename: string;
+  readonly mediaType: string;
+  readonly size: number;
+}
+
+export type MarketplaceUploadFile = Blob & { readonly name?: string };

@@ -97,12 +97,39 @@ export const packagesEndpoint: Endpoint<PackageKind, PackageInfo[]> = {
   decode: isArrayOf(isPackageInfo),
 };
 export const installPackageEndpoint: Endpoint<
-  { kind: PackageKind; content: Blob; mediaType: PackageMediaType },
+  {
+    kind: PackageKind;
+    content: Blob;
+    mediaType: PackageMediaType;
+    expected?: Readonly<Pick<PackageInfo, 'id' | 'version'>>;
+  },
   PackageInfo
 > = {
-  request: ({ kind, content, mediaType }) => ({
-    path: `/api/v2/plugin-packages/${encodedId(kind)}?${new URLSearchParams({ format: mediaType === 'application/zip' ? 'zip' : 'tgz' })}`,
+  request: ({ kind, content, mediaType, expected }) => ({
+    path: `/api/v2/plugin-packages/${encodedId(kind)}?${new URLSearchParams({
+      format: mediaType === 'application/zip' ? 'zip' : 'tgz',
+      ...(expected ? { expected_id: expected.id, expected_version: expected.version } : {}),
+    })}`,
     method: 'POST',
+    body: content,
+    contentType: mediaType,
+  }),
+  decode: isPackageInfo,
+};
+export const updatePackageEndpoint: Endpoint<
+  PackageTarget & {
+    content: Blob;
+    mediaType: PackageMediaType;
+    expectedVersion?: PackageInfo['version'];
+  },
+  PackageInfo
+> = {
+  request: ({ kind, id, content, mediaType, expectedVersion }) => ({
+    path: `/api/v2/plugin-packages/${encodedId(kind)}/${encodedId(id)}?${new URLSearchParams({
+      format: mediaType === 'application/zip' ? 'zip' : 'tgz',
+      ...(expectedVersion === undefined ? {} : { expected_version: expectedVersion }),
+    })}`,
+    method: 'PUT',
     body: content,
     contentType: mediaType,
   }),

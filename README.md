@@ -2,6 +2,8 @@
 
 浏览器 / 服务器架构重写工程。Rust 后端提供公开业务与插件契约；浏览器端已按用户选定的电子设备工坊背景实施 React 产品界面，接入14个业务路由和运行中插件扩展。工程和 SDK 身份为 DeviceForge，展示品牌为 FORGE。
 
+资源中心位于根目录 `resource-server/`，由部署者独立运行 `npm run start:resource-server`，默认地址为 `http://127.0.0.1:7040`。npx 启动参数 `--marketplace-url` 仅指定市场地址，多来源可使用 `--marketplace-config`；资源服务不随 npx 打包或启动。
+
 后端入口：backend/README.md。后端文件骨架、开发约束、接口设计、MCP 服务及核心迁移清单全部存放在 backend/docs。
 
 前端入口：frontend/README.md。前端架构、开发约束和浏览器插件契约独立存放在 frontend/docs。

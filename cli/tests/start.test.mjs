@@ -7,6 +7,7 @@ import { join, resolve } from 'node:path';
 import { tmpdir, networkInterfaces } from 'node:os';
 import { randomBytes } from 'node:crypto';
 import { start } from '../src/start.mjs';
+import { loadRuntime } from '../src/runtime.mjs';
 import { inside } from '../src/paths.mjs';
 
 // 不让其他端测试的部署配置影响本次真实启动；测试目录和进程各自拥有。
@@ -262,6 +263,61 @@ for (const ip of ['127.0.0.1', '0.0.0.0']) {
     }
   });
 }
+
+test('市场未提供 HTTP 服务时宿主仍可启动，退出后保留独立市场监听', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'deviceforge-independent-market-'));
+  const web = await reserve();
+  const mcp = await reserve();
+  const marketplace = await reserve();
+  let connections = 0;
+  marketplace.server.on('connection', (socket) => {
+    connections += 1;
+    socket.destroy();
+  });
+  await web.close();
+  await mcp.close();
+  const url = `http://127.0.0.1:${marketplace.port}`;
+  const controller = new AbortController();
+  let notify;
+  const ready = new Promise((resolve) => {
+    notify = resolve;
+  });
+  let running;
+  try {
+    const runtime = await loadRuntime();
+    running = start(
+      {
+        ip: '127.0.0.1',
+        port: web.port,
+        mcpPort: mcp.port,
+        dataDirectory: directory,
+        marketplaceSources: [{ name: '独立市场', url }],
+      },
+      {
+        signal: controller.signal,
+        environment: cleanEnvironment(),
+        runtime: { ...runtime, resourceServer: join(directory, 'not-bundled-resource-server') },
+        onReady: notify,
+      },
+    );
+    const message = await Promise.race([ready, running]);
+    assert.ok(message.includes(`市场来源：${url}`));
+    assert.ok(message.includes('资源服务需独立启动'));
+    assert.equal((await fetch(`http://127.0.0.1:${web.port}/api/v1/health`)).status, 200);
+    assert.ok(!(await readdir(directory)).includes('resources'));
+    controller.abort();
+    await running;
+    assert.equal(connections, 0);
+    assert.equal(marketplace.server.listening, true);
+    await assertPortFree(web.port);
+    await assertPortFree(mcp.port);
+  } finally {
+    controller.abort();
+    await running?.catch(() => {});
+    await marketplace.close();
+    await removeTemporary(directory);
+  }
+});
 
 for (const occupied of ['web', 'mcp']) {
   test(`免令牌局域网启动遇到${occupied === 'web' ? '第一' : '第二'}端口冲突时收敛且保留原监听`, async () => {

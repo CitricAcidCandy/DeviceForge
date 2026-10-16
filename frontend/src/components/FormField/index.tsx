@@ -36,6 +36,7 @@ export function Field({
   return (
     <FormRow
       label={label}
+      required={required ?? false}
       {...(id ? { id } : {})}
       {...(hint ? { hint } : {})}
       {...(error ? { error } : {})}

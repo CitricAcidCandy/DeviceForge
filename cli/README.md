@@ -4,18 +4,19 @@ CLI 只负责分发边界，不复制设备业务。`bin/deviceforge.mjs` 是入
 
 ## 使用
 
-在根目录执行 `npm run prepare:runtime` 构建当前平台 release 运行包，随后 `npm pack --pack-destination artifacts`。生成的 tgz 携带 Rust 程序、插件校验器和前端资源，使用者只需 Node.js/npm，无需 Rust。发布 npm 后可使用 `npx @deviceforge/cli start`；当前没有发布 registry，验收与使用应指定本地打包 tgz：
+在根目录执行 `npm run prepare:runtime` 构建当前平台 release 运行包，随后 `npm pack --pack-destination artifacts`。生成的 tgz 携带 Rust 宿主、插件校验器和前端资源，使用者只需 Node.js/npm，无需 Rust。资源服务由部署者独立启动和维护，其源码与程序均不进入 npx 包。发布 npm 后可使用 `npx @deviceforge/cli start`；当前没有发布 registry，验收与使用应指定本地打包 tgz：
 
 ```powershell
 npx --yes --package .\artifacts\deviceforge-cli-0.1.0.tgz deviceforge --help
 # 本地和局域网默认免鉴权；需要鉴权时再配置 APK_API_TOKEN。
 npx --yes --package .\artifacts\deviceforge-cli-0.1.0.tgz deviceforge start --ip 0.0.0.0 --port 7030 --mcp-port 7032
+npx --yes --package .\artifacts\deviceforge-cli-0.1.0.tgz deviceforge start --marketplace-url http://192.168.50.5:7040
 npx --yes --package .\artifacts\deviceforge-cli-0.1.0.tgz deviceforge plugin install .\my-plugin --data-dir .\runtime-data
 ```
 
 默认绑定 0.0.0.0；--ip 接受 IPv4/IPv6 字面量。前端/API 默认 7030，独立 MCP 默认 7032，端口不能相同。MCP 端口仅提供 /mcp，前端端口也可代理 /mcp；两者共用 Rust 任务。本地和局域网默认免鉴权，未配置或显式空字符串 APK_API_TOKEN 都按空令牌启动，不自动生成随机令牌。可选配置非空令牌时不得包含空白，客户端以 Bearer 使用 API；CLI 不打印令牌、不把它放入 HTML 或代客户端注入。具体业务界面和令牌输入交互等待前端设计。
 
-数据默认 ~/.deviceforge，可由 --data-dir 或 DEVICEFORGE_DATA_DIR 配置；插件默认 data-dir/plugins，可由部署 APK_PLUGIN_DIR 配置。相对 APK_PLUGIN_DIR 按 CLI 当前工作目录解析，安装、列举和启动共用该位置，Rust 接收绝对路径。持久数据不写 npm 缓存。工具部署继续通过 APK_ADB/APK_HDC 等配置。错误的 Host 被拒绝，MCP Origin 按实际网卡与两端口生成；未支持任意自定义域名。
+数据默认 ~/.deviceforge，可由 --data-dir 或 DEVICEFORGE_DATA_DIR 配置；插件默认 data-dir/plugins，可由部署 APK_PLUGIN_DIR 配置。相对 APK_PLUGIN_DIR 按 CLI 当前工作目录解析，安装、列举和启动共用该位置，Rust 接收绝对路径。持久数据不写 npm 缓存。工具部署继续通过 APK_ADB/APK_HDC 等配置。错误的 Host 被拒绝，MCP Origin 按实际网卡与两端口生成；未支持任意自定义域名。市场默认地址为 `http://127.0.0.1:7040`，可用 `--marketplace-url http://服务器地址:7040` 直接覆盖，或使用 `--marketplace-config .\marketplace.json` 读取 `{ "sources": [{ "name": "团队市场", "url": "https://market.example.com" }] }`，两参数互斥。来源仅注入启动环境，浏览器地址覆盖由设置页按当前浏览器保存。资源服务未启动或地址暂不可达不阻塞宿主启动，退出启动器也不会停止独立资源服务。
 
 Ctrl+C/SIGTERM、启动失败或后端异常退出时停止对外监听与本次进程。正常停止先通过本次回环后端的 system/shutdown 接口收敛任务/会话并刷新日志，最多等待 5 秒；超时才强制清理本次服务树。就绪探测和内部关闭只在配置非空令牌时发送 Authorization；空令牌部署也可直接调用 system/shutdown 让 npx 正常退出。默认日志写入 data-dir/logs，启动输出日志位置；DEVICEFORGE_LOG_DIR 可调整，相对值按 CLI 工作目录解析。设备操作不会自动回滚，外部设备进程需单独验收。
 

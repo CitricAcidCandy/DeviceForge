@@ -37,21 +37,38 @@ export function createMediaControlQueue(options: {
       const value = values.length === 1 ? values[0] : undefined;
       const last = pending.at(-1);
       const previous = last?.values.length === 1 ? last.values[0] : undefined;
+      const repeatedKey = value?.type === 'key' && value.action === 'down' &&
+        (value.repeat ?? 0) > 0 && previous?.type === 'key' && previous.action === 'down' &&
+        (previous.repeat ?? 0) > 0 && previous.keycode === value.keycode &&
+        previous.meta_state === value.meta_state;
       if (
-        value?.type === 'touch' &&
+        (value?.type === 'touch' &&
         value.action === 'move' &&
         previous?.type === 'touch' &&
         previous.action === 'move' &&
-        previous.pointer_id === value.pointer_id &&
+        previous.pointer_id === value.pointer_id || repeatedKey) &&
         last?.identity === next.identity
       )
         pending[pending.length - 1] = next;
-      else if (pending.length < 256) pending.push(next);
       else {
-        options.failed(new Error('设备输入积压，请暂停操作并等待回执'));
-        return;
+        if (pending.length >= 256) {
+          const repeated = pending.findIndex((entry) => {
+            const candidate = entry.values.length === 1 ? entry.values[0] : undefined;
+            return entry.identity === next.identity && candidate?.type === 'key' &&
+              candidate.action === 'down' && (candidate.repeat ?? 0) > 0;
+          });
+          if (repeated >= 0) pending.splice(repeated, 1);
+          else {
+            options.failed(new Error('设备输入积压，请暂停操作并等待回执'));
+            return;
+          }
+        }
+        pending.push(next);
       }
       void drain();
+    },
+    clear() {
+      pending.length = 0;
     },
     dispose() {
       lifetime.abort();

@@ -148,6 +148,48 @@ test('HTTP工厂发现真实交互操作，逐块分帧保留日志与原字节�
   mirror.dispose();
 });
 
+test('兼容模式剪贴板仅显式启用时发布，不进入媒体批次且换代释放清空', async () => {
+  for (const enabled of [true, false]) {
+    const observed: MirroringPacket[] = [];
+    let reads = 0;
+    const mirror = createMirroringStreaming(gateway({
+      output: async (_id, query) => {
+        ++reads;
+        const chunks = reads === 1 ? [status(), frame(6, { text: '设备剪贴板' })] :
+          reads === 2 ? [frame(6, { text: '' })] : [status(2)];
+        return { data: page(chunks, query.after), logId: 'output-log' };
+      },
+      release: async () => ({ data: info('finished'), logId: 'release-log' }),
+    }), { sink: { packet: (packet) => { observed.push(packet); } } });
+    await mirror.refreshDefinitions(signal());
+    await mirror.open({ ...input, clipboard_autosync: enabled }, signal());
+    const first = await mirror.readPackets({ limit: 10 }, signal());
+    assert.equal(first.data.mediaPackets.some((packet) => packet.kind === 'clipboard'), false);
+    assert.equal(observed.some((packet) => packet.kind === 'clipboard'), false);
+    assert.equal(mirror.snapshot().clipboard?.text ?? null, enabled ? '设备剪贴板' : null);
+    const sequence = mirror.snapshot().clipboard?.sequence ?? 0;
+    await mirror.readOutput({ limit: 10 }, signal());
+    assert.equal(mirror.snapshot().clipboard?.text ?? null, enabled ? '' : null);
+    assert.equal(mirror.snapshot().clipboard?.sequence ?? 0, enabled ? sequence + 1 : 0);
+    await mirror.readOutput({ limit: 10 }, signal());
+    assert.equal(mirror.snapshot().clipboard, null);
+    await mirror.release(signal());
+    assert.equal(mirror.snapshot().clipboard, null);
+    mirror.dispose();
+  }
+});
+
+test('兼容模式控制关闭时不接收剪贴板，停止后清空已有正文', async () => {
+  const mirror = createMirroringStreaming(gateway({
+    output: async () => ({ data: page([status(), frame(6, { text: 'private' })]), logId: 'output-log' }),
+  }));
+  await mirror.refreshDefinitions(signal());
+  await mirror.open({ ...input, control: false, clipboard_autosync: true }, signal());
+  await mirror.readOutput({}, signal());
+  assert.equal(mirror.snapshot().clipboard, null);
+  mirror.dispose();
+});
+
 test('同会话网络暂停后恢复保存半包与游标，读取失败不重新打开或重放控制', async () => {
   const full = config();
   let reads = 0;

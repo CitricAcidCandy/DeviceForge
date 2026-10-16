@@ -1,6 +1,6 @@
 use crate::model::{CatalogQuery, MarketEntry, Visibility, validate_market_entry};
 use rusqlite::{Connection, OptionalExtension, params};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::{
     fs,
     path::{Path, PathBuf},
@@ -25,7 +25,7 @@ pub enum StoreError {
     Conflict,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ResourceRecord {
     pub id: String,
     pub sha256: String,
@@ -54,6 +54,9 @@ impl Store {
     pub fn open(root: &Path) -> Result<Self, StoreError> {
         fs::create_dir_all(root.join("blobs"))?;
         fs::create_dir_all(root.join("tmp"))?;
+        for category in ["plugin", "tool", "config", "distribution", "resource"] {
+            fs::create_dir_all(root.join(category))?;
+        }
         let connection = Connection::open(root.join("resources.sqlite"))?;
         connection.execute_batch(
             "PRAGMA journal_mode=WAL;
@@ -267,10 +270,10 @@ fn matches_query(entry: &MarketEntry, query: &CatalogQuery) -> bool {
     if matches!(entry.visibility, Visibility::Internal) {
         return false;
     }
-    if let Some(kind) = &query.kind {
-        if entry.kind.as_str() != kind {
-            return false;
-        }
+    if let Some(kind) = &query.kind
+        && entry.kind.as_str() != kind
+    {
+        return false;
     }
     if let Some(category) = &query.category {
         let wanted = category.split(',').filter(|value| !value.is_empty());
@@ -281,15 +284,15 @@ fn matches_query(entry: &MarketEntry, query: &CatalogQuery) -> bool {
             return false;
         }
     }
-    if let Some(scope) = &query.applies_to {
-        if !entry.applies_to.iter().any(|item| item == scope) {
-            return false;
-        }
+    if let Some(scope) = &query.applies_to
+        && !entry.applies_to.iter().any(|item| item == scope)
+    {
+        return false;
     }
-    if let Some(mcp) = &query.supports_mcp {
-        if entry.supports_mcp.as_str() != mcp {
-            return false;
-        }
+    if let Some(mcp) = &query.supports_mcp
+        && entry.supports_mcp.as_str() != mcp
+    {
+        return false;
     }
     if query
         .supports_agent
@@ -297,10 +300,10 @@ fn matches_query(entry: &MarketEntry, query: &CatalogQuery) -> bool {
     {
         return false;
     }
-    if let Some(policy) = &query.restart_policy {
-        if entry.restart_policy.as_str() != policy {
-            return false;
-        }
+    if let Some(policy) = &query.restart_policy
+        && entry.restart_policy.as_str() != policy
+    {
+        return false;
     }
     if query.platform.as_ref().is_some_and(|value| {
         !entry.platforms.is_empty() && !entry.platforms.iter().any(|item| item == value)
@@ -369,4 +372,86 @@ fn now_ms() -> u64 {
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
         .as_millis() as u64
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::model::{ResourceKind, RestartPolicy, SupportsMcp};
+
+    fn entry(id: &str, name: &str, visibility: Visibility) -> MarketEntry {
+        MarketEntry {
+            metadata_version: 1,
+            id: id.into(),
+            kind: ResourceKind::Plugin,
+            name: name.into(),
+            version: "1.0.0".into(),
+            summary: "设备分析工具".into(),
+            description: "用于设备自动化和诊断".into(),
+            keywords: vec!["设备".into(), "自动化".into()],
+            categories: vec!["function".into()],
+            applies_to: vec!["deviceforge".into()],
+            supports_mcp: SupportsMcp::Both,
+            supports_agent: true,
+            restart_policy: RestartPolicy::PluginReload,
+            platforms: vec!["windows".into()],
+            architectures: vec!["x64".into()],
+            author: Some("DeviceForge".into()),
+            license: Some("MIT".into()),
+            homepage: None,
+            visibility,
+            resource_id: None,
+            details: serde_json::json!({}),
+        }
+    }
+
+    #[test]
+    fn catalog_uses_fts_filters_internal_and_deletes_index_row() {
+        let directory = tempfile::tempdir().expect("临时目录");
+        let store = Store::open(directory.path()).expect("打开存储");
+        store
+            .insert_market_entry(&entry("device-analyzer", "设备分析器", Visibility::Market))
+            .expect("写入市场条目");
+        store
+            .insert_market_entry(&entry("internal-only", "内部资源", Visibility::Internal))
+            .expect("写入内部条目");
+
+        let result = store
+            .catalog(&CatalogQuery {
+                q: Some("设备".into()),
+                supports_agent: Some(true),
+                ..CatalogQuery::default()
+            })
+            .expect("全文检索");
+        assert_eq!(result.total, 1);
+        assert_eq!(result.entries[0].id, "device-analyzer");
+
+        assert!(
+            store
+                .remove_market_entry("device-analyzer", "1.0.0")
+                .expect("删除条目")
+        );
+        let after_delete = store
+            .catalog(&CatalogQuery {
+                q: Some("设备".into()),
+                ..CatalogQuery::default()
+            })
+            .expect("删除后检索");
+        assert!(after_delete.entries.is_empty());
+    }
+
+    #[test]
+    fn open_creates_resource_category_directories() {
+        let directory = tempfile::tempdir().expect("临时目录");
+        let root = directory.path().join("market-data");
+
+        Store::open(&root).expect("打开父目录");
+
+        for category in ["plugin", "tool", "config", "distribution", "resource"] {
+            assert!(root.join(category).is_dir(), "分类目录未创建：{category}");
+        }
+        assert!(root.join("blobs").is_dir());
+        assert!(root.join("tmp").is_dir());
+        assert!(root.join("resources.sqlite").is_file());
+    }
 }

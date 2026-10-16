@@ -2,6 +2,7 @@ import { invalidStream } from '../utils/errors.ts';
 export { invalidStream } from '../utils/errors.ts';
 import { jsonObject, naturalNumber, onlyKeys } from '../../../shared/jobs/index.ts';
 import type { MirroringPacket } from '../types/index.ts';
+import { isDeviceClipboardText } from '../utils/rules.ts';
 export const MIRRORING_HEADER_SIZE = 24;
 export const MIRRORING_MAX_PAYLOAD = 4 * 1024 * 1024;
 function json(bytes: Uint8Array): unknown {
@@ -30,6 +31,8 @@ function packet(header: Uint8Array, bytes: Uint8Array): MirroringPacket {
   if (kind === 4) return Object.freeze({ ...identity, kind: 'audio', bytes });
   const value = json(bytes);
   if (!jsonObject(value)) throw invalidStream('投屏配置或状态须为 JSON 对象');
+  if (kind === 6 && onlyKeys(value, ['text']) && isDeviceClipboardText(value.text))
+    return Object.freeze({ ...identity, kind: 'clipboard', text: value.text });
   if (
     kind === 1 &&
     onlyKeys(value, ['codec', 'format', 'width', 'height']) &&
@@ -122,11 +125,12 @@ export function createMirroringFramer() {
               header[4] !== 1 ||
               kind === undefined ||
               kind < 1 ||
-              kind > 5 ||
+              kind > 6 ||
               (kind === 2 ? flags > 2 : flags !== 0) ||
               view.getUint32(20) === 0 ||
               length < 1 ||
-              length > MIRRORING_MAX_PAYLOAD
+              length > MIRRORING_MAX_PAYLOAD ||
+              (kind === 6 && length > 1572864)
             )
               throw invalidStream('投屏二进制包头、版本、标记或大小无效');
             payload = new Uint8Array(length);

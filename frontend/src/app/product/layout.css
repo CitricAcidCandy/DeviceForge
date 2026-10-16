@@ -57,8 +57,8 @@
   --workspace-sidebar-width: 240px;
   --workspace-header-height: 76px;
   --workspace-footer-height: 58px;
-  --workspace-surface: color-mix(in srgb, var(--card) 80%, transparent);
-  --workspace-chrome-surface: color-mix(in srgb, var(--card) 90%, transparent);
+  --workspace-surface: color-mix(in srgb, var(--card) 95%, transparent);
+  --workspace-chrome-surface: color-mix(in srgb, var(--card) 94%, transparent);
   height: 100%;
   min-height: 0;
   overflow: hidden;

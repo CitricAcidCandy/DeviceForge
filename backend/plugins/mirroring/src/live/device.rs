@@ -64,6 +64,25 @@ impl Device {
         context: &InvocationContext,
         audio_codec: &str,
     ) -> Result<(), String> {
+        self.prepare_mode(config, open, context, audio_codec, true)
+            .await
+    }
+    pub(crate) async fn prepare_control(
+        &mut self,
+        config: &Config,
+        open: &Open,
+        context: &InvocationContext,
+    ) -> Result<(), String> {
+        self.prepare_mode(config, open, context, "raw", false).await
+    }
+    async fn prepare_mode(
+        &mut self,
+        config: &Config,
+        open: &Open,
+        context: &InvocationContext,
+        audio_codec: &str,
+        video: bool,
+    ) -> Result<(), String> {
         let live = config.live.as_ref().ok_or("未配置直播服务器")?;
         let meta = checked(context, async {
             tokio::fs::symlink_metadata(&live.scrcpy_server)
@@ -127,7 +146,9 @@ impl Device {
             "-s".into(),
             open.device_id.clone(),
             "shell".into(),
-            if audio_codec == "raw" {
+            if !video {
+                self.script_mode(open, live.video_encoder.as_deref(), audio_codec, false)
+            } else if audio_codec == "raw" {
                 self.script(open, live.video_encoder.as_deref())
             } else {
                 self.script_with_audio_codec(open, live.video_encoder.as_deref(), audio_codec)
@@ -166,6 +187,15 @@ impl Device {
         video_encoder: Option<&str>,
         codec: &str,
     ) -> String {
+        self.script_mode(open, video_encoder, codec, true)
+    }
+    fn script_mode(
+        &self,
+        open: &Open,
+        video_encoder: Option<&str>,
+        codec: &str,
+        video: bool,
+    ) -> String {
         let encoder = video_encoder
             .map(|name| format!(" video_encoder={name}"))
             .unwrap_or_default();
@@ -175,7 +205,7 @@ impl Device {
             String::new()
         };
         format!(
-            "echo $$ > {dir}/pid && CLASSPATH={dir}/server.jar exec app_process / com.genymobile.scrcpy.Server 3.3.1 scid={scid} tunnel_forward=true video_bit_rate={rate} audio={audio}{audio_codec} max_size={size} max_fps={fps} control={control}{encoder} send_device_meta=false send_dummy_byte=false cleanup=false",
+            "echo $$ > {dir}/pid && CLASSPATH={dir}/server.jar exec app_process / com.genymobile.scrcpy.Server 3.3.1 scid={scid} tunnel_forward=true video={video} video_bit_rate={rate} audio={audio}{audio_codec} max_size={size} max_fps={fps} control={control} clipboard_autosync={clipboard}{encoder} send_device_meta=false send_dummy_byte=false cleanup=false",
             dir = self.directory,
             scid = self.scid,
             audio = open.audio,
@@ -184,7 +214,8 @@ impl Device {
             fps = open.max_fps,
             rate = open.video_bit_rate,
             encoder = encoder,
-            audio_codec = audio_codec
+            audio_codec = audio_codec,
+            clipboard = !video && open.control && open.clipboard_autosync
         )
     }
     fn pid_identity_script(&self) -> String {
@@ -522,7 +553,28 @@ mod tests {
         assert!(!device.script(&open, None).contains("--nice-name"));
         assert!(!device.script(&open, None).contains("power_on=false"));
         assert!(device.script(&open, None).contains(" audio_codec=raw"));
+        assert!(
+            device
+                .script(&open, None)
+                .contains(" clipboard_autosync=false")
+        );
+        let synced: Open =
+            serde_json::from_str(r#"{"device_id":"demo","clipboard_autosync":true}"#).unwrap();
+        assert!(
+            device
+                .script(&synced, None)
+                .contains(" clipboard_autosync=false")
+        );
         let silent: Open = serde_json::from_str(r#"{"device_id":"demo","audio":false}"#).unwrap();
         assert!(!device.script(&silent, None).contains(" audio_codec="));
+        let control_off: Open = serde_json::from_str(
+            r#"{"device_id":"demo","control":false,"clipboard_autosync":true}"#,
+        )
+        .unwrap();
+        assert!(
+            device
+                .script(&control_off, None)
+                .contains(" clipboard_autosync=false")
+        );
     }
 }

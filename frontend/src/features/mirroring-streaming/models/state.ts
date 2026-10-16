@@ -18,6 +18,7 @@ const empty = (): MirroringStreamingSnapshot =>
     status: null,
     video: null,
     audio: null,
+    clipboard: null,
     packets: 0,
     pendingBytes: 0,
     inputState: 'unknown',
@@ -138,7 +139,7 @@ export function createMirroringState() {
         errors: Object.freeze(errors),
         logs: Object.freeze({ ...state.logs, [action]: null }),
         ...(action === 'definitions' ? { definitions: null } : {}),
-        ...(action === 'cancel' || action === 'release' ? { inputState: 'uncertain' } : {}),
+        ...(action === 'cancel' || action === 'release' ? { inputState: 'uncertain', clipboard: null } : {}),
       });
       assertCurrent(request);
       return request;

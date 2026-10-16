@@ -41,6 +41,44 @@ export async function materializeManifest(
   };
 }
 
+const marketKinds = new Set(['plugin', 'tool', 'config', 'distribution', 'resource']);
+const marketMcp = new Set(['none', 'client', 'server', 'both']);
+const marketRestart = new Set([
+  'none',
+  'browser_refresh',
+  'plugin_reload',
+  'service_restart',
+  'device_restart',
+]);
+
+export async function readMarketMetadata(root, manifest) {
+  let metadata;
+  try {
+    metadata = await readJson(join(root, 'market.json'));
+  } catch (error) {
+    if (error.code === 'ENOENT') return null;
+    throw new Error(`market.json 读取失败：${error.message}`);
+  }
+  if (
+    metadata?.metadata_version !== 1 ||
+    metadata.id !== manifest.id ||
+    metadata.version !== manifest.version ||
+    typeof metadata.name !== 'string' ||
+    typeof metadata.summary !== 'string' ||
+    typeof metadata.description !== 'string' ||
+    !marketKinds.has(metadata.kind) ||
+    !Array.isArray(metadata.applies_to) ||
+    !Array.isArray(metadata.keywords) ||
+    !Array.isArray(metadata.categories) ||
+    new Set(metadata.keywords).size !== metadata.keywords.length ||
+    !marketMcp.has(metadata.supports_mcp) ||
+    typeof metadata.supports_agent !== 'boolean' ||
+    !marketRestart.has(metadata.restart_policy)
+  )
+    throw new Error('market.json 字段无效或与插件 manifest 不一致');
+  return metadata;
+}
+
 export function validateRegistrySource(source) {
   // 本地目录/tgz 在调用处单独处理；在线只接受明确 npm 包及版本，不开放 Git/任意 URL。
   if (

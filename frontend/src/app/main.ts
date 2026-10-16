@@ -94,7 +94,10 @@ export async function startFrontendApp(documentRef: Document, windowRef: Window)
       switching = false;
     }
   }
-  await connect(windowRef.location.origin, '', lifetime.signal);
+  const configuredOrigin = import.meta.env['VITE_API_BASE_URL'];
+  const initialOrigin = new URL(windowRef.location.origin);
+  if (import.meta.env.DEV) initialOrigin.port = '7031';
+  await connect(typeof configuredOrigin === 'string' && configuredOrigin ? configuredOrigin : initialOrigin.origin, '', lifetime.signal);
   const dispose = () => {
     closing ??= (async () => {
       lifetime.abort();

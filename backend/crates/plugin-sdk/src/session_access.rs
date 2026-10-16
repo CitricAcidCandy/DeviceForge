@@ -26,6 +26,12 @@ pub struct SessionAccess {
     pub operations: Vec<Contribution>,
     #[serde(default, skip_serializing_if = "SessionOutputRetention::is_complete")]
     pub output_retention: SessionOutputRetention,
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub client_context: bool,
+}
+
+fn is_false(value: &bool) -> bool {
+    !*value
 }
 
 impl SessionAccess {

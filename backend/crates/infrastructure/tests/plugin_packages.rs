@@ -10,6 +10,8 @@ use tokio_util::sync::CancellationToken;
 
 #[path = "plugin_packages/ordinary_execution.rs"]
 mod ordinary_execution;
+#[path = "plugin_packages/update.rs"]
+mod update;
 
 fn body(bytes: Vec<u8>) -> ArtifactStream {
     Box::pin(stream::once(async move { Ok(bytes.into()) }))

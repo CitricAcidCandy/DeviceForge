@@ -4,7 +4,7 @@ mod handshake;
 mod validation;
 
 pub use frames::{SessionControl, SessionEvent, SessionOutcome, SessionStream};
-pub use handshake::{SessionOpen, SessionOpenCommand, SessionReady, SessionStart};
+pub use handshake::{SessionClient, SessionOpen, SessionOpenCommand, SessionReady, SessionStart};
 
 pub const SESSION_PROTOCOL_VERSION: u32 = 5;
 pub const SESSION_CHUNK_LIMIT: usize = 8192;

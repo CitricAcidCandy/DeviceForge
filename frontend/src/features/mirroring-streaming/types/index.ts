@@ -12,6 +12,7 @@ export interface MirroringStreamInput {
   readonly video_bit_rate?: number;
   readonly audio?: boolean;
   readonly control?: boolean;
+  readonly clipboard_autosync?: boolean;
   readonly reconnect_attempts?: number;
 }
 export type MirroringControl =
@@ -34,6 +35,7 @@ export type MirroringControl =
     }
   | { readonly type: 'text'; readonly text: string }
   | { readonly type: 'clipboard'; readonly text: string; readonly paste?: boolean }
+  | { readonly type: 'get_clipboard'; readonly copy_key: 'none' | 'copy' | 'cut' }
   | { readonly type: 'rotate' | 'reset_video' };
 export interface MirroringVideoConfig {
   readonly codec: 'h264';
@@ -66,7 +68,29 @@ export type MirroringPacket = PacketIdentity &
     | { readonly kind: 'audio_config'; readonly configuration: MirroringAudioConfig }
     | { readonly kind: 'audio'; readonly bytes: Uint8Array }
     | { readonly kind: 'status'; readonly status: MirroringStreamStatus }
+      | { readonly kind: 'clipboard'; readonly text: string }
   );
+export interface MirroringClipboard {
+  readonly text: string;
+  readonly sequence: number;
+  readonly controlRevision?: number;
+}
+export interface MirroringOwnershipRequest {
+  readonly clientId: string;
+  readonly isMaster: boolean;
+}
+export interface MirroringOwnership {
+  readonly revision: number;
+  readonly controlRevision: number;
+  readonly clientId: string;
+  readonly ownerId: string | null;
+  readonly isMaster: boolean;
+  readonly canControl: boolean;
+  readonly hasControl: boolean;
+  readonly transitioning: boolean;
+  readonly blocked: boolean;
+  readonly requests: readonly MirroringOwnershipRequest[];
+}
 export interface MirroringStreamSink {
   readonly packet: (packet: MirroringPacket, signal: AbortSignal) => void | Promise<void>;
   readonly reset?: () => void;
@@ -94,6 +118,7 @@ export interface MirroringStreamingSnapshot {
   readonly status: MirroringStreamStatus | null;
   readonly video: MirroringVideoConfig | null;
   readonly audio: MirroringAudioConfig | null;
+  readonly clipboard: MirroringClipboard | null;
   readonly packets: number;
   readonly pendingBytes: number;
   readonly inputState: 'unknown' | 'writable' | 'eof' | 'uncertain';

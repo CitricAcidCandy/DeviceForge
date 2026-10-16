@@ -1,7 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { PointerEvent } from 'react';
 import { Camera, Play, Square, Download } from 'lucide-react';
 import { Button } from '../../components/Button/index.tsx';
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from '../../components/Dialog/index.tsx';
 import { Switch } from '../../components/Switch/index.tsx';
 import { Label } from '../../components/Label/index.tsx';
 import {
@@ -15,6 +18,10 @@ import { ActionFeedback, ErrorNotice } from '../../app/product/feedback.tsx';
 import { errorLogId, useAction, useSnapshot } from '../../app/product/hooks.ts';
 import { withSelectedDevice } from '../../app/product/device-target.ts';
 import { createMediaControlQueue } from './media-controls.ts';
+import { useMediaKeyboard } from './use-media-keyboard.ts';
+import { useMediaClipboard } from './use-media-clipboard.ts';
+import { MediaOwnershipControls } from './MediaOwnershipControls/index.tsx';
+import { createMediaShareUrl, parseMediaShare, resolveMediaShareControl } from './media-share.ts';
 import { useBlobUrl } from '../../components/BlobDownload/index.tsx';
 import type { ProductServices } from '../../app/product/services.ts';
 import type { MirroringControl } from '../../features/mirroring-streaming/index.ts';
@@ -39,6 +46,8 @@ export function MediaPage({ services, active }: { services: ProductServices; act
     (!legacySnapshot.session && (reader.pending && openingTransport
       ? openingTransport === 'webrtc'
       : transport === 'webrtc' && webAvailable));
+  const currentWebMode = useRef(webMode);
+  currentWebMode.current = webMode;
   const [webVideoSize, setWebVideoSize] = useState<{ width: number; height: number } | null>(null);
   const [displayError, setDisplayError] = useState<unknown>(null);
   const snapshot = legacySnapshot;
@@ -56,18 +65,46 @@ export function MediaPage({ services, active }: { services: ProductServices; act
   const [imageSource, setImageSource] = useState('');
   const [movieSource, setMovieSource] = useState('');
   const [controlError, setControlError] = useState<unknown>(null);
+  const shareInfo = useMemo(
+    () => (typeof window === 'undefined' ? null : parseMediaShare(window.location.hash)),
+    [],
+  );
+  const shareStarted = useRef(false);
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [shareControl, setShareControl] = useState(false);
+  const [shareUrl, setShareUrl] = useState('');
+  const [shareMessage, setShareMessage] = useState('');
   const controls = useRef<ReturnType<typeof createMediaControlQueue> | null>(null);
   useEffect(() => {
     if (!active) return;
+    const releaseSession = () => {
+      const selected = currentWebMode.current ? webRtc : live;
+      if (!selected.snapshot().session) return;
+      void selected.release(new AbortController().signal).catch((error: unknown) => {
+        services.messages.warning('投屏会话释放失败', {
+          description: error instanceof Error ? error.message : '请重新查询会话状态',
+          logId: errorLogId(error),
+        });
+      });
+    };
     const queue = createMediaControlQueue({
       identity: () => {
-        const view = webMode ? webRtc.snapshot() : live.snapshot();
-        return `${view.session?.id ?? ''}:${view.epoch}:${view.inputState}`;
+        const view = currentWebMode.current ? webRtc.snapshot() : live.snapshot();
+        const ownership = currentWebMode.current ? webRtc.snapshot().ownership : null;
+        return `${view.session?.id ?? ''}:${view.epoch}:${view.inputState}:${ownership?.controlRevision ?? ''}:${ownership?.hasControl ?? ''}`;
       },
-      send: (value, signal) => webMode
+      send: (value, signal) => currentWebMode.current
         ? webRtc.sendControl(value, signal)
         : live.sendControl(value, signal),
-      failed: setControlError,
+      failed: (error) => {
+        if (currentWebMode.current && webRtc.snapshot().ownership?.hasControl === false) {
+          queue.clear();
+          return;
+        }
+        queue.dispose();
+        setControlError(error);
+        releaseSession();
+      },
     });
     controls.current = queue;
     return () => {
@@ -76,17 +113,9 @@ export function MediaPage({ services, active }: { services: ProductServices; act
       action.cancel();
       reader.cancel();
       services.mediaDisplay.stop();
-      const selected = webMode ? webRtc : live;
-      if (selected.snapshot().session) {
-        void selected.release(new AbortController().signal).catch((error: unknown) => {
-          services.messages.warning('投屏会话释放失败', {
-            description: error instanceof Error ? error.message : '请重新查询会话状态',
-            logId: errorLogId(error),
-          });
-        });
-      }
+      releaseSession();
     };
-  }, [active, live, webRtc, webMode, action.cancel, reader.cancel, services]);
+  }, [active, live, webRtc, action.cancel, reader.cancel, services]);
   const canvas = useRef<HTMLCanvasElement | null>(null);
   useEffect(() => {
     if (!active || !webMode) return;
@@ -117,7 +146,7 @@ export function MediaPage({ services, active }: { services: ProductServices; act
       ),
   );
   const androidTarget = Boolean(
-    device.selected?.state === 'online' &&
+    (shareInfo !== null || device.selected?.state === 'online') &&
       provider?.definition.capabilities.some((item) =>
         item.operation.startsWith('plugin.android-device.'),
       ),
@@ -134,21 +163,108 @@ export function MediaPage({ services, active }: { services: ProductServices; act
   const status = webMode ? webSnapshot.status : snapshot.status?.state ?? null;
   const inputState = webMode ? webSnapshot.inputState : snapshot.inputState;
   const videoSize = webMode ? webVideoSize : snapshot.video;
-  const controlReady =
-    control &&
-    liveReference !== null &&
-    JSON.stringify(liveReference) === JSON.stringify(device.selection) &&
-    device.selected?.state === 'online' &&
+  const controlChannelReady =
+    resolveMediaShareControl(control, shareInfo?.control ?? null) &&
+    (shareInfo !== null || (liveReference !== null &&
+      JSON.stringify(liveReference) === JSON.stringify(device.selection))) &&
+    (shareInfo !== null || device.selected?.state === 'online') &&
     status === 'streaming' &&
     (!webMode || webSnapshot.controlReady) &&
     (!webMode || !webSnapshot.opening) &&
     inputState === 'writable' &&
     selectedSession?.status === 'running';
+  const ownership = webMode ? webSnapshot.ownership : null;
+  const controlReady = Boolean(controlChannelReady && (!webMode ||
+    ownership?.hasControl === true && !ownership.transitioning && !ownership.blocked));
+  const controlIdentity = `${selectedSession?.id ?? ''}:${webMode ? webSnapshot.epoch : snapshot.epoch}:${ownership?.controlRevision ?? ''}:${ownership?.hasControl ?? ''}`;
+  useEffect(() => { controls.current?.clear(); }, [ownership?.controlRevision, ownership?.hasControl]);
+  const mediaClipboardShortcut = useRef<((action: 'copy' | 'cut' | 'paste') => boolean) | null>(null);
+  const mediaKeyboard = useMediaKeyboard({
+    active,
+    ready: controlReady,
+    identity: controlIdentity,
+    enqueue: (values) => controls.current?.enqueue(values),
+    clipboardShortcut: (action) => mediaClipboardShortcut.current?.(action) ?? false,
+  });
+  const mediaClipboard = useMediaClipboard({
+    active,
+    ready: Boolean(controlReady),
+    identity: controlIdentity,
+    clipboard: webMode ? webSnapshot.clipboard : snapshot.clipboard,
+    ownershipRevision: ownership?.hasControl ? ownership.controlRevision : null,
+    focused: () => mediaKeyboard.focused,
+    enqueue: (values) => controls.current?.enqueue(values),
+  });
+  mediaClipboardShortcut.current = mediaClipboard.shortcut;
   const send = (value: MirroringControl) => {
+    if (!controlReady) return;
     setControlError(null);
     controls.current?.enqueue([value]);
   };
+  useEffect(() => {
+    if (!active || !shareInfo || shareStarted.current || webRtc.snapshot().session) return;
+    shareStarted.current = true;
+    void reader.run(async (signal) => {
+      setOpeningTransport('webrtc');
+      setWebVideoSize(null);
+      setDisplayError(null);
+      await webRtc.refreshDefinitions(signal);
+      const result = await webRtc.open({
+        device_id: shareInfo.deviceId,
+        max_size: Number(size),
+        max_fps: Number(fps),
+        audio: false,
+        control: shareInfo.control,
+        clipboard_autosync: shareInfo.control,
+      }, signal);
+      setSource(`分享设备 ${shareInfo.deviceId}`);
+      setLiveReference(null);
+      setControl(shareInfo.control);
+      return result;
+    }, { pending: '正在打开分享直播…' });
+  }, [active, fps, reader, shareInfo, size, webRtc]);
+  function openShareDialog(): void {
+    setShareControl(shareInfo?.control ?? false);
+    setShareUrl('');
+    setShareMessage('');
+    setShareDialogOpen(true);
+  }
+  function generateShareLink(): void {
+    const deviceId = liveReference?.localId ?? shareInfo?.deviceId;
+    if (!deviceId) {
+      setShareMessage('当前会话没有可分享的设备身份');
+      return;
+    }
+    const canShareControl = shareInfo?.control !== false;
+    const allowedControl = resolveMediaShareControl(shareControl, shareInfo?.control ?? null);
+    setShareUrl(createMediaShareUrl({ deviceId, control: allowedControl }));
+    setShareMessage(allowedControl
+      ? '链接持有人可以申请接管设备，由当前控制者同意后操作。'
+      : canShareControl
+        ? '链接持有人只能观看，不会收到设备剪贴板，也不能发送控制。'
+        : '当前链接没有控制权，只能继续分享观看链接。');
+  }
+  async function copyShareLink(): Promise<void> {
+    if (!shareUrl) return;
+    try {
+      if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(shareUrl);
+      else {
+        const input = document.createElement('textarea');
+        input.value = shareUrl;
+        input.style.position = 'fixed';
+        input.style.left = '-10000px';
+        document.body.append(input);
+        input.select();
+        if (!document.execCommand('copy')) throw new Error('copy failed');
+        input.remove();
+      }
+      setShareMessage('分享链接已复制');
+    } catch {
+      setShareMessage('浏览器未允许自动复制，请手动复制链接');
+    }
+  }
   function pointer(event: PointerEvent<HTMLCanvasElement | HTMLVideoElement>, type: 'down' | 'move' | 'up') {
+    if (type === 'down' && controlReady) event.currentTarget.focus({ preventScroll: true });
     if (!controlReady || !videoSize || (type === 'move' && !event.buttons)) return;
     const rect = event.currentTarget.getBoundingClientRect();
     if (type === 'down') event.currentTarget.setPointerCapture(event.pointerId);
@@ -172,6 +288,7 @@ export function MediaPage({ services, active }: { services: ProductServices; act
     });
   }
   const key = (keycode: number) => {
+    if (!controlReady) return;
     setControlError(null);
     controls.current?.enqueue([
       { type: 'key', action: 'down', keycode },
@@ -282,7 +399,7 @@ export function MediaPage({ services, active }: { services: ProductServices; act
             id="media-control"
             checked={control}
             onCheckedChange={setControl}
-            disabled={Boolean(activeSession)}
+            disabled={Boolean(activeSession) || shareInfo?.control === false}
           />
           <Label htmlFor="media-control">开启设备控制</Label>
         </div>
@@ -315,7 +432,8 @@ export function MediaPage({ services, active }: { services: ProductServices; act
                   max_size: Number(size),
                   max_fps: Number(fps),
                   audio: false,
-                  control,
+                  control: resolveMediaShareControl(control, shareInfo?.control ?? null),
+                  clipboard_autosync: webMode && resolveMediaShareControl(control, shareInfo?.control ?? null),
                 };
                 if (webMode) {
                   setWebVideoSize(null);
@@ -359,6 +477,13 @@ export function MediaPage({ services, active }: { services: ProductServices; act
           <Square />
           释放直播
         </Button>
+        <Button
+          variant="outline"
+          disabled={!selectedSession || !webMode || action.pending}
+          onClick={openShareDialog}
+        >
+          分享直播
+        </Button>
       </div>
       </aside>
       <div className="media-stage">
@@ -369,8 +494,14 @@ export function MediaPage({ services, active }: { services: ProductServices; act
           }}
           aria-label="设备实时投屏画面"
           role="img"
-          className={controlReady ? 'media-canvas is-interactive' : 'media-canvas'}
+          className={`media-canvas${controlReady ? ' is-interactive' : ''}${mediaKeyboard.focused ? ' is-keyboard-focused' : ''}`}
+          tabIndex={mediaKeyboard.tabIndex}
           hidden={webMode}
+          onFocus={mediaKeyboard.onFocus}
+          onBlur={mediaKeyboard.onBlur}
+          onKeyDown={mediaKeyboard.onKeyDown}
+          onKeyUp={mediaKeyboard.onKeyUp}
+          onPaste={mediaClipboard.onPaste}
           onPointerDown={(event) => pointer(event, 'down')}
           onPointerMove={(event) => pointer(event, 'move')}
           onPointerUp={(event) => pointer(event, 'up')}
@@ -382,8 +513,14 @@ export function MediaPage({ services, active }: { services: ProductServices; act
           playsInline
           muted
           aria-label="设备 WebRTC 实时投屏画面"
-          className={controlReady ? 'media-canvas is-interactive' : 'media-canvas'}
+          className={`media-canvas${controlReady ? ' is-interactive' : ''}${mediaKeyboard.focused ? ' is-keyboard-focused' : ''}`}
+          tabIndex={mediaKeyboard.tabIndex}
           hidden={!webMode}
+          onFocus={mediaKeyboard.onFocus}
+          onBlur={mediaKeyboard.onBlur}
+          onKeyDown={mediaKeyboard.onKeyDown}
+          onKeyUp={mediaKeyboard.onKeyUp}
+          onPaste={mediaClipboard.onPaste}
           onResize={() => setWebVideoSize(services.mediaDisplay.videoSize())}
           onLoadedMetadata={() => setWebVideoSize(services.mediaDisplay.videoSize())}
           onPointerDown={(event) => pointer(event, 'down')}
@@ -391,6 +528,11 @@ export function MediaPage({ services, active }: { services: ProductServices; act
           onPointerUp={(event) => pointer(event, 'up')}
           onPointerCancel={(event) => pointer(event, 'up')}
         />
+        {control && (
+          <p className="media-keyboard-hint" aria-live="polite">
+            {mediaKeyboard.focused ? '画面已聚焦，可使用键盘操作' : controlReady ? '点击画面后使用键盘操作' : '投屏控制就绪后可点击画面使用键盘操作'}
+          </p>
+        )}
         {!videoSize && (
           <EmptyState
             title="等待设备画面"
@@ -408,6 +550,38 @@ export function MediaPage({ services, active }: { services: ProductServices; act
       <ErrorNotice error={webSnapshot.errors.output ?? webSnapshot.errors.connection ?? null} />
       <ErrorNotice error={controlError} />
       <ActionFeedback {...reader} />
+      {webMode && selectedSession && (
+        <MediaOwnershipControls state={ownership} ready={Boolean(active && controlChannelReady)} actions={webRtc} />
+      )}
+      {control && (
+        <div className="media-clipboard" aria-live="polite">
+          <div>
+            <strong>设备剪贴板</strong>
+            <p className="muted">{mediaClipboard.message || '获得控制权后，设备内复制、复制按钮或 Ctrl+C / Ctrl+X 的内容只同步到你的电脑。'}</p>
+            <textarea
+              readOnly
+              value={mediaClipboard.text ?? ''}
+              placeholder="当前控制者在设备内复制后，文本会显示在这里"
+              aria-label="设备剪贴板文本"
+              rows={2}
+            />
+          </div>
+          <Button
+            variant="outline"
+            disabled={!controlReady || !webMode}
+            onClick={mediaClipboard.copySelection}
+          >
+            复制设备选中文本
+          </Button>
+          <Button
+            variant="outline"
+            disabled={!mediaClipboard.text || !controlReady}
+            onClick={mediaClipboard.copyToComputer}
+          >
+            复制到电脑
+          </Button>
+        </div>
+      )}
       {control && (
         <div className="action-row">
           <Button
@@ -447,6 +621,36 @@ export function MediaPage({ services, active }: { services: ProductServices; act
           </Button>
         </div>
       )}
+      <Dialog open={shareDialogOpen} onOpenChange={setShareDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>分享 WebRTC 直播</DialogTitle>
+            <DialogDescription>
+              每位观看者会建立独立设备会话。同一设备同时只有一名控制者，设备剪贴板只同步给当前控制者。请选择是否允许链接持有人申请接管。
+            </DialogDescription>
+          </DialogHeader>
+          <label className="share-control-choice">
+            <input
+              type="checkbox"
+              checked={shareControl}
+              disabled={shareInfo?.control === false}
+              onChange={(event) => setShareControl(event.target.checked)}
+            />
+            允许链接持有人申请接管设备
+          </label>
+          <Button onClick={generateShareLink}>生成分享链接</Button>
+          {shareUrl && (
+            <textarea readOnly value={shareUrl} rows={3} aria-label="分享链接" />
+          )}
+          {shareMessage && <p className="muted" aria-live="polite">{shareMessage}</p>}
+          <DialogFooter>
+            <Button variant="outline" disabled={!shareUrl} onClick={() => void copyShareLink()}>
+              复制链接
+            </Button>
+            <Button variant="ghost" onClick={() => setShareDialogOpen(false)}>关闭</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <details>
         <summary>恢复已知兼容直播会话</summary>
         <div className="form-row">

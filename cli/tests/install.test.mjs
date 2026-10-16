@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, writeFile, readFile, readdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { materializeManifest } from '../src/plugin-package.mjs';
+import { materializeManifest, readMarketMetadata } from '../src/plugin-package.mjs';
 import { installPlugin, listPlugins } from '../src/install.mjs';
 import { loadRuntime } from '../src/runtime.mjs';
 
@@ -79,6 +79,38 @@ test('便携清单拒绝机器路径和错误平台，原生入口不能越界',
     manifest.executable = 'C:/server/tool.exe';
     await writeFile(path, JSON.stringify(manifest));
     await assert.rejects(materializeManifest(source, source), /不应包含 executable/);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('market.json 缺失可本地安装，存在时校验展示元数据', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'deviceforge-market-metadata-'));
+  try {
+    const source = await fixture(directory);
+    const manifest = JSON.parse(await readFile(join(source, 'plugin.json'), 'utf8'));
+    assert.equal(await readMarketMetadata(source, manifest), null);
+    await writeFile(
+      join(source, 'market.json'),
+      JSON.stringify({
+        metadata_version: 1,
+        id: 'test',
+        kind: 'plugin',
+        name: '测试插件',
+        version: '1.0.0',
+        summary: '测试摘要',
+        description: '测试描述',
+        keywords: ['测试'],
+        categories: ['function'],
+        applies_to: ['deviceforge'],
+        supports_mcp: 'none',
+        supports_agent: false,
+        restart_policy: 'none',
+      }),
+    );
+    assert.equal((await readMarketMetadata(source, manifest)).name, '测试插件');
+    await writeFile(join(source, 'market.json'), '{}');
+    await assert.rejects(readMarketMetadata(source, manifest), /market.json 字段无效/);
   } finally {
     await rm(directory, { recursive: true, force: true });
   }

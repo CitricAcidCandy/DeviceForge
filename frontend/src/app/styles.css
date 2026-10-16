@@ -20,6 +20,12 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-info: var(--info);
+  --color-accent-warm: var(--accent-warm);
+  --color-accent-violet: var(--accent-violet);
+  --color-surface-elevated: var(--surface-elevated);
   --radius-sm: 0.25rem;
   --radius-md: 0.375rem;
   --radius-lg: 0.5rem;
@@ -33,22 +39,32 @@
   background: var(--background);
   line-height: 1.6;
   font-synthesis: none;
-  --background: #e6dcc7;
-  --foreground: #2e372b;
-  --card: #f8f4e7;
-  --popover: #fcf9ef;
-  --primary: #606d43;
+  --background: #e9e3d5;
+  --foreground: #2d362f;
+  --card: #faf8f1;
+  --popover: #fffdf7;
+  --primary: #56643d;
   --primary-foreground: #fffdf5;
-  --secondary: #e0e5d1;
-  --muted: #eee9db;
-  --muted-foreground: #5c634d;
-  --accent: #e5e8d8;
-  --destructive: #a53c2e;
-  --border: #c9c6ae;
-  --input: #83896f;
-  --ring: #606d43;
+  --secondary: #e2eaf0;
+  --muted: #efede5;
+  --muted-foreground: #61695f;
+  --accent: #e8ecdf;
+  --destructive: #ae4539;
+  --border: #d5d5c7;
+  --input: #92998a;
+  --ring: var(--primary);
+  --success: #337968;
+  --warning: #946229;
+  --info: #3f7890;
+  --accent-warm: #a95340;
+  --accent-violet: #75628f;
+  --surface-elevated: var(--popover);
+  --overlay: color-mix(in srgb, var(--foreground) 27%, transparent);
+  --media-background: #202826;
+  --media-foreground: #eff2e9;
+  --media-muted: #bdc9be;
   --workshop-paper: var(--card);
-  --workshop-green: #456a45;
+  --workshop-green: var(--success);
 }
 
 * {
@@ -144,6 +160,9 @@ details + details {
 .text-danger {
   color: var(--destructive);
 }
+.text-success { color: var(--success); }
+.text-warning { color: var(--warning); }
+.text-info { color: var(--info); }
 .skip-link {
   position: fixed;
   top: -80px;
@@ -416,7 +435,7 @@ details + details {
   border: 1px solid var(--border);
   border-radius: 10px;
   outline: none;
-  box-shadow: 0 5px 20px #554c2c0a;
+  box-shadow: 0 5px 20px color-mix(in srgb, var(--foreground) 4%, transparent);
 }
 .workplane:has(> [data-route='devices']:not([hidden])) {
   padding: 0;
@@ -783,7 +802,7 @@ details + details {
   gap: 10px;
 }
 .provider-strip > div > svg {
-  color: var(--workshop-green);
+  color: var(--info);
 }
 .provider-strip small {
   color: var(--muted-foreground);
@@ -812,13 +831,13 @@ details + details {
 }
 .state-unauthorized,
 .state-queued {
-  color: var(--primary);
+  color: var(--warning);
 }
 .state-failed {
   color: var(--destructive);
 }
 .state-running {
-  color: var(--primary);
+  color: var(--info);
 }
 .quick-links {
   margin: 22px 0;
@@ -842,7 +861,7 @@ details[open] > summary { margin-bottom: 12px; }
 }
 .plugin-row > svg {
   margin-top: 5px;
-  color: var(--workshop-green);
+  color: var(--accent-violet);
   width: 23px;
   height: 23px;
 }
@@ -992,7 +1011,7 @@ details[open] > summary { margin-bottom: 12px; }
   max-width: 1100px;
   margin: 20px auto;
   min-height: 220px;
-  background: #262a23;
+  background: var(--media-background);
   border: 1px solid var(--border);
   overflow: hidden;
 }
@@ -1002,15 +1021,15 @@ details[open] > summary { margin-bottom: 12px; }
 .media-stage > .empty-state {
   z-index: 1;
   margin: 0;
-  color: #e9eadb;
-  background: #262a23;
+  color: var(--media-foreground);
+  background: var(--media-background);
   width: 100%;
   min-height: 220px;
   display: grid;
   align-content: center;
 }
 .media-stage > .empty-state p {
-  color: #c4c6b8;
+  color: var(--media-muted);
 }
 .media-canvas {
   display: block;
@@ -1032,7 +1051,7 @@ details[open] > summary { margin-bottom: 12px; }
   max-height: min(65vh, 720px);
   object-fit: contain;
   margin: 18px auto;
-  background: #262a23;
+  background: var(--media-background);
 }
 .profile-archive {
   min-width: 0;
@@ -1055,7 +1074,7 @@ details[open] > summary { margin-bottom: 12px; }
   max-width: 100%;
   height: auto;
   object-fit: contain;
-  background: #262a23;
+  background: var(--media-background);
 }
 .profile-frame figcaption {
   font-size: 0.78rem;

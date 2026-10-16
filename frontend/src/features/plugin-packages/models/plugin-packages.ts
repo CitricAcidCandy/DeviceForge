@@ -2,6 +2,7 @@ import {
   ApiError,
   deletePackageEndpoint,
   installPackageEndpoint,
+  updatePackageEndpoint,
   packagesEndpoint,
 } from '../../../services/api/index.ts';
 import type {
@@ -79,10 +80,38 @@ export function createPluginPackages(client: ApiClient, actions: PackageActions)
       if (closed) throw new Error('插件包已关闭');
       return directories[kind].subscribe(listener);
     },
-    upload: (kind: PackageKind, content: Blob, mediaType: PackageMediaType, signal: AbortSignal) =>
+    upload: (
+      kind: PackageKind,
+      content: Blob,
+      mediaType: PackageMediaType,
+      signal: AbortSignal,
+      expected?: Readonly<Pick<PackageInfo, 'id' | 'version'>>,
+    ) =>
       serial(kind, signal, (current) =>
-        client.call(installPackageEndpoint, { kind, content, mediaType }, current),
+        client.call(
+          installPackageEndpoint,
+          { kind, content, mediaType, ...(expected === undefined ? {} : { expected }) },
+          current,
+        ),
       ),
+    update: (
+      kind: PackageKind,
+      id: string,
+      content: Blob,
+      mediaType: PackageMediaType,
+      signal: AbortSignal,
+      expectedVersion?: PackageInfo['version'],
+    ) =>
+      serial(kind, signal, async (current) => {
+        if (kind === 'server') await actions.prepareServerRemoval(id, current);
+        else await actions.forgetBrowser(id);
+        check(current);
+        return client.call(
+          updatePackageEndpoint,
+          { kind, id, content, mediaType, ...(expectedVersion === undefined ? {} : { expectedVersion }) },
+          current,
+        );
+      }),
     enable: (
       kind: PackageKind,
       id: string,

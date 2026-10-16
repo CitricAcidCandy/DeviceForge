@@ -83,9 +83,14 @@ export function encodeWebRtcAnswer(sdp: string): readonly number[] {
   return [...bytes];
 }
 
-export function encodeWebRtcControl(command: MirroringControl): readonly number[] {
+export function encodeWebRtcControl(command: MirroringControl, epoch: 1 = 1, controlRevision?: number): readonly number[] {
+  if (epoch !== 1 || (controlRevision !== undefined &&
+    (!Number.isSafeInteger(controlRevision) || controlRevision < 1)))
+    throw invalid('WebRTC 控制代次或所有权修订无效');
   const normalized = normalizeMirroringControl(command);
-  const bytes = encoder.encode(`${JSON.stringify({ version: 1, epoch: 1, type: 'control', command: normalized })}\n`);
+  const bytes = encoder.encode(`${JSON.stringify({ version: 1, epoch, type: 'control', command: normalized,
+    ...(controlRevision === undefined ? {} : { control_revision: controlRevision }),
+  })}\n`);
   if (bytes.length > 4096) throw invalid('WebRTC 控制超过 4096 字节');
   return [...bytes];
 }

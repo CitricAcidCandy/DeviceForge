@@ -1,9 +1,9 @@
-use crate::{ApiError, ApiState, Submit, interactive::*};
+use crate::{ApiError, ApiState, Submit, client_connection::ClientConnection, interactive::*};
 use apk_domain::interactive::{SessionInfo, SessionOutputPage};
 use axum::{
-    Json, Router,
+    Extension, Json, Router,
     extract::{
-        Path, Query, State,
+        ConnectInfo, Path, Query, State,
         rejection::{JsonRejection, QueryRejection},
     },
     http::StatusCode,
@@ -41,13 +41,18 @@ async fn list(State(state): State<ApiState>) -> Json<Vec<SessionInfo>> {
 
 async fn open(
     State(state): State<ApiState>,
+    connection: Option<Extension<ConnectInfo<ClientConnection>>>,
     body: std::result::Result<Json<Submit>, JsonRejection>,
 ) -> std::result::Result<(StatusCode, Json<SessionInfo>), ApiError> {
     let Json(request) = body
         .map_err(|_| ApiError::new(StatusCode::BAD_REQUEST, "invalid_input", "会话打开请求无效"))?;
     Ok((
         StatusCode::ACCEPTED,
-        Json(state.app.open_session(&request.operation, request.input)?),
+        Json(state.app.open_session_with_client(
+            &request.operation,
+            request.input,
+            connection.map(|Extension(ConnectInfo(client))| client.is_local()),
+        )?),
     ))
 }
 

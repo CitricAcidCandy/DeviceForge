@@ -1,8 +1,12 @@
 //! scrcpy-server 三路直播；保持原期限、有限重连与独占资源确认。
 mod control;
 mod device;
+mod device_messages;
 mod lifecycle;
 mod model;
+mod owned_control;
+mod ownership;
+mod pressed_inputs;
 mod webrtc;
 mod wire;
 use apk_plugin_sdk::session::SessionOpen;
@@ -19,12 +23,17 @@ pub async fn execute(
     output: SessionOutput,
 ) -> Execution {
     let webrtc = open.operation == "open_webrtc";
+    let client_id = open.session_id.clone();
+    let master = open.client.as_ref().is_some_and(|client| client.is_local);
     let result = async {
         context.check().map_err(|error| error.to_string())?;
         validate_access(&open)?;
         let parameters: model::Open =
             serde_json::from_value(open.input).map_err(|_| "直播打开输入无效")?;
         parameters.validate()?;
+        if !webrtc && parameters.control {
+            return Err("设备控制请使用支持控制权移交的 WebRTC 投屏".into());
+        }
         let config = checked(&context, crate::config::read()).await?;
         if config.live.is_none() {
             return Err("部署者未配置直播服务".into());
@@ -34,7 +43,10 @@ pub async fn execute(
     .await;
     match result {
         Ok((parameters, config)) if webrtc => {
-            webrtc::run(parameters, config, context, input, output).await
+            webrtc::run(
+                parameters, config, context, input, output, client_id, master,
+            )
+            .await
         }
         Ok((parameters, config)) => {
             lifecycle::run(parameters, config, context, input, output).await

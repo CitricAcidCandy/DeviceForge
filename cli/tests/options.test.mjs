@@ -1,7 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
-import { help, parseOptions, readApiToken, readMarketplaceConfig, DEFAULT_MARKETPLACE_URL } from '../src/options.mjs';
+import {
+  help,
+  parseOptions,
+  readApiToken,
+  readMarketplaceConfig,
+  DEFAULT_MARKETPLACE_URL,
+} from '../src/options.mjs';
 import { networkConfig, authority } from '../src/network.mjs';
 import { validateRegistrySource } from '../src/plugin-package.mjs';
 import { packagePath } from '../src/paths.mjs';
@@ -11,7 +17,9 @@ test('默认局域网、分离 MCP 端口，并允许配置 IPv4/IPv6', () => {
   assert.equal(defaults.ip, '0.0.0.0');
   assert.equal(defaults.port, 7030);
   assert.equal(defaults.mcpPort, 7032);
-  assert.deepEqual(defaults.marketplaceSources, [{ name: '本地默认市场', url: DEFAULT_MARKETPLACE_URL }]);
+  assert.deepEqual(defaults.marketplaceSources, [
+    { name: '本地默认市场', url: DEFAULT_MARKETPLACE_URL },
+  ]);
   const custom = parseOptions(['start', '--ip', '::1', '--port', '8080', '--mcp-port', '8081'], {});
   assert.equal(custom.ip, '::1');
   assert.equal(authority(custom.ip, custom.port), '[::1]:8080');
@@ -32,6 +40,38 @@ test('市场来源支持独立配置并拒绝不安全地址', () => {
     { name: '本地市场', url: 'http://127.0.0.1:7040' },
   ]);
   assert.throws(() => readMarketplaceConfigFromValue(), /市场配置读取失败/);
+  assert.deepEqual(
+    parseOptions(['start', '--marketplace-config', file], {}).marketplaceSources,
+    readMarketplaceConfig(file),
+  );
+});
+
+test('市场地址可直接覆盖且与来源文件互斥', () => {
+  const custom = parseOptions(['start', '--marketplace-url', 'http://192.168.1.8:7040/'], {});
+  assert.deepEqual(custom.marketplaceSources, [
+    { name: '自定义市场', url: 'http://192.168.1.8:7040' },
+  ]);
+  assert.equal(custom.marketplaceConfigPath, null);
+  for (const url of [
+    'invalid',
+    'file:///market',
+    'https://user:password@example.com',
+    'https://example.com/?key=value',
+    'https://example.com/#fragment',
+  ]) {
+    assert.throws(() => parseOptions(['start', '--marketplace-url', url], {}), /市场地址/);
+  }
+  const file = fileURLToPath(new URL('./fixtures/marketplace.json', import.meta.url));
+  for (const args of [
+    ['--marketplace-url', 'http://127.0.0.1:7040', '--marketplace-config', file],
+    ['--marketplace-config', file, '--marketplace-url', 'http://127.0.0.1:7040'],
+  ]) {
+    assert.throws(() => parseOptions(['start', ...args], {}), /不能同时使用/);
+  }
+  assert.throws(
+    () => parseOptions(['plugin', 'list', '--marketplace-url', 'http://127.0.0.1:7040'], {}),
+    /只用于启动命令/,
+  );
 });
 
 function readMarketplaceConfigFromValue() {

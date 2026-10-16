@@ -1,0 +1,5 @@
+.ui-select-field { display: grid; gap: 7px; min-width: 0; }
+.ui-select-field-trigger { width: 100%; min-width: 0; background: var(--surface-elevated, var(--popover)); }
+.ui-field-hint { color: var(--muted-foreground); font-size: 0.75rem; line-height: 1.55; }
+.ui-field-error { color: var(--destructive); font-size: 0.75rem; line-height: 1.55; }
+.ui-field-required { color: var(--accent-warm); }

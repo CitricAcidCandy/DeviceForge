@@ -27,6 +27,8 @@ fn service(state: &ApiState) -> Result<Arc<PackageService>, ApiError> {
 #[serde(deny_unknown_fields)]
 pub(crate) struct UploadQuery {
     format: PackageFormat,
+    expected_id: Option<String>,
+    expected_version: Option<String>,
 }
 
 pub(crate) async fn list(
@@ -47,7 +49,38 @@ pub(crate) async fn install(
     let Path(kind) =
         path.map_err(|_| Error::Invalid("插件包 kind 必须为 server 或 browser".into()))?;
     let Query(query) =
-        query.map_err(|_| Error::Invalid("查询仅接受必填 format=zip 或 tgz".into()))?;
+        query.map_err(|_| Error::Invalid("上传查询参数无效，format 须为 zip 或 tgz".into()))?;
+    upload(state, kind, None, query, headers, body).await
+}
+
+pub(crate) async fn update(
+    State(state): State<ApiState>,
+    path: Result<Path<(PackageKind, String)>, PathRejection>,
+    query: Result<Query<UploadQuery>, QueryRejection>,
+    headers: HeaderMap,
+    body: Body,
+) -> Result<impl IntoResponse, ApiError> {
+    let Path((kind, id)) = path.map_err(|_| Error::Invalid("包种类或 ID 路径无效".into()))?;
+    let Query(query) =
+        query.map_err(|_| Error::Invalid("上传查询参数无效，format 须为 zip 或 tgz".into()))?;
+    if query
+        .expected_id
+        .as_ref()
+        .is_some_and(|expected| *expected != id)
+    {
+        return Err(Error::Invalid("期望包 ID 与更新路径不一致".into()).into());
+    }
+    upload(state, kind, Some(id), query, headers, body).await
+}
+
+async fn upload(
+    state: ApiState,
+    kind: PackageKind,
+    update_id: Option<String>,
+    query: UploadQuery,
+    headers: HeaderMap,
+    body: Body,
+) -> Result<(StatusCode, Json<PackageInfo>), ApiError> {
     let media = headers
         .get(header::CONTENT_TYPE)
         .and_then(|value| value.to_str().ok())
@@ -78,14 +111,35 @@ pub(crate) async fn install(
     let stream = body
         .into_data_stream()
         .map(|value| value.map_err(|_| Error::Invalid("包上传传输失败".into())));
-    Ok((
-        StatusCode::CREATED,
-        Json(
-            service(&state)?
-                .install(kind, query.format, Box::pin(stream))
+    let service = service(&state)?;
+    let (status, info) = if let Some(id) = update_id {
+        (
+            StatusCode::OK,
+            service
+                .update(
+                    kind,
+                    id,
+                    query.format,
+                    Box::pin(stream),
+                    query.expected_version,
+                )
                 .await?,
-        ),
-    ))
+        )
+    } else {
+        (
+            StatusCode::CREATED,
+            service
+                .install_expected(
+                    kind,
+                    query.format,
+                    Box::pin(stream),
+                    query.expected_id,
+                    query.expected_version,
+                )
+                .await?,
+        )
+    };
+    Ok((status, Json(info)))
 }
 pub(crate) async fn delete(
     State(state): State<ApiState>,

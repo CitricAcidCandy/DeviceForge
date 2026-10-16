@@ -61,8 +61,10 @@ function errorValue(value: ApiError | undefined) {
       };
 }
 function snapshotValue(value: MirroringStreamingSnapshot) {
+  const { clipboard: _clipboard, ...publicValue } = value;
   return {
-    ...value,
+    ...publicValue,
+    clipboard: value.clipboard === null ? null : { sequence: value.clipboard.sequence },
     errors: Object.fromEntries(
       Object.entries(value.errors).map(([action, error]) => [action, errorValue(error)]),
     ),
@@ -71,7 +73,7 @@ function snapshotValue(value: MirroringStreamingSnapshot) {
 function packetValue(value: MirroringPacketOutputResult) {
   return {
     ...value,
-    mediaPackets: value.mediaPackets.map((packet) =>
+    mediaPackets: value.mediaPackets.filter((packet) => packet.kind !== 'clipboard').map((packet) =>
       packet.kind === 'video' || packet.kind === 'audio'
         ? { ...packet, bytes: Array.from(packet.bytes) }
         : packet,

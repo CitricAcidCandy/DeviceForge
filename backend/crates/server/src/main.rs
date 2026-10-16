@@ -3,6 +3,7 @@ use apk_application::plugin_lifecycle::PluginService;
 use apk_domain::Executor;
 use apk_domain::plugins::PluginContribution;
 use apk_infrastructure::{plugin_catalog::FilePluginCatalog, store::SqliteStore};
+use apk_server::client_connection::ClientConnection;
 use std::{path::PathBuf, sync::Arc};
 mod artifact_config;
 mod limits;
@@ -133,27 +134,30 @@ async fn run(
     let bind = std::env::var("APK_BIND").unwrap_or_else(|_| "127.0.0.1:7031".into());
     let listener = tokio::net::TcpListener::bind(&bind).await?;
     tracing::info!(address = %listener.local_addr()?, "浏览器服务已启动");
-    axum::serve(listener, router)
-        .with_graceful_shutdown(async move {
-            tokio::select! {
-                result = tokio::signal::ctrl_c() => {
-                    if result.is_err() { tracing::error!("停止信号监听失败"); }
-                },
-                _ = shutdown.cancelled() => {},
-            }
-            mcp_shutdown.cancel();
-            if let Some(worker) = artifact_worker {
-                worker.shutdown().await;
-            }
-            plugin_service.close();
-            if let Err(error) = app.shutdown().await {
-                tracing::error!(code = error.code(), "任务停止失败");
-            }
-            if let Err(error) = performance.shutdown().await {
-                tracing::error!(code = error.code(), "性能会话停止失败");
-            }
-            plugin_service.wait().await;
-        })
-        .await?;
+    axum::serve(
+        listener,
+        router.into_make_service_with_connect_info::<ClientConnection>(),
+    )
+    .with_graceful_shutdown(async move {
+        tokio::select! {
+            result = tokio::signal::ctrl_c() => {
+                if result.is_err() { tracing::error!("停止信号监听失败"); }
+            },
+            _ = shutdown.cancelled() => {},
+        }
+        mcp_shutdown.cancel();
+        if let Some(worker) = artifact_worker {
+            worker.shutdown().await;
+        }
+        plugin_service.close();
+        if let Err(error) = app.shutdown().await {
+            tracing::error!(code = error.code(), "任务停止失败");
+        }
+        if let Err(error) = performance.shutdown().await {
+            tracing::error!(code = error.code(), "性能会话停止失败");
+        }
+        plugin_service.wait().await;
+    })
+    .await?;
     Ok(())
 }

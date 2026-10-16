@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
-  server: { proxy: { '/api': 'http://127.0.0.1:7031', '/mcp': 'http://127.0.0.1:7031' } },
+  define: { 'import.meta.env.VITE_API_BASE_URL': JSON.stringify(process.env['VITE_API_BASE_URL'] ?? '') },
   build: {
     sourcemap: true,
     rolldownOptions: {

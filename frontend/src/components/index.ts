@@ -1,5 +1,16 @@
 export { Alert, AlertTitle, AlertDescription } from './Alert/index.tsx';
 export { Button, buttonVariants } from './Button/index.tsx';
+export { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from './Card/index.tsx';
+export { Badge } from './Badge/index.tsx';
+export type { BadgeVariant } from './Badge/index.tsx';
+export { SelectField } from './SelectField/index.tsx';
+export type { SelectFieldProps, SelectFieldOption } from './SelectField/index.tsx';
+export { FileDropzone } from './FileDropzone/index.tsx';
+export type { FileDropzoneProps } from './FileDropzone/index.tsx';
+export { Stepper } from './Stepper/index.tsx';
+export type { StepperProps, StepperStep } from './Stepper/index.tsx';
+export { DialogShell } from './DialogShell/index.tsx';
+export type { DialogShellProps } from './DialogShell/index.tsx';
 export { Checkbox } from './Checkbox/index.tsx';
 export {
   Dialog,

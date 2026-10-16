@@ -172,21 +172,22 @@ pub fn validate_market_entry(entry: &MarketEntry) -> Result<(), MetadataError> {
     {
         return Err(MetadataError::Field("platforms/architectures"));
     }
-    let details = entry
-        .details
-        .as_object()
-        .ok_or(MetadataError::Field("details"))?;
+    let details = entry.details.as_object();
     match entry.kind {
-        ResourceKind::Tool if !details.contains_key("tool_type") => {
+        ResourceKind::Tool if details.is_none_or(|details| !details.contains_key("tool_type")) => {
             return Err(MetadataError::Details("tool_type"));
         }
         ResourceKind::Config
-            if !details.contains_key("config_type") || !details.contains_key("schema_version") =>
+            if details.is_none_or(|details| {
+                !details.contains_key("config_type") || !details.contains_key("schema_version")
+            }) =>
         {
             return Err(MetadataError::Details("config_type/schema_version"));
         }
         ResourceKind::Distribution
-            if !details.contains_key("package_name") || !details.contains_key("entrypoint") =>
+            if details.is_none_or(|details| {
+                !details.contains_key("package_name") || !details.contains_key("entrypoint")
+            }) =>
         {
             return Err(MetadataError::Details("package_name/entrypoint"));
         }
@@ -284,6 +285,9 @@ mod tests {
     #[test]
     fn validates_type_specific_details() {
         assert!(validate_market_entry(&entry(ResourceKind::Tool)).is_ok());
+        let mut plugin = entry(ResourceKind::Plugin);
+        plugin.details = Value::Null;
+        assert!(validate_market_entry(&plugin).is_ok());
         let mut invalid = entry(ResourceKind::Config);
         invalid.details = serde_json::json!({"config_type":"preset"});
         assert!(matches!(

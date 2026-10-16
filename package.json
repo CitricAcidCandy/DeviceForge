@@ -26,6 +26,7 @@
     "smoke:cli": "node scripts/cli-smoke.mjs",
     "smoke:discovery": "node scripts/unified-discovery-smoke.mjs",
     "smoke:discovery:browser": "node scripts/unified-discovery-browser-smoke.mjs",
+    "start:resource-server": "cargo run --release --manifest-path resource-server/Cargo.toml -- --bind 127.0.0.1:7040",
     "format": "prettier --write \"frontend/src/**/*.{ts,tsx,css}\" \"frontend/scripts/**/*.ts\" \"frontend/tests/**/*.ts\" \"cli/**/*.{js,mjs,ts,json,md}\" \"scripts/**/*.{js,mjs,ts,json,md}\"",
     "format:check": "prettier --check \"frontend/src/**/*.{ts,tsx,css}\" \"frontend/scripts/**/*.ts\" \"frontend/tests/**/*.ts\" \"cli/**/*.{js,mjs,ts,json,md}\" \"scripts/**/*.{js,mjs,ts,json,md}\""
   },

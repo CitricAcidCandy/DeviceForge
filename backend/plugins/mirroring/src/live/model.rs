@@ -15,6 +15,8 @@ pub(crate) struct Open {
     pub audio: bool,
     #[serde(default = "enabled")]
     pub control: bool,
+    #[serde(default)]
+    pub clipboard_autosync: bool,
     #[serde(default = "retries")]
     pub reconnect_attempts: u32,
 }
@@ -103,8 +105,19 @@ pub(crate) enum Control {
         #[serde(default)]
         paste: bool,
     },
+    GetClipboard {
+        copy_key: CopyKey,
+    },
     Rotate {},
     ResetVideo {},
+}
+
+#[derive(Clone, Copy, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum CopyKey {
+    None,
+    Copy,
+    Cut,
 }
 impl Control {
     pub(crate) fn encode(self) -> Result<Vec<u8>, String> {
@@ -172,6 +185,16 @@ impl Control {
                 bytes.extend((text.len() as u32).to_be_bytes());
                 bytes.extend(text.as_bytes());
             }
+            Self::GetClipboard { copy_key } => {
+                bytes.extend([
+                    8,
+                    match copy_key {
+                        CopyKey::None => 0,
+                        CopyKey::Copy => 1,
+                        CopyKey::Cut => 2,
+                    },
+                ]);
+            }
             Self::Rotate {} => bytes.push(11),
             Self::ResetVideo {} => bytes.push(17),
         }
@@ -194,6 +217,7 @@ mod tests {
         let open: Open = serde_json::from_value(json!({"device_id":"demo"})).unwrap();
         open.validate().unwrap();
         assert!(open.audio && open.control);
+        assert!(!open.clipboard_autosync);
         assert!(serde_json::from_value::<Open>(json!({"device_id":"demo","shell":"bad"})).is_err());
         let open: Open = serde_json::from_value(json!({"device_id":"-bad"})).unwrap();
         assert!(open.validate().is_err());
@@ -209,6 +233,44 @@ mod tests {
         assert_eq!(Control::Rotate {}.encode().unwrap(), [11]);
         assert_eq!(Control::ResetVideo {}.encode().unwrap(), [17]);
         assert!(serde_json::from_value::<Control>(json!({"type":"rotate","extra":1})).is_err());
+        assert!(
+            serde_json::from_value::<Control>(json!({"type":"get_clipboard","copy_key":"copy"}))
+                .is_ok()
+        );
+        assert!(
+            serde_json::from_value::<Control>(json!({"type":"get_clipboard","copy_key":"invalid"}))
+                .is_err()
+        );
+        assert!(
+            serde_json::from_value::<Control>(
+                json!({"type":"get_clipboard","copy_key":"none","extra":1})
+            )
+            .is_err()
+        );
+        assert_eq!(
+            Control::GetClipboard {
+                copy_key: CopyKey::None
+            }
+            .encode()
+            .unwrap(),
+            [8, 0]
+        );
+        assert_eq!(
+            Control::GetClipboard {
+                copy_key: CopyKey::Copy
+            }
+            .encode()
+            .unwrap(),
+            [8, 1]
+        );
+        assert_eq!(
+            Control::GetClipboard {
+                copy_key: CopyKey::Cut
+            }
+            .encode()
+            .unwrap(),
+            [8, 2]
+        );
     }
     #[test]
     fn unicode_byte_limits_and_touch_bounds() {

@@ -43,7 +43,7 @@ export interface ApiResult<T> {
 }
 export interface RequestSpec {
   readonly path: string;
-  readonly method: 'GET' | 'POST' | 'DELETE';
+  readonly method: 'GET' | 'POST' | 'PUT' | 'DELETE';
   readonly body?: string | Blob | ArrayBuffer;
   readonly contentType?: string;
   readonly keepalive?: boolean;

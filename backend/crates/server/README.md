@@ -6,6 +6,10 @@
 
 API：`router(app, token, requests_per_second)` 使用默认 MCP 安全配置；`router_with_mcp` 允许部署者传入 SDK 配置；`openapi_document` 导出从 Rust 结构生成的公开接口；`mcp::default_config` 提供无会话 JSON 响应方式。HTTP 推荐 `/api/v2`，保留 v1 兼容；MCP 在 `/mcp`。MCP 请求的协议解析由官方 SDK 负责。
 
+`main.rs` 通过 `ClientConnection` 获取真实 TCP 来源及接收端接口地址。HTTP 会话只把该连接是否为回环或同一服务器接口 IP 的结果交给应用，不信任 `Forwarded`、`X-Forwarded-For` 或浏览器业务字段。缺失连接元数据和既有 MCP 打开路径不授予本机身份。IPv4 映射 IPv6 地址按 IPv4 统一比较；多接口下与当前接收接口不同的本机来源暂不授予主控。
+
+局域网开发时浏览器 API 基础地址应直连后端，例如前端 `http://192.168.50.5:5173` 连接后端 `http://192.168.50.5:7031`。经过 Vite 回环代理时真实来源为代理，无法区分浏览器来源，因此必须关闭此类 API 回环转发入口，避免远端客户端取得本机身份。`cors.rs` 为可信局域网部署提供无 Cookie 凭据的跨域响应及预检，允许显式 Authorization 请求头并公开日志 ID；实际请求继续受既有可选令牌约束。
+
 默认全局每秒请求上限为 120，`DEVICEFORGE_HTTP_RATE` 可在 1–100000 调整；最多 128 个在途响应，HTTP 与 MCP 共用限流和访问令牌。请求许可随响应流结束、错误或断开释放。生产部署建议反向代理配置 TLS、独立用户认证与入口限流；当前令牌代表共享部署身份，不是多租户权限系统。业务错误统一转换，底层部署错误不直接返回客户端。
 
 最外层 correlation 生成可信 UUID，v2 业务成功/失败返回日志 ID，原始产物不改字节；MCP 装饰器传播任务上下文并写标准元数据。response_stream 记录响应结束与字节数。完整契约见后端日志文档。`router_with_runtime` 注入日志统计与停止令牌；这两个管理入口均鉴权。

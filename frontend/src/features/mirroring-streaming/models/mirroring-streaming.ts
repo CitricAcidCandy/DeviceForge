@@ -40,6 +40,8 @@ export function createMirroringStreaming(
   const stream = createMirroringStream();
   const interval = streamPollInterval(options.pollIntervalMs);
   let controlEnabled = true;
+  let clipboardEnabled = false;
+  let clipboardSequence = 0;
   let controlReady = false;
   let tainted = false;
   let streamGeneration = 0;
@@ -81,6 +83,7 @@ export function createMirroringStreaming(
     options.sink?.reset?.();
     tainted = false;
     controlReady = false;
+    clipboardSequence = 0;
   }
   function merge(session: Readonly<SessionInfo>): Readonly<SessionInfo> {
     const previous = state.snapshot().session;
@@ -118,7 +121,7 @@ export function createMirroringStreaming(
         processing = true;
         for (const packet of stream.push(chunk.bytes)) {
           state.assertCurrent(context, result.logId);
-          if (collect) {
+          if (collect && packet.kind !== 'clipboard') {
             const bytes =
               packet.kind === 'video' || packet.kind === 'audio' ? packet.bytes.byteLength : 0;
             packetBytes += bytes;
@@ -147,7 +150,7 @@ export function createMirroringStreaming(
             else if (packet.status.state === 'connecting' || packet.status.state === 'reconnecting')
               controlReady = false;
           }
-          if (options.sink)
+          if (options.sink && packet.kind !== 'clipboard')
             await abortable(
               Promise.resolve(options.sink.packet(packet, context.signal)),
               context.signal,
@@ -157,15 +160,18 @@ export function createMirroringStreaming(
             newEpoch ||
             packet.kind === 'status' ||
             packet.kind === 'video_config' ||
-            packet.kind === 'audio_config'
+            packet.kind === 'audio_config' ||
+            packet.kind === 'clipboard' && controlEnabled && clipboardEnabled
           )
             state.update(
               context,
               {
-                ...(newEpoch ? { epoch: packet.epoch, status: null, video: null, audio: null } : {}),
+                ...(newEpoch ? { epoch: packet.epoch, status: null, video: null, audio: null, clipboard: null } : {}),
                 ...(packet.kind === 'status' ? { status: packet.status } : {}),
                 ...(packet.kind === 'video_config' ? { video: packet.configuration } : {}),
                 ...(packet.kind === 'audio_config' ? { audio: packet.configuration } : {}),
+                ...(packet.kind === 'clipboard' && controlEnabled && clipboardEnabled
+                  ? { clipboard: Object.freeze({ text: packet.text, sequence: ++clipboardSequence }) } : {}),
               },
               result.logId,
             );
@@ -183,7 +189,7 @@ export function createMirroringStreaming(
           packets: view.packets,
           pendingBytes: view.pendingBytes,
           ...(session.status === 'finished' || session.status === 'stopping'
-            ? { inputState: 'uncertain' }
+            ? { inputState: 'uncertain', clipboard: null }
             : {}),
         },
         result.logId,
@@ -250,6 +256,7 @@ export function createMirroringStreaming(
       if (signal.aborted) throw new ApiError('cancelled', 'cancelled', '投屏打开等待已取消');
       reset();
       controlEnabled = copied.control !== false;
+      clipboardEnabled = copied.clipboard_autosync === true;
       const context = state.begin('open', signal);
       return run(context, async () => {
         const opening = gateway.open(
@@ -296,6 +303,7 @@ export function createMirroringStreaming(
       if (!existing) {
         reset();
         controlEnabled = false;
+        clipboardEnabled = false;
       }
       const context = state.begin('resume', signal);
       return run(context, async () => {
@@ -368,16 +376,18 @@ export function createMirroringStreaming(
     eof(signal: AbortSignal) {
       const context = state.begin('eof', signal);
       const identity = selected();
+      clipboardEnabled = false;
       return run(context, async () => {
         const result = await read(context, (active) => gateway.eof(identity.id, active));
         const data = decodeStreamReceipt(result.data, identity.id, result.logId);
-        state.update(context, { inputState: 'eof' }, result.logId);
+        state.update(context, { inputState: 'eof', clipboard: null }, result.logId);
         return { data, logId: result.logId };
       });
     },
     cancel(signal: AbortSignal) {
       const context = state.begin('cancel', signal);
       const identity = selected();
+      clipboardEnabled = false;
       return run(context, async () => {
         const result = await read(context, (active) => gateway.cancel(identity.id, active));
         const data = decodeStreamInfo(result.data, result.logId, identity);
@@ -396,7 +406,7 @@ export function createMirroringStreaming(
         state.update(
           context,
           {
-            session: null, inputState: 'unknown', status: null, video: null, audio: null,
+            session: null, inputState: 'unknown', status: null, video: null, audio: null, clipboard: null,
             cursor: 0, epoch: 0, packets: 0, pendingBytes: 0,
           },
           logId,

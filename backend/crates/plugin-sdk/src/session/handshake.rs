@@ -25,6 +25,14 @@ impl<'de> Deserialize<'de> for SessionOpenCommand {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
+pub struct SessionClient {
+    #[serde(deserialize_with = "validation::session_id")]
+    pub id: String,
+    pub is_local: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct SessionOpen {
     #[serde(deserialize_with = "validation::version")]
     pub protocol_version: u32,
@@ -36,6 +44,8 @@ pub struct SessionOpen {
     pub input: Value,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub artifacts: Option<ArtifactContext>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub client: Option<SessionClient>,
 }
 
 impl SessionOpen {
@@ -47,11 +57,16 @@ impl SessionOpen {
             operation: operation.into(),
             input,
             artifacts: None,
+            client: None,
         }
     }
     pub fn validate(&self) -> Result<(), &'static str> {
         validation::identity(self.protocol_version, &self.session_id)?;
-        validation::valid_operation(&self.operation)
+        validation::valid_operation(&self.operation)?;
+        if let Some(client) = &self.client {
+            validation::identity(self.protocol_version, &client.id)?;
+        }
+        Ok(())
     }
 }
 

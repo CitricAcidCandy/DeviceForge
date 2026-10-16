@@ -23,9 +23,9 @@
   padding: 11px 12px 11px 15px;
   border: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
   border-radius: 12px;
-  background: color-mix(in srgb, var(--card) 98%, white);
+  background: var(--surface-elevated, var(--popover));
   color: var(--foreground);
-  box-shadow: 0 7px 30px rgb(43 48 33 / 15%);
+  box-shadow: 0 7px 30px color-mix(in srgb, var(--foreground) 15%, transparent);
   pointer-events: auto;
   animation: message-enter 180ms ease-out;
 }
@@ -34,13 +34,14 @@
   height: 19px;
   flex-shrink: 0;
   margin-top: 3px;
-  color: var(--primary);
+  color: var(--info);
 }
+[data-message-kind='success'] .message-icon { color: var(--success); }
 [data-message-kind='error'] .message-icon {
   color: var(--destructive);
 }
 [data-message-kind='warning'] .message-icon {
-  color: #92662e;
+  color: var(--warning);
 }
 .message-content {
   flex: 1;

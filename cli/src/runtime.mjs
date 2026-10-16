@@ -28,5 +28,10 @@ export async function loadRuntime(packageRoot = fileURLToPath(new URL('../../', 
   const web = packagePath(root, manifest.web);
   if (!(await lstat(web)).isDirectory()) throw new Error('前端运行资源缺失');
   await regularFile(web, 'index.html');
-  return { binary, validator, web: await realpath(web), version: manifest.version };
+  return {
+    binary,
+    validator,
+    web: await realpath(web),
+    version: manifest.version,
+  };
 }

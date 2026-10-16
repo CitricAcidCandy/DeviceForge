@@ -14,7 +14,7 @@ try {
   else if (options.command === 'plugin.install') {
     const installed = await installPlugin(options, { signal: controller.signal });
     console.log(
-      `插件 ${installed.id}@${installed.version} 安装完成，贡献 ${installed.operations} 项操作；重启服务加载`,
+      `插件 ${installed.id}@${installed.version} 安装完成，贡献 ${installed.operations} 项操作；${installed.metadata_complete ? '市场元数据完整' : '缺少 market.json，目录将标记为元数据不完整'}；重启服务加载`,
     );
   } else console.log(JSON.stringify(await listPlugins(options), null, 2));
 } catch (error) {

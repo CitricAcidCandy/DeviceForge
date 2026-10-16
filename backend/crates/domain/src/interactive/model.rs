@@ -10,7 +10,14 @@ pub struct SessionRequest {
     pub session_id: String,
     pub operation: String,
     pub input: Value,
+    pub client: Option<SessionClient>,
     pub deadline: Instant,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SessionClient {
+    pub id: String,
+    pub is_local: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
