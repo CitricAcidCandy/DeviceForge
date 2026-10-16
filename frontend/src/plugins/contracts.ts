@@ -1,5 +1,6 @@
 import type { WebPlugin } from '../plugin-sdk/index.ts';
 import { isPluginContributions, validatePluginContributions } from './contributions.ts';
+import { isJsonValue } from '../plugin-sdk/json.ts';
 
 export function validateContributions(plugins: readonly WebPlugin[]): void {
   const ids = new Set<string>();
@@ -15,6 +16,10 @@ export function validateContributions(plugins: readonly WebPlugin[]): void {
     if (ids.has(plugin.id)) throw new Error(`插件重复：${plugin.id}`);
     ids.add(plugin.id);
     if (plugin.contributions) validatePluginContributions(plugin.id, plugin.contributions);
+    const configuration = plugin.configuration;
+    if (configuration && (!Number.isSafeInteger(configuration.version) || configuration.version < 1 ||
+      !isJsonValue(configuration.schema) || !isJsonValue(configuration.defaults) ||
+      !['next_invocation', 'plugin_reload'].includes(configuration.apply_policy))) throw new Error('插件配置声明无效');
     for (const panel of plugin.panels) {
       if (
         !panel.id.startsWith(`${plugin.id}.`) ||
@@ -38,6 +43,9 @@ function isWebPlugin(value: unknown): value is WebPlugin {
     typeof value.id === 'string' &&
     typeof value.version === 'string' &&
     value.apiVersion === 2 &&
+    (value.configuration === undefined || (record(value.configuration) && typeof value.configuration.version === 'number' &&
+      isJsonValue(value.configuration.schema) && isJsonValue(value.configuration.defaults) &&
+      (value.configuration.apply_policy === 'next_invocation' || value.configuration.apply_policy === 'plugin_reload'))) &&
     (value.contributions === undefined || isPluginContributions(value.contributions)) &&
     (value.activate === undefined || typeof value.activate === 'function') &&
     (value.deactivate === undefined || typeof value.deactivate === 'function') &&

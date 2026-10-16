@@ -31,6 +31,7 @@ import { registerPerformanceService } from './performance-service.ts';
 import { createHttpMirroringStreaming } from '../features/mirroring-streaming/index.ts';
 import type { MirroringStreamSink } from '../features/mirroring-streaming/index.ts';
 import { registerMirroringStreamingService } from './mirroring-streaming-service.ts';
+import { createBrowserConfigurations, createPluginConfigurations, createServerConfigurations } from '../features/plugin-configurations/index.ts';
 
 export interface RuntimeOptions extends ClientOptions {
   readonly panelTarget: ManagerOptions['panelTarget'];
@@ -86,10 +87,13 @@ export function createFrontendRuntime(options: RuntimeOptions) {
     client,
     createCatalogRefresh(operations.refresh, devices, operations.invalidate),
   );
+  const browserConfigurations = createBrowserConfigurations(options.baseUrl, typeof window === 'undefined' ? undefined : window.localStorage);
   const webPlugins = createPluginManager({
     host: context,
     panelTarget: options.panelTarget,
     extensionRegistry: extensions,
+    configuration: (plugin) => browserConfigurations.prepare(plugin.id, plugin.configuration ?? null),
+    configurationApplied: (plugin) => browserConfigurations.markApplied(plugin.id),
     ...(options.componentTarget ? { componentTarget: options.componentTarget } : {}),
     ...(options.moduleTarget ? { moduleTarget: options.moduleTarget } : {}),
     ...(options.slotAdapter ? { slotAdapter: options.slotAdapter } : {}),
@@ -122,6 +126,26 @@ export function createFrontendRuntime(options: RuntimeOptions) {
     disableBrowser: browserPackages.disable,
     forgetBrowser: browserPackages.forget,
   });
+  const pluginConfigurations = createPluginConfigurations({
+    server: createServerConfigurations(client),
+    browser: browserConfigurations,
+    async inspectBrowser(id, signal) {
+      const snapshot = pluginPackages.snapshot('browser');
+      const packages = snapshot.result ?? await pluginPackages.refresh('browser', signal);
+      const pkg = packages.data.find((entry) => entry.id === id);
+      if (!pkg) throw new Error('浏览器插件不在当前安装目录中');
+      browserPackages.register({ id: pkg.id, version: pkg.version, entryPath: pkg.entry_path });
+      return webPlugins.inspectConfiguration(id, signal);
+    },
+    async reloadBrowser(id, signal) {
+      const selected = themes.snapshot().selected;
+      await webPlugins.unload(id);
+      signal.throwIfAborted();
+      await webPlugins.load(id);
+      signal.throwIfAborted();
+      if (selected?.pluginId === id && themes.snapshot().themes.some((theme) => theme.id === selected.id)) themes.select(selected.id);
+    },
+  });
   let lastOperations: unknown = null;
   host.context.onDispose(
     operations.subscribe((snapshot) => {
@@ -142,6 +166,7 @@ export function createFrontendRuntime(options: RuntimeOptions) {
     devices,
     serverPlugins,
     pluginPackages,
+    pluginConfigurations,
     webPlugins,
     themes,
     extensions: {
@@ -182,6 +207,7 @@ export function createFrontendRuntime(options: RuntimeOptions) {
         ]);
         extensions.dispose();
         browserPackages.clearSources();
+        browserConfigurations.dispose();
         const failures = results.filter((result) => result.status === 'rejected');
         if (failures.length)
           throw new AggregateError(

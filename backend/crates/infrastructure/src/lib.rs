@@ -22,5 +22,6 @@ pub mod performance_plugin;
 pub mod bundles;
 
 pub mod plugin_catalog;
+pub mod plugin_configurations;
 pub mod plugin_packages;
 pub mod splits;

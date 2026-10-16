@@ -42,5 +42,18 @@
         "required": ["artifact_id", "rules"]
       }
     }
-  ]
+  ],
+  "configuration": {
+    "version": 1,
+    "schema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "title": "无需配置",
+      "additionalProperties": false,
+      "properties": {},
+      "description": "当前插件没有部署配置项。操作参数仍由任务输入提供。"
+    },
+    "defaults": {},
+    "apply_policy": "next_invocation"
+  }
 }

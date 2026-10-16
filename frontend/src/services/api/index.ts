@@ -19,6 +19,10 @@ export type {
   PackageMediaType,
   PackageTarget,
   PluginInfo,
+  PluginConfigurationDto,
+  ConfigurationDefinitionDto,
+  ConfigurationPatchDto,
+  ConfigurationRevisionDto,
   SubmitJob,
   UploadQuery,
 } from './types.ts';
@@ -33,5 +37,6 @@ export type {
 export * from './device-endpoints.ts';
 export * from './artifact-queries.ts';
 export * from './session-gateway.ts';
+export * from './plugin-configuration.ts';
 export { createMcpTransport, MCP_PROTOCOL_VERSION } from './mcp.ts';
 export type { McpHttpResponse, McpTransport } from './mcp.ts';

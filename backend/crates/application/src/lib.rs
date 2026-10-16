@@ -15,6 +15,7 @@ mod execution;
 pub mod interactive;
 pub mod operation_aliases;
 mod operation_budget;
+pub mod plugin_configurations;
 pub mod plugin_lifecycle;
 pub mod plugin_packages;
 pub mod registration;

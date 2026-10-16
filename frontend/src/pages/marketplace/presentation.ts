@@ -3,7 +3,7 @@ import type {
   MarketplaceKind,
   MarketplaceRestart,
 } from '../../features/marketplace/index.ts';
-import type { PackageInfo, PackageKind } from '../../services/api/index.ts';
+import type { PackageInfo, PackageKind, PluginInfo } from '../../services/api/index.ts';
 import type { SettingsSection } from '../../features/settings/index.ts';
 
 export const kindLabels: Record<MarketplaceKind, string> = {
@@ -127,6 +127,13 @@ export function localPackageEntry(pkg: PackageInfo): MarketplaceEntry {
     sourceName: '本地安装',
     metadataIssues: ['缺少市场元数据'],
   };
+}
+
+export function localServerEntry(plugin: PluginInfo): MarketplaceEntry {
+  return { metadata_version: 1, id: plugin.id, kind: 'plugin', name: plugin.id, version: plugin.version,
+    summary: '宿主服务器插件，配置来自插件自身声明', description: '', keywords: [], categories: [], applies_to: ['deviceforge'],
+    supports_mcp: 'none', supports_agent: false, restart_policy: 'plugin_reload', platforms: [], architectures: [],
+    details: { plugin_kind: 'server' }, source: '', sourceName: '宿主插件目录', metadataIssues: ['缺少市场元数据'] };
 }
 
 export function describeDetail(value: unknown): string {

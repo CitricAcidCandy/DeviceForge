@@ -21,15 +21,22 @@ pub(crate) struct Remote {
 
 pub(crate) async fn read() -> Result<Config, String> {
     let arguments: Vec<_> = std::env::args_os().skip(1).collect();
-    let path = match arguments.as_slice() {
-        [] => std::env::current_exe()
-            .map_err(|_| "无法定位配置插件".to_owned())?
-            .with_file_name("settings.config.json"),
-        [flag, path] if flag == "--config" && PathBuf::from(path).is_absolute() => {
-            PathBuf::from(path)
+    let path = if let Some(path) = apk_plugin_sdk::configuration::managed_config_path() {
+        path
+    } else {
+        match arguments.as_slice() {
+            [] => std::env::current_exe()
+                .map_err(|_| "无法定位配置插件".to_owned())?
+                .with_file_name("settings.config.json"),
+            [flag, path] if flag == "--config" && PathBuf::from(path).is_absolute() => {
+                PathBuf::from(path)
+            }
+            _ => return Err("配置插件只接受 --config 绝对路径".into()),
         }
-        _ => return Err("配置插件只接受 --config 绝对路径".into()),
     };
+    if !path.is_absolute() {
+        return Err("配置插件部署配置须为绝对路径".into());
+    }
     let metadata = tokio::fs::metadata(&path)
         .await
         .map_err(|_| "部署者未配置 settings.config.json".to_owned())?;

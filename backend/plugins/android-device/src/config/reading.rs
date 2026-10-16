@@ -24,25 +24,31 @@ pub(super) async fn controlled<T>(
 impl Config {
     pub(crate) async fn read(context: &InvocationContext) -> Result<Self> {
         context.check()?;
-        let mut args = std::env::args_os().skip(1);
-        let (path, explicit) = match args.next() {
-            None => (
-                std::env::current_exe()
-                    .map_err(|_| Error::Io("无法定位插件部署入口"))?
-                    .parent()
-                    .ok_or(Error::Invalid("插件入口没有部署目录"))?
-                    .join("android-device.config.json"),
-                false,
-            ),
-            Some(flag) if flag == "--config" => (
-                PathBuf::from(args.next().ok_or(Error::Invalid("缺少部署配置路径"))?),
-                true,
-            ),
-            _ => return Err(Error::Invalid("仅支持--config部署参数")),
-        };
-        if args.next().is_some() {
-            return Err(Error::Invalid("部署参数过多"));
-        }
+        let (path, explicit) =
+            if let Some(path) = apk_plugin_sdk::configuration::managed_config_path() {
+                (path, true)
+            } else {
+                let mut args = std::env::args_os().skip(1);
+                let (path, explicit) = match args.next() {
+                    None => (
+                        std::env::current_exe()
+                            .map_err(|_| Error::Io("无法定位插件部署入口"))?
+                            .parent()
+                            .ok_or(Error::Invalid("插件入口没有部署目录"))?
+                            .join("android-device.config.json"),
+                        false,
+                    ),
+                    Some(flag) if flag == "--config" => (
+                        PathBuf::from(args.next().ok_or(Error::Invalid("缺少部署配置路径"))?),
+                        true,
+                    ),
+                    _ => return Err(Error::Invalid("仅支持--config部署参数")),
+                };
+                if args.next().is_some() {
+                    return Err(Error::Invalid("部署参数过多"));
+                }
+                (path, explicit)
+            };
         super::absolute(&path)?;
         let present = controlled(context, async {
             match tokio::fs::symlink_metadata(&path).await {

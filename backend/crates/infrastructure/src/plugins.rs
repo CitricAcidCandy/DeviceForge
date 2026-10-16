@@ -31,6 +31,7 @@ pub struct ProcessPlugin {
     performance: Option<apk_domain::performance::PerformanceSourceDefinition>,
     sessions: Vec<apk_domain::interactive::SessionDefinition>,
     session_validators: Arc<interactive::Validators>,
+    configurations: Option<Arc<dyn apk_domain::plugin_configurations::PluginConfigurationStore>>,
 }
 fn valid_name(name: &str) -> bool {
     !name.is_empty()
@@ -41,6 +42,9 @@ fn valid_name(name: &str) -> bool {
 }
 impl ProcessPlugin {
     pub fn new(manifest: Manifest) -> Result<Self> {
+        if let Some(definition) = &manifest.configuration {
+            crate::plugin_configurations::validate_definition(definition)?;
+        }
         if !matches!(
             manifest.protocol_version,
             PROTOCOL_VERSION
@@ -96,10 +100,18 @@ impl ProcessPlugin {
             performance,
             sessions,
             session_validators: Arc::new(session_validators),
+            configurations: None,
         })
     }
     pub fn manifest(&self) -> &Manifest {
         &self.manifest
+    }
+    pub fn with_configurations(
+        mut self,
+        store: Arc<dyn apk_domain::plugin_configurations::PluginConfigurationStore>,
+    ) -> Self {
+        self.configurations = Some(store);
+        self
     }
     pub fn with_artifacts(manifest: Manifest, artifacts: Arc<dyn ArtifactStore>) -> Result<Self> {
         let mut plugin = Self::new(manifest)?;
@@ -230,6 +242,12 @@ impl ProcessPlugin {
     ) -> Result<Value> {
         let deadline = context.deadline.map(tokio::time::Instant::from_std);
         execution_deadline::check(&cancel, deadline)?;
+        let configuration = if let Some(store) = &self.configurations {
+            execution_deadline::run(&cancel, deadline, store.invocation_path(&self.manifest.id))
+                .await?
+        } else {
+            None
+        };
         let prefix = format!("plugin.{}.", self.manifest.id);
         let name = operation
             .strip_prefix(&prefix)
@@ -304,6 +322,7 @@ impl ProcessPlugin {
                 directory: files.as_ref().map(|files| files.directory.path()),
                 timeout: Duration::from_secs(3600),
                 deadline: context.deadline,
+                configuration: configuration.as_deref(),
             };
             if self.manifest.protocol_version == CONTEXT_PROTOCOL_VERSION {
                 process::cooperative::run_with_context(invocation, self.unresolved.clone()).await?
@@ -312,48 +331,17 @@ impl ProcessPlugin {
             }
         } else {
             let mut cleanup = process_cleanup::Guard::new(self.unresolved.clone());
-            let result = if let Some(files) = &files {
-                if let Some(deadline) = deadline {
-                    process::run_plugin_until(
-                        &self.manifest.executable,
-                        &self.manifest.args,
-                        bytes,
-                        deadline,
-                        cancel.clone(),
-                        files.directory.path(),
-                    )
-                    .await
-                } else {
-                    process::run_plugin(
-                        &self.manifest.executable,
-                        &self.manifest.args,
-                        bytes,
-                        cancel.clone(),
-                        files.directory.path(),
-                    )
-                    .await
-                }
-            } else if let Some(deadline) = deadline {
-                process::run_until(
-                    &self.manifest.executable,
-                    &self.manifest.args,
-                    Some(bytes),
-                    deadline,
-                    cancel.clone(),
-                    true,
-                )
-                .await
-            } else {
-                process::run(
-                    &self.manifest.executable,
-                    &self.manifest.args,
-                    Some(bytes),
-                    Duration::from_secs(60),
-                    cancel.clone(),
-                    true,
-                )
-                .await
-            };
+            let result = process::configured_plugin(process::PluginInvocation {
+                executable: &self.manifest.executable,
+                args: &self.manifest.args,
+                input: bytes,
+                deadline: deadline
+                    .unwrap_or_else(|| tokio::time::Instant::now() + Duration::from_secs(60)),
+                cancel: cancel.clone(),
+                directory: files.as_ref().map(|files| files.directory.path()),
+                configuration: configuration.as_deref(),
+            })
+            .await;
             cleanup.observe(&result);
             let output = result?;
             let response: Response = serde_json::from_slice(&output)
@@ -436,6 +424,7 @@ mod tests {
     fn reject_protocol_and_duplicate_names() {
         let mut manifest = Manifest {
             id: "test".into(),
+            configuration: None,
             version: "0.1.0".into(),
             protocol_version: 99,
             executable: std::env::current_exe()

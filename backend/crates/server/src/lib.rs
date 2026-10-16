@@ -26,6 +26,7 @@ struct ApiState {
     artifacts: Option<Arc<dyn apk_domain::artifacts::ArtifactStore>>,
     runtime: Option<runtime::RuntimeServices>,
     packages: Option<Arc<apk_application::plugin_packages::PackageService>>,
+    configurations: Option<Arc<apk_application::plugin_configurations::PluginConfigurationService>>,
 }
 struct Gate {
     token: String,
@@ -109,7 +110,16 @@ pub fn router_with_mcp(
     requests_per_second: u32,
     config: mcp::StreamableHttpServerConfig,
 ) -> apk_domain::Result<Router> {
-    build_router(app, token, requests_per_second, config, None, None, None)
+    build_router(
+        app,
+        token,
+        requests_per_second,
+        config,
+        None,
+        None,
+        None,
+        None,
+    )
 }
 pub fn router_with_artifacts(
     app: Arc<Application>,
@@ -124,6 +134,7 @@ pub fn router_with_artifacts(
         requests_per_second,
         config,
         Some(artifacts),
+        None,
         None,
         None,
     )
@@ -144,6 +155,7 @@ pub fn router_with_runtime(
         Some(artifacts),
         Some(runtime),
         None,
+        None,
     )
 }
 pub fn router_with_packages(
@@ -163,8 +175,32 @@ pub fn router_with_packages(
         Some(artifacts),
         Some(runtime),
         Some(packages),
+        None,
     )
 }
+#[allow(clippy::too_many_arguments)]
+pub fn router_with_configurations(
+    app: Arc<Application>,
+    token: String,
+    requests_per_second: u32,
+    config: mcp::StreamableHttpServerConfig,
+    artifacts: Arc<dyn apk_domain::artifacts::ArtifactStore>,
+    runtime: runtime::RuntimeServices,
+    packages: Arc<apk_application::plugin_packages::PackageService>,
+    configurations: Arc<apk_application::plugin_configurations::PluginConfigurationService>,
+) -> apk_domain::Result<Router> {
+    build_router(
+        app,
+        token,
+        requests_per_second,
+        config,
+        Some(artifacts),
+        Some(runtime),
+        Some(packages),
+        Some(configurations),
+    )
+}
+#[allow(clippy::too_many_arguments)]
 fn build_router(
     app: Arc<Application>,
     token: String,
@@ -173,6 +209,7 @@ fn build_router(
     artifacts: Option<Arc<dyn apk_domain::artifacts::ArtifactStore>>,
     runtime: Option<runtime::RuntimeServices>,
     packages: Option<Arc<apk_application::plugin_packages::PackageService>>,
+    configurations: Option<Arc<apk_application::plugin_configurations::PluginConfigurationService>>,
 ) -> apk_domain::Result<Router> {
     let plugin_service = runtime
         .as_ref()
@@ -191,6 +228,7 @@ fn build_router(
         artifacts,
         runtime,
         packages,
+        configurations,
         gate: Arc::new(Gate {
             token,
             window: Mutex::new((Instant::now(), 0)),
@@ -223,6 +261,22 @@ fn build_router(
         .route("/api/v2/diagnostics/logging", get(runtime::logging))
         .route("/api/v2/system/shutdown", post(runtime::shutdown))
         .route("/api/v2/plugins", get(plugin_routes::list))
+        .route(
+            "/api/v2/plugin-configurations",
+            get(plugin_configuration_routes::list),
+        )
+        .route(
+            "/api/v2/plugin-configurations/{kind}/{id}",
+            get(plugin_configuration_routes::get).patch(plugin_configuration_routes::patch),
+        )
+        .route(
+            "/api/v2/plugin-configurations/{kind}/{id}/reset",
+            post(plugin_configuration_routes::reset),
+        )
+        .route(
+            "/api/v2/plugin-configurations/{kind}/{id}/apply",
+            post(plugin_configuration_routes::apply),
+        )
         .route("/api/v2/device-providers", get(device_routes::providers))
         .route("/api/v2/devices", get(device_routes::directories))
         .route(
@@ -434,6 +488,8 @@ mod mcp_notifications;
 mod mcp_observability;
 mod mcp_tools;
 mod mcp_wire;
+mod plugin_configuration_openapi;
+mod plugin_configuration_routes;
 mod plugin_guide;
 mod plugin_package_routes;
 mod plugin_routes;

@@ -58,6 +58,58 @@ impl PluginService {
     pub async fn unload(self: &Arc<Self>, id: String) -> Result<PluginInfo> {
         self.change(id, false).await
     }
+    pub(crate) async fn apply_configuration(
+        self: &Arc<Self>,
+        store: Arc<dyn apk_domain::plugin_configurations::PluginConfigurationStore>,
+        id: String,
+        expected: u64,
+    ) -> Result<apk_domain::plugin_configurations::PluginConfiguration> {
+        self.serialized(move |service| async move {
+            use apk_domain::plugin_configurations::ConfigurationApplyPolicy;
+            let current = store.get(&id).await?;
+            if current.revision != expected {
+                return Err(Error::Conflict("配置修订已变化，请刷新后重试".into()));
+            }
+            if !current.compatible {
+                return Err(Error::Conflict("配置与插件声明不兼容，不能应用".into()));
+            }
+            let definition = current
+                .definition
+                .as_ref()
+                .ok_or_else(|| Error::Conflict("旧插件未声明统一配置".into()))?;
+            if definition.apply_policy == ConfigurationApplyPolicy::PluginReload
+                && service.list().iter().any(|owner| owner.id == id)
+            {
+                if service.protected.contains(&id) {
+                    return Err(Error::Conflict("当前插件受保护，不能运行中重载配置".into()));
+                }
+                // 新部署先完整验证；随后原子拒绝活动任务并关闭旧代际准入。
+                let plugin = service.catalog.load(&id).await?;
+                let app = service.app.clone();
+                let target = id.clone();
+                service
+                    .app
+                    .blocking(move || {
+                        let prepared = Prepared::new_with_bindings(plugin, &app.registry.1)?;
+                        app.registry.validate_replacement(&target, &prepared)?;
+                        let _active = app
+                            .active
+                            .lock()
+                            .map_err(|_| Error::Storage("任务准入状态异常".into()))?;
+                        if !_active.accepting {
+                            return Err(Error::Conflict("服务正在停止，不能重载配置".into()));
+                        }
+                        let owner = app.registry.detach_if_idle(&target)?;
+                        app.registry.finish(&owner)?;
+                        app.registry.publish(prepared)
+                    })
+                    .await?;
+            }
+            // 加载只注册贡献，不运行插件；成功后切换调用读取的修订指针。
+            store.mark_applied(&id, expected).await
+        })
+        .await
+    }
     async fn change(self: &Arc<Self>, id: String, loading: bool) -> Result<PluginInfo> {
         plugin_id(&id)?;
         self.serialized(move |service| async move {

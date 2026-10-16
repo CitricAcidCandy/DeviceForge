@@ -73,5 +73,118 @@
         "required": ["module_id"]
       }
     }
-  ]
+  ],
+  "configuration": {
+    "version": 1,
+    "schema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "title": "工具供给配置",
+      "additionalProperties": false,
+      "properties": {
+        "manifest_url": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "title": "远端清单地址",
+          "description": "与本地清单二选一；HTTP 需要显式启用。",
+          "minLength": 1,
+          "maxLength": 2048
+        },
+        "local_manifest": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "title": "本地清单",
+          "description": "与远端清单二选一；宿主管理时相对路径基于插件部署目录，独立旁置配置时基于配置文件目录。推荐填写绝对路径。",
+          "minLength": 1,
+          "maxLength": 4096
+        },
+        "manifest_cache_enabled": {
+          "type": "boolean",
+          "title": "启用清单缓存",
+          "default": true
+        },
+        "install_root": {
+          "type": "string",
+          "title": "工具安装根目录",
+          "description": "本机绝对目录，插件会建立目录；切换不会搬迁既有工具。",
+          "minLength": 1,
+          "maxLength": 4096
+        },
+        "allow_http": {
+          "type": "boolean",
+          "title": "允许 HTTP 清单和下载",
+          "default": false
+        },
+        "download_limit_bytes": {
+          "type": "integer",
+          "title": "下载大小上限（字节）",
+          "minimum": 1,
+          "maximum": 2147483648,
+          "default": 536870912
+        },
+        "extracted_limit_bytes": {
+          "type": "integer",
+          "title": "解压大小上限（字节）",
+          "minimum": 1,
+          "maximum": 4294967296,
+          "default": 1073741824
+        },
+        "file_limit": {
+          "type": "integer",
+          "title": "解压文件数量上限",
+          "minimum": 1,
+          "maximum": 100000,
+          "default": 10000
+        }
+      },
+      "required": [
+        "install_root"
+      ],
+      "oneOf": [
+        {
+          "required": [
+            "manifest_url"
+          ],
+          "properties": {
+            "manifest_url": {
+              "type": "string",
+              "minLength": 1
+            },
+            "local_manifest": {
+              "type": "null"
+            }
+          }
+        },
+        {
+          "required": [
+            "local_manifest"
+          ],
+          "properties": {
+            "local_manifest": {
+              "type": "string",
+              "minLength": 1
+            },
+            "manifest_url": {
+              "type": "null"
+            }
+          }
+        }
+      ]
+    },
+    "defaults": {
+      "local_manifest": "C:/DeviceForge/catalog/tool-catalog.json",
+      "manifest_cache_enabled": true,
+      "install_root": "C:/DeviceForge/tools",
+      "allow_http": false,
+      "download_limit_bytes": 536870912,
+      "extracted_limit_bytes": 1073741824,
+      "file_limit": 10000
+    },
+    "apply_policy": "next_invocation",
+    "legacy_filename": "tool-supply.config.json"
+  }
 }

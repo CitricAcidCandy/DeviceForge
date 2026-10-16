@@ -25,15 +25,22 @@ fn valid_video_encoder(value: &str) -> bool {
 }
 pub(crate) async fn read() -> Result<Config, String> {
     let args: Vec<_> = std::env::args_os().skip(1).collect();
-    let path = match args.as_slice() {
-        [] => std::env::current_exe()
-            .map_err(|_| "无法定位投屏插件")?
-            .with_file_name("mirroring.config.json"),
-        [flag, path] if flag == "--config" && PathBuf::from(path).is_absolute() => {
-            PathBuf::from(path)
+    let path = if let Some(path) = apk_plugin_sdk::configuration::managed_config_path() {
+        path
+    } else {
+        match args.as_slice() {
+            [] => std::env::current_exe()
+                .map_err(|_| "无法定位投屏插件")?
+                .with_file_name("mirroring.config.json"),
+            [flag, path] if flag == "--config" && PathBuf::from(path).is_absolute() => {
+                PathBuf::from(path)
+            }
+            _ => return Err("投屏插件只接受 --config 绝对路径".into()),
         }
-        _ => return Err("投屏插件只接受 --config 绝对路径".into()),
     };
+    if !path.is_absolute() {
+        return Err("投屏配置须为绝对路径".into());
+    }
     use tokio::io::AsyncReadExt;
     let mut raw = Vec::new();
     tokio::fs::File::open(path)

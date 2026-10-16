@@ -17,8 +17,11 @@
   },
   "dependencies": {
     "@noble/hashes": "2.0.1",
+    "ajv": "8.20.0",
     "class-variance-authority": "0.7.1",
     "clsx": "2.1.1",
+    "fflate": "0.8.3",
+    "it-tar": "6.0.6",
     "lucide-react": "1.56.0",
     "radix-ui": "1.8.1",
     "react": "19.3.0",

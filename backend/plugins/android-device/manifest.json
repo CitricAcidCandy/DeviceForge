@@ -838,5 +838,231 @@
         ]
       }
     }
-  ]
+  ],
+  "configuration": {
+    "version": 1,
+    "schema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "title": "Android 设备配置",
+      "additionalProperties": false,
+      "properties": {
+        "format_version": {
+          "type": "integer",
+          "title": "配置格式版本",
+          "const": 1,
+          "default": 1,
+          "readOnly": true
+        },
+        "tools": {
+          "type": "object",
+          "title": "本机工具",
+          "additionalProperties": false,
+          "properties": {
+            "adb": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "title": "ADB 入口",
+              "description": "填写单一程序名或本机绝对路径，不接受命令行拼接。",
+              "minLength": 1,
+              "maxLength": 4096
+            },
+            "java": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "title": "Java 入口",
+              "description": "填写单一程序名或本机绝对路径，不接受命令行拼接。",
+              "minLength": 1,
+              "maxLength": 4096
+            },
+            "bundletool": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "title": "Bundletool",
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "title": "工具入口类型",
+                  "const": "java_jar",
+                  "default": "java_jar",
+                  "readOnly": true
+                },
+                "jar": {
+                  "type": "string",
+                  "title": "JAR 文件",
+                  "description": "填写本机绝对路径；运行时继续检查路径资格和文件状态。",
+                  "minLength": 1,
+                  "maxLength": 4096
+                }
+              },
+              "required": [
+                "kind",
+                "jar"
+              ]
+            }
+          }
+        },
+        "unicode_input": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "title": "ADB Keyboard 固定资格",
+          "additionalProperties": false,
+          "properties": {
+            "package": {
+              "type": "string",
+              "title": "包名",
+              "const": "com.android.adbkeyboard",
+              "default": "com.android.adbkeyboard",
+              "readOnly": true
+            },
+            "component": {
+              "type": "string",
+              "title": "输入法组件",
+              "const": "com.android.adbkeyboard/.AdbIME",
+              "default": "com.android.adbkeyboard/.AdbIME",
+              "readOnly": true
+            },
+            "action": {
+              "type": "string",
+              "title": "广播动作",
+              "const": "ADB_INPUT_TEXT",
+              "default": "ADB_INPUT_TEXT",
+              "readOnly": true
+            },
+            "extra": {
+              "type": "string",
+              "title": "文本参数名",
+              "const": "msg",
+              "default": "msg",
+              "readOnly": true
+            }
+          },
+          "required": [
+            "package",
+            "component",
+            "action",
+            "extra"
+          ]
+        },
+        "scratch_root": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "title": "临时目录",
+          "description": "本机绝对目录；自动化和 Frida 要求目录已存在。",
+          "minLength": 1,
+          "maxLength": 4096
+        },
+        "profile": {
+          "type": "object",
+          "title": "设备采集与直播",
+          "additionalProperties": false,
+          "properties": {
+            "root_access": {
+              "type": "string",
+              "title": "Root 访问方式",
+              "enum": [
+                "auto",
+                "adbd_root",
+                "su_c"
+              ],
+              "default": "auto"
+            },
+            "simpleperf": {
+              "type": "string",
+              "title": "设备端 Simpleperf",
+              "description": "设备内绝对路径，只允许普通路径字符。",
+              "minLength": 1,
+              "maxLength": 1024,
+              "default": "/system/bin/simpleperf",
+              "pattern": "^/(?:[A-Za-z0-9_.-]+/)*[A-Za-z0-9_.-]+$"
+            },
+            "su": {
+              "type": "string",
+              "title": "设备端 su",
+              "description": "固定程序名 su 或设备内绝对路径。",
+              "minLength": 1,
+              "maxLength": 1024,
+              "default": "su"
+            },
+            "scrcpy_server": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "title": "scrcpy 服务文件",
+              "description": "填写本机绝对路径；运行时继续检查路径资格和文件状态。",
+              "minLength": 1,
+              "maxLength": 4096
+            },
+            "server_version": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "title": "scrcpy 服务版本",
+              "description": "仅含数字和点。",
+              "minLength": 1,
+              "maxLength": 32,
+              "pattern": "^[0-9.]+$"
+            },
+            "ffmpeg": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "title": "FFmpeg 入口",
+              "description": "填写单一程序名或本机绝对路径，不接受命令行拼接。",
+              "minLength": 1,
+              "maxLength": 4096
+            },
+            "ffprobe": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "title": "FFprobe 入口",
+              "description": "填写单一程序名或本机绝对路径，不接受命令行拼接。",
+              "minLength": 1,
+              "maxLength": 4096
+            },
+            "clock_helper": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "title": "设备时钟辅助程序",
+              "description": "填写本机绝对路径；运行时继续检查路径资格和文件状态。",
+              "minLength": 1,
+              "maxLength": 4096
+            }
+          }
+        }
+      },
+      "required": [
+        "format_version"
+      ]
+    },
+    "defaults": {
+      "format_version": 1,
+      "tools": {},
+      "profile": {
+        "root_access": "auto",
+        "simpleperf": "/system/bin/simpleperf",
+        "su": "su"
+      }
+    },
+    "apply_policy": "next_invocation",
+    "legacy_filename": "android-device.config.json"
+  }
 }

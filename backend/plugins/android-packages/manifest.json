@@ -302,5 +302,245 @@
         ]
       }
     }
-  ]
+  ],
+  "configuration": {
+    "version": 1,
+    "schema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "title": "Android 包处理配置",
+      "additionalProperties": false,
+      "properties": {
+        "format_version": {
+          "type": "integer",
+          "title": "配置格式版本",
+          "const": 1,
+          "default": 1,
+          "readOnly": true
+        },
+        "tools": {
+          "type": "object",
+          "title": "包处理工具",
+          "additionalProperties": false,
+          "properties": {
+            "java": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "title": "Java 入口",
+              "description": "填写单一程序名或本机绝对路径，不接受命令行拼接。",
+              "minLength": 1,
+              "maxLength": 4096
+            },
+            "apkanalyzer": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "title": "Apkanalyzer",
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "title": "工具入口类型",
+                  "const": "executable",
+                  "default": "executable",
+                  "readOnly": true
+                },
+                "executable": {
+                  "type": "string",
+                  "title": "可执行程序",
+                  "description": "填写单一程序名或本机绝对路径，不接受命令行拼接。",
+                  "minLength": 1,
+                  "maxLength": 4096
+                }
+              },
+              "required": [
+                "kind",
+                "executable"
+              ]
+            },
+            "apksigner": {
+              "title": "Apksigner",
+              "anyOf": [
+                {
+                  "type": "object",
+                  "title": "可执行程序",
+                  "additionalProperties": false,
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "title": "工具入口类型",
+                      "const": "executable",
+                      "default": "executable",
+                      "readOnly": true
+                    },
+                    "executable": {
+                      "type": "string",
+                      "title": "可执行程序",
+                      "description": "填写单一程序名或本机绝对路径，不接受命令行拼接。",
+                      "minLength": 1,
+                      "maxLength": 4096
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "executable"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "title": "Java JAR",
+                  "additionalProperties": false,
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "title": "工具入口类型",
+                      "const": "java_jar",
+                      "default": "java_jar",
+                      "readOnly": true
+                    },
+                    "jar": {
+                      "type": "string",
+                      "title": "JAR 文件",
+                      "description": "填写本机绝对路径；运行时继续检查路径资格和文件状态。",
+                      "minLength": 1,
+                      "maxLength": 4096
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "jar"
+                  ]
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "bundletool": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "title": "Bundletool",
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "title": "工具入口类型",
+                  "const": "java_jar",
+                  "default": "java_jar",
+                  "readOnly": true
+                },
+                "jar": {
+                  "type": "string",
+                  "title": "JAR 文件",
+                  "description": "填写本机绝对路径；运行时继续检查路径资格和文件状态。",
+                  "minLength": 1,
+                  "maxLength": 4096
+                }
+              },
+              "required": [
+                "kind",
+                "jar"
+              ]
+            },
+            "apktool": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "title": "Apktool",
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "title": "工具入口类型",
+                  "const": "java_jar",
+                  "default": "java_jar",
+                  "readOnly": true
+                },
+                "jar": {
+                  "type": "string",
+                  "title": "JAR 文件",
+                  "description": "填写本机绝对路径；运行时继续检查路径资格和文件状态。",
+                  "minLength": 1,
+                  "maxLength": 4096
+                }
+              },
+              "required": [
+                "kind",
+                "jar"
+              ]
+            }
+          }
+        },
+        "signing": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "title": "签名配置",
+          "additionalProperties": false,
+          "properties": {
+            "keystore": {
+              "type": "string",
+              "title": "签名密钥库",
+              "description": "填写本机绝对路径；运行时继续检查路径资格和文件状态。",
+              "minLength": 1,
+              "maxLength": 4096
+            },
+            "alias": {
+              "type": "string",
+              "title": "签名别名",
+              "description": "",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "store_password_file": {
+              "type": "string",
+              "title": "密钥库密码文件",
+              "description": "仅填写本机密码文件绝对路径，不在配置中存放密码。",
+              "minLength": 1,
+              "maxLength": 4096
+            },
+            "key_password_file": {
+              "type": "string",
+              "title": "私钥密码文件",
+              "description": "仅填写本机密码文件绝对路径，不在配置中存放密码。",
+              "minLength": 1,
+              "maxLength": 4096
+            }
+          },
+          "required": [
+            "keystore",
+            "alias",
+            "store_password_file",
+            "key_password_file"
+          ]
+        },
+        "scratch_root": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "title": "临时目录",
+          "description": "本机绝对目录；自动化和 Frida 要求目录已存在。",
+          "minLength": 1,
+          "maxLength": 4096
+        }
+      },
+      "required": [
+        "format_version"
+      ]
+    },
+    "defaults": {
+      "format_version": 1,
+      "tools": {}
+    },
+    "apply_policy": "next_invocation",
+    "legacy_filename": "android-packages.config.json"
+  }
 }

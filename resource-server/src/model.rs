@@ -129,7 +129,13 @@ pub fn validate_market_entry(entry: &MarketEntry) -> Result<(), MetadataError> {
     if entry.metadata_version != 1 {
         return Err(MetadataError::Version);
     }
-    if !valid_id(&entry.id) || entry.id.len() > 100 {
+    if entry.id.is_empty()
+        || entry.id.len() > 99
+        || !entry.id.as_bytes()[0].is_ascii_alphanumeric()
+        || !entry.id.bytes().all(|byte| {
+            byte.is_ascii_lowercase() || byte.is_ascii_digit() || b"._-".contains(&byte)
+        })
+    {
         return Err(MetadataError::Field("id"));
     }
     if entry.name.trim().is_empty() || entry.name.len() > 160 {
@@ -294,5 +300,16 @@ mod tests {
             validate_market_entry(&invalid),
             Err(MetadataError::Details(_))
         ));
+    }
+
+    #[test]
+    fn catalog_identity_matches_plugin_identifiers() {
+        let mut plugin = entry(ResourceKind::Plugin);
+        plugin.id = "demo.plugin-1".into();
+        assert!(validate_market_entry(&plugin).is_ok());
+        for id in ["../demo", "_demo", "Upper", "demo/plugin"] {
+            plugin.id = id.into();
+            assert!(validate_market_entry(&plugin).is_err());
+        }
     }
 }

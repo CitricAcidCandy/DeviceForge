@@ -12,6 +12,10 @@ export function createSession(context, id, runId) {
   let deviceRevision = 0;
   let closed = false;
   let closing;
+  function configuration() {
+    const value = context.configuration?.get();
+    return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  }
 
   function signal(caller) {
     const combined = AbortSignal.any([caller, context.signal, lifetime.signal]);
@@ -28,7 +32,7 @@ export function createSession(context, id, runId) {
     if (closed || context.signal.aborted) return;
     const data = snapshot();
     context.extensions.setState(id + '.catalog', data);
-    if (!closed && !context.signal.aborted) context.extensions.emitEvent(id + '.changed', data);
+    if (!closed && !context.signal.aborted && configuration().publishEvents !== false) context.extensions.emitEvent(id + '.changed', data);
   }
   function observeOperations(next) {
     if (closed || context.signal.aborted) return;
@@ -63,7 +67,8 @@ export function createSession(context, id, runId) {
   function remember(job, caller) {
     signal(caller);
     jobs.add(job.id);
-    if (jobs.size > 32) jobs.delete(jobs.values().next().value);
+    const limit = configuration().rememberedJobs ?? 32;
+    while (jobs.size > limit) jobs.delete(jobs.values().next().value);
     publish();
   }
   function track(release) {

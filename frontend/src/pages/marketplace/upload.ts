@@ -47,7 +47,7 @@ export const initialMarketplaceUploadDraft: MarketplaceUploadDraft = {
   author: '',
   license: 'MIT',
   visibility: 'market',
-  details: '{}',
+  details: '{"plugin_kind":"browser"}',
 };
 
 export function splitMetadataList(value: string): string[] {
@@ -80,8 +80,8 @@ export function createMarketplacePublishEntry(
   const platforms = splitMetadataList(draft.platforms);
   const architectures = splitMetadataList(draft.architectures);
   const id = requireText(draft.id, '条目标识');
-  if (!/^[a-z0-9][a-z0-9_-]{0,99}$/.test(id))
-    throw new Error('条目标识只能使用小写字母、数字、下划线和连字符');
+  if (!/^[a-z0-9][a-z0-9._-]{0,98}$/.test(id))
+    throw new Error('条目标识只能使用小写字母、数字、点、下划线和连字符，最多 99 字节');
   if (draft.kind === 'resource' && draft.visibility !== 'internal')
     throw new Error('资源类型必须使用内部可见性');
   const entry: MarketplacePublishEntry = {
@@ -110,4 +110,16 @@ export function createMarketplacePublishEntry(
   const issues = metadataIssues(entry);
   if (issues.length) throw new Error(issues.join('；'));
   return entry;
+}
+
+export function draftFromMetadata(entry: MarketplacePublishEntry): MarketplaceUploadDraft {
+  return {
+    id: entry.id, kind: entry.kind, name: entry.name, version: entry.version,
+    summary: entry.summary, description: entry.description, keywords: entry.keywords.join(','),
+    categories: entry.categories.join(','), appliesTo: entry.applies_to.join(','),
+    supportsMcp: entry.supports_mcp, supportsAgent: entry.supports_agent, restartPolicy: entry.restart_policy,
+    platforms: entry.platforms.join(','), architectures: entry.architectures.join(','),
+    author: entry.author ?? '', license: entry.license ?? '', visibility: entry.visibility ?? 'market',
+    details: JSON.stringify(entry.details, null, 2),
+  };
 }

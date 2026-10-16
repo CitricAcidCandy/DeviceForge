@@ -23,5 +23,98 @@
         }
       }
     ]
+  },
+  "configuration": {
+    "version": 1,
+    "schema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "title": "终端配置",
+      "additionalProperties": false,
+      "properties": {
+        "format_version": {
+          "type": "integer",
+          "title": "配置格式版本",
+          "const": 1,
+          "default": 1,
+          "readOnly": true
+        },
+        "profiles": {
+          "type": "object",
+          "title": "可用终端方案",
+          "additionalProperties": {
+            "type": "object",
+            "title": "终端方案",
+            "additionalProperties": false,
+            "properties": {
+              "executable": {
+                "type": "string",
+                "title": "可执行程序",
+                "description": "填写单一程序名或本机绝对路径，不接受命令行拼接。",
+                "minLength": 1,
+                "maxLength": 4096
+              },
+              "args": {
+                "type": "array",
+                "title": "固定启动参数",
+                "items": {
+                  "type": "string",
+                  "maxLength": 4096
+                },
+                "maxItems": 64,
+                "default": []
+              },
+              "directory": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "title": "工作目录",
+                "description": "填写本机绝对路径；运行时继续检查路径资格和文件状态。",
+                "minLength": 1,
+                "maxLength": 4096
+              },
+              "resource_scope": {
+                "type": "string",
+                "title": "进程回收范围",
+                "const": "direct_process",
+                "default": "direct_process",
+                "readOnly": true
+              }
+            },
+            "required": [
+              "executable",
+              "args",
+              "resource_scope"
+            ]
+          },
+          "minProperties": 1,
+          "maxProperties": 32,
+          "propertyNames": {
+            "pattern": "^[a-z0-9][a-z0-9._-]{0,63}$"
+          },
+          "description": "最多32项，名称须为小写标识；参数总字节上限仍由插件验证。"
+        }
+      },
+      "required": [
+        "format_version",
+        "profiles"
+      ]
+    },
+    "defaults": {
+      "format_version": 1,
+      "profiles": {
+        "python": {
+          "executable": "python",
+          "args": [
+            "-u",
+            "-i"
+          ],
+          "resource_scope": "direct_process"
+        }
+      }
+    },
+    "apply_policy": "next_invocation",
+    "legacy_filename": "terminal.config.json"
   }
 }

@@ -4,7 +4,6 @@ import { Textarea } from '../../../../components/Textarea/index.tsx';
 import {
   FormGrid,
   FormRow,
-  FileDropzone,
   SelectField,
   FormSection,
 } from '../../../../components/index.ts';
@@ -15,6 +14,9 @@ import type {
   MarketplaceRestart,
 } from '../../../../features/marketplace/index.ts';
 import type { MarketplaceUploadDraft } from '../../upload.ts';
+import type { UploadSelection } from '../../upload-preparation/index.ts';
+import { MarketplaceUploadContent } from '../MarketplaceUploadContent/index.tsx';
+import { MarketplaceUploadDetails } from '../MarketplaceUploadDetails/index.tsx';
 
 const kindOptions: readonly [MarketplaceKind, string][] = [
   ['plugin', '插件'],
@@ -42,9 +44,9 @@ export type MarketplaceUploadFormStep = 1 | 2;
 export interface MarketplaceUploadFormProps {
   readonly step: MarketplaceUploadFormStep;
   readonly draft: MarketplaceUploadDraft;
-  readonly file: File | null;
+  readonly selection: UploadSelection | null;
   readonly disabled: boolean;
-  readonly onFileChange: (file: File | null) => void;
+  readonly onSelectionChange: (selection: UploadSelection | null) => void;
   readonly onDraftChange: <K extends keyof MarketplaceUploadDraft>(
     key: K,
     value: MarketplaceUploadDraft[K],
@@ -54,22 +56,15 @@ export interface MarketplaceUploadFormProps {
 export function MarketplaceUploadForm({
   step,
   draft,
-  file,
+  selection,
   disabled,
-  onFileChange,
+  onSelectionChange,
   onDraftChange,
 }: MarketplaceUploadFormProps) {
   if (step === 1) {
     return (
       <div className="marketplace-upload-form">
         <FormGrid>
-          <FileDropzone
-            label="资源文件"
-            description="选择或拖入插件包、工具、配置，或图片与视频资源"
-            file={file}
-            disabled={disabled}
-            onFileChange={onFileChange}
-          />
           <FormRow label="类型">
             {(control) => (
               <SelectField
@@ -80,6 +75,7 @@ export function MarketplaceUploadForm({
                 onValueChange={(value) => {
                   const nextKind = kindOptions.find(([kind]) => kind === value)?.[0];
                   if (!nextKind) return;
+                  onSelectionChange(null);
                   onDraftChange('kind', nextKind);
                   onDraftChange('categories', marketplaceCategories[nextKind][0] ?? 'general');
                   onDraftChange('visibility', nextKind === 'resource' ? 'internal' : 'market');
@@ -120,9 +116,10 @@ export function MarketplaceUploadForm({
             )}
           </FormRow>
         </FormGrid>
-        {file && (
+        <MarketplaceUploadContent selection={selection} disabled={disabled} onChange={onSelectionChange} />
+        {selection && (
           <p className="muted">
-            已选择：{file.name}（{file.size} 字节）
+            已选择：{selection.name}（{selection.files.length} 个文件）
           </p>
         )}
       </div>
@@ -133,7 +130,7 @@ export function MarketplaceUploadForm({
     <div className="marketplace-upload-form">
       <FormSection title="基本信息与检索">
         <FormGrid>
-          <FormRow label="条目标识 *" hint="小写字母、数字、下划线或连字符">
+          <FormRow label="条目标识 *" hint="小写字母、数字、点、下划线或连字符">
             {(control) => (
               <Input
                 {...control}
@@ -291,17 +288,7 @@ export function MarketplaceUploadForm({
           <label htmlFor="marketplace-supports-agent">支持内置 Agent 调用</label>
         </div>
       </FormSection>
-      <FormRow label="类型专属描述" hint="工具、配置、分发包需填写契约要求的 JSON 字段">
-        {(control) => (
-          <Textarea
-            {...control}
-            value={draft.details}
-            disabled={disabled}
-            onChange={(event) => onDraftChange('details', event.target.value)}
-            rows={4}
-          />
-        )}
-      </FormRow>
+      <MarketplaceUploadDetails draft={draft} disabled={disabled} onChange={value => onDraftChange('details', value)} />
     </div>
   );
 }

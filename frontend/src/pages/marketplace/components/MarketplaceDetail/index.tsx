@@ -44,7 +44,7 @@ export function MarketplaceDetail({
   onInstall,
 }: {
   entry: MarketplaceEntry | null;
-  installed: PackageInfo | undefined;
+  installed: Pick<PackageInfo, 'version'> | undefined;
   busy: boolean;
   onClose(): void;
   onDownload(): void;

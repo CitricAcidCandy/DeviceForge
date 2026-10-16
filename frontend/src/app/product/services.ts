@@ -70,6 +70,7 @@ export function createProductServices(
   let closing: Promise<void> | null = null;
   return {
     runtime,
+    pluginConfigurations: runtime.pluginConfigurations,
     pluginDefaults,
     messages,
     marketplace,

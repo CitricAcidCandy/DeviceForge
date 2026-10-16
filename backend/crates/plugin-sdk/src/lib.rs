@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+pub mod configuration;
 pub mod context;
 pub mod cooperative;
 pub mod devices;
@@ -8,6 +9,7 @@ pub mod packages;
 pub mod performance;
 pub mod session;
 pub mod session_access;
+pub use configuration::{ConfigurationApplyPolicy, ConfigurationDefinition, managed_config_path};
 pub use context::{CONTEXT_PROTOCOL_VERSION, ReadyCommand, ReadyFrame, StartCommand, StartFrame};
 pub use execution::ExecutionBudget;
 pub use performance::{
@@ -99,6 +101,8 @@ pub struct PerformanceSample {
 pub struct Manifest {
     pub id: String,
     pub version: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub configuration: Option<ConfigurationDefinition>,
     pub protocol_version: u32,
     pub executable: String,
     #[serde(default)]

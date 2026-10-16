@@ -19,7 +19,16 @@ pub struct Deployment {
 impl Deployment {
     pub fn current(arguments: &[String]) -> Result<Self, String> {
         let executable = std::env::current_exe().map_err(|_| "SDK固定插件入口不可用")?;
-        Self::from_executable(&executable, arguments)
+        let managed = apk_plugin_sdk::configuration::managed_config_path();
+        let mut deployment =
+            Self::from_executable(&executable, if managed.is_some() { &[] } else { arguments })?;
+        if let Some(path) = managed {
+            if !path.is_absolute() {
+                return Err("SDK宿主管理配置须为绝对路径".into());
+            }
+            deployment.config = path;
+        }
+        Ok(deployment)
     }
 
     pub fn from_executable(executable: &Path, arguments: &[String]) -> Result<Self, String> {

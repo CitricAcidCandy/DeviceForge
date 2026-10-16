@@ -152,6 +152,14 @@ export function createPluginScope(host: HostContext) {
     ...(artifacts ? { artifacts } : {}),
     ...(taskHistory ? { taskHistory } : {}),
     ...(themes ? { themes } : {}),
+    ...(host.configuration ? { configuration: {
+      get() { current(); const configuration = host.configuration; if (!configuration) throw new Error('插件配置入口已撤销'); return configuration.get(); },
+      subscribe(listener) {
+        current();
+        const configuration = host.configuration; if (!configuration) throw new Error('插件配置入口已撤销');
+        return track(configuration.subscribe((values) => { if (!closed) listener(values); }));
+      },
+    } } : {}),
   });
   return { context, close, dispose, track };
 }

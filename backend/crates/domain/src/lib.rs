@@ -10,6 +10,7 @@ pub use executor_result::ExecutorResultFormat;
 pub mod operation_execution;
 pub use operation_execution::{OperationExecution, OperationExecutionSource};
 pub mod interactive;
+pub mod plugin_configurations;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {

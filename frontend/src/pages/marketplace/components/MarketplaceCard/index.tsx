@@ -16,13 +16,14 @@ import {
   categoryLabels,
   kindLabels,
   newerVersion,
-  configurationTarget,
   installBlock,
 } from '../../presentation.ts';
 
 export interface MarketplaceCardProps {
   entry: MarketplaceEntry;
-  installed?: PackageInfo | undefined;
+  installed?: Pick<PackageInfo, 'version'> | undefined;
+  removable?: boolean;
+  removeDisabled?: boolean;
   installedTab?: boolean;
   busy: boolean;
   onDetail(): void;
@@ -35,6 +36,8 @@ export function MarketplaceCard({
   entry,
   installed,
   installedTab = false,
+  removable = true,
+  removeDisabled = false,
   busy,
   onDetail,
   onDownload,
@@ -96,16 +99,16 @@ export function MarketplaceCard({
           <>
             <Button
               variant="outline"
-              disabled={busy || !configurationTarget(entry)}
-              title={configurationTarget(entry) ? '编辑插件声明的配置区' : '插件未声明配置入口'}
+              disabled={busy || entry.kind !== 'plugin'}
+              title="查看插件声明的配置"
               onClick={onConfigure}
             >
               <Settings2 />
               配置
             </Button>
-            <Button variant="ghost" disabled={busy} onClick={onRemove}>
+            <Button variant="ghost" disabled={busy || removeDisabled} onClick={onRemove}>
               <Trash2 />
-              卸载
+              {removable ? '卸载' : '停用'}
             </Button>
             {update && (
               <Button disabled={busy || !!blocked} title={blocked ?? undefined} onClick={onInstall}>

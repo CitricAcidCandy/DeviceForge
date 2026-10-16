@@ -7,6 +7,13 @@ export function createTaskLab(operationId: string): WebPlugin {
     version: '1.0.0',
     apiVersion: 2,
     panels: [],
+    configuration: {
+      version: 1, apply_policy: 'next_invocation',
+      schema: { type: 'object', additionalProperties: false, required: ['wrapInput', 'statusLabel'], properties: {
+        wrapInput: { type: 'boolean', title: '标记实验任务输入', description: '启用时为目标操作附加实验来源。' },
+        statusLabel: { type: 'string', title: '状态标题', minLength: 1, maxLength: 80 },
+      } }, defaults: { wrapInput: true, statusLabel: '任务实验扩展已运行' },
+    },
     contributions: {
       components: [
         {
@@ -14,7 +21,8 @@ export function createTaskLab(operationId: string): WebPlugin {
           title: '任务实验状态',
           slot: 'workspace.sidebar',
           async mount(target, host) {
-            target.textContent = '任务实验扩展已运行';
+            const configuration = host.configuration?.get();
+            target.textContent = configuration && typeof configuration === 'object' && !Array.isArray(configuration) && typeof configuration['statusLabel'] === 'string' ? configuration['statusLabel'] : '任务实验扩展已运行';
             const release = host.subscribeOperations((operations) => {
               target.textContent = `公开操作：${operations.length}`;
             });
@@ -62,8 +70,10 @@ export function createTaskLab(operationId: string): WebPlugin {
         {
           id: 'task-lab.input',
           priority: 0,
-          async transform(submission) {
-            return submission.operation === operationId
+          async transform(submission, host) {
+            const configuration = host.configuration?.get();
+            const wrap = !(configuration && typeof configuration === 'object' && !Array.isArray(configuration) && configuration['wrapInput'] === false);
+            return wrap && submission.operation === operationId
               ? { ...submission, input: { source: 'task-lab', value: submission.input } }
               : submission;
           },

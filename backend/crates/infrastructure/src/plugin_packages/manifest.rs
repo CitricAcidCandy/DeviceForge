@@ -89,6 +89,9 @@ pub fn validate(
     let (id, version, api_version, operations) = match kind {
         PackageKind::Browser => {
             let manifest: BrowserManifest = paths::json(root, &package.deviceforge.manifest)?;
+            if let Some(definition) = &manifest.configuration {
+                crate::plugin_configurations::validate_definition(definition)?;
+            }
             if manifest.api_version != 2
                 || entry.runtime != "browser"
                 || !(entry.path.ends_with(".js") || entry.path.ends_with(".mjs"))
@@ -142,6 +145,7 @@ pub fn validate(
             let mut manifest = Manifest {
                 id: portable.id.clone(),
                 version: portable.version.clone(),
+                configuration: portable.configuration.clone(),
                 protocol_version: portable.protocol_version,
                 executable: executable.to_string_lossy().into_owned(),
                 args,

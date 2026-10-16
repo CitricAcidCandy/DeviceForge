@@ -5,6 +5,7 @@ import type {
   SlotLease,
   WebPlugin,
   WebPluginRuntimeInfo,
+  ConfigurationAccess,
 } from '../plugin-sdk/index.ts';
 import { readPluginModule, validateContributions } from './contracts.ts';
 import { createPluginScope } from './scope.ts';
@@ -43,6 +44,8 @@ export interface ManagerOptions {
   ) => HTMLElement | null;
   readonly moduleTarget?: (route: string, pluginId: string, moduleId: string) => HTMLElement | null;
   readonly slotAdapter?: SlotAdapter;
+  readonly configuration?: (plugin: WebPlugin) => ConfigurationAccess | undefined;
+  readonly configurationApplied?: (plugin: WebPlugin) => void;
 }
 
 export function createPluginManager(options: ManagerOptions) {
@@ -117,10 +120,15 @@ export function createPluginManager(options: ManagerOptions) {
         [...running.values()].flatMap((item) => (item.plugin ? [item.plugin] : [])).concat(plugin),
       );
       runtime.plugin = plugin;
+      const configuration = options.configuration?.(plugin);
+      if (configuration) runtime.context = { ...runtime.context, configuration: {
+        get() { active(runtime); return configuration.get(); },
+        subscribe(listener) { active(runtime); return runtime.scope.track(configuration.subscribe((value) => { if (!runtime.scope.context.signal.aborted) listener(value); })); },
+      } };
       runtime.context = registry.attach(
         id,
         runtime.generation,
-        runtime.scope.context,
+        runtime.context,
         runtime.scope.track,
       );
       if (plugin.contributions)
@@ -133,6 +141,7 @@ export function createPluginManager(options: ManagerOptions) {
       runtime.activationStarted = true;
       await plugin.activate?.(runtime.context);
       active(runtime);
+      options.configurationApplied?.(plugin);
       runtime.state = 'loaded';
       return { id, generation: runtime.generation, state: runtime.state };
     } catch (error) {
@@ -263,6 +272,15 @@ export function createPluginManager(options: ManagerOptions) {
     }
   }
   return {
+    async inspectConfiguration(id: string, signal: AbortSignal) {
+      signal.throwIfAborted();
+      const source = sources.get(id);
+      if (!source) throw new Error('插件来源尚未登记');
+      const plugin = readPluginModule('plugin' in source ? source.plugin : await source.loader(signal));
+      signal.throwIfAborted();
+      if (plugin.id !== id) throw new Error('插件标识与登记来源不一致');
+      return plugin.configuration ?? null;
+    },
     register(source: TrustedRegistration) {
       if (closed) throw new Error('插件管理器已关闭');
       if (source.trusted !== true || !/^[a-z][a-z0-9._-]{0,99}$/.test(source.id))

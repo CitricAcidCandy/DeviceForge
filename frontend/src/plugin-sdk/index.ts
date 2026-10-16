@@ -3,11 +3,13 @@ import type { DeviceAccess } from './devices.ts';
 import type { ArtifactAccess } from './artifacts.ts';
 import type { TaskHistoryAccess } from './task-history.ts';
 import type { ThemeAccess, ThemeContribution } from './themes.ts';
+import type { ConfigurationAccess, ConfigurationDefinition } from './configuration.ts';
 export * from './models.ts';
 export type * from './devices.ts';
 export type * from './artifacts.ts';
 export type * from './task-history.ts';
 export type * from './themes.ts';
+export type * from './configuration.ts';
 export interface HostContext {
   readonly apiVersion: 2;
   readonly signal: AbortSignal;
@@ -27,6 +29,7 @@ export interface HostContext {
   readonly artifacts?: ArtifactAccess;
   readonly taskHistory?: TaskHistoryAccess;
   readonly themes?: ThemeAccess;
+  readonly configuration?: ConfigurationAccess;
 }
 export interface PanelContribution {
   readonly id: string;
@@ -38,6 +41,7 @@ export interface WebPlugin {
   readonly version: string;
   readonly apiVersion: 2;
   readonly panels: readonly PanelContribution[];
+  readonly configuration?: ConfigurationDefinition;
   readonly activate?: (context: HostContext) => Promise<void>;
   readonly deactivate?: Dispose;
   readonly contributions?: PluginContributions;

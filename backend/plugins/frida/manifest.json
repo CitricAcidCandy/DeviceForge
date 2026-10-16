@@ -339,5 +339,90 @@
         ]
       }
     }
-  ]
+  ],
+  "configuration": {
+    "version": 1,
+    "schema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "title": "Frida 配置",
+      "additionalProperties": false,
+      "properties": {
+        "format_version": {
+          "type": "integer",
+          "title": "配置格式版本",
+          "const": 1,
+          "default": 1,
+          "readOnly": true
+        },
+        "tools": {
+          "type": "object",
+          "title": "本机工具",
+          "additionalProperties": false,
+          "properties": {
+            "adb": {
+              "type": "string",
+              "title": "ADB 入口",
+              "description": "填写单一程序名或本机绝对路径，不接受命令行拼接。",
+              "minLength": 1,
+              "maxLength": 4096
+            },
+            "frida": {
+              "type": "string",
+              "title": "Frida 入口",
+              "description": "填写单一程序名或本机绝对路径，不接受命令行拼接。",
+              "minLength": 1,
+              "maxLength": 4096
+            },
+            "frida_ps": {
+              "type": "string",
+              "title": "Frida 进程查询入口",
+              "description": "填写单一程序名或本机绝对路径，不接受命令行拼接。",
+              "minLength": 1,
+              "maxLength": 4096
+            }
+          },
+          "required": [
+            "adb",
+            "frida",
+            "frida_ps"
+          ]
+        },
+        "server_path": {
+          "type": "string",
+          "title": "设备端服务路径",
+          "description": "须在 /data/local/tmp/ 下，不接受父路径。",
+          "minLength": 1,
+          "maxLength": 512,
+          "default": "/data/local/tmp/deviceforge-frida-server",
+          "pattern": "^/data/local/tmp/[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*$"
+        },
+        "scratch_root": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "title": "临时目录",
+          "description": "本机绝对目录；自动化和 Frida 要求目录已存在。",
+          "minLength": 1,
+          "maxLength": 4096
+        }
+      },
+      "required": [
+        "format_version",
+        "tools"
+      ]
+    },
+    "defaults": {
+      "format_version": 1,
+      "tools": {
+        "adb": "adb",
+        "frida": "frida",
+        "frida_ps": "frida-ps"
+      },
+      "server_path": "/data/local/tmp/deviceforge-frida-server"
+    },
+    "apply_policy": "next_invocation",
+    "legacy_filename": "frida.config.json"
+  }
 }

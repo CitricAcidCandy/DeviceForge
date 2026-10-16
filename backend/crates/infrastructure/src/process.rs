@@ -134,6 +134,49 @@ async fn await_capture(
         })
 }
 
+pub(crate) struct PluginInvocation<'a> {
+    pub executable: &'a str,
+    pub args: &'a [String],
+    pub input: Vec<u8>,
+    pub deadline: Instant,
+    pub cancel: CancellationToken,
+    pub directory: Option<&'a std::path::Path>,
+    pub configuration: Option<&'a std::path::Path>,
+}
+
+/// 配置路径在本次调用开始时固定，后续保存不会改变活动进程的配置快照。
+pub(crate) async fn configured_plugin(call: PluginInvocation<'_>) -> Result<Vec<u8>> {
+    crate::execution_deadline::check(&call.cancel, Some(call.deadline))?;
+    let mut command = ToolCommand::new(call.executable, call.args);
+    command.input = Some(&call.input);
+    command.directory = call.directory;
+    command.environment = Environment::Restricted;
+    if let Some(path) = call.configuration {
+        command.env.insert(
+            "DEVICEFORGE_PLUGIN_CONFIG".into(),
+            path.as_os_str().to_owned(),
+        );
+    }
+    if let Some(directory) = call.directory {
+        for key in ["TEMP", "TMP", "TMPDIR"] {
+            command
+                .env
+                .insert(key.into(), directory.as_os_str().to_owned());
+        }
+    }
+    await_capture(
+        tool_process::capture(
+            command,
+            ExecutionOptions::new(call.deadline),
+            call.cancel.clone(),
+        ),
+        &call.cancel,
+        call.deadline,
+    )
+    .await
+    .map(|(output, _)| output)
+}
+
 /// 包副本租约交给公共直接进程所有者，外层等待丢弃不提前删除目录。
 pub(crate) async fn package_output_until(
     executable: &str,
@@ -195,45 +238,6 @@ pub(crate) async fn run_until(
         .map(|(output, _)| output)
 }
 
-pub(crate) async fn run_plugin(
-    executable: &str,
-    args: &[String],
-    input: Vec<u8>,
-    cancel: CancellationToken,
-    directory: &std::path::Path,
-) -> Result<Vec<u8>> {
-    run_plugin_until(
-        executable,
-        args,
-        input,
-        Instant::now() + Duration::from_secs(60),
-        cancel,
-        directory,
-    )
-    .await
-}
-
-/// 插件工作目录与受限环境保持不变，调用方可共享其完整总期限。
-pub(crate) async fn run_plugin_until(
-    executable: &str,
-    args: &[String],
-    input: Vec<u8>,
-    deadline: Instant,
-    cancel: CancellationToken,
-    directory: &std::path::Path,
-) -> Result<Vec<u8>> {
-    capture(
-        executable,
-        args,
-        Some(input),
-        deadline,
-        cancel,
-        true,
-        Some(directory),
-    )
-    .await
-    .map(|(output, _)| output)
-}
 pub async fn run_text(
     executable: &str,
     args: &[String],

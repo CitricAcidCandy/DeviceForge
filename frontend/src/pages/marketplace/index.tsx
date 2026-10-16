@@ -35,7 +35,7 @@ export function MarketplacePage({
   const [upload, setUpload] = useState(false);
   const [selected, setSelected] = useState<MarketplaceEntry | null>(null);
   const [configuration, setConfiguration] = useState<MarketplaceEntry | null>(null);
-  const [removal, setRemoval] = useState<PackageInfo | null>(null);
+  const [removal, setRemoval] = useState<{ id: string; kind: 'server' | 'browser'; removable: boolean } | null>(null);
   useEffect(() => {
     if (!active) {
       setUpload(false);
@@ -44,18 +44,21 @@ export function MarketplacePage({
       setRemoval(null);
     }
   }, [active]);
-  const card = (entry: MarketplaceEntry, installed?: PackageInfo) => (
+  const card = (entry: MarketplaceEntry, installed?: Pick<PackageInfo, 'version'>, removable = true, removeDisabled = false) => (
     <MarketplaceCard
       key={`${entry.source}:${entry.id}:${entry.version}`}
       entry={entry}
       installed={installed}
+      removable={removable}
+      removeDisabled={removeDisabled}
       installedTab={tab === 'installed'}
       busy={market.action.pending}
       onDetail={() => setSelected(entry)}
       onDownload={() => market.download(entry)}
       onInstall={() => setSelected(entry)}
       onRemove={() => {
-        if (installed) setRemoval(installed);
+        const kind = entry.details['plugin_kind'];
+        if (installed && (kind === 'server' || kind === 'browser')) setRemoval({ id: entry.id, kind, removable });
       }}
       onConfigure={() => setConfiguration(entry)}
     />
@@ -81,7 +84,7 @@ export function MarketplacePage({
             </TabsTrigger>
             <TabsTrigger value="installed">
               <PackageCheck />
-              已安装 <span className="marketplace-count">{market.packages.length}</span>
+              已安装 <span className="marketplace-count">{market.installedEntries.length}</span>
             </TabsTrigger>
           </TabsList>
           <span className="marketplace-source" title={services.marketplace.currentUrl()}>
@@ -161,11 +164,11 @@ export function MarketplacePage({
           ) : null}
           {market.installedMetadataError && (
             <p className="muted" role="status">
-              市场描述暂不可用，仍可卸载已安装的插件。{market.installedMetadataError}
+              市场描述暂不可用，仍可配置和管理已安装的插件。{market.installedMetadataError}
             </p>
           )}
           <div className="marketplace-card-grid">
-            {market.installedEntries.map(({ entry, pkg }) => card(entry, pkg))}
+            {market.installedEntries.map(({ entry, installed, removable, removeDisabled }) => card(entry, installed, removable, removeDisabled))}
           </div>
           {!market.installedEntries.length && (
             <EmptyState
@@ -204,8 +207,8 @@ export function MarketplacePage({
         onOpenChange={(open) => {
           if (!open) setRemoval(null);
         }}
-        title="卸载插件"
-        description={`确认卸载 ${removal?.id ?? ''}？插件将先停止并撤销其扩展。`}
+        title={removal?.removable ? '卸载插件' : '停用宿主插件'}
+        description={`确认${removal?.removable ? '卸载' : '停用'} ${removal?.id ?? ''}？插件将停止并撤销其扩展。`}
         footer={
           <>
             <Button variant="outline" onClick={() => setRemoval(null)}>
@@ -214,11 +217,12 @@ export function MarketplacePage({
             <Button
               variant="destructive"
               onClick={() => {
-                if (removal) market.remove(removal.kind, removal.id);
+                if (removal?.removable) market.remove(removal.kind, removal.id);
+                else if (removal) void market.action.run((signal) => services.runtime.serverPlugins.unload(removal.id, signal));
                 setRemoval(null);
               }}
             >
-              确认卸载
+              确认{removal?.removable ? '卸载' : '停用'}
             </Button>
           </>
         }

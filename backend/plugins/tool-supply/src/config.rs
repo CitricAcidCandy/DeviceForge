@@ -84,9 +84,26 @@ impl Config {
             .parent()
             .ok_or(Error::Invalid("插件部署目录不存在"))?
             .join("tool-supply.config.json");
-        Self::read_path(&path, budget)
+        match apk_plugin_sdk::configuration::managed_config_path() {
+            Some(managed) => Self::read_with_base(
+                &managed,
+                path.parent().ok_or(Error::Invalid("插件部署目录不存在"))?,
+                budget,
+            ),
+            None => Self::read_path(&path, budget),
+        }
     }
     pub fn read_path(path: &Path, budget: &Budget) -> Result<Self> {
+        Self::read_with_base(
+            path,
+            path.parent().ok_or(Error::Invalid("配置目录不存在"))?,
+            budget,
+        )
+    }
+    fn read_with_base(path: &Path, base: &Path, budget: &Budget) -> Result<Self> {
+        if !path.is_absolute() || !base.is_absolute() {
+            return Err(Error::Invalid("配置与清单基目录须为绝对路径"));
+        }
         let bytes = read_bounded(path, 64 * 1024, budget)?;
         let raw: Raw =
             serde_json::from_slice(&bytes).map_err(|_| Error::Invalid("部署配置结构错误"))?;
@@ -107,9 +124,7 @@ impl Config {
             (None, Some(local)) => Source::Local(if local.is_absolute() {
                 local
             } else {
-                path.parent()
-                    .ok_or(Error::Invalid("配置目录不存在"))?
-                    .join(local)
+                base.join(local)
             }),
             _ => {
                 return Err(Error::Invalid(
@@ -153,4 +168,41 @@ pub(crate) fn validate_url(value: &str, allow_http: bool) -> Result<()> {
         ));
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod configuration_tests {
+    use super::*;
+    use std::time::{Duration, Instant};
+    use tokio_util::sync::CancellationToken;
+
+    #[test]
+    fn revision_relative_manifest_uses_deployment_base_and_missing_revision_fails() {
+        let root = tempfile::tempdir().unwrap();
+        let revisions = root.path().join("revisions");
+        fs::create_dir(&revisions).unwrap();
+        let path = revisions.join("1.json");
+        fs::write(
+            &path,
+            serde_json::to_vec(&serde_json::json!({
+                "local_manifest":"tool-catalog.json", "install_root":root.path().join("tools")
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+        let budget = Budget {
+            deadline: Instant::now() + Duration::from_secs(5),
+            cancel: CancellationToken::new(),
+        };
+        let config = Config::read_with_base(&path, root.path(), &budget).unwrap();
+        assert!(
+            matches!(config.source, Source::Local(source) if source == root.path().join("tool-catalog.json"))
+        );
+        let legacy = Config::read_path(&path, &budget).unwrap();
+        assert!(
+            matches!(legacy.source, Source::Local(source) if source == revisions.join("tool-catalog.json"))
+        );
+        fs::remove_file(&path).unwrap();
+        assert!(Config::read_with_base(&path, root.path(), &budget).is_err());
+    }
 }

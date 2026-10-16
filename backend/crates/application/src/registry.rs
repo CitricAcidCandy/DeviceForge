@@ -303,6 +303,62 @@ impl Prepared {
     }
 }
 impl Registry {
+    pub fn validate_replacement(&self, id: &str, prepared: &Prepared) -> Result<()> {
+        let snapshot = self
+            .0
+            .read()
+            .map_err(|_| Error::Storage("注册表替换验证异常".into()))?;
+        let owner = snapshot
+            .owners
+            .get(id)
+            .ok_or_else(|| Error::NotFound("插件未加载".into()))?;
+        if prepared.owner.info.id != id {
+            return Err(Error::Invalid("重载插件身份不一致".into()));
+        }
+        let foreign_entry = |name: &String| {
+            snapshot.entries.get(name).is_some_and(|entry| {
+                !entry
+                    .owner
+                    .as_ref()
+                    .is_some_and(|value| Arc::ptr_eq(value, owner))
+            }) || snapshot
+                .sessions
+                .get(name)
+                .is_some_and(|entry| !Arc::ptr_eq(&entry.owner, owner))
+        };
+        if prepared
+            .entries
+            .keys()
+            .chain(prepared.sessions.keys())
+            .any(foreign_entry)
+        {
+            return Err(Error::Conflict("重载贡献与其他插件或内置操作冲突".into()));
+        }
+        let old_entries = snapshot
+            .entries
+            .values()
+            .filter(|entry| {
+                entry
+                    .owner
+                    .as_ref()
+                    .is_some_and(|value| Arc::ptr_eq(value, owner))
+            })
+            .count()
+            + snapshot
+                .sessions
+                .values()
+                .filter(|entry| Arc::ptr_eq(&entry.owner, owner))
+                .count();
+        if snapshot.entries.len() + snapshot.sessions.len() - old_entries
+            + prepared.entries.len()
+            + prepared.sessions.len()
+            > 4096
+            || snapshot.revision > u64::MAX - 2
+        {
+            return Err(Error::Conflict("重载超过操作目录容量或修订上限".into()));
+        }
+        Ok(())
+    }
     pub fn publish(&self, prepared: Prepared) -> Result<PluginInfo> {
         let mut snapshot = self
             .0
@@ -341,6 +397,12 @@ impl Registry {
         Ok(info)
     }
     pub fn detach(&self, id: &str) -> Result<Arc<Owner>> {
+        self.detach_checked(id, false)
+    }
+    pub fn detach_if_idle(&self, id: &str) -> Result<Arc<Owner>> {
+        self.detach_checked(id, true)
+    }
+    fn detach_checked(&self, id: &str, require_idle: bool) -> Result<Arc<Owner>> {
         let mut snapshot = self
             .0
             .write()
@@ -350,6 +412,16 @@ impl Registry {
             .get(id)
             .cloned()
             .ok_or_else(|| Error::NotFound("插件未加载".into()))?;
+        if require_idle {
+            if owner.info().cleanup_failed {
+                return Err(Error::CleanupFailed);
+            }
+            if !owner.tracker.is_empty() || owner.draining.load(Ordering::Acquire) {
+                return Err(Error::Conflict(
+                    "插件仍有活动任务或会话，不能应用需要重载的配置".into(),
+                ));
+            }
+        }
         if !owner.draining.load(Ordering::Acquire) {
             let revision = snapshot
                 .revision

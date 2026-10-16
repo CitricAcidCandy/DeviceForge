@@ -1438,3 +1438,6 @@ details[open] > summary { margin-bottom: 12px; }
   animation-iteration-count: 1 !important;
   transition-duration: 0.01ms !important;
 }
+@media (max-width: 640px) {
+  [data-slot='checkbox'] { min-width: 44px; min-height: 44px; }
+}

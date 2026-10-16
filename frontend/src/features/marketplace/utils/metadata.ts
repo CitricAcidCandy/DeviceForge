@@ -11,7 +11,7 @@ export const marketplaceCategories: Record<MarketplaceKind, readonly string[]> =
 export function metadataIssues(entry: MarketplacePublishEntry): string[] {
   const issues: string[] = [];
   if (entry.metadata_version !== 1) issues.push('元数据版本不受支持');
-  if (!/^[a-z0-9][a-z0-9_-]{0,99}$/.test(entry.id)) issues.push('条目标识无效');
+  if (!/^[a-z0-9][a-z0-9._-]{0,98}$/.test(entry.id)) issues.push('条目标识无效');
   for (const [label, value, limit] of [
     ['名称', entry.name, 160],
     ['版本', entry.version, 80],

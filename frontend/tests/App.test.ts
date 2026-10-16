@@ -243,6 +243,8 @@ test('中后台分组导航、折叠与专注保留页面草稿，设备上下�
       deviceNode,
       '切页不应替换已挂载的设备页面',
     );
+    assert.equal(target.querySelector('button[aria-label="选择当前设备"]'), null, '设备目录使用本页设备入口，不重复展示工作设备选择器');
+    await act(async () => navigate('应用与包').click());
     const devicePicker = target.querySelector('button[aria-label="选择当前设备"]');
     assert.ok(devicePicker);
     assert.match(devicePicker.textContent ?? '', /尚未选择设备|选择设备/);

@@ -1,0 +1,9 @@
+{
+  "format_version": 1,
+  "sources": [
+    {
+      "name": "本地默认市场",
+      "url": "http://127.0.0.1:7040"
+    }
+  ]
+}

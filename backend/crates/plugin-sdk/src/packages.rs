@@ -29,6 +29,8 @@ pub struct PackageEntrypoint {
 pub struct PortableServerManifest {
     pub id: String,
     pub version: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub configuration: Option<crate::ConfigurationDefinition>,
     pub protocol_version: u32,
     #[serde(default)]
     pub args: Vec<String>,
@@ -49,5 +51,7 @@ pub struct PortableServerManifest {
 pub struct BrowserManifest {
     pub id: String,
     pub version: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub configuration: Option<crate::ConfigurationDefinition>,
     pub api_version: u32,
 }

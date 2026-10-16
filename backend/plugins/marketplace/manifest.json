@@ -7,5 +7,70 @@
   "operations": [
     { "name": "sources", "title": "读取市场来源", "input_schema": { "type": "object", "additionalProperties": false, "properties": {} } },
     { "name": "catalog", "title": "检索市场目录", "execution": { "api_version": 1, "total_timeout_ms": 30000 }, "input_schema": { "type": "object", "additionalProperties": true } }
-  ]
+  ],
+  "configuration": {
+    "version": 1,
+    "schema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "title": "市场来源配置",
+      "additionalProperties": false,
+      "properties": {
+        "format_version": {
+          "type": "integer",
+          "title": "配置格式版本",
+          "const": 1,
+          "default": 1,
+          "readOnly": true
+        },
+        "sources": {
+          "type": "array",
+          "title": "市场来源",
+          "minItems": 1,
+          "maxItems": 64,
+          "items": {
+            "type": "object",
+            "title": "市场来源",
+            "additionalProperties": false,
+            "properties": {
+              "name": {
+                "type": "string",
+                "title": "来源名称",
+                "description": "",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "url": {
+                "type": "string",
+                "title": "来源地址",
+                "description": "HTTP 或 HTTPS 目录地址，不允许地址凭据、查询和片段；顺序决定同版本来源优先级。",
+                "minLength": 1,
+                "maxLength": 2048,
+                "pattern": "^https?://"
+              }
+            },
+            "required": [
+              "name",
+              "url"
+            ]
+          }
+        }
+      },
+      "required": [
+        "format_version",
+        "sources"
+      ]
+    },
+    "defaults": {
+      "format_version": 1,
+      "sources": [
+        {
+          "name": "本地默认市场",
+          "url": "http://127.0.0.1:7040"
+        }
+      ]
+    },
+    "apply_policy": "next_invocation",
+    "legacy_filename": "marketplace.config.json"
+  }
 }

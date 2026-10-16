@@ -12,7 +12,7 @@ import {
   selectPluginPlans,
   verifyNativeHost,
 } from './native-plugin-plan.mjs';
-import { loadNativePluginSource } from './native-plugin-source.mjs';
+import { copyNativePluginConfiguration, loadNativePluginSource } from './native-plugin-source.mjs';
 import { copyNativePluginAssets } from './native-plugin-assets.mjs';
 
 const execute = promisify(execFile);
@@ -93,9 +93,7 @@ async function packOne(plan, temporary, destination, compiled, options, cliVersi
   const directory = join(temporary, plan.id);
   await mkdir(join(directory, 'bin'), { recursive: true });
   await copyFile(await compiled.binary(plan.packageId, plan.target), join(directory, plan.entry));
-  for (const template of plan.configurationTemplates) {
-    await copyFile(template.source, join(directory, 'bin', template.name));
-  }
+  await copyNativePluginConfiguration(plan, directory);
   await copyNativePluginAssets(plan.assets, directory, [
     plan.entry,
     ...plan.configurationTemplates.map((template) => `bin/${template.name}`),
@@ -103,7 +101,10 @@ async function packOne(plan, temporary, destination, compiled, options, cliVersi
   const sourceReadme = await readFile(await regularFile(plan.sourceDirectory, 'README.md'), 'utf8');
   await writeFile(
     join(directory, 'README.md'),
-    nativePluginReadme(plan, cliVersion, sourceReadme, plan.configurationTemplates),
+    nativePluginReadme(plan, cliVersion, sourceReadme, plan.configurationTemplates) +
+      (plan.portableManifest.configuration
+        ? '\n\n宿主可根据 plugin.json 的 configuration.schema 在插件管理中编辑配置。保存后的修订通过 DEVICEFORGE_PLUGIN_CONFIG 交给插件；旧 --config 与旁置配置仍可用于独立部署。公开模板不会覆盖已有配置。路径示例须改为部署机器实际路径，切换存储目录不自动迁移数据。\n'
+        : ''),
   );
   await writeFile(join(directory, 'package.json'), JSON.stringify(plan.packageJson, null, 2));
   await writeFile(join(directory, 'plugin.json'), JSON.stringify(plan.portableManifest, null, 2));

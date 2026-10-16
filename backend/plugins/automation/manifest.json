@@ -193,5 +193,68 @@
         "event_type": {"type": "integer", "minimum": 0, "maximum": 2}
       }}
     }
-  ]
+  ],
+  "configuration": {
+    "version": 1,
+    "schema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "title": "自动化配置",
+      "additionalProperties": false,
+      "properties": {
+        "format_version": {
+          "type": "integer",
+          "title": "配置格式版本",
+          "const": 1,
+          "default": 1,
+          "readOnly": true
+        },
+        "adb": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "title": "ADB 入口",
+          "description": "填写单一程序名或本机绝对路径，不接受命令行拼接。",
+          "minLength": 1,
+          "maxLength": 4096
+        },
+        "input_trace": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "title": "InputTrace 入口",
+          "description": "填写单一程序名或本机绝对路径，不接受命令行拼接。",
+          "minLength": 1,
+          "maxLength": 4096
+        },
+        "desktop_enabled": {
+          "type": "boolean",
+          "title": "启用 Windows 桌面操作",
+          "default": false
+        },
+        "scratch_root": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "title": "临时目录",
+          "description": "本机绝对目录；自动化和 Frida 要求目录已存在。",
+          "minLength": 1,
+          "maxLength": 4096
+        }
+      },
+      "required": [
+        "format_version"
+      ]
+    },
+    "defaults": {
+      "format_version": 1,
+      "adb": "adb",
+      "desktop_enabled": false
+    },
+    "apply_policy": "next_invocation",
+    "legacy_filename": "automation.config.json"
+  }
 }

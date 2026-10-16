@@ -71,7 +71,7 @@ export function App({ services }: { services: ProductServices }) {
             {entry.id === 'devices' ? (
               <DevicesPage services={services} active={route === 'devices'} />
             ) : entry.id === 'plugins' ? (
-              <PluginsPage services={services} />
+              <PluginsPage services={services} active={route === 'plugins'} />
             ) : entry.id === 'tasks' ? (
               <TasksPage services={services} />
             ) : entry.id === 'settings' ? (

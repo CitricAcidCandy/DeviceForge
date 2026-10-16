@@ -35,5 +35,61 @@
     {"name":"app.stop","title":"停止Harmony应用","input_schema":{"type":"object","additionalProperties":false,"properties":{"device_id":{"type":"string","minLength":1,"maxLength":200,"pattern":"^[A-Za-z0-9._:\\[\\]][A-Za-z0-9._:\\[\\]-]*$"},"input":{"type":"object","additionalProperties":false,"properties":{"bundle":{"type":"string","maxLength":200,"pattern":"^[A-Za-z][A-Za-z0-9_]*(?:\\.[A-Za-z][A-Za-z0-9_]*)+$"}},"required":["bundle"]}},"required":["device_id","input"]}},
     {"name":"app.reset","title":"重置Harmony应用数据","input_schema":{"type":"object","additionalProperties":false,"properties":{"device_id":{"type":"string","minLength":1,"maxLength":200,"pattern":"^[A-Za-z0-9._:\\[\\]][A-Za-z0-9._:\\[\\]-]*$"},"input":{"type":"object","additionalProperties":false,"properties":{"bundle":{"type":"string","maxLength":200,"pattern":"^[A-Za-z][A-Za-z0-9_]*(?:\\.[A-Za-z][A-Za-z0-9_]*)+$"}},"required":["bundle"]}},"required":["device_id","input"]}},
     {"name":"screenshot","title":"保存Harmony截图","input_schema":{"type":"object","additionalProperties":false,"properties":{"device_id":{"type":"string","minLength":1,"maxLength":200,"pattern":"^[A-Za-z0-9._:\\[\\]][A-Za-z0-9._:\\[\\]-]*$"},"input":{"type":"object","additionalProperties":false,"properties":{},"required":[]}},"required":["device_id","input"]}}
-  ]
+  ],
+  "configuration": {
+    "version": 1,
+    "schema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "title": "Harmony 设备配置",
+      "additionalProperties": false,
+      "properties": {
+        "format_version": {
+          "type": "integer",
+          "title": "配置格式版本",
+          "const": 1,
+          "default": 1,
+          "readOnly": true
+        },
+        "tools": {
+          "type": "object",
+          "title": "本机工具",
+          "additionalProperties": false,
+          "properties": {
+            "hdc": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "title": "HDC 入口",
+              "description": "填写单一程序名或本机绝对路径，不接受命令行拼接。",
+              "minLength": 1,
+              "maxLength": 4096
+            }
+          }
+        },
+        "scratch_root": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "title": "临时目录",
+          "description": "本机绝对目录；自动化和 Frida 要求目录已存在。",
+          "minLength": 1,
+          "maxLength": 4096
+        }
+      },
+      "required": [
+        "format_version"
+      ]
+    },
+    "defaults": {
+      "format_version": 1,
+      "tools": {
+        "hdc": "hdc"
+      }
+    },
+    "apply_policy": "next_invocation",
+    "legacy_filename": "harmony-device.config.json"
+  }
 }

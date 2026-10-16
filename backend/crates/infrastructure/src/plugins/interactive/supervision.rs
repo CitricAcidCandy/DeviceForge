@@ -22,6 +22,8 @@ pub(super) struct Call {
     pub request: SessionRequest,
     pub cancel: CancellationToken,
     pub channels: Channels,
+    pub configurations:
+        Option<Arc<dyn apk_domain::plugin_configurations::PluginConfigurationStore>>,
 }
 
 impl Call {
@@ -103,6 +105,19 @@ async fn execute(call: &mut Call, guard: &mut Guard) -> SessionExit {
     if let Err(error) = execution_deadline::check(&call.cancel, Some(deadline)) {
         return failed(error, false);
     }
+    let configuration = match &call.configurations {
+        Some(store) => match execution_deadline::run(
+            &call.cancel,
+            Some(deadline),
+            store.invocation_path(&call.manifest.id),
+        )
+        .await
+        {
+            Ok(path) => path,
+            Err(error) => return failed(error, false),
+        },
+        None => None,
+    };
     let files = match InvocationFiles::prepare_until(
         call.artifacts.as_deref(),
         call.manifest.artifacts.as_ref(),
@@ -132,6 +147,11 @@ async fn execute(call: &mut Call, guard: &mut Guard) -> SessionExit {
     options.input_limit = 32 * 1024 * 1024;
     let mut command = ToolCommand::new(&call.manifest.executable, &call.manifest.args);
     command.environment = Environment::Restricted;
+    if let Some(path) = configuration {
+        command
+            .env
+            .insert("DEVICEFORGE_PLUGIN_CONFIG".into(), path.into_os_string());
+    }
     command.directory = Some(files.directory.path());
     for name in ["TEMP", "TMP", "TMPDIR"] {
         command

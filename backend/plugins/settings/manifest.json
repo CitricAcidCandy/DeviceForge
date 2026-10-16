@@ -283,5 +283,72 @@
         "api_version": 1
       }
     }
-  ]
+  ],
+  "configuration": {
+    "version": 1,
+    "schema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "title": "配置存储插件",
+      "additionalProperties": false,
+      "properties": {
+        "format_version": {
+          "type": "integer",
+          "title": "配置格式版本",
+          "const": 1,
+          "default": 1,
+          "readOnly": true
+        },
+        "storage_root": {
+          "type": "string",
+          "title": "配置存储根目录",
+          "description": "本机绝对目录。切换根目录仅改变后续读写位置，不自动迁移原数据。",
+          "minLength": 1,
+          "maxLength": 4096
+        },
+        "remote": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "title": "远端配置存储",
+          "additionalProperties": false,
+          "properties": {
+            "base_url": {
+              "type": "string",
+              "title": "远端目录地址",
+              "description": "HTTP 或 HTTPS 目录地址，末尾保留 /，不允许地址凭据、查询和片段。",
+              "minLength": 1,
+              "maxLength": 2048
+            },
+            "headers": {
+              "type": "object",
+              "title": "远端请求头",
+              "additionalProperties": {
+                "type": "string",
+                "title": "请求头值",
+                "writeOnly": true,
+                "format": "password"
+              },
+              "maxProperties": 32,
+              "description": "可能含敏感值，界面不回显。"
+            }
+          },
+          "required": [
+            "base_url"
+          ]
+        }
+      },
+      "required": [
+        "format_version",
+        "storage_root"
+      ]
+    },
+    "defaults": {
+      "format_version": 1,
+      "storage_root": "C:/DeviceForge/data/settings"
+    },
+    "apply_policy": "next_invocation",
+    "legacy_filename": "settings.config.json"
+  }
 }

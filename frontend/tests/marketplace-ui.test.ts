@@ -9,18 +9,21 @@ import type { MarketplaceCard } from '../src/pages/marketplace/components/Market
 import type { MarketplaceDetail } from '../src/pages/marketplace/components/MarketplaceDetail/index.tsx';
 import type { FileDropzone } from '../src/components/FileDropzone/index.tsx';
 import type { Stepper } from '../src/components/Stepper/index.tsx';
+import type { PluginConfigurationDialog, ConfigurationDialogValue } from '../src/components/PluginConfigurationDialog/index.tsx';
 import type {
   MarketplaceController,
   MarketplaceEntry,
   MarketplaceResourceRecord,
 } from '../src/features/marketplace/index.ts';
 import type { PackageInfo } from '../src/services/api/index.ts';
+import type { PreparationExecutor } from '../src/pages/marketplace/upload-preparation/index.ts';
 
 type UploadProps = ComponentProps<typeof MarketplaceUploadDialog>;
 type CardProps = ComponentProps<typeof MarketplaceCard>;
 type DetailProps = ComponentProps<typeof MarketplaceDetail>;
 type FileProps = ComponentProps<typeof FileDropzone>;
 type StepProps = ComponentProps<typeof Stepper>;
+type ConfigurationProps = ComponentProps<typeof PluginConfigurationDialog>;
 
 function uploadModule(
   value: unknown,
@@ -63,6 +66,9 @@ function stepModule(value: unknown): value is { Stepper: ComponentType<StepProps
     'Stepper' in value &&
     typeof value.Stepper === 'function'
   );
+}
+function configurationModule(value: unknown): value is { PluginConfigurationDialog: ComponentType<ConfigurationProps> } {
+  return value !== null && typeof value === 'object' && 'PluginConfigurationDialog' in value && typeof value.PluginConfigurationDialog === 'function';
 }
 
 async function fixture() {
@@ -163,7 +169,7 @@ function selectedFiles(files: readonly File[]): FileList {
 }
 
 async function chooseFile(browser: BrowserFixture, file: File | null) {
-  const input = browser.documentRef.querySelector('input[type="file"]');
+  const input = browser.documentRef.querySelector('input[type="file"]:not([webkitdirectory])');
   assert.ok(input instanceof browser.windowRef.HTMLInputElement);
   Object.defineProperty(input, 'files', {
     configurable: true,
@@ -206,6 +212,15 @@ const resource: MarketplaceResourceRecord = {
   created_at: 1,
 };
 
+const prepareForInteractionTest: PreparationExecutor = async (request, signal) => {
+  signal.throwIfAborted();
+  const inspection = { files: [{ path: 'demo.zip', size: 3 }], excluded: [], totalSize: 3, metadata: null, identity: null };
+  if (!request.metadata) return inspection;
+  const file = request.selection.files[0]?.file;
+  assert.ok(file);
+  return { file, sha256: resource.sha256, inspection };
+};
+
 function marketplaceMock(overrides: Partial<MarketplaceController> = {}): MarketplaceController {
   return {
     defaultUrl: 'http://127.0.0.1:7040',
@@ -235,7 +250,6 @@ async function advanceToReview(browser: BrowserFixture) {
   await fillText(browser, '条目标识 *', 'demo-plugin');
   await fillText(browser, '名称 *', '设备分析插件');
   await fillText(browser, '简介 *', '提供设备分析能力');
-  await fillText(browser, '类型专属描述', '{"plugin_kind":"browser"}');
   await browser.click('下一步');
   assert.match(
     browser.documentRef.querySelector('[aria-current="step"]')?.textContent ?? '',
@@ -289,6 +303,7 @@ test('上传对话框完成三步校验，确认阶段连续 Enter 只上传发�
           open: true,
           onOpenChange() {},
           marketplace,
+          prepare: prepareForInteractionTest,
           onPublished() {
             refreshed++;
           },
@@ -316,7 +331,6 @@ test('上传对话框完成三步校验，确认阶段连续 Enter 只上传发�
     await fillText(browser, '条目标识 *', 'demo-plugin');
     await fillText(browser, '名称 *', '设备分析插件');
     await fillText(browser, '简介 *', '提供设备分析能力');
-    await fillText(browser, '类型专属描述', '{"plugin_kind":"browser"}');
     await browser.click('下一步');
     assert.match(
       browser.documentRef.querySelector('[aria-label="发布确认"]')?.textContent ?? '',
@@ -381,6 +395,7 @@ test('切换路由关闭上传对话框会取消等待，晚到上传不发布�
           open,
           onOpenChange() {},
           marketplace,
+          prepare: prepareForInteractionTest,
           onPublished() {
             refreshed++;
           },
@@ -596,7 +611,7 @@ test('市场卡片分别派发详情、下载、安装、更新与已安装配�
       installedTab: true,
       entry: entry({ details: { plugin_kind: 'browser' } }),
     });
-    assert.equal(browser.button('配置').disabled, true);
+    assert.equal(browser.button('配置').disabled, false, '真实配置入口不依赖市场元数据');
     await render({ installed: { ...installed, version: '2.0.0' } });
     assert.equal(browser.button('已安装').disabled, true);
     await render({ entry: entry({ metadataIssues: ['缺少摘要'] }) });
@@ -684,4 +699,76 @@ test('详情对话框显示来源摘要平台权限重启和类型字段，并�
   } finally {
     await browser.close();
   }
+});
+
+function configurationValue(patch: Partial<ConfigurationDialogValue> = {}): ConfigurationDialogValue {
+  return { definition: { version: 1, apply_policy: 'plugin_reload', schema: { type: 'object', additionalProperties: false, properties: { count: { type: 'integer', title: '次数' }, fixed: { type: 'string', title: '只读标识', readOnly: true } } }, defaults: { count: 1, fixed: 'constant' } },
+    values: { count: 1, fixed: 'constant' }, revision: '1', pendingReload: false, compatible: true, fieldErrors: [], source: 'managed', ...patch };
+}
+
+test('空对象 schema 对话框明确无需配置并隐藏保存和重载操作', async () => {
+  const browser = await fixture();
+  const loaded: unknown = await browser.server.ssrLoadModule('/src/components/PluginConfigurationDialog/index.tsx');
+  assert.ok(configurationModule(loaded));
+  const value = configurationValue({ definition: { version: 1, apply_policy: 'plugin_reload', schema: { type: 'object', properties: {}, additionalProperties: false }, defaults: {} }, values: {} });
+  try {
+    await act(async () => { browser.root.render(createElement(loaded.PluginConfigurationDialog, { open: true, title: '无需配置插件', onClose() {}, load: async () => value,
+      save: async () => { throw new Error('不应保存'); }, reset: async () => value, apply: async () => value })); });
+    assert.match(browser.documentRef.querySelector('[role="status"]')?.textContent ?? '', /无需配置/);
+    const labels = Array.from(browser.documentRef.querySelectorAll('button')).map((button) => button.textContent?.trim());
+    assert.equal(labels.includes('保存配置'), false);
+    assert.equal(labels.includes('保存并重载'), false);
+    assert.equal(labels.includes('恢复默认'), false);
+  } finally { await browser.close(); }
+});
+
+test('保存成功但重载失败时保留新修订和待应用状态，重试只应用已保存配置', async () => {
+  const browser = await fixture();
+  const loaded: unknown = await browser.server.ssrLoadModule('/src/components/PluginConfigurationDialog/index.tsx');
+  assert.ok(configurationModule(loaded));
+  let saves = 0;
+  const revisions: string[] = [];
+  const saved = configurationValue({ revision: '2', pendingReload: true });
+  try {
+    await act(async () => { browser.root.render(createElement(loaded.PluginConfigurationDialog, { open: true, title: '重载插件', onClose() {}, load: async () => configurationValue(),
+      save: async (revision) => { saves++; assert.equal(revision, '1'); return saved; }, reset: async () => saved,
+      apply: async (revision) => { revisions.push(revision); if (revisions.length === 1) throw new Error('插件重载失败'); return { ...saved, pendingReload: false }; },
+    })); });
+    await browser.click('保存并重载');
+    assert.equal(saves, 1);
+    assert.deepEqual(revisions, ['2']);
+    assert.match(browser.documentRef.querySelector('[role="alert"]')?.textContent ?? '', /插件重载失败/);
+    assert.equal(browser.button('应用已保存配置').disabled, false);
+    await browser.click('应用已保存配置');
+    assert.deepEqual(revisions, ['2', '2']);
+    assert.equal(saves, 1);
+    assert.equal(Array.from(browser.documentRef.querySelectorAll('button')).some((button) => button.textContent?.trim() === '应用已保存配置'), false);
+  } finally { await browser.close(); }
+});
+
+test('高级 JSON 修改只读字段在保存前拒绝，不发送配置请求', async () => {
+  const browser = await fixture();
+  const loaded: unknown = await browser.server.ssrLoadModule('/src/components/PluginConfigurationDialog/index.tsx');
+  assert.ok(configurationModule(loaded));
+  let saves = 0;
+  try {
+    await act(async () => { browser.root.render(createElement(loaded.PluginConfigurationDialog, { open: true, title: '只读配置', onClose() {}, load: async () => configurationValue(),
+      save: async () => { saves++; return configurationValue(); }, reset: async () => configurationValue(), apply: async () => configurationValue() })); });
+    const fixedLabel = Array.from(browser.documentRef.querySelectorAll('label')).find((label) => label.textContent === '只读标识');
+    assert.ok(fixedLabel);
+    const fixed = browser.documentRef.getElementById(fixedLabel.htmlFor);
+    assert.ok(fixed instanceof browser.windowRef.HTMLInputElement);
+    assert.equal(fixed.readOnly, true);
+    await browser.click('高级 JSON 编辑');
+    const text = browser.documentRef.querySelector('[aria-label="高级配置 JSON"]');
+    assert.ok(text instanceof browser.windowRef.HTMLTextAreaElement);
+    const setter = Object.getOwnPropertyDescriptor(browser.windowRef.HTMLTextAreaElement.prototype, 'value')?.set;
+    assert.ok(setter);
+    await act(async () => { setter.call(text, '{"count":2,"fixed":"changed"}'); text.dispatchEvent(new browser.windowRef.Event('input', { bubbles: true })); });
+    await browser.click('应用 JSON 到草稿');
+    await browser.click('保存配置');
+    assert.equal(saves, 0);
+    assert.match(browser.documentRef.querySelector('[role="alert"]')?.textContent ?? '', /配置不符合字段约束/);
+    assert.match(browser.documentRef.body.textContent ?? '', /只读字段不能修改/);
+  } finally { await browser.close(); }
 });

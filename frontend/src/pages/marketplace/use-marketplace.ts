@@ -11,6 +11,7 @@ import {
   installBlock,
   installedPackage,
   localPackageEntry,
+  localServerEntry,
   newerVersion,
   pluginKind,
 } from './presentation.ts';
@@ -48,6 +49,7 @@ export function useMarketplace(services: ProductServices, active: boolean, insta
   );
   const server = useSnapshot(serverSource),
     browser = useSnapshot(browserSource);
+  const serverRuntime = useSnapshot(services.runtime.serverPlugins);
   const packages = [...(server.result?.data ?? []), ...(browser.result?.data ?? [])];
   const action = useAction();
   useEffect(() => {
@@ -81,11 +83,10 @@ export function useMarketplace(services: ProductServices, active: boolean, insta
   useEffect(() => {
     if (!active || defaults.phase === 'running') return;
     const controller = new AbortController();
-    void Promise.all(
-      (['server', 'browser'] as const).map((kind) =>
-        services.runtime.pluginPackages.refresh(kind, controller.signal),
-      ),
-    ).catch(() => undefined);
+    void Promise.all([
+      ...(['server', 'browser'] as const).map((kind) => services.runtime.pluginPackages.refresh(kind, controller.signal)),
+      services.runtime.serverPlugins.refresh(controller.signal),
+    ]).catch(() => undefined);
     return () => controller.abort();
   }, [services, active, defaults.phase, generation]);
   function download(entry: MarketplaceEntry) {
@@ -169,8 +170,15 @@ export function useMarketplace(services: ProductServices, active: boolean, insta
         (best, item) => (!best || newerVersion(item.version, best.version) ? item : best),
         null,
       );
-    return { pkg, entry: entry ?? localPackageEntry(pkg) };
+    return { pkg, installed: { version: pkg.version }, entry: entry ?? localPackageEntry(pkg), removable: true, removeDisabled: false };
   });
+  const builtinEntries = (serverRuntime.result?.data ?? []).filter((plugin) => !packages.some((pkg) => pkg.kind === 'server' && pkg.id === plugin.id)).map((plugin) => ({
+    pkg: undefined,
+    installed: { version: plugin.version },
+    entry: localServerEntry(plugin),
+    removable: false,
+    removeDisabled: plugin.protected || plugin.state !== 'loaded' || plugin.cleanup_failed,
+  }));
   return {
     query,
     setQuery,
@@ -178,7 +186,7 @@ export function useMarketplace(services: ProductServices, active: boolean, insta
     loading,
     error,
     packages,
-    installedEntries,
+    installedEntries: [...installedEntries, ...builtinEntries],
     action,
     download,
     install,

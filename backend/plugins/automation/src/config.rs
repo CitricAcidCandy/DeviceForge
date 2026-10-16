@@ -35,19 +35,24 @@ fn program(value: &str) -> Result<()> {
 }
 impl Config {
     pub(crate) fn read(check: impl Fn() -> Result<()>) -> Result<Self> {
-        let mut args = std::env::args_os().skip(1);
-        let path = match args.next() {
-            None => std::env::current_exe()
-                .map_err(|_| Error::Io("插件入口不可定位"))?
-                .with_file_name("automation.config.json"),
-            Some(flag) if flag == "--config" => {
-                PathBuf::from(args.next().ok_or(Error::Invalid("缺少配置路径"))?)
+        let path = if let Some(path) = apk_plugin_sdk::configuration::managed_config_path() {
+            path
+        } else {
+            let mut args = std::env::args_os().skip(1);
+            let path = match args.next() {
+                None => std::env::current_exe()
+                    .map_err(|_| Error::Io("插件入口不可定位"))?
+                    .with_file_name("automation.config.json"),
+                Some(flag) if flag == "--config" => {
+                    PathBuf::from(args.next().ok_or(Error::Invalid("缺少配置路径"))?)
+                }
+                _ => return Err(Error::Invalid("只支持--config部署参数")),
+            };
+            if args.next().is_some() {
+                return Err(Error::Invalid("部署参数过多"));
             }
-            _ => return Err(Error::Invalid("只支持--config部署参数")),
+            path
         };
-        if args.next().is_some() {
-            return Err(Error::Invalid("部署参数过多"));
-        }
         let bytes = files::read(&path, 16384, &check)?;
         let config: Self =
             serde_json::from_slice(&bytes).map_err(|_| Error::Invalid("配置JSON无效"))?;

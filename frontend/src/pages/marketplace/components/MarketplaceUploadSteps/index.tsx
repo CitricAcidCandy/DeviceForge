@@ -1,6 +1,7 @@
 import type { MarketplaceUploadDraft } from '../../upload.ts';
 import { splitMetadataList } from '../../upload.ts';
 import { Stepper } from '../../../../components/index.ts';
+import type { UploadInspection } from '../../upload-preparation/index.ts';
 
 export type MarketplaceUploadStep = 1 | 2 | 3;
 
@@ -44,16 +45,20 @@ export function MarketplaceUploadSteps({ current }: { current: MarketplaceUpload
 export function MarketplaceUploadReviewStep({
   draft,
   file,
+  inspection,
+  sha256,
 }: {
   draft: MarketplaceUploadDraft;
   file: File | null;
+  inspection?: UploadInspection | null;
+  sha256?: string | null;
 }) {
   return (
     <section className="marketplace-upload-review" aria-label="发布确认">
       <div className="marketplace-upload-review-heading">
         <div>
           <h3>确认发布内容</h3>
-          <p className="muted">确认后会先上传原始文件，再使用返回的 SHA-256 发布市场条目。</p>
+          <p className="muted">市场描述已同步至待发布归档。确认后上传最终文件并核对 SHA-256。</p>
         </div>
         <span className="marketplace-upload-review-kind">{kindLabels[draft.kind]}</span>
       </div>
@@ -85,6 +90,9 @@ export function MarketplaceUploadReviewStep({
         <dt>可见性</dt>
         <dd>{draft.visibility === 'internal' ? '内部资源' : '市场展示'}</dd>
       </dl>
+      {sha256 && <p className="mono marketplace-upload-digest">SHA-256：{sha256}</p>}
+      {inspection && <details open><summary>文件树（{inspection.files.length} 项，展开 {inspection.totalSize} 字节）</summary><ul className="marketplace-upload-file-tree">{inspection.files.map(item => <li key={item.path}><code>{item.path}</code><span>{item.size} 字节</span></li>)}</ul></details>}
+      {inspection && inspection.excluded.length > 0 && <details><summary>已排除 {inspection.excluded.length} 项</summary><ul className="marketplace-upload-file-tree">{inspection.excluded.map(path => <li key={path}>{path}</li>)}</ul></details>}
       <div className="marketplace-upload-review-details">
         <span>类型专属描述</span>
         <pre>{draft.details || '{}'}</pre>

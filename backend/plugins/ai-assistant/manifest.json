@@ -163,5 +163,93 @@
         }
       }
     ]
+  },
+  "configuration": {
+    "version": 1,
+    "schema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "title": "AI 助手配置",
+      "additionalProperties": false,
+      "properties": {
+        "format_version": {
+          "type": "integer",
+          "title": "配置格式版本",
+          "const": 1,
+          "default": 1,
+          "readOnly": true
+        },
+        "executable": {
+          "type": "string",
+          "title": "AI 提供者入口",
+          "description": "填写单一程序名或本机绝对路径，不接受命令行拼接。",
+          "minLength": 1,
+          "maxLength": 4096
+        },
+        "args": {
+          "type": "array",
+          "title": "固定启动参数",
+          "items": {
+            "type": "string",
+            "maxLength": 4096
+          },
+          "maxItems": 64,
+          "default": []
+        },
+        "projects": {
+          "type": "object",
+          "title": "允许访问的项目",
+          "additionalProperties": {
+            "type": "string",
+            "title": "项目目录",
+            "description": "填写本机绝对路径；运行时继续检查路径资格和文件状态。",
+            "minLength": 1,
+            "maxLength": 4096
+          },
+          "minProperties": 1,
+          "maxProperties": 64
+        },
+        "environment": {
+          "type": "object",
+          "title": "提供者环境变量",
+          "additionalProperties": {
+            "type": "string",
+            "title": "环境变量值",
+            "maxLength": 8192,
+            "writeOnly": true,
+            "format": "password"
+          },
+          "description": "可能包含密钥，保存后界面只显示已设置；不继承服务凭据。",
+          "maxProperties": 64,
+          "propertyNames": {
+            "pattern": "^[A-Za-z0-9_]+$"
+          }
+        },
+        "state_root": {
+          "type": "string",
+          "title": "会话存储目录",
+          "description": "本机绝对路径；省略时沿用旧部署配置旁的 ai-state，宿主修订不会移动会话。切换目录不会迁移旧会话。",
+          "minLength": 1,
+          "maxLength": 4096
+        }
+      },
+      "required": [
+        "format_version",
+        "executable",
+        "projects"
+      ]
+    },
+    "defaults": {
+      "format_version": 1,
+      "executable": "codex",
+      "args": [],
+      "projects": {
+        "demo": "C:/DeviceForge/projects/demo"
+      },
+      "environment": {},
+      "state_root": "C:/DeviceForge/data/ai-assistant"
+    },
+    "apply_policy": "next_invocation",
+    "legacy_filename": "ai-assistant.config.json"
   }
 }

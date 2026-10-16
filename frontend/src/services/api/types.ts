@@ -1,4 +1,4 @@
-import type { paths } from './generated.ts';
+import type { paths, components } from './generated.ts';
 
 // 全部业务类型直接索引生成契约，传输适配不另建 DTO。
 type JsonResponse<T> = T extends { content: { 'application/json': infer R } } ? R : never;
@@ -12,6 +12,10 @@ export type EventQuery = NonNullable<
   paths['/api/v2/jobs/{id}/events']['get']['parameters']['query']
 >;
 export type PluginInfo = Data<paths['/api/v2/plugins']['get']['responses'][200]>[number];
+export type PluginConfigurationDto = components['schemas']['PluginConfiguration'];
+export type ConfigurationDefinitionDto = components['schemas']['ConfigurationDefinition'];
+export type ConfigurationPatchDto = components['schemas']['ConfigurationPatch'];
+export type ConfigurationRevisionDto = components['schemas']['ConfigurationRevision'];
 export type ArtifactDto = Data<paths['/api/v2/artifacts']['post']['responses'][201]>;
 export type UploadQuery = paths['/api/v2/artifacts']['post']['parameters']['query'];
 export type PackageInfo = Data<
@@ -43,7 +47,7 @@ export interface ApiResult<T> {
 }
 export interface RequestSpec {
   readonly path: string;
-  readonly method: 'GET' | 'POST' | 'PUT' | 'DELETE';
+  readonly method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   readonly body?: string | Blob | ArrayBuffer;
   readonly contentType?: string;
   readonly keepalive?: boolean;

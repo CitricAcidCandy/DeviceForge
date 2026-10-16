@@ -2,6 +2,14 @@ import { createContributions } from './contributions.mjs';
 import { createSession } from './session.mjs';
 
 export const id = 'browser_device_tools';
+export const configuration = {
+  version: 1, apply_policy: 'next_invocation',
+  schema: { type: 'object', additionalProperties: false, required: ['rememberedJobs', 'publishEvents'], properties: {
+    rememberedJobs: { type: 'integer', title: '保留任务数量', description: '本代插件保留的任务标识上限。', minimum: 1, maximum: 128 },
+    publishEvents: { type: 'boolean', title: '发布目录变化事件' },
+  } },
+  defaults: { rememberedJobs: 32, publishEvents: true },
+};
 let activationSequence = 0;
 
 // 这里只生成本地观测标记，不承担鉴权或服务器代次；普通 LAN HTTP 也能激活。
@@ -35,6 +43,6 @@ export async function activateExample(context, runId = nextRunId()) {
 }
 
 export default {
-  id, version: '0.1.0', apiVersion: 2, panels: [],
+  id, version: '0.1.0', apiVersion: 2, panels: [], configuration,
   async activate(context) { await activateExample(context); },
 };

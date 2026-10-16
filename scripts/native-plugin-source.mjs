@@ -1,4 +1,5 @@
-import { readdir } from 'node:fs/promises';
+import { copyFile, readdir } from 'node:fs/promises';
+import { join } from 'node:path';
 import { readJson, regularFile } from '../cli/src/paths.mjs';
 import { loadNativePluginAssets } from './native-plugin-assets.mjs';
 
@@ -22,6 +23,36 @@ export async function loadNativePluginSource(directory) {
     await readJson(source);
     configurationTemplates.push({ name, source });
   }
+  if (manifest.configuration !== undefined) {
+    const configuration = manifest.configuration;
+    if (
+      !configuration ||
+      configuration.version !== 1 ||
+      !configuration.schema ||
+      configuration.schema.type !== 'object' ||
+      !configuration.defaults ||
+      Array.isArray(configuration.defaults) ||
+      typeof configuration.defaults !== 'object' ||
+      !['next_invocation', 'plugin_reload'].includes(configuration.apply_policy)
+    ) {
+      throw new Error('插件配置声明须包含版本1、对象 schema、默认对象和生效策略');
+    }
+    if (configuration.legacy_filename !== undefined) {
+      const legacy = configuration.legacy_filename;
+      if (typeof legacy !== 'string' || !/^[a-z0-9][a-z0-9._-]*\.json$/.test(legacy))
+        throw new Error('插件旧配置名须为普通 JSON 文件名');
+      const template = legacy.replace(/\.json$/, '.example.json');
+      if (!configurationTemplates.some((entry) => entry.name === template))
+        throw new Error(`插件配置声明缺少公开模板：${template}`);
+    }
+  }
   const assets = await loadNativePluginAssets(directory);
   return { manifest, configurationTemplates, assets };
+}
+
+// 打包器与验证共用模板复制入口，实际配置与凭据始终留在部署目录。
+export async function copyNativePluginConfiguration(plan, directory) {
+  for (const template of plan.configurationTemplates) {
+    await copyFile(template.source, join(directory, 'bin', template.name));
+  }
 }

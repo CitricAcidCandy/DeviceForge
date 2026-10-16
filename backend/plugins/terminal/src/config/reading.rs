@@ -36,7 +36,11 @@ impl Config {
         let args: Vec<_> = std::env::args_os().skip(1).collect();
         let executable =
             std::env::current_exe().map_err(|_| Error::Configuration("无法定位终端插件入口"))?;
-        let path = path(&args, executable)?;
+        let path = match apk_plugin_sdk::configuration::managed_config_path() {
+            Some(path) => path,
+            None => path(&args, executable)?,
+        };
+        absolute(&path)?;
         let bytes = controlled(context, async {
             let file = tokio::fs::File::open(path)
                 .await

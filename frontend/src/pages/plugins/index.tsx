@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { PackagePlus, RefreshCw, Play, Square, Trash2, Puzzle } from 'lucide-react';
+import { PackagePlus, RefreshCw, Play, Square, Trash2, Puzzle, Settings2 } from 'lucide-react';
 import { Button } from '../../components/Button/index.tsx';
 import { Input } from '../../components/Input/index.tsx';
 import { Label } from '../../components/Label/index.tsx';
@@ -26,11 +26,14 @@ import type { ProductServices } from '../../app/product/services.ts';
 import { useAction, useSnapshot } from '../../app/product/hooks.ts';
 import { EmptyState, JsonResult, PageTitle } from '../../components/index.ts';
 import { ActionFeedback } from '../../app/product/feedback.tsx';
+import { PluginConfigurationDialog } from '../../components/PluginConfigurationDialog/index.tsx';
+import type { PluginConfigurationTarget } from '../../features/plugin-configurations/index.ts';
 import './workspace.css';
 
-export function PluginsPage({ services }: { services: ProductServices }) {
+export function PluginsPage({ services, active = true }: { services: ProductServices; active?: boolean }) {
   const [kind, setKind] = useState<PackageKind>('server');
   const [file, setFile] = useState<File | null>(null);
+  const [configuration, setConfiguration] = useState<PluginConfigurationTarget | null>(null);
   const action = useAction();
   const defaults = useSnapshot(services.pluginDefaults);
   const defaultFailures = defaults.results.filter((entry) => entry.status === 'failed');
@@ -65,6 +68,7 @@ export function PluginsPage({ services }: { services: ProductServices }) {
     version: string | null;
   } | null>(null);
   const [extensionInput, setExtensionInput] = useState('{}');
+  useEffect(() => { if (!active) { setConfiguration(null); setExtensionCall(null); action.cancel(); } }, [active]);
   function syncExtensions() {
     const nextCatalog = services.runtime.extensions.catalog();
     const owners = new Map(
@@ -381,6 +385,7 @@ export function PluginsPage({ services }: { services: ProductServices }) {
                     </details>
                   </div>
                   <div className="row-actions">
+                    <Button variant="outline" disabled={action.pending} onClick={() => setConfiguration({ kind, id: pkg.id })}><Settings2 />配置</Button>
                     <Button
                       variant={running || guarded ? 'outline' : 'default'}
                       disabled={action.pending || defaults.phase === 'running' || guarded}
@@ -475,7 +480,7 @@ export function PluginsPage({ services }: { services: ProductServices }) {
                   </ul>
                 </details>
               </div>
-              <Button
+              <div className="row-actions"><Button variant="outline" disabled={action.pending} onClick={() => setConfiguration({ kind: 'server', id: plugin.id })}><Settings2 />配置</Button><Button
                 variant="outline"
                 disabled={
                   action.pending ||
@@ -492,7 +497,7 @@ export function PluginsPage({ services }: { services: ProductServices }) {
                 }}
               >
                 {plugin.state === 'loaded' ? '卸载' : '加载'}
-              </Button>
+              </Button></div>
             </div>
           ))}
         </details>
@@ -568,7 +573,7 @@ export function PluginsPage({ services }: { services: ProductServices }) {
       </div>
       </div>
       <Dialog
-        open={extensionCall !== null}
+        open={active && extensionCall !== null}
         onOpenChange={(open) => {
           if (!open) {
             action.cancel();
@@ -622,6 +627,11 @@ export function PluginsPage({ services }: { services: ProductServices }) {
           <JsonResult value={action.result} />
         </DialogContent>
       </Dialog>
+      {active && configuration && <PluginConfigurationDialog open title={configuration.id} onClose={() => setConfiguration(null)}
+        load={(signal) => services.pluginConfigurations.get(configuration, signal)}
+        save={(revision, values, signal) => services.pluginConfigurations.save(configuration, revision, values, signal)}
+        reset={(revision, signal) => services.pluginConfigurations.reset(configuration, revision, signal)}
+        apply={(revision, signal) => services.pluginConfigurations.apply(configuration, revision, signal)} onApplied={syncExtensions} />}
       <JsonResult value={action.result} />
     </div>
   );

@@ -4,17 +4,16 @@
 //! 安装和卸载继续交给宿主已有的插件包生命周期，避免市场元数据绕过安装器。
 
 use apk_plugin_sdk::Request;
+mod config;
 use deviceforge_plugin_runtime::{Execution, InvocationContext, Output};
 use serde_json::{Value, json};
 use std::collections::BTreeMap;
-
-const DEFAULT_SOURCE: &str = "http://127.0.0.1:7040";
 
 pub async fn execute(request: Request, context: InvocationContext) -> Execution {
     let result = async {
         context.check().map_err(|error| error.to_string())?;
         match request.operation.as_str() {
-            "sources" => Ok(Output::from(json!({ "sources": sources() }))),
+            "sources" => Ok(Output::from(json!({ "sources": config::sources().await? }))),
             "catalog" => catalog(request.input, &context).await,
             operation => Err(format!("不支持的市场操作：{operation}")),
         }
@@ -28,13 +27,9 @@ async fn catalog(input: Value, context: &InvocationContext) -> Result<Output, St
     let suffix = query_string(&query);
     let client = reqwest::Client::new();
     let mut entries = BTreeMap::new();
-    for source in sources() {
+    for source in config::sources().await? {
         context.check().map_err(|error| error.to_string())?;
-        let url = format!(
-            "{}/api/v1/catalog{}",
-            source["url"].as_str().unwrap_or(DEFAULT_SOURCE),
-            suffix
-        );
+        let url = format!("{}/api/v1/catalog{}", source.url, suffix);
         let response = client
             .get(url)
             .send()
@@ -51,17 +46,8 @@ async fn catalog(input: Value, context: &InvocationContext) -> Result<Output, St
             for item in items {
                 let mut item = item.clone();
                 if let Some(object) = item.as_object_mut() {
-                    object.insert(
-                        "source".into(),
-                        Value::String(source["url"].as_str().unwrap_or(DEFAULT_SOURCE).into()),
-                    );
-                    object.insert(
-                        "source_name".into(),
-                        source
-                            .get("name")
-                            .cloned()
-                            .unwrap_or_else(|| Value::String("市场来源".into())),
-                    );
+                    object.insert("source".into(), Value::String(source.url.clone()));
+                    object.insert("source_name".into(), Value::String(source.name.clone()));
                 }
                 let key = format!(
                     "{}@{}",
@@ -78,14 +64,6 @@ async fn catalog(input: Value, context: &InvocationContext) -> Result<Output, St
     Ok(Output::from(
         json!({ "entries": entries, "total": entries.len() }),
     ))
-}
-
-fn sources() -> Vec<Value> {
-    std::env::var("DEVICEFORGE_MARKETPLACE_SOURCES")
-        .ok()
-        .and_then(|value| serde_json::from_str::<Vec<Value>>(&value).ok())
-        .filter(|values| !values.is_empty())
-        .unwrap_or_else(|| vec![json!({ "name": "本地默认市场", "url": DEFAULT_SOURCE })])
 }
 
 fn query_string(query: &serde_json::Map<String, Value>) -> String {

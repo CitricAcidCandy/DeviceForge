@@ -49,7 +49,17 @@ async fn run(
         .map(PathBuf::from)
         .unwrap_or_else(|| data.join("plugins"));
     tokio::fs::create_dir_all(&plugin_directory).await?;
-    let catalog = Arc::new(FilePluginCatalog::open(&plugin_directory, artifacts.clone()).await?);
+    let configuration_store =
+        apk_infrastructure::plugin_configurations::FilePluginConfigurations::open(
+            &data.join("plugin-configurations"),
+            &plugin_directory,
+        )
+        .await?;
+    let catalog = Arc::new(
+        FilePluginCatalog::open(&plugin_directory, artifacts.clone())
+            .await?
+            .with_configurations(configuration_store.clone()),
+    );
     let loaded = catalog.initial().await?;
     {
         let mut ids = std::collections::HashSet::new();
@@ -118,7 +128,11 @@ async fn run(
         ),
         plugin_service.clone(),
     );
-    let router = apk_server::router_with_packages(
+    let configurations = apk_application::plugin_configurations::PluginConfigurationService::new(
+        configuration_store,
+        plugin_service.clone(),
+    );
+    let router = apk_server::router_with_configurations(
         app.clone(),
         token,
         rate,
@@ -130,6 +144,7 @@ async fn run(
             plugins: Some(plugin_service.clone()),
         },
         packages,
+        configurations,
     )?;
     let bind = std::env::var("APK_BIND").unwrap_or_else(|_| "127.0.0.1:7031".into());
     let listener = tokio::net::TcpListener::bind(&bind).await?;

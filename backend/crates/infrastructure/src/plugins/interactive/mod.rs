@@ -17,6 +17,7 @@ struct Provider {
     unresolved: Arc<std::sync::atomic::AtomicBool>,
     definitions: Vec<SessionDefinition>,
     validators: Arc<Validators>,
+    configurations: Option<Arc<dyn apk_domain::plugin_configurations::PluginConfigurationStore>>,
 }
 
 pub(super) fn provider(plugin: &ProcessPlugin) -> Option<Arc<dyn SessionProvider>> {
@@ -27,6 +28,7 @@ pub(super) fn provider(plugin: &ProcessPlugin) -> Option<Arc<dyn SessionProvider
             unresolved: plugin.unresolved.clone(),
             definitions: plugin.sessions.clone(),
             validators: plugin.session_validators.clone(),
+            configurations: plugin.configurations.clone(),
         }) as Arc<dyn SessionProvider>
     })
 }
@@ -55,6 +57,7 @@ impl SessionProvider for Provider {
             request,
             cancel,
             channels,
+            configurations: self.configurations.clone(),
         };
         Ok(SessionLaunch {
             handle: Box::new(handle),

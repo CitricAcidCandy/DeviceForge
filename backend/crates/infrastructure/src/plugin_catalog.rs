@@ -14,6 +14,7 @@ pub struct FilePluginCatalog {
     root: Arc<PathBuf>,
     artifacts: Arc<dyn ArtifactStore>,
     workers: Arc<Semaphore>,
+    configurations: Option<Arc<dyn apk_domain::plugin_configurations::PluginConfigurationStore>>,
 }
 impl FilePluginCatalog {
     pub async fn open(root: &Path, artifacts: Arc<dyn ArtifactStore>) -> Result<Self> {
@@ -31,7 +32,15 @@ impl FilePluginCatalog {
             root: Arc::new(root),
             artifacts,
             workers: Arc::new(Semaphore::new(2)),
+            configurations: None,
         })
+    }
+    pub fn with_configurations(
+        mut self,
+        configurations: Arc<dyn apk_domain::plugin_configurations::PluginConfigurationStore>,
+    ) -> Self {
+        self.configurations = Some(configurations);
+        self
     }
     async fn blocking<T: Send + 'static>(
         &self,
@@ -55,7 +64,8 @@ impl FilePluginCatalog {
         .map_err(|_| Error::Dependency("插件部署读取工作异常".into()))?
     }
     pub async fn initial(&self) -> Result<Vec<Arc<ProcessPlugin>>> {
-        self.blocking(|root, artifacts| {
+        let configurations = self.configurations.clone();
+        self.blocking(move |root, artifacts| {
             let mut plugins = Vec::new();
             for (count, entry) in std::fs::read_dir(root)
                 .map_err(|_| Error::Storage("插件目录读取失败".into()))?
@@ -84,7 +94,12 @@ impl FilePluginCatalog {
                 if plugins.len() >= 256 {
                     return Err(Error::TooLarge);
                 }
-                plugins.push(read_plugin(root, id, artifacts.clone())?);
+                plugins.push(read_plugin(
+                    root,
+                    id,
+                    artifacts.clone(),
+                    configurations.clone(),
+                )?);
             }
             plugins.sort_by(|left, right| left.manifest().id.cmp(&right.manifest().id));
             Ok(plugins)
@@ -96,6 +111,7 @@ fn read_plugin(
     root: &Path,
     id: &str,
     artifacts: Arc<dyn ArtifactStore>,
+    configurations: Option<Arc<dyn apk_domain::plugin_configurations::PluginConfigurationStore>>,
 ) -> Result<Arc<ProcessPlugin>> {
     plugin_id(id)?;
     let directory = root.join(id);
@@ -135,17 +151,20 @@ fn read_plugin(
     if manifest.id != id {
         return Err(Error::Invalid("插件 ID 必须与部署目录一致".into()));
     }
-    Ok(Arc::new(ProcessPlugin::with_artifacts(
-        manifest, artifacts,
-    )?))
+    let mut plugin = ProcessPlugin::with_artifacts(manifest, artifacts)?;
+    if let Some(configurations) = configurations {
+        plugin = plugin.with_configurations(configurations);
+    }
+    Ok(Arc::new(plugin))
 }
 #[async_trait]
 impl PluginCatalog for FilePluginCatalog {
     async fn load(&self, id: &str) -> Result<PluginContribution> {
         plugin_id(id)?;
         let id = id.to_owned();
+        let configurations = self.configurations.clone();
         let plugin = self
-            .blocking(move |root, artifacts| read_plugin(root, &id, artifacts))
+            .blocking(move |root, artifacts| read_plugin(root, &id, artifacts, configurations))
             .await?;
         Ok(PluginContribution {
             id: plugin.manifest().id.clone(),
