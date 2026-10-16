@@ -1,5 +1,4 @@
 import type {
-  MarketplaceEntry,
   MarketplacePublishEntry,
   MarketplaceQuery,
   MarketplaceResourceRecord,
@@ -109,15 +108,16 @@ export function createMarketplace(fetcher: typeof fetch = fetch) {
       file: MarketplaceUploadFile,
       kind: MarketplaceKind,
       signal: AbortSignal,
+      source: string = url(),
     ): Promise<MarketplaceResourceRecord> {
-      const source = url();
-      const response = await fetcher(`${source}/api/v1/resources`, {
+      const response = await fetcher(`${normalizeUrl(source)}/api/v1/resources`, {
         method: 'POST',
         signal,
         headers: {
           accept: 'application/json',
           'content-type': file.type || 'application/octet-stream',
-          'x-resource-filename': file.name || 'resource.bin',
+          'x-resource-filename': encodeURIComponent(file.name || 'resource.bin'),
+          'x-resource-filename-encoding': 'percent',
           'x-resource-kind': kind,
         },
         body: file,
@@ -130,9 +130,9 @@ export function createMarketplace(fetcher: typeof fetch = fetch) {
     async publish(
       entry: MarketplacePublishEntry,
       signal: AbortSignal,
+      source: string = url(),
     ): Promise<MarketplacePublishEntry> {
-      const source = url();
-      const response = await fetcher(`${source}/api/v1/catalog`, {
+      const response = await fetcher(`${normalizeUrl(source)}/api/v1/catalog`, {
         method: 'POST',
         signal,
         headers: {
@@ -154,13 +154,16 @@ export function createMarketplace(fetcher: typeof fetch = fetch) {
       source: string = url(),
     ): Promise<MarketplaceDownloadedResource> {
       if (!/^[a-f0-9]{64}$/i.test(resourceId)) throw new Error('资源摘要无效');
-      const response = await fetcher(`${normalizeUrl(source)}/api/v1/resources/${encodeURIComponent(resourceId)}`, {
-        signal,
-        headers: { accept: '*/*' },
-        credentials: 'omit',
-        cache: 'no-store',
-        redirect: 'error',
-      });
+      const response = await fetcher(
+        `${normalizeUrl(source)}/api/v1/resources/${encodeURIComponent(resourceId)}`,
+        {
+          signal,
+          headers: { accept: '*/*' },
+          credentials: 'omit',
+          cache: 'no-store',
+          redirect: 'error',
+        },
+      );
       await requireOk(response, '资源下载');
       return readVerifiedResource(response, resourceId, signal);
     },

@@ -243,8 +243,9 @@ async function runBrowser(baseUrl: string, deviceId: string, directory: string, 
     try { await access(candidate); browserPath = candidate; break; } catch {}
   }
   if (!browserPath) throw new Error('未找到Edge，请传入--browser');
+  // 保留正常浏览器的 GPU 与硬件解码能力，避免人为禁用真实设备媒体所需的解码器。
   const child = spawn(browserPath, [
-    '--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check',
+    '--headless=new', '--no-first-run', '--no-default-browser-check',
     '--disable-background-networking', '--remote-debugging-address=127.0.0.1', '--remote-debugging-port=0',
     '--user-data-dir=' + join(directory, 'edge-profile'), 'about:blank',
   ], { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true });

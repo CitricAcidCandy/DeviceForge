@@ -94,13 +94,18 @@ pub(super) async fn run(
     {
         unresolved = true;
     }
-    let peer_clean = if let Some(peer) = &peer {
-        peer.close().await
-    } else {
-        true
-    };
-    let device_clean = device.cleanup(&config, &prepared).await;
-    let control_clean = controller.close().await;
+    // 三类资源归属独立，同时回收，避免串行叠加超过宿主的合作清理窗口。
+    let (peer_clean, device_clean, control_clean) = tokio::join!(
+        async {
+            if let Some(peer) = &peer {
+                peer.close().await
+            } else {
+                true
+            }
+        },
+        device.cleanup(&config, &prepared),
+        controller.close(),
+    );
     if unresolved || !peer_clean || !device_clean || !control_clean {
         return Execution {
             outcome: Err("WebRTC 或设备资源清理未确认".into()),

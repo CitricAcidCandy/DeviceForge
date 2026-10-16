@@ -5290,6 +5290,10 @@ export interface paths {
             parameters: {
                 query: {
                     format: "zip" | "tgz";
+
+                    expected_id?: string;
+
+                    expected_version?: string;
                 };
                 header?: never;
                 path: {
@@ -5485,7 +5489,197 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        put?: never;
+
+        put: {
+            parameters: {
+                query: {
+                    format: "zip" | "tgz";
+
+                    expected_id?: string;
+
+                    expected_version?: string;
+                };
+                header?: never;
+                path: {
+                    kind: "server" | "browser";
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/gzip": string;
+                    "application/zip": string;
+                };
+            };
+            responses: {
+
+                200: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            data: {
+
+                                api_version?: number | null;
+                                entry_path: string;
+                                entry_url?: string | null;
+                                id: string;
+
+                                installed_at: number;
+
+                                kind: "server" | "browser";
+                                runtime: string;
+                                version: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                400: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                401: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                404: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                409: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                            log_id: string;
+                        };
+                    };
+                };
+
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                            log_id: string;
+                        };
+                    };
+                };
+
+                429: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                500: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+            };
+        };
         post?: never;
 
         delete: {

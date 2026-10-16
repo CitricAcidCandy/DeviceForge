@@ -45,7 +45,11 @@ export function MarketplaceUploadDialog({
   useEffect(() => () => request.current?.abort(), []);
 
   useEffect(() => {
-    if (!open) { request.current?.abort(); request.current = null; return; }
+    if (!open) {
+      request.current?.abort();
+      request.current = null;
+      return;
+    }
     request.current?.abort();
     setStep(1);
     setDraft(initialMarketplaceUploadDraft);
@@ -114,10 +118,11 @@ export function MarketplaceUploadDialog({
     setFeedback(null);
     setError(null);
     try {
-      const resource = await marketplace.upload(file, draft.kind, controller.signal);
+      const source = marketplace.currentUrl();
+      const resource = await marketplace.upload(file, draft.kind, controller.signal, source);
       controller.signal.throwIfAborted();
       const entry = createMarketplacePublishEntry(draft, resource.sha256);
-      await marketplace.publish(entry, controller.signal);
+      await marketplace.publish(entry, controller.signal, source);
       controller.signal.throwIfAborted();
       setFeedback(`已上传并发布「${validatedDraft.name}」${validatedDraft.version}`);
       setCompleted(true);
@@ -126,7 +131,10 @@ export function MarketplaceUploadDialog({
       if (!controller.signal.aborted)
         setError(reason instanceof Error ? reason.message : '上传发布失败');
     } finally {
-      if (request.current === controller) { request.current = null; if (!controller.signal.aborted) setPending(false); }
+      if (request.current === controller) {
+        request.current = null;
+        if (!controller.signal.aborted) setPending(false);
+      }
     }
   }
 

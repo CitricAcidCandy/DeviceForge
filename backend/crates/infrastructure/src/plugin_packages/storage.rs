@@ -77,7 +77,7 @@ pub fn replace(mut prepared: Prepared) -> Result<PackageInfo> {
         if fs::rename(&backup, &destination).is_err() {
             // 恢复失败时保留唯一旧副本，禁止随暂存清理删除。
             if let Some(directory) = prepared.staging.directory.take() {
-                directory.keep();
+                let _ = directory.keep();
             }
             return Err(Error::Storage(
                 "包更新及回滚失败，旧包保留于部署根的暂存目录".into(),

@@ -1,5 +1,8 @@
 //! 参数校验与版本化指南响应，保持查询无副作用。
-use super::{catalog, schema::{Input, TOPICS}};
+use super::{
+    catalog,
+    schema::{Input, TOPICS},
+};
 use apk_domain::{Error, Result};
 use serde_json::{Value, json};
 
@@ -32,8 +35,11 @@ mod tests {
     #[test]
     fn arguments_reject_unknown_fields_nulls_and_wrong_types() {
         for invalid in [
-            json!({}), json!(null), json!([]),
-            json!({"target": null}), json!({"target": 1}),
+            json!({}),
+            json!(null),
+            json!([]),
+            json!({"target": null}),
+            json!({"target": 1}),
             json!({"target": "other"}),
             json!({"target": "frontend", "topic": null}),
             json!({"target": "frontend", "topic": 2}),

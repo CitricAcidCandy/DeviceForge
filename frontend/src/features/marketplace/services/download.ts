@@ -5,7 +5,9 @@ import type { MarketplaceDownloadedResource } from '../types/index.ts';
 export const MAX_MARKETPLACE_DOWNLOAD_BYTES = 256 * 1024 * 1024;
 
 export async function readVerifiedResource(
-  response: Response, digest: string, signal: AbortSignal,
+  response: Response,
+  digest: string,
+  signal: AbortSignal,
 ): Promise<MarketplaceDownloadedResource> {
   const declared = Number(response.headers.get('content-length'));
   if (declared > MAX_MARKETPLACE_DOWNLOAD_BYTES) {
@@ -17,7 +19,9 @@ export async function readVerifiedResource(
   const hash = sha256.create();
   const chunks: ArrayBuffer[] = [];
   let size = 0;
-  const cancel = () => { void reader.cancel().catch(() => undefined); };
+  const cancel = () => {
+    void reader.cancel().catch(() => undefined);
+  };
   signal.addEventListener('abort', cancel, { once: true });
   try {
     while (true) {
@@ -26,16 +30,30 @@ export async function readVerifiedResource(
       signal.throwIfAborted();
       if (chunk.done) break;
       size += chunk.value.byteLength;
-      if (size > MAX_MARKETPLACE_DOWNLOAD_BYTES) throw new Error('文件超过浏览器暂存上限（256 MiB）');
+      if (size > MAX_MARKETPLACE_DOWNLOAD_BYTES)
+        throw new Error('文件超过浏览器暂存上限（256 MiB）');
       hash.update(chunk.value);
       chunks.push(new Uint8Array(chunk.value).buffer);
     }
-    const actual = Array.from(hash.digest(), (value) => value.toString(16).padStart(2, '0')).join('');
+    const actual = Array.from(hash.digest(), (value) => value.toString(16).padStart(2, '0')).join(
+      '',
+    );
     if (actual !== digest.toLowerCase()) throw new Error('资源 SHA-256 不匹配，已停止下载与安装');
     const mediaType = response.headers.get('content-type') || 'application/octet-stream';
+    const rawFilename = response.headers.get('x-resource-filename') || 'deviceforge-resource.bin';
+    let filename = rawFilename;
+    if (response.headers.get('x-resource-filename-encoding') === 'percent') {
+      try {
+        filename = decodeURIComponent(rawFilename);
+      } catch {
+        throw new Error('资源文件名编码无效');
+      }
+    }
     return {
-      blob: new Blob(chunks, { type: mediaType }), size, mediaType,
-      filename: (response.headers.get('x-resource-filename') || 'deviceforge-resource.bin').replace(/[\\/\x00-\x1f]/g, '_'),
+      blob: new Blob(chunks, { type: mediaType }),
+      size,
+      mediaType,
+      filename: filename.replace(/[\\/\x00-\x1f]/g, '_'),
     };
   } catch (error) {
     await reader.cancel().catch(() => undefined);

@@ -290,7 +290,7 @@ test('React 火焰图在真实 DOM 中筛选、搜索、缩放并保留大整数
         target.querySelector('[data-message-kind="error"]')?.textContent ?? '',
         /Android 火焰图输入、筛选或资源范围无效/,
       );
-      assert.equal(target.querySelector('svg'), null);
+      assert.ok(target.querySelector('[data-profile-flamegraph] svg') === null, '非法区间不应绘制火焰图');
       assert.equal(messages.snapshot().length, 1);
       assert.ok(target.querySelector('[data-global-message-root]'));
       assert.equal(target.querySelector('.profile-flamegraph [role="alert"]'), null);
@@ -300,7 +300,7 @@ test('React 火焰图在真实 DOM 中筛选、搜索、缩放并保留大整数
       assert.equal(messages.snapshot().length, 0);
       assert.match(summary(), /筛选 0 条样本/);
       assert.match(target.textContent ?? '', /此筛选范围没有有效权重；没有用相邻样本补齐/);
-      assert.equal(target.querySelector('svg'), null);
+      assert.ok(target.querySelector('[data-profile-flamegraph] svg') === null, '空区间不应绘制火焰图');
       await setValue('开始时间', '020');
       assert.ok(target.querySelector('[data-message-kind="error"]'));
     });

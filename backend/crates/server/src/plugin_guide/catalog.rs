@@ -22,28 +22,83 @@ macro_rules! document {
 }
 
 static DOCUMENTS: [Document; 14] = [
-    document!(Frontend, Overview, "frontend/docs/guides/plugin-development/overview.md"),
-    document!(Frontend, Manifest, "frontend/docs/guides/plugin-development/manifest.md"),
-    document!(Frontend, Sdk, "frontend/docs/guides/plugin-development/sdk.md"),
-    document!(Frontend, Lifecycle, "frontend/docs/guides/plugin-development/lifecycle.md"),
-    document!(Frontend, Examples, "frontend/docs/guides/plugin-development/examples.md"),
-    document!(Frontend, Packaging, "frontend/docs/guides/plugin-development/packaging.md"),
-    document!(Frontend, Validation, "frontend/docs/guides/plugin-development/validation.md"),
-    document!(Backend, Overview, "backend/docs/guides/plugin-development/overview.md"),
-    document!(Backend, Manifest, "backend/docs/guides/plugin-development/manifest.md"),
-    document!(Backend, Sdk, "backend/docs/guides/plugin-development/sdk.md"),
-    document!(Backend, Lifecycle, "backend/docs/guides/plugin-development/lifecycle.md"),
-    document!(Backend, Examples, "backend/docs/guides/plugin-development/examples.md"),
-    document!(Backend, Packaging, "backend/docs/guides/plugin-development/packaging.md"),
-    document!(Backend, Validation, "backend/docs/guides/plugin-development/validation.md"),
+    document!(
+        Frontend,
+        Overview,
+        "frontend/docs/guides/plugin-development/overview.md"
+    ),
+    document!(
+        Frontend,
+        Manifest,
+        "frontend/docs/guides/plugin-development/manifest.md"
+    ),
+    document!(
+        Frontend,
+        Sdk,
+        "frontend/docs/guides/plugin-development/sdk.md"
+    ),
+    document!(
+        Frontend,
+        Lifecycle,
+        "frontend/docs/guides/plugin-development/lifecycle.md"
+    ),
+    document!(
+        Frontend,
+        Examples,
+        "frontend/docs/guides/plugin-development/examples.md"
+    ),
+    document!(
+        Frontend,
+        Packaging,
+        "frontend/docs/guides/plugin-development/packaging.md"
+    ),
+    document!(
+        Frontend,
+        Validation,
+        "frontend/docs/guides/plugin-development/validation.md"
+    ),
+    document!(
+        Backend,
+        Overview,
+        "backend/docs/guides/plugin-development/overview.md"
+    ),
+    document!(
+        Backend,
+        Manifest,
+        "backend/docs/guides/plugin-development/manifest.md"
+    ),
+    document!(
+        Backend,
+        Sdk,
+        "backend/docs/guides/plugin-development/sdk.md"
+    ),
+    document!(
+        Backend,
+        Lifecycle,
+        "backend/docs/guides/plugin-development/lifecycle.md"
+    ),
+    document!(
+        Backend,
+        Examples,
+        "backend/docs/guides/plugin-development/examples.md"
+    ),
+    document!(
+        Backend,
+        Packaging,
+        "backend/docs/guides/plugin-development/packaging.md"
+    ),
+    document!(
+        Backend,
+        Validation,
+        "backend/docs/guides/plugin-development/validation.md"
+    ),
 ];
 
 pub(super) fn select(target: Target, topic: Topic) -> Vec<&'static Document> {
     DOCUMENTS
         .iter()
         .filter(|document| {
-            document.topic == topic
-                && (target == Target::Fullstack || document.target == target)
+            document.topic == topic && (target == Target::Fullstack || document.target == target)
         })
         .collect()
 }

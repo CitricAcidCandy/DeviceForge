@@ -114,9 +114,17 @@ impl McpAdapter {
 }
 impl ServerHandler for McpAdapter {
     fn get_info(&self) -> ServerConfig {
-        ServerConfig::new(ServerCapabilities::builder().enable_tools().enable_tool_list_changed().build())
-            .with_server_info(Implementation::new("deviceforge", env!("CARGO_PKG_VERSION")))
-            .with_instructions(crate::plugin_guide::INSTRUCTIONS)
+        ServerConfig::new(
+            ServerCapabilities::builder()
+                .enable_tools()
+                .enable_tool_list_changed()
+                .build(),
+        )
+        .with_server_info(Implementation::new(
+            "deviceforge",
+            env!("CARGO_PKG_VERSION"),
+        ))
+        .with_instructions(crate::plugin_guide::INSTRUCTIONS)
     }
     fn accepted_subscription_filter(
         &self,

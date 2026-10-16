@@ -61,8 +61,14 @@ async fn upload_resource(
     if content_length.is_some_and(|size| size > MAX_UPLOAD_BYTES) {
         return Err(ApiError::PayloadTooLarge);
     }
-    let filename =
+    let mut filename =
         header_text(&headers, "x-resource-filename").unwrap_or_else(|| "resource.bin".to_owned());
+    if header_text(&headers, "x-resource-filename-encoding").as_deref() == Some("percent") {
+        filename = percent_encoding::percent_decode_str(&filename)
+            .decode_utf8()
+            .map_err(|_| ApiError::BadRequest("文件名编码无效".into()))?
+            .into_owned();
+    }
     let media_type = header_text(&headers, header::CONTENT_TYPE.as_str())
         .unwrap_or_else(|| "application/octet-stream".to_owned());
     let kind = header_text(&headers, "x-resource-kind").unwrap_or_else(|| "resource".to_owned());
@@ -169,8 +175,23 @@ fn set_common_headers(headers: &mut HeaderMap, record: &ResourceRecord) {
         headers.insert(header::ETAG, value);
     }
     headers.insert(header::ACCEPT_RANGES, HeaderValue::from_static("bytes"));
-    if let Ok(value) = HeaderValue::from_str(&record.filename) {
-        headers.insert("x-resource-filename", value);
+    if record.filename.is_ascii() {
+        if let Ok(value) = HeaderValue::from_str(&record.filename) {
+            headers.insert("x-resource-filename", value);
+        }
+    } else {
+        let filename = percent_encoding::utf8_percent_encode(
+            &record.filename,
+            percent_encoding::NON_ALPHANUMERIC,
+        )
+        .to_string();
+        if let Ok(value) = HeaderValue::from_str(&filename) {
+            headers.insert("x-resource-filename", value);
+            headers.insert(
+                "x-resource-filename-encoding",
+                HeaderValue::from_static("percent"),
+            );
+        }
     }
 }
 
@@ -372,5 +393,64 @@ mod tests {
             .expect("读取下载响应")
             .to_bytes();
         assert_eq!(&bytes[..], b"world");
+    }
+
+    #[tokio::test]
+    async fn chinese_filename_is_encoded_for_browser_headers() {
+        let directory = tempfile::tempdir().expect("临时目录");
+        let app = router(Store::open(directory.path()).expect("打开资源存储"));
+        let filename = "设备截图 100%.png";
+        let encoded =
+            percent_encoding::utf8_percent_encode(filename, percent_encoding::NON_ALPHANUMERIC)
+                .to_string();
+        let response = app
+            .clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .method(Method::POST)
+                    .uri("/api/v1/resources")
+                    .header("x-resource-filename", encoded)
+                    .header("x-resource-filename-encoding", "percent")
+                    .body(Body::from("png"))
+                    .expect("构造上传请求"),
+            )
+            .await
+            .expect("上传响应");
+        assert_eq!(response.status(), StatusCode::CREATED);
+        let bytes = response
+            .into_body()
+            .collect()
+            .await
+            .expect("上传结果")
+            .to_bytes();
+        let record: ResourceRecord = serde_json::from_slice(&bytes).expect("资源记录");
+        assert_eq!(record.filename, filename);
+        let response = app
+            .oneshot(
+                axum::http::Request::builder()
+                    .uri(format!("/api/v1/resources/{}", record.sha256))
+                    .header(header::ORIGIN, "http://127.0.0.1:5173")
+                    .body(Body::empty())
+                    .expect("构造下载请求"),
+            )
+            .await
+            .expect("下载响应");
+        assert_eq!(
+            response.headers()["x-resource-filename-encoding"],
+            "percent"
+        );
+        let returned = response.headers()["x-resource-filename"]
+            .to_str()
+            .expect("ASCII文件名");
+        assert_eq!(
+            percent_encoding::percent_decode_str(returned)
+                .decode_utf8()
+                .expect("文件名解码"),
+            filename
+        );
+        assert_eq!(
+            response.headers()[header::ACCESS_CONTROL_EXPOSE_HEADERS],
+            "*"
+        );
     }
 }

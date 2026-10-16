@@ -28,11 +28,17 @@ const restartLabels: Record<MarketplaceUploadDraft['restartPolicy'], string> = {
 };
 
 export function MarketplaceUploadSteps({ current }: { current: MarketplaceUploadStep }) {
-  return <Stepper label="上传发布步骤" currentStep={current - 1} steps={[
-    { id: 'file', title: '选择资源', description: '文件与发布类型' },
-    { id: 'metadata', title: '填写描述', description: '基本信息与兼容性' },
-    { id: 'review', title: '确认发布', description: '检查并上传' },
-  ]} />;
+  return (
+    <Stepper
+      label="上传发布步骤"
+      currentStep={current - 1}
+      steps={[
+        { id: 'file', title: '选择资源', description: '文件与发布类型' },
+        { id: 'metadata', title: '填写描述', description: '基本信息与兼容性' },
+        { id: 'review', title: '确认发布', description: '检查并上传' },
+      ]}
+    />
+  );
 }
 
 export function MarketplaceUploadReviewStep({

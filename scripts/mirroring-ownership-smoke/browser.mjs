@@ -28,10 +28,14 @@ async function browserCase(baseUrl, deviceId) {
     const response = await fetch('/__ownership_helper/' + action, {
       method: 'POST', body: JSON.stringify(value ?? {}), headers: { 'content-type': 'application/json' },
     });
-    if (!response.ok) throw new Error('夹具观测失败');
+    if (!response.ok) throw new Error('夹具观测失败：' + await response.text());
     return response.json();
   };
-  const ownership = (index) => participants[index].mirroring.snapshot().ownership;
+  const ownership = (index) => {
+    const snapshot = participants[index].mirroring.snapshot();
+    if (!snapshot.ownership) throw new Error('第' + (index + 1) + '个客户端所有权已失效：' + JSON.stringify(snapshot.errors));
+    return snapshot.ownership;
+  };
   const raw = (index, message) => participants[index].channel.send(JSON.stringify(message) + '\n');
   const key = (code, action = 'down') => ({ type: 'key', action, keycode: code });
   const control = (index, revision, command) => raw(index, {
@@ -65,6 +69,10 @@ async function browserCase(baseUrl, deviceId) {
         },
       });
       entry.unsubscribe = entry.mirroring.subscribe((snapshot) => {
+        if (snapshot.session?.completion && !entry.terminalSession) {
+          entry.terminalSession = snapshot.session;
+          (evidence.terminalSessions ??= []).push(snapshot.session);
+        }
         if (snapshot.clipboard && snapshot.clipboard !== entry.seenClipboard) {
           entry.seenClipboard = snapshot.clipboard;
           entry.clipboard.push({ ...snapshot.clipboard });
@@ -260,11 +268,20 @@ export async function runOwnershipBrowser({ root, baseUrl, deviceId, directory, 
           const prefix = Buffer.alloc(8); prefix.writeBigUInt64BE(++clipboardSequence);
           const pending = join(plan, 'clipboard.pending');
           await writeFile(pending, Buffer.concat([prefix, Buffer.from(text)]));
-          await rename(pending, join(plan, 'clipboard-message'));
+          // Windows 读取方短暂占用目标时，保留同一完整帧并有界重试原子替换。
+          for (let attempt = 1; ; attempt++) {
+            try { await rename(pending, join(plan, 'clipboard-message')); break; }
+            catch (error) {
+              if (!['EPERM', 'EACCES', 'EBUSY'].includes(error.code) || attempt >= 40) throw error;
+              (report.fixtureRetries ??= []).push({ operation: 'clipboard_replace', code: error.code,
+                attempt, delayMs: 25 });
+              await delay(25);
+            }
+          }
         } else assert.equal(request.url, '/bytes');
         response.setHeader('content-type', 'application/json');
         response.end(JSON.stringify(await bytesFor(plan)));
-      } catch (error) { response.statusCode = 500; response.end(JSON.stringify({ error: error.message })); }
+      } catch (error) { response.statusCode = 500; response.end(JSON.stringify({ error: error.message, code: error.code })); }
     });
     await server.listen();
     const address = server.httpServer.address();

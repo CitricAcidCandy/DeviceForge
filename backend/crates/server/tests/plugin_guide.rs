@@ -63,13 +63,26 @@ async fn rpc(router: &Router, method: &str, mut params: Value) -> (String, Value
         )
         .await
         .unwrap();
-    assert_eq!(response.status(), StatusCode::OK);
+    let status = response.status();
     let log_id = response.headers()["x-deviceforge-log-id"]
         .to_str()
         .unwrap()
         .to_owned();
     uuid::Uuid::parse_str(&log_id).expect("日志关联必须由服务器生成");
     let bytes = to_bytes(response.into_body(), 1024 * 1024).await.unwrap();
+    let malformed_arguments = params
+        .get("arguments")
+        .is_some_and(|value| !value.is_object() && !value.is_null());
+    assert_eq!(
+        status,
+        if malformed_arguments {
+            StatusCode::NOT_FOUND
+        } else {
+            StatusCode::OK
+        },
+        "请求 {params} 返回 {}",
+        String::from_utf8_lossy(&bytes)
+    );
     (log_id, serde_json::from_slice(&bytes).unwrap())
 }
 
@@ -200,7 +213,7 @@ async fn every_target_topic_returns_bounded_embedded_versioned_documents_without
 }
 
 #[tokio::test]
-async fn malformed_guide_arguments_are_correlated_protocol_errors_without_jobs() {
+async fn malformed_guide_arguments_are_correlated_errors_without_jobs() {
     let (app, router) = setup();
     let invalid = [
         json!({}),
@@ -224,9 +237,24 @@ async fn malformed_guide_arguments_are_correlated_protocol_errors_without_jobs()
             json!({"name": TOOL, "arguments": arguments}),
         )
         .await;
-        assert_eq!(response["error"]["code"], -32602, "{arguments}: {response}");
-        assert_eq!(response["error"]["data"]["log_id"], log_id);
-        assert!(response.get("result").is_none(), "错误不能包装成异步任务");
+        if arguments.is_object() || arguments.is_null() {
+            // 对象字段校验沿现有工具错误契约返回；空参数等价于没有提供字段。
+            assert_eq!(
+                response["result"]["isError"], true,
+                "{arguments}: {response}"
+            );
+            assert_eq!(
+                response["result"]["structuredContent"]["code"],
+                "invalid_input"
+            );
+            assert_eq!(response["result"]["_meta"]["deviceforge/log_id"], log_id);
+            assert!(response["result"]["structuredContent"].get("id").is_none());
+        } else {
+            // rmcp 3.5 将无法反序列化的调用结构判为未知方法，由传输层拒绝。
+            assert_eq!(response["error"]["code"], -32601, "{arguments}: {response}");
+            assert_eq!(response["error"]["data"]["log_id"], log_id);
+            assert!(response.get("result").is_none());
+        }
     }
     assert!(app.list(8).unwrap().is_empty(), "参数错误不应留下任何任务");
     app.shutdown().await.unwrap();

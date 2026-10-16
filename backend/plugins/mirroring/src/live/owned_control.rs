@@ -50,13 +50,17 @@ impl<'a> OwnedControl<'a> {
     }
 
     pub(crate) async fn refresh(&mut self, context: &InvocationContext) -> Result<View, String> {
-        let mut guard = self.ownership.lock().await?;
-        let relinquish = !guard.is_owner();
-        let handoff = guard.needs_handoff();
-        if (relinquish || handoff) && !self.stop().await {
+        let stop = {
+            let guard = self.ownership.lock().await?;
+            !guard.is_owner() || guard.needs_handoff()
+        };
+        // 移交状态已经禁止新输入；补发抬起和设备清理不能占用跨会话协调锁。
+        if stop && !self.stop().await {
             return Err("设备控制资源清理未确认".into());
         }
-        if guard.needs_handoff() {
+        let mut guard = self.ownership.lock().await?;
+        // 重新读取期间的主控抢回、目标离开等变化，只在旧资源已释放后完成最新移交。
+        if stop && guard.needs_handoff() {
             guard.finish_handoff()?;
             guard.save().await?;
         }

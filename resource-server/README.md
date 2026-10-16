@@ -26,4 +26,8 @@ Windows 下如果使用已经编译好的程序：
 - `GET|HEAD /api/v1/resources/{sha256}`：支持 ETag、Range、Content-Length 和 Content-Range。
 - `GET /api/v1/resources/{sha256}/meta`：读取资源 MIME、大小、文件名和摘要。
 
+中文文件名上传时，将 `x-resource-filename` 设为 UTF-8 百分号编码，并附加 `x-resource-filename-encoding: percent`；下载响应使用同样的标记。没有编码标记的旧文件名按原样处理。跨域响应公开文件名、摘要等响应头，浏览器可读取并执行摘要校验。
+
+浏览器市场入口目前最多暂存 256 MiB，超限明确提示；直接资源 API 的上传上限为 2 GiB，下载支持 Range。服务端容量与性能需要按部署环境独立测量。
+
 服务默认免鉴权；部署到局域网或公网时应由上层网关提供访问控制。插件安装仍须经过现有安装器和摘要校验。

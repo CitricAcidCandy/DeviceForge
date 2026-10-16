@@ -127,14 +127,14 @@ async function withMain(
     browser.window.close();
   }
 }
-async function settled(condition: () => boolean, message: string) {
+async function settled(condition: () => boolean, message: string, detail?: () => string) {
   for (let attempt = 0; attempt < 100; attempt += 1) {
     if (condition()) return;
     await act(async () => {
       await new Promise<void>((resolve) => setTimeout(resolve, 10));
     });
   }
-  assert.ok(condition(), message);
+  assert.ok(condition(), detail ? `${message}；当前状态：${detail()}` : message);
 }
 async function navigate(browser: JSDOM, route: string) {
   const button = browser.window.document.querySelector(`button[data-navigation-route="${route}"]`);
@@ -184,11 +184,13 @@ test('生产入口读取两类安装目录和运行插件，已运行服务器�
     await navigate(browser, 'plugins');
     await settled(() => {
       const status = browser.window.document.querySelector('[aria-label="已安装插件默认启用"]');
-      return (
-        status?.textContent?.includes('broken-browser') === true &&
-        status.textContent.includes('启用失败')
+      return Boolean(
+        status?.querySelector(
+          '[data-default-plugin-id="broken-browser"][data-default-plugin-status="failed"]',
+        ),
       );
-    }, '默认启用页面应展示实际导入器的加载失败状态');
+    }, '默认启用页面应展示实际导入器的加载失败状态', () =>
+      browser.window.document.querySelector('[aria-label="已安装插件默认启用"]')?.textContent ?? '缺少默认启用状态');
     const status = browser.window.document.querySelector('[aria-label="已安装插件默认启用"]');
     assert.ok(status);
     assert.match(status.textContent ?? '', /running-server/);

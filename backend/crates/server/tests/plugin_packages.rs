@@ -91,15 +91,18 @@ impl Harness {
     }
 }
 fn package(browser: bool, invalid_schema: bool) -> Vec<u8> {
+    package_version(browser, invalid_schema, "1.0.0")
+}
+fn package_version(browser: bool, invalid_schema: bool, version: &str) -> Vec<u8> {
     let kind = if browser { "browser" } else { "server" };
     let runtime = if browser { "browser" } else { "native" };
     let manifest = if browser {
-        json!({"id":"httpdemo","version":"1.0.0","api_version":2})
+        json!({"id":"httpdemo","version":version,"api_version":2})
     } else {
-        json!({"id":"httpdemo","version":"1.0.0","protocol_version":3,"operations":[{"name":"work","title":"任务","input_schema":if invalid_schema { json!({"type":"array"}) } else { json!({"type":"object"}) }}]})
+        json!({"id":"httpdemo","version":version,"protocol_version":3,"operations":[{"name":"work","title":"任务","input_schema":if invalid_schema { json!({"type":"array"}) } else { json!({"type":"object"}) }}]})
     };
     let files=vec![
-        ("package.json",serde_json::to_vec(&json!({"version":"1.0.0","deviceforge":{"kind":kind,"manifest":"portable.json","entrypoints":{"any":{"runtime":runtime,"path":"dist/main.js"}}}})).unwrap()),
+        ("package.json",serde_json::to_vec(&json!({"version":version,"deviceforge":{"kind":kind,"manifest":"portable.json","entrypoints":{"any":{"runtime":runtime,"path":"dist/main.js"}}}})).unwrap()),
         ("portable.json",serde_json::to_vec(&manifest).unwrap()),
         ("dist/main.js",b"import './child.js'; export default {};".to_vec()),
         ("dist/child.js",b"export const child = true;".to_vec()),
@@ -153,6 +156,13 @@ async fn package_extractor_failures_always_use_v2_error_envelopes() {
     for (method, path) in [
         ("GET", "/api/v2/plugin-packages/invalid"),
         ("DELETE", "/api/v2/plugin-packages/invalid/httpdemo"),
+        ("PUT", "/api/v2/plugin-packages/invalid/httpdemo?format=zip"),
+        ("PUT", "/api/v2/plugin-packages/browser/httpdemo"),
+        ("PUT", "/api/v2/plugin-packages/browser/httpdemo?format=bad"),
+        (
+            "PUT",
+            "/api/v2/plugin-packages/browser/httpdemo?format=zip&extra=1",
+        ),
         ("POST", "/api/v2/plugin-packages/invalid?format=zip"),
         ("POST", "/api/v2/plugin-packages/browser"),
         ("POST", "/api/v2/plugin-packages/browser?format=bad"),
@@ -176,6 +186,9 @@ async fn package_extractor_failures_always_use_v2_error_envelopes() {
     }
     harness.close().await;
 }
+
+#[path = "plugin_packages/update.rs"]
+mod update;
 
 #[tokio::test]
 async fn browser_assets_and_run_aliases_are_public_raw_bytes_while_management_requires_configured_token()

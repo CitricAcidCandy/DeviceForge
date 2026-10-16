@@ -9,10 +9,12 @@ fn field(script: &str, prefix: &str) -> String {
 }
 
 fn remote(script: &str) -> String {
-    let start = script.find("/data/local/tmp/deviceforge_").expect("缺少远端目录");
-    let suffix: String = script[start..].chars().take_while(|value| value.is_ascii_alphanumeric() || *value == '/' || *value == '_').collect();
-    let path = suffix.trim_end_matches("/pid").trim_end_matches("/server.jar");
-    assert_eq!(path.len(), "/data/local/tmp/deviceforge_".len() + 32);
+    const PREFIX: &str = "/data/local/tmp/deviceforge_";
+    let start = script.find(PREFIX).expect("缺少远端目录");
+    let end = start + PREFIX.len() + 32;
+    let path = script.get(start..end).expect("远端目录长度不足");
+    assert!(path[PREFIX.len()..].bytes().all(|byte| byte.is_ascii_hexdigit()));
+    assert!(script.get(end..).is_some_and(|tail| tail.is_empty() || tail.starts_with('/') || tail.starts_with(char::is_whitespace)));
     path.to_owned()
 }
 
@@ -44,6 +46,7 @@ fn main_inner() -> io::Result<()> {
     assert!(plan.is_dir());
     let call = call_directory(&root)?;
     fs::write(call.join("pid"), std::process::id().to_string())?;
+    fs::write(call.join("argv"), args.join("\n"))?;
     let category = match args[2].as_str() {
         "push" => "push",
         "forward" if args.get(3).is_some_and(|item| item == "--remove") => "remove-forward",

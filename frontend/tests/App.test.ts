@@ -49,6 +49,7 @@ async function verifyStaticRendering() {
       '插件',
       '任务与日志',
       '工具供应',
+      '市场',
       '设置',
       '工作台',
       '深度调试',
@@ -169,7 +170,7 @@ test('中后台分组导航、折叠与专注保留页面草稿，设备上下�
     await act(async () => {
       root.render(createElement(loaded.App, { services }));
     });
-    const deviceNode = target.querySelector('[data-route="devices"]');
+    const deviceNode = target.querySelector('.workplane > [data-route="devices"]');
     assert.ok(deviceNode);
     const findButton = (label: string) => {
       const button = Array.from(target.querySelectorAll('button')).find(
@@ -210,19 +211,20 @@ test('中后台分组导航、折叠与专注保留页面草稿，设备上下�
       ['plugins', '插件'],
       ['tasks', '任务与日志'],
       ['tools', '工具供应'],
+      ['marketplace', '市场'],
       ['settings', '设置'],
     ];
     const assertCurrent = (routeId: string, label: string) => {
       const current = navigation().querySelectorAll('[aria-current="page"]');
       assert.equal(current.length, 1, '左侧导航只能有一个当前页面');
       assert.equal(current[0], navigate(label));
-      const visibleRoutes = Array.from(target.querySelectorAll('[data-route]')).filter(
+      const visibleRoutes = Array.from(target.querySelectorAll('.workplane > [data-route]')).filter(
         (entry) => !entry.hasAttribute('hidden'),
       );
       assert.equal(visibleRoutes.length, 1);
       assert.equal(visibleRoutes[0]?.getAttribute('data-route'), routeId);
     };
-    assert.equal(navigation().querySelectorAll('button[data-navigation-route]').length, 14);
+    assert.equal(navigation().querySelectorAll('button[data-navigation-route]').length, 15);
     assert.deepEqual(
       Array.from(navigation().querySelectorAll('h2')).map((heading) => heading.textContent),
       ['工作台', '深度调试', '扩展创作', '工坊'],
@@ -237,7 +239,7 @@ test('中后台分组导航、折叠与专注保留页面草稿，设备上下�
     }
     await act(async () => navigate('设备').click());
     assert.equal(
-      target.querySelector('[data-route="devices"]'),
+      target.querySelector('.workplane > [data-route="devices"]'),
       deviceNode,
       '切页不应替换已挂载的设备页面',
     );
@@ -267,10 +269,10 @@ test('中后台分组导航、折叠与专注保留页面草稿，设备上下�
     await act(async () => services.runtime.devices.select(null));
     assert.doesNotMatch(devicePicker.textContent ?? '', /研发工作站/);
     await act(async () => navigate('设备').click());
-    assert.equal(target.querySelector('[data-route="devices"]'), deviceNode);
+    assert.equal(target.querySelector('.workplane > [data-route="devices"]'), deviceNode);
     await act(async () => findButton('专注').click());
     assert.ok(target.querySelector('.is-focused'));
-    assert.equal(target.querySelector('[data-route="devices"]'), deviceNode);
+    assert.equal(target.querySelector('.workplane > [data-route="devices"]'), deviceNode);
     await act(async () => navigate('设置').click());
     const configuration = target.querySelector('#settings-content');
     assert.ok(configuration instanceof windowRef.HTMLTextAreaElement);
@@ -285,7 +287,7 @@ test('中后台分组导航、折叠与专注保留页面草稿，设备上下�
     });
     await act(async () => navigate('设备').click());
     assert.equal(target.querySelector('[data-route="devices"]'), deviceNode);
-    assert.equal(target.querySelector('[data-route="settings"]')?.hasAttribute('hidden'), true);
+    assert.equal(target.querySelector('.workplane > [data-route="settings"]')?.hasAttribute('hidden'), true);
     await act(async () => findButton('设置').click());
     assert.equal(target.querySelector('#settings-content'), configuration);
     assert.equal(configuration.value, '{"草稿":"保留"}');
@@ -299,7 +301,7 @@ test('中后台分组导航、折叠与专注保留页面草稿，设备上下�
     assertCurrent('devices', '设备');
     await act(async () => labeledButton('展开导航').click());
     assert.equal(shell.getAttribute('data-navigation-collapsed'), 'false');
-    assert.equal(target.querySelector('[data-route="devices"]'), deviceNode);
+    assert.equal(target.querySelector('.workplane > [data-route="devices"]'), deviceNode);
     await act(async () => navigate('设置').click());
     assert.equal(configuration.value, '{"草稿":"保留"}');
     await act(async () => findButton('退出专注').click());

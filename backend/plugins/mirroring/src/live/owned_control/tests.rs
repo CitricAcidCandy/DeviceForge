@@ -4,7 +4,11 @@ use deviceforge_plugin_runtime::{Execution, serve_io_with_context};
 use serde_json::json;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
-use tokio::{io::AsyncWriteExt, net::TcpListener, sync::oneshot};
+use tokio::{
+    io::AsyncWriteExt,
+    net::{TcpListener, TcpSocket},
+    sync::oneshot,
+};
 
 static DEVICES: AtomicU64 = AtomicU64::new(0);
 
@@ -58,6 +62,46 @@ async fn socket(control: &mut OwnedControl<'_>) -> TcpStream {
         .await
         .unwrap();
     let (remote, _) = listener.accept().await.unwrap();
+    control.socket = Some(local);
+    control.device = Some(Device::new());
+    remote
+}
+
+async fn backpressured_socket(control: &mut OwnedControl<'_>) -> TcpStream {
+    let listener = TcpSocket::new_v4().unwrap();
+    listener.set_recv_buffer_size(1024).unwrap();
+    listener
+        .bind((std::net::Ipv4Addr::LOCALHOST, 0).into())
+        .unwrap();
+    let listener = listener.listen(1).unwrap();
+    let local = TcpSocket::new_v4().unwrap();
+    local.set_send_buffer_size(1024).unwrap();
+    let local = local.connect(listener.local_addr().unwrap()).await.unwrap();
+    let (remote, _) = listener.accept().await.unwrap();
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(2);
+    let mut quiet = tokio::time::Instant::now();
+    let mut written = 0;
+    loop {
+        // 小窗口填满后仍等待网络完成在途接收，确保补发 UP 确实需要等待读取端。
+        match local.try_write(&[0; 8192]) {
+            Ok(count) => {
+                written += count;
+                quiet = tokio::time::Instant::now();
+                assert!(written <= 16 * 1024 * 1024, "测试套接字背压未生效");
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                if quiet.elapsed() >= Duration::from_millis(100) {
+                    break;
+                }
+                tokio::time::sleep(Duration::from_millis(5)).await;
+            }
+            Err(error) => panic!("无法填满测试套接字：{error}"),
+        }
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "测试套接字未形成稳定背压"
+        );
+    }
     control.socket = Some(local);
     control.device = Some(Device::new());
     remote
@@ -194,6 +238,61 @@ async fn handoff_blocks_old_input_then_writes_key_up_before_granting_successor()
     assert!(!finished.has_control);
     assert_eq!(finished.owner_id.as_deref(), Some("bob"));
     assert!(bob.clipboard_guard().await.unwrap().is_owner());
+    assert!(bob.close().await);
+    assert!(alice.close().await);
+}
+
+#[tokio::test]
+async fn slow_key_release_keeps_state_readable_without_granting_control_early() {
+    let config = config();
+    let parameters = parameters();
+    let context = context().await;
+    let mut alice = OwnedControl::new(&parameters, "alice", false, &config)
+        .await
+        .unwrap();
+    let mut bob = OwnedControl::new(&parameters, "bob", false, &config)
+        .await
+        .unwrap();
+    let mut readonly_parameters = parameters.clone();
+    readonly_parameters.control = false;
+    let mut viewer = OwnedControl::new(&readonly_parameters, "viewer", false, &config)
+        .await
+        .unwrap();
+    let mut remote = backpressured_socket(&mut alice).await;
+    alice.pressed.record(&key(Action::Down)).unwrap();
+    bob.command(Command::Request).await.unwrap();
+    alice
+        .command(Command::Respond {
+            client_id: "bob".into(),
+            accept: true,
+        })
+        .await
+        .unwrap();
+    let inspect = async {
+        tokio::time::sleep(Duration::from_millis(30)).await;
+        for control in [&bob, &viewer] {
+            let guard = tokio::time::timeout(Duration::from_millis(200), control.clipboard_guard())
+                .await
+                .expect("慢速补发 UP 不应阻塞其他观看者读取控制状态")
+                .unwrap();
+            let state = guard.view();
+            assert!(state.transitioning);
+            assert_eq!(state.owner_id.as_deref(), Some("alice"));
+            assert!(!state.has_control);
+        }
+        let mut received = Vec::new();
+        tokio::time::timeout(Duration::from_secs(2), remote.read_to_end(&mut received))
+            .await
+            .unwrap()
+            .unwrap();
+        received
+    };
+    let (finished, received) = tokio::join!(alice.refresh(&context), inspect);
+    let finished = finished.unwrap();
+    assert_eq!(finished.owner_id.as_deref(), Some("bob"));
+    assert!(!finished.transitioning);
+    assert!(received.ends_with(&key(Action::Up)));
+    assert!(viewer.close().await);
     assert!(bob.close().await);
     assert!(alice.close().await);
 }

@@ -272,7 +272,6 @@ impl Device {
         )
     }
     pub(crate) async fn cleanup(&mut self, config: &Config, open: &Open) -> bool {
-        let deadline = tokio::time::Instant::now() + Duration::from_secs(2);
         let mut complete = !self.unresolved;
         let mut owned_port = None;
         if let Some(server) = self.server.as_mut() {
@@ -284,6 +283,9 @@ impl Device {
             }
         }
         self.server = None;
+        // 直接进程已有独立的回收上限；远端清理不复用已被退出等待消耗的预算。
+        // 后续全部远端命令共享本阶段绝对期限，不能逐条续期。
+        let deadline = tokio::time::Instant::now() + Duration::from_secs(2);
         if self.directory_created {
             let result = command(
                 config,
