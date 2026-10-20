@@ -24,19 +24,29 @@ function observe(kind, context) {
 }
 export default {
   id: '${id}', version: '1.0.0', apiVersion: 2,
+  configuration: {
+    version: 1, apply_policy: 'plugin_reload',
+    schema: { type: 'object', additionalProperties: false, required: ['color', 'borderWidth', 'colorScheme'], properties: {
+      color: { type: 'string', title: '强调色', minLength: 1 },
+      borderWidth: { type: 'integer', title: '边框宽度', minimum: 0, maximum: 64 },
+      colorScheme: { type: 'string', title: '浏览器配色', enum: ['dark', 'light', 'normal'] }
+    } },
+    defaults: { color: '${color}', borderWidth: ${width}, colorScheme: '${colorScheme}' }
+  },
   panels: [{ id: '${id}.panel', title: '主题验收作用域', async mount(target, context) {
     observe('panel', context); target.textContent = '主题子作用域'; return () => { target.textContent = ''; };
   }}],
   contributions: {
-    themes: [{ id: '${id}.main', title: '在线主题', variables: {
-      '--df-theme-smoke-color': '${color}', '--df-theme-smoke-extra': '本代主题变量'
-    }, css: '.theme-smoke-probe { border-top-width: ${width}px !important; }', colorScheme: '${colorScheme}' }],
     commands: [{ id: '${id}.release_dynamic', title: '释放动态主题', async execute(input, context, signal) {
       if (releaseDynamic) { await releaseDynamic(); releaseDynamic = undefined; }
       const reply = await context.listOperations(signal); return { data: { released: true }, logId: reply.logId };
     }}]
   },
   async activate(context) {
+    const values = context.configuration?.get() ?? this.configuration.defaults;
+    context.extensions.register({ themes: [{ id: '${id}.main', title: '在线主题', variables: {
+      '--df-theme-smoke-color': values.color, '--df-theme-smoke-extra': '本代主题变量'
+    }, css: '.theme-smoke-probe { border-top-width: ' + values.borderWidth + 'px !important; }', colorScheme: values.colorScheme }] });
     observe('plugin', context);
     ${
       dynamic

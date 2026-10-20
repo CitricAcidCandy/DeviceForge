@@ -61,7 +61,7 @@ async function compilePlugins(plans, metadata, options) {
     'apk-server',
   ];
   for (const plan of plans) args.push('-p', plan.crate);
-  const build = await execute('cargo', args, { ...options, timeout: 300000 });
+  const build = await execute('cargo', args, { ...options, timeout: 1800000 });
   if (build.stderr) process.stderr.write(build.stderr);
   const artifacts = build.stdout
     .trim()

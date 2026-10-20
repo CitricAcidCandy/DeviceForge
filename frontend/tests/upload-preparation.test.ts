@@ -75,6 +75,10 @@ test('单媒体保留原字节，工具和配置目录保持相对路径', async
   assert.ok('inspection' in result);
   assert.equal(result.file, file);
   assert.deepEqual(new Uint8Array(await result.file.arrayBuffer()), new Uint8Array([0, 3, 9, 255]));
+  const rawZip = new File([new Uint8Array([1, 2, 3])], '原始资源.zip');
+  const rawResult = await prepareUpload({ selection: { mode: 'file', name: rawZip.name, files: [{ path: rawZip.name, file: rawZip }] }, kind: 'resource', metadata: { ...metadata, kind: 'resource', visibility: 'internal' } });
+  assert.ok('inspection' in rawResult);
+  assert.equal(rawResult.file, rawZip, '单文件模式不因 ZIP 扩展名修改资源原字节');
   for (const kind of ['tool', 'config'] as const) {
     const packed = await prepareUpload({ selection: directory([{ path: '子目录/a.json', bytes: encode({ enabled: true }) }]), kind, metadata: { ...metadata, kind } });
     assert.ok('inspection' in packed);

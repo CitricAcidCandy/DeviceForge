@@ -22,7 +22,7 @@ export async function prepareUpload(request: PreparationRequest): Promise<Upload
   const plugin = kind === 'plugin';
   const single = selection.files[0];
   if (!single || !selection.files.length) throw new Error('请选择上传内容');
-  const archive = selection.mode === 'archive' || /\.(zip|tgz|tar\.gz)$/i.test(single.file.name);
+  const archive = selection.mode === 'archive' || (plugin && /\.(zip|tgz|tar\.gz)$/i.test(single.file.name));
   const directory = selection.mode === 'directory';
   if (!archive && !directory) {
     if (plugin) throw new Error('插件请选择已构建文件夹或 ZIP/TGZ 便携包');

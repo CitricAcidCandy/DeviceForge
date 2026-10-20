@@ -7,6 +7,7 @@ use std::sync::Arc;
 use tokio_util::{io::ReaderStream, sync::CancellationToken};
 fn manifest(outputs: bool) -> Manifest {
     Manifest {
+        configuration: None,
         id: "copy".into(),
         version: "0.1.0".into(),
         protocol_version: ARTIFACT_PROTOCOL_VERSION,

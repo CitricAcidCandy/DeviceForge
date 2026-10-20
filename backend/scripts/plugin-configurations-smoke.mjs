@@ -113,12 +113,29 @@ try {
   const binaryBytes = await readFile(binary);
   report.host_sha256 = createHash('sha256').update(binaryBytes).digest('hex');
   await copyFile(join(backend, 'scripts/plugin-configurations-smoke/fixture.mjs'), join(output, 'fixture.mjs'));
+  // 故意报告未确认清理的协议 3 夹具，不创建任何外部资源。
+  await writeFile(join(output, 'cleanup-failed.mjs'), [
+    "import { createInterface } from 'node:readline';",
+    "import { writeFileSync } from 'node:fs';",
+    "const reader = createInterface({ input: process.stdin });",
+    "reader.once('line', (line) => {",
+    "  const request = JSON.parse(line); reader.close();",
+    "  writeFileSync(process.argv[process.argv.indexOf('--marker') + 1], String(process.pid));",
+    "  const response = { protocol_version: 3, request_id: request.request_id, result: {} };",
+    "  process.stdout.write(JSON.stringify({ response, cleanup: 'failed' }) + '\\n', () => process.exit(0));",
+    "});",
+  ].join('\n'));
   await manifest('config_next', 'next_invocation');
   await manifest('config_reload', 'plugin_reload');
   await manifest('config_legacy', 'next_invocation', false);
+  await manifest('config_failed', 'plugin_reload');
+  const failedManifest = structuredClone(manifests.get('config_failed'));
+  failedManifest.protocol_version = 3;
+  failedManifest.args[0] = join(output, 'cleanup-failed.mjs');
+  await writeFile(join(deployment, 'config_failed/manifest.json'), JSON.stringify(failedManifest));
   await start();
   const catalog = await call('/api/v2/plugin-configurations?kind=server');
-  check('目录同时包含声明配置与旁置旧插件', catalog.length === 3 && catalog.some((value) => value.id === 'config_legacy' && value.definition === null));
+  check('目录同时包含声明配置与旁置旧插件', catalog.length === 4 && catalog.some((value) => value.id === 'config_legacy' && value.definition === null));
   let current = await call(configPath('config_next'));
   check('首次读取旧配置且敏感映射与普通密码均遮蔽', current.source === 'legacy' && current.revision === 0 && current.values.count === 3 && current.values.token === '********' && current.values.headers.private === '********');
   let actual = await result(await invoke('config_next'));
@@ -186,6 +203,19 @@ try {
   current = await call(configPath('config_next'));
   actual = await result(await invoke('config_next'));
   check('宿主重启后配置值与修订持久化并由进程消费', current.revision === 5 && current.values.count === 8 && actual.count === 8 && actual.managed);
+  const failedJob = await invoke('config_failed');
+  const failedTerminal = await poll(() => call(`/api/v2/jobs/${failedJob.id}`), (value) => ['succeeded', 'failed', 'cancelled'].includes(value.status), '未确认清理任务终态');
+  const unresolved = (await call('/api/v2/plugins')).find((value) => value.id === 'config_failed');
+  check('协议三未确认清理保留真实失败状态', failedTerminal.status === 'failed' && unresolved.cleanup_failed);
+  current = await call(configPath('config_failed'), { method: 'PATCH', input: { expected_revision: 0, patch: { count: 4 } } });
+  const rejectedCleanup = await call(configPath('config_failed') + '/apply', { method: 'POST', status: 409, input: { expected_revision: 1 } });
+  const keptUnresolved = (await call('/api/v2/plugins')).find((value) => value.id === 'config_failed');
+  current = await call(configPath('config_failed'));
+  check('未确认清理拒绝配置重载且不清空告警代际', rejectedCleanup.code === 'cleanup_failed' && keptUnresolved.cleanup_failed && keptUnresolved.generation === unresolved.generation && current.pending_reload && current.applied_revision === 0);
+  const failedPid = Number(await readFile(join(deployment, 'config_failed/started'), 'utf8'));
+  const fixtureExited = await poll(async () => { try { process.kill(failedPid, 0); return false; } catch (error) { if (error.code === 'ESRCH') return true; throw error; } }, Boolean, '清理失败夹具直接进程退出');
+  report.cleanup_fixture = { pid: failedPid, exited: fixtureExited };
+  check('直接进程退出不能清除插件未确认清理标记', fixtureExited && keptUnresolved.cleanup_failed);
   await stop();
   check('两轮独立宿主均正常退出并释放监听', report.hosts.length === 2 && report.hosts.every((value) => value.exit.code === 0 && value.port_released));
   report.passed = true;

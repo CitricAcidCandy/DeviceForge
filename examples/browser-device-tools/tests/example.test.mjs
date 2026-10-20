@@ -18,6 +18,23 @@ test('在线包清单、版本和独立 ESM 入口一致', async () => {
   await readFile(new URL('../' + descriptor.deviceforge.entrypoints.any.path, import.meta.url));
 });
 
+test('公开配置实际控制任务保留数量与目录事件，后续调用读取新值', async () => {
+  const host = publicHost();
+  let values = { rememberedJobs: 1, publishEvents: false };
+  const session = await activateExample({ ...host.context, configuration: { get: () => ({ ...values }), subscribe: () => () => {} } }, 'test-configuration');
+  try {
+    assert.equal(plugin.configuration.apply_policy, 'next_invocation');
+    session.remember({ id: 'first' }, host.context.signal);
+    session.remember({ id: 'second' }, host.context.signal);
+    assert.deepEqual(session.snapshot().acceptedJobIds, ['second']);
+    assert.equal(host.events.length, 0);
+    values = { rememberedJobs: 2, publishEvents: true };
+    session.remember({ id: 'third' }, host.context.signal);
+    assert.deepEqual(session.snapshot().acceptedJobIds, ['second', 'third']);
+    assert.equal(host.events.at(-1).name, plugin.id + '.changed');
+  } finally { await host.dispose(); }
+});
+
 test('可选 devices 缺省时普通任务和历史仍可消费，设备命令明确失败', async () => {
   const host = publicHost({ hasDevices: false });
   await activateExample(host.context, 'test-no-devices');

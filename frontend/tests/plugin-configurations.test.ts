@@ -107,6 +107,31 @@ test('需要重载的浏览器配置保存后保留运行中旧值，激活成�
   } finally { model.dispose(); fixture.close(); }
 });
 
+test('插件升级删除敏感字段声明后仍遮蔽旧值，保存占位保留原值且不存秘密副本', () => {
+  const fixture = localStorageFixture();
+  const model = createBrowserConfigurations('http://localhost:7031', fixture.storage);
+  model.define('example', definition);
+  try {
+    const saved = model.save('example', 'defaults', defaultValues);
+    model.define('example', { version: 2, apply_policy: 'next_invocation', defaults: { count: 1 },
+      schema: { type: 'object', properties: { count: { type: 'integer' } } } });
+    const upgraded = model.get('example');
+    assert.equal(upgraded.compatible, false);
+    assert.doesNotMatch(JSON.stringify(upgraded), /default-secret-value|nested-default/);
+    assert.ok(upgraded.values && typeof upgraded.values === 'object' && !Array.isArray(upgraded.values));
+    const corrected = model.save('example', saved.revision, { ...upgraded.values, count: 7 });
+    assert.equal(corrected.compatible, true);
+    assert.doesNotMatch(JSON.stringify(corrected), /default-secret-value|nested-default/);
+    const raw = model.prepare('example', { version: 2, apply_policy: 'next_invocation', defaults: {}, schema: { type: 'object' } })?.get();
+    assert.ok(raw && typeof raw === 'object' && !Array.isArray(raw));
+    assert.equal(raw['secret'], defaultValues.secret);
+    const persisted: unknown = JSON.parse(fixture.storage.getItem(fixture.storage.key(0) ?? '') ?? '{}');
+    assert.ok(persisted && typeof persisted === 'object' && 'sensitivePaths' in persisted);
+    assert.deepEqual(persisted.sensitivePaths, ['/secret', '/nested/password']);
+    assert.equal(JSON.stringify(persisted).match(/default-secret-value/g)?.length, 1, '敏感路径记录不保存原值副本');
+  } finally { model.dispose(); fixture.close(); }
+});
+
 test('服务器配置走公开 PATCH/reset/apply，字段校验错误保留修订，409 冲突保留错误语义', async () => {
   const dto: PluginConfigurationDto = { kind: 'server', id: 'example', definition, values: definition.defaults, revision: 3, applied_revision: 2,
     pending_reload: true, compatible: true, field_errors: [], source: 'managed' };
@@ -123,7 +148,7 @@ test('服务器配置走公开 PATCH/reset/apply，字段校验错误保留修�
   const target = { kind: 'server', id: 'example' } as const;
   const initial = await configurations.get(target, signal());
   assert.equal(initial.revision, '3');
-  assert.doesNotMatch(JSON.stringify(initial.definition), /default-secret-value/);
+  assert.doesNotMatch(JSON.stringify(initial), /default-secret-value|nested-default/);
   const rejected = await configurations.save(target, initial.revision, { count: 99 }, signal());
   assert.equal(rejected.compatible, false);
   assert.equal(rejected.revision, '3');

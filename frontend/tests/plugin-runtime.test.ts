@@ -215,6 +215,9 @@ test('激活失败及释放失败汇总，其他资源和另一个插件仍正�
   );
   assert.equal(released, 1);
   assert.equal(manager.snapshot()[0]?.id, 'healthy');
+  await assert.rejects(manager.load('example'), { code: 'plugin_cleanup_failed' });
+  await assert.rejects(manager.unload('example'), { code: 'plugin_cleanup_failed' });
+  await assert.rejects(manager.unregister('example'), { code: 'plugin_cleanup_failed' });
   await manager.dispose();
 });
 

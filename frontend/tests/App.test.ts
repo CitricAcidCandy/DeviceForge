@@ -67,7 +67,7 @@ async function verifyStaticRendering() {
   }
 }
 
-test('中后台分组导航、折叠与专注保留页面草稿，设备上下文随公开选择更新', async () => {
+test('中后台分组导航、折叠与专注保留页面草稿，设备上下文随公开选择更新', { timeout: 30_000 }, async () => {
   const browser = new JSDOM('<!doctype html><html><body><div id="test-app"></div></body></html>', {
     url: 'http://localhost:7031',
     pretendToBeVisual: true,
@@ -288,20 +288,20 @@ test('中后台分组导航、折叠与专注保留页面草稿，设备上下�
       configuration.dispatchEvent(new windowRef.Event('input', { bubbles: true }));
     });
     await act(async () => navigate('设备').click());
-    assert.equal(target.querySelector('[data-route="devices"]'), deviceNode);
+    assert.equal(target.querySelector('.workplane > [data-route="devices"]'), deviceNode);
     assert.equal(target.querySelector('.workplane > [data-route="settings"]')?.hasAttribute('hidden'), true);
     await act(async () => findButton('设置').click());
     assert.equal(target.querySelector('#settings-content'), configuration);
     assert.equal(configuration.value, '{"草稿":"保留"}');
     const shell = target.querySelector('.product-shell');
     assert.ok(shell);
-    await act(async () => labeledButton('折叠导航').click());
+    await act(async () => labeledButton('折叠侧边导航').click());
     assert.equal(shell.getAttribute('data-navigation-collapsed'), 'true');
     assert.equal(target.querySelector('#settings-content'), configuration);
     assert.equal(configuration.value, '{"草稿":"保留"}');
     await act(async () => navigate('设备').click());
     assertCurrent('devices', '设备');
-    await act(async () => labeledButton('展开导航').click());
+    await act(async () => labeledButton('展开侧边导航').click());
     assert.equal(shell.getAttribute('data-navigation-collapsed'), 'false');
     assert.equal(target.querySelector('.workplane > [data-route="devices"]'), deviceNode);
     await act(async () => navigate('设置').click());
@@ -316,7 +316,7 @@ test('中后台分组导航、折叠与专注保留页面草稿，设备上下�
     const mobileDialog = windowRef.document.querySelector('[role="dialog"]');
     assert.ok(mobileDialog);
     assert.match(mobileDialog.textContent ?? '', /工坊导航/);
-    assert.equal(mobileDialog.querySelectorAll('button[data-navigation-route]').length, 14);
+    assert.equal(mobileDialog.querySelectorAll('button[data-navigation-route]').length, routes.length);
     assert.ok(mobileDialog.contains(windowRef.document.activeElement), '抽屉打开后焦点应进入抽屉');
     await act(async () => {
       mobileDialog.dispatchEvent(

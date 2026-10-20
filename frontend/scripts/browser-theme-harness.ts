@@ -291,6 +291,27 @@ export async function verifyThemes() {
     check(firstContext.events.length === oldEventCount, '旧代主题订阅收到新代通知');
     runtime.themes.select(null);
     checkBaseline('新代选择清除');
+    const configurationTarget = { kind: 'browser', id: ids.first } as const;
+    runtime.themes.select(ids.first + '.main');
+    const currentConfiguration = await runtime.pluginConfigurations.get(configurationTarget, signal);
+    check(currentConfiguration.definition?.apply_policy === 'plugin_reload', '在线主题未声明重载配置');
+    const savedConfiguration = await runtime.pluginConfigurations.save(configurationTarget, currentConfiguration.revision,
+      { color: 'rgb(51, 61, 71)', borderWidth: 13, colorScheme: 'light' }, signal);
+    check(savedConfiguration.pendingReload, '主题配置保存后未标记待重载');
+    check(styleState(target, probe).computedBorder === '7px', '仅保存配置改变了运行中主题');
+    const appliedConfiguration = await runtime.pluginConfigurations.apply(configurationTarget, savedConfiguration.revision, signal);
+    check(!appliedConfiguration.pendingReload, '主题成功激活后仍标记待重载');
+    check(runtime.themes.snapshot().selected?.id === ids.first + '.main', '配置重载丢失有效选中主题');
+    check(styleState(target, probe).computedColor === 'rgb(51, 61, 71)' &&
+      styleState(target, probe).computedBorder === '13px' && styleState(target, probe).schemeValue === 'light', '重载主题未实际消费已保存配置');
+    rejected(() => nextContext.themes.snapshot(), 'cancelled', 'plugin_unloaded');
+    const resetConfiguration = await runtime.pluginConfigurations.reset(configurationTarget, appliedConfiguration.revision, signal);
+    check(resetConfiguration.pendingReload, '恢复默认未标记待重载');
+    await runtime.pluginConfigurations.apply(configurationTarget, resetConfiguration.revision, signal);
+    check(runtime.themes.snapshot().selected?.id === ids.first + '.main' && styleState(target, probe).computedBorder === '7px', '恢复默认并重载未保留有效主题');
+    runtime.themes.select(null);
+    checkBaseline('主题配置重载后清除');
+    checks.push({ name: '在线主题配置保存保留旧值、重载实际生效并保留有效选择、恢复默认', passed: true });
     await runtime.pluginPackages.upload(
       'browser',
       await archive('failing'),
@@ -353,6 +374,7 @@ export async function verifyThemes() {
       childScopeRevocation: true,
       oldSubscriptionsRevoked: true,
       activationRollback: true,
+      configurationReloadApplied: true,
       disposed,
     };
   } finally {

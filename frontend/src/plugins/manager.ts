@@ -53,6 +53,7 @@ export function createPluginManager(options: ManagerOptions) {
   const mounts = createExtensionMounts();
   const sources = new Map<string, TrustedRegistration>();
   const running = new Map<string, Runtime>();
+  const cleanupFailed = new Set<string>();
   const epochs = new Map<string, number>();
   const panelEpochs = new Map<string, number>();
   const extensionEpochs = new Map<string, number>();
@@ -68,6 +69,9 @@ export function createPluginManager(options: ManagerOptions) {
     if (closed || runtime.scope.context.signal.aborted || running.get(runtime.id) !== runtime) {
       throw new HostError('cancelled', 'plugin_unloaded', '插件代际已撤销');
     }
+  }
+  function assertClean(id: string) {
+    if (cleanupFailed.has(id)) throw new HostError('protocol', 'plugin_cleanup_failed', '插件资源清理未确认，当前运行实例禁止重新启用、重载或删除');
   }
   async function cleanup(runtime: Runtime) {
     runtime.scope.close();
@@ -86,11 +90,15 @@ export function createPluginManager(options: ManagerOptions) {
       runtime.activationStarted = false;
     }
     if (running.get(runtime.id) === runtime) running.delete(runtime.id);
-    if (failures.length) throw new AggregateError(failures, '插件卸载未完整释放资源');
+    if (failures.length) {
+      cleanupFailed.add(runtime.id);
+      throw new AggregateError(failures, '插件卸载未完整释放资源');
+    }
   }
   async function loadNow(id: string, epoch: number): Promise<PluginSnapshot> {
     if (closed || (epochs.get(id) ?? 0) !== epoch)
       throw new HostError('cancelled', 'plugin_unloaded', '加载请求已撤销');
+    assertClean(id);
     const existing = running.get(id);
     if (existing) {
       active(existing);
@@ -200,6 +208,7 @@ export function createPluginManager(options: ManagerOptions) {
     epochs.set(id, (epochs.get(id) ?? 0) + 1);
     running.get(id)?.scope.close();
     return serial(async () => {
+      assertClean(id);
       const runtime = running.get(id);
       if (runtime) await cleanup(runtime);
     });
@@ -304,6 +313,7 @@ export function createPluginManager(options: ManagerOptions) {
       panelEpochs.set(panelId, (panelEpochs.get(panelId) ?? 0) + 1);
       running.get(id)?.panels.get(panelId)?.scope.close();
       return serial(async () => {
+        assertClean(id);
         const runtime = running.get(id);
         const panel = runtime?.panels.get(panelId);
         if (!runtime || !panel) return;
@@ -319,6 +329,7 @@ export function createPluginManager(options: ManagerOptions) {
       epochs.set(id, (epochs.get(id) ?? 0) + 1);
       running.get(id)?.scope.close();
       return serial(async () => {
+        assertClean(id);
         const runtime = running.get(id);
         if (runtime) await cleanup(runtime);
         sources.delete(id);

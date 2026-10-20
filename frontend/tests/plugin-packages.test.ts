@@ -246,7 +246,7 @@ test('缺少 crypto.randomUUID 时在线包仍可启停重载，不复用运行�
   assert.deepEqual(Object.getOwnPropertyDescriptor(globalThis, 'crypto'), originalCrypto);
 });
 
-test('浏览器资源释放失败阻止部署删除，报告错误并允许从保留部署重新启用', async () => {
+test('浏览器资源释放失败阻止部署删除和重新启用，保留部署供核对', async () => {
   let releases = 0;
   let deletions = 0;
   let imports = 0;
@@ -285,11 +285,13 @@ test('浏览器资源释放失败阻止部署删除，报告错误并允许从�
   assert.equal(deletions, 0);
   assert.deepEqual(runtime.webPlugins.snapshot(), []);
   assert.equal(runtime.pluginPackages.snapshot('browser').result?.data[0]?.id, 'example');
-  await runtime.pluginPackages.enable('browser', 'example', signal());
-  assert.equal(imports, 2);
-  assert.equal(contexts[1]?.signal.aborted, false);
+  await assert.rejects(runtime.pluginPackages.enable('browser', 'example', signal()), { code: 'plugin_cleanup_failed' });
+  await assert.rejects(runtime.pluginPackages.remove('browser', 'example', signal()), { code: 'plugin_cleanup_failed' });
+  assert.equal(imports, 1);
+  assert.equal(contexts.length, 1);
+  assert.equal(deletions, 0);
   await runtime.dispose();
-  assert.equal(releases, 2);
+  assert.equal(releases, 1);
 });
 
 test('浏览器删除等待取消仍重查服务端已删除目录，本实例保持停用且不重复 DELETE', async () => {

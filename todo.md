@@ -1,5 +1,23 @@
 # DeviceForge 开发与验收记录
 
+## 2026-10-20 插件 protocol.rs 缺失配置字段复核
+
+- 用户报告 `missing field configuration in initializer of Manifest`。当前工作区的 echo、artifact-copy、cooperative-demo、performance-demo 四份 `tests/protocol.rs` 均已显式填写 `configuration: None`；本轮确认原有修复保留，未重复改写 Rust 文件或恢复其他工作区修改。
+- 本轮实际执行 `cargo check --workspace --all-targets -j 1` 退出 0，覆盖测试及其他目标，日志为 `artifacts/plugin-protocol-check-20261020.log`；四份文件差异格式检查通过。若编辑器仍显示相同错误，应重新加载 Rust Analyzer 工作区并确认当前打开路径及未保存缓冲区，而不是隐藏诊断或放宽 Manifest 契约。
+- 用户再次确认上述四份文件仍标红后，复验同一全目标检查退出 0（11.84 秒），日志为 `artifacts/plugin-protocol-recheck-20261020.log`。Trae 的 Rust Analyzer 日志记录过 Windows 页面文件不足（错误 1455）和内存分配失败，构建信息与检查进程曾中断；已在工作区 `.vscode/settings.json` 将 Rust Analyzer 的 Cargo 检查限制为单任务，降低并行内存压力。编辑器诊断是否刷新仍需保存全部文件并重启语言服务器后确认，不把磁盘编译通过等同于编辑器界面恢复。
+
+## 2026-10-16 统一插件配置与文件夹上传收尾
+
+- [x] 18 个服务器插件、浏览器 SDK/主题示例和打包链统一支持可选 `configuration` 声明；服务器配置独立于 settings 持久化，支持默认值、JSON Schema、Merge Patch、CAS 冲突、版本升级保留、敏感字段遮蔽、只读字段和恢复默认。配置接口覆盖读取、保存、应用、重载保护和活动任务/清理失败拒绝。
+- [x] 插件页与市场已安装页共用配置 Dialog；普通表单覆盖字符串、数字、开关、枚举、嵌套对象、数组、键值映射和高级 JSON；无 schema 明确显示无需配置。浏览器配置按服务地址与插件 ID 隔离，主题重载保留有效选中主题。
+- [x] 市场上传改为独立三步 Dialog：选择类型和文件/文件夹/ZIP/TGZ、编辑基本与类型专属描述、确认文件树和摘要后发布。真实 Worker 支持中文路径、`.git` 排除、目录限额、ZIP/TGZ 受限展开、market.json 自动导入回写、取消与晚到结果隔离；单媒体保留原字节并核对 SHA。
+- [x] 前端最终门禁：396 个源码文件架构/TypeScript 通过，95 个测试文件 95/95 通过，生产构建通过；根测试 37/37 通过。视觉子代理稳定复核浅暗主题、桌面/390px、配置状态及上传三步，无阻断缺陷，证据见 `frontend/docs/verification/统一配置与上传视觉复核-2026-10-16.md`。
+- [x] 后端配置定点 5/5；真实 debug/release 配置 HTTP smoke 各 23 项通过，报告分别为 `artifacts/plugin-configurations-debug-fc828b35-da47-4ab0-b286-55e1e9dd5c73/report.json` 和 `artifacts/plugin-configurations-release-010e35bc-1d6c-452f-ad9b-5f8d6872668f/report.json`。架构 6/6、格式、Clippy、debug workspace build、浏览器插件/主题 debug/release、两模式运行时、生命周期、合作取消、在线包和日志功能 smoke 通过；设备提供者、嵌套产物 debug/release 通过。全工作区测试首轮鸿蒙时序项失败，单项重跑 1/1 通过，最终以 4 测试线程完整复验 1873/1873 通过，原始失败与复验日志均保留，未修改无关插件。
+- [x] release runtime 和 `artifacts/deviceforge-cli-0.1.0.tgz` 已重建；tgz 40 个成员、13.7 MB，SHA-256 `8CE2FD44E0A2A6454F250E3170F584E996449737CE1EBCF98F355B88D1D7835A`。资源服务保持独立启动，Windows x64 exe 为 4,525,568 字节，SHA-256 `E97FEEE68F813F1A207AECDE6C1D6EC8B0671B0C6BCDE782674DD8FBA46D9374`。
+- [x] release 原生插件批量编译完成，18 个 tgz 全部生成，18 插件 Schema/默认值/公开模板与保护规则 4/4 通过。打包构建超时从 5 分钟延长为 30 分钟，适配本机完整冷构建；根测试最终复验仍 37/37 通过。
+- [x] 同一 tgz 的完整 npx smoke 最终退出 0，报告 `artifacts/npx-raw-PZMShe/report.json` 为 `passed=true`，两阶段归档摘要均与交付包 `8CE2FD44…D7835A` 一致；真实安装 8 个 release 原生插件、令牌及免令牌启动、HTTP/MCP、热装卸、取消清理和两阶段正常退出/监听释放通过。首轮 artifact lock 阻塞与第二轮旧 5 分钟构建时限失败原件继续保留于 `npx-smoke-final.log`、`npx-smoke-rerun.log`，最终日志为 `artifacts/plugin-configuration/npx-smoke-final-complete.log`。
+- [ ] 未覆盖真实设备、同事 LAN、生产容量/性能和 7031 现有预览重启；这些仍按既有验收边界单独执行。
+
 ## 2026-10-16 MCP 插件开发知识入口
 
 - [x] 新增只读工具 `deviceforge.get_plugin_development_guide`，MCP 初始化引导 AI 在开发前按需读取；支持 `frontend/backend/fullstack` 与七类主题，缺省主题为 `overview`，未知字段、空值、错误类型和任意路径参数拒绝。

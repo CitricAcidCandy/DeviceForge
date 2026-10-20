@@ -1,4 +1,5 @@
 //! 配置模式编译、合并补丁与敏感值遮蔽，错误不回显原值。
+use super::annotations;
 use apk_domain::{Error, Result, plugin_configurations::*};
 use serde_json::{Value, json};
 
@@ -29,6 +30,7 @@ pub(super) fn definition(
         return Err(Error::Invalid("旧配置文件名必须是不含路径的文件名".into()));
     }
     apk_domain::validate_local_schema(&definition.schema)?;
+    annotations::validate(&definition.schema)?;
     let validator = jsonschema::validator_for(&definition.schema)
         .map_err(|_| Error::Invalid("插件配置模式无效".into()))?;
     if !validator.is_valid(&definition.defaults) {
@@ -71,21 +73,65 @@ pub(super) fn merge(target: &mut Value, patch: &Value) {
     }
 }
 
-fn sensitive(schema: &Value) -> bool {
-    schema.get("writeOnly").and_then(Value::as_bool) == Some(true)
-        || schema.get("format").and_then(Value::as_str) == Some("password")
-        || schema.get("x-sensitive").and_then(Value::as_bool) == Some(true)
-}
-
-fn property<'a>(schema: &'a Value, name: &str) -> &'a Value {
-    schema
-        .get("properties")
-        .and_then(|value| value.get(name))
-        .unwrap_or(&schema["additionalProperties"])
-}
-
 pub(super) fn mask(values: &mut Value, schema: &Value) {
-    if sensitive(schema) {
+    mask_at(values, schema, &[schema]);
+}
+
+pub(super) fn sensitive_paths(values: &Value, schema: &Value) -> Vec<String> {
+    fn visit(values: &Value, root: &Value, seeds: &[&Value], path: &str, output: &mut Vec<String>) {
+        let schemas = annotations::expanded(root, seeds);
+        if annotations::sensitive(&schemas) {
+            output.push(path.into());
+        } else if let Some(object) = values.as_object() {
+            for (name, value) in object {
+                visit(
+                    value,
+                    root,
+                    &annotations::property(&schemas, name),
+                    &format!("{path}/{}", name.replace('~', "~0").replace('/', "~1")),
+                    output,
+                );
+            }
+        } else if let Some(array) = values.as_array() {
+            for (index, value) in array.iter().enumerate() {
+                visit(
+                    value,
+                    root,
+                    &annotations::item(&schemas, index),
+                    &format!("{path}/{index}"),
+                    output,
+                );
+            }
+        }
+    }
+    let mut output = Vec::new();
+    visit(values, schema, &[schema], "", &mut output);
+    output
+}
+
+pub(super) fn mask_paths(values: &mut Value, paths: &[String]) {
+    for path in paths {
+        if let Some(value) = values.pointer_mut(path)
+            && !value.is_null()
+        {
+            *value = json!(MASK);
+        }
+    }
+}
+
+pub(super) fn preserve_paths(patch: &mut Value, old: &Value, paths: &[String]) {
+    for path in paths {
+        if let Some(value) = patch.pointer_mut(path)
+            && value.as_str() == Some(MASK)
+        {
+            *value = old.pointer(path).cloned().unwrap_or(Value::Null);
+        }
+    }
+}
+
+fn mask_at(values: &mut Value, root: &Value, seeds: &[&Value]) {
+    let schemas = annotations::expanded(root, seeds);
+    if annotations::sensitive(&schemas) {
         if !values.is_null() {
             *values = json!(MASK);
         }
@@ -93,62 +139,107 @@ pub(super) fn mask(values: &mut Value, schema: &Value) {
     }
     if let Some(object) = values.as_object_mut() {
         for (name, value) in object {
-            mask(value, property(schema, name));
+            mask_at(value, root, &annotations::property(&schemas, name));
         }
     } else if let Some(array) = values.as_array_mut() {
-        for value in array {
-            mask(value, &schema["items"]);
+        for (index, value) in array.iter_mut().enumerate() {
+            mask_at(value, root, &annotations::item(&schemas, index));
         }
     }
 }
 
 pub(super) fn preserve_mask(patch: &mut Value, old: &Value, schema: &Value) {
-    if sensitive(schema) && patch.as_str() == Some(MASK) {
+    preserve_at(patch, old, schema, &[schema]);
+}
+
+fn preserve_at(patch: &mut Value, old: &Value, root: &Value, seeds: &[&Value]) {
+    let schemas = annotations::expanded(root, seeds);
+    if annotations::sensitive(&schemas) && patch.as_str() == Some(MASK) {
         *patch = old.clone();
         return;
     }
     if let Some(object) = patch.as_object_mut() {
         for (name, value) in object {
-            preserve_mask(value, &old[name], property(schema, name));
+            preserve_at(
+                value,
+                &old[name],
+                root,
+                &annotations::property(&schemas, name),
+            );
         }
     } else if let Some(array) = patch.as_array_mut() {
         for (index, value) in array.iter_mut().enumerate() {
-            preserve_mask(value, &old[index], &schema["items"]);
+            preserve_at(
+                value,
+                &old[index],
+                root,
+                &annotations::item(&schemas, index),
+            );
         }
     }
 }
 
 pub(super) fn mask_schema(schema: &mut Value) {
-    if sensitive(schema) {
+    fn visit(schema: &mut Value, original: &Value, root: &Value) {
+        let schemas = annotations::expanded(root, &[original]);
         if let Some(object) = schema.as_object_mut() {
-            object.remove("default");
-        }
-    }
-    if let Some(properties) = schema.get_mut("properties").and_then(Value::as_object_mut) {
-        for value in properties.values_mut() {
-            mask_schema(value);
-        }
-    }
-    if let Some(items) = schema.get_mut("items") {
-        mask_schema(items);
-    }
-    if let Some(additional) = schema.get_mut("additionalProperties") {
-        mask_schema(additional);
-    }
-    for map in ["$defs", "definitions", "patternProperties"] {
-        if let Some(values) = schema.get_mut(map).and_then(Value::as_object_mut) {
-            for value in values.values_mut() {
-                mask_schema(value);
+            if annotations::sensitive(&schemas) {
+                object.remove("default");
+                object.remove("examples");
+            } else {
+                if let Some(default) = object.get_mut("default") {
+                    mask_at(default, root, &[original]);
+                }
+                if let Some(examples) = object.get_mut("examples").and_then(Value::as_array_mut) {
+                    for value in examples {
+                        mask_at(value, root, &[original]);
+                    }
+                }
+            }
+            // 任意层级的 schema default 都可能含嵌套敏感值，不能只删除叶子默认值。
+            for map in [
+                "properties",
+                "patternProperties",
+                "$defs",
+                "definitions",
+                "dependentSchemas",
+                "dependencies",
+            ] {
+                if let Some(values) = object.get_mut(map).and_then(Value::as_object_mut) {
+                    for (name, value) in values {
+                        visit(value, &original[map][name], root);
+                    }
+                }
+            }
+            for keyword in [
+                "allOf",
+                "anyOf",
+                "oneOf",
+                "prefixItems",
+                "items",
+                "additionalItems",
+                "additionalProperties",
+                "unevaluatedProperties",
+                "unevaluatedItems",
+                "contains",
+                "if",
+                "then",
+                "else",
+                "not",
+                "propertyNames",
+            ] {
+                if let Some(value) = object.get_mut(keyword) {
+                    visit(value, &original[keyword], root);
+                }
+            }
+        } else if let Some(values) = schema.as_array_mut() {
+            for (index, value) in values.iter_mut().enumerate() {
+                visit(value, &original[index], root);
             }
         }
     }
-    for group in ["allOf", "anyOf", "oneOf"] {
-        if let Some(values) = schema.get_mut(group).and_then(Value::as_array_mut) {
-            for value in values {
-                mask_schema(value);
-            }
-        }
-    }
+    let original = schema.clone();
+    visit(schema, &original, &original);
 }
 
 pub(super) fn readonly_errors(
@@ -159,14 +250,16 @@ pub(super) fn readonly_errors(
     fn visit(
         old: &Value,
         values: &Value,
-        schema: &Value,
+        root: &Value,
+        seeds: &[&Value],
         path: &str,
         output: &mut Vec<ConfigurationFieldError>,
     ) {
         if output.len() >= 100 {
             return;
         }
-        if schema.get("readOnly").and_then(Value::as_bool) == Some(true) && old != values {
+        let schemas = annotations::expanded(root, seeds);
+        if annotations::readonly(&schemas) && old != values {
             output.push(ConfigurationFieldError {
                 path: path.into(),
                 message: "只读配置字段不能修改".into(),
@@ -189,12 +282,14 @@ pub(super) fn readonly_errors(
                 visit(
                     &old[name],
                     &values[name],
-                    property(schema, name),
+                    root,
+                    &annotations::property(&schemas, name),
                     &format!("{path}/{}", name.replace('~', "~0").replace('/', "~1")),
                     output,
                 );
             }
-        } else if old.is_array() || values.is_array() {
+        }
+        if old.is_array() || values.is_array() {
             let length = old
                 .as_array()
                 .map_or(0, Vec::len)
@@ -203,7 +298,8 @@ pub(super) fn readonly_errors(
                 visit(
                     &old[index],
                     &values[index],
-                    &schema["items"],
+                    root,
+                    &annotations::item(&schemas, index),
                     &format!("{path}/{index}"),
                     output,
                 );
@@ -211,6 +307,6 @@ pub(super) fn readonly_errors(
         }
     }
     let mut output = Vec::new();
-    visit(old, values, schema, "", &mut output);
+    visit(old, values, schema, &[schema], "", &mut output);
     output
 }

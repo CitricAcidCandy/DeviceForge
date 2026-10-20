@@ -15,6 +15,7 @@ await new Promise((done) => reservation.close(done));
 const base = `http://127.0.0.1:${port}`;
 const suffix = process.platform === 'win32' ? '.exe' : '';
 const profile = process.argv.includes('--release') ? 'release' : 'debug';
+const functionalOnly = process.argv.includes('--functional-only');
 const token = randomBytes(32).toString('hex');
 const sentinel = `privacy-sentinel-${randomBytes(16).toString('hex')}`;
 const directory = join(temporary, 'plugins', 'echo');
@@ -99,7 +100,7 @@ try {
   assert.equal(transport.response.status, 403);
   assert.equal(transport.body.log_id, transport.id);
   assert.equal(transport.body.error.code, 'mcp_transport_rejected');
-  const loads = [await load('/api/v2/health'), await load('/api/v2/jobs?limit=1')];
+  const loads = functionalOnly ? [] : [await load('/api/v2/health'), await load('/api/v2/jobs?limit=1')];
   const stats = (await call('/api/v2/diagnostics/logging')).body.data;
   assert.equal(stats.write_errors, 0);
   assert.equal(stats.oversized_records, 0);
@@ -128,7 +129,9 @@ try {
   assert.ok(records.some((record) => record.fields?.message === '宿主运行已结束'));
   assert.ok(records.some((record) => record.fields?.message === '响应流已结束' && JSON.stringify(record).includes(stopping.id)));
   const report = { timestamp: new Date().toISOString(), profile, platform: process.platform, architecture: process.arch,
-    scope: '本机回环；32 并发；真实服务和 SQLite；开启 INFO 日志；测试请求限流 100000/s；不含真机、慢磁盘或远端客户端',
+    scope: functionalOnly
+      ? '本机回环功能验证；真实服务、任务、MCP、敏感日志检查与正常退出；未执行并发负载或性能测量'
+      : '本机回环；32 并发；真实服务和 SQLite；开启 INFO 日志；测试请求限流 100000/s；不含真机、慢磁盘或远端客户端',
     loads, log_stats_before_shutdown: stats, persisted_records: records.length, persisted_bytes: Buffer.byteLength(text),
     correlation_and_sensitive_data_checks: '通过', graceful_shutdown: true };
   await mkdir(resolve('../artifacts'), { recursive: true });

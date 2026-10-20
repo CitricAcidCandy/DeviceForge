@@ -1,8 +1,8 @@
 import type { ConfigurationAccess, ConfigurationDefinition, JsonValue } from '../../../plugin-sdk/index.ts';
-import { cloneSchemaValue, isSchemaValue, mapSchemaSecrets, readonlyIssues, redactSchemaDefaults, validateSchema } from '../../../utils/schema.ts';
+import { cloneSchemaValue, isSchemaValue, mapSchemaSecrets, mapSensitivePaths, readonlyIssues, redactSchemaDefaults, schemaSensitivePaths, validateSchema } from '../../../utils/schema.ts';
 import type { PluginConfigurationView } from '../types/index.ts';
 
-interface BrowserRecord { readonly version: number; readonly values: JsonValue; readonly revision: string; readonly applied: string }
+interface BrowserRecord { readonly version: number; readonly values: JsonValue; readonly revision: string; readonly applied: string; readonly sensitivePaths: readonly string[] }
 export function createBrowserConfigurations(baseUrl: string, storage?: Storage) {
   const definitions = new Map<string, ConfigurationDefinition | null>();
   const listeners = new Map<string, Set<(values: JsonValue) => void>>();
@@ -15,9 +15,11 @@ export function createBrowserConfigurations(baseUrl: string, storage?: Storage) 
     if (!text) return null;
     const value: unknown = JSON.parse(text);
     if (!value || typeof value !== 'object' || !('version' in value) || !('values' in value) || !('revision' in value) || !('applied' in value) ||
-      typeof value.version !== 'number' || !isSchemaValue(value.values) || typeof value.revision !== 'string' || typeof value.applied !== 'string')
+      typeof value.version !== 'number' || !isSchemaValue(value.values) || typeof value.revision !== 'string' || typeof value.applied !== 'string' ||
+      ('sensitivePaths' in value && (!Array.isArray(value.sensitivePaths) || !value.sensitivePaths.every((path: unknown) => typeof path === 'string' && (path === '' || path.startsWith('/'))))))
       throw new Error('浏览器插件配置记录损坏，请恢复默认配置');
-    return { version: value.version, values: value.values, revision: value.revision, applied: value.applied };
+    return { version: value.version, values: value.values, revision: value.revision, applied: value.applied,
+      sensitivePaths: 'sensitivePaths' in value && Array.isArray(value.sensitivePaths) ? value.sensitivePaths.filter((path): path is string => typeof path === 'string') : [] };
   }
   function raw(id: string): PluginConfigurationView {
     if (!definitions.has(id)) throw new Error('插件配置声明尚未读取');
@@ -32,9 +34,10 @@ export function createBrowserConfigurations(baseUrl: string, storage?: Storage) 
   }
   function get(id: string): PluginConfigurationView {
     const snapshot = raw(id);
-    return snapshot.definition ? { ...snapshot, values: mapSchemaSecrets(snapshot.definition.schema, snapshot.values), definition: {
+    const historical = read(id)?.sensitivePaths ?? [];
+    return snapshot.definition ? { ...snapshot, values: mapSensitivePaths(mapSchemaSecrets(snapshot.definition.schema, snapshot.values), historical), definition: {
       ...snapshot.definition, schema: redactSchemaDefaults(snapshot.definition.schema), defaults: mapSchemaSecrets(snapshot.definition.schema, snapshot.definition.defaults),
-    } } : snapshot;
+    } } : { ...snapshot, values: mapSensitivePaths(snapshot.values, historical) };
   }
   function assertRevision(id: string, revision: string) {
     if ((read(id)?.revision ?? 'defaults') !== revision) throw new Error('配置已在其他窗口修改，请刷新配置后重新保存');
@@ -44,13 +47,15 @@ export function createBrowserConfigurations(baseUrl: string, storage?: Storage) 
     const definition = definitions.get(id);
     if (!definition) throw new Error('此插件无需配置');
     const previous = raw(id).values;
-    const restored = mapSchemaSecrets(definition.schema, values, previous, 'restore');
+    const historical = read(id)?.sensitivePaths ?? [];
+    const restored = mapSensitivePaths(mapSchemaSecrets(definition.schema, values, previous, 'restore'), historical, previous, 'restore');
     const errors = [...(restoring ? [] : readonlyIssues(definition.schema, previous, restored)), ...validateSchema(definition.schema, restored)];
     if (errors.length) return { ...get(id), compatible: false, fieldErrors: errors };
     if (!storage) throw new Error('当前浏览器不支持持久化配置');
     const next = crypto.randomUUID();
     const applied = definition.apply_policy === 'next_invocation' ? next : read(id)?.applied ?? 'defaults';
-    storage.setItem(key(id), JSON.stringify({ version: definition.version, values: restored, revision: next, applied }));
+    const sensitivePaths = [...new Set([...historical, ...schemaSensitivePaths(definition.schema, restored)])];
+    storage.setItem(key(id), JSON.stringify({ version: definition.version, values: restored, revision: next, applied, sensitivePaths }));
     if (definition.apply_policy === 'next_invocation') {
       live.set(id, cloneSchemaValue(restored));
       for (const listener of listeners.get(id) ?? []) listener(cloneSchemaValue(restored));

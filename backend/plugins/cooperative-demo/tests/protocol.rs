@@ -19,6 +19,7 @@ const OPERATION: &str = "plugin.cooperative_demo.wait";
 
 fn manifest(directory: &Path, mode: &str) -> Manifest {
     Manifest {
+        configuration: None,
         id: "cooperative_demo".into(),
         version: "0.1.0".into(),
         protocol_version: COOPERATIVE_PROTOCOL_VERSION,

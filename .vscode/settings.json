@@ -1,5 +1,6 @@
 {
   "editor.formatOnSave": true,
+  "rust-analyzer.check.extraArgs": ["-j", "1"],
   "[typescript]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode"
   },

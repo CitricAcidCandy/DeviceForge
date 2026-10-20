@@ -237,3 +237,170 @@ async fn deployment_directory_includes_old_undeclared_plugins_without_exposing_l
             .is_none()
     );
 }
+
+#[tokio::test]
+async fn references_branches_tuples_and_recursive_maps_share_masking_and_readonly_rules() {
+    let mut fixture = Fixture::new("next_invocation").await;
+    fs::remove_file(
+        fixture
+            .directory
+            .path()
+            .join("plugins/demo/bin/legacy.json"),
+    )
+    .unwrap();
+    let defaults = json!({
+        "secret":"reference-secret","identity":"fixed",
+        "branch":{"mode":"a","secret":"branch-secret","identity":"branch-fixed"},
+        "either":{"secret":"either-secret"},
+        "map":{"PRIVATE_TOKEN":"map-secret","public":"visible"},
+        "tuple":["tuple-secret","tuple-fixed"],
+        "nested":{"token":"recursive-secret","child":{"token":"child-secret"}}
+    });
+    fixture.manifest["configuration"]["defaults"] = defaults.clone();
+    fixture.manifest["configuration"]["schema"] = json!({
+        "$schema":"https://json-schema.org/draft/2020-12/schema",
+        "type":"object","additionalProperties":false,
+        "$defs":{
+            "secret":{"type":"string","writeOnly":true,"default":"leaf-secret"},
+            "fixed":{"type":"string","readOnly":true},
+            "node":{"type":"object","properties":{
+                "token":{"$ref":"#/$defs/secret"},"child":{"$ref":"#/$defs/node"}
+            }}
+        },
+        "properties":{
+            "secret":{"$ref":"#/$defs/secret"},
+            "identity":{"allOf":[{"$ref":"#/$defs/fixed"}]},
+            "branch":{"oneOf":[
+                {"type":"object","properties":{"mode":{"const":"a"},"secret":{"$ref":"#/$defs/secret"},"identity":{"readOnly":true}}},
+                {"type":"object","properties":{"mode":{"const":"b"},"secret":{"type":"string"},"identity":{"type":"string"}}}
+            ]},
+            "either":{"anyOf":[{"properties":{"secret":{"$ref":"#/$defs/secret"}}},{"type":"object"}]},
+            "map":{"type":"object","patternProperties":{"^PRIVATE_":{"$ref":"#/$defs/secret"}},"additionalProperties":{"type":"string"}},
+            "tuple":{"type":"array","prefixItems":[{"$ref":"#/$defs/secret"},{"$ref":"#/$defs/fixed"}],"items":false},
+            "nested":{"$ref":"#/$defs/node"}
+        },
+        "default":defaults,"examples":[defaults]
+    });
+    fixture.write_manifest();
+    let view = fixture.store.get("demo").await.unwrap();
+    assert!(view.compatible);
+    let rendered = serde_json::to_string(&view).unwrap();
+    for secret in [
+        "reference-secret",
+        "branch-secret",
+        "either-secret",
+        "map-secret",
+        "tuple-secret",
+        "recursive-secret",
+        "child-secret",
+        "leaf-secret",
+    ] {
+        assert!(
+            !rendered.contains(secret),
+            "配置响应不得暴露模式中的敏感默认值"
+        );
+    }
+    assert_eq!(view.values["map"]["public"], "visible");
+    assert_eq!(
+        view.definition.as_ref().unwrap().schema["default"]["secret"],
+        "********"
+    );
+    let saved = fixture.store.patch("demo", 0, view.values).await.unwrap();
+    assert!(saved.compatible);
+    let snapshot = fixture
+        .store
+        .invocation_path("demo")
+        .await
+        .unwrap()
+        .unwrap();
+    let raw = Fixture::raw(&snapshot);
+    assert_eq!(raw["secret"], "reference-secret");
+    assert_eq!(raw["branch"]["secret"], "branch-secret");
+    assert_eq!(raw["tuple"][0], "tuple-secret");
+    assert_eq!(raw["nested"]["child"]["token"], "child-secret");
+    let rejected = fixture
+        .store
+        .patch(
+            "demo",
+            1,
+            json!({
+                "identity":"changed","branch":{"mode":"b","identity":"changed"},
+                "tuple":["********","changed"]
+            }),
+        )
+        .await
+        .unwrap();
+    assert_eq!(rejected.revision, 1);
+    for path in ["/identity", "/branch/identity", "/tuple/1"] {
+        assert!(rejected.field_errors.iter().any(|error| error.path == path));
+    }
+    assert_eq!(Fixture::raw(&snapshot), raw);
+    fixture.manifest["configuration"]["version"] = json!(2);
+    fixture.manifest["configuration"]["schema"] =
+        json!({"type":"object", "default": defaults, "examples":[defaults]});
+    fixture.write_manifest();
+    let upgraded = fixture.store.get("demo").await.unwrap();
+    assert!(!upgraded.compatible);
+    assert_eq!(upgraded.values["secret"], "********");
+    assert_eq!(upgraded.values["nested"]["child"]["token"], "********");
+    let upgraded = fixture
+        .store
+        .patch("demo", 1, upgraded.values)
+        .await
+        .unwrap();
+    assert!(upgraded.compatible);
+    let newest = fixture
+        .store
+        .invocation_path("demo")
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(Fixture::raw(&newest)["secret"], "reference-secret");
+    assert_eq!(Fixture::raw(&newest)["tuple"][0], "tuple-secret");
+    assert!(
+        !serde_json::to_string(&upgraded)
+            .unwrap()
+            .contains("reference-secret")
+    );
+}
+
+#[tokio::test]
+async fn concurrent_cas_has_one_winner_and_incompatible_upgrade_keeps_saved_values_after_reopen() {
+    let mut fixture = Fixture::new("next_invocation").await;
+    let (left, right) = tokio::join!(
+        fixture.store.patch("demo", 0, json!({"count":7})),
+        fixture.store.patch("demo", 0, json!({"count":8}))
+    );
+    let (saved, conflict) = match (left, right) {
+        (Ok(saved), Err(conflict)) | (Err(conflict), Ok(saved)) => (saved, conflict),
+        _ => panic!("同一修订并发写入必须只有一个成功"),
+    };
+    assert!(matches!(conflict, Error::Conflict(_)));
+    assert_eq!(saved.revision, 1);
+    fixture.manifest["configuration"]["version"] = json!(2);
+    fixture.manifest["configuration"]["schema"]["properties"]["count"]["maximum"] = json!(3);
+    fixture.write_manifest();
+    let original_count = saved.values["count"].clone();
+    let root = fixture.directory.path().join("managed");
+    let deployment = fixture.directory.path().join("plugins");
+    drop(fixture.store);
+    let reopened = FilePluginConfigurations::open(&root, &deployment)
+        .await
+        .unwrap();
+    let incompatible = reopened.get("demo").await.unwrap();
+    assert!(!incompatible.compatible);
+    assert_eq!(incompatible.values["count"], original_count);
+    assert_eq!(incompatible.revision, 1);
+    let rejected = reopened.patch("demo", 1, json!({})).await.unwrap();
+    assert!(!rejected.compatible);
+    assert_eq!(rejected.revision, 1);
+    assert_eq!(rejected.values["count"], original_count);
+    assert!(matches!(
+        reopened.invocation_path("demo").await,
+        Err(Error::Conflict(_))
+    ));
+    let repaired = reopened.patch("demo", 1, json!({"count":3})).await.unwrap();
+    assert!(repaired.compatible);
+    assert_eq!(repaired.revision, 2);
+    assert_eq!(repaired.values["count"], 3);
+}

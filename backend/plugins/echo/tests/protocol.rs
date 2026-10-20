@@ -12,6 +12,7 @@ async fn independent_process_returns_correlated_response() {
         executable: env!("CARGO_BIN_EXE_deviceforge-echo-plugin").into(),
         args: vec![],
         performance: None,
+        configuration: None,
         devices: None,
         sessions: None,
         artifacts: None,

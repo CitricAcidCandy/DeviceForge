@@ -17,6 +17,8 @@ pub(super) struct State {
     pub applied_revision: u64,
     pub values: Value,
     pub source: ConfigurationSource,
+    #[serde(default)]
+    pub sensitive_paths: Vec<String>,
 }
 
 pub(super) fn json<T: serde::de::DeserializeOwned>(path: &Path) -> Result<T> {

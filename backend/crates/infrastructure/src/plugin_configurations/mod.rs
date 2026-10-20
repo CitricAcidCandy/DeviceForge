@@ -1,4 +1,5 @@
 //! 服务器插件配置独立于包部署保存，兼容旧配置并为调用提供不可变文件。
+mod annotations;
 mod rules;
 mod storage;
 use apk_domain::{Error, Result, plugin_configurations::*, plugins::plugin_id};
@@ -160,6 +161,10 @@ impl FilePluginConfigurations {
             ConfigurationSource::Defaults
         };
         let definition_version = definition.as_ref().map_or(0, |value| value.version);
+        let sensitive_paths = definition
+            .as_ref()
+            .map(|definition| rules::sensitive_paths(&values, &definition.schema))
+            .unwrap_or_default();
         Ok((
             definition,
             State {
@@ -168,6 +173,7 @@ impl FilePluginConfigurations {
                 applied_revision: 0,
                 values,
                 source,
+                sensitive_paths,
             },
         ))
     }
@@ -200,11 +206,25 @@ impl FilePluginConfigurations {
         if let Some(definition) = &mut definition {
             rules::mask(&mut values, &definition.schema);
             rules::mask(&mut definition.defaults, &definition.schema);
+            rules::mask_paths(&mut definition.defaults, &state.sensitive_paths);
             rules::mask_schema(&mut definition.schema);
+            if let Some(value) = definition.schema.get_mut("default") {
+                rules::mask_paths(value, &state.sensitive_paths);
+            }
+            if let Some(examples) = definition
+                .schema
+                .get_mut("examples")
+                .and_then(Value::as_array_mut)
+            {
+                for value in examples {
+                    rules::mask_paths(value, &state.sensitive_paths);
+                }
+            }
         } else {
             // 无声明旧插件不能可靠识别敏感字段，保留只读兼容入口而不回传原值。
             values = json!({});
         }
+        rules::mask_paths(&mut values, &state.sensitive_paths);
         Ok(PluginConfiguration {
             kind: "server".into(),
             id: id.into(),
@@ -233,6 +253,7 @@ impl FilePluginConfigurations {
                 return Err(Error::Invalid("配置合并补丁必须为对象".into()));
             }
             rules::preserve_mask(&mut patch, &values, &definition.schema);
+            rules::preserve_paths(&mut patch, &values, &state.sensitive_paths);
             rules::merge(&mut values, &patch);
         } else {
             values = definition.defaults.clone();
@@ -265,6 +286,11 @@ impl FilePluginConfigurations {
             }
         }
         state.definition_version = definition.version;
+        state
+            .sensitive_paths
+            .extend(rules::sensitive_paths(&values, &definition.schema));
+        state.sensitive_paths.sort();
+        state.sensitive_paths.dedup();
         state.values = values;
         state.source = ConfigurationSource::Managed;
         storage::ensure_revision(&self.root, id, state.revision, &state.values)?;
