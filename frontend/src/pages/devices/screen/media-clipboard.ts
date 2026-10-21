@@ -1,4 +1,4 @@
-import type { MirroringControl } from '../../features/mirroring-streaming/index.ts';
+import type { MirroringControl } from '../../../features/mirroring-streaming/index.ts';
 import type { MediaClipboardShortcut } from './media-keyboard.ts';
 
 export interface MediaClipboardState {

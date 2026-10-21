@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { PackagePlus, RefreshCw, Play, Square, Trash2, Puzzle, Settings2 } from 'lucide-react';
+import { PackagePlus, RefreshCw, Settings2, Trash2 } from 'lucide-react';
 import { Button } from '../../components/Button/index.tsx';
 import { Input } from '../../components/Input/index.tsx';
 import { Label } from '../../components/Label/index.tsx';
@@ -12,7 +12,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '../../components/Dialog/index.tsx';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/Tabs/index.tsx';
 import {
   Select,
   SelectContent,
@@ -24,38 +23,50 @@ import type { PackageKind } from '../../services/api/index.ts';
 import { isJsonValue } from '../../plugin-sdk/json.ts';
 import type { ProductServices } from '../../app/product/services.ts';
 import { useAction, useSnapshot } from '../../app/product/hooks.ts';
-import { EmptyState, JsonResult, PageTitle } from '../../components/index.ts';
+import { EmptyState, JsonResult } from '../../components/index.ts';
 import { ActionFeedback } from '../../app/product/feedback.tsx';
 import { PluginConfigurationDialog } from '../../components/PluginConfigurationDialog/index.tsx';
 import type { PluginConfigurationTarget } from '../../features/plugin-configurations/index.ts';
 import './workspace.css';
 
-export function PluginsPage({ services, active = true }: { services: ProductServices; active?: boolean }) {
-  const [kind, setKind] = useState<PackageKind>('server');
+type Listing = 'all' | PackageKind | 'failed';
+
+export function PluginsPage({
+  services,
+  active = true,
+}: {
+  services: ProductServices;
+  active?: boolean;
+}) {
+  const [installKind, setInstallKind] = useState<PackageKind>('server');
+  const [installOpen, setInstallOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
+  const [listing, setListing] = useState<Listing>('all');
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [configuration, setConfiguration] = useState<PluginConfigurationTarget | null>(null);
   const action = useAction();
   const defaults = useSnapshot(services.pluginDefaults);
   const defaultFailures = defaults.results.filter((entry) => entry.status === 'failed');
   const defaultEnabled = defaults.results.filter((entry) => entry.status !== 'failed');
-  async function copyDefaultLog(value: string) {
-    try {
-      await navigator.clipboard.writeText(value);
-      services.messages.success('日志 ID 已复制');
-    } catch {
-      services.messages.warning('复制失败，请手动选择日志 ID');
-    }
-  }
   const server = useSnapshot(services.runtime.serverPlugins);
-  const directorySource = useMemo(
+  const serverPackages = useMemo(
     () => ({
-      snapshot: () => services.runtime.pluginPackages.snapshot(kind),
+      snapshot: () => services.runtime.pluginPackages.snapshot('server'),
       subscribe: (listener: Parameters<typeof services.runtime.pluginPackages.subscribe>[1]) =>
-        services.runtime.pluginPackages.subscribe(kind, listener),
+        services.runtime.pluginPackages.subscribe('server', listener),
     }),
-    [services, kind],
+    [services],
   );
-  const directory = useSnapshot(directorySource);
+  const browserPackages = useMemo(
+    () => ({
+      snapshot: () => services.runtime.pluginPackages.snapshot('browser'),
+      subscribe: (listener: Parameters<typeof services.runtime.pluginPackages.subscribe>[1]) =>
+        services.runtime.pluginPackages.subscribe('browser', listener),
+    }),
+    [services],
+  );
+  const serverDirectory = useSnapshot(serverPackages);
+  const browserDirectory = useSnapshot(browserPackages);
   const themes = useSnapshot(services.runtime.themes);
   const [browserRunning, setBrowserRunning] = useState(() =>
     services.runtime.webPlugins.snapshot(),
@@ -68,7 +79,14 @@ export function PluginsPage({ services, active = true }: { services: ProductServ
     version: string | null;
   } | null>(null);
   const [extensionInput, setExtensionInput] = useState('{}');
-  useEffect(() => { if (!active) { setConfiguration(null); setExtensionCall(null); action.cancel(); } }, [active]);
+  useEffect(() => {
+    if (!active) {
+      setConfiguration(null);
+      setExtensionCall(null);
+      setInstallOpen(false);
+      action.cancel();
+    }
+  }, [active]);
   function syncExtensions() {
     const nextCatalog = services.runtime.extensions.catalog();
     const owners = new Map(
@@ -88,7 +106,8 @@ export function PluginsPage({ services, active = true }: { services: ProductServ
     // 自动启用复用目录资源；页面读取等待本轮结束，避免彼此撤销请求。
     if (services.pluginDefaults.snapshot().phase === 'running') return;
     await Promise.all([
-      services.runtime.pluginPackages.refresh(kind, signal),
+      services.runtime.pluginPackages.refresh('server', signal),
+      services.runtime.pluginPackages.refresh('browser', signal),
       services.runtime.serverPlugins.refresh(signal),
     ]);
     if (!signal.aborted) syncExtensions();
@@ -96,7 +115,7 @@ export function PluginsPage({ services, active = true }: { services: ProductServ
   useEffect(() => {
     if (defaults.phase === 'running') return;
     void action.run(refresh, { quiet: true });
-  }, [services, kind, defaults.phase]);
+  }, [services, defaults.phase]);
   useEffect(() => {
     if (defaults.phase !== 'running') syncExtensions();
   }, [defaults.phase, defaults.round]);
@@ -125,6 +144,14 @@ export function PluginsPage({ services, active = true }: { services: ProductServ
       { success: null, pending: '正在启用已安装插件' },
     );
   };
+  async function copyDefaultLog(value: string) {
+    try {
+      await navigator.clipboard.writeText(value);
+      services.messages.success('日志 ID 已复制');
+    } catch {
+      services.messages.warning('复制失败，请手动选择日志 ID');
+    }
+  }
   function toggleExtension(id: string, module: boolean) {
     void action.run(async () => {
       const currentCatalog = services.runtime.extensions.catalog();
@@ -154,31 +181,421 @@ export function PluginsPage({ services, active = true }: { services: ProductServ
       syncExtensions();
     });
   }
+
+  // 清单合并服务器与浏览器两侧，按"种类:包 ID"定位，避免同名包互相覆盖。
+  const rows = [
+    ...(serverDirectory.result?.data ?? []).map((pkg) => ({
+      kind: 'server' as const,
+      id: pkg.id,
+      version: pkg.version,
+      runtime: pkg.runtime,
+      apiVersion: pkg.api_version ?? null,
+      entryPath: pkg.entry_path,
+      state:
+        server.result?.data.find((entry) => entry.id === pkg.id)?.state ??
+        ('unknown' as string),
+      cleanupFailed: Boolean(
+        server.result?.data.find((entry) => entry.id === pkg.id)?.cleanup_failed,
+      ),
+      generation: null as string | null,
+    })),
+    ...(browserDirectory.result?.data ?? []).map((pkg) => {
+      const running = browserRunning.find((entry) => entry.id === pkg.id);
+      return {
+        kind: 'browser' as const,
+        id: pkg.id,
+        version: pkg.version,
+        runtime: pkg.runtime,
+        apiVersion: pkg.api_version ?? null,
+        entryPath: pkg.entry_path,
+        state: running?.state ?? 'missing',
+        cleanupFailed: false,
+        generation: running ? String(running.generation) : null,
+      };
+    }),
+  ];
+  const failedIds = new Set(defaultFailures.map((entry) => entry.id));
+  const visible = rows.filter((row) => {
+    if (listing === 'all') return true;
+    if (listing === 'failed') return failedIds.has(row.id);
+    return row.kind === listing;
+  });
+  const selected =
+    rows.find((row) => `${row.kind}:${row.id}` === selectedKey) ?? visible[0] ?? null;
+  const contributions = (pluginId: string) => ({
+    components: catalog.components.filter((entry) => entry.pluginId === pluginId),
+    modules: catalog.modules.filter((entry) => entry.pluginId === pluginId),
+    commands: catalog.commands.filter((entry) => entry.pluginId === pluginId),
+    services: catalog.services.filter((entry) => entry.pluginId === pluginId),
+  });
+  const contributionTotal = (pluginId: string) => {
+    const owned = contributions(pluginId);
+    return owned.components.length + owned.modules.length + owned.commands.length + owned.services.length;
+  };
+  const stateText = (row: (typeof rows)[number]) => {
+    if (row.cleanupFailed) return '清理未确认';
+    if (row.state === 'loaded') return `已加载${row.generation ? ` · gen ${row.generation}` : ''}`;
+    if (row.state === 'draining') return '正在排空';
+    if (row.state === 'missing') return '未启用';
+    return '已卸载';
+  };
   return (
-    <div className="product-page plugins-page">
-      <PageTitle title="插件">
-        <Button
-          variant="outline"
-          disabled={action.pending || defaults.phase === 'running'}
-          onClick={() => {
-            void action.run(refresh);
-          }}
-        >
-          <RefreshCw />
-          刷新目录
-        </Button>
-      </PageTitle>
-      <div className="plugin-workspace">
-      <aside className="plugin-controls" aria-label="插件部署与启动设置">
-      <details className="plugin-install" open>
-        <summary>安装插件</summary>
-        <div className="plugin-upload form-row">
+    <div className="product-page plugins-page" data-product-page="plugins">
+      <header className="plugin-topline">
+        <div className="plugin-topline-main">
+          <h1>插件</h1>
+          <span className="plugin-topline-meta mono">
+            {rows.length} 已安装 · {catalog.components.length + catalog.modules.length + catalog.commands.length + catalog.services.length} 项贡献
+            {defaultFailures.length ? ` · ${defaultFailures.length} 失败` : ''}
+          </span>
+        </div>
+        <div className="plugin-topline-actions">
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={action.pending || defaults.phase === 'running'}
+            onClick={() => void action.run(refresh)}
+          >
+            <RefreshCw aria-hidden="true" />刷新目录
+          </Button>
+          <Button size="sm" onClick={() => setInstallOpen(true)}>
+            <PackagePlus aria-hidden="true" />安装插件
+          </Button>
+        </div>
+      </header>
+      <div className="plugin-filters" role="group" aria-label="插件筛选">
+        {(
+          [
+            ['all', '全部'],
+            ['server', '服务器'],
+            ['browser', '浏览器'],
+            ['failed', '失败'],
+          ] as const
+        ).map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            className="dock-filter"
+            aria-pressed={listing === id}
+            onClick={() => setListing(id)}
+          >
+            {label}
+            {id === 'failed' && defaultFailures.length > 0 ? ` ${defaultFailures.length}` : ''}
+          </button>
+        ))}
+      </div>
+      <div className="plugin-split">
+        <div className="plugin-list" aria-label="插件清单">
+          {visible.length === 0 ? (
+            <EmptyState
+              title={rows.length ? '没有匹配的插件' : '还没有部署插件包'}
+              description={rows.length ? '切换筛选条件。' : '提交 ZIP 或 TGZ 插件包后按需启用。'}
+            />
+          ) : (
+            visible.map((row) => {
+              const key = `${row.kind}:${row.id}`;
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  className="plugin-list-row"
+                  data-current={selected ? `${selected.kind}:${selected.id}` === key : false}
+                  data-failed={failedIds.has(row.id) ? 'true' : undefined}
+                  onClick={() => setSelectedKey(key)}
+                >
+                  <span className="plugin-list-copy">
+                    <strong>{row.id}</strong>
+                    <small>
+                      {row.kind === 'server' ? '服务器' : '浏览器'} · {row.version}
+                      {row.apiVersion ? ` · api ${row.apiVersion}` : ''}
+                    </small>
+                  </span>
+                  <span className="plugin-list-side">
+                    <em data-state={row.state}>{stateText(row)}</em>
+                    <i className="mono">{contributionTotal(row.id)}</i>
+                  </span>
+                </button>
+              );
+            })
+          )}
+        </div>
+        <div className="plugin-detail">
+          <ActionFeedback {...action} />
+          {!selected ? (
+            <EmptyState title="选择一个插件" description="左侧清单展示已部署的插件包与贡献数量。" />
+          ) : (
+            <>
+              <header className="plugin-detail-head">
+                <h2>{selected.id}</h2>
+                <span className="mono">
+                  {selected.kind === 'server' ? '服务器插件' : '浏览器插件'} · v{selected.version}
+                  {selected.apiVersion ? ` · apiVersion ${selected.apiVersion}` : ' · API 版本未声明'}
+                  {selected.generation ? ` · gen ${selected.generation}` : ''}
+                </span>
+              </header>
+              <p className={selected.cleanupFailed ? 'plugin-detail-error' : 'plugin-detail-state'}>
+                {selected.cleanupFailed
+                  ? '该代次的外部资源清理未确认，管理操作已暂停。'
+                  : selected.state === 'draining'
+                    ? '正在排空旧代次，稍后再启用。'
+                    : selected.state === 'loaded'
+                      ? '运行中。贡献已注册到宿主，可单独挂载或撤销。'
+                      : '已部署但未启用；启用后才会注册贡献。'}
+              </p>
+              <dl className="plugin-facts">
+                <div>
+                  <dt>运行方式</dt>
+                  <dd className="mono">{selected.runtime}</dd>
+                </div>
+                <div>
+                  <dt>入口</dt>
+                  <dd className="mono">{selected.entryPath}</dd>
+                </div>
+                <div>
+                  <dt>生命周期</dt>
+                  <dd className="mono">
+                    {selected.state === 'loaded' || selected.state === 'missing'
+                      ? '安装 → 注册'
+                      : '安装 → 注册 → 卸载'}
+                    {selected.generation ? ` → 挂载 gen ${selected.generation}` : ''}
+                  </dd>
+                </div>
+              </dl>
+              <section className="plugin-contrib" aria-label="插件贡献">
+                <span className="plugin-section-label">
+                  贡献 · {contributionTotal(selected.id)} 项
+                </span>
+                {contributionTotal(selected.id) === 0 ? (
+                  <p className="plugin-contrib-empty">
+                    {selected.state === 'loaded' || selected.state === 'missing'
+                      ? '这个插件没有登记组件、模块、命令或服务。'
+                      : '启用后才登记贡献。'}
+                  </p>
+                ) : (
+                  <ul className="plugin-contrib-list">
+                    {contributions(selected.id).components.map((entry) => (
+                      <li key={`c-${entry.id}`}>
+                        <span className="plugin-contrib-kind">组件</span>
+                        <span className="plugin-contrib-name">
+                          {entry.title}
+                          <small className="mono">{entry.slot}</small>
+                        </span>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          disabled={action.pending || entry.slot !== 'workshop.extensions'}
+                          onClick={() => toggleExtension(entry.id, false)}
+                        >
+                          {mounted.has(entry.id) ? '撤销挂载' : '挂载'}
+                        </Button>
+                      </li>
+                    ))}
+                    {contributions(selected.id).modules.map((entry) => (
+                      <li key={`m-${entry.id}`}>
+                        <span className="plugin-contrib-kind">模块</span>
+                        <span className="plugin-contrib-name">
+                          {entry.title}
+                          <small className="mono">#{entry.route}</small>
+                        </span>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          disabled={action.pending}
+                          onClick={() => toggleExtension(entry.id, true)}
+                        >
+                          {mounted.has(entry.id) ? '关闭' : '打开'}
+                        </Button>
+                      </li>
+                    ))}
+                    {contributions(selected.id).commands.map((entry) => (
+                      <li key={`d-${entry.id}`}>
+                        <span className="plugin-contrib-kind">命令</span>
+                        <span className="plugin-contrib-name">{entry.title}</span>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          disabled={action.pending}
+                          onClick={() => {
+                            setExtensionInput('{}');
+                            setExtensionCall({ id: entry.id, title: entry.title, version: null });
+                          }}
+                        >
+                          执行
+                        </Button>
+                      </li>
+                    ))}
+                    {contributions(selected.id).services.map((entry) => (
+                      <li key={`s-${entry.id}`}>
+                        <span className="plugin-contrib-kind">服务</span>
+                        <span className="plugin-contrib-name">
+                          {entry.id}
+                          <small className="mono">{entry.version}</small>
+                        </span>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          disabled={action.pending}
+                          onClick={() => {
+                            setExtensionInput('{}');
+                            setExtensionCall({
+                              id: entry.id,
+                              title: entry.id,
+                              version: entry.version,
+                            });
+                          }}
+                        >
+                          调用
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+              <div className="plugin-detail-actions">
+                <Button
+                  size="sm"
+                  variant={selected.state === 'loaded' ? 'outline' : 'default'}
+                  disabled={
+                    action.pending ||
+                    defaults.phase === 'running' ||
+                    selected.cleanupFailed ||
+                    selected.state === 'draining'
+                  }
+                  onClick={() => {
+                    void manage((signal) =>
+                      selected.state === 'loaded'
+                        ? services.runtime.pluginPackages.disable(selected.kind, selected.id, signal)
+                        : services.runtime.pluginPackages.enable(selected.kind, selected.id, signal),
+                    );
+                  }}
+                >
+                  {selected.state === 'loaded' ? '停用' : '启用'}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  disabled={action.pending}
+                  onClick={() => setConfiguration({ kind: selected.kind, id: selected.id })}
+                >
+                  <Settings2 aria-hidden="true" />配置
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  disabled={action.pending || selected.state === 'loaded' || selected.cleanupFailed}
+                  onClick={() => {
+                    void manage((signal) =>
+                      services.runtime.pluginPackages.remove(selected.kind, selected.id, signal),
+                    );
+                  }}
+                >
+                  <Trash2 aria-hidden="true" />删除
+                </Button>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+      <footer className="plugin-foot">
+        <details className="plugin-foot-block" data-plugin-defaults={defaults.phase} data-phase={defaults.phase}>
+          <summary>
+            启动核对
+            <span>
+              {defaults.phase === 'running'
+                ? '核对中'
+                : `${defaultEnabled.length} 项通过${defaultFailures.length ? ` · ${defaultFailures.length} 项失败` : ''}`}
+            </span>
+          </summary>
+          <p className="plugin-foot-note">
+            启动时默认启用已安装插件；手动停用后保持停用。
+            {defaults.phase === 'completed'
+              ? ` 本轮 ${defaultEnabled.length} 项通过${defaultFailures.length ? `，${defaultFailures.length} 项失败` : ''}。`
+              : defaults.phase === 'cancelled'
+                ? ' 本轮等待已取消，可重新执行。'
+                : ''}
+          </p>
+          <div className="plugin-foot-actions">
+            {defaultFailures.length > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={action.pending || defaults.phase === 'running'}
+                onClick={() => runDefaults(services.pluginDefaults.retryFailures)}
+              >
+                重试失败项
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={action.pending || defaults.phase === 'running'}
+              onClick={() => runDefaults(services.pluginDefaults.restart)}
+            >
+              重新核对并启用
+            </Button>
+          </div>
+          {defaultFailures.map((entry) => (
+            <div
+              className="plugin-fail-row"
+              key={JSON.stringify([entry.kind, entry.id])}
+              data-default-plugin-id={entry.id ?? ''}
+              data-default-plugin-kind={entry.kind}
+              data-default-plugin-status={entry.status}
+            >
+              <span>
+                {entry.kind === 'server' ? '服务器' : '浏览器'} · {entry.id ?? '安装或运行目录'}
+              </span>
+              <span className="text-danger">{entry.message}</span>
+              {entry.logId && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    void copyDefaultLog(entry.logId ?? '');
+                  }}
+                >
+                  复制日志 ID：{entry.logId}
+                </Button>
+              )}
+            </div>
+          ))}
+        </details>
+        <details className="plugin-foot-block">
+          <summary>主题</summary>
+          <Select
+            value={themes.selected?.id ?? 'base'}
+            onValueChange={(value) => {
+              void action.run(async () =>
+                services.runtime.themes.select(value === 'base' ? null : value),
+              );
+            }}
+          >
+            <SelectTrigger aria-label="选择主题" size="sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="base">工坊默认主题</SelectItem>
+              {themes.themes.map((theme) => (
+                <SelectItem key={theme.id} value={theme.id}>
+                  {theme.title}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </details>
+      </footer>
+      <Dialog open={active && installOpen} onOpenChange={setInstallOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>安装插件</DialogTitle>
+            <DialogDescription>部署后需启用。插件按可信代码运行。</DialogDescription>
+          </DialogHeader>
           <div className="form-field">
             <Label htmlFor="plugin-kind">部署到</Label>
             <Select
-              value={kind}
+              value={installKind}
               onValueChange={(value) => {
-                if (value === 'server' || value === 'browser') setKind(value);
+                if (value === 'server' || value === 'browser') setInstallKind(value);
               }}
             >
               <SelectTrigger id="plugin-kind">
@@ -199,379 +616,25 @@ export function PluginsPage({ services, active = true }: { services: ProductServ
               onChange={(event) => setFile(event.target.files?.[0] ?? null)}
             />
           </div>
-          <Button
-            disabled={!file || action.pending}
-            onClick={() => {
-              if (file) {
+          <DialogFooter>
+            <Button
+              disabled={!file || action.pending}
+              onClick={() => {
+                if (!file) return;
                 const mediaType = file.name.toLowerCase().endsWith('.zip')
                   ? 'application/zip'
                   : 'application/gzip';
                 void manage((signal) =>
-                  services.runtime.pluginPackages.upload(kind, file, mediaType, signal),
-                );
-              }
-            }}
-          >
-            <PackagePlus />
-            提交插件包
-          </Button>
-        </div>
-        <p className="muted">部署后需启用。插件按可信代码运行。</p>
-      </details>
-      <details
-        className="plugin-defaults"
-        aria-label="已安装插件默认启用"
-        data-plugin-defaults={defaults.phase}
-        data-phase={defaults.phase}
-      >
-        <summary>
-          启动核对
-          <span>
-            {defaults.phase === 'running'
-              ? '核对中'
-              : `${defaultEnabled.length} 项通过${defaultFailures.length ? ` · ${defaultFailures.length} 项失败` : ''}`}
-          </span>
-        </summary>
-        <div className="section-heading">
-          <div>
-            <p className="muted">
-              启动时默认启用已安装插件；手动停用后保持停用。
-              {defaults.phase === 'running'
-                ? ' 正在核对并启用…'
-                : defaults.phase === 'completed'
-                  ? ` 本轮 ${defaultEnabled.length} 项核对通过${defaultFailures.length ? `，${defaultFailures.length} 项失败` : ''}。`
-                  : defaults.phase === 'cancelled'
-                    ? ' 本轮等待已取消，可重新执行。'
-                    : ' 等待启动核对。'}
-            </p>
-          </div>
-          <div className="page-actions">
-            {defaultFailures.length > 0 && (
-              <Button
-                variant="outline"
-                disabled={action.pending || defaults.phase === 'running'}
-                onClick={() => {
-                  runDefaults(services.pluginDefaults.retryFailures);
-                }}
-              >
-                重试失败项
-              </Button>
-            )}
-            <Button
-              variant="outline"
-              disabled={action.pending || defaults.phase === 'running'}
-              onClick={() => {
-                runDefaults(services.pluginDefaults.restart);
+                  services.runtime.pluginPackages.upload(installKind, file, mediaType, signal),
+                ).then(() => setInstallOpen(false));
               }}
             >
-              重新核对并启用
+              提交插件包
             </Button>
-          </div>
-        </div>
-        {defaultFailures.length > 0 && (
-          <details>
-            <summary>本轮 {defaultFailures.length} 项失败 · 查看原因和日志 ID</summary>
-            {defaultFailures.map((entry) => (
-              <div
-                className="result-row"
-                key={JSON.stringify([entry.kind, entry.id])}
-                data-default-plugin-id={entry.id ?? ''}
-                data-default-plugin-kind={entry.kind}
-                data-default-plugin-status={entry.status}
-              >
-                <span>
-                  {entry.kind === 'server' ? '服务器' : '浏览器'} · {entry.id ?? '安装或运行目录'}
-                </span>
-                <span className="text-danger">{entry.message}</span>
-                {entry.logId && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      void copyDefaultLog(entry.logId ?? '');
-                    }}
-                  >
-                    复制日志 ID：{entry.logId}
-                  </Button>
-                )}
-              </div>
-            ))}
-          </details>
-        )}
-        {defaultEnabled.length > 0 && (
-          <details>
-            <summary>本轮核对通过 {defaultEnabled.length} 项 · 查看详情</summary>
-            {defaultEnabled.map((entry) => (
-              <div
-                className="result-row"
-                key={JSON.stringify([entry.kind, entry.id])}
-                data-default-plugin-id={entry.id ?? ''}
-                data-default-plugin-kind={entry.kind}
-                data-default-plugin-status={entry.status}
-              >
-                <span>
-                  {entry.kind === 'server' ? '服务器' : '浏览器'} · {entry.id}
-                </span>
-                <span className="muted">
-                  {entry.status === 'enabled' ? '本轮已启用' : '启动核对时已在运行'}
-                </span>
-              </div>
-            ))}
-          </details>
-        )}
-      </details>
-      </aside>
-      <div className="plugin-directory">
-      <ActionFeedback {...action} />
-      <Tabs
-        value={kind}
-        onValueChange={(value) => {
-          if (value === 'server' || value === 'browser') setKind(value);
-        }}
-      >
-        <TabsList>
-          <TabsTrigger value="server">服务器插件</TabsTrigger>
-          <TabsTrigger value="browser">浏览器插件</TabsTrigger>
-        </TabsList>
-        {(['server', 'browser'] as const).map((targetKind) => (
-          <TabsContent key={targetKind} value={targetKind}>
-            {!directory.pending && directory.result?.data.length === 0 && (
-              <EmptyState
-                title="还没有部署插件包"
-                description="选择 ZIP 或 TGZ 插件包提交，再按需启用。"
-              />
-            )}
-            {directory.result?.data.map((pkg) => {
-              const runtime =
-                kind === 'server'
-                  ? server.result?.data.find((entry) => entry.id === pkg.id)
-                  : browserRunning.find((entry) => entry.id === pkg.id);
-              const running = runtime?.state === 'loaded';
-              const cleanupFailed = Boolean(
-                runtime && 'cleanup_failed' in runtime && runtime.cleanup_failed,
-              );
-              const guarded = cleanupFailed || runtime?.state === 'draining';
-              return (
-                <div className="plugin-row" key={pkg.id}>
-                  <Puzzle aria-hidden="true" />
-                  <div className="grow">
-                    <h3>
-                      {pkg.id}
-                      <small>{pkg.version}</small>
-                    </h3>
-                    <p className={cleanupFailed ? 'text-danger' : 'muted'}>
-                      {kind === 'server' ? '服务器插件' : '浏览器插件'} ·{' '}
-                      {cleanupFailed
-                        ? '资源清理未确认'
-                        : runtime?.state === 'draining'
-                          ? '正在排空'
-                          : running
-                            ? '已启用'
-                            : '已部署，未启用'}
-                    </p>
-                    {cleanupFailed && (
-                      <p className="text-danger">该代次的外部资源清理未确认，管理操作已暂停。</p>
-                    )}
-                    <details>
-                      <summary>来源与运行信息</summary>
-                      <dl className="details-list">
-                        <dt>运行方式</dt>
-                        <dd>{pkg.runtime}</dd>
-                        <dt>公开接口版本</dt>
-                        <dd>{pkg.api_version ?? '未声明'}</dd>
-                        <dt>入口</dt>
-                        <dd className="mono">{pkg.entry_path}</dd>
-                      </dl>
-                    </details>
-                  </div>
-                  <div className="row-actions">
-                    <Button variant="outline" disabled={action.pending} onClick={() => setConfiguration({ kind, id: pkg.id })}><Settings2 />配置</Button>
-                    <Button
-                      variant={running || guarded ? 'outline' : 'default'}
-                      disabled={action.pending || defaults.phase === 'running' || guarded}
-                      onClick={() => {
-                        void manage((signal) =>
-                          running
-                            ? services.runtime.pluginPackages.disable(kind, pkg.id, signal)
-                            : services.runtime.pluginPackages.enable(kind, pkg.id, signal),
-                        );
-                      }}
-                    >
-                      {running || guarded ? <Square /> : <Play />}
-                      {cleanupFailed
-                        ? '清理待确认'
-                        : runtime?.state === 'draining'
-                          ? '正在排空'
-                          : running
-                            ? '停用'
-                            : '启用'}
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      disabled={action.pending || running || guarded}
-                      aria-label={`删除已部署的 ${pkg.id}`}
-                      onClick={() => {
-                        void manage((signal) =>
-                          services.runtime.pluginPackages.remove(kind, pkg.id, signal),
-                        );
-                      }}
-                    >
-                      <Trash2 />
-                    </Button>
-                  </div>
-                </div>
-              );
-            })}
-          </TabsContent>
-        ))}
-      </Tabs>
-      <details className="plugin-secondary">
-        <summary>插件主题</summary>
-        <Select
-          value={themes.selected?.id ?? 'base'}
-          onValueChange={(value) => {
-            void action.run(async () =>
-              services.runtime.themes.select(value === 'base' ? null : value),
-            );
-          }}
-        >
-          <SelectTrigger aria-label="选择主题">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="base">工坊默认主题</SelectItem>
-            {themes.themes.map((theme) => (
-              <SelectItem key={theme.id} value={theme.id}>
-                {theme.title}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </details>
-      {kind === 'server' && (
-        <details className="plugin-secondary">
-          <summary>服务器运行目录 · {server.result?.data.length ?? 0} 项</summary>
-          {server.result?.data.map((plugin) => (
-            <div className="plugin-row" key={plugin.id}>
-              <Puzzle aria-hidden="true" />
-              <div className="grow">
-                <h3>
-                  {plugin.id}
-                  <small>{plugin.version}</small>
-                </h3>
-                <p className={plugin.cleanup_failed ? 'text-danger' : 'muted'}>
-                  {plugin.cleanup_failed
-                    ? '资源清理未完成'
-                    : plugin.state === 'loaded'
-                      ? '已加载'
-                      : plugin.state === 'draining'
-                        ? '正在排空'
-                        : '已卸载'}
-                  {plugin.protected ? ' · 宿主保护' : ''}
-                </p>
-                <details>
-                  <summary>{plugin.operations.length} 项公开操作</summary>
-                  <ul>
-                    {plugin.operations.map((operation) => (
-                      <li key={operation} className="mono">
-                        {operation}
-                      </li>
-                    ))}
-                  </ul>
-                </details>
-              </div>
-              <div className="row-actions"><Button variant="outline" disabled={action.pending} onClick={() => setConfiguration({ kind: 'server', id: plugin.id })}><Settings2 />配置</Button><Button
-                variant="outline"
-                disabled={
-                  action.pending ||
-                  defaults.phase === 'running' ||
-                  plugin.protected ||
-                  plugin.state === 'draining'
-                }
-                onClick={() => {
-                  void manage((signal) =>
-                    plugin.state === 'loaded'
-                      ? services.runtime.serverPlugins.unload(plugin.id, signal)
-                      : services.runtime.serverPlugins.load(plugin.id, signal),
-                  );
-                }}
-              >
-                {plugin.state === 'loaded' ? '卸载' : '加载'}
-              </Button></div>
-            </div>
-          ))}
-        </details>
-      )}
-      <details className="plugin-secondary">
-        <summary>
-          扩展入口 · {catalog.modules.length + catalog.commands.length + catalog.components.length} 项
-        </summary>
-        {catalog.modules.length === 0 &&
-        catalog.commands.length === 0 &&
-        catalog.components.length === 0 ? (
-          <p className="muted">启用浏览器插件后，在这里查看它贡献的模块、命令和组件。</p>
-        ) : (
-          <div className="extension-list">
-            {catalog.modules.map((entry) => (
-              <Button
-                key={entry.id}
-                variant="outline"
-                disabled={action.pending}
-                onClick={() => toggleExtension(entry.id, true)}
-              >
-                {entry.title} · {mounted.has(entry.id) ? '关闭模块' : '打开模块'}
-              </Button>
-            ))}
-            {catalog.commands.map((entry) => (
-              <Button
-                key={entry.id}
-                variant="outline"
-                disabled={action.pending}
-                onClick={() => {
-                  setExtensionInput('{}');
-                  setExtensionCall({ id: entry.id, title: entry.title, version: null });
-                }}
-              >
-                {entry.title} · 执行命令
-              </Button>
-            ))}
-            {catalog.components.map((entry) => (
-              <div key={entry.id}>
-                <Button
-                  variant="outline"
-                  disabled={action.pending || entry.slot !== 'workshop.extensions'}
-                  onClick={() => toggleExtension(entry.id, false)}
-                >
-                  {entry.title} · {mounted.has(entry.id) ? '撤销挂载' : '挂载组件'}
-                </Button>
-                {entry.slot !== 'workshop.extensions' && (
-                  <small className="muted">宿主未提供槽位 {entry.slot}</small>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-        <details>
-          <summary>公开扩展服务 · {catalog.services.length} 项</summary>
-          <div className="extension-list">
-            {catalog.services.map((entry) => (
-              <Button
-                key={entry.id}
-                variant="outline"
-                disabled={action.pending}
-                onClick={() => {
-                  setExtensionInput('{}');
-                  setExtensionCall({ id: entry.id, title: entry.id, version: entry.version });
-                }}
-              >
-                {entry.id} · {entry.version}
-              </Button>
-            ))}
-          </div>
-        </details>
-      </details>
-      </div>
-      </div>
+          </DialogFooter>
+          <ActionFeedback {...action} />
+        </DialogContent>
+      </Dialog>
       <Dialog
         open={active && extensionCall !== null}
         onOpenChange={(open) => {
@@ -627,12 +690,24 @@ export function PluginsPage({ services, active = true }: { services: ProductServ
           <JsonResult value={action.result} />
         </DialogContent>
       </Dialog>
-      {active && configuration && <PluginConfigurationDialog open title={configuration.id} onClose={() => setConfiguration(null)}
-        load={(signal) => services.pluginConfigurations.get(configuration, signal)}
-        save={(revision, values, signal) => services.pluginConfigurations.save(configuration, revision, values, signal)}
-        reset={(revision, signal) => services.pluginConfigurations.reset(configuration, revision, signal)}
-        apply={(revision, signal) => services.pluginConfigurations.apply(configuration, revision, signal)} onApplied={syncExtensions} />}
-      <JsonResult value={action.result} />
+      {active && configuration && (
+        <PluginConfigurationDialog
+          open
+          title={configuration.id}
+          onClose={() => setConfiguration(null)}
+          load={(signal) => services.pluginConfigurations.get(configuration, signal)}
+          save={(revision, values, signal) =>
+            services.pluginConfigurations.save(configuration, revision, values, signal)
+          }
+          reset={(revision, signal) =>
+            services.pluginConfigurations.reset(configuration, revision, signal)
+          }
+          apply={(revision, signal) =>
+            services.pluginConfigurations.apply(configuration, revision, signal)
+          }
+          onApplied={syncExtensions}
+        />
+      )}
     </div>
   );
 }

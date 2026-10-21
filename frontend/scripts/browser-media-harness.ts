@@ -1,6 +1,6 @@
 import { createElement, StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { MediaPage } from '../src/pages/media/index.tsx';
+import { DeviceScreen } from '../src/pages/devices/screen/index.tsx';
 import { createProductServices } from '../src/app/product/services.ts';
 import { createMediaMaterial } from './browser-media-stream.ts';
 import { createMediaFixture, mediaSessionId } from './browser-media-fixture.ts';
@@ -98,7 +98,7 @@ export async function verifyMediaPage() {
       generation: provider.generation,
       localId: 'emulator-fixture',
     });
-    root.render(createElement(StrictMode, null, createElement(MediaPage, { services, active: true })));
+    root.render(createElement(StrictMode, null, createElement(DeviceScreen, { services, active: true })));
     await wait();
     check(button('开始投屏').disabled, '未查询公开直播目录仍允许打开');
     await click('检查直播能力');

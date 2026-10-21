@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { act, createElement } from 'react';
 import { JSDOM } from 'jsdom';
-import { useMediaKeyboard } from '../src/pages/media/use-media-keyboard.ts';
+import { useMediaKeyboard } from '../src/pages/devices/screen/use-media-keyboard.ts';
 import type { MirroringControl } from '../src/features/mirroring-streaming/index.ts';
 
 test('画面焦点隔离键盘，失焦与后台释放，换代和关闭不重放按键', async () => {

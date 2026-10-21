@@ -1,4 +1,4 @@
-import type { MirroringControl } from '../../features/mirroring-streaming/index.ts';
+import type { MirroringControl } from '../../../features/mirroring-streaming/index.ts';
 
 // 输入按顺序派发；连续移动只保留最新位置，按下与释放不可互相撤销。
 export function createMediaControlQueue(options: {

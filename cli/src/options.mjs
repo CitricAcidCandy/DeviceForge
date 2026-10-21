@@ -1,67 +1,37 @@
 import { resolve } from 'node:path';
 import { homedir } from 'node:os';
 import { isIP } from 'node:net';
-import { readFileSync } from 'node:fs';
-
-export const DEFAULT_MARKETPLACE_URL = 'http://127.0.0.1:7040';
+import { readRootConfiguration } from './root-config.mjs';
+import {
+  DEFAULT_MARKETPLACE_URL,
+  readMarketplaceConfig,
+  validateMarketplaceUrl,
+} from './marketplace.mjs';
+export {
+  DEFAULT_MARKETPLACE_URL,
+  readMarketplaceConfig,
+  validateMarketplaceUrl,
+} from './marketplace.mjs';
 
 export const help = `DeviceForge · 设备工坊
 用法：deviceforge start [--ip 0.0.0.0] [--port 7030] [--mcp-port 7032] [--data-dir 目录] [--marketplace-url 地址 | --marketplace-config 文件]
       deviceforge plugin install <本地目录|npm包名|本地tgz> [--data-dir 目录]
       deviceforge plugin list [--data-dir 目录]
+      deviceforge config show [--data-dir 目录]
+      deviceforge config path [--data-dir 目录]
+      deviceforge config import <本地JSON> [--data-dir 目录]
       deviceforge --help
 
 start 默认监听所有 IPv4 网卡，提供局域网前端/API 和独立 MCP 端口。
 本地和局域网默认免鉴权；可选 APK_API_TOKEN 配置后不得包含空白。
 不自动生成随机令牌；配置的令牌不打印、也不写入前端资源。
 数据默认保存在用户目录 .deviceforge，可用 DEVICEFORGE_DATA_DIR 配置。
+根配置为数据目录下 config.json；启动时读取，命令行只覆盖本次运行。
+config import 校验后原子替换根配置；不会导入令牌或业务/插件配置。
 资源服务独立启动；市场默认地址为 ${DEFAULT_MARKETPLACE_URL}。
 --marketplace-url 指定市场地址；--marketplace-config 指定包含 sources 的 JSON 来源清单，两者互斥。
 插件安装后须显式加载；同 ID 不覆盖已有插件。
 `;
-
-export function validateMarketplaceUrl(value) {
-  if (typeof value !== 'string' || !value.trim()) throw new Error('市场地址不能为空');
-  let parsed;
-  try {
-    parsed = new URL(value);
-  } catch {
-    throw new Error('市场地址必须为有效 URL');
-  }
-  if (
-    !['http:', 'https:'].includes(parsed.protocol) ||
-    parsed.username ||
-    parsed.password ||
-    parsed.search ||
-    parsed.hash
-  )
-    throw new Error('市场地址必须为不含凭证、查询参数或片段的 HTTP 地址');
-  return parsed.toString().replace(/\/$/, '');
-}
-
-export function readMarketplaceConfig(path = null) {
-  if (!path) return [{ name: '本地默认市场', url: DEFAULT_MARKETPLACE_URL }];
-  let parsed;
-  try {
-    parsed = JSON.parse(readFileSync(path, 'utf8'));
-  } catch (error) {
-    throw new Error(`市场配置读取失败：${error.message}`);
-  }
-  const sources = Array.isArray(parsed) ? parsed : parsed?.sources;
-  if (!Array.isArray(sources) || sources.length === 0 || sources.length > 32)
-    throw new Error('市场配置必须包含 1–32 个 sources');
-  const seen = new Set();
-  return sources.map((source, index) => {
-    const url = validateMarketplaceUrl(typeof source === 'string' ? source : source?.url);
-    if (seen.has(url)) throw new Error(`市场来源重复：${url}`);
-    seen.add(url);
-    const name =
-      typeof source === 'object' && typeof source.name === 'string' && source.name.trim()
-        ? source.name.trim().slice(0, 80)
-        : `市场来源 ${index + 1}`;
-    return { name, url };
-  });
-}
 
 // 空字符串代表免鉴权；参数检查和直接启动共用同一可选令牌规则。
 export function readApiToken(environment = process.env) {
@@ -78,7 +48,9 @@ export function parseOptions(args, environment = process.env) {
       ? 'start'
       : args[0] === 'plugin' && ['install', 'list'].includes(args[1])
         ? `plugin.${args[1]}`
-        : null;
+        : args[0] === 'config' && ['show', 'path', 'import'].includes(args[1])
+          ? `config.${args[1]}`
+          : null;
   if (!command) throw new Error('未知命令，请执行 deviceforge --help');
   const options = {
     command,
@@ -90,10 +62,26 @@ export function parseOptions(args, environment = process.env) {
     marketplaceSources: [{ name: '本地默认市场', url: DEFAULT_MARKETPLACE_URL }],
   };
   const rest = args.slice(command === 'start' ? 1 : 2);
-  if (command === 'plugin.install') {
+  if (command === 'plugin.install' || command === 'config.import') {
     if (!rest[0] || rest[0].startsWith('-'))
-      throw new Error('安装命令要求插件目录、npm 包名或 tgz');
+      throw new Error(
+        command === 'config.import'
+          ? '配置导入要求本地 JSON 文件'
+          : '安装命令要求插件目录、npm 包名或 tgz',
+      );
     options.source = rest.shift();
+  }
+  // 先确定实例目录，再加载根配置；相对目录始终相对当前命令行解析。
+  for (let index = 0; index < rest.length; index += 2) {
+    if (rest[index] === '--data-dir' && rest[index + 1])
+      options.dataDirectory = resolve(rest[index + 1]);
+  }
+  if (command === 'start') {
+    const configuration = readRootConfiguration(options.dataDirectory);
+    options.ip = configuration.server.ip;
+    options.port = configuration.server.port;
+    options.mcpPort = configuration.server.mcp_port;
+    options.marketplaceSources = configuration.marketplace.sources;
   }
   const seen = new Set();
   for (let i = 0; i < rest.length; i += 2) {

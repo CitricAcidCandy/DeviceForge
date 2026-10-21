@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { FocusEvent as ReactFocusEvent, KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { createMediaKeyboardControl } from './media-keyboard.ts';
 import type { MediaClipboardShortcut } from './media-keyboard.ts';
-import type { MirroringControl } from '../../features/mirroring-streaming/index.ts';
+import type { MirroringControl } from '../../../features/mirroring-streaming/index.ts';
 
 interface MediaKeyboardOptions {
   readonly active: boolean;

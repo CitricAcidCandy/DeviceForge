@@ -6,6 +6,7 @@ function featureEntry(parts: readonly string[]): boolean {
   return parts.length === 3 && parts[0] === 'features' && parts[2] === 'index.ts';
 }
 function pageEntry(parts: readonly string[]): boolean {
+  // app 只装配路由页面入口，页面内部的模式视图归页面自己管。
   return parts.length === 3 && parts[0] === 'pages' && parts[2] === 'index.tsx';
 }
 function publicComponentEntry(parts: readonly string[]): boolean {

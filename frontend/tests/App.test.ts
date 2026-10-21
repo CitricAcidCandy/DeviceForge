@@ -37,9 +37,7 @@ async function verifyStaticRendering() {
     for (const label of [
       '设备工坊',
       '设备工作台',
-      '应用与包',
       '文件与产物',
-      '画面与录制',
       '性能与调用栈',
       'Frida',
       '自动化',
@@ -67,7 +65,8 @@ async function verifyStaticRendering() {
   }
 }
 
-test('中后台分组导航、折叠与专注保留页面草稿，设备上下文随公开选择更新', { timeout: 30_000 }, async () => {
+// 90s 只覆盖 JSDOM + Vite 模块装载的启动开销（本机单次约 20-30s），不是行为断言放宽。
+test('中后台分组导航、折叠与专注保留页面草稿，设备上下文随公开选择更新', { timeout: 90_000 }, async () => {
   const browser = new JSDOM('<!doctype html><html><body><div id="test-app"></div></body></html>', {
     url: 'http://localhost:7031',
     pretendToBeVisual: true,
@@ -199,9 +198,7 @@ test('中后台分组导航、折叠与专注保留页面草稿，设备上下�
     };
     const routes = [
       ['devices', '设备'],
-      ['packages', '应用与包'],
       ['files', '文件与产物'],
-      ['media', '画面与录制'],
       ['performance', '性能与调用栈'],
       ['frida', 'Frida'],
       ['automation', '自动化'],
@@ -224,7 +221,8 @@ test('中后台分组导航、折叠与专注保留页面草稿，设备上下�
       assert.equal(visibleRoutes.length, 1);
       assert.equal(visibleRoutes[0]?.getAttribute('data-route'), routeId);
     };
-    assert.equal(navigation().querySelectorAll('button[data-navigation-route]').length, 15);
+    // 13 项：画面与录制、应用与包已并入设备页，不再是独立路由。
+    assert.equal(navigation().querySelectorAll('button[data-navigation-route]').length, 13);
     assert.deepEqual(
       Array.from(navigation().querySelectorAll('h2')).map((heading) => heading.textContent),
       ['工作台', '深度调试', '扩展创作', '工坊'],
@@ -244,7 +242,7 @@ test('中后台分组导航、折叠与专注保留页面草稿，设备上下�
       '切页不应替换已挂载的设备页面',
     );
     assert.equal(target.querySelector('button[aria-label="选择当前设备"]'), null, '设备目录使用本页设备入口，不重复展示工作设备选择器');
-    await act(async () => navigate('应用与包').click());
+    await act(async () => navigate('性能与调用栈').click());
     const devicePicker = target.querySelector('button[aria-label="选择当前设备"]');
     assert.ok(devicePicker);
     assert.match(devicePicker.textContent ?? '', /尚未选择设备|选择设备/);

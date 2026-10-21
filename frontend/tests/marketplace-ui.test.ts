@@ -17,6 +17,9 @@ import type {
 } from '../src/features/marketplace/index.ts';
 import type { PackageInfo } from '../src/services/api/index.ts';
 import type { PreparationExecutor } from '../src/pages/marketplace/upload-preparation/index.ts';
+import type { LocalImportDialog } from '../src/pages/marketplace/components/LocalImportDialog/index.tsx';
+import { createProductServices } from '../src/app/product/services.ts';
+import { installedPackage as localInstalledPackage, success, requestUrl, deferred as deferredResult } from './fixtures.ts';
 
 type UploadProps = ComponentProps<typeof MarketplaceUploadDialog>;
 type CardProps = ComponentProps<typeof MarketplaceCard>;
@@ -24,6 +27,11 @@ type DetailProps = ComponentProps<typeof MarketplaceDetail>;
 type FileProps = ComponentProps<typeof FileDropzone>;
 type StepProps = ComponentProps<typeof Stepper>;
 type ConfigurationProps = ComponentProps<typeof PluginConfigurationDialog>;
+type LocalImportProps = ComponentProps<typeof LocalImportDialog>;
+
+function localImportModule(value: unknown): value is { LocalImportDialog: ComponentType<LocalImportProps> } {
+  return value !== null && typeof value === 'object' && 'LocalImportDialog' in value && typeof value.LocalImportDialog === 'function';
+}
 
 function uploadModule(
   value: unknown,
@@ -771,4 +779,67 @@ test('高级 JSON 修改只读字段在保存前拒绝，不发送配置请求',
     assert.match(browser.documentRef.querySelector('[role="alert"]')?.textContent ?? '', /配置不符合字段约束/);
     assert.match(browser.documentRef.body.textContent ?? '', /只读字段不能修改/);
   } finally { await browser.close(); }
+});
+
+test('本地导入对话框先检查摘要再明确安装，成功后不自动启用且重新打开清空状态', async () => {
+  const browser = await fixture();
+  const calls: string[] = [];
+  const pkg = localInstalledPackage('browser', { id: 'local.plugin', version: '1.0' });
+  const services = createProductServices({ baseUrl: 'http://local.example', panelTarget: () => null,
+    transport: async (input, init) => {
+      const url = requestUrl(input); calls.push(`${init?.method ?? 'GET'} ${url.pathname}`);
+      assert.equal(url.pathname, '/api/v2/plugin-packages/browser');
+      return success(init?.method === 'POST' ? pkg : [pkg]);
+    } });
+  const loaded: unknown = await browser.server.ssrLoadModule('/src/pages/marketplace/components/LocalImportDialog/index.tsx');
+  assert.ok(localImportModule(loaded));
+  let imported = 0;
+  const prepare: PreparationExecutor = async () => ({ files: [{ path: 'dist/index.js', size: 10 }], excluded: [], totalSize: 10, metadata: null, identity: { id: 'local.plugin', version: '1.0', kind: 'browser' } });
+  const render = async (open: boolean) => {
+    await act(async () => { browser.root.render(createElement(loaded.LocalImportDialog, { open, services, onOpenChange() {}, onImported() { imported++; },
+      prepare })); });
+  };
+  try {
+    await render(true);
+    await browser.click('检查导入内容'); assert.match(browser.documentRef.querySelector('[role="alert"]')?.textContent ?? '', /先选择/);
+    await chooseFile(browser, new File(['local bytes'], 'plugin.zip'));
+    await browser.click('检查导入内容');
+    assert.match(browser.documentRef.querySelector('[role="dialog"]')?.textContent ?? '', /浏览器插件 local.plugin/);
+    assert.match(browser.documentRef.querySelector('[role="dialog"]')?.textContent ?? '', /SHA-256/);
+    assert.equal(calls.length, 0);
+    await browser.click('确认导入');
+    assert.equal(imported, 1);
+    assert.match(browser.documentRef.querySelector('[role="dialog"]')?.textContent ?? '', /尚未自动启用/);
+    assert.deepEqual(calls, ['POST /api/v2/plugin-packages/browser', 'GET /api/v2/plugin-packages/browser']);
+    await render(false); await render(true);
+    assert.equal(browser.documentRef.querySelector('.ui-file-selected'), null);
+    assert.equal(Array.from(browser.documentRef.querySelectorAll('button')).some(button => button.textContent?.trim() === '确认导入'), false);
+  } finally { await services.dispose(); await browser.close(); }
+});
+
+test('本地导入取消旧上传后，新预览不被旧请求迟到失败清空', async () => {
+  const browser = await fixture();
+  const uploading = deferredResult<Response>();
+  const entered = deferredResult<void>();
+  const services = createProductServices({ baseUrl: 'http://local.example', panelTarget: () => null,
+    transport: async (_input, init) => {
+      if (init?.method === 'POST') { entered.resolve(); return uploading.promise; }
+      return success([]);
+    } });
+  const loaded: unknown = await browser.server.ssrLoadModule('/src/pages/marketplace/components/LocalImportDialog/index.tsx');
+  assert.ok(localImportModule(loaded));
+  const prepare: PreparationExecutor = async () => ({ files: [{ path: 'dist/index.js', size: 10 }], excluded: [], totalSize: 10, metadata: null, identity: { id: 'local.plugin', version: '1.0', kind: 'browser' } });
+  try {
+    await act(async () => { browser.root.render(createElement(loaded.LocalImportDialog, { open: true, services, onOpenChange() {}, onImported() { throw new Error('旧请求不能交付成功'); }, prepare })); });
+    await chooseFile(browser, new File(['first bytes'], 'first.zip'));
+    await browser.click('检查导入内容'); await browser.click('确认导入'); await entered.promise;
+    await browser.click('取消当前等待');
+    await chooseFile(browser, new File(['new bytes'], 'new.zip'));
+    await browser.click('检查导入内容');
+    assert.equal(browser.button('确认导入').disabled, false);
+    await act(async () => { uploading.reject(new Error('旧上传迟到失败')); await new Promise<void>(resolve => setTimeout(resolve, 0)); });
+    assert.equal(browser.button('确认导入').disabled, false);
+    assert.match(browser.documentRef.querySelector('[role="dialog"]')?.textContent ?? '', /new.zip/);
+    assert.equal(browser.documentRef.querySelector('[role="alert"]'), null);
+  } finally { uploading.resolve(success([])); await services.dispose(); await browser.close(); }
 });

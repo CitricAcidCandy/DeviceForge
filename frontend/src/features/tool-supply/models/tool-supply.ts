@@ -4,7 +4,8 @@ import type { JobGateway, JobOptions, JobTicket } from '../../../shared/jobs/ind
 import { createRuntimeFeature, isRuntimeFeatureOperation } from './feature.ts';
 import { decodeCatalog, decodeInstallation, decodePlan, decodeRemoval } from '../utils/results.ts';
 import { requireModuleId, requireSelection } from '../utils/rules.ts';
-import type { ToolSupplyAction } from '../types/index.ts';
+import type { ToolLocalImport, ToolSupplyAction } from '../types/index.ts';
+import { decodeLocalInstallation, localImportInput } from '../utils/local-import.ts';
 
 export type * from '../types/index.ts';
 export function createToolSupply(gateway: JobGateway, options: JobOptions = {}) {
@@ -16,7 +17,7 @@ export function createToolSupply(gateway: JobGateway, options: JobOptions = {}) 
   }
   function checkModuleTicket(ticket: JobTicket): void {
     if (
-      !['catalog', 'plan', 'install', 'remove'].some(
+      !['catalog', 'plan', 'install', 'import', 'remove'].some(
         (action) => ticket.operation === `plugin.tool-supply.${action}`,
       ) &&
       !isRuntimeFeatureOperation(ticket.operation)
@@ -37,6 +38,11 @@ export function createToolSupply(gateway: JobGateway, options: JobOptions = {}) 
       requireModuleId(moduleId);
       return jobs.execute(operation('install'), { module_id: moduleId }, signal, (value, logId) =>
         decodeInstallation(value, logId, moduleId),
+      );
+    },
+    importLocal(input: ToolLocalImport, signal: AbortSignal) {
+      return jobs.execute(operation('import'), localImportInput(input), signal, (value, logId) =>
+        decodeLocalInstallation(value, logId, input.module_id),
       );
     },
     remove(moduleId: string, signal: AbortSignal) {
@@ -66,6 +72,11 @@ export function createToolSupply(gateway: JobGateway, options: JobOptions = {}) 
       checkTicket('remove', ticket);
       requireModuleId(moduleId);
       return jobs.resume(ticket, signal, (value, logId) => decodeRemoval(value, logId, moduleId));
+    },
+    resumeImport(ticket: JobTicket, moduleId: string, signal: AbortSignal) {
+      checkTicket('import', ticket);
+      requireModuleId(moduleId);
+      return jobs.resume(ticket, signal, (value, logId) => decodeLocalInstallation(value, logId, moduleId));
     },
     query(ticket: JobTicket, signal: AbortSignal) {
       checkModuleTicket(ticket);

@@ -1,39 +1,263 @@
-.workspace-taskbar { min-width: 0; padding-block: 4px calc(4px + env(safe-area-inset-bottom)); }
-.workspace-taskbar .workspace-task-trigger { width: 100%; height: auto; min-height: calc(var(--workspace-footer-height) - 9px); justify-content: flex-start; gap: 10px; padding-inline: 0; }
-.workspace-task-trigger > small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; color: var(--muted-foreground); font-weight: 400; }
-.workspace-task-trigger > svg:last-child { margin-left: auto; flex-shrink: 0; }
-.workspace-task-count { font-size: 12px; color: var(--primary); }
-.workspace-task-tray { height: min(560px, 78dvh); max-height: calc(100dvh - 16px); gap: 0; border-radius: 10px 10px 0 0; background: var(--card); overflow: hidden; }
-.workspace-task-tray [data-slot='sheet-header'] { padding: 16px 64px 12px 24px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
-.task-tray-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.task-tray-heading [data-slot='sheet-title'] { font-size: 16px; }
-.workspace-task-tray [data-slot='sheet-description'] { font-size: 12px; }
-.task-tray-scroll { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; scrollbar-gutter: stable; padding: 0 24px; }
-.task-tray-scroll:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; }
-.task-tray-record { border-bottom: 1px solid var(--border); }
-.task-tray-record > .task-tray-summary { display: grid; grid-template-columns: 16px minmax(0, 1fr) 165px 64px; gap: 12px; align-items: center; width: 100%; height: auto; min-height: 68px; padding: 12px 0; text-align: left; white-space: normal; border-radius: 0; }
-.task-tray-operation { min-width: 0; overflow-wrap: anywhere; }
-.task-tray-operation > small { margin-top: 4px; font-size: 11px; font-weight: 400; color: var(--muted-foreground); }
-.task-tray-summary > time { color: var(--muted-foreground); font-size: 12px; font-weight: 400; }
-.task-tray-summary > svg { transition: transform 160ms; }
-.task-tray-summary[aria-expanded='true'] > svg { transform: rotate(180deg); }
-.task-tray-detail { padding: 0 0 16px 28px; min-width: 0; }
-.task-tray-detail pre { white-space: pre-wrap; overflow-wrap: anywhere; }
-.workspace-task-tray [data-slot='sheet-footer'] { flex-direction: row; justify-content: flex-end; padding: 10px 24px max(10px, env(safe-area-inset-bottom)); border-top: 1px solid var(--border); flex-shrink: 0; }
-.workspace-task-tray > button { min-width: 32px; min-height: 32px; }
-body:has(.product-shell.reduce-motion) .workspace-task-tray,
-body:has(.product-shell.reduce-motion) [data-slot='sheet-overlay'],
-body:has(.product-shell.reduce-motion) .task-tray-summary > svg { animation: none; transition: none; }
-@media (prefers-reduced-motion: reduce) {
-  .workspace-task-tray, [data-slot='sheet-overlay'], .task-tray-summary > svg { animation: none; transition: none; }
+/*
+ * 任务：底部一行状态文本 + 从下往上弹出的抽屉。
+ * 行与行之间用发丝线分隔，不加卡片底色与投影。
+ */
+
+/* ── 底部状态行 ─────────────────────────────────────── */
+.dock-strip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  height: 30px;
+  padding: 0 14px;
+  border: 0;
+  border-top: 1px solid var(--hairline);
+  background: var(--surface-chrome);
+  color: var(--text-faint);
+  font-size: 0.625rem;
+  text-align: left;
+  cursor: pointer;
 }
-@media (max-width: 640px) {
-  .workspace-task-tray { height: 78dvh; }
-  .workspace-task-tray [data-slot='sheet-header'] { padding-left: 16px; }
-  .task-tray-scroll { padding-inline: 16px; }
-  .task-tray-record > .task-tray-summary { grid-template-columns: 16px minmax(0, 1fr) 56px; gap: 8px; }
-  .task-tray-summary > time { grid-column: 2; grid-row: 2; }
-  .task-tray-summary > .text-state { grid-column: 3; grid-row: 1; }
-  .task-tray-detail { padding-left: 0; }
-  .workspace-task-tray [data-slot='sheet-footer'] { padding-inline: 16px; }
+.dock-strip:hover {
+  background: var(--surface-hover);
+  color: var(--text-body);
+}
+.dock-strip-label {
+  letter-spacing: 0.14em;
+  color: var(--text-ghost);
+}
+.dock-strip-state {
+  font-weight: 500;
+  color: var(--text-muted);
+}
+.dock-strip[data-state='active'] .dock-strip-state {
+  color: var(--primary);
+}
+.dock-strip-failed {
+  color: var(--destructive);
+}
+.dock-strip-meta {
+  margin-left: auto;
+  color: var(--text-ghost);
+}
+.dock-strip-caret {
+  width: 12px;
+  height: 12px;
+  color: var(--text-ghost);
+  transition: transform 140ms ease;
+}
+.dock-strip[aria-expanded='true'] .dock-strip-caret {
+  transform: rotate(180deg);
+}
+
+/* ── 抽屉 ───────────────────────────────────────────── */
+.dock-sheet[data-slot='sheet-content'] {
+  height: min(48vh, 420px);
+  gap: 0;
+  padding: 0;
+  border-top: 1px solid var(--hairline-strong);
+  border-radius: 14px 14px 0 0;
+  background: var(--surface-chrome);
+  box-shadow: 0 -24px 60px -40px rgb(23 27 36 / 45%);
+}
+.dock-sheet .dock-sheet-head[data-slot='sheet-header'] {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 52px 8px 16px;
+}
+.dock-sheet .dock-sheet-head [data-slot='sheet-title'] {
+  margin: 0;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: var(--text-strong);
+}
+.dock-sheet .dock-filters {
+  margin-left: auto;
+  padding: 0;
+}
+.dock-sheet .dock-scroll {
+  padding: 0 16px 10px;
+}
+/* 抽屉是整屏宽：状态标签跟着标题走，否则会飘到一千多像素外。 */
+.dock-sheet .dock-task-head {
+  justify-content: flex-start;
+  gap: 10px;
+}
+.dock-sheet .dock-task-title {
+  flex: 0 1 auto;
+}
+.dock-sheet .dock-foot {
+  padding: 0 16px;
+}
+
+.dock-count.is-idle {
+  color: var(--text-ghost);
+}
+.dock-refresh {
+  margin-left: auto;
+  width: 24px;
+  height: 24px;
+  color: var(--text-ghost);
+}
+.dock-refresh:hover {
+  color: var(--text-strong);
+}
+.dock-refresh > svg {
+  width: 12px;
+  height: 12px;
+}
+.dock-refresh[disabled] > svg {
+  animation: dock-spin 900ms linear infinite;
+}
+
+/* 进行中使用不确定细线：没有真实百分比，就不给比例。 */
+.dock-meter > i {
+  width: 34%;
+  animation: dock-slide 1600ms ease-in-out infinite;
+}
+@keyframes dock-slide {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(320%); }
+}
+@keyframes dock-spin {
+  to { transform: rotate(360deg); }
+}
+
+.dock-task {
+  padding: 9px 0 10px;
+  border-top: 1px solid var(--hairline);
+  gap: 6px;
+}
+.dock-task:first-of-type {
+  border-top: 0;
+  padding-top: 2px;
+}
+.dock-task-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+}
+.dock-task-head:hover .dock-task-title {
+  color: var(--text-strong);
+}
+.dock-task-head[aria-expanded='true'] .dock-task-title {
+  color: var(--text-strong);
+}
+
+.dock-task-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px 0 2px;
+  min-width: 0;
+  font-size: 0.6875rem;
+  color: var(--text-muted);
+}
+.dock-task-error {
+  margin: 0;
+  padding: 4px 6px;
+  border-left: 2px solid var(--destructive);
+  background: rgba(255, 107, 107, 0.07);
+  color: var(--destructive);
+  font-size: 0.6875rem;
+  overflow-wrap: anywhere;
+}
+.dock-task-detail-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.dock-task-detail-actions > button {
+  height: 22px;
+  padding-inline: 6px;
+  font-size: 0.625rem;
+  color: var(--text-muted);
+}
+.dock-task-detail-actions > button > svg {
+  width: 11px;
+  height: 11px;
+}
+.dock-task-detail-log {
+  font: 400 0.5625rem/1 var(--font-mono);
+  color: var(--text-ghost);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dock-task-detail details > summary {
+  cursor: pointer;
+  font-size: 0.625rem;
+  color: var(--text-faint);
+  list-style: none;
+}
+.dock-task-detail details > summary::marker {
+  content: '';
+}
+.dock-task-detail details > summary:hover {
+  color: var(--text-body);
+}
+.dock-task-detail pre {
+  margin: 4px 0 0;
+  padding: 6px 8px;
+  border-radius: 5px;
+  background: var(--surface-sunken);
+  font: 400 0.5625rem/1.5 var(--font-mono);
+  color: var(--text-muted);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 180px;
+  overflow: auto;
+}
+.dock-task-events {
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.dock-task-events > li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font: 400 0.5625rem/1.4 var(--font-mono);
+  color: var(--text-faint);
+}
+.dock-task-events > li > time {
+  color: var(--text-ghost);
+}
+
+.dock-foot-link {
+  height: 22px;
+  padding-inline: 6px;
+  font-size: 0.5625rem;
+  font-weight: 400;
+  color: var(--text-faint);
+}
+.dock-foot-link > svg {
+  width: 10px;
+  height: 10px;
+}
+.dock-foot-link:hover {
+  color: var(--text-strong);
+}
+
+.product-shell.reduce-motion .dock-meter > i,
+.product-shell.reduce-motion .dock-refresh[disabled] > svg {
+  animation: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .dock-meter > i,
+  .dock-refresh[disabled] > svg {
+    animation: none;
+  }
 }

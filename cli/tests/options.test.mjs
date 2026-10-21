@@ -1,9 +1,12 @@
-import test from 'node:test';
+import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
+import { mkdtempSync, realpathSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { basename, isAbsolute, join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   help,
-  parseOptions,
+  parseOptions as rawParseOptions,
   readApiToken,
   readMarketplaceConfig,
   DEFAULT_MARKETPLACE_URL,
@@ -11,6 +14,28 @@ import {
 import { networkConfig, authority } from '../src/network.mjs';
 import { validateRegistrySource } from '../src/plugin-package.mjs';
 import { packagePath } from '../src/paths.mjs';
+
+// 旧参数用例共用独占实例，避免真实用户根配置影响默认值断言。
+const testDirectory = mkdtempSync(join(tmpdir(), 'deviceforge-options-'));
+function parseOptions(args, environment = {}) {
+  return rawParseOptions(args, { DEVICEFORGE_DATA_DIR: testDirectory, ...environment });
+}
+
+after(() => {
+  const target = realpathSync(testDirectory);
+  const base = realpathSync(tmpdir());
+  const offset = relative(base, target);
+  if (
+    !isAbsolute(target) ||
+    !offset ||
+    isAbsolute(offset) ||
+    offset === '..' ||
+    offset.startsWith(`..${sep}`) ||
+    !basename(target).startsWith('deviceforge-options-')
+  )
+    throw new Error('参数测试清理路径越界');
+  rmSync(target, { recursive: true, force: true });
+});
 
 test('默认局域网、分离 MCP 端口，并允许配置 IPv4/IPv6', () => {
   const defaults = parseOptions(['start'], {});

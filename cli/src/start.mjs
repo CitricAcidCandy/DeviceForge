@@ -7,6 +7,7 @@ import { spawnManaged, stopManaged } from './processes.mjs';
 import { startWebServer } from './web-server.mjs';
 import { networkConfig } from './network.mjs';
 import { readApiToken, readMarketplaceConfig } from './options.mjs';
+import { initializeRootConfiguration } from './root-config.mjs';
 
 async function freePort() {
   const server = createServer();
@@ -48,6 +49,7 @@ export async function start(
   const resources = runtime || (await loadRuntime());
   const network = networkConfig(options.ip, options.port, options.mcpPort);
   await mkdir(options.dataDirectory, { recursive: true });
+  const configurationPath = await initializeRootConfiguration(options.dataDirectory);
   // 相对部署路径始终按启动器工作目录解析，不能随 Rust 的数据目录工作目录改变。
   const pluginDirectory = resolve(
     environment.APK_PLUGIN_DIR || join(options.dataDirectory, 'plugins'),
@@ -111,7 +113,7 @@ export async function start(
     });
     await ready(backend, backendPort, headers, signal);
     onReady(
-      `DeviceForge 已启动，监听 ${options.ip}，前端/API ${options.port}，MCP ${options.mcpPort}；按 Ctrl+C 退出\n${network.urls.map((url) => `前端：${url.web}；MCP：${url.mcp}`).join('\n')}\n市场来源：${marketplaceSources.map((source) => source.url).join('，')}（资源服务需独立启动）\n日志：${logDirectory}`,
+      `DeviceForge 已启动，监听 ${options.ip}，前端/API ${options.port}，MCP ${options.mcpPort}；按 Ctrl+C 退出\n${network.urls.map((url) => `前端：${url.web}；MCP：${url.mcp}`).join('\n')}\n数据：${options.dataDirectory}\n根配置：${configurationPath}\n市场来源：${marketplaceSources.map((source) => source.url).join('，')}（资源服务需独立启动）\n日志：${logDirectory}`,
     );
     const result = await Promise.race([stopped.then(() => null), backend.closed]);
     if (result && (result.failure || result.code !== 0))

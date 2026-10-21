@@ -12,7 +12,7 @@ const deviceIdPattern = /^[A-Za-z0-9._:][A-Za-z0-9._:-]*$/;
 export function parseMediaShare(hash: string): MediaShareInfo | null {
   const value = hash.replace(/^#\/?/, '');
   const separator = value.indexOf('?');
-  if (separator < 0 || value.slice(0, separator) !== 'media') return null;
+  if (separator < 0 || value.slice(0, separator) !== 'devices') return null;
   const query = new URLSearchParams(value.slice(separator + 1));
   const deviceId = query.get('share_device');
   const control = query.get('share_control');
@@ -26,5 +26,5 @@ export function createMediaShareUrl(info: MediaShareInfo): string {
     share_device: info.deviceId,
     share_control: info.control ? '1' : '0',
   });
-  return `${window.location.origin}${window.location.pathname}#media?${query.toString()}`;
+  return `${window.location.origin}${window.location.pathname}#devices?${query.toString()}`;
 }

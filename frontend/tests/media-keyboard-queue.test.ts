@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createMediaControlQueue } from '../src/pages/media/media-controls.ts';
+import { createMediaControlQueue } from '../src/pages/devices/screen/media-controls.ts';
 import type { MirroringControl } from '../src/features/mirroring-streaming/index.ts';
 
 test('积压长按合并重复事件，按键释放仍在首次按下之后发送', async () => {

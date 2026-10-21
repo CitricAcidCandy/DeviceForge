@@ -290,6 +290,7 @@ async function installedPackage(pluginDirectory, id, evidence) {
     'tool-supply': [
       'catalog',
       'install',
+      'import',
       'remove',
       'runtime_feature.status',
       'runtime_feature.prepare',

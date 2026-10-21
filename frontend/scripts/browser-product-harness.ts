@@ -1,9 +1,9 @@
 import { createElement, StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { createProductServices } from '../src/app/product/services.ts';
-import { AppsPage } from '../src/pages/packages/components/AppsPanel/index.tsx';
+import { AppsPage } from '../src/pages/devices/apps/components/AppsPanel/index.tsx';
 import { DevicesConnect } from '../src/pages/devices/components/DevicesConnect/index.tsx';
-import { PackagesPage } from '../src/pages/packages/index.tsx';
+import { DeviceApps } from '../src/pages/devices/apps/index.tsx';
 import { FilesPage } from '../src/pages/files/index.tsx';
 import { AnalysisPage } from '../src/pages/analysis/index.tsx';
 import { ToolsPage } from '../src/pages/tools/index.tsx';
@@ -357,7 +357,7 @@ export async function verifyProductPages() {
       '提供者断开字段不兼容',
     );
     passed('无选中设备的提供者连接与确认断开');
-    await mount(PackagesPage);
+    await mount(DeviceApps);
     await fill('安装包产物 ID', fixtureArtifact);
     await click('运行清单');
     await until(() => target.textContent?.includes('受控安装包') ?? false, '包清单没有专用结果');

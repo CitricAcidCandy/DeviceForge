@@ -1,8 +1,6 @@
 import {
   Smartphone,
-  PackageOpen,
   FolderOpen,
-  MonitorPlay,
   Activity,
   Code2,
   Workflow,
@@ -17,11 +15,10 @@ import {
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
+// 画面与录制、应用与包已并入设备工作台，作为该页的两个模式，不再单列路由。
 export type ProductRoute =
   | 'devices'
-  | 'packages'
   | 'files'
-  | 'media'
   | 'performance'
   | 'frida'
   | 'automation'
@@ -45,15 +42,8 @@ export const PRODUCT_ROUTES: readonly ProductRouteInfo[] = [
     id: 'devices',
     label: '设备',
     group: '工作台',
-    description: '连接设备，按公开能力完成应用与设备操作',
+    description: '连接设备，在同一个工作台里看画面、管理应用与安装包',
     icon: Smartphone,
-  },
-  {
-    id: 'packages',
-    label: '应用与包',
-    group: '工作台',
-    description: '上传、检查、解码与构建应用包',
-    icon: PackageOpen,
   },
   {
     id: 'files',
@@ -61,13 +51,6 @@ export const PRODUCT_ROUTES: readonly ProductRouteInfo[] = [
     group: '工作台',
     description: '管理服务器产物，预览与下载真实文件',
     icon: FolderOpen,
-  },
-  {
-    id: 'media',
-    label: '画面与录制',
-    group: '工作台',
-    description: '截图、实时投屏与有界录像',
-    icon: MonitorPlay,
   },
   {
     id: 'performance',

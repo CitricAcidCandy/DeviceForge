@@ -1,14 +1,14 @@
 import { useEffect, useId, useState } from 'react';
-import { Button } from '../../../../components/Button/index.tsx';
-import { Input } from '../../../../components/Input/index.tsx';
-import { Label } from '../../../../components/Label/index.tsx';
+import { Button } from '../../../../../components/Button/index.tsx';
+import { Input } from '../../../../../components/Input/index.tsx';
+import { Label } from '../../../../../components/Label/index.tsx';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '../../../../components/Select/index.tsx';
+} from '../../../../../components/Select/index.tsx';
 import {
   Table,
   TableBody,
@@ -16,7 +16,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '../../../../components/Table/index.tsx';
+} from '../../../../../components/Table/index.tsx';
 import {
   Dialog,
   DialogContent,
@@ -24,13 +24,13 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '../../../../components/Dialog/index.tsx';
-import { prepareApksInstallInput } from '../../../../features/package-analysis/index.ts';
-import type { DeviceRef } from '../../../../plugin-sdk/index.ts';
-import { EmptyState, Field, JsonResult } from '../../../../components/index.ts';
-import { ActionFeedback } from '../../../../app/product/feedback.tsx';
-import { useAction, useSnapshot } from '../../../../app/product/hooks.ts';
-import type { ProductServices } from '../../../../app/product/services.ts';
+} from '../../../../../components/Dialog/index.tsx';
+import { prepareApksInstallInput } from '../../../../../features/package-analysis/index.ts';
+import type { DeviceRef } from '../../../../../plugin-sdk/index.ts';
+import { EmptyState, Field, JsonResult } from '../../../../../components/index.ts';
+import { ActionFeedback } from '../../../../../app/product/feedback.tsx';
+import { useAction, useSnapshot } from '../../../../../app/product/hooks.ts';
+import type { ProductServices } from '../../../../../app/product/services.ts';
 import {
   appIdentifierInput,
   capabilityGate,
@@ -40,12 +40,12 @@ import {
   deviceKey,
   executeDeviceTask,
   sameDevice,
-} from '../../../../features/device-apps/index.ts';
+} from '../../../../../features/device-apps/index.ts';
 import type {
   AppCapability,
   AppList,
   DeviceBusinessResult,
-} from '../../../../features/device-apps/index.ts';
+} from '../../../../../features/device-apps/index.ts';
 
 type RowAction = 'app.start' | 'app.stop' | 'app.uninstall' | 'app.detail' | 'app.reset';
 const actionNames: Readonly<Record<RowAction, string>> = {
@@ -67,7 +67,14 @@ interface AppReport {
   readonly data: DeviceBusinessResult;
 }
 
-export function AppsPage({ services }: { services: ProductServices }) {
+export function AppsPage({
+  services,
+  compact = false,
+}: {
+  services: ProductServices;
+  /** 收进设备工作台右栏：不重复设备身份，也不把读取按钮做成主按钮。 */
+  compact?: boolean;
+}) {
   const snapshot = useSnapshot(services.runtime.devices);
   const catalog = useSnapshot(services.runtime.operations);
   const reference = snapshot.selection;
@@ -216,13 +223,16 @@ export function AppsPage({ services }: { services: ProductServices }) {
       <div className="section-heading">
         <div>
           <h2>设备应用</h2>
-          <p className="muted">
-            {snapshot.selected
-              ? `${snapshot.selected.model ?? '设备'} · ${reference?.localId} · ${reference?.providerId} / ${reference?.generation}`
-              : '在设备页选择当前提供者代次的在线设备。'}
-          </p>
+          {compact ? null : (
+            <p className="muted">
+              {snapshot.selected
+                ? `${snapshot.selected.model ?? '设备'} · ${reference?.localId} · ${reference?.providerId} / ${reference?.generation}`
+                : '在设备页选择当前提供者代次的在线设备。'}
+            </p>
+          )}
         </div>
         <Button
+          variant={compact ? 'outline' : 'default'}
           disabled={!listing.capability || busy}
           title={listing.reason ?? undefined}
           onClick={refresh}
@@ -374,7 +384,7 @@ export function AppsPage({ services }: { services: ProductServices }) {
           if (file) accept(file);
         }}
       />
-      <p className="muted">先上传为服务器产物，再提交安装。取消等待不会撤销已经执行的设备安装。</p>
+      <p className="muted install-hint">先上传为服务器产物，再提交安装。取消等待不会撤销已经执行的设备安装。</p>
       <ActionFeedback {...upload} />
       {filename && <p className="file-name">已上传：{filename}</p>}
       <fieldset disabled={busy} className="form-grid">

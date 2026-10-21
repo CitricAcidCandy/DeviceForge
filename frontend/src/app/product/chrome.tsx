@@ -10,25 +10,51 @@ import {
 import {
   Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger,
 } from '../../components/Sheet/index.tsx';
-import {
-  ChevronRight, Ellipsis, Expand, Menu, Minimize2,
-  PanelLeftClose, PanelLeftOpen, RefreshCw,
-} from 'lucide-react';
+import { ChevronRight, Ellipsis, Menu, PanelLeftClose, PanelLeftOpen, RefreshCw, Settings2 } from 'lucide-react';
 
-export function WorkspaceSidebar({ route, collapsed, onNavigate }: {
+// 侧栏由品牌、服务状态、分组导航与底部小工具组成；不持有业务状态。
+export function WorkspaceSidebar({
+  route, collapsed, connectionText, connectionError, onNavigate,
+}: {
   route: ProductRoute;
   collapsed: boolean;
+  connectionText: string;
+  connectionError: boolean;
   onNavigate(route: ProductRoute): void;
 }) {
   return <aside id="workspace-sidebar" className="workspace-sidebar" aria-label="主导航区域">
+    <Button variant="ghost" className="brand-lockup" onClick={() => onNavigate('devices')}
+      aria-label="设备工坊首页" title="设备工坊首页">
+      <span className="brand-mark" aria-hidden="true">F</span>
+      <span className="brand-name">FORGE<small>设备工坊 DeviceForge</small></span>
+    </Button>
+    <div className="sidebar-service">
+      <div className="sidebar-service-row">
+        <span className="connection-dot" aria-hidden="true" />
+        <span>本机服务</span>
+        <span data-service-state={connectionError ? 'error' : 'ok'}>{connectionText}</span>
+      </div>
+    </div>
     <ProductNavigation route={route} collapsed={collapsed} onNavigate={onNavigate} />
+    <div className="sidebar-foot">
+      <Button variant="ghost" className="sidebar-foot-button" aria-label="设置" title="设置"
+        onClick={() => onNavigate('settings')}><Settings2 aria-hidden="true" /></Button>
+      <span className="sidebar-version">v0.1.0</span>
+    </div>
   </aside>;
+}
+
+/** 顶栏里的当前设备身份：只报事实，动作留在设备页的目录卡里。 */
+export interface WorkspaceIdentity {
+  readonly name: string;
+  readonly state: string;
+  readonly meta: string;
 }
 
 export function WorkspaceHeader({
   route, collapsed, onCollapse, drawerOpen, onDrawerChange, reduced, onReducedChange,
   focused, onFocusedChange, connectionText, connectionError,
-  onRefreshConnection, onNavigate,
+  onRefreshConnection, onNavigate, activeTasks, identity,
 }: {
   route: ProductRoute;
   collapsed: boolean;
@@ -43,73 +69,102 @@ export function WorkspaceHeader({
   connectionError: boolean;
   onRefreshConnection(): void;
   onNavigate(route: ProductRoute): void;
+  activeTasks: number;
+  /** 当前工作设备：有设备就常驻顶栏，跨页面都看得见自己在操作哪一台。 */
+  identity?: WorkspaceIdentity | null;
 }) {
   const currentRoute = PRODUCT_ROUTES.find((entry) => entry.id === route);
+  return <header className="workspace-topbar global-bar">
+    <div className="topbar-location">
+      <Button variant="ghost" size="icon" className="navigation-desktop-trigger"
+        onClick={onCollapse} aria-label={collapsed ? '展开侧边导航' : '折叠侧边导航'}
+        aria-controls="workspace-sidebar" aria-expanded={!collapsed} title={collapsed ? '展开侧边导航' : '折叠侧边导航'}>
+        {collapsed ? <PanelLeftOpen aria-hidden="true" /> : <PanelLeftClose aria-hidden="true" />}
+      </Button>
+      <Sheet open={drawerOpen} onOpenChange={onDrawerChange}>
+        <SheetTrigger asChild>
+          <Button variant="ghost" size="icon" className="navigation-mobile-trigger" aria-label="打开导航"><Menu /></Button>
+        </SheetTrigger>
+        <SheetContent side="left" className={'navigation-drawer' + (reduced ? ' reduce-motion' : '')}>
+          <SheetHeader><SheetTitle>工坊导航</SheetTitle><SheetDescription>选择工具，继续当前设备工作</SheetDescription></SheetHeader>
+          <ProductNavigation route={route} onNavigate={onNavigate} />
+        </SheetContent>
+      </Sheet>
+      <nav className="workspace-breadcrumb" aria-label="面包屑"><ol>
+        <li className="breadcrumb-group">{currentRoute?.group}</li>
+        <li aria-current="page"><ChevronRight aria-hidden="true" /><span>{currentRoute?.label}</span></li>
+      </ol></nav>
+      {identity ? (
+        <div className="topbar-context">
+          <span className={`device-state-dot state-${identity.state}`} aria-hidden="true" />
+          <b>{identity.name}</b>
+          <span className="topbar-device-meta mono">{identity.meta}</span>
+        </div>
+      ) : null}
+    </div>
+    <div className="global-actions">
+      <span className="command-hint" aria-hidden="true">搜索或运行命令<kbd>Ctrl K</kbd></span>
+      <span className={'connection-state' + (connectionError ? ' is-error' : '')} role="status">
+        <span className="connection-dot" aria-hidden="true" /><span>{connectionText}</span>
+      </span>
+      {activeTasks > 0 && <span className="dock-count" aria-label={`${activeTasks} 个任务进行中`}>{activeTasks} 进行中</span>}
+      <Button
+        variant={focused ? 'secondary' : 'ghost'}
+        size="sm"
+        onClick={() => onFocusedChange(!focused)}
+        aria-pressed={focused}
+        title={focused ? '退出专注，恢复侧栏与任务坞' : '专注画面，收起侧栏与任务坞'}
+      >
+        {focused ? '退出专注' : '专注'}
+      </Button>
+      <Button variant="ghost" size="icon" className="header-reconnect" onClick={onRefreshConnection} aria-label="重新连接服务器">
+        <RefreshCw aria-hidden="true" />
+      </Button>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" aria-label="更多设置"><Ellipsis /></Button></DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onSelect={onRefreshConnection}>重新连接服务器</DropdownMenuItem>
+          <DropdownMenuCheckboxItem checked={reduced} onCheckedChange={onReducedChange}>减少动态效果</DropdownMenuCheckboxItem>
+          <DropdownMenuItem onSelect={() => onNavigate('settings')}>主题与设置</DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => onNavigate('plugins')}>管理插件</DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  </header>;
+}
+
+// 状态栏只报运行事实：连接、插件装载与可排查的日志标识。
+export function WorkspaceStatusBar({
+  connectionText, connectionError, pluginCount, logId, endpoint,
+}: {
+  connectionText: string;
+  connectionError: boolean;
+  pluginCount: number;
+  logId: string | null;
+  endpoint: string | null;
+}) {
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
     const timer = window.setInterval(() => setNow(new Date()), 60_000);
     return () => window.clearInterval(timer);
   }, []);
-  const date = new Intl.DateTimeFormat('zh-CN', {
-    year: 'numeric', month: 'long', day: 'numeric', weekday: 'long',
-  }).format(now);
   const time = new Intl.DateTimeFormat('zh-CN', {
     hour: '2-digit', minute: '2-digit', hour12: false,
   }).format(now);
-  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  return <header className="workspace-topbar global-bar">
-    <Button variant="ghost" className="header-brand" onClick={() => onNavigate('devices')}
-      aria-label="设备工坊首页" title="设备工坊首页">
-      <span className="brand-mark">F<span>·</span></span>
-      <span className="brand-name">DeviceForge<small>设备工坊</small></span>
-    </Button>
-    <div className="workspace-toolbar">
-      <div className="topbar-location">
-        <Button variant="ghost" size="icon" className="navigation-desktop-trigger"
-          onClick={onCollapse} aria-label={collapsed ? '展开侧边导航' : '折叠侧边导航'}
-          aria-controls="workspace-sidebar" aria-expanded={!collapsed} title={collapsed ? '展开侧边导航' : '折叠侧边导航'}>
-          {collapsed ? <PanelLeftOpen aria-hidden="true" /> : <PanelLeftClose aria-hidden="true" />}
-        </Button>
-        <Sheet open={drawerOpen} onOpenChange={onDrawerChange}>
-          <SheetTrigger asChild>
-            <Button variant="ghost" size="icon" className="navigation-mobile-trigger" aria-label="打开导航"><Menu /></Button>
-          </SheetTrigger>
-          <SheetContent side="left" className={'navigation-drawer' + (reduced ? ' reduce-motion' : '')}>
-            <SheetHeader><SheetTitle>工坊导航</SheetTitle><SheetDescription>选择工具，继续当前设备工作</SheetDescription></SheetHeader>
-            <ProductNavigation route={route} onNavigate={onNavigate} />
-          </SheetContent>
-        </Sheet>
-        <nav className="workspace-breadcrumb" aria-label="面包屑"><ol>
-          <li>设备工坊</li>
-          <li className="breadcrumb-group"><ChevronRight aria-hidden="true" />{currentRoute?.group}</li>
-          <li aria-current="page"><ChevronRight aria-hidden="true" /><span>{currentRoute?.label}</span></li>
-        </ol></nav>
-      </div>
-      <div className="header-clock" aria-label="当前时间">
-        <span>{date}</span>
-        <time dateTime={now.toISOString()}>{time}</time>
-        <span>{timeZone}</span>
-      </div>
-      <div className="global-actions">
-        <span className={'connection-state' + (connectionError ? ' is-error' : '')} role="status">
-          <span className="connection-dot" aria-hidden="true" /><span>{connectionText}</span>
-        </span>
-        <Button variant="ghost" size="icon" className="header-reconnect" onClick={onRefreshConnection} aria-label="重新连接服务器"><RefreshCw /></Button>
-        <Button variant="outline" size="sm" className="focus-toggle" onClick={() => onFocusedChange(!focused)}
-          aria-pressed={focused} aria-label={focused ? '退出专注' : '专注'}>
-          {focused ? <Minimize2 /> : <Expand />}<span>{focused ? '退出专注' : '专注'}</span>
-        </Button>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" aria-label="更多设置"><Ellipsis /></Button></DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem className="compact-header-action" onSelect={onRefreshConnection}>重新连接服务器</DropdownMenuItem>
-            <DropdownMenuItem className="compact-header-action" onSelect={() => onFocusedChange(!focused)}>{focused ? '退出专注' : '专注模式'}</DropdownMenuItem>
-            <DropdownMenuCheckboxItem checked={reduced} onCheckedChange={onReducedChange}>减少动态效果</DropdownMenuCheckboxItem>
-            <DropdownMenuItem onSelect={() => onNavigate('settings')}>主题与设置</DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => onNavigate('plugins')}>管理插件</DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
+  return <div className="workspace-statusbar" role="contentinfo" aria-label="运行状态">
+    <div className="statusbar-group">
+      <span>{connectionError ? '连接异常' : connectionText}</span>
+      {endpoint && <><span className="statusbar-divider" aria-hidden="true" /><span>{endpoint}</span></>}
+      <span className="statusbar-divider" aria-hidden="true" />
+      <span>插件 {pluginCount} 已加载</span>
+      <span className="statusbar-divider" aria-hidden="true" />
+      <span>路由 {PRODUCT_ROUTES.length} 项</span>
     </div>
-  </header>;
+    <div className="statusbar-group">
+      {logId && <><span className="statusbar-log">日志 {logId}</span><span className="statusbar-divider" aria-hidden="true" /></>}
+      <span>Ctrl K 命令</span>
+      <span className="statusbar-divider" aria-hidden="true" />
+      <span>{time}</span>
+    </div>
+  </div>;
 }

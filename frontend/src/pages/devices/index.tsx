@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { ArrowUpRight, Cable, ClipboardList, RefreshCw, Smartphone } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Code2, Files, Gauge, Plus, Smartphone, Terminal } from 'lucide-react';
 import { Button } from '../../components/Button/index.tsx';
 import {
   Dialog,
@@ -8,24 +8,55 @@ import {
   DialogHeader,
   DialogTitle,
 } from '../../components/Dialog/index.tsx';
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from '../../components/Sheet/index.tsx';
 import type { ProductServices } from '../../app/product/services.ts';
 import { useAction, useSnapshot } from '../../app/product/hooks.ts';
 import { ActionFeedback } from '../../app/product/feedback.tsx';
-import { capabilityGate } from '../../features/device-apps/index.ts';
 import type { DeviceProviderInfo } from '../../plugin-sdk/index.ts';
 import { DevicesConnect } from './components/DevicesConnect/index.tsx';
 import { DeviceDirectory } from './components/DeviceDirectory/index.tsx';
 import { DeviceCapabilities } from './components/DeviceCapabilities/index.tsx';
-import { deviceKey, deviceStates, discoverProviders, providerKey } from './workspace.ts';
+import { DeviceScreen } from './screen/index.tsx';
+import type { WorkbenchPane } from './screen/index.tsx';
+import { deviceKey, discoverProviders, providerKey } from './workspace.ts';
 import './workspace.css';
+
+/*
+ * 设备工作台：一台设备的全部工作面。
+ * 画面常驻舞台，右栏在「画面参数」与「应用」之间切换——应用不再覆盖画面。
+ * 设备身份与动作挂到全局顶栏，页内不再有一条只装身份的空横带。
+ */
+interface RailEntry {
+  readonly id: string;
+  readonly label: string;
+  readonly icon: typeof Smartphone;
+  readonly href?: string;
+  readonly onSelect?: () => void;
+  readonly disabled?: boolean;
+  readonly current?: boolean;
+  readonly hint?: string;
+}
 
 export function DevicesPage({ services, active }: { services: ProductServices; active: boolean }) {
   const snapshot = useSnapshot(services.runtime.devices);
   const catalog = useSnapshot(services.runtime.operations);
   const refresh = useAction();
+  const [pane, setPane] = useState<WorkbenchPane>('params');
   const [connectionOpen, setConnectionOpen] = useState(false);
+  const [directoryOpen, setDirectoryOpen] = useState(false);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   useEffect(() => {
-    if (!active) setConnectionOpen(false);
+    if (!active) {
+      setConnectionOpen(false);
+      setDirectoryOpen(false);
+      setAdvancedOpen(false);
+    }
   }, [active]);
   const selected = snapshot.selected;
   const selectedProvider = snapshot.providers.find(
@@ -38,11 +69,26 @@ export function DevicesPage({ services, active }: { services: ProductServices; a
     (directory) =>
       selectedProvider && providerKey(directory.provider) === providerKey(selectedProvider),
   );
-  const packages = capabilityGate(
-    snapshot,
-    catalog.pending ? [] : (catalog.result?.data ?? []),
-    'packages',
+  const deviceTotal = snapshot.directories.reduce(
+    (total, directory) => total + directory.devices.length,
+    0,
   );
+  // 操作目录还没到手时先退回操作 id，不能因为目录慢一拍就丢标签。
+  const operationTitles = new Map(
+    (catalog.result?.data ?? []).map((operation) => [operation.id, operation.title]),
+  );
+  const titleOf = (operation: string) => operationTitles.get(operation) ?? operation;
+  /*
+   * 目录里只要有一台设备就直接进工作台：空舞台只留给「真的没有设备」。
+   * 只补一次初始选择——用户主动取消选择后不能再被抢回去。
+   */
+  const seeded = useRef(false);
+  const firstAvailable = snapshot.directories.flatMap((directory) => directory.devices)[0];
+  useEffect(() => {
+    if (seeded.current || selected || !firstAvailable) return;
+    seeded.current = true;
+    services.runtime.devices.select(firstAvailable.reference);
+  }, [selected, firstAvailable, services]);
   const discover = (provider: DeviceProviderInfo) => {
     void refresh.run(
       async (signal) => {
@@ -93,6 +139,25 @@ export function DevicesPage({ services, active }: { services: ProductServices; a
       { success: null, pending: '正在发现设备' },
     );
   };
+  const rail: readonly RailEntry[] = [
+    {
+      id: 'directory',
+      label: '设备目录',
+      icon: Smartphone,
+      onSelect: () => setDirectoryOpen((value) => !value),
+      current: directoryOpen,
+    },
+    { id: 'performance', label: '性能与调用栈', icon: Gauge, href: '#performance' },
+    { id: 'files', label: '文件与产物', icon: Files, href: '#files' },
+    { id: 'terminal', label: '终端', icon: Terminal, href: '#terminal' },
+    {
+      id: 'advanced',
+      label: '能力与原始结果',
+      icon: Code2,
+      onSelect: () => setAdvancedOpen(true),
+      disabled: !selected || !selectedProvider,
+    },
+  ];
   return (
     <section
       className="product-page device-workspace-page"
@@ -100,11 +165,11 @@ export function DevicesPage({ services, active }: { services: ProductServices; a
       aria-label="设备工作台"
     >
       <ActionFeedback {...refresh} />
-      <div className="device-workspace-grid">
+      {directoryOpen ? (
         <DeviceDirectory
           snapshot={snapshot}
           pending={refresh.pending}
-          select={services.runtime.devices.select}
+          select={(reference) => services.runtime.devices.select(reference)}
           discover={discover}
           discoverAll={discoverAll}
           read={() => {
@@ -114,103 +179,125 @@ export function DevicesPage({ services, active }: { services: ProductServices; a
             });
           }}
           connect={() => setConnectionOpen(true)}
+          titleOf={titleOf}
+          onClose={() => setDirectoryOpen(false)}
         />
-        <section className="device-detail-card workspace-card" aria-label="设备详细工作台">
-          {selected && selectedProvider ? (
-            <>
-              <header className="device-detail-heading">
-                <span className="device-detail-icon">
-                  <Smartphone aria-hidden="true" />
-                </span>
-                <div>
-                  <h2>{selected.model ?? selected.reference.localId}</h2>
-                  <p>
-                    <span className={`text-state state-${selected.state}`}>
-                      <i aria-hidden="true" />
-                      {deviceStates[selected.state]}
-                    </span>
-                    <span className="muted">{selectedProvider.definition.platform}</span>
-                  </p>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => services.runtime.devices.select(null)}
+      ) : (
+      <div className="device-stage">
+        <nav className="device-toolrail" aria-label="设备工具">
+          {rail.map((entry) => {
+            const Icon = entry.icon;
+            if (entry.href)
+              return (
+                <a
+                  key={entry.id}
+                  className="device-rail-button"
+                  href={entry.href}
+                  title={entry.hint ?? entry.label}
+                  aria-label={entry.label}
+                  data-disabled={entry.disabled ? 'true' : undefined}
                 >
-                  取消选择
-                </Button>
-              </header>
-              <div className="device-primary-actions">
-                <Button
-                  variant="secondary"
-                  disabled={refresh.pending}
-                  onClick={() => discover(selectedProvider)}
-                >
-                  <RefreshCw />
-                  重新发现
-                </Button>
-                {packages.capability ? (
-                  <Button asChild>
-                    <a href="#packages">
-                      <ClipboardList />
-                      管理应用
-                      <ArrowUpRight />
-                    </a>
+                  <Icon aria-hidden="true" />
+                </a>
+              );
+            return (
+              <button
+                key={entry.id}
+                type="button"
+                className="device-rail-button"
+                onClick={entry.onSelect}
+                disabled={entry.disabled ?? false}
+                data-active={entry.current ? 'true' : undefined}
+                title={entry.label}
+                aria-label={entry.label}
+              >
+                <Icon aria-hidden="true" />
+              </button>
+            );
+          })}
+          <span className="device-rail-sep" aria-hidden="true" />
+          <span
+            className="device-rail-button device-rail-slot"
+            title="插件工具插槽：由插件追加到此位置"
+            aria-label="插件工具插槽"
+          >
+            <Plus aria-hidden="true" />
+          </span>
+        </nav>
+        <div className="device-screen-area">
+          {selected ? (
+            <div className="device-mode-pane">
+              <DeviceScreen
+                services={services}
+                active={active}
+                pane={pane}
+                onPaneChange={setPane}
+              />
+            </div>
+          ) : (
+            <div className="device-stage-empty">
+              <p>
+                {snapshot.providers.length
+                  ? `目录 ${deviceTotal} 台设备，选择一台进入工作台`
+                  : '还没有可用的设备提供者'}
+              </p>
+              <div className="device-stage-empty-actions">
+                {snapshot.providers.length > 0 ? (
+                  <Button variant="outline" size="sm" onClick={() => setDirectoryOpen(true)}>
+                    打开设备目录
                   </Button>
                 ) : (
-                  <Button disabled title={packages.reason ?? undefined}>
-                    <ClipboardList />
-                    管理应用
+                  <Button variant="outline" size="sm" asChild>
+                    <a href="#plugins">去插件页启用</a>
                   </Button>
                 )}
-                <Button variant="outline" onClick={() => setConnectionOpen(true)}>
-                  <Cable />
+                <Button variant="ghost" size="sm" onClick={() => setConnectionOpen(true)}>
                   连接设备
                 </Button>
               </div>
-              {packages.reason && (
-                <p className="device-action-hint muted">应用管理：{packages.reason}</p>
-              )}
-              <section className="device-information">
-                <div className="device-section-heading">
-                  <h3>设备信息</h3>
-                  <span className="muted">来自提供者的最新观测</span>
+            </div>
+          )}
+        </div>
+      </div>
+      )}
+      <Sheet open={active && advancedOpen} onOpenChange={setAdvancedOpen}>
+        <SheetContent side="right" className="device-drawer">
+          <SheetHeader>
+            <SheetTitle>{selected?.model ?? selected?.reference.localId ?? '设备能力'}</SheetTitle>
+            <SheetDescription>按提供者声明调用实际能力；写入操作提交后不可回滚。</SheetDescription>
+          </SheetHeader>
+          {selected && selectedProvider ? (
+            <>
+              <dl className="device-facts">
+                <div>
+                  <dt>设备标识</dt>
+                  <dd className="mono">{selected.reference.localId}</dd>
                 </div>
-                <dl className="device-facts">
+                <div>
+                  <dt>提供者</dt>
+                  <dd className="mono">
+                    {selectedProvider.id} · {selectedProvider.version}
+                  </dd>
+                </div>
+                <div>
+                  <dt>运行代次</dt>
+                  <dd className="mono">{selected.reference.generation}</dd>
+                </div>
+                <div>
+                  <dt>观测时间</dt>
+                  <dd>
+                    {selectedDirectory
+                      ? new Date(selectedDirectory.observedAt).toLocaleString('zh-CN')
+                      : '暂无观测'}
+                  </dd>
+                </div>
+                {selected.rawState && (
                   <div>
-                    <dt>设备标识</dt>
-                    <dd className="mono">{selected.reference.localId}</dd>
+                    <dt>原始状态</dt>
+                    <dd className="mono">{selected.rawState}</dd>
                   </div>
-                  <div>
-                    <dt>设备平台</dt>
-                    <dd>{selectedProvider.definition.platform}</dd>
-                  </div>
-                  <div>
-                    <dt>提供者</dt>
-                    <dd>
-                      {selectedProvider.id} · {selectedProvider.version}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt>观测时间</dt>
-                    <dd>
-                      {selectedDirectory
-                        ? new Date(selectedDirectory.observedAt).toLocaleString('zh-CN')
-                        : '暂无观测'}
-                    </dd>
-                  </div>
-                  {selected.rawState && (
-                    <div>
-                      <dt>原始状态</dt>
-                      <dd>{selected.rawState}</dd>
-                    </div>
-                  )}
-                  <div>
-                    <dt>运行代次</dt>
-                    <dd className="mono">{selected.reference.generation}</dd>
-                  </div>
-                </dl>
-              </section>
+                )}
+              </dl>
               <DeviceCapabilities
                 key={deviceKey(selected.reference)}
                 services={services}
@@ -219,14 +306,10 @@ export function DevicesPage({ services, active }: { services: ProductServices; a
               />
             </>
           ) : (
-            <div className="device-detail-empty">
-              <h3>选择工作设备</h3>
-              <p>{snapshot.providers.length ? '从目录选择设备，查看可用操作。' : '先在插件页启用设备提供者。'}</p>
-              {!snapshot.providers.length && <Button variant="outline" asChild><a href="#plugins">管理插件</a></Button>}
-            </div>
+            <p className="muted">先选择设备。</p>
           )}
-        </section>
-      </div>
+        </SheetContent>
+      </Sheet>
       <Dialog open={active && connectionOpen} onOpenChange={setConnectionOpen}>
         <DialogContent className="device-connect-dialog">
           <DialogHeader>

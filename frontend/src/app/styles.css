@@ -1,6 +1,13 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
 
+/*
+ * 暗色变体只认 .dark 类，不认系统偏好。
+ * 皮肤全部由 :root 变量决定；如果 dark: 跟着操作系统走，浅色界面上会突然冒出
+ * 深色滑块、深色描边这类「不是我们设计的颜色」——系统开深色的用户首屏就是坏的。
+ */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -32,39 +39,57 @@
   --radius-xl: 0.625rem;
 }
 
+/* 石墨白底 + 单一彩色主角（电光紫）：界面取值全部走变量，主题插件运行中替换即可换肤。 */
 :root {
   color-scheme: light;
-  font-family: 'Microsoft YaHei', 'PingFang SC', system-ui, sans-serif;
+  font-family: 'Inter', 'Microsoft YaHei', 'PingFang SC', system-ui, sans-serif;
   color: var(--foreground);
   background: var(--background);
-  line-height: 1.6;
+  line-height: 1.5;
   font-synthesis: none;
-  --background: #e9e3d5;
-  --foreground: #2d362f;
-  --card: #faf8f1;
-  --popover: #fffdf7;
-  --primary: #56643d;
-  --primary-foreground: #fffdf5;
-  --secondary: #e2eaf0;
-  --muted: #efede5;
-  --muted-foreground: #61695f;
-  --accent: #e8ecdf;
-  --destructive: #ae4539;
-  --border: #d5d5c7;
-  --input: #92998a;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  --background: #f4f6fb;
+  --foreground: #171b24;
+  --card: #ffffff;
+  --popover: #ffffff;
+  --primary: #6c4cf5;
+  --primary-foreground: #ffffff;
+  --secondary: #edf1f9;
+  --muted: #edf1f9;
+  --muted-foreground: #6c7688;
+  --accent: #eeeaff;
+  --destructive: #d9415e;
+  --border: #e6eaf3;
+  --input: #d5dbe8;
   --ring: var(--primary);
-  --success: #337968;
-  --warning: #946229;
-  --info: #3f7890;
-  --accent-warm: #a95340;
-  --accent-violet: #75628f;
-  --surface-elevated: var(--popover);
-  --overlay: color-mix(in srgb, var(--foreground) 27%, transparent);
-  --media-background: #202826;
-  --media-foreground: #eff2e9;
-  --media-muted: #bdc9be;
+  /* 状态色只表达状态，不参与装饰。 */
+  --success: #0e9f78;
+  --warning: #d98a00;
+  --info: #2f7fe0;
+  --accent-warm: #ffc24b;
+  --accent-violet: #6c4cf5;
+  --surface-elevated: #fbfcfe;
+  --overlay: rgb(23 27 36 / 32%);
+  /* 画面区保持深底：投屏与截图在黑底上才准。 */
+  --media-background: #14161c;
+  --media-foreground: #e4e9ee;
+  --media-muted: #8a939d;
   --workshop-paper: var(--card);
   --workshop-green: var(--success);
+  /* 层级靠发丝线与浅阶，不靠投影。 */
+  --surface-canvas: #f4f6fb;
+  --surface-chrome: #ffffff;
+  --surface-card: #ffffff;
+  --surface-raised: #fbfcfe;
+  --surface-hover: #eef1f8;
+  --surface-sunken: #edf1f9;
+  --hairline: #e6eaf3;
+  --hairline-strong: #d5dbe8;
+  --text-strong: #171b24;
+  --text-body: #3f4757;
+  --text-muted: #6c7688;
+  --text-faint: #97a0b1;
+  --text-ghost: #a3acbc;
 }
 
 * {
@@ -186,18 +211,14 @@ details + details {
 .product-shell[data-navigation-collapsed='true'] {
   --workspace-sidebar-width: 76px;
 }
+/* 环境光替代实景背景图：舞台中间略亮，边角沉下去。 */
 .workshop-scene {
   position: fixed;
   inset: 0;
   z-index: -2;
-  background: var(--background) url('./product/assets/workshop-background.png') center top / cover
-    no-repeat;
-}
-.workshop-scene::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: color-mix(in srgb, var(--background) 10%, transparent);
+  background:
+    radial-gradient(1100px 620px at 34% 44%, #ffffff 0%, var(--background) 74%),
+    var(--background);
 }
 .workspace-sidebar {
   position: sticky;

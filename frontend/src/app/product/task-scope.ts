@@ -13,26 +13,23 @@ function pluginOperations(pluginId: string, actions: readonly string[]): readonl
   return actions.map((action) => `plugin.${pluginId}.${action}`);
 }
 
+// 画面与应用并入设备工作台后，这些操作产生的任务都归属设备页。
 const routeOperations: Readonly<Partial<Record<ProductRoute, ReadonlySet<string>>>> = {
   devices: new Set([
     ...pluginOperations('android-device', ['discover', 'connect', 'disconnect', 'input']),
     ...pluginOperations('harmony-device', ['discover', 'connect', 'disconnect', 'input']),
-  ]),
-  packages: new Set([
     ...pluginOperations('android-packages', [
       'manifest', 'signature', 'extract_apk', 'build_apks', 'decode', 'scan_sdks', 'extract_splits',
     ]),
     ...pluginOperations('android-device', [
       'packages', 'app.install', 'app.install_apks', 'app.start', 'app.stop', 'app.uninstall',
+      'screenshot',
     ]),
     ...pluginOperations('harmony-device', [
       'packages', 'app.install', 'app.uninstall', 'app.detail', 'app.start', 'app.stop', 'app.reset',
+      'screenshot',
     ]),
-  ]),
-  media: new Set([
     ...pluginOperations('mirroring', ['runtime.status', 'record', 'open']),
-    ...pluginOperations('android-device', ['screenshot']),
-    ...pluginOperations('harmony-device', ['screenshot']),
   ]),
   performance: new Set([
     ...['start', 'inspect', 'pause', 'resume', 'stop', 'samples', 'list', 'capabilities'].map(

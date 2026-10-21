@@ -7,8 +7,8 @@ import { createServer } from 'vite';
 import { createProductServices } from '../src/app/product/services.ts';
 import { createWebRtcMirroring } from '../src/features/mirroring-streaming/index.ts';
 import type { MirroringOwnership } from '../src/features/mirroring-streaming/index.ts';
-import type { MediaOwnershipControls } from '../src/pages/media/MediaOwnershipControls/index.tsx';
-import type { MediaPage } from '../src/pages/media/index.tsx';
+import type { MediaOwnershipControls } from '../src/pages/devices/screen/MediaOwnershipControls/index.tsx';
+import type { DeviceScreen } from '../src/pages/devices/screen/index.tsx';
 import type { SessionGateway, SessionInfo } from '../src/services/api/index.ts';
 import { dom } from './dom-fixtures.ts';
 import { FakeControlChannel, FakeMediaStream, FakeMediaTrack, FakeWebRtcConnection } from './webrtc-fixtures.ts';
@@ -18,8 +18,8 @@ function ownershipModule(value: unknown): value is { MediaOwnershipControls: Com
   return value !== null && typeof value === 'object' && 'MediaOwnershipControls' in value &&
     typeof value.MediaOwnershipControls === 'function';
 }
-function mediaModule(value: unknown): value is { MediaPage: ComponentType<ComponentProps<typeof MediaPage>> } {
-  return value !== null && typeof value === 'object' && 'MediaPage' in value && typeof value.MediaPage === 'function';
+function mediaModule(value: unknown): value is { DeviceScreen: ComponentType<ComponentProps<typeof DeviceScreen>> } {
+  return value !== null && typeof value === 'object' && 'DeviceScreen' in value && typeof value.DeviceScreen === 'function';
 }
 
 const clientId = '12345678-1234-4234-8234-123456789abc';
@@ -81,7 +81,7 @@ async function browserFixture(hash = '') {
 
 test('控制权界面实际点击申请、同意、拒绝、抢回和释放，只读与未就绪状态禁用动作', async () => {
   const browser = await browserFixture();
-  const loaded: unknown = await browser.server.ssrLoadModule('/src/pages/media/MediaOwnershipControls/index.tsx');
+  const loaded: unknown = await browser.server.ssrLoadModule('/src/pages/devices/screen/MediaOwnershipControls/index.tsx');
   assert.ok(ownershipModule(loaded));
   const calls: { type: string; clientId?: string; accept?: boolean; signal: AbortSignal }[] = [];
   const accepted = async () => ({ data: { id: 'session', accepted: true }, logId: null });
@@ -137,8 +137,8 @@ test('控制权界面实际点击申请、同意、拒绝、抢回和释放，�
 });
 
 test('真实媒体页从未知到接管再失权时禁用触摸键盘粘贴，视频保留且原生复制只写当前控制者', async () => {
-  const browser = await browserFixture('#media?share_device=emulator-test&share_control=1');
-  const loaded: unknown = await browser.server.ssrLoadModule('/src/pages/media/index.tsx');
+  const browser = await browserFixture('#devices?share_device=emulator-test&share_control=1');
+  const loaded: unknown = await browser.server.ssrLoadModule('/src/pages/devices/screen/index.tsx');
   assert.ok(mediaModule(loaded));
   const writes: string[] = [];
   Object.defineProperty(browser.windowRef.navigator, 'clipboard', { configurable: true,
@@ -198,7 +198,7 @@ test('真实媒体页从未知到接管再失权时禁用触摸键盘粘贴，�
     type: 'clipboard', epoch: 1, control_revision: revision, sequence, part: 0, total: 1, text });
   try {
     await act(async () => {
-      browser.root.render(createElement(loaded.MediaPage, { services: pageServices, active: true }));
+      browser.root.render(createElement(loaded.DeviceScreen, { services: pageServices, active: true }));
     });
     assert.equal(mirror.snapshot().opening, false);
     assert.equal(mirror.snapshot().status, 'streaming', JSON.stringify({

@@ -1,8 +1,8 @@
 import { useEffect } from 'react';
-import { Button } from '../../../components/Button/index.tsx';
-import { ActionFeedback } from '../../../app/product/feedback.tsx';
-import { useAction } from '../../../app/product/hooks.ts';
-import type { createWebRtcMirroring, MirroringOwnership } from '../../../features/mirroring-streaming/index.ts';
+import { Button } from '../../../../components/Button/index.tsx';
+import { ActionFeedback } from '../../../../app/product/feedback.tsx';
+import { useAction } from '../../../../app/product/hooks.ts';
+import type { createWebRtcMirroring, MirroringOwnership } from '../../../../features/mirroring-streaming/index.ts';
 
 type OwnershipActions = Pick<ReturnType<typeof createWebRtcMirroring>,
   'requestControl' | 'respondControl' | 'reclaimControl' | 'releaseControl'>;

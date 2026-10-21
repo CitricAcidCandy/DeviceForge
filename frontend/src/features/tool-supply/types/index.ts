@@ -2,6 +2,7 @@ export type ToolSupplyAction =
   | 'catalog'
   | 'plan'
   | 'install'
+  | 'import'
   | 'remove'
   | 'runtime_feature.status'
   | 'runtime_feature.prepare';
@@ -43,6 +44,11 @@ export interface ToolInstallation {
   readonly version: string;
   readonly changed: boolean;
   readonly sha256: string;
+}
+export interface ToolLocalImport {
+  readonly archive_artifact_id: string;
+  readonly module_id: string;
+  readonly manifest: import('../../../shared/jobs/index.ts').JsonData;
 }
 export interface ToolInstallResult extends ToolInstallation, ToolManifestSource {
   readonly manifest_version?: string;

@@ -4,6 +4,10 @@
   "protocol_version": 4,
   "executable": "deviceforge-tool-supply-plugin.exe",
   "args": [],
+  "artifacts": {
+    "input_pointers": ["/archive_artifact_id"],
+    "outputs": false
+  },
   "operations": [
     {
       "name": "catalog",
@@ -35,6 +39,59 @@
           "module_id": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-z][a-z0-9_-]{0,63}$" }
         },
         "required": ["module_id"]
+      }
+    },
+    {
+      "name": "import",
+      "title": "从本地产物校验并导入工具模块",
+      "execution": { "api_version": 1, "total_timeout_ms": 900000 },
+      "input_schema": {
+        "type": "object", "additionalProperties": false,
+        "properties": {
+          "archive_artifact_id": { "type": "string", "format": "uuid", "minLength": 36, "maxLength": 36 },
+          "module_id": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-z][a-z0-9_-]{0,63}$" },
+          "manifest": {
+            "type": "object", "additionalProperties": false,
+            "properties": {
+              "manifestVersion": { "type": "string", "minLength": 1, "maxLength": 128 },
+              "manifest_version": { "type": "string", "minLength": 1, "maxLength": 128 },
+              "generatedAt": { "type": "string", "maxLength": 128 },
+              "minAppVersion": { "type": ["string", "null"], "maxLength": 128 },
+              "modules": {
+                "type": "array", "minItems": 1, "maxItems": 128,
+                "items": {
+                  "type": "object", "additionalProperties": false,
+                  "properties": {
+                    "name": { "type": "string", "minLength": 1, "maxLength": 64 },
+                    "module_id": { "type": "string", "minLength": 1, "maxLength": 64 },
+                    "type": { "type": "string", "enum": ["tool", "runtime"] },
+                    "version": { "type": "string", "minLength": 1, "maxLength": 128 },
+                    "url": { "type": "string", "minLength": 1, "maxLength": 4096 },
+                    "download_url": { "type": "string", "minLength": 1, "maxLength": 4096 },
+                    "sha256": { "type": "string", "pattern": "^[a-fA-F0-9]{64}$" },
+                    "size": { "type": "integer", "minimum": 1, "maximum": 2147483648 },
+                    "extractRoot": { "type": ["string", "null"] },
+                    "archiveRoot": { "type": ["string", "null"] },
+                    "archive_root": { "type": ["string", "null"] },
+                    "required": { "type": "boolean" },
+                    "entryFile": { "type": ["string", "null"] },
+                    "entry_file": { "type": ["string", "null"] },
+                    "featureKey": { "type": ["string", "null"] },
+                    "feature_key": { "type": ["string", "null"] }
+                  },
+                  "required": ["version", "sha256", "size"],
+                  "allOf": [
+                    { "oneOf": [{ "required": ["name"] }, { "required": ["module_id"] }] },
+                    { "oneOf": [{ "required": ["url"] }, { "required": ["download_url"] }] }
+                  ]
+                }
+              }
+            },
+            "required": ["modules"],
+            "oneOf": [{ "required": ["manifestVersion"] }, { "required": ["manifest_version"] }]
+          }
+        },
+        "required": ["archive_artifact_id", "module_id", "manifest"]
       }
     },
     {

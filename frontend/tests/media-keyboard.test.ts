@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { MirroringControl } from '../src/features/mirroring-streaming/index.ts';
-import { createMediaKeyboardControl, type MediaKeyboardEvent } from '../src/pages/media/media-keyboard.ts';
+import { createMediaKeyboardControl, type MediaKeyboardEvent } from '../src/pages/devices/screen/media-keyboard.ts';
 
 function event(code: string, options: Partial<MediaKeyboardEvent> & { readonly modifiers?: readonly string[] } = {}): MediaKeyboardEvent {
   const modifiers = new Set(options.modifiers ?? []);

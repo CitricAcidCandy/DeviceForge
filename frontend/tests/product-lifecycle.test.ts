@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createMediaControlQueue } from '../src/pages/media/media-controls.ts';
+import { createMediaControlQueue } from '../src/pages/devices/screen/media-controls.ts';
 import { probeProductConnection, productServiceOrigin } from '../src/app/product/connection.ts';
 import { createProductServices } from '../src/app/product/services.ts';
 import { withSelectedDevice } from '../src/app/product/device-target.ts';

@@ -2,10 +2,12 @@ import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { ProductServices } from './services.ts';
 import type { ProductRoute } from './routes.ts';
-import { WorkspaceHeader, WorkspaceSidebar } from './chrome.tsx';
+import { WorkspaceHeader, WorkspaceSidebar, WorkspaceStatusBar } from './chrome.tsx';
 import { useAction, useSnapshot } from './hooks.ts';
 import { DeviceContext } from './device-context.tsx';
 import { WorkspaceTasks } from './workspace-tasks.tsx';
+import { usePageTasks } from './use-page-tasks.ts';
+import { taskBelongsToRoute } from './task-scope.ts';
 
 export function ProductShell({
   services,
@@ -23,8 +25,10 @@ export function ProductShell({
   const [collapsed, setCollapsed] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const operations = useSnapshot(services.runtime.operations);
+  const devices = useSnapshot(services.runtime.devices);
   const connection = useAction();
   const discovery = useAction();
+  const history = usePageTasks(services, false);
   const connectionText = operations.pending
     ? '正在连接'
     : operations.error
@@ -32,6 +36,54 @@ export function ProductShell({
       : operations.result
         ? '服务器已连接'
         : '等待连接';
+  // 代次内已装载的浏览器插件数；数值只报事实，不做聚合推断。
+  const pluginCount = services.runtime.webPlugins.snapshot().length;
+  const activeTasks = history.jobs.filter(
+    (job) =>
+      (job.status === 'queued' || job.status === 'running') &&
+      taskBelongsToRoute(
+        job.operation,
+        route,
+        new Set(
+          devices.providers.flatMap((provider) => [
+            provider.definition.discoverOperation,
+            ...provider.definition.capabilities.map((capability) => capability.operation),
+          ]),
+        ),
+      ),
+  ).length;
+  let endpoint: string | null = null;
+  try {
+    endpoint = new URL(services.baseUrl).host;
+  } catch {
+    endpoint = services.baseUrl;
+  }
+  // 顶栏身份：当前选中的设备跨页面都需要被看见，这里只拼一条事实行。
+  // 状态文案与设备页的 deviceStates 保持一致；颜色之外必须给出文字，颜色不是唯一信息。
+  const deviceStateText: Readonly<Record<string, string>> = {
+    online: '在线',
+    offline: '离线',
+    unauthorized: '等待设备授权',
+    unknown: '状态未知',
+  };
+  const selectedDevice = devices.selected;
+  const selectedProvider = devices.providers.find(
+    (provider) =>
+      selectedDevice &&
+      provider.id === selectedDevice.reference.providerId &&
+      provider.generation === selectedDevice.reference.generation,
+  );
+  const identity = selectedDevice
+    ? {
+        name: selectedDevice.model ?? selectedDevice.reference.localId,
+        state: selectedDevice.state,
+        meta: [
+          deviceStateText[selectedDevice.state] ?? '状态未知',
+          selectedProvider?.definition.platform ?? '未知提供者',
+          selectedDevice.reference.localId,
+        ].join(' · '),
+      }
+    : null;
   useEffect(() => {
     const preference = window.matchMedia('(prefers-reduced-motion: reduce)');
     setReduced(preference.matches);
@@ -57,38 +109,74 @@ export function ProductShell({
       <a className="skip-link" href="#workplane">
         跳到工作区
       </a>
-      <WorkspaceHeader
+      <WorkspaceSidebar
         route={route}
         collapsed={collapsed}
-        onCollapse={() => setCollapsed((value) => !value)}
-        drawerOpen={drawerOpen}
-        onDrawerChange={setDrawerOpen}
-        reduced={reduced}
-        onReducedChange={setReduced}
-        focused={focused}
-        onFocusedChange={(next) => { setFocused(next); setDrawerOpen(false); }}
         connectionText={connectionText}
         connectionError={Boolean(operations.error)}
-        onRefreshConnection={() => {
-          void connection.run(async (signal) => {
-            const result = await services.runtime.operations.refresh(signal);
-            if (services.pluginDefaults.snapshot().results.some((item) => item.status === 'failed'))
-              await services.pluginDefaults.retryFailures(signal);
-            return result;
-          }, { pending: '正在重新连接服务器…', success: null });
-        }}
         onNavigate={navigate}
       />
-      <WorkspaceSidebar route={route} collapsed={collapsed} onNavigate={navigate} />
-      <div className="workspace-main">
-        <div className="workspace-content">
-          <main id="workplane" className="workplane" tabIndex={-1} data-product-workspace>
-            {(['packages', 'media', 'performance', 'frida', 'automation'] as readonly ProductRoute[]).includes(route) && <DeviceContext services={services} />}
-            {children}
-          </main>
+      <div className="workspace-column">
+        <WorkspaceHeader
+          route={route}
+          collapsed={collapsed}
+          onCollapse={() => setCollapsed((value) => !value)}
+          drawerOpen={drawerOpen}
+          onDrawerChange={setDrawerOpen}
+          reduced={reduced}
+          onReducedChange={setReduced}
+          focused={focused}
+          onFocusedChange={(next) => {
+            setFocused(next);
+            setDrawerOpen(false);
+          }}
+          connectionText={connectionText}
+          connectionError={Boolean(operations.error)}
+          onRefreshConnection={() => {
+            void connection.run(
+              async (signal) => {
+                const result = await services.runtime.operations.refresh(signal);
+                if (
+                  services.pluginDefaults
+                    .snapshot()
+                    .results.some((item) => item.status === 'failed')
+                )
+                  await services.pluginDefaults.retryFailures(signal);
+                return result;
+              },
+              { pending: '正在重新连接服务器…', success: null },
+            );
+          }}
+          onNavigate={navigate}
+          activeTasks={activeTasks}
+          identity={identity}
+        />
+        <div className="workspace-main">
+          <div className="workspace-content">
+            <main id="workplane" className="workplane" tabIndex={-1} data-product-workspace>
+              {(['performance', 'frida', 'automation'] as readonly ProductRoute[]).includes(
+                route,
+              ) && <DeviceContext services={services} />}
+              {children}            </main>
+          </div>
         </div>
+        {/* 任务只留底部一行状态文本，细节从下往上弹出。 */}
+        <WorkspaceTasks
+          key={route}
+          services={services}
+          route={route}
+          onNavigate={navigate}
+          history={history}
+          activeCount={activeTasks}
+        />
       </div>
-      <WorkspaceTasks key={route} services={services} route={route} onNavigate={navigate} />
+      <WorkspaceStatusBar
+        connectionText={connectionText}
+        connectionError={Boolean(operations.error)}
+        pluginCount={pluginCount}
+        logId={connection.logId ?? operations.result?.logId ?? null}
+        endpoint={endpoint}
+      />
     </div>
   );
 }

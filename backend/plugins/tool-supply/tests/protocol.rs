@@ -41,6 +41,14 @@ impl Deployment {
         }
     }
     async fn request(&self, operation: &str, input: Value) -> Value {
+        self.request_with_artifacts(operation, input, None).await
+    }
+    async fn request_with_artifacts(
+        &self,
+        operation: &str,
+        input: Value,
+        artifacts: Option<Value>,
+    ) -> Value {
         let mut child = Command::new(&self.executable)
             .stdin(std::process::Stdio::piped())
             .stdout(std::process::Stdio::piped())
@@ -56,7 +64,10 @@ impl Deployment {
             stderr.read_to_end(&mut bytes).await.unwrap();
             bytes
         });
-        let request = json!({"protocol_version":4,"request_id":"tool-business","operation":operation,"input":input});
+        let mut request = json!({"protocol_version":4,"request_id":"tool-business","operation":operation,"input":input});
+        if let Some(artifacts) = artifacts {
+            request["artifacts"] = artifacts;
+        }
         stdin
             .write_all(format!("{}\n", request).as_bytes())
             .await
@@ -138,4 +149,42 @@ async fn actual_protocol_rejects_request_path_override_before_deployment_io() {
             .contains("输入")
     );
     assert!(!deployment.root.exists(), "业务输入拒绝早于创建部署根目录");
+}
+
+#[tokio::test]
+async fn actual_protocol_imports_authorized_archive_without_a_live_manifest_or_download() {
+    use sha2::{Digest, Sha256};
+    use std::io::{Cursor, Write};
+    let deployment = Deployment::new();
+    fs::remove_file(deployment._directory.path().join("tool-catalog.json")).unwrap();
+    let mut archive = zip::ZipWriter::new(Cursor::new(Vec::new()));
+    archive
+        .start_file("tool.txt", zip::write::SimpleFileOptions::default())
+        .unwrap();
+    archive.write_all(b"local bytes").unwrap();
+    let bytes = archive.finish().unwrap().into_inner();
+    let path = deployment._directory.path().join("local.zip");
+    fs::write(&path, &bytes).unwrap();
+    let checksum = format!("{:x}", Sha256::digest(&bytes));
+    let id = "12345678-1234-4234-8234-123456789abc";
+    let input = json!({"archive_artifact_id":id,"module_id":"demo",
+        "manifest":{"manifestVersion":"local-1","modules":[{"name":"demo","version":"1.0",
+            "url":"https://127.0.0.1:9/unavailable.zip","size":bytes.len(),"sha256":checksum,"entryFile":"tool.txt"}]}});
+    let artifacts = json!({"inputs":[{"field":"/archive_artifact_id","artifact_id":id,
+        "filename":"local.zip","size":bytes.len(),"sha256":checksum,"path":path}],"output_directory":null});
+    for expected in [true, false] {
+        let response = deployment
+            .request_with_artifacts("import", input.clone(), Some(artifacts.clone()))
+            .await;
+        assert_eq!(response["cleanup"], "complete");
+        assert!(response["response"]["error"].is_null(), "{response}");
+        let result = &response["response"]["result"];
+        assert_eq!(result["changed"], expected);
+        assert_eq!(result["sha256"], checksum);
+        assert_eq!(result.as_object().unwrap().len(), 4);
+        assert_eq!(
+            fs::read(deployment.root.join("demo/tool.txt")).unwrap(),
+            b"local bytes"
+        );
+    }
 }

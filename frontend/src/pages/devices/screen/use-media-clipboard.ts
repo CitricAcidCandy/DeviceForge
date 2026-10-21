@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ClipboardEvent as ReactClipboardEvent } from 'react';
-import type { MirroringClipboard, MirroringControl } from '../../features/mirroring-streaming/index.ts';
+import type { MirroringClipboard, MirroringControl } from '../../../features/mirroring-streaming/index.ts';
 import { createMediaClipboardControl } from './media-clipboard.ts';
 import type { MediaClipboardState } from './media-clipboard.ts';
 import type { MediaClipboardShortcut } from './media-keyboard.ts';

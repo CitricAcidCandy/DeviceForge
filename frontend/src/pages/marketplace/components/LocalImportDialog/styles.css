@@ -1,0 +1,17 @@
+.local-import-dialog .marketplace-upload-form,
+.local-import-dialog .marketplace-upload-form > * {
+  min-width: 0;
+}
+
+.local-import-dialog .local-import-preview,
+.local-import-dialog .local-import-preview p,
+.local-import-dialog .local-import-preview h3,
+.local-import-dialog .form-error {
+  overflow-wrap: anywhere;
+}
+
+.local-import-dialog .local-import-preview code,
+.local-import-dialog .form-error code {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}

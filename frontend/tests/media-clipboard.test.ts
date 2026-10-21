@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { MirroringControl } from '../src/features/mirroring-streaming/index.ts';
-import { createMediaClipboardControl } from '../src/pages/media/media-clipboard.ts';
-import type { MediaClipboardState } from '../src/pages/media/media-clipboard.ts';
+import { createMediaClipboardControl } from '../src/pages/devices/screen/media-clipboard.ts';
+import type { MediaClipboardState } from '../src/pages/devices/screen/media-clipboard.ts';
 import { deferred } from './fixtures.ts';
 
 function fixture(write?: (text: string) => Promise<void>) {

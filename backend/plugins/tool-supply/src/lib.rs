@@ -5,6 +5,7 @@ mod config;
 mod error;
 mod feature;
 mod input;
+mod local_import;
 mod manifest;
 mod network;
 mod operations;
@@ -29,6 +30,11 @@ pub async fn execute(request: Request, context: InvocationContext) -> Execution 
             .map_err(|_| error::Error::Io("无法创建工具供应事务工作者"))?;
         runtime.block_on(async move {
             budget.check()?;
+            if request.operation == "import" {
+                let input = local_import::parse(request.input)?;
+                let config = config::Config::read(&budget)?;
+                return local_import::execute(input, request.artifacts, &config, &budget).await;
+            }
             let input = input::parse(&request.operation, request.input)?;
             let config = config::Config::read(&budget)?;
             operations::execute(input, &config, &budget).await

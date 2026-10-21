@@ -114,3 +114,138 @@
     min-height: 240px;
   }
 }
+
+/* ── 收进工作台右栏的紧凑面 ──────────────────────────
+ * 260px 放不下两列表格：条目竖排、动作折成一行按钮，其余保持原语义。
+ */
+.packages-page[data-compact='true'] {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.packages-page[data-compact='true'] .workspace-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.packages-page[data-compact='true'] .section-heading {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+.packages-page[data-compact='true'] .section-heading h2 {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--text-faint);
+}
+.packages-page[data-compact='true'] .section-heading p,
+.packages-page[data-compact='true'] .section-heading .muted {
+  display: none;
+}
+.packages-page[data-compact='true'] .section-heading [data-slot='button'] {
+  height: 26px;
+  font-size: 0.6875rem;
+}
+.packages-page[data-compact='true'] .table-scroll {
+  overflow: visible;
+}
+.packages-page[data-compact='true'] table,
+.packages-page[data-compact='true'] tbody {
+  display: block;
+}
+.packages-page[data-compact='true'] thead {
+  display: none;
+}
+.packages-page[data-compact='true'] tr {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--hairline);
+}
+.packages-page[data-compact='true'] td {
+  display: block;
+  padding: 0;
+  border: 0;
+  font-size: 0.625rem;
+  overflow-wrap: anywhere;
+}
+.packages-page[data-compact='true'] td .page-actions {
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.packages-page[data-compact='true'] td [data-slot='button'] {
+  height: 22px;
+  padding-inline: 6px;
+  font-size: 0.625rem;
+}
+.packages-page[data-compact='true'] .page-actions {
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  gap: 6px;
+  font-size: 0.625rem;
+}
+.packages-page[data-compact='true'] h3 {
+  margin: 0;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--text-faint);
+}
+.packages-page[data-compact='true'] details > summary {
+  font-size: 0.6875rem;
+}
+.packages-page[data-compact='true'] .empty-state {
+  min-height: 74px;
+  padding: 10px;
+  font-size: 0.625rem;
+}
+/* 窄栏里只留结论，说明文字留给抽屉里的完整体。 */
+.packages-page[data-compact='true'] .empty-state p {
+  display: none;
+}
+/* 窄栏只留字段名：上传流程的解释留在抽屉里的完整体。 */
+.packages-page[data-compact='true'] .install-hint {
+  display: none;
+}
+.packages-page[data-compact='true'] label {
+  font-size: 0.625rem;
+  font-weight: 400;
+  color: var(--text-faint);
+}
+.packages-page[data-compact='true'] .code-output {
+  max-height: 160px;
+}
+.rail-foot-row {
+  display: flex;
+  justify-content: flex-start;
+  gap: 6px;
+}
+.rail-foot-row [data-slot='button'] {
+  height: 26px;
+  font-size: 0.6875rem;
+}
+
+/* 安装包分析走抽屉：单列排，宽度按内容给够。 */
+.package-sheet {
+  width: min(760px, 94vw);
+  max-width: none;
+  padding: 16px 20px 24px;
+  overflow-y: auto;
+}
+.package-sheet .package-workspace {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 22px;
+  padding-top: 8px;
+}
+.package-sheet .package-controls {
+  grid-template-columns: minmax(0, 1fr);
+  padding-right: 0;
+  padding-bottom: 18px;
+  border-right: 0;
+  border-bottom: 1px solid var(--border);
+}
+

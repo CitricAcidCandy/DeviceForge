@@ -1,17 +1,24 @@
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
-import { Button } from '../../components/Button/index.tsx';
-import { Input } from '../../components/Input/index.tsx';
-import { Label } from '../../components/Label/index.tsx';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/Tabs/index.tsx';
+import { Button } from '../../../components/Button/index.tsx';
+import { Input } from '../../../components/Input/index.tsx';
+import { Label } from '../../../components/Label/index.tsx';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../../components/Tabs/index.tsx';
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from '../../../components/Sheet/index.tsx';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '../../components/Select/index.tsx';
-import { Checkbox } from '../../components/Checkbox/index.tsx';
+} from '../../../components/Select/index.tsx';
+import { Checkbox } from '../../../components/Checkbox/index.tsx';
 import {
   Table,
   TableBody,
@@ -19,14 +26,14 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '../../components/Table/index.tsx';
-import { EmptyState, Field, JsonResult, PageTitle } from '../../components/index.ts';
-import { OperationNotice, useOperationAvailable } from '../../app/product/capabilities.tsx';
-import { ActionFeedback } from '../../app/product/feedback.tsx';
-import { useAction } from '../../app/product/hooks.ts';
-import type { ProductServices } from '../../app/product/services.ts';
+} from '../../../components/Table/index.tsx';
+import { EmptyState, Field, JsonResult, PageTitle } from '../../../components/index.ts';
+import { OperationNotice, useOperationAvailable } from '../../../app/product/capabilities.tsx';
+import { ActionFeedback } from '../../../app/product/feedback.tsx';
+import { useAction } from '../../../app/product/hooks.ts';
+import type { ProductServices } from '../../../app/product/services.ts';
 import { AppsPage } from './components/AppsPanel/index.tsx';
-import type { PackageSdkRule } from '../../features/package-analysis/index.ts';
+import type { PackageSdkRule } from '../../../features/package-analysis/index.ts';
 import './workspace.css';
 
 type PackageAction =
@@ -84,7 +91,18 @@ function Summary({ rows }: { rows: readonly (readonly [string, ReactNode])[] }) 
   );
 }
 
-export function PackagesPage({ services }: { services: ProductServices }) {
+export function DeviceApps({
+  services,
+  embedded = false,
+  compact = false,
+}: {
+  services: ProductServices;
+  /** 并入设备工作台后不再重复页面标题。 */
+  embedded?: boolean;
+  /** 收进工作台右栏：只留设备应用，安装包分析走抽屉，避免窄栏塞两套界面。 */
+  compact?: boolean;
+}) {
+  const [analysisOpen, setAnalysisOpen] = useState(false);
   const [artifactId, setArtifactId] = useState('');
   const [filename, setFilename] = useState('');
   const [action, setAction] = useState<PackageAction>('manifest');
@@ -348,18 +366,18 @@ export function PackagesPage({ services }: { services: ProductServices }) {
       return result;
     });
   };
-  return (
-    <section className="product-page packages-page">
-      <PageTitle title="包与应用" />
-      <Tabs defaultValue="analysis" className="packages-workspace-tabs">
+  const workspace = (
+    <Tabs defaultValue="analysis" className="packages-workspace-tabs">
+      {compact ? null : (
         <TabsList aria-label="包与应用工作范围">
           <TabsTrigger value="analysis">安装包分析</TabsTrigger>
           <TabsTrigger value="apps">设备应用</TabsTrigger>
         </TabsList>
-        <TabsContent value="apps">
-          <AppsPage services={services} />
-        </TabsContent>
-        <TabsContent value="analysis">
+      )}
+      <TabsContent value="apps">
+        <AppsPage services={services} compact={compact} />
+      </TabsContent>
+      <TabsContent value="analysis">
           <div className="package-workspace">
             <aside className="package-controls" aria-label="安装包与处理参数">
       <section className="package-source">
@@ -610,8 +628,39 @@ export function PackagesPage({ services }: { services: ProductServices }) {
       )}
             </section>
           </div>
-        </TabsContent>
-      </Tabs>
+      </TabsContent>
+    </Tabs>
+  );
+  return (
+    <section
+      className="product-page packages-page"
+      data-embedded={embedded ? 'true' : undefined}
+      data-compact={compact ? 'true' : undefined}
+    >
+      {embedded ? null : <PageTitle title="包与应用" />}
+      {compact ? (
+        <>
+          <AppsPage services={services} compact={compact} />
+          <div className="rail-foot-row">
+            <Button variant="ghost" size="sm" onClick={() => setAnalysisOpen(true)}>
+              安装包分析
+            </Button>
+          </div>
+          <Sheet open={analysisOpen} onOpenChange={setAnalysisOpen}>
+            <SheetContent side="right" className="package-sheet">
+              <SheetHeader>
+                <SheetTitle>安装包分析</SheetTitle>
+                <SheetDescription>
+                  上传安装包或填写产物 ID，选择处理方式后运行。
+                </SheetDescription>
+              </SheetHeader>
+              {workspace}
+            </SheetContent>
+          </Sheet>
+        </>
+      ) : (
+        workspace
+      )}
     </section>
   );
 }

@@ -18,7 +18,7 @@
 
 缓存锁只存在 `.manifest-cache` 内，网络请求不持锁，缓存读写不取得模块锁。旧 `install` 仍先取得模块锁再读取清单；其他清单操作先完成来源/缓存短锁，再按原业务取得模块锁，避免锁顺序反转。
 
-`manifest.json` 描述六个操作及预算；部署打包时应按宿主插件包规范补齐实际可执行文件定位。操作均位于 `plugin.tool-supply.` 命名空间，不在宿主增加业务分支。
+`manifest.json` 描述七个操作及预算；部署打包时应按宿主插件包规范补齐实际可执行文件定位。操作均位于 `plugin.tool-supply.` 命名空间，不在宿主增加业务分支。
 
 ## 操作输入与结果
 
@@ -27,6 +27,7 @@
 | `catalog` | `{}` | 清单版本、来源错误、各模块的可用版本/已安装版本/差异动作 |
 | `plan` | `{"module_ids":["adb"]}`，省略或空列表代表全部 | 清单版本、需下载总字节数、模块计划 |
 | `install` | `{"module_id":"adb"}` | 模块版本、是否改变；改变时含 SHA-256 |
+| `import` | `{"archive_artifact_id":"上传产物的UUID","module_id":"adb","manifest":完整工具清单对象}` | `module_id`、`version`、`sha256`、`changed` |
 | `remove` | `{"module_id":"adb"}` | 是否移除；移除时含原版本 |
 | `runtime_feature.status` | `{"feature_key":"case-assistant"}` | 清单版本、来源错误、匹配runtime模块以及整体found/ready |
 | `runtime_feature.prepare` | `{"feature_key":"case-assistant"}` | 单清单快照中的模块安装结果，成功时ready为true |
@@ -42,6 +43,10 @@
 差异动作包括 `install`、`update`、`repair`、`current`、`local_newer`、`local_only`。相同数字版本和摘要且入口存在时不下载；相同版本但摘要不同或入口缺失时修复；拒绝自动降级。版本采用最多八段点分非负整数，`1.2` 与 `1.2.0` 数值相等，不接受预发布标签。来源不可用时 `catalog` 保留本地状态并给出 `source_error`，`plan/install` 则失败；取消和原期限到期不会降为离线成功。
 
 清单格式见 `tool-catalog.example.json`。示例 URL、摘要和大小是占位数据，不能作为可安装发布包。保留旧 `tool_updater` 的 `name/type/version/url/sha256/size/required/entryFile/featureKey` 元数据；`runtime` 必须包含入口和功能标识。可用 `archiveRoot` 选择 ZIP 内包装目录，入口相对于该目录。
+
+本地导入先上传 ZIP 为受控产物，再调用 `plugin.tool-supply.import`，同时提供现有格式的完整工具清单及其中一个模块 ID。操作声明 `/archive_artifact_id` 输入指针，只接受宿主准备的唯一匹配 ZIP 副本；请求不能指定服务器源路径或安装目的路径。清单的 URL 仍须符合部署 HTTPS/可选 HTTP 策略，但导入不读取部署清单、不发网络请求、不建立远端缓存，也不执行入口程序。清单、产物描述及真实归档的长度与 SHA-256 必须一致；摘要、入口、包装根、版本与降级规则沿用原安装事务。相同版本已安装仍核对上传内容，资格相同则返回 `changed=false`。结果只包含上表四字段，不声称存在远端 `manifest_source`。
+
+本地导入与在线安装均写入部署配置的绝对 `install_root`，该目录与插件进程和 npx 缓存生命周期独立。若要将工具保存在用户持久化根目录内，应由部署配置把 `install_root` 设为该根目录下的 `tools`；插件不会从宿主私有环境推断根目录，也不会自动搬迁原安装。已有显式配置继续生效。
 
 旧 `extractRoot` 字段仅兼容读取，不再决定服务器目标目录；它与新 `archiveRoot` 含义不同。部署迁移时需要为 ZIP 包装目录明确配置 `archiveRoot`，并核对消费者使用的固定模块目录。`minAppVersion` 作为清单元数据读取，当前插件不把旧 Electron 应用版本当新宿主兼容性证据。
 
@@ -70,9 +75,12 @@
 | `unpack.rs` | ZIP 元数据预检和受控解压 |
 | `storage.rs` / `transaction.rs` | 模块锁、版本状态和替换/回滚 |
 | `operations.rs` | catalog/plan/install/remove 业务编排 |
+| `local_import.rs` | 严格本地导入输入、受控产物关联及逐块复制校验；复用安装规则与事务收尾 |
 | `feature.rs` | 单快照匹配、状态聚合和顺序准备；复用安装事务 |
 
 测试源包括真实本地 HTTP/ZIP 安装、摘要错误、无效/越界 ZIP、扩容限额、入口缺失、HTTP 失败、版本计划、离线 catalog、在途移除拒绝、取消/到期清理、真实目录重命名失败回滚、遗留 backup 保留、runtime 包装目录，以及真实插件协议 4 进程与请求路径覆盖拒绝。
+
+本地导入回归另覆盖来源不可用时的离线安装、跨调用持久状态、同版本重复/修复、拒绝降级、真实字节与声明摘要/长度不一致、坏清单、坏 ZIP、穿越/入口缺失、输入副本授权、模块锁和取消；失败时原版本与状态保持完整。真实协议 4 进程用不存在的部署清单和不可用下载地址验证导入与重复导入。
 
 编译和运行命令由工作区统一门禁执行：`cargo test -p deviceforge-tool-supply-plugin`。测试文件的存在不代表已经运行；外部发布源、真实工具使用和生产部署仍需要各自的动态证据。
 

@@ -1,5 +1,11 @@
 # 工具供应业务用例
 
+## 本地归档导入
+
+`importLocal({archive_artifact_id,module_id,manifest}, signal)` 提交 `plugin.tool-supply.import`。归档先通过公开产物上传，输入只携带 UUID 与完整工具清单，不接收服务器路径；清单沿用既有格式，URL 保留为元数据但导入不下载。`resumeImport(ticket,moduleId,signal)` 恢复原任务，不重复提交。
+
+本地安装结果独立解码为 `ToolInstallation` 四字段，不要求或伪造远端 manifest_source。共享 query/cancel 接受导入票据；取消等待不能推断安装回滚。页面预览与配置封装见 `docs/implementation/本地导入插件工具与配置.md`，行为回归见 `tests/local-import.test.ts`。
+
 ## 当前目录结构
 
 2026-10-14按用户最新约束采用 Ant Design Pro 风格的功能组织。此前 domain/application/infrastructure/ui 方案已被覆盖，不再作为当前目录约束。根 `index.ts` 保留核心公开API且不加载TSX，目录仅按实际职责创建。
@@ -16,7 +22,7 @@
 
 准备成功必须返回相同功能标识、非空清单版本、`ready=true` 和 1–128 个唯一模块的真实版本、SHA-256 与 `changed`。保持服务器清单顺序，不补造路径、凭据或功能映射。安装条目没有功能字段，前端只能验证顶层功能身份及条目格式，不能另证每项属于后台同一清单快照。准备由后端单次清单快照和顺序安装负责；部分失败保留已提交模块，前端不逐模块提交、不自动重试、不推断全量回滚。状态资格不等于重新哈希全部文件或实际 SDK 可执行。
 
-`resumeRuntimeFeatureStatus(ticket, featureKey, signal)` 和 `resumePrepareRuntimeFeature(ticket, featureKey, signal)` 只查询原任务，不重新提交；错操作票据及错功能结果受控拒绝。`query/cancel` 同时接受原四操作与两项运行时功能票据。取消等待不等于服务器取消，显式取消返回在途状态后仍须查询或恢复；失败、取消及未确认清理保持共享 Job 的实际状态和日志，晚到响应不能复活已经撤销的等待。
+`resumeRuntimeFeatureStatus(ticket, featureKey, signal)` 和 `resumePrepareRuntimeFeature(ticket, featureKey, signal)` 只查询原任务，不重新提交；错操作票据及错功能结果受控拒绝。`query/cancel` 同时接受原四操作、本地导入与两项运行时功能票据。取消等待不等于服务器取消，显式取消返回在途状态后仍须查询或恢复；失败、取消及未确认清理保持共享 Job 的实际状态和日志，晚到响应不能复活已经撤销的等待。
 
 新增消费测试位于 `tests/tool-supply-feature.test.ts`，覆盖 Unicode 字节边界、非法输入零调用、未知与来源失败、多模块不变量、票据身份、日志、取消和恢复。当前按协作限制未执行生成、格式化、测试、构建或服务；门禁由主代理授权后统一执行，不借记旧批通过。
 

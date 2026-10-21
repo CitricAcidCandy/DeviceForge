@@ -1,136 +1,487 @@
-.performance-target {
-  max-width: 700px;
-  margin-bottom: 24px;
+/*
+ * 性能与调用栈：左侧会话轨 + 中部指标区 + 右侧采集与观测。
+ * 分区之间只用发丝线；图表用手绘柱，不用图表库与渐变卡片。
+ */
+.performance-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  gap: 0;
 }
-.performance-workspace {
-  display: grid;
-  grid-template-columns: 248px minmax(0, 1fr);
-  gap: 28px;
-  align-items: start;
-  padding-top: 16px;
+.perf-topline {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--hairline);
 }
-.performance-controls {
-  min-width: 0;
-  border-right: 1px solid var(--border);
-  padding-right: 24px;
-}
-.performance-controls > h3,
-.performance-results > h3 {
-  margin: 0 0 20px;
-}
-.performance-controls .form-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 16px;
-}
-.performance-controls .form-row > .form-field {
-  min-width: 0;
-  max-width: none;
-}
-.performance-controls .action-row {
-  gap: 8px;
-}
-.performance-controls .action-row > button {
-  width: 100%;
-  justify-content: flex-start;
-}
-.performance-controls .form-row > button {
-  margin-top: 0;
-  justify-self: start;
-}
-.performance-controls .muted,
-.performance-controls .capability-notice {
-  font-size: 12px;
-  line-height: 1.7;
-  overflow-wrap: anywhere;
-}
-.performance-notes {
-  margin-block: 12px;
-}
-.performance-notes > summary,
-.performance-restore > summary {
-  color: var(--muted-foreground);
-  font-size: 13px;
-}
-.performance-restore {
-  border-top: 1px solid var(--border);
-  padding-top: 12px;
-  margin-top: 20px;
-}
-.performance-restore[open] > summary {
-  margin-bottom: 12px;
-}
-.performance-results {
+.perf-topline-main {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
   min-width: 0;
 }
-.performance-results > .empty-state {
+.perf-topline-main h1 {
   margin: 0;
-  min-height: 280px;
-  padding: 32px 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--text-strong);
+  letter-spacing: 0.01em;
 }
-.performance-session > h4 {
-  font-size: 15px;
-  margin-block: 0 8px;
+.perf-topline-meta {
+  font-size: 0.625rem;
+  color: var(--text-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-.performance-session > p {
-  font-size: 13px;
+.perf-topline-target {
+  width: 232px;
+  flex-shrink: 0;
+}
+.perf-topline-target .form-field > label,
+.perf-topline-target label {
+  font-size: 0.5625rem;
+  letter-spacing: 0.06em;
+  color: var(--text-ghost);
+}
+.perf-topline-target input {
+  height: 28px;
+  font-size: 0.6875rem;
+}
+.perf-tabs {
+  margin: 10px 0 0;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  gap: 14px;
+  height: auto;
+}
+.perf-tabs [role='tab'] {
+  height: 24px;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  font-size: 0.6875rem;
+  color: var(--text-faint);
+  box-shadow: none;
+  border-bottom: 1px solid transparent;
+}
+.perf-tabs [role='tab'][data-state='active'] {
+  color: var(--text-strong);
+  background: transparent;
+  border-bottom-color: var(--primary);
+  box-shadow: none;
+}
+
+/* ── 三列 ─────────────────────────────────────────── */
+.perf-grid {
+  display: grid;
+  grid-template-columns: 196px minmax(0, 1fr) 262px;
+  align-items: start;
+  min-height: 0;
+  padding-top: 0;
+}
+.perf-rail {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  padding: 14px 14px 20px 0;
+  border-right: 1px solid var(--hairline);
+}
+.perf-rail-label {
+  font-size: 0.5625rem;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  color: var(--text-ghost);
+}
+.rail-note {
+  margin: 0;
+  font-size: 0.625rem;
+  line-height: 1.6;
+  color: var(--text-faint);
   overflow-wrap: anywhere;
 }
-.performance-session > .action-row {
-  padding-block: 12px;
-  border-bottom: 1px solid var(--border);
+.perf-session-list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  gap: 1px;
 }
-.performance-history {
-  border-top: 1px solid var(--border);
-  margin-top: 28px;
-  padding-top: 12px;
+.perf-session-entry {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  text-align: left;
 }
-.performance-history > summary {
-  font-size: 14px;
+.perf-session-entry:hover {
+  background: var(--surface-hover);
+}
+.perf-session-entry[data-current='true'] {
+  background: var(--accent);
+}
+.perf-session-name {
+  font-size: 0.6875rem;
+  color: var(--text-body);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.perf-session-entry[data-current='true'] .perf-session-name {
+  color: var(--primary);
   font-weight: 500;
 }
-.performance-history[open] > summary {
-  margin-bottom: 16px;
+.perf-session-meta {
+  font: 400 0.5625rem/1.4 var(--font-mono);
+  color: var(--text-ghost);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.performance-history .form-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
-  align-items: end;
+.perf-rail-foot {
+  display: flex;
+  gap: 2px;
+  margin-top: 2px;
+}
+.perf-rail-foot > button {
+  height: 22px;
+  padding-inline: 6px;
+  font-size: 0.5625rem;
+  font-weight: 400;
+  color: var(--text-faint);
+}
+
+/* ── 中部指标 ─────────────────────────────────────── */
+.perf-metrics {
+  display: flex;
+  flex-direction: column;
   gap: 10px;
-}
-.performance-history .form-row > .form-field {
   min-width: 0;
-  max-width: none;
+  padding: 14px 18px 24px;
 }
-.performance-history .form-row > button {
-  margin-top: 0;
+.perf-metric-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+}
+.perf-metric-title {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: var(--text-body);
+}
+.perf-metric-title small {
+  font: 400 0.5625rem/1.4 var(--font-mono);
+  color: var(--text-ghost);
+}
+.fps-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 132px;
+  padding: 10px 0 0;
+  border-bottom: 1px solid var(--hairline);
+}
+.fps-bar {
+  flex: 1 1 auto;
+  min-width: 2px;
+  max-width: 14px;
+  background: var(--primary);
+  opacity: 0.62;
+  border-radius: 1px 1px 0 0;
+  align-self: flex-end;
+}
+.fps-bar:last-child {
+  opacity: 1;
+}
+.fps-bar:hover {
+  opacity: 1;
+}
+.fps-chart-empty {
+  font-size: 0.625rem;
+  color: var(--text-ghost);
+  padding-bottom: 10px;
+}
+.perf-readouts {
+  display: flex;
+  flex-direction: column;
+  margin: 4px 0 0;
+}
+.perf-readouts > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--hairline);
+}
+.perf-readouts > div:last-child {
+  border-bottom: 0;
+}
+.perf-readouts dt {
+  font-size: 0.6875rem;
+  color: var(--text-faint);
+}
+.perf-readouts dd {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--text-strong);
+  letter-spacing: 0.01em;
+}
+.perf-metric-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  font-size: 0.5625rem;
+  color: var(--text-ghost);
+}
+.perf-metric-actions {
+  display: flex;
+  gap: 2px;
+  padding-top: 2px;
+}
+.perf-metric-actions > button {
+  height: 24px;
+  padding-inline: 7px;
+  font-size: 0.625rem;
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+/* ── 右侧：采集与观测 ─────────────────────────────── */
+.perf-side {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+  padding: 14px 0 20px 16px;
+  border-left: 1px solid var(--hairline);
+}
+.perf-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.perf-control-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.perf-control-row .form-field > label,
+.perf-control-row label {
+  font-size: 0.5625rem;
+  letter-spacing: 0.06em;
+  color: var(--text-ghost);
+}
+.perf-control-row input {
+  height: 26px;
+  font-size: 0.6875rem;
+}
+.perf-control-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.perf-control-actions > button {
+  height: 26px;
+  padding-inline: 9px;
+  font-size: 0.6875rem;
+}
+.perf-controls > button {
+  align-self: flex-start;
+  height: 22px;
+  padding-inline: 6px;
+  font-size: 0.5625rem;
+  font-weight: 400;
+  color: var(--text-faint);
+}
+.perf-observe {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--hairline);
+}
+.observe-grid {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+}
+.observe-grid > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--hairline);
+}
+.observe-grid > div:last-child {
+  border-bottom: 0;
+}
+.observe-grid dt {
+  font-size: 0.5625rem;
+  color: var(--text-ghost);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.observe-grid dd {
+  margin: 0;
+  font-size: 0.625rem;
+  color: var(--text-body);
+  white-space: nowrap;
+}
+.perf-observe-sep {
+  height: 1px;
+  background: var(--hairline);
+  margin: 4px 0 2px;
+}
+
+/* ── 折叠说明 ─────────────────────────────────────── */
+.perf-notes {
+  border-top: 1px solid var(--hairline);
+  padding-top: 8px;
+  margin-top: 4px;
+}
+.perf-notes > summary {
+  cursor: pointer;
+  font-size: 0.625rem;
+  color: var(--text-faint);
+  list-style: none;
+}
+.perf-notes > summary::-webkit-details-marker {
+  display: none;
+}
+.perf-notes > summary::before {
+  content: '▸ ';
+  color: var(--text-ghost);
+}
+.perf-notes[open] > summary::before {
+  content: '▾ ';
+}
+.perf-notes > summary:hover {
+  color: var(--text-body);
+}
+.perf-notes[open] {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-bottom: 4px;
+}
+
+/* ── 归档录制 ─────────────────────────────────────── */
+.profile-workspace {
+  display: grid;
+  grid-template-columns: 236px minmax(0, 1fr);
+  gap: 0;
+  align-items: start;
+  padding-top: 4px;
+}
+.profile-rail {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  padding: 12px 16px 20px 0;
+  border-right: 1px solid var(--hairline);
+}
+.profile-rail h3 {
+  margin: 0;
+  font-size: 0.5625rem;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  color: var(--text-ghost);
+}
+.profile-rail .form-field > label,
+.profile-rail label {
+  font-size: 0.5625rem;
+  color: var(--text-ghost);
+}
+.profile-rail input {
+  height: 26px;
+  font-size: 0.6875rem;
+}
+.profile-stage {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  padding: 12px 0 24px 18px;
+}
+.perf-rail-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.perf-rail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.perf-rail-actions > button {
+  height: 26px;
+  padding-inline: 9px;
+  font-size: 0.6875rem;
+}
+.perf-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.6875rem;
+  color: var(--text-muted);
+}
+
+/* ── 响应式 ───────────────────────────────────────── */
+@media (max-width: 1280px) {
+  .perf-grid {
+    grid-template-columns: 172px minmax(0, 1fr) 232px;
+  }
 }
 @media (max-width: 1100px) {
-  .performance-workspace {
+  .perf-grid {
     grid-template-columns: minmax(0, 1fr);
-    gap: 24px;
   }
-  .performance-controls {
+  .perf-rail {
     border-right: 0;
-    border-bottom: 1px solid var(--border);
-    padding: 0 0 20px;
+    border-bottom: 1px solid var(--hairline);
+    padding: 12px 0 14px;
   }
-  .performance-controls > .form-row {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    max-width: 680px;
+  .perf-side {
+    border-left: 0;
+    border-top: 1px solid var(--hairline);
+    padding: 14px 0 0;
   }
-  .performance-controls .action-row > button {
-    width: auto;
+  .profile-workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .profile-rail {
+    border-right: 0;
+    border-bottom: 1px solid var(--hairline);
+    padding: 12px 0 16px;
+  }
+  .profile-stage {
+    padding: 14px 0 0;
   }
 }
-@media (max-width: 680px) {
-  .performance-controls > .form-row {
-    grid-template-columns: minmax(0, 1fr);
+@media (max-width: 720px) {
+  .perf-topline {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
   }
-  .performance-history .form-row {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .performance-history .form-row > .form-field {
-    grid-column: 1 / -1;
+  .perf-topline-target {
+    width: 100%;
   }
 }

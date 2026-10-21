@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { CloudUpload, RefreshCw, Store, PackageCheck } from 'lucide-react';
+import { CloudUpload, FolderInput, RefreshCw, Store, PackageCheck } from 'lucide-react';
 import {
   Button,
   DialogShell,
@@ -21,6 +21,7 @@ import { MarketplaceCard } from './components/MarketplaceCard/index.tsx';
 import { MarketplaceDetail } from './components/MarketplaceDetail/index.tsx';
 import { MarketplaceConfiguration } from './components/MarketplaceConfiguration/index.tsx';
 import { MarketplaceUploadDialog } from './components/MarketplaceUploadDialog/index.tsx';
+import { LocalImportDialog } from './components/LocalImportDialog/index.tsx';
 import './workspace.css';
 
 export function MarketplacePage({
@@ -33,12 +34,14 @@ export function MarketplacePage({
   const [tab, setTab] = useState('discover');
   const market = useMarketplace(services, active, tab === 'installed');
   const [upload, setUpload] = useState(false);
+  const [localImport, setLocalImport] = useState(false);
   const [selected, setSelected] = useState<MarketplaceEntry | null>(null);
   const [configuration, setConfiguration] = useState<MarketplaceEntry | null>(null);
   const [removal, setRemoval] = useState<{ id: string; kind: 'server' | 'browser'; removable: boolean } | null>(null);
   useEffect(() => {
     if (!active) {
       setUpload(false);
+      setLocalImport(false);
       setSelected(null);
       setConfiguration(null);
       setRemoval(null);
@@ -69,6 +72,9 @@ export function MarketplacePage({
         <Button variant="outline" disabled={market.loading} onClick={market.refresh}>
           <RefreshCw className={market.loading ? 'animate-spin' : ''} />
           刷新
+        </Button>
+        <Button variant="outline" onClick={() => setLocalImport(true)}>
+          <FolderInput />本地导入
         </Button>
         <Button onClick={() => setUpload(true)}>
           <CloudUpload />
@@ -202,6 +208,7 @@ export function MarketplacePage({
         marketplace={services.marketplace}
         onPublished={market.refresh}
       />
+      <LocalImportDialog open={active && localImport} onOpenChange={setLocalImport} services={services} />
       <DialogShell
         open={active && !!removal}
         onOpenChange={(open) => {

@@ -8,7 +8,7 @@ import { JobFailure, JobWaitFailure } from '../src/shared/jobs/index.ts';
 import type { JobGateway, JobTicket, JsonData, TaskRecord } from '../src/shared/jobs/index.ts';
 import { deferred, signal } from './fixtures.ts';
 
-type SourceAction = Exclude<ToolSupplyAction, 'remove'>;
+type SourceAction = Exclude<ToolSupplyAction, 'remove' | 'import'>;
 const sourceActions: readonly SourceAction[] = [
   'catalog',
   'plan',

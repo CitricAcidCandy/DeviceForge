@@ -1,6 +1,6 @@
 # DeviceForge 启动与服务器插件安装
 
-CLI 只负责分发边界，不复制设备业务。`bin/deviceforge.mjs` 是入口；src/options 解析参数；network 生成监听及 Host/Origin；start 管理生命周期；web-server 提供静态资源和固定后端流式代理；processes 管理进程；runtime/paths 校验运行包；install、plugin-package、plugin-files 分别编排安装、解析便携清单与受限复制。
+CLI 只负责分发边界，不复制设备业务。`bin/deviceforge.mjs` 是入口；src/options 解析参数；root-config-schema 校验根配置，root-config 管理有界读写与原子发布；marketplace 校验市场来源；network 生成监听及 Host/Origin；start 管理生命周期；web-server 提供静态资源和固定后端流式代理；processes 管理进程；runtime/paths 校验运行包；install、plugin-package、plugin-files 分别编排安装、解析便携清单与受限复制。
 
 ## 使用
 
@@ -19,6 +19,35 @@ npx --yes --package .\artifacts\deviceforge-cli-0.1.0.tgz deviceforge plugin ins
 数据默认 ~/.deviceforge，可由 --data-dir 或 DEVICEFORGE_DATA_DIR 配置；插件默认 data-dir/plugins，可由部署 APK_PLUGIN_DIR 配置。相对 APK_PLUGIN_DIR 按 CLI 当前工作目录解析，安装、列举和启动共用该位置，Rust 接收绝对路径。持久数据不写 npm 缓存。工具部署继续通过 APK_ADB/APK_HDC 等配置。错误的 Host 被拒绝，MCP Origin 按实际网卡与两端口生成；未支持任意自定义域名。市场默认地址为 `http://127.0.0.1:7040`，可用 `--marketplace-url http://服务器地址:7040` 直接覆盖，或使用 `--marketplace-config .\marketplace.json` 读取 `{ "sources": [{ "name": "团队市场", "url": "https://market.example.com" }] }`，两参数互斥。来源仅注入启动环境，浏览器地址覆盖由设置页按当前浏览器保存。资源服务未启动或地址暂不可达不阻塞宿主启动，退出启动器也不会停止独立资源服务。
 
 Ctrl+C/SIGTERM、启动失败或后端异常退出时停止对外监听与本次进程。正常停止先通过本次回环后端的 system/shutdown 接口收敛任务/会话并刷新日志，最多等待 5 秒；超时才强制清理本次服务树。就绪探测和内部关闭只在配置非空令牌时发送 Authorization；空令牌部署也可直接调用 system/shutdown 让 npx 正常退出。默认日志写入 data-dir/logs，启动输出日志位置；DEVICEFORGE_LOG_DIR 可调整，相对值按 CLI 工作目录解析。设备操作不会自动回滚，外部设备进程需单独验收。
+
+## 用户目录与根配置
+
+Windows 默认使用 `%USERPROFILE%\.deviceforge`（例如 `C:\Users\用户名\.deviceforge`），其他系统使用 `~/.deviceforge`。优先级为 `--data-dir`、`DEVICEFORGE_DATA_DIR`、默认用户目录；换启动目录、退出或重新下载 npx 程序都不会主动删除这个目录。原先已经使用该默认目录，无需搬迁；显式指定的数据目录继续独立，不自动合并项目预览目录或其他实例。
+
+首次启动创建 `config.json`，后续启动自动读取；启动参数覆盖根配置但只作用于本次运行，不静默保存。根配置只管理监听和市场默认来源，格式如下：
+
+```json
+{
+  "format_version": 1,
+  "server": { "ip": "0.0.0.0", "port": 7030, "mcp_port": 7032 },
+  "marketplace": { "sources": [{ "name": "本地默认市场", "url": "http://127.0.0.1:7040" }] }
+}
+```
+
+`server` 和 `marketplace` 可省略以使用默认值。拒绝未知字段、未知版本、坏端口、相同端口和含凭证的市场地址；文件上限 64 KiB，接受 UTF-8 BOM，不在错误中透传原始 JSON。令牌仍通过 `APK_API_TOKEN` 可选提供，不写根配置。
+
+```powershell
+deviceforge config path
+deviceforge config show
+deviceforge config import .\my-config.json
+deviceforge start --data-dir D:\DeviceForgeData
+```
+
+导入先校验，再在同卷临时文件中写入并替换；多个写入者通过 `config.json.lock` 互斥。无效导入保留原配置。异常进程留下的锁需核对后处理，不自动删除未知锁。导入只改变下次启动偏好，不重启已有服务，不覆盖插件、工具、任务或业务配置。`show/path/help` 不创建用户目录。
+
+服务器与浏览器插件默认分别在 `plugins`、`browser-plugins`，统一插件配置修订在后端数据目录内；日志和任务数据沿既有存储布局。工具供应插件仍以其明确配置的 `install_root` 为准，建议设为本实例数据目录下的 `tools`；不静默迁移部署者已有工具。`APK_PLUGIN_DIR`、`APK_BROWSER_PLUGIN_DIR`、`DEVICEFORGE_LOG_DIR` 等显式部署覆盖继续生效。
+
+页面的“本地导入”直接把合规服务器/浏览器插件安装到当前服务，并通过工具供应和配置接口导入工具包、业务配置或插件配置；它与“上传资源并发布”分开，不依赖市场可用。根启动配置使用上面的 CLI 导入命令，业务配置和插件配置分别遵循各自修订与生效机制。安装文件通过包校验不代表工具已在真实设备或目标平台运行验收。
 
 ## 服务器插件包
 

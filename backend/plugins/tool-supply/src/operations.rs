@@ -174,6 +174,24 @@ async fn install_locked(
     client: &reqwest::Client,
     budget: &Budget,
 ) -> Result<Value> {
+    if !requires_install(config, module, budget)? {
+        return Ok(
+            json!({"module_id":module.name,"version":module.version,"sha256":module.sha256,"changed":false}),
+        );
+    }
+    let transaction = transaction::Transaction::create(config, &module.name, budget)?;
+    let outcome = install_staged(
+        config,
+        module,
+        manifest_version,
+        &transaction,
+        client,
+        budget,
+    )
+    .await;
+    transaction.finish(config, outcome)
+}
+pub(crate) fn requires_install(config: &Config, module: &Module, budget: &Budget) -> Result<bool> {
     budget.check()?;
     let id = &module.name;
     let previous = storage::installed(config, id, budget)?;
@@ -186,22 +204,7 @@ async fn install_locked(
     if next == "local_newer" {
         return Err(Error::Invalid("拒绝自动降级已安装模块"));
     }
-    if next == "current" {
-        return Ok(
-            json!({"module_id":id,"version":module.version,"sha256":module.sha256,"changed":false}),
-        );
-    }
-    let transaction = transaction::Transaction::create(config, id, budget)?;
-    let outcome = install_staged(
-        config,
-        module,
-        manifest_version,
-        &transaction,
-        client,
-        budget,
-    )
-    .await;
-    transaction.finish(config, outcome)
+    Ok(next != "current")
 }
 async fn install_staged(
     config: &Config,
@@ -225,6 +228,25 @@ async fn install_staged(
     if !checksum.eq_ignore_ascii_case(&module.sha256) {
         return Err(Error::Checksum);
     }
+    install_archive(
+        config,
+        module,
+        manifest_version,
+        transaction,
+        checksum,
+        budget,
+    )
+    .await
+}
+pub(crate) async fn install_archive(
+    config: &Config,
+    module: &Module,
+    manifest_version: &str,
+    transaction: &transaction::Transaction,
+    checksum: String,
+    budget: &Budget,
+) -> Result<Value> {
+    let archive = transaction.path.join("archive.zip");
     let content = transaction.path.join("content");
     let worker_budget = budget.clone();
     let worker_archive = archive.clone();
