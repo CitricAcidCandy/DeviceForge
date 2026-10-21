@@ -280,7 +280,7 @@ details + details {
   margin-top: 18px;
 }
 .navigation-group-title {
-  font-size: 0.65rem;
+  font-size: 0.6875rem;
   line-height: 1.5;
   color: var(--muted-foreground);
   font-weight: 500;

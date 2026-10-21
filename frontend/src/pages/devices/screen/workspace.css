@@ -122,7 +122,7 @@
   color: var(--text-body);
 }
 .rail-line-note {
-  font-size: 0.625rem;
+  font-size: 0.6875rem;
   color: var(--text-ghost);
 }
 .rail-dot {
@@ -143,7 +143,7 @@
 }
 .rail-hint {
   margin: 0;
-  font-size: 0.625rem;
+  font-size: 0.6875rem;
   line-height: 1.55;
   color: var(--text-faint);
 }
@@ -155,7 +155,7 @@
   margin: 0 -8px;
   padding: 7px 8px;
   border-radius: 6px;
-  font-size: 0.625rem;
+  font-size: 0.6875rem;
   color: var(--text-body);
   text-decoration: none;
 }
@@ -194,7 +194,7 @@
 }
 .rail-slot-name,
 .rail-slot-note {
-  font-size: 0.5625rem;
+  font-size: 0.6875rem;
   color: var(--text-ghost);
 }
 .rail-slot-name {
@@ -254,7 +254,7 @@
   height: 22px;
   padding-inline: 6px;
   border-radius: 5px;
-  font-size: 0.625rem;
+  font-size: 0.6875rem;
   font-weight: 500;
 }
 /* 表单默认是「标签在左 144px」的横排；右栏内宽只有 232px，统一改成标签在上。 */
@@ -265,7 +265,7 @@
 }
 .workbench-rail .form-item > label {
   padding-top: 0;
-  font-size: 0.625rem;
+  font-size: 0.6875rem;
   color: var(--text-faint);
 }
 .workbench-rail .form-item .form-item-content > [data-slot='input'] {
@@ -285,7 +285,7 @@
 }
 .media-fields > .form-item > label {
   padding-top: 0;
-  font-size: 0.625rem;
+  font-size: 0.6875rem;
   color: var(--text-faint);
 }
 .media-fields > .form-item .form-item-content > [data-slot='input'] {
@@ -335,7 +335,7 @@
 }
 .workbench-rail .media-ownership > p {
   margin: 0 0 8px;
-  font-size: 0.625rem;
+  font-size: 0.6875rem;
   line-height: 1.55;
   color: var(--text-faint);
 }
@@ -356,7 +356,7 @@
   object-fit: contain;
 }
 .workbench-rail .result-details {
-  font-size: 0.625rem;
+  font-size: 0.6875rem;
 }
 .share-control-choice {
   display: flex;
@@ -497,7 +497,7 @@ video.media-canvas {
 .media-stage-readout {
   margin: 0;
   flex-shrink: 0;
-  font-size: 0.625rem;
+  font-size: 0.6875rem;
   letter-spacing: 0.04em;
   color: var(--text-ghost);
 }
@@ -564,7 +564,7 @@ video.media-canvas {
 .media-controlbar [data-slot='button'] {
   height: 24px;
   padding-inline: 8px;
-  font-size: 0.625rem;
+  font-size: 0.6875rem;
   font-weight: 400;
   color: var(--media-foreground);
 }

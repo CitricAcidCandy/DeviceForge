@@ -39,6 +39,7 @@ export async function runBackendConsole(
     return 0;
   }
   if (mode === 'stop') {
+    write('正在核对后端进程并请求停止，请等待……');
     showStopped(await stopServer(config), write);
     return 0;
   }

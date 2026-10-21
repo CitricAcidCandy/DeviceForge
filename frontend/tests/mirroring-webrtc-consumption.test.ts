@@ -458,3 +458,100 @@ test('自然完成且清理成功后可重开，清理失败则保留会话身�
   assert.equal(mirror.snapshot().errors.output?.code, 'mirroring_webrtc_cleanup_failed');
   await mirror.dispose();
 });
+
+for (const scenario of [
+  { title: 'answer 已发送但媒体未就绪时正常结束', offer: true, error: null },
+  { title: 'answer 已发送但媒体未就绪时设备控制连接断开', offer: true, error: '设备控制连接已断开' },
+  { title: '未收到 offer 就结束', offer: false, error: null },
+]) {
+  test(`WebRTC ${scenario.title}且清理完成后退出打开等待并可重开`, { timeout: 5000 }, async () => {
+    const offer = [...encoder.encode(`${JSON.stringify({ version: 1, epoch: 1, type: 'offer', sdp: 'offer' })}\n`)];
+    const connections: FakeWebRtcConnection[] = [];
+    const tracks: FakeMediaTrack[] = [];
+    let opens = 0;
+    let allowFinish = () => {};
+    let reachedTerminalPoll = () => {};
+    const finish = new Promise<void>((resolve) => { allowFinish = resolve; });
+    const terminalPoll = new Promise<void>((resolve) => { reachedTerminalPoll = resolve; });
+    const mirror = createWebRtcMirroring(gateway({
+      open: async () => {
+        ++opens;
+        return { data: info(), logId: `open-${opens}-log` };
+      },
+      output: async (_id, query) => {
+        if (opens > 1)
+          return { data: query.after === 0 ? page([offer]) : page([], 1), logId: 'reopened-output-log' };
+        if (scenario.offer && query.after === 0)
+          return { data: page([offer]), logId: 'offer-log' };
+        reachedTerminalPoll();
+        await finish;
+        const sequence = scenario.offer ? 1 : 0;
+        return { data: { ...page([], sequence), session: {
+          ...info('finished', sequence), completion: {
+            cleanup: 'complete', process_exited: true,
+            ...(scenario.error ? { outcome: { artifacts: [], error: scenario.error } } : {}),
+          },
+        } }, logId: 'terminal-cleanup-log' };
+      },
+    }), {
+      connectionFactory: () => {
+        const connection = new FakeWebRtcConnection();
+        const track = new FakeMediaTrack();
+        const reconnecting = opens > 1;
+        connections.push(connection);
+        tracks.push(track);
+        connection.setLocalDescription = async () => {
+          queueMicrotask(() => {
+            connection.emitTrack(track);
+            if (reconnecting) connection.setState('connected');
+          });
+        };
+        return connection;
+      },
+      mediaStreamFactory: () => new FakeMediaStream(),
+    });
+    await mirror.refreshDefinitions(signal());
+    const opening = mirror.open({ device_id: 'emulator-5554', control: false }, signal());
+    let settled = false;
+    void opening.then(() => { settled = true; }, () => { settled = true; });
+    const rejected = assert.rejects(opening, (error: unknown) => error instanceof ApiError);
+    try {
+      await terminalPoll;
+      assert.equal(settled, false);
+      assert.equal(mirror.snapshot().opening, true);
+      assert.equal(mirror.snapshot().session?.status, 'running');
+      if (scenario.offer) {
+        assert.equal(mirror.snapshot().logs.answer, 'input-log');
+        assert.equal(connections[0]?.connectionState, 'new');
+      } else assert.equal(connections.length, 0);
+      allowFinish();
+      await rejected;
+      assert.equal(mirror.snapshot().opening, false, '已清理的终态必须退出打开状态');
+      assert.equal(mirror.snapshot().session, null);
+      assert.equal(mirror.snapshot().stream, null);
+      assert.equal(mirror.snapshot().controlReady, false);
+      assert.equal(mirror.snapshot().logs.output, 'terminal-cleanup-log');
+      if (scenario.error) {
+        assert.equal(mirror.snapshot().errors.output?.code, 'mirroring_webrtc_session_failed');
+        assert.equal(mirror.snapshot().errors.output?.message, scenario.error);
+        assert.equal(mirror.snapshot().errors.output?.logId, 'terminal-cleanup-log');
+      }
+      if (scenario.offer) {
+        assert.equal(connections[0]?.closed, 1);
+        assert.equal(tracks[0]?.stopCount, 1);
+      }
+      const reopened = await mirror.open({ device_id: 'emulator-5554', control: false }, signal());
+      assert.equal(opens, 2);
+      assert.equal(reopened.logId, 'open-2-log');
+      assert.equal(mirror.snapshot().opening, false);
+      assert.equal(mirror.snapshot().session?.status, 'running');
+      assert.equal(mirror.snapshot().stream?.getVideoTracks().length, 1);
+      assert.equal(connections.at(-1)?.connectionState, 'connected');
+      assert.equal(mirror.snapshot().errors.output, undefined);
+    } finally {
+      allowFinish();
+      await rejected.catch(() => {});
+      await mirror.dispose();
+    }
+  });
+}

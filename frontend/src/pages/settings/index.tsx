@@ -328,6 +328,17 @@ export function SettingsPage({ services }: { services: ProductServices }) {
           </Button>
         </FormActions>
       </FormSection>
+      {/* 产物按 ID 取用、不属于任何设备，不再占据侧栏；入口收在这里，进去是二级页面。 */}
+      <FormSection title="服务器产物">
+        <p className="settings-consequence">
+          凭任务结果里的产物 ID 取用，占用服务器而不占用设备。
+        </p>
+        <FormActions>
+          <Button variant="outline" asChild>
+            <a href="#files">打开产物库</a>
+          </Button>
+        </FormActions>
+      </FormSection>
       <ActionFeedback {...action} />
       <JsonResult value={action.result} />
       <details className="settings-disclosure">

@@ -35,7 +35,7 @@
 }
 .topbar-device-meta {
   min-width: 0;
-  font-size: 0.625rem;
+  font-size: 0.6875rem;
   color: var(--text-ghost);
   white-space: nowrap;
   overflow: hidden;
@@ -200,12 +200,12 @@
 }
 .device-screen-note {
   margin: 0;
-  font-size: 0.625rem;
+  font-size: 0.6875rem;
   letter-spacing: 0.08em;
   color: var(--text-muted);
 }
 .device-screen-link {
-  font-size: 0.625rem;
+  font-size: 0.6875rem;
   color: var(--primary);
   text-decoration: none;
   opacity: 0.75;
@@ -324,12 +324,12 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  font-size: 0.5625rem;
+  font-size: 0.6875rem;
   color: var(--text-ghost);
 }
 .device-source-filter [data-slot='select-trigger'] {
   height: 24px;
-  font-size: 0.625rem;
+  font-size: 0.6875rem;
   border-color: var(--hairline-strong);
   background: transparent;
 }
@@ -415,7 +415,7 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-size: 0.5625rem;
+  font-size: 0.6875rem;
   color: var(--text-faint);
 }
 .text-state > i {
@@ -441,7 +441,7 @@
 }
 .device-provider-list > summary {
   cursor: pointer;
-  font-size: 0.5625rem;
+  font-size: 0.6875rem;
   color: var(--text-ghost);
   list-style: none;
 }
@@ -469,7 +469,7 @@
   flex: 1;
 }
 .device-provider-item strong {
-  font-size: 0.625rem;
+  font-size: 0.6875rem;
   font-weight: 500;
   color: var(--text-body);
 }
@@ -503,7 +503,7 @@
   font-size: 0.8125rem;
 }
 .device-drawer [data-slot='sheet-description'] {
-  font-size: 0.625rem;
+  font-size: 0.6875rem;
   line-height: 1.6;
 }
 .device-facts {
@@ -520,13 +520,13 @@
   border-bottom: 1px solid var(--hairline);
 }
 .device-facts dt {
-  font-size: 0.5625rem;
+  font-size: 0.6875rem;
   color: var(--text-ghost);
   white-space: nowrap;
 }
 .device-facts dd {
   margin: 0;
-  font-size: 0.625rem;
+  font-size: 0.6875rem;
   color: var(--text-body);
   text-align: right;
   overflow-wrap: anywhere;
@@ -545,13 +545,13 @@
 }
 .device-section-heading h3 {
   margin: 0;
-  font-size: 0.5625rem;
+  font-size: 0.6875rem;
   font-weight: 500;
   letter-spacing: 0.1em;
   color: var(--text-ghost);
 }
 .device-section-heading .muted {
-  font-size: 0.5625rem;
+  font-size: 0.6875rem;
   color: var(--text-ghost);
 }
 .device-drawer .device-shortcut-grid,
@@ -587,7 +587,7 @@
 }
 .device-shortcut small {
   display: block;
-  font-size: 0.5625rem;
+  font-size: 0.6875rem;
   color: var(--text-ghost);
 }
 .device-shortcut > svg:last-child {
@@ -607,7 +607,7 @@
   padding: 5px 8px;
   border-radius: 6px;
   background: var(--surface-sunken);
-  font-size: 0.625rem;
+  font-size: 0.6875rem;
   color: var(--text-muted);
   text-decoration: none;
 }
@@ -617,7 +617,7 @@
 }
 .device-shared-tools span {
   color: var(--text-ghost);
-  font-size: 0.5625rem;
+  font-size: 0.6875rem;
 }
 .device-advanced {
   border-top: 1px solid var(--hairline);
@@ -628,7 +628,7 @@
   align-items: center;
   gap: 6px;
   cursor: pointer;
-  font-size: 0.625rem;
+  font-size: 0.6875rem;
   color: var(--text-faint);
   list-style: none;
 }
@@ -641,10 +641,10 @@
 }
 .device-advanced > summary span {
   color: var(--text-ghost);
-  font-size: 0.5625rem;
+  font-size: 0.6875rem;
 }
 .device-advanced .muted {
-  font-size: 0.625rem;
+  font-size: 0.6875rem;
   line-height: 1.6;
 }
 .device-capability-action {
@@ -673,7 +673,7 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  font-size: 0.5625rem;
+  font-size: 0.6875rem;
   color: var(--text-ghost);
 }
 .device-json-input {
@@ -682,7 +682,7 @@
   border: 1px solid var(--hairline-strong);
   border-radius: 6px;
   background: var(--surface-sunken);
-  font-size: 0.625rem;
+  font-size: 0.6875rem;
   line-height: 1.5;
   color: var(--text-muted);
   resize: vertical;
@@ -692,7 +692,7 @@
   flex-direction: column;
   gap: 6px;
   padding-top: 6px;
-  font-size: 0.625rem;
+  font-size: 0.6875rem;
   color: var(--text-muted);
 }
 .device-task-result > p {

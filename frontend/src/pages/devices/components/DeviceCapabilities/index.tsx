@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronRight, ClipboardList, Code2, Files, Gauge, Monitor, Terminal } from 'lucide-react';
+import { ChevronRight, ClipboardList, Code2, Gauge, Monitor, Terminal } from 'lucide-react';
 import { Button } from '../../../../components/Button/index.tsx';
 import { JsonResult } from '../../../../components/index.ts';
 import { ActionFeedback } from '../../../../app/product/feedback.tsx';
@@ -57,10 +57,6 @@ export function DeviceCapabilities({
         <span className="muted">{capabilities.length} 项声明</span>
       </div>
       <div className="device-shared-tools" aria-label="公共工具">
-        <a href="#files">
-          <Files aria-hidden="true" />
-          文件与产物<span>服务器文件</span>
-        </a>
         <a href="#terminal">
           <Terminal aria-hidden="true" />
           终端<span>服务器会话</span>

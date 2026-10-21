@@ -15,7 +15,7 @@
   border-top: 1px solid var(--hairline);
   background: var(--surface-chrome);
   color: var(--text-faint);
-  font-size: 0.625rem;
+  font-size: 0.6875rem;
   text-align: left;
   cursor: pointer;
 }
@@ -179,7 +179,7 @@
 .dock-task-detail-actions > button {
   height: 22px;
   padding-inline: 6px;
-  font-size: 0.625rem;
+  font-size: 0.6875rem;
   color: var(--text-muted);
 }
 .dock-task-detail-actions > button > svg {
@@ -195,7 +195,7 @@
 }
 .dock-task-detail details > summary {
   cursor: pointer;
-  font-size: 0.625rem;
+  font-size: 0.6875rem;
   color: var(--text-faint);
   list-style: none;
 }
@@ -239,7 +239,7 @@
 .dock-foot-link {
   height: 22px;
   padding-inline: 6px;
-  font-size: 0.5625rem;
+  font-size: 0.6875rem;
   font-weight: 400;
   color: var(--text-faint);
 }

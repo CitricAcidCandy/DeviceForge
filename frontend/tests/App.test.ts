@@ -37,7 +37,6 @@ async function verifyStaticRendering() {
     for (const label of [
       '设备工坊',
       '设备工作台',
-      '文件与产物',
       '性能与调用栈',
       'Frida',
       '自动化',
@@ -198,7 +197,6 @@ test('中后台分组导航、折叠与专注保留页面草稿，设备上下�
     };
     const routes = [
       ['devices', '设备'],
-      ['files', '文件与产物'],
       ['performance', '性能与调用栈'],
       ['frida', 'Frida'],
       ['automation', '自动化'],
@@ -221,8 +219,15 @@ test('中后台分组导航、折叠与专注保留页面草稿，设备上下�
       assert.equal(visibleRoutes.length, 1);
       assert.equal(visibleRoutes[0]?.getAttribute('data-route'), routeId);
     };
-    // 13 项：画面与录制、应用与包已并入设备页，不再是独立路由。
-    assert.equal(navigation().querySelectorAll('button[data-navigation-route]').length, 13);
+    // 12 项：「文件与产物」收进设置的二级页，不在侧栏；画面与录制、应用与包已并入设备页。
+    assert.equal(navigation().querySelectorAll('button[data-navigation-route]').length, 12);
+    assert.equal(
+      Array.from(navigation().querySelectorAll('button[data-navigation-route]')).some(
+        (entry) => entry.getAttribute('data-navigation-route') === 'files',
+      ),
+      false,
+      '隐藏路由不应出现在侧栏',
+    );
     assert.deepEqual(
       Array.from(navigation().querySelectorAll('h2')).map((heading) => heading.textContent),
       ['工作台', '深度调试', '扩展创作', '工坊'],

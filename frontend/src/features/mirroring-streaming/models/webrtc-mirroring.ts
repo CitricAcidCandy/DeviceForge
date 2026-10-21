@@ -112,7 +112,7 @@ export function createWebRtcMirroring(gateway: SessionGateway, options: WebRtcMi
     controller = null;
     peer?.close();
     peer = null;
-    publish({ stream: null, status: null, inputState: 'uncertain', controlReady: false, clipboard: null, ownership: null });
+    publish({ opening: false, stream: null, status: null, inputState: 'uncertain', controlReady: false, clipboard: null, ownership: null });
   }
   async function sendLine(identity: SessionInfo, bytes: readonly number[], signal: AbortSignal) {
     const task = inputTail.catch(() => {}).then(async () => {

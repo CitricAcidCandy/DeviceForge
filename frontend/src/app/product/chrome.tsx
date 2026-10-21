@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { ProductRoute } from './routes.ts';
-import { PRODUCT_ROUTES } from './routes.ts';
+import { PRODUCT_ROUTES, VISIBLE_ROUTES } from './routes.ts';
 import { ProductNavigation } from './navigation.tsx';
 import { Button } from '../../components/Button/index.tsx';
 import {
@@ -158,7 +158,7 @@ export function WorkspaceStatusBar({
       <span className="statusbar-divider" aria-hidden="true" />
       <span>插件 {pluginCount} 已加载</span>
       <span className="statusbar-divider" aria-hidden="true" />
-      <span>路由 {PRODUCT_ROUTES.length} 项</span>
+      <span>路由 {VISIBLE_ROUTES.length} 项</span>
     </div>
     <div className="statusbar-group">
       {logId && <><span className="statusbar-log">日志 {logId}</span><span className="statusbar-divider" aria-hidden="true" /></>}

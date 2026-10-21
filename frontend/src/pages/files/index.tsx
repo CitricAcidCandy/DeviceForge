@@ -59,6 +59,10 @@ export function FilesPage({ services }: { services: ProductServices }) {
       }}
     >
       <section className="product-page files-page">
+        {/* 这页不再是侧栏路由，只从设置进入；留一条明确的回去路径。 */}
+        <a className="files-back" href="#settings">
+          ← 返回设置
+        </a>
         <PageTitle
           eyebrow="服务器产物"
           title="文件"

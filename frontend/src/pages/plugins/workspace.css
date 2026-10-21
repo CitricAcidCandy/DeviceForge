@@ -30,7 +30,7 @@
   color: var(--text-strong);
 }
 .plugin-topline-meta {
-  font-size: 0.625rem;
+  font-size: 0.6875rem;
   color: var(--text-ghost);
   white-space: nowrap;
   overflow: hidden;
@@ -112,7 +112,7 @@
   white-space: nowrap;
 }
 .plugin-list-copy > small {
-  font-size: 0.5625rem;
+  font-size: 0.6875rem;
   color: var(--text-ghost);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -126,7 +126,7 @@
 }
 .plugin-list-side em {
   font-style: normal;
-  font-size: 0.5625rem;
+  font-size: 0.6875rem;
   color: var(--text-faint);
   white-space: nowrap;
 }
@@ -141,7 +141,7 @@
 }
 .plugin-list-side i {
   font-style: normal;
-  font-size: 0.5625rem;
+  font-size: 0.6875rem;
   color: var(--text-ghost);
   min-width: 12px;
   text-align: right;
@@ -165,13 +165,13 @@
   color: var(--text-strong);
 }
 .plugin-detail-head > span {
-  font-size: 0.5625rem;
+  font-size: 0.6875rem;
   color: var(--text-ghost);
 }
 .plugin-detail-state,
 .plugin-detail-error {
   margin: 0;
-  font-size: 0.625rem;
+  font-size: 0.6875rem;
   line-height: 1.6;
   color: var(--text-faint);
 }
@@ -192,13 +192,13 @@
   border-bottom: 1px solid var(--hairline);
 }
 .plugin-facts dt {
-  font-size: 0.5625rem;
+  font-size: 0.6875rem;
   color: var(--text-ghost);
   white-space: nowrap;
 }
 .plugin-facts dd {
   margin: 0;
-  font-size: 0.625rem;
+  font-size: 0.6875rem;
   color: var(--text-body);
   text-align: right;
   overflow-wrap: anywhere;
@@ -212,14 +212,14 @@
   padding-top: 6px;
 }
 .plugin-section-label {
-  font-size: 0.5625rem;
+  font-size: 0.6875rem;
   font-weight: 500;
   letter-spacing: 0.1em;
   color: var(--text-ghost);
 }
 .plugin-contrib-empty {
   margin: 0;
-  font-size: 0.625rem;
+  font-size: 0.6875rem;
   color: var(--text-ghost);
 }
 .plugin-contrib-list {
@@ -242,7 +242,7 @@
 .plugin-contrib-kind {
   width: 28px;
   flex-shrink: 0;
-  font-size: 0.5625rem;
+  font-size: 0.6875rem;
   color: var(--text-ghost);
 }
 .plugin-contrib-name {
@@ -262,7 +262,7 @@
 .plugin-contrib-list [data-slot='button'] {
   height: 22px;
   padding-inline: 7px;
-  font-size: 0.5625rem;
+  font-size: 0.6875rem;
   font-weight: 400;
   color: var(--text-muted);
   flex-shrink: 0;
@@ -294,14 +294,14 @@
 }
 .plugin-foot-block {
   min-width: 0;
-  font-size: 0.625rem;
+  font-size: 0.6875rem;
 }
 .plugin-foot-block > summary {
   display: flex;
   align-items: baseline;
   gap: 8px;
   cursor: pointer;
-  font-size: 0.5625rem;
+  font-size: 0.6875rem;
   color: var(--text-faint);
   list-style: none;
 }
@@ -319,7 +319,7 @@
 }
 .plugin-foot-note {
   margin: 6px 0;
-  font-size: 0.625rem;
+  font-size: 0.6875rem;
   line-height: 1.6;
   color: var(--text-ghost);
 }
@@ -331,7 +331,7 @@
 .plugin-foot-actions [data-slot='button'] {
   height: 24px;
   padding-inline: 9px;
-  font-size: 0.625rem;
+  font-size: 0.6875rem;
 }
 .plugin-fail-row {
   display: flex;
@@ -339,14 +339,14 @@
   gap: 10px;
   padding: 5px 0;
   border-bottom: 1px solid var(--hairline);
-  font-size: 0.625rem;
+  font-size: 0.6875rem;
   color: var(--text-muted);
   flex-wrap: wrap;
 }
 .plugin-fail-row [data-slot='button'] {
   height: 20px;
   padding-inline: 5px;
-  font-size: 0.5625rem;
+  font-size: 0.6875rem;
   font-family: var(--font-mono);
 }
 

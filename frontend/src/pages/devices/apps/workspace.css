@@ -170,7 +170,7 @@
   display: block;
   padding: 0;
   border: 0;
-  font-size: 0.625rem;
+  font-size: 0.6875rem;
   overflow-wrap: anywhere;
 }
 .packages-page[data-compact='true'] td .page-actions {
@@ -180,13 +180,13 @@
 .packages-page[data-compact='true'] td [data-slot='button'] {
   height: 22px;
   padding-inline: 6px;
-  font-size: 0.625rem;
+  font-size: 0.6875rem;
 }
 .packages-page[data-compact='true'] .page-actions {
   flex-wrap: wrap;
   justify-content: flex-start;
   gap: 6px;
-  font-size: 0.625rem;
+  font-size: 0.6875rem;
 }
 .packages-page[data-compact='true'] h3 {
   margin: 0;
@@ -201,7 +201,7 @@
 .packages-page[data-compact='true'] .empty-state {
   min-height: 74px;
   padding: 10px;
-  font-size: 0.625rem;
+  font-size: 0.6875rem;
 }
 /* 窄栏里只留结论，说明文字留给抽屉里的完整体。 */
 .packages-page[data-compact='true'] .empty-state p {
@@ -212,7 +212,7 @@
   display: none;
 }
 .packages-page[data-compact='true'] label {
-  font-size: 0.625rem;
+  font-size: 0.6875rem;
   font-weight: 400;
   color: var(--text-faint);
 }

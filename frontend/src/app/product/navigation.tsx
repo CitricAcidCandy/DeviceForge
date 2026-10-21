@@ -1,5 +1,5 @@
 import { Button } from '../../components/Button/index.tsx';
-import { PRODUCT_ROUTES } from './routes.ts';
+import { VISIBLE_ROUTES } from './routes.ts';
 import type { ProductRoute } from './routes.ts';
 
 export interface ProductNavigationProps {
@@ -13,14 +13,14 @@ export function ProductNavigation({
   collapsed = false,
   onNavigate,
 }: ProductNavigationProps) {
-  const groups = [...new Set(PRODUCT_ROUTES.map((entry) => entry.group))];
+  const groups = [...new Set(VISIBLE_ROUTES.map((entry) => entry.group))];
   return (
     <nav className="tool-navigation" aria-label="工坊工具" data-navigation-collapsed={collapsed}>
       {groups.map((group) => (
         <div className="navigation-group" data-navigation-group={group} key={group}>
           <h2 className="navigation-group-title">{group}</h2>
           <ul className="navigation-list">
-            {PRODUCT_ROUTES.filter((entry) => entry.group === group).map((entry) => (
+            {VISIBLE_ROUTES.filter((entry) => entry.group === group).map((entry) => (
               <li key={entry.id}>
                 <Button
                   type="button"

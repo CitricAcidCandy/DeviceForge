@@ -30,7 +30,7 @@
   letter-spacing: 0.01em;
 }
 .perf-topline-meta {
-  font-size: 0.625rem;
+  font-size: 0.6875rem;
   color: var(--text-faint);
   white-space: nowrap;
   overflow: hidden;
@@ -40,9 +40,19 @@
   width: 232px;
   flex-shrink: 0;
 }
+/* 232px 装不下全局的 144px 标签列，顶部这个字段标签在上。 */
+.perf-topline-target .form-item {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 3px;
+  margin: 0;
+}
+.perf-topline-target .form-item > label {
+  padding-top: 0;
+  font-size: 0.6875rem;
+}
 .perf-topline-target .form-field > label,
 .perf-topline-target label {
-  font-size: 0.5625rem;
+  font-size: 0.6875rem;
   letter-spacing: 0.06em;
   color: var(--text-ghost);
 }
@@ -92,14 +102,14 @@
   border-right: 1px solid var(--hairline);
 }
 .perf-rail-label {
-  font-size: 0.5625rem;
+  font-size: 0.6875rem;
   font-weight: 500;
   letter-spacing: 0.1em;
   color: var(--text-ghost);
 }
 .rail-note {
   margin: 0;
-  font-size: 0.625rem;
+  font-size: 0.6875rem;
   line-height: 1.6;
   color: var(--text-faint);
   overflow-wrap: anywhere;
@@ -155,7 +165,7 @@
 .perf-rail-foot > button {
   height: 22px;
   padding-inline: 6px;
-  font-size: 0.5625rem;
+  font-size: 0.6875rem;
   font-weight: 400;
   color: var(--text-faint);
 }
@@ -210,7 +220,7 @@
   opacity: 1;
 }
 .fps-chart-empty {
-  font-size: 0.625rem;
+  font-size: 0.6875rem;
   color: var(--text-ghost);
   padding-bottom: 10px;
 }
@@ -244,7 +254,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 4px 12px;
-  font-size: 0.5625rem;
+  font-size: 0.6875rem;
   color: var(--text-ghost);
 }
 .perf-metric-actions {
@@ -255,7 +265,7 @@
 .perf-metric-actions > button {
   height: 24px;
   padding-inline: 7px;
-  font-size: 0.625rem;
+  font-size: 0.6875rem;
   font-weight: 400;
   color: var(--text-muted);
 }
@@ -279,9 +289,18 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
 }
+/* 右栏一列只有 130px 宽，全局表单的 144px 标签列会把输入框挤到溢出，这里标签在上。 */
+.perf-control-row .form-item {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 4px;
+  margin: 0;
+}
+.perf-control-row .form-item > label {
+  padding-top: 0;
+}
 .perf-control-row .form-field > label,
 .perf-control-row label {
-  font-size: 0.5625rem;
+  font-size: 0.6875rem;
   letter-spacing: 0.06em;
   color: var(--text-ghost);
 }
@@ -303,7 +322,7 @@
   align-self: flex-start;
   height: 22px;
   padding-inline: 6px;
-  font-size: 0.5625rem;
+  font-size: 0.6875rem;
   font-weight: 400;
   color: var(--text-faint);
 }
@@ -331,7 +350,7 @@
   border-bottom: 0;
 }
 .observe-grid dt {
-  font-size: 0.5625rem;
+  font-size: 0.6875rem;
   color: var(--text-ghost);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -339,7 +358,7 @@
 }
 .observe-grid dd {
   margin: 0;
-  font-size: 0.625rem;
+  font-size: 0.6875rem;
   color: var(--text-body);
   white-space: nowrap;
 }
@@ -357,7 +376,7 @@
 }
 .perf-notes > summary {
   cursor: pointer;
-  font-size: 0.625rem;
+  font-size: 0.6875rem;
   color: var(--text-faint);
   list-style: none;
 }
@@ -373,6 +392,15 @@
 }
 .perf-notes > summary:hover {
   color: var(--text-body);
+}
+/* 左栏 181px，同样吃不下 144px 的标签列。 */
+.perf-notes .form-item {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 4px;
+  margin: 0;
+}
+.perf-notes .form-item > label {
+  padding-top: 0;
 }
 .perf-notes[open] {
   display: flex;
@@ -399,14 +427,14 @@
 }
 .profile-rail h3 {
   margin: 0;
-  font-size: 0.5625rem;
+  font-size: 0.6875rem;
   font-weight: 500;
   letter-spacing: 0.1em;
   color: var(--text-ghost);
 }
 .profile-rail .form-field > label,
 .profile-rail label {
-  font-size: 0.5625rem;
+  font-size: 0.6875rem;
   color: var(--text-ghost);
 }
 .profile-rail input {

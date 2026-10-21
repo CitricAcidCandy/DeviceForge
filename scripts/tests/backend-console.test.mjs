@@ -5,6 +5,8 @@ import { join } from 'node:path';
 import { readRecentRecords, createLogFollower, formatLog } from '../backend-console/logs.mjs';
 import { ownedDirectory, record, encoded, lines } from './backend-console-fixture.mjs';
 import { registerLifecycleTests } from './backend-console-lifecycle.mjs';
+import { registerBatchTests } from './backend-console-batch.mjs';
+import { registerIdentityTests } from './backend-console-identities.mjs';
 
 test('日志读取按文件滚动顺序仅返回最近上限条完整记录，忽略非日志与破损行', async () => {
   await ownedDirectory(async (directory) => {
@@ -151,3 +153,5 @@ test('空日志目录可以跟随，后续新增文件不会漏掉首条中文�
 });
 
 registerLifecycleTests();
+registerBatchTests();
+registerIdentityTests();

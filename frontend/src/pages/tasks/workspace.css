@@ -43,7 +43,7 @@
   white-space: nowrap;
 }
 .tasks-topline-meta {
-  font-size: 0.625rem;
+  font-size: 0.6875rem;
   color: var(--text-ghost);
   white-space: nowrap;
   overflow: hidden;
@@ -150,17 +150,17 @@
   text-overflow: ellipsis;
 }
 .task-id {
-  font-size: 0.5625rem;
+  font-size: 0.6875rem;
   color: var(--text-ghost);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .task-state {
-  font-size: 0.625rem;
+  font-size: 0.6875rem;
 }
 .task-time {
-  font-size: 0.5625rem;
+  font-size: 0.6875rem;
   color: var(--text-faint);
   text-align: right;
   white-space: nowrap;
@@ -198,7 +198,7 @@
 }
 .task-panel-head p {
   margin: 4px 0 0;
-  font-size: 0.5625rem;
+  font-size: 0.6875rem;
   color: var(--text-ghost);
   overflow-wrap: anywhere;
 }
@@ -209,12 +209,12 @@
 }
 .task-panel-time {
   margin: 10px 0 0;
-  font-size: 0.5625rem;
+  font-size: 0.6875rem;
   color: var(--text-faint);
 }
 .task-panel-error {
   margin-top: 8px;
-  font-size: 0.625rem;
+  font-size: 0.6875rem;
   line-height: 1.5;
 }
 .task-panel-idle {
@@ -231,7 +231,7 @@
   justify-content: space-between;
   min-height: 0;
   padding: 0;
-  font-size: 0.625rem;
+  font-size: 0.6875rem;
   color: var(--text-muted);
   list-style: none;
   cursor: pointer;
@@ -270,7 +270,7 @@
 .task-events li {
   display: flex;
   gap: 8px;
-  font-size: 0.5625rem;
+  font-size: 0.6875rem;
   color: var(--text-body);
 }
 .task-events time {
@@ -278,7 +278,7 @@
 }
 .task-hint {
   margin: 6px 0 0;
-  font-size: 0.625rem;
+  font-size: 0.6875rem;
   line-height: 1.55;
   color: var(--text-faint);
 }

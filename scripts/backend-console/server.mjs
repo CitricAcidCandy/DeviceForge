@@ -22,7 +22,7 @@ export async function waitUntil(read, accept, timeout = 10000) {
     if (Date.now() >= until) break;
     await delay(150);
   } while (Date.now() < until);
-  throw new Error('等待服务器状态收敛超时');
+  throw Object.assign(new Error('等待服务器状态收敛超时'), { code: 'SERVER_WAIT_TIMEOUT' });
 }
 
 function checked(config) {
@@ -215,6 +215,7 @@ export async function stopServer(config, server) {
       reason: '服务器已正常退出，端口已释放',
     };
   } catch (error) {
+    if (error.code !== 'SERVER_WAIT_TIMEOUT') throw error;
     const current = await processSnapshot(config.port, selected.pid);
     const ended = await completedShutdown(
       config,

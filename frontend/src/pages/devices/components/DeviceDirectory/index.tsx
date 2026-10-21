@@ -58,6 +58,12 @@ export function DeviceDirectory({
       ].some((value) => value.toLocaleLowerCase().includes(keyword)),
   );
   const onlineCount = devices.filter(({ device }) => device.state === 'online').length;
+  // 全在线时别把同一个数字报两遍。
+  const countLabel = !devices.length
+    ? '0 台'
+    : onlineCount === devices.length
+      ? `${devices.length} 台在线`
+      : `${devices.length} 台 · ${onlineCount} 台在线`;
   const selected = snapshot.selected;
   const selectedProvider = snapshot.providers.find(
     (provider) =>
@@ -117,7 +123,7 @@ export function DeviceDirectory({
             <h1>选择设备</h1>
           </div>
           <span className="picker-count mono">
-            {devices.length} 台 · {onlineCount} 台在线
+            {countLabel}
             {pending ? ' · 正在读取' : ''}
           </span>
         </div>

@@ -1,3 +1,15 @@
+.files-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 12px;
+  font-size: 12px;
+  color: var(--text-faint, #97a0b1);
+  text-decoration: none;
+}
+.files-back:hover {
+  color: var(--text-body, #3f4757);
+}
 .file-workspace { display: grid; grid-template-columns: minmax(240px, 280px) minmax(0, 1fr); gap: 32px; margin-top: 24px; align-items: start; }
 .file-source { min-width: 0; display: grid; gap: 12px; padding-right: 28px; border-right: 1px solid var(--border); }
 .file-source > label { font-size: 13px; color: var(--muted-foreground); }

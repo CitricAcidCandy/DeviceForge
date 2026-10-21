@@ -1,6 +1,9 @@
 /*
  * 设备选择：左来源、中设备、右当前选择。
  * 只在两侧用底色块，中间一行一条发丝线——设备数量不多时版面也不会散成卡片墙。
+ *
+ * 字号标尺（rem 基准 16px）：辅助 11 / 正文 12 / 强调 13 / 主信息 14 / 面板标题 17 / 页标题 22。
+ * 不要再往 10px 以下走，等宽字体在小字号下会糊成一片。
  */
 .device-picker {
   display: flex;
@@ -19,17 +22,17 @@
   justify-content: space-between;
   gap: 20px;
   flex-shrink: 0;
-  padding: 16px 24px 12px;
+  padding: 18px 24px 14px;
   border-bottom: 1px solid var(--hairline);
 }
 .picker-heading-row {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
 }
 .picker-head h1 {
   margin: 0;
-  font-size: 1.25rem;
+  font-size: 1.375rem;
   font-weight: 600;
   letter-spacing: -0.01em;
   color: var(--text-strong);
@@ -38,11 +41,11 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   padding: 0;
   border: 0;
-  border-radius: 6px;
+  border-radius: 7px;
   background: transparent;
   color: var(--text-faint);
   cursor: pointer;
@@ -52,43 +55,46 @@
   color: var(--text-strong);
 }
 .picker-back > svg {
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
 }
 .picker-count {
   display: block;
-  margin-top: 5px;
-  font-size: 0.59375rem;
+  margin-top: 6px;
+  font-size: 0.75rem;
   color: var(--text-faint);
 }
 .picker-actions {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
+}
+.picker-actions > .picker-search {
+  margin-right: 8px;
 }
 .picker-search {
   display: flex;
   align-items: center;
-  gap: 6px;
-  width: 220px;
-  height: 30px;
-  padding: 0 10px;
-  border-radius: 7px;
+  gap: 7px;
+  width: 240px;
+  height: 32px;
+  padding: 0 11px;
+  border-radius: 8px;
   background: var(--surface-sunken);
   color: var(--text-ghost);
 }
 .picker-search > svg {
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
   flex-shrink: 0;
 }
 .picker-search [data-slot='input'] {
-  height: 26px;
+  height: 28px;
   padding: 0;
   border: 0;
   background: transparent;
   box-shadow: none;
-  font-size: 0.59375rem;
+  font-size: 0.8125rem;
   color: var(--text-body);
 }
 .picker-search [data-slot='input']:focus-visible {
@@ -98,13 +104,13 @@
 .picker-link {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  height: 26px;
-  padding: 0 8px;
+  gap: 5px;
+  height: 28px;
+  padding: 0 9px;
   border: 0;
-  border-radius: 6px;
+  border-radius: 7px;
   background: transparent;
-  font-size: 0.59375rem;
+  font-size: 0.75rem;
   color: var(--text-muted);
   cursor: pointer;
   white-space: nowrap;
@@ -118,23 +124,23 @@
   cursor: not-allowed;
 }
 .picker-link > svg {
-  width: 11px;
-  height: 11px;
+  width: 13px;
+  height: 13px;
 }
 
 /* ── 主体三栏 ───────────────────────────────────────── */
 .picker-body {
   display: grid;
-  grid-template-columns: 168px minmax(0, 1fr) 288px;
+  grid-template-columns: 168px minmax(0, 1fr) 300px;
   gap: 24px;
   flex: 1;
   min-height: 0;
-  padding: 16px 24px 18px;
+  padding: 18px 24px 20px;
 }
 .picker-label {
   display: block;
-  font-size: 0.5rem;
-  letter-spacing: 0.16em;
+  font-size: 0.6875rem;
+  letter-spacing: 0.1em;
   color: var(--text-ghost);
 }
 
@@ -142,7 +148,7 @@
 .picker-sources {
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 2px;
   min-height: 0;
 }
 .picker-sources .picker-label {
@@ -153,12 +159,12 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  height: 30px;
-  padding: 0 8px;
+  height: 32px;
+  padding: 0 9px;
   border: 0;
-  border-radius: 6px;
+  border-radius: 7px;
   background: transparent;
-  font-size: 0.65625rem;
+  font-size: 0.8125rem;
   color: var(--text-body);
   cursor: pointer;
   text-align: left;
@@ -168,7 +174,7 @@
 }
 .picker-source b {
   font-weight: 400;
-  font-size: 0.5625rem;
+  font-size: 0.75rem;
   color: var(--text-faint);
 }
 .picker-source[aria-pressed='true'] {
@@ -181,8 +187,8 @@
 }
 .picker-source.is-idle {
   color: var(--text-ghost);
-  font-size: 0.5625rem;
-  padding-left: 8px;
+  font-size: 0.6875rem;
+  padding-left: 9px;
 }
 
 /* 中间：设备行 + 提供者 */
@@ -195,27 +201,28 @@
 .picker-columns,
 .picker-row {
   display: grid;
-  grid-template-columns: 14px minmax(0, 1fr) 168px 52px 54px 44px;
+  grid-template-columns: 14px minmax(0, 1fr) 172px 58px 66px 50px;
   align-items: center;
   gap: 10px;
 }
 .picker-columns {
-  height: 26px;
+  height: 28px;
   padding: 0 10px;
-  font-size: 0.5rem;
-  letter-spacing: 0.12em;
+  font-size: 0.6875rem;
+  letter-spacing: 0.08em;
   color: var(--text-ghost);
   border-bottom: 1px solid var(--hairline);
 }
+/* 列表按内容高度排，提供者紧跟其后做脚注；设备多到装不下时才收缩滚动。 */
 .picker-rows {
-  flex: 1;
+  flex: 0 1 auto;
   min-height: 0;
   overflow-y: auto;
   scrollbar-width: thin;
 }
 .picker-row {
   width: 100%;
-  height: 72px;
+  height: 76px;
   padding: 0 10px;
   border: 0;
   border-bottom: 1px solid var(--hairline);
@@ -233,8 +240,8 @@
   box-shadow: inset 2px 0 var(--primary);
 }
 .picker-dot {
-  width: 6px;
-  height: 6px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   background: var(--text-ghost);
 }
@@ -253,11 +260,11 @@
 .picker-name {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px;
   min-width: 0;
 }
 .picker-name strong {
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   font-weight: 500;
   color: var(--text-strong);
   overflow: hidden;
@@ -265,13 +272,13 @@
   white-space: nowrap;
 }
 .picker-name small {
-  font-size: 0.5625rem;
+  font-size: 0.75rem;
   color: var(--text-faint);
 }
 .picker-id,
 .picker-caps,
 .picker-seen {
-  font-size: 0.5625rem;
+  font-size: 0.75rem;
   color: var(--text-muted);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -281,7 +288,7 @@
   color: var(--text-faint);
 }
 .picker-go {
-  font-size: 0.59375rem;
+  font-size: 0.75rem;
   color: var(--text-ghost);
   text-align: right;
 }
@@ -293,13 +300,13 @@
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 8px;
-  padding: 32px 12px;
-  font-size: 0.59375rem;
+  gap: 10px;
+  padding: 34px 12px;
+  font-size: 0.8125rem;
   color: var(--text-faint);
 }
 .picker-empty strong {
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   font-weight: 500;
   color: var(--text-body);
 }
@@ -316,34 +323,34 @@
 }
 .picker-provider {
   display: grid;
-  grid-template-columns: 10px 128px minmax(0, 1fr) auto;
+  grid-template-columns: 10px 138px minmax(0, 1fr) auto;
   align-items: center;
   gap: 10px;
-  height: 30px;
+  height: 32px;
   padding: 0 10px;
   border-bottom: 1px solid var(--hairline);
 }
 .picker-provider-name {
-  font-size: 0.59375rem;
+  font-size: 0.75rem;
   color: var(--text-body);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .picker-provider-meta {
-  font-size: 0.5625rem;
+  font-size: 0.6875rem;
   color: var(--text-faint);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .picker-provider .picker-link {
-  height: 22px;
-  font-size: 0.5625rem;
+  height: 26px;
+  font-size: 0.6875rem;
 }
 .picker-provider-note {
   margin: 6px 0 0;
-  font-size: 0.59375rem;
+  font-size: 0.75rem;
   color: var(--text-ghost);
 }
 
@@ -353,13 +360,13 @@
   flex-direction: column;
   gap: 10px;
   min-height: 0;
-  padding: 16px;
+  padding: 18px;
   border: 1px solid var(--hairline);
   border-radius: 12px;
   background: var(--surface-card);
 }
 .picker-detail-name {
-  font-size: 0.9375rem;
+  font-size: 1.0625rem;
   font-weight: 600;
   color: var(--text-strong);
   overflow: hidden;
@@ -371,13 +378,13 @@
   align-items: center;
   gap: 6px;
   margin-top: -4px;
-  font-size: 0.625rem;
+  font-size: 0.75rem;
   color: var(--text-body);
 }
 .picker-facts {
   display: flex;
   flex-direction: column;
-  gap: 9px;
+  gap: 10px;
   margin: 4px 0 6px;
   padding: 12px 0;
   border-top: 1px solid var(--hairline);
@@ -387,21 +394,22 @@
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: 10px;
+  gap: 12px;
 }
 .picker-facts dt {
-  font-size: 0.5625rem;
+  font-size: 0.6875rem;
   color: var(--text-faint);
   flex-shrink: 0;
 }
 .picker-facts dd {
   margin: 0;
-  max-width: 170px;
-  font-size: 0.5625rem;
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 0.75rem;
   color: var(--text-body);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  text-align: right;
+  /* 代次这类 UUID 不折行就只能看前半截，宁可占两行也要读全。 */
+  overflow-wrap: anywhere;
 }
 .picker-chips {
   display: flex;
@@ -409,13 +417,13 @@
   gap: 6px;
 }
 .picker-chip {
-  height: 22px;
+  height: 24px;
   display: inline-flex;
   align-items: center;
   padding: 0 8px;
   border-radius: 6px;
   background: var(--accent);
-  font-size: 0.5625rem;
+  font-size: 0.6875rem;
   color: var(--primary-strong, #4b2ed6);
 }
 .picker-chip.is-idle {
@@ -425,32 +433,33 @@
 .picker-enter {
   width: 100%;
   margin-top: auto;
-  height: 34px;
+  height: 36px;
+  font-size: 0.875rem;
 }
 .picker-detail-empty {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 10px;
   flex: 1;
   color: var(--text-ghost);
-  font-size: 0.625rem;
+  font-size: 0.8125rem;
 }
 .picker-detail-empty > svg {
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
 }
 
 @media (max-width: 1240px) {
   .picker-body {
-    grid-template-columns: 150px minmax(0, 1fr) 264px;
+    grid-template-columns: 150px minmax(0, 1fr) 282px;
     gap: 18px;
-    padding: 14px 18px 16px;
+    padding: 16px 18px 18px;
   }
   .picker-columns,
   .picker-row {
-    grid-template-columns: 14px minmax(0, 1fr) 140px 46px 44px;
+    grid-template-columns: 14px minmax(0, 1fr) 150px 52px 50px;
   }
   .picker-columns span:nth-child(5),
   .picker-seen {
@@ -459,7 +468,7 @@
 }
 @media (max-width: 1024px) {
   .picker-body {
-    grid-template-columns: minmax(0, 1fr) 256px;
+    grid-template-columns: minmax(0, 1fr) 272px;
   }
   .picker-sources {
     display: none;

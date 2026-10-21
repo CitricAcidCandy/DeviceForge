@@ -100,7 +100,7 @@
 }
 .brand-name small {
   margin: 0;
-  font-size: 0.5625rem;
+  font-size: 0.6875rem;
   font-weight: 400;
   letter-spacing: 0;
   color: var(--text-ghost);
@@ -151,7 +151,7 @@
 .navigation-group-title {
   padding: 6px 10px 6px;
   margin: 0;
-  font-size: 0.5625rem;
+  font-size: 0.6875rem;
   font-weight: 500;
   letter-spacing: 0.08em;
   color: var(--text-ghost);
@@ -390,6 +390,22 @@
   max-width: 1600px;
   margin-inline: auto;
 }
+/* 性能页按视口高度铺满：五条轨迹弹性分配高度，视口太矮时整页滚动。 */
+.product-shell[data-route='performance'] .workplane {
+  display: flex;
+  flex-direction: column;
+}
+.product-shell[data-route='performance'] .workplane > [data-route] {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  /* 自动外边距会让弹性子项退化成收缩宽度，这里固定铺满。 */
+  width: 100%;
+  margin-inline: 0;
+  /* 视口太矮时不压缩轨迹，改为整页滚动。 */
+  min-height: 560px;
+}
 /* 舞台型页面自己管边距：工作区不留内衬，画面顶到边缘。 */
 .product-shell[data-route='devices'] .workplane,
 .product-shell[data-route='tasks'] .workplane {
@@ -435,7 +451,7 @@
   border-radius: 5px;
   background: transparent;
   color: var(--text-ghost);
-  font-size: 0.625rem;
+  font-size: 0.6875rem;
 }
 .dock-filter[aria-pressed='true'] {
   background: var(--accent);

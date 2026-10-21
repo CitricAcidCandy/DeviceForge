@@ -36,6 +36,8 @@ export interface ProductRouteInfo {
   readonly group: string;
   readonly description: string;
   readonly icon: LucideIcon;
+  // 不进侧栏，只能由其它页面（如设置）的入口进入；路由本身仍然有效。
+  readonly hidden?: boolean;
 }
 export const PRODUCT_ROUTES: readonly ProductRouteInfo[] = [
   {
@@ -49,8 +51,9 @@ export const PRODUCT_ROUTES: readonly ProductRouteInfo[] = [
     id: 'files',
     label: '文件与产物',
     group: '工作台',
-    description: '管理服务器产物，预览与下载真实文件',
+    description: '按产物 ID 取用服务器产物，预览与下载真实文件',
     icon: FolderOpen,
+    hidden: true,
   },
   {
     id: 'performance',
@@ -134,3 +137,5 @@ export function parseProductRoute(value: string): ProductRoute {
   const route = value.replace(/^#\/?/, '').split('?', 1)[0];
   return PRODUCT_ROUTES.find((item) => item.id === route)?.id ?? 'devices';
 }
+// 侧栏与状态栏只数可见路由；隐藏路由仍可直达。
+export const VISIBLE_ROUTES = PRODUCT_ROUTES.filter((entry) => !entry.hidden);

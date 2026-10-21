@@ -3,3 +3,5 @@ export { ProfileFlamegraphView } from './ProfileFlamegraph/index.tsx';
 export type { ProfileFlamegraphViewProps } from './ProfileFlamegraph/index.tsx';
 export { ProfileArchiveView } from './ProfileArchiveView/index.tsx';
 export { PerformanceReadings } from './PerformanceReadings/index.tsx';
+export { SampleBoard } from './SampleBoard/index.tsx';
+export type { BoardSample, SampleBoardProps } from './SampleBoard/index.tsx';

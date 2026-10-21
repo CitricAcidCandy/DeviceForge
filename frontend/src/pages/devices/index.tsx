@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Code2, Files, Gauge, Plus, Smartphone, Terminal } from 'lucide-react';
+import { Code2, Gauge, Plus, Smartphone, Terminal } from 'lucide-react';
 import { Button } from '../../components/Button/index.tsx';
 import {
   Dialog,
@@ -148,7 +148,6 @@ export function DevicesPage({ services, active }: { services: ProductServices; a
       current: directoryOpen,
     },
     { id: 'performance', label: '性能与调用栈', icon: Gauge, href: '#performance' },
-    { id: 'files', label: '文件与产物', icon: Files, href: '#files' },
     { id: 'terminal', label: '终端', icon: Terminal, href: '#terminal' },
     {
       id: 'advanced',
