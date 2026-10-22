@@ -11,11 +11,13 @@ import { poll } from './device-provider/client.mjs';
 
 const args = process.argv.slice(2);
 const option = (name) => args.find((item) => item.startsWith(name + '='))?.slice(name.length + 1);
-for (const name of ['--frozen-input', '--plugin-input', '--tool', '--browser'])
+for (const name of ['--frozen-input', '--plugin-input', '--tool', '--browser', '--server-version'])
   assert.ok(args.filter((item) => item.startsWith(name + '=')).length <= 1);
-assert.ok(args.every((item) => ['--frozen-input=', '--plugin-input=', '--tool=', '--browser=']
+assert.ok(args.every((item) => ['--frozen-input=', '--plugin-input=', '--tool=', '--browser=', '--server-version=']
   .some((prefix) => item.startsWith(prefix))));
 assert.ok(option('--frozen-input') && option('--plugin-input') && option('--tool'), '必须指定冻结宿主、插件及独立假ADB');
+const serverVersion = option('--server-version') ?? '3.3.1';
+assert.ok(['3.3.1', '3.3.4'].includes(serverVersion), '服务器版本仅支持3.3.1或3.3.4');
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const directory = join(root, 'artifacts', 'mirroring-ownership-smoke-' + randomUUID());
@@ -23,6 +25,7 @@ const snapshot = join(directory, 'snapshot');
 const device = 'ownership-' + randomUUID();
 const report = {
   timestamp: new Date().toISOString(), passed: false, checks: [], requests: [],
+  server_version: serverVersion,
   scope: '隔离Rust宿主、三真实浏览器WebRTC会话、跨进程所有权协调、独立假ADB与scrcpy控制原帧',
   limitations: ['合成媒体及设备回包不是真机原生菜单操作',
     '本机三个浏览器客户端均为主控身份，非主控身份与抢回拒绝沿独立HTTP身份测试及所有权规则测试确认',
@@ -54,6 +57,7 @@ try {
   const fixture = join(directory, 'fixture');
   const plan = join(fixture, 'plans', device);
   await mkdir(plan, { recursive: true });
+  await writeFile(join(plan, 'server-version'), serverVersion, { flag: 'wx' });
   const adb = join(fixture, 'fake-adb.exe');
   await copyFile(join(snapshot, 'fake-adb.exe'), adb);
   const server = join(fixture, 'scrcpy-server.jar');
@@ -61,7 +65,7 @@ try {
   report.media = await prepareMedia(snapshot, { plan: () => plan }, device);
   const config = join(snapshot, 'mirroring.config.json');
   await writeFile(config, JSON.stringify({ format_version: 1, scrcpy: adb, adb,
-    live: { scrcpy_server: server, server_version: '3.3.1' } }), { flag: 'wx' });
+    live: { scrcpy_server: server, server_version: serverVersion } }), { flag: 'wx' });
   manifest.executable = join(snapshot, 'deviceforge-mirroring-plugin.exe');
   manifest.args = ['--config', config];
   host = await prepareHost({ root, binary: join(snapshot, 'apk-server.exe'), directory: join(directory, 'data'),

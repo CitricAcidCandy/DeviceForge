@@ -10,4 +10,4 @@
 node scripts/mirroring-ownership-smoke.mjs --frozen-input=<宿主冻结目录> --plugin-input=<插件冻结目录> --tool=artifacts/mirroring-ownership-fake-adb.exe
 ```
 
-可通过 `--browser=<浏览器程序>` 指定 Edge。报告和输入身份保存在本次 `artifacts/mirroring-ownership-smoke-*`，失败报告保留。驱动不接触正在运行的 7031，不连接真实设备；合成回包不是安卓原生菜单操作验收。本机浏览器的主控身份、真实多人局域网延迟与非主控拒绝分开记录。
+可通过 `--browser=<浏览器程序>` 指定 Edge；服务版本默认3.3.1，验证新版时传 `--server-version=3.3.4`。夹具从固定计划文件独立读取期望版本，并精确核对启动、就绪及清理身份，不从生产命令推断期望。报告和输入身份保存在本次 `artifacts/mirroring-ownership-smoke-*`，失败报告保留。驱动不接触正在运行的 7031，不连接真实设备；合成回包不是安卓原生菜单操作验收。本机浏览器的主控身份、真实多人局域网延迟与非主控拒绝分开记录。

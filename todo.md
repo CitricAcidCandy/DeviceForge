@@ -1,5 +1,14 @@
 # DeviceForge 开发与验收记录
 
+## 2026-10-22 荣耀 Android 17 投屏启动后断开
+
+- [x] 用户日志 `b888f5e1-579d-441a-8bbd-9bb4fa5ac1db` 对应旧会话输出GET200；用户确认目标荣耀PTP-AN70。公开会话复现约三秒EOF，同次设备崩溃记录 `AbstractMethodError: IDisplayWindowListener.onDisplayAnimationsDisabledChanged`，证明旧scrcpy-server3.3.1监听接口不兼容Android17。原失败、净化崩溃行、版本裁定均保留于 `artifacts/webrtc-eof-20261022/`。
+- [x] 使用官方scrcpy-server3.3.4，摘要 `8588238c9a5a00aa542906b6ec7e6d5541d9ffb9b5d0f6e1bc0e365e2303079e`；部署版本仅接受3.3.1/3.3.4，准备资源前固定本次版本，启动/就绪/清理共用。更新清单枚举、示例与文档，不改HTTP、媒体/控制协议。新增两条有意义回归，投屏库62/62、单插件debug构建、28模块架构/6项规则、fmt已通过；完整门禁另行补记。
+- [x] 当前预览热更新成功，宿主PID49036及创建时间不变，插件SHA256 `16d02b9b81593644d948a1255d12116c792d0bb1079b12c75203b25b8a7504b9`。首轮因旧宿主不支持源码新清单字段返回400，已实际恢复并保留失败；第二轮沿用兼容原清单，仅替换插件及旁置服务配置。原插件/清单/配置和两轮报告在 `deployment/`、`deployment-compatible/`，不重启整个后端。
+- [x] 荣耀真机生产前端工厂/真实Edge连续两轮30.248秒、30.239秒，解码219/338帧，584×1280，真实UDP；每轮5秒/25秒reset_video后有新解码帧，释放后再次open成功。单帧经视觉子代理确认非黑屏、无明显解码破损；未发按键/触摸。宿主两次结束日志均Cleanup Complete，后续ADB无scrcpy进程/独占目录/forward、无活动会话且cleanup_failed=false。汇总 `device-validation.json` passed=true。原浏览器报告业务通过但自身退出等待超时使顶层false，原件保留；独立OS查询已确认该主进程退出，未覆盖原报告。
+- 边界：两轮短时本机播放不能证明长时稳定性、LAN/NAT/TURN、性能/流畅度、音频、原生复制菜单或正式分发；首轮108丢帧、次轮8丢帧如实保留。旧WebRTC单资源夹具与当前独立控制端不兼容，两份隔离失败保留，不修改生产或放宽断言；双版本验证改用现行控制权夹具。其他会话的前端改动均保留。
+- [x] 双版本现行控制权夹具各启动三客户端并进入streaming、四项控制权断言通过；两轮均在同意移交后等待剪贴板超时，退出1，未宣称整套通过。每轮45假工具调用、五组独占资源及五个转发清理；宿主exit0、监听释放、浏览器/profile和记录身份后续无存活，PID复用的新conhost保留。原报告为 `artifacts/mirroring-ownership-smoke-48938613-f68b-49a0-b9a3-d710deca7f68/report.json`（3.3.4）和 `artifacts/mirroring-ownership-smoke-69223d18-5cb5-4a92-8bc7-543b27ce0533/report.json`（3.3.1），汇总在本轮 `隔离夹具双版本验证.md`。完整Clippy已退出0，workspace测试仍编译中。
+
 ## 2026-10-21 WebRTC 结束后持续 busy 状态修复
 
 - [x] 用户提供 `f5859eae-4d42-4685-9911-a3e1f6ee2b70` 和提示截图。该 ID 为北京时间12:01:40会话输出 GET、HTTP200；此前会话 `e5b67549-b9ff-4950-b8bf-890835950c72` 已结束且清理 Complete。截图经子代理只读审核，无额外指令；日志原件和定位见 `artifacts/webrtc-opening-recovery-20261021/现场定位.md`。
@@ -1628,3 +1637,12 @@ Android环境观测已随实际Root读取通道标记权限；普通无Root不�
 - 服务器只接管精确PID/路径/创建时间；其他程序即使伪造健康响应也拒绝停止。关闭优先公开shutdown；只有宿主成功结束日志、无业务子进程和监听才回收同身份残留进程句柄，不批量结束进程树。日志按64KiB块读取、每文件每轮256KiB，单行256KiB上限，支持中文半行、滚动和截断，显示白名单关联字段，不打印原请求或未知字段。
 - 测试助理9/9定点通过（110.4秒）：真实debug空插件后台启动/复用、伪造身份拒停、正常停止、status/quit/stop和监听器回收；日志子代理21项独立自检通过，覆盖跨块中文、超长/坏行、有界倒读、滚动和资源释放。主代理实际终端Ctrl+C通过，独占PID42808与65162端口正常释放、临时目录删除，报告 `artifacts/backend-console-20261020/ctrl-c-report.json`。格式整理后日志与默认部署6项再通过，全部新增脚本语法、Prettier、编码与差异检查通过。
 - CMD根批处理和WindowsPowerShell5.1帮助退出0，PS状态查询确认用户原PID31772健康；实际附加原服务查看日志后quit，原服务保持运行。本轮未重启用户服务、前端或设备，所有测试宿主/端口/临时目录收口；未自动提交、恢复用户修改或扩大为正式分发验收。Android资源清理失败的底层原因仍独立待查。
+
+### 2026-10-22 12:00 性能与调用栈顶部控制区改版
+
+- 用户指出页头「持续采样 / 归档录制」与下方「会话与明细 / 开始采集」很丑。定位三点：模式切换是 36px 胶囊（圆角 6px、内白块），与 32px/4px 圆角按钮不同高不同形，且与下方动作行叠成两层右对齐；「会话与明细」用 ghost 变体，在紫色主按钮旁读起来像灰字标签；页面自带的 `workspace.css` 里 `.performance-page { gap: 0 }` 以无层样式覆盖了 Tailwind 的 `gap-3`，标题与工具条原本贴在一起。
+- 页头改为「标题 + 下划线模式切换」共用一条发丝线：切换条 12px 文字、32px 高，指示线用 `after` 伪元素画 2px 主色并压在线内（全局 `* { border-color: var(--border) }` 是无层规则，会吃掉 `border-*-color` 工具类，故不用 border）。选中态改用 `aria-pressed`，不再用 `data-current`。
+- 工具条收成一行：左侧只读状态（状态点只取状态色，包名/时长/点数保持中性灰，点数用等宽数字），右侧动作组（会话与明细 outline+图标、暂停/继续、终止改红字 ghost、发丝分隔线、主按钮）。动作组独立成块，换行时整体换行不散开。存在会话时「重新采集」降为 outline，整行只留一个实心主按钮；终止不再用实心红，避免运行态里最响的控件是「停止」。
+- 删除 `pages/performance/workspace.css`（515 行规则在 TSX 中零引用），同步移除页面 import 与 `check-ui-policy` 白名单条目；该文件删除后 `gap-3` 生效，页头与内容间距恢复 12px。
+- 实际验证：`check:ui-policy` 退出 0；`check:architecture` 403 源码通过；`tsc --noEmit` 退出 0；`vite build` 成功（20.33s，仅既有 chunk/sourcemap 警告）；`tests/performance-board.test.ts` 5/5 通过（本机 5173 占用导致 Vite 端口 24678 告警，不影响断言）。全套 96 文件测试仍在运行，未计入通过。
+- 真实浏览器截图在 `artifacts/performance-header-20261022/`（1440/1280/1024/760 与 3× 细节）。运行态排布用临时 mock 会话截图后已回滚，源码无 mock 残留。未接真机，采集中的真实读数与按钮可用态未验收；归档录制面板未改；未提交。

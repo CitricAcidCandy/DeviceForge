@@ -34,8 +34,8 @@ fn call_directory(root: &Path) -> io::Result<PathBuf> {
     Err(io::Error::other("夹具调用超限"))
 }
 
-fn identity(scid: &str) -> String {
-    format!("a=$(tr '\\000' '\\n' < /proc/$p/cmdline); n=$(printf '%s\\n' \"$a\" | head -n 1); [ \"$n\" = app_process ] && printf '%s\\n' \"$a\" | grep -Fxq com.genymobile.scrcpy.Server && printf '%s\\n' \"$a\" | grep -Fxq 3.3.1 && printf '%s\\n' \"$a\" | grep -Fxq scid={scid} && printf '%s\\n' \"$a\" | grep -Fxq tunnel_forward=true")
+fn identity(scid: &str, version: &str) -> String {
+    format!("a=$(tr '\\000' '\\n' < /proc/$p/cmdline); n=$(printf '%s\\n' \"$a\" | head -n 1); [ \"$n\" = app_process ] && printf '%s\\n' \"$a\" | grep -Fxq com.genymobile.scrcpy.Server && printf '%s\\n' \"$a\" | grep -Fxq {version} && printf '%s\\n' \"$a\" | grep -Fxq scid={scid} && printf '%s\\n' \"$a\" | grep -Fxq tunnel_forward=true")
 }
 
 fn main_inner() -> io::Result<()> {
@@ -44,6 +44,8 @@ fn main_inner() -> io::Result<()> {
     let root = env::current_exe()?.parent().unwrap().canonicalize()?;
     let plan = root.join("plans").join(&args[1]);
     assert!(plan.is_dir());
+    let version = fs::read_to_string(plan.join("server-version"))?;
+    assert!(matches!(version.as_str(), "3.3.1" | "3.3.4"), "夹具服务器版本不在白名单");
     let call = call_directory(&root)?;
     fs::write(call.join("pid"), std::process::id().to_string())?;
     fs::write(call.join("argv"), args.join("\n"))?;
@@ -92,8 +94,7 @@ fn main_inner() -> io::Result<()> {
             let remote = remote(script);
             let path = session(&plan, &remote);
             let scid = field(script, "scid=");
-            assert!(script.starts_with(&format!("echo $$ > {remote}/pid && CLASSPATH={remote}/server.jar exec app_process / ")));
-            assert!(script.contains(" com.genymobile.scrcpy.Server 3.3.1 "));
+            assert!(script.starts_with(&format!("echo $$ > {remote}/pid && CLASSPATH={remote}/server.jar exec app_process / com.genymobile.scrcpy.Server {version} ")));
             for fixed in ["tunnel_forward=true", "send_device_meta=false", "send_dummy_byte=false", "cleanup=false", "audio=false"] {
                 assert!(script.split_whitespace().any(|item| item == fixed));
             }
@@ -117,13 +118,13 @@ fn main_inner() -> io::Result<()> {
                 thread::sleep(Duration::from_millis(5));
             }
             let scid = fs::read_to_string(path.join("scid"))?;
-            assert!(args[3].contains(&identity(&scid)));
+            assert!(args[3].contains(&identity(&scid, &version)));
             println!("DFML_READY");
         },
         "cleanup" => {
             let path = session(&plan, &remote(&args[3]));
             if let Ok(scid) = fs::read_to_string(path.join("scid")) {
-                assert!(args[3].contains(&identity(&scid)));
+                assert!(args[3].contains(&identity(&scid, &version)));
             }
             for name in ["remote-pid", "remote-dir"] {
                 match fs::remove_file(path.join(name)) {
