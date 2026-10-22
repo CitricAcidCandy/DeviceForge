@@ -45,10 +45,8 @@ const CSS_ALLOWLIST = new Set([
   'pages/marketplace/components/LocalImportDialog/styles.css',
   'pages/marketplace/components/MarketplaceUploadContent/styles.css',
   'pages/marketplace/workspace.css',
-  'pages/plugins/workspace.css',
   'pages/settings/workspace.css',
   'pages/tasks/workspace.css',
-  'pages/tools/workspace.css',
 ]);
 
 // T2：行内样式只放图表几何（数据驱动的坐标、比例），其余交给 Tailwind。
@@ -96,7 +94,9 @@ function inlineStyleIssues(file: string, text: string): void {
         for (const property of expression.expression.properties) {
           if (!ts.isPropertyAssignment(property) && !ts.isShorthandPropertyAssignment(property)) continue;
           const key = property.name.getText();
-          if (!INLINE_STYLE_KEYS.has(key) && !isBaseline(file, `inline:${key}`)) {
+          // 自定义属性是唯一允许的「行内主题/几何通道」：主题插件与拖拽尺寸都靠它传递。
+          // 颜色、字号这类可读性项不接受行内写法，必须留在 CSS 类里。
+          if (!INLINE_STYLE_KEYS.has(key) && !key.startsWith('--') && !isBaseline(file, `inline:${key}`)) {
             failures.push(`${file}:${property.getStart()}: 行内样式键 "${key}" 不在图表几何白名单，请改用 Tailwind 工具类`);
           }
         }
@@ -172,9 +172,6 @@ const BASELINE: Readonly<Record<string, readonly string[]>> = {
     "pages/frida/index.tsx": [
       "responsive"
     ],
-    "pages/marketplace/index.tsx": [
-      "responsive"
-    ],
     "pages/performance/components/PerformanceReadings/index.tsx": [
       "inline:display"
     ],
@@ -203,16 +200,10 @@ const BASELINE: Readonly<Record<string, readonly string[]>> = {
     "pages/performance/index.tsx": [
       "fixed:160px"
     ],
-    "pages/plugins/index.tsx": [
-      "responsive"
-    ],
     "pages/settings/index.tsx": [
       "responsive"
     ],
     "pages/tasks/index.tsx": [
-      "responsive"
-    ],
-    "pages/tools/index.tsx": [
       "responsive"
     ],
     "components/Progress/index.tsx": [

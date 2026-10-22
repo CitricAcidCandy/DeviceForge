@@ -154,6 +154,38 @@ async fn legacy_is_copied_once_then_cas_and_masked_merge_control_user_snapshots(
 }
 
 #[tokio::test]
+async fn valid_legacy_record_is_not_augmented_with_mutually_exclusive_defaults() {
+    let mut fixture = Fixture::new("next_invocation").await;
+    fixture.manifest["configuration"]["schema"] = json!({
+        "type":"object","additionalProperties":false,
+        "properties":{"remote":{"type":"string"},"local":{"type":"string"}},
+        "oneOf":[{"required":["remote"],"not":{"required":["local"]}},
+                 {"required":["local"],"not":{"required":["remote"]}}]
+    });
+    fixture.manifest["configuration"]["defaults"] = json!({"local":"bundled-example"});
+    fixture.write_manifest();
+    let legacy = json!({"remote":"http://127.0.0.1/catalog"});
+    fs::write(
+        fixture
+            .directory
+            .path()
+            .join("plugins/demo/bin/legacy.json"),
+        serde_json::to_vec(&legacy).unwrap(),
+    )
+    .unwrap();
+    let view = fixture.store.get("demo").await.unwrap();
+    assert!(view.compatible);
+    assert_eq!(view.values, legacy);
+    let path = fixture
+        .store
+        .invocation_path("demo")
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(Fixture::raw(&path), legacy);
+}
+
+#[tokio::test]
 async fn reload_policy_retains_applied_snapshot_and_upgrade_preserves_values_until_explicit_confirmation()
  {
     let mut fixture = Fixture::new("plugin_reload").await;

@@ -1,13 +1,29 @@
 # DeviceForge 开发与验收记录
 
+## 2026-10-22 终端默认切换普通命令行
+
+- [x] 原示例唯一档案为 `python -u -i`，导致终端默认进入解释器。最终源码清单和示例切换Windows PowerShell，固定UTF-8输入输出；页面刷新配置时移除已失效的Python选择，回归验证实际提交 `profile:powershell`。其他会话的页面样式改动保留。
+- [x] 当前预览经公开配置接口持久化到 `C:\Users\柠檬果\.deviceforge\plugin-configurations\server\terminal`，修订2且应用修订2、managed/compatible；原Python会话正常结束并保留历史，无宿主重启。真实7031七项检查通过：提示符、普通echo、持续cd、中文输出、dir与exit/清理确认；仅删除本次测试记录。
+- [x] 终端库14/14、所属fmt/Clippy/debug build、后端架构及6规则、前端定点/check/独立build通过。完整前端100文件99通过，原插件导航两断言失败；终端用例通过。API生成和全工作区fmt受其他会话资源/安装模块在途变更阻断，未记全量通过。
+- 边界：最初CMD的UTF-8管道中文输入提前退出，CRLF/LF独立复现后改用PowerShell，保留失败材料。真实Edge在5173停止后导航失败，浏览器正常退出且端口释放；恢复Vite的操作被自动审批 `blocked by policy` 拒绝，未绕过，本轮没有真实页面成功证据。证据 `artifacts/terminal-cmd-20261022/`；当前管道能力不含PTY/resize，未重打npx包、发布或操作设备。
+
+## 2026-10-22 终端创建后输出分页报错
+
+- [x] 用户截图“输出游标须为非负安全整数，页长须为1至100”由子代理核对。终端页面自动读取与继续读取错误传入 `limit:200`，公共会话契约仅允许1至100；两个入口改用公共工厂默认50，不修改后端限制。现场已有运行中的终端会话，创建成功与读取失败分别记录。
+- [x] 新增真实页面、ProductServices与受控HTTP回归：旧代码无法读输出，修改后通过；覆盖55块分两页、排他游标0→50→55、暂停不取消服务器、继续读取、中文输入与关闭。完整前端本次100文件99通过，唯一失败文件 `product-plugin-startup.test.ts` 内原插件导航与默认启用两条断言失败；新增终端用例通过，不改其他会话正在调整的导航。
+- [x] API生成无净差异、406源码架构与TypeScript检查、独立目录生产构建通过。真实Edge对当前5173/7031完成六项业务检查，Python命令实际输出、所有输出GET使用50条页长并返回200、暂停续读和关闭成功；原用户会话保留，测试会话Finished/Cleanup Complete并删除测试记录。
+- 边界：两次浏览器驱动都未取得正常退出事件，原失败报告保留；后续OS独立确认两个浏览器及两个驱动PID均已消失，调试端口释放。第二次报告 `business_passed:true`、顶层 `passed:false`，不记整套浏览器驱动通过。证据在 `artifacts/terminal-pagination-20261022/`；未重启后端、未操作设备或重打npx包。
+
 ## 2026-10-22 插件配置统一持久化到用户目录
 
 - [x] 按用户确认拆分插件程序与用户配置：默认 `~/.deviceforge/plugin-configurations/{server,browser}`，显式隔离使用 `DEVICEFORGE_USER_DIR`。CLI `--data-dir`、业务根及插件安装根不改变配置归属，启动输出展示插件配置根。初始插件程序和依赖工具继续保留原部署位置。
 - [x] 服务器旧状态与全部既存不可变修订仅在目标无状态时复制，源文件保留；声明默认值或旁置模板首次读取即物化，运行插件消费用户快照。浏览器新增有界原值记录、CAS、独占锁与原子发布API；localStorage只作无远端记录时的首次导入源，默认值也首次落盘，API失败不假报本地保存成功。
 - [x] 前端prepare/markApplied异步接入生命周期，激活前取得原值、应用确认失败回滚新代；取消与晚到结果不覆盖运行值。无配置声明插件零配置请求。新增配置/API/生命周期定点35项通过，补公开SDK示例新接口夹具后配置与扩展最终51项通过；生成API、408源码check和build通过。
-- [x] 隔离真实HTTP+Edge组合32项通过，首次浏览器10项行为通过；真实页面刷新、同用户根换业务目录重启、全新浏览器上下文复读、配置实际落盘与插件真实消费均通过，宿主/浏览器/端口/profile清理确认。本机7031已正常更新为 `server-user-configurations-20261022.exe`（PID65464），13配置实际进入用户根，投屏修订1与原值、应用标记保留，旧文件摘要不变；默认BAT已切新副本。
-- [x] 后端架构、6项规则、fmt、workspace Clippy和debug build通过；服务器配置7项、浏览器存储9项及HTTP/OpenAPI4项、配置根1项通过。全部证据在 `artifacts/plugin-user-configurations-20261022/`，两端验收文档分属各自docs。
-- [ ] 完整workspace测试、运行时功能冒烟和当前release/npx分发正在统一收口。完整前端首轮100文件98通过；扩展夹具失败已定点修复，既有 `product-plugin-startup.test.ts` 两条DOM断言仍失败，不能记全量通过。没有操作设备、公开发布、性能或跨平台验收。
+- [x] 隔离真实HTTP+Edge组合32项通过，首次浏览器10项行为通过；真实页面刷新、同用户根换业务目录重启、全新浏览器上下文复读、配置实际落盘与插件真实消费均通过，宿主/浏览器/端口/profile清理确认。兼容修复后最终release组合再次通过。本机7031最终为 `server-user-configurations-20261022-final.exe`（PID80072），13配置实际进入用户根，投屏修订1与原值、应用标记保留；升级前后用户根27个JSON文件字节一致，原旧目录文件保留，BAT默认已切最终副本。
+- [x] 后端架构、6项规则、fmt、最终workspace Clippy和debug build通过；服务器配置最终8项、浏览器存储9项及HTTP/OpenAPI4项、配置根1项通过。真实npx首轮发现旧完整工具配置混入互斥默认字段，已修复为有效旧对象直接复制，补回归并重建release。初始失败归档保留，不修改实际用户已有修订。
+- [x] debug两种runtime、日志功能、生命周期、在线包通过；release四类通过，生命周期首轮排队断言失败、独立重试通过。两模式浏览器插件公开扩展通过，配置HTTP各23项通过。prepare:runtime最终通过，新CLI包42成员/12,762,425字节/SHA256 `d73694227f5ef36620122cd88f97661d2090276fd2d0a3e66131406ba2369ad9`，路径为本轮 `packages/deviceforge-cli-0.1.0.tgz`。实际npx同包两阶段通过，8原生插件/HTTP/MCP/新用户根落盘与重启复读通过，正常退出/端口/临时目录清理；完整报告 `artifacts/npx-raw-i61aY4/report.json`，包摘要一致。
+- [x] 根首轮78/80含两超时，限制两并行后完整80/80通过。workspace首轮插件包两项失败；两线程no-fail-fast重跑1903通过/1失败/1忽略，唯一失败为产物锁夹具未隔离用户根，补私有根后原2项通过；未再完整重跑，不记全量绿色。完整前端首轮100文件98通过，扩展夹具已定点修复；既有 `product-plugin-startup.test.ts` 两条DOM断言仍失败。全部原始记录保留，两端验收文档分属各自docs；没有操作设备、公开发布、性能或跨平台验收。
+- 首轮失败npx目录 `C:\Users\柠檬果\AppData\Local\Temp\deviceforge-npx-dieyDX` 删除被自动审批拒绝，仅返回blocked by policy，未绕过，目录保留；其宿主、合成源和端口已关闭。最终成功npx自己的临时目录已清理。记录 `failed-npx-cleanup.json`，原失败报告不改。
 
 ## 2026-10-22 插件中文资料与配置入口修复
 
@@ -1670,3 +1686,14 @@ Android环境观测已随实际Root读取通道标记权限；普通无Root不�
 - 日志 `b888f5e1-579d-441a-8bbd-9bb4fa5ac1db` 的提前断开已定位为 scrcpy-server 3.3.1 在 Android 17 缺少显示监听 Binder 回调。改用官方 3.3.4 并固定版本身份；荣耀 PTP-AN70、生产前端工厂、Edge、本机真实 UDP 两轮各播放约30秒，分别解码219/338帧，释放及再次开启成功。视觉子代理审核可辨认、无全黑或明显破损。清理后无会话、设备进程、forward、独占目录或插件 cleanup_failed。详情和包摘要见 `backend/docs/implementation/投屏直播插件实施.md` 及 `artifacts/webrtc-eof-20261022/device-validation.json`。
 - 后端架构28模块/6规则、fmt、workspace Clippy、workspace build、runtime/runtime-performance/logging/plugin-lifecycle/cooperative 冒烟通过。全workspace测试 `cargo test --workspace -j 1` 退出101：Harmony协议套件127/128，64 MiB截图用例在测试假HDC `call-05` 等ready超时。该单测独立串行1/1通过；完整Harmony协议集串行复跑仍相同127/128、393.74秒，测试套件上下文的ready超时尚未查明，保留两个失败原件，不能写完整workspace test通过。完整门禁记录在 `artifacts/webrtc-eof-20261022/gates/`。
 - 短时本机播放不覆盖长时稳定性、音频、同事LAN/NAT/TURN、延迟/性能、原生复制菜单或正式分发；两轮丢帧108与8不作流畅度结论。控制权双版本夹具和旧WebRTC夹具失败原样保留，不归因于 scrcpy 版本兼容。工作区现有 `frontend/src/app/product/layout.css` 并行修改未触碰。
+
+### 2026-10-22 16:50 市场页实施与「插件/工具供应」并线
+
+- 用户确认设计稿并追加「工具供应和插件重复，保留市场即可」。按此实施：`PRODUCT_ROUTES` 移除 `plugins`、`tools`，侧栏从 12 项降到 10 项；删除 `pages/plugins`、`pages/tools` 两个目录及 `ToolsPage` 挂载分支；`chrome.tsx`「管理插件」、设备页与目录页的 `#plugins` 链接、插件默认启用与能力缺失提示统一切到市场（文案改成「市场页/市场页『已安装』」）。
+- 市场页改版落地：页头＝标题 + 搜索 +（刷新/本地导入/上传发布）；第二行＝发现资源/已安装分段 + 市场源地址；主体＝左侧 168 条目类型与适用项目导航（窄屏隐藏）+ 竖发丝线 + 内容列（结果计数、分类 chips、分页、卡片网格）。网格用 `repeat(auto-fill,minmax(18.75rem,1fr))`，1424 窗口三列、更宽自动四列以上。
+- 卡片按设计稿重做：28px 图标块（按 kind 取 Puzzle/Wrench/SlidersHorizontal/Package）+ 名称 + 等宽 `id · v版本` + 两行摘要 + `[类型][分类×2][MCP][Agent]` 标签 + 发丝线 + 来源与动作。类型徽章与「可更新」都在标签行，卡头不再承载状态，长标识用 `truncate` 而不是改数据。
+- 详情从居中弹层改为右侧抽屉（Radix Sheet 420px），保留来源/SHA-256/平台架构/分类/权限/应用方式/调用支持/专属信息/关键词全部字段与 `role="dialog"`、`role="status"`、下载/更新/关闭动作；高级筛选（MCP/Agent/应用方式/平台/架构）收进右侧 Sheet，由左导航底部入口打开并显示已启用条件数。
+- 样式收口：`pages/marketplace/workspace.css` 从 472 行裁到 177 行，只留上传与本地导入弹层仍在用的 `.marketplace-upload-*`；列表、卡片、详情全部 Tailwind，未新增 CSS 文件。同步从 `check-ui-policy` 的白名单删除 `pages/plugins/workspace.css`、`pages/tools/workspace.css`，并移除 `pages/marketplace/index.tsx` 的 responsive 豁免。
+- 修复过程中自查出两个自身缺陷：`patch()` 先展开 next 再写 `offset:0` 会让翻页永远回到第一页（已改成先 offset 再 next）；分类 chips 直接渲染原始键名（已改用 `categoryLabels`）。
+- 验证：`check:ui-policy` 通过；`check:architecture` 406 源码通过；`tsc --noEmit` 通过；`vite build` 34.05s 成功（仅既有 chunk/sourcemap 警告）；`tests/marketplace-ui.test.ts` 13/13 通过（含卡片派发、已安装列表、详情抽屉字段与关闭）；`tests/App.test.ts` 静态渲染用例通过、导航用例在运行中被本批编辑打断过一次，重跑受本机 5173 dev server 与测试共用 Vite 依赖缓存影响长时间停在 optimizer，未取得最终结论。
+- 未做：真实浏览器截图与 `check:responsive`（本机未开 9333 调试端口，也未安装 Playwright 浏览器），因此三列/四列的实际断点、抽屉在小窗口的宽度、以及真机上 `.marketplace-card` 与 Tailwind 的最终视觉未取证。`.marketplace-page` 类名保留但已无样式，仅作定位标记。

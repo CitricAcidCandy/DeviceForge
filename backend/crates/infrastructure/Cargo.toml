@@ -24,6 +24,7 @@ tempfile = "3"
 quick-xml = "0.42"
 
 jsonschema = { version = "0.33", default-features = false }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "stream"] }
 
 deviceforge-data-codec.workspace = true
 tracing.workspace = true

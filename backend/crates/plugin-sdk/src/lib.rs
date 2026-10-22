@@ -7,11 +7,13 @@ pub mod devices;
 pub mod execution;
 pub mod packages;
 pub mod performance;
+pub mod resources;
 pub mod session;
 pub mod session_access;
 pub use configuration::{ConfigurationApplyPolicy, ConfigurationDefinition, managed_config_path};
 pub use context::{CONTEXT_PROTOCOL_VERSION, ReadyCommand, ReadyFrame, StartCommand, StartFrame};
 pub use execution::ExecutionBudget;
+pub use resources::{ManagedResources, managed_resources};
 pub use performance::{
     BatteryElectricalObservation, BatteryStatus, BatterySupplyState, CurrentPolarity,
     DeviceObservation, DeviceTemperature, MetricMissing, MetricUnavailableReason,

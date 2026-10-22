@@ -120,7 +120,7 @@ export function MultiTrackChart({
           show: index === tracks.length - 1 && showXAxis,
           color: COLOR.textFaint,
           fontFamily: 'JetBrains Mono',
-          fontSize: 11,
+          fontSize: 12,
           formatter: (value: number) => `${Math.round(value)}s`,
         },
         splitLine: { show: false },

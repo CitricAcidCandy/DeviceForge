@@ -25,4 +25,5 @@ pub mod browser_configurations;
 pub mod plugin_catalog;
 pub mod plugin_configurations;
 pub mod plugin_packages;
+pub mod plugin_installations;
 pub mod splits;

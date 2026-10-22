@@ -129,7 +129,7 @@ export function DevicesPage({ services, active }: { services: ProductServices; a
           if (result.data.failures.length) services.messages.warning(title, options);
           else if (result.data.discovered === 0)
             services.messages.info('暂无运行中的设备提供者', {
-              description: '在插件页启用设备提供者后重新发现。',
+              description: '在市场页「已安装」启用设备提供者后重新发现。',
               logId: result.logId,
             });
           else services.messages.success(title, options);
@@ -247,7 +247,7 @@ export function DevicesPage({ services, active }: { services: ProductServices; a
                   </Button>
                 ) : (
                   <Button variant="outline" size="sm" asChild>
-                    <a href="#plugins">去插件页启用</a>
+                    <a href="#marketplace">去市场页启用</a>
                   </Button>
                 )}
                 <Button variant="ghost" size="sm" onClick={() => setConnectionOpen(true)}>

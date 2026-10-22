@@ -1,0 +1,35 @@
+{
+  "format_version": 1,
+  "host_api_version": 2,
+  "id": "tool-supply",
+  "version": "0.1.0",
+  "name": "工具供应",
+  "description": "根据部署者指定的工具清单检查本地差异、规划更新、校验归档并安装，支持本地产物导入及运行时功能准备。清单来源、安装目录和资源限额由插件配置管理。",
+  "components": [
+    {
+      "id": "tool-supply",
+      "kind": "server",
+      "version": "0.1.0",
+      "variants": []
+    }
+  ],
+  "tools": [],
+  "requirements": [
+    {
+      "component_id": "tool-supply",
+      "config_pointer": "/local_manifest",
+      "title": "工具供应清单",
+      "description": "选择实际存在的供应清单或在配置中提供受信任的在线来源。",
+      "sensitive": false,
+      "required": true
+    },
+    {
+      "component_id": "tool-supply",
+      "config_pointer": "/install_root",
+      "title": "工具安装目录",
+      "description": "选择实际工具安装根目录；建议使用当前用户的 .deviceforge/tools。",
+      "sensitive": false,
+      "required": true
+    }
+  ]
+}

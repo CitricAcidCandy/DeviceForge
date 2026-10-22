@@ -15,7 +15,7 @@
 .ai-connection > summary,
 .ai-thread-tools > summary {
   color: var(--muted-foreground);
-  font-size: 13px;
+  font-size: 0.875rem;
 }
 .ai-connection-content {
   padding-block: 12px;
@@ -59,7 +59,7 @@
   margin: 0 0 12px;
 }
 .ai-provider > .muted {
-  font-size: 12px;
+  font-size: 0.8125rem;
   overflow-wrap: anywhere;
   margin-block: 12px 0;
 }

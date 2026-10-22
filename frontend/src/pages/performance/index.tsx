@@ -203,7 +203,7 @@ function SessionDrawer({
   return (
     <div className="flex flex-col gap-5 p-4">
       <section className="flex flex-col gap-2">
-        <h3 className="text-[11px] font-medium text-[color:var(--text-muted)]">会话历史</h3>
+        <h3 className="text-[12px] font-medium text-[color:var(--text-muted)]">会话历史</h3>
         <div className="flex items-end gap-2">
           <Field label="会话 ID" value={loadId} onChange={onLoadIdChange} placeholder="已知会话 ID" />
           <Button size="sm" variant="outline" disabled={!loadId || pending} onClick={onLoad}>
@@ -211,7 +211,7 @@ function SessionDrawer({
           </Button>
         </div>
         {sessions.length === 0 ? (
-          <p className="text-[11px] text-[color:var(--text-faint)]">没有历史会话</p>
+          <p className="text-[12px] text-[color:var(--text-faint)]">没有历史会话</p>
         ) : (
           <ul className="flex flex-col gap-1">
             {sessions.map((item) => (
@@ -221,10 +221,10 @@ function SessionDrawer({
                   data-current={item.id === current?.id}
                   disabled={pending}
                   onClick={() => onSelect(item.id)}
-                  className="flex w-full items-baseline justify-between gap-3 rounded-md px-2 py-1 text-left text-[12px] hover:bg-[color:var(--surface-hover)] data-[current=true]:bg-[color:var(--accent)]"
+                  className="flex w-full items-baseline justify-between gap-3 rounded-md px-2 py-1 text-left text-[13px] hover:bg-[color:var(--surface-hover)] data-[current=true]:bg-[color:var(--accent)]"
                 >
                   <span className="truncate">{item.request.target.package}</span>
-                  <span className="shrink-0 font-mono text-[11px] text-[color:var(--text-faint)]">
+                  <span className="shrink-0 font-mono text-[12px] text-[color:var(--text-faint)]">
                     {stateLabel[item.state]} · {item.samples} 点
                   </span>
                 </button>
@@ -243,7 +243,7 @@ function SessionDrawer({
       </section>
       {readings.length > 0 && (
         <details>
-          <summary className="text-[11px] font-medium text-[color:var(--text-muted)]">
+          <summary className="text-[12px] font-medium text-[color:var(--text-muted)]">
             采样点明细 · {readings.length}
           </summary>
           <div className="pt-2">
@@ -252,18 +252,18 @@ function SessionDrawer({
         </details>
       )}
       <section className="flex flex-col gap-2">
-        <h3 className="text-[11px] font-medium text-[color:var(--text-muted)]">设备观测</h3>
+        <h3 className="text-[12px] font-medium text-[color:var(--text-muted)]">设备观测</h3>
         {observation ? (
-          <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-[12px]">
+          <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-[13px]">
             {(observation.temperatures ?? []).slice(0, 4).map((sensor) => (
               <div key={`${sensor.sensor_kind}-${sensor.sensor_name}-${sensor.observed_at}`}>
-                <dt className="text-[11px] text-[color:var(--text-faint)]">{sensor.sensor_name}</dt>
+                <dt className="text-[12px] text-[color:var(--text-faint)]">{sensor.sensor_name}</dt>
                 <dd className="font-mono">{sensor.temperature_celsius.toFixed(1)} °C</dd>
               </div>
             ))}
             {frames && (
               <div>
-                <dt className="text-[11px] text-[color:var(--text-faint)]">帧窗口</dt>
+                <dt className="text-[12px] text-[color:var(--text-faint)]">帧窗口</dt>
                 <dd className="font-mono">
                   {frames.frames} / {frames.duration_ms} ms
                 </dd>
@@ -271,9 +271,9 @@ function SessionDrawer({
             )}
           </dl>
         ) : (
-          <p className="text-[11px] text-[color:var(--text-faint)]">本点无设备观测</p>
+          <p className="text-[12px] text-[color:var(--text-faint)]">本点无设备观测</p>
         )}
-        <p className="font-mono text-[11px] text-[color:var(--text-ghost)]">
+        <p className="font-mono text-[12px] text-[color:var(--text-ghost)]">
           {session?.source
             ? `${session.source.plugin_id} / ${session.source.generation}`
             : '来源未记录'}
@@ -282,7 +282,7 @@ function SessionDrawer({
       </section>
       {session && (
         <details>
-          <summary className="text-[11px] text-[color:var(--text-muted)]">原始会话</summary>
+          <summary className="text-[12px] text-[color:var(--text-muted)]">原始会话</summary>
           <div className="pt-2">
             <JsonResult value={session} />
           </div>
@@ -388,7 +388,7 @@ function CollectDialog({
             />
             <Label htmlFor="collect-launch">先启动应用</Label>
             {launchApp && !launchGate?.capability && (
-              <span className="text-[11px] text-[color:var(--warning)]">
+              <span className="text-[12px] text-[color:var(--warning)]">
                 {launchGate?.reason ?? '当前设备不支持启动应用'}
               </span>
             )}
@@ -503,7 +503,7 @@ function PerformanceSessionPanel({
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1.5">
           {session ? (
             <>
-              <span className="flex min-w-0 items-center gap-x-2.5 font-mono text-[11px]">
+              <span className="flex min-w-0 items-center gap-x-2.5 font-mono text-[12px]">
                 <span className="flex shrink-0 items-center gap-1.5">
                   <span className={stateTone} aria-hidden>
                     ●
@@ -535,7 +535,7 @@ function PerformanceSessionPanel({
               </div>
             </>
           ) : (
-            <span className="flex items-center gap-2 text-[12px] text-[color:var(--text-faint)]">
+            <span className="flex items-center gap-2 text-[13px] text-[color:var(--text-faint)]">
               <span
                 className="size-1.5 rounded-full bg-[color:var(--hairline-strong)]"
                 aria-hidden
@@ -651,7 +651,7 @@ function PerformanceSessionPanel({
       />
       {readings.length > 0 && (
         <>
-          <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-1 px-1 text-[12px] text-[color:var(--text-muted)]">
+          <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-1 px-1 text-[13px] text-[color:var(--text-muted)]">
             <span>
               帧率 峰 {fpsPeak == null ? '—' : Math.round(fpsPeak)} · 均{' '}
               {fpsAverage == null ? '—' : Math.round(fpsAverage)} · 低{' '}
@@ -690,17 +690,17 @@ function PerformanceSessionPanel({
         </>
       )}
       {!snapshot.liveAvailable && (
-        <p className="px-1 text-[11px] text-[color:var(--warning)]">
+        <p className="px-1 text-[12px] text-[color:var(--warning)]">
           来源观测已撤销，请先在设备页刷新目录。
         </p>
       )}
-      {session?.error && <p className="px-1 text-[11px] text-[color:var(--warning)]">{session.error}</p>}
+      {session?.error && <p className="px-1 text-[12px] text-[color:var(--warning)]">{session.error}</p>}
       {snapshot.needsReconcile && (
-        <p className="px-1 text-[11px] text-[color:var(--warning)]">上次控制未确认，先重查状态。</p>
+        <p className="px-1 text-[12px] text-[color:var(--warning)]">上次控制未确认，先重查状态。</p>
       )}
       <ActionFeedback {...action} />
       {waitJob && (
-        <p className="px-1 font-mono text-[11px] text-[color:var(--text-ghost)]">任务 {waitJob}</p>
+        <p className="px-1 font-mono text-[12px] text-[color:var(--text-ghost)]">任务 {waitJob}</p>
       )}
       {snapshot.error !== action.error && <ErrorNotice error={snapshot.error} />}
     </div>
@@ -842,7 +842,7 @@ function RootProfilePanel({
                 </div>
               )}
               {jobId && (
-                <p className="font-mono text-[11px] text-[color:var(--text-ghost)]">任务 {jobId}</p>
+                <p className="font-mono text-[12px] text-[color:var(--text-ghost)]">任务 {jobId}</p>
               )}
               {archive && <ProfileArchiveView archive={archive} />}
               {published && <JsonResult value={published.result} />}
@@ -889,7 +889,7 @@ function RootProfilePanel({
           stackNote="无栈样本"
         />
       ) : (
-        <p className="px-1 text-[12px] text-[color:var(--text-faint)]">
+        <p className="px-1 text-[13px] text-[color:var(--text-faint)]">
           {packageId ? '录制完成后在这里按采样点回看画面、指标与栈。' : '先填写目标应用包名。'}
         </p>
       )}
@@ -902,7 +902,7 @@ type Source = 'session' | 'archive';
 
 // 模式切换按页头下划线 tab 处理：标题和切换共用一条发丝线，指示条压在线上的那 2px。
 const modeTabClass = [
-  'relative flex h-8 items-end px-0.5 pb-2.5 text-[12px] leading-none',
+  'relative flex h-8 items-end px-0.5 pb-2.5 text-[13px] leading-none',
   'text-[color:var(--text-muted)] transition-colors',
   'after:absolute after:inset-x-0 after:-bottom-px after:h-0.5 after:bg-[color:var(--primary)]',
   'after:opacity-0 after:transition-opacity',
@@ -924,7 +924,7 @@ export function PerformancePage({ services }: { services: ProductServices }) {
     >
       {/* 页头用一条发丝线收口：标题停在线上，模式切换压在这条线上，不再是一块浮在角落的胶囊。 */}
       <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-2 border-b border-[color:var(--hairline)]">
-        <h1 className="pb-2 text-[22px] font-semibold leading-tight text-[color:var(--text-strong)]">
+        <h1 className="pb-2 text-[24px] font-semibold leading-tight text-[color:var(--text-strong)]">
           性能与调用栈
         </h1>
         <div role="group" aria-label="采集方式" className="flex items-center gap-5">

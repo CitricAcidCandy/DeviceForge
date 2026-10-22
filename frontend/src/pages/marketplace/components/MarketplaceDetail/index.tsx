@@ -1,5 +1,14 @@
 import { Download, ArrowUpCircle } from 'lucide-react';
-import { Badge, Button, DialogShell } from '../../../../components/index.ts';
+import {
+  Badge,
+  Button,
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from '../../../../components/index.ts';
 import type { MarketplaceEntry } from '../../../../features/marketplace/index.ts';
 import type { PackageInfo } from '../../../../services/api/index.ts';
 import {
@@ -35,6 +44,24 @@ const detailLabels: Record<string, string> = {
   configuration: '配置入口',
 };
 
+function Row({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
+  return (
+    <div className="flex gap-3 border-b border-[color:var(--hairline)] py-2 last:border-b-0">
+      <dt className="w-22 shrink-0 text-[12px] leading-5 text-[color:var(--text-faint)]">{label}</dt>
+      <dd
+        className={
+          mono
+            ? 'min-w-0 flex-1 break-all font-mono text-[12px] leading-5 text-[color:var(--text-body)]'
+            : 'min-w-0 flex-1 text-[13px] leading-5 text-[color:var(--text-body)]'
+        }
+      >
+        {value}
+      </dd>
+    </div>
+  );
+}
+
+// 详情从居中弹层改成右侧抽屉：开着详情仍能对着列表比对，不打断当前位置。
 export function MarketplaceDetail({
   entry,
   installed,
@@ -54,21 +81,99 @@ export function MarketplaceDetail({
   const update = installed && newerVersion(entry.version, installed.version);
   const blocked = installBlock(entry);
   return (
-    <DialogShell
+    <Sheet
       open
       onOpenChange={(open) => {
         if (!open) onClose();
       }}
-      title={entry.name}
-      description={entry.summary || '条目详情'}
-      size="lg"
-      className="marketplace-detail-dialog"
-      footer={
-        <>
+    >
+      <SheetContent
+        side="right"
+        className="w-full gap-0 border-l border-[color:var(--hairline)] bg-[color:var(--card)] p-0 sm:max-w-105"
+      >
+        <SheetHeader className="gap-2 border-b border-[color:var(--hairline)] p-5 pr-12">
+          <div className="flex flex-wrap items-baseline gap-2">
+            <SheetTitle className="text-[18px] leading-6 text-[color:var(--text-strong)]">
+              {entry.name}
+            </SheetTitle>
+            <span className="font-mono text-[12px] text-[color:var(--text-ghost)]">
+              {entry.id} · v{entry.version}
+            </span>
+          </div>
+          <SheetDescription className="text-[12px] text-[color:var(--text-faint)]">
+            {entry.author || entry.sourceName} · {entry.license || '许可未声明'} ·{' '}
+            {entry.applies_to.join(' / ') || '适用范围未声明'}
+          </SheetDescription>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <Badge variant="outline">{kindLabels[entry.kind]}</Badge>
+            {update && <Badge variant="warning">可更新至 v{entry.version}</Badge>}
+            {entry.supports_mcp !== 'none' && <Badge variant="info">{mcpLabels[entry.supports_mcp]}</Badge>}
+            {entry.supports_agent && <Badge variant="violet">支持 Agent</Badge>}
+          </div>
+        </SheetHeader>
+
+        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-auto px-5 py-4">
+          {entry.metadataIssues?.length ? (
+            <div
+              className="rounded-lg border border-[color:var(--warning)]/40 bg-[color:var(--warning)]/8 px-3 py-2 text-[13px] text-[color:var(--text-body)]"
+              role="status"
+            >
+              <strong className="block text-[color:var(--warning)]">元数据不完整，暂不可安装</strong>
+              <p className="text-[12px] text-[color:var(--text-muted)]">{entry.metadataIssues.join('；')}</p>
+            </div>
+          ) : null}
+
+          <p className="text-[13px] leading-[1.75] text-[color:var(--text-body)]">
+            {entry.description || entry.summary || '作者暂未提供完整描述。'}
+          </p>
+
+          <dl className="flex flex-col">
+            <Row label="来源市场" value={entry.source || entry.sourceName} />
+            <Row label="SHA-256" value={entry.resource_id || '未提供'} mono />
+            <Row
+              label="平台 / 架构"
+              value={`${entry.platforms.join('、') || '未声明'} / ${entry.architectures.join('、') || '未声明'}`}
+            />
+            <Row label="适用范围" value={entry.applies_to.join('、') || '未声明'} />
+            <Row label="分类" value={entry.categories.map((item) => categoryLabels[item] ?? item).join('、') || '未声明'} />
+            <Row label="权限要求" value={describeDetail(entry.details['permissions'])} />
+            <Row label="应用方式" value={restartLabels[entry.restart_policy]} />
+            <Row
+              label="调用支持"
+              value={`${mcpLabels[entry.supports_mcp]} · ${entry.supports_agent ? '支持 Agent' : '不支持 Agent'}`}
+            />
+            <Row label="作者 / 许可证" value={`${entry.author || '未声明'} / ${entry.license || '未声明'}`} />
+            {installed && <Row label="已安装版本" value={installed.version} mono />}
+          </dl>
+
+          {Object.keys(entry.details).length > 0 && (
+            <section className="flex flex-col gap-1">
+              <h3 className="text-[12px] font-medium text-[color:var(--text-muted)]">专属信息</h3>
+              <dl className="flex flex-col">
+                {Object.entries(entry.details).map(([key, value]) => (
+                  <Row key={key} label={detailLabels[key] ?? key} value={describeDetail(value)} />
+                ))}
+              </dl>
+            </section>
+          )}
+
+          {entry.keywords.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              {entry.keywords.map((word) => (
+                <Badge key={word} variant="outline">
+                  {word}
+                </Badge>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <SheetFooter className="flex-row items-center gap-2 border-t border-[color:var(--hairline)] p-4">
           <Button variant="outline" disabled={busy || !entry.resource_id} onClick={onDownload}>
             <Download />
             下载
           </Button>
+          <div className="flex-1" />
           {entry.kind === 'plugin' && (
             <Button
               disabled={busy || !!blocked || (!!installed && !update)}
@@ -79,79 +184,8 @@ export function MarketplaceDetail({
               {update ? '更新' : installed ? '已安装' : '安装'}
             </Button>
           )}
-        </>
-      }
-    >
-      <div className="marketplace-detail-body">
-        <div className="marketplace-tags">
-          <Badge>{kindLabels[entry.kind]}</Badge>
-          <Badge variant="outline">v{entry.version}</Badge>
-          {entry.categories.map((category) => (
-            <Badge variant="secondary" key={category}>
-              {categoryLabels[category] ?? category}
-            </Badge>
-          ))}
-        </div>
-        {entry.metadataIssues?.length ? (
-          <div className="marketplace-warning" role="status">
-            <strong>元数据不完整，暂不可安装</strong>
-            <p>{entry.metadataIssues.join('；')}</p>
-          </div>
-        ) : null}
-        <p className="marketplace-description">{entry.description || '作者暂未提供完整描述。'}</p>
-        <dl>
-          <dt>来源市场</dt>
-          <dd>{entry.source || entry.sourceName}</dd>
-          <dt>条目标识</dt>
-          <dd className="mono">{entry.id}</dd>
-          <dt>SHA-256</dt>
-          <dd className="mono">{entry.resource_id || '未提供'}</dd>
-          <dt>平台 / 架构</dt>
-          <dd>
-            {entry.platforms.join('、') || '未声明'} / {entry.architectures.join('、') || '未声明'}
-          </dd>
-          <dt>适用范围</dt>
-          <dd>{entry.applies_to.join('、') || '未声明'}</dd>
-          <dt>权限要求</dt>
-          <dd>{describeDetail(entry.details['permissions'])}</dd>
-          <dt>应用方式</dt>
-          <dd>{restartLabels[entry.restart_policy]}</dd>
-          <dt>调用支持</dt>
-          <dd>
-            {mcpLabels[entry.supports_mcp]} · {entry.supports_agent ? '支持 Agent' : '不支持 Agent'}
-          </dd>
-          <dt>作者 / 许可证</dt>
-          <dd>
-            {entry.author || '未声明'} / {entry.license || '未声明'}
-          </dd>
-          {installed && (
-            <>
-              <dt>已安装版本</dt>
-              <dd>{installed.version}</dd>
-            </>
-          )}
-        </dl>
-        {Object.keys(entry.details).length > 0 && (
-          <section>
-            <h3>专属信息</h3>
-            <dl>
-              {Object.entries(entry.details).map(([key, value]) => (
-                <div className="marketplace-detail-row" key={key}>
-                  <dt>{detailLabels[key] ?? key}</dt>
-                  <dd>{describeDetail(value)}</dd>
-                </div>
-              ))}
-            </dl>
-          </section>
-        )}
-        <div className="marketplace-tags">
-          {entry.keywords.map((word) => (
-            <Badge key={word} variant="outline">
-              {word}
-            </Badge>
-          ))}
-        </div>
-      </div>
-    </DialogShell>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   );
 }

@@ -214,7 +214,7 @@ export function AiProviderPanel({
       </div>
 
       {qualification && (
-        <p className="flex flex-wrap items-center gap-2 px-1 text-[12px] text-[color:var(--text-muted)]">
+        <p className="flex flex-wrap items-center gap-2 px-1 text-[13px] text-[color:var(--text-muted)]">
           <span
             className={
               qualification.ready
@@ -225,7 +225,7 @@ export function AiProviderPanel({
             ● {qualification.ready ? '运行资格就绪' : '运行资格未就绪'}
           </span>
           <span>{qualification.reason ?? '项目由服务器部署配置提供'}</span>
-          <span className="font-mono text-[11px] text-[color:var(--text-faint)]">
+          <span className="font-mono text-[12px] text-[color:var(--text-faint)]">
             可用项目：{qualification.projects.join('、') || '无'}
           </span>
         </p>
@@ -237,29 +237,29 @@ export function AiProviderPanel({
         aria-label={`${provider} 助手回答`}
       >
         {mode === 'stream' && current.stream.text ? (
-          <p className="whitespace-pre-wrap text-[13px] leading-[1.75] text-[color:var(--text-body)]">
+          <p className="whitespace-pre-wrap text-[14px] leading-[1.75] text-[color:var(--text-body)]">
             {current.stream.text}
           </p>
         ) : answer ? (
           <>
-            <p className="font-mono text-[11px] text-[color:var(--text-faint)]">
+            <p className="font-mono text-[12px] text-[color:var(--text-faint)]">
               {answer.project_id} · 线程 {answer.thread_id}
             </p>
-            <p className="whitespace-pre-wrap text-[13px] leading-[1.75] text-[color:var(--text-body)]">
+            <p className="whitespace-pre-wrap text-[14px] leading-[1.75] text-[color:var(--text-body)]">
               {answer.text}
             </p>
           </>
         ) : (
           <div className="flex h-full items-center justify-center">
-            <p className="text-[12px] text-[color:var(--text-faint)]">输入问题开始对话</p>
+            <p className="text-[13px] text-[color:var(--text-faint)]">输入问题开始对话</p>
           </div>
         )}
         {current.stream.items.length > 0 && mode === 'stream' && (
           <details className="mt-auto">
-            <summary className="text-[11px] text-[color:var(--text-muted)]">
+            <summary className="text-[12px] text-[color:var(--text-muted)]">
               执行过程 · {current.stream.items.length} 项
             </summary>
-            <ul className="flex flex-col gap-1 pt-2 text-[12px] text-[color:var(--text-muted)]">
+            <ul className="flex flex-col gap-1 pt-2 text-[13px] text-[color:var(--text-muted)]">
               {current.stream.items.map((item) => (
                 <li key={item.item.id} className="flex gap-2">
                   <span className="text-[color:var(--text-faint)]">
@@ -290,7 +290,7 @@ export function AiProviderPanel({
           onChange={(event) => setPrompt(event.target.value)}
           placeholder="描述要完成的任务…"
           rows={3}
-          className="w-full resize-none rounded-md bg-transparent text-[13px] leading-[1.7] text-[color:var(--text-strong)] outline-none placeholder:text-[color:var(--text-ghost)]"
+          className="w-full resize-none rounded-md bg-transparent text-[14px] leading-[1.7] text-[color:var(--text-strong)] outline-none placeholder:text-[color:var(--text-ghost)]"
         />
         <div className="flex flex-wrap items-center gap-2">
           <Button
@@ -324,7 +324,7 @@ export function AiProviderPanel({
             继续读取
           </Button>
           <div className="flex-1" />
-          <span className="font-mono text-[11px] text-[color:var(--text-ghost)]">
+          <span className="font-mono text-[12px] text-[color:var(--text-ghost)]">
             {current.session?.id ?? '未建立会话'} · {current.session?.status ?? '待发送'}
           </span>
           <Button
@@ -339,7 +339,7 @@ export function AiProviderPanel({
       </div>
 
       <details className="shrink-0 rounded-[12px] border border-[color:var(--hairline)] bg-[color:var(--card)] px-4 py-2">
-        <summary className="text-[11px] text-[color:var(--text-muted)]">线程与会话管理</summary>
+        <summary className="text-[12px] text-[color:var(--text-muted)]">线程与会话管理</summary>
         <div className="flex flex-col gap-2 pt-3">
           <div className="flex flex-wrap gap-2">
             <Button
@@ -404,13 +404,13 @@ export function AiProviderPanel({
             </Button>
           </div>
           {threadStatus && (
-            <p className="text-[11px] text-[color:var(--text-muted)]">
+            <p className="text-[12px] text-[color:var(--text-muted)]">
               线程{threadStatus.closed ? '已关闭' : '开放'} · {threadStatus.turns} 轮 ·{' '}
               {threadStatus.uncertain ? '状态存在不确定性，请重新查询' : '状态已确认'}
             </p>
           )}
           <details>
-            <summary className="text-[11px] text-[color:var(--text-muted)]">恢复已有实时会话</summary>
+            <summary className="text-[12px] text-[color:var(--text-muted)]">恢复已有实时会话</summary>
             <div className="flex flex-wrap items-end gap-2 pt-2">
               <Field label="实时传输会话 ID" value={resumeId} onChange={setResumeId} />
               <Button
@@ -437,7 +437,7 @@ export function AiProviderPanel({
                     key={item.id}
                     type="button"
                     onClick={() => setResumeId(item.id)}
-                    className="rounded px-2 py-1 font-mono text-[11px] text-[color:var(--text-muted)] hover:bg-[color:var(--surface-hover)]"
+                    className="rounded px-2 py-1 font-mono text-[12px] text-[color:var(--text-muted)] hover:bg-[color:var(--surface-hover)]"
                   >
                     {item.id.slice(0, 8)} · {item.status}
                   </button>
@@ -451,7 +451,7 @@ export function AiProviderPanel({
       <ErrorNotice error={current.terminalError} />
       <ActionFeedback {...turn} />
       <ActionFeedback {...action} />
-      <details className="text-[11px] text-[color:var(--text-ghost)]">
+      <details className="text-[12px] text-[color:var(--text-ghost)]">
         <summary>原始结果</summary>
         <JsonResult value={turn.result} />
         <JsonResult value={action.result} />

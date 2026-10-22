@@ -37,13 +37,13 @@
 }
 .tasks-topline-main h1 {
   margin: 0;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 600;
   color: var(--text-strong);
   white-space: nowrap;
 }
 .tasks-topline-meta {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: var(--text-ghost);
   white-space: nowrap;
   overflow: hidden;
@@ -58,7 +58,7 @@
 .tasks-topline-actions [data-slot='button'] {
   height: 26px;
   padding-inline: 8px;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 400;
   color: var(--text-muted);
 }
@@ -80,13 +80,13 @@
 .tasks-filters input {
   height: 28px;
   max-width: 320px;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
 }
 .tasks-filters [data-slot='select-trigger'] {
   width: 148px;
   height: 28px;
   min-height: 28px;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
 }
 
 /* ── 清单 + 明细 ───────────────────────────────────── */
@@ -143,24 +143,24 @@
   background: var(--destructive);
 }
 .task-op {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: var(--text-strong);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .task-id {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: var(--text-ghost);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .task-state {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
 }
 .task-time {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: var(--text-faint);
   text-align: right;
   white-space: nowrap;
@@ -191,14 +191,14 @@
 }
 .task-panel-head h2 {
   margin: 0;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 600;
   color: var(--text-strong);
   overflow-wrap: anywhere;
 }
 .task-panel-head p {
   margin: 4px 0 0;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: var(--text-ghost);
   overflow-wrap: anywhere;
 }
@@ -209,12 +209,12 @@
 }
 .task-panel-time {
   margin: 10px 0 0;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: var(--text-faint);
 }
 .task-panel-error {
   margin-top: 8px;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   line-height: 1.5;
 }
 .task-panel-idle {
@@ -231,7 +231,7 @@
   justify-content: space-between;
   min-height: 0;
   padding: 0;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: var(--text-muted);
   list-style: none;
   cursor: pointer;
@@ -254,7 +254,7 @@
   margin: 8px 0 0;
   max-height: 220px;
   overflow: auto;
-  font: 400 0.5625rem/1.55 var(--font-mono);
+  font: 400 0.6875rem/1.55 var(--font-mono);
   color: var(--text-body);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -270,7 +270,7 @@
 .task-events li {
   display: flex;
   gap: 8px;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: var(--text-body);
 }
 .task-events time {
@@ -278,7 +278,7 @@
 }
 .task-hint {
   margin: 6px 0 0;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   line-height: 1.55;
   color: var(--text-faint);
 }

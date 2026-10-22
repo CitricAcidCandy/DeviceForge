@@ -1,8 +1,8 @@
 //! 有界包暂存、归档校验、同卷发布与公开静态资源读取。
-mod archive;
+pub(crate) mod archive;
 #[cfg(test)]
 mod archive_tests;
-mod manifest;
+pub(crate) mod manifest;
 mod paths;
 mod storage;
 #[cfg(test)]

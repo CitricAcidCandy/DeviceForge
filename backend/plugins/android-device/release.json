@@ -1,0 +1,83 @@
+{
+  "format_version": 1,
+  "host_api_version": 2,
+  "id": "android-device",
+  "version": "0.1.0",
+  "name": "Android 设备",
+  "description": "通过部署者配置的 ADB 提供设备发现与连接、应用安装和启停、截图、输入、性能采样及 Root 分析。能力可用性依实际设备、权限和工具而定；工具入口在插件配置中管理。",
+  "components": [
+    {
+      "id": "android-device",
+      "kind": "server",
+      "version": "0.1.0",
+      "variants": []
+    }
+  ],
+  "tools": [
+    {
+      "id": "adb",
+      "version": "36.0.0",
+      "required": true,
+      "variants": [],
+      "bindings": [
+        {
+          "component_id": "android-device",
+          "config_pointer": "/tools/adb",
+          "entry": "adb"
+        }
+      ]
+    },
+    {
+      "id": "java",
+      "version": "unresolved",
+      "required": false,
+      "variants": [],
+      "bindings": [
+        {
+          "component_id": "android-device",
+          "config_pointer": "/tools/java",
+          "entry": "java"
+        }
+      ]
+    },
+    {
+      "id": "bundletool",
+      "version": "1.3.0",
+      "required": false,
+      "variants": [],
+      "bindings": [
+        {
+          "component_id": "android-device",
+          "config_pointer": "/tools/bundletool/jar",
+          "entry": "jar"
+        }
+      ]
+    }
+  ],
+  "requirements": [
+    {
+      "component_id": "android-device",
+      "config_pointer": "/profile/simpleperf",
+      "title": "设备端 Simpleperf",
+      "description": "深度采样须由用户设备提供匹配的 Simpleperf、su 与授权；主机工具包不提供设备 Root。",
+      "sensitive": false,
+      "required": false
+    },
+    {
+      "component_id": "android-device",
+      "config_pointer": "/tools/bundletool",
+      "title": "APKS 工具类型",
+      "description": "按需提供 bundletool 时使用 kind:java_jar，并配置 Java 入口。",
+      "sensitive": false,
+      "required": false
+    },
+    {
+      "component_id": "android-device",
+      "config_pointer": "/unicode_input",
+      "title": "设备端中文输入法",
+      "description": "按需由用户安装和授权固定的 ADB Keyboard；这里配置已安装输入法的包、组件和动作，不注入主机 APK 路径。",
+      "sensitive": false,
+      "required": false
+    }
+  ]
+}

@@ -73,4 +73,25 @@ pub trait PluginConfigurationStore: Send + Sync {
     async fn mark_applied(&self, id: &str, expected: u64) -> Result<PluginConfiguration>;
     /// 路径指向不可变的原值修订，仅传给插件进程，不进入公开响应。
     async fn invocation_path(&self, id: &str) -> Result<Option<PathBuf>>;
+    /// 资源路径独立于协议和配置修订；旧部署没有托管资源时保持 None。
+    async fn resources_path(&self, _id: &str) -> Result<Option<PathBuf>> {
+        Ok(None)
+    }
+    /// 安装启用门禁只返回原值是否已填写，不向调用方暴露敏感字段。
+    async fn requirements_configured(&self, id: &str, pointers: &[String]) -> Result<bool> {
+        let configuration = self.get(id).await?;
+        Ok(configuration.compatible
+            && pointers.iter().all(|pointer| {
+                configuration
+                    .values
+                    .pointer(pointer)
+                    .is_some_and(|value| match value {
+                        Value::Null => false,
+                        Value::String(value) => !value.trim().is_empty(),
+                        Value::Array(value) => !value.is_empty(),
+                        Value::Object(value) => !value.is_empty(),
+                        _ => true,
+                    })
+            }))
+    }
 }

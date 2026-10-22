@@ -5,6 +5,7 @@ import { createServer } from 'vite';
 import type { ViteDevServer } from 'vite';
 import { JSDOM } from 'jsdom';
 import { createProductServices } from '../src/app/product/services.ts';
+import type { SessionInfo } from '../src/services/api/index.ts';
 import type { startFrontendApp } from '../src/app/main.ts';
 import { deferred, installedPackage, plugin, requestUrl, success } from './fixtures.ts';
 
@@ -220,6 +221,136 @@ test('生产入口读取两类安装目录和运行插件，已运行服务器�
         .some((item) => item.id === 'broken-browser' && item.state === 'loaded'),
       false,
     );
+  });
+});
+
+test('终端页面创建会话后自动分页，暂停后继续读取沿用游标并可输入和关闭', { timeout: 90_000 }, async () => {
+  const id = '12345678-1234-1234-1234-123456789abc';
+  let current: SessionInfo = {
+    id,
+    operation: 'plugin.terminal.open',
+    plugin_id: 'terminal',
+    generation: 'terminal-generation',
+    created_at: 1,
+    status: 'opening',
+    output_sequence: 0,
+    completion: null,
+  };
+  const chunks = Array.from({ length: 55 }, (_, index) => ({
+    sequence: index + 1,
+    stream: 'stdout',
+    bytes: [...new TextEncoder().encode(`终端输出 ${index + 1}\n`)],
+  }));
+  const reads: { after: number; limit: number; signal: AbortSignal | null }[] = [];
+  const waiting = deferred<Response>();
+  let configuredProfile = 'python';
+  let opens = 0;
+  let cancels = 0;
+  let sent: unknown = null;
+  const transport: typeof fetch = async (input, init) => {
+    const url = requestUrl(input);
+    const method = init?.method ?? 'GET';
+    if (url.pathname === '/api/v2/session-definitions')
+      return success({
+        revision: 1,
+        sessions: [{
+          id: 'plugin.terminal.open',
+          title: '终端',
+          input_schema: { type: 'object' },
+          execution: { api_version: 1, source: 'declared', total_timeout_ms: 60_000 },
+        }],
+      });
+    if (url.pathname === '/api/v2/plugin-configurations/server/terminal')
+      return success({
+        kind: 'server', id: 'terminal', definition: null,
+        values: { profiles: { [configuredProfile]: { executable: 'fixture-shell', args: [] } } },
+        revision: 0, applied_revision: 0, pending_reload: false,
+        compatible: true, source: 'managed', field_errors: [],
+      });
+    if (url.pathname === '/api/v2/sessions' && method === 'POST') {
+      assert.deepEqual(JSON.parse(String(init?.body)), {
+        operation: 'plugin.terminal.open', input: { profile: 'powershell' },
+      });
+      opens += 1;
+      return success(current, 'terminal-open-log');
+    }
+    if (url.pathname === `/api/v2/sessions/${id}/output`) {
+      const after = Number(url.searchParams.get('after'));
+      const limit = Number(url.searchParams.get('limit'));
+      assert.ok(Number.isSafeInteger(after) && after >= 0);
+      assert.ok(Number.isSafeInteger(limit) && limit >= 1 && limit <= 100);
+      reads.push({ after, limit, signal: init?.signal ?? null });
+      if (after >= chunks.length) return waiting.promise;
+      const selected = chunks.filter((chunk) => chunk.sequence > after).slice(0, limit);
+      return success({
+        session: { ...current, output_sequence: chunks.length },
+        chunks: selected,
+        next_sequence: selected.at(-1)?.sequence ?? after,
+      }, 'terminal-output-log');
+    }
+    if (url.pathname === `/api/v2/sessions/${id}/input`) {
+      sent = JSON.parse(String(init?.body));
+      return success({ id, accepted: true }, 'terminal-input-log');
+    }
+    if (url.pathname === `/api/v2/sessions/${id}/cancel`) {
+      cancels += 1;
+      current = {
+        ...current, status: 'finished', output_sequence: chunks.length,
+        completion: {
+          outcome: { result: null, error: null, artifacts: [] },
+          cleanup: 'complete', process_exited: true, sequence: chunks.length + 1, failure: null,
+        },
+      };
+      return success(current, 'terminal-cancel-log');
+    }
+    return success([]);
+  };
+  await withMain(transport, async (_app, browser) => {
+    const documentRef = browser.window.document;
+    const button = (label: string) => {
+      const found = Array.from(documentRef.querySelectorAll('button')).find(
+        (entry) => entry.getAttribute('aria-label') === label || entry.textContent?.trim() === label,
+      );
+      assert.ok(found, `缺少终端操作：${label}`);
+      return found;
+    };
+    await navigate(browser, 'terminal');
+    await settled(() => !button('新会话').disabled, '终端目录和档案未就绪');
+    configuredProfile = 'powershell';
+    await act(async () => button('刷新目录').click());
+    await settled(() =>
+      documentRef.querySelector('[data-product-page="terminal"] header')?.textContent?.includes('powershell') ?? false,
+      '刷新后应选中新的命令行档案，不能保留已移除的Python',
+    );
+    await act(async () => button('新会话').click());
+    await settled(() => reads.length >= 3, '创建会话后没有持续读取输出');
+    assert.equal(opens, 1);
+    assert.deepEqual(reads.slice(0, 3).map(({ after }) => after), [0, 50, 55]);
+    const output = documentRef.querySelector('[aria-label="终端输出"]');
+    assert.ok(output?.textContent?.includes('终端输出 1'));
+    assert.ok(output?.textContent?.includes('终端输出 55'));
+    await act(async () => button('暂停读取输出').click());
+    assert.equal(reads.at(-1)?.signal?.aborted, true);
+    assert.equal(cancels, 0, '暂停读取不能停止服务器会话');
+    await act(async () => button('继续读取输出').click());
+    await settled(() => reads.length >= 4, '暂停后继续读取没有请求输出');
+    assert.equal(reads.at(-1)?.after, 55);
+    const field = documentRef.querySelector('[aria-label="终端输入"]');
+    assert.ok(field instanceof browser.window.HTMLInputElement);
+    const setter = Object.getOwnPropertyDescriptor(browser.window.HTMLInputElement.prototype, 'value')?.set;
+    assert.ok(setter);
+    await act(async () => {
+      setter.call(field, 'echo 中文');
+      field.dispatchEvent(new browser.window.Event('input', { bubbles: true }));
+    });
+    await act(async () => button('发送').click());
+    await settled(() => sent !== null, '终端输入没有发往公开接口');
+    assert.deepEqual(sent, { bytes: [...new TextEncoder().encode('echo 中文\n')] });
+    await act(async () => button('关闭会话').click());
+    await settled(() => button('关闭会话').disabled, '关闭后终端没有显示终态');
+    assert.equal(cancels, 1);
+    assert.ok(documentRef.body.textContent?.includes('清理完成'));
+    assert.equal(documentRef.querySelector('[data-message-kind="error"]'), null);
   });
 });
 

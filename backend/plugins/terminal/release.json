@@ -1,0 +1,27 @@
+{
+  "format_version": 1,
+  "host_api_version": 2,
+  "id": "terminal",
+  "version": "0.1.0",
+  "name": "交互终端",
+  "description": "通过服务器预先配置的终端 profile 打开持续工具会话。程序、参数和工作目录在插件配置中定义；当前提供管道会话，不提供 PTY 或窗口尺寸调整。",
+  "components": [
+    {
+      "id": "terminal",
+      "kind": "server",
+      "version": "0.1.0",
+      "variants": []
+    }
+  ],
+  "tools": [],
+  "requirements": [
+    {
+      "component_id": "terminal",
+      "config_pointer": "/profiles",
+      "title": "终端程序档案",
+      "description": "按操作系统选择已有 shell；PowerShell、cmd 等系统程序不作为可下载工具打包。",
+      "sensitive": false,
+      "required": false
+    }
+  ]
+}

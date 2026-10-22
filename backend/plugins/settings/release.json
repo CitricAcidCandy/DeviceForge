@@ -1,0 +1,27 @@
+{
+  "format_version": 1,
+  "host_api_version": 2,
+  "id": "settings",
+  "version": "0.1.0",
+  "name": "用户与工作区设置",
+  "description": "按用户或工作区命名空间管理配置区，支持比较修订后保存、导入及远端读取和保存。存储根和远端服务选项由插件部署配置管理；它与宿主插件基础配置存储相互独立。",
+  "components": [
+    {
+      "id": "settings",
+      "kind": "server",
+      "version": "0.1.0",
+      "variants": []
+    }
+  ],
+  "tools": [],
+  "requirements": [
+    {
+      "component_id": "settings",
+      "config_pointer": "/storage_root",
+      "title": "设置存储目录",
+      "description": "按部署需要选择实际目录；升级不会迁移旧业务数据。",
+      "sensitive": false,
+      "required": false
+    }
+  ]
+}

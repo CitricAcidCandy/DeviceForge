@@ -35,7 +35,7 @@ export async function startFrontendApp(documentRef: Document, windowRef: Window)
       target: component,
       renderDefault(slotRoot) {
         const link = documentRef.createElement('a');
-        link.href = '#plugins';
+        link.href = '#marketplace';
         link.className = 'skip-link';
         link.textContent = '管理工坊扩展';
         slotRoot.append(link);
@@ -85,7 +85,7 @@ export async function startFrontendApp(documentRef: Document, windowRef: Window)
         if (lifetime.signal.aborted || (error instanceof ApiError && error.kind === 'cancelled'))
           return;
         currentServices.messages.error('插件默认启用未完成', {
-          description: error instanceof Error ? error.message : '请到插件页重新执行默认启用。',
+          description: error instanceof Error ? error.message : '请到市场页重新执行默认启用。',
           logId: error instanceof ApiError ? error.logId : null,
         });
         console.error('默认启用插件失败', error instanceof Error ? error.message : '未知原因');

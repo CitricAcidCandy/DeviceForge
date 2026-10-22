@@ -104,11 +104,14 @@
     "defaults": {
       "format_version": 1,
       "profiles": {
-        "python": {
-          "executable": "python",
+        "powershell": {
+          "executable": "powershell.exe",
           "args": [
-            "-u",
-            "-i"
+            "-NoLogo",
+            "-NoProfile",
+            "-NoExit",
+            "-Command",
+            "$OutputEncoding = [Console]::InputEncoding = [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new()"
           ],
           "resource_scope": "direct_process"
         }

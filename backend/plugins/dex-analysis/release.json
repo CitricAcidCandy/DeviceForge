@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "host_api_version": 2,
+  "id": "dex-analysis",
+  "version": "0.1.0",
+  "name": "DEX 分析",
+  "description": "对上传的 Android 包和 DEX 产物执行结构检查与 SDK 特征扫描，不需要配置服务器端程序入口。",
+  "components": [
+    {
+      "id": "dex-analysis",
+      "kind": "server",
+      "version": "0.1.0",
+      "variants": []
+    }
+  ],
+  "tools": [],
+  "requirements": []
+}

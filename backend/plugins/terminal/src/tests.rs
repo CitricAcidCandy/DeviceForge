@@ -10,6 +10,24 @@ fn terminal_manifest_uses_independent_session_contribution_and_one_hour_original
     assert_eq!(manifest.id, "terminal");
     assert_eq!(manifest.protocol_version, 4);
     assert!(manifest.operations.is_empty());
+    let defaults = manifest.configuration.as_ref().unwrap().defaults.clone();
+    let example: Value =
+        serde_json::from_str(include_str!("../terminal.config.example.json")).unwrap();
+    assert_eq!(defaults, example);
+    let config = config::Config::parse(&serde_json::to_vec(&defaults).unwrap()).unwrap();
+    let profile = config.profile("powershell").unwrap();
+    assert_eq!(profile.executable, "powershell.exe");
+    assert_eq!(
+        profile.args,
+        [
+            "-NoLogo",
+            "-NoProfile",
+            "-NoExit",
+            "-Command",
+            "$OutputEncoding = [Console]::InputEncoding = [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new()"
+        ]
+    );
+    assert!(config.profile("python").is_err());
     let sessions = manifest.sessions.unwrap();
     sessions.validate().unwrap();
     assert_eq!(sessions.protocol_version, 5);

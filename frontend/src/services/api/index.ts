@@ -38,5 +38,6 @@ export * from './device-endpoints.ts';
 export * from './artifact-queries.ts';
 export * from './session-gateway.ts';
 export * from './plugin-configuration.ts';
+export * from './plugin-installations.ts';
 export { createMcpTransport, MCP_PROTOCOL_VERSION } from './mcp.ts';
 export type { McpHttpResponse, McpTransport } from './mcp.ts';

@@ -20,7 +20,7 @@ export function OperationNotice({
   const available = catalog.result?.data.some((item) => item.id === operation) ?? false;
   return available ? null : (
     <p className="capability-notice">
-      当前服务器尚未提供此功能。请在插件页安装或加载对应插件，再刷新目录。
+      当前服务器尚未提供此功能。请在市场页安装或加载对应插件，再刷新目录。
     </p>
   );
 }

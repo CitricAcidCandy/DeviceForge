@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "host_api_version": 2,
+  "id": "artifact_copy",
+  "version": "0.1.0",
+  "name": "产物复制示例",
+  "description": "供公开产物协议开发与验证使用，复制已登记的输入产物，无需配置外部工具。",
+  "components": [
+    {
+      "id": "artifact_copy",
+      "kind": "server",
+      "version": "0.1.0",
+      "variants": []
+    }
+  ],
+  "tools": [],
+  "requirements": []
+}

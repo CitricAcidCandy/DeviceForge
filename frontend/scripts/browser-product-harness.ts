@@ -6,7 +6,6 @@ import { DevicesConnect } from '../src/pages/devices/components/DevicesConnect/i
 import { DeviceApps } from '../src/pages/devices/apps/index.tsx';
 import { FilesPage } from '../src/pages/files/index.tsx';
 import { AnalysisPage } from '../src/pages/analysis/index.tsx';
-import { ToolsPage } from '../src/pages/tools/index.tsx';
 import { TasksPage } from '../src/pages/tasks/index.tsx';
 import { capabilityGate, decodeAppList } from '../src/features/device-apps/models/apps-contract.ts';
 import {
@@ -482,21 +481,6 @@ export async function verifyProductPages() {
       '表格映射误将 0 与 false 判空',
     );
     passed('表格真实表头、当前页映射与 0/false');
-    await mount(ToolsPage);
-    await click('刷新工具目录');
-    await until(() => target.querySelectorAll('tbody tr').length === 1, '工具目录没有专用表格');
-    await click('规划全部清单模块');
-    await until(() => target.textContent?.includes('更新计划') ?? false, '工具计划未显示');
-    const beforeRemove = submitted().length;
-    await click('移除');
-    await click('保留工具');
-    check(submitted().length === beforeRemove, '工具取消移除仍提交');
-    await click('移除');
-    await click('确认移除');
-    await until(() => target.textContent?.includes('未安装') ?? false, '移除后未重读工具目录');
-    await click('安装 / 修复');
-    await until(() => target.textContent?.includes('当前版本') ?? false, '安装后未重读工具目录');
-    passed('工具计划、官方移除确认与安装后真实目录刷新');
     await mount(TasksPage);
     await until(
       () => target.querySelectorAll('.task-row').length >= 2,

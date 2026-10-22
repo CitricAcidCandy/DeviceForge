@@ -1,0 +1,27 @@
+{
+  "format_version": 1,
+  "host_api_version": 2,
+  "id": "marketplace",
+  "version": "0.1.0",
+  "name": "资源市场目录",
+  "description": "提供市场来源与目录查询，为插件、工具和配置提供发现入口。实际安装仍由宿主的插件包和工具供应接口完成，市场资料不决定服务器程序路径。",
+  "components": [
+    {
+      "id": "marketplace",
+      "kind": "server",
+      "version": "0.1.0",
+      "variants": []
+    }
+  ],
+  "tools": [],
+  "requirements": [
+    {
+      "component_id": "marketplace",
+      "config_pointer": "/sources",
+      "title": "市场目录来源",
+      "description": "选择可信资源服务 URL；来源地址是用户配置，不是待安装工具。",
+      "sensitive": false,
+      "required": true
+    }
+  ]
+}

@@ -1,6 +1,7 @@
 import type { ProductServices } from '../../../app/product/services.ts';
 import { ApiError } from '../../../services/api/index.ts';
 import { readonlyIssues } from '../../../utils/schema.ts';
+import type { PluginInstallations } from '../../../features/plugin-installations/index.ts';
 import { runUploadPreparation } from '../upload-preparation/index.ts';
 import type { PreparationExecutor } from '../upload-preparation/index.ts';
 import {
@@ -10,6 +11,7 @@ import {
   readImportJson,
 } from './rules.ts';
 import type { LocalImportKind, LocalImportPreview, LocalToolManifest } from './types.ts';
+import { inspectLocalRelease } from './release.ts';
 
 export interface LocalImportPorts {
   readonly packages: Pick<ProductServices['runtime']['pluginPackages'], 'upload'>;
@@ -18,6 +20,8 @@ export interface LocalImportPorts {
   readonly tools: Pick<ProductServices['toolSupply'], 'importLocal'>;
   readonly settings: Pick<ProductServices['settings'], 'list' | 'import'>;
   readonly configurations: Pick<ProductServices['pluginConfigurations'], 'get' | 'save'>;
+  readonly installations?: Pick<PluginInstallations, 'install'>;
+  readonly installationArtifacts?: Pick<ProductServices['runtime']['installationArtifacts'], 'upload'>;
 }
 export function localImportPorts(services: ProductServices): LocalImportPorts {
   return {
@@ -27,6 +31,8 @@ export function localImportPorts(services: ProductServices): LocalImportPorts {
     tools: services.toolSupply,
     settings: services.settings,
     configurations: services.pluginConfigurations,
+    installations: services.runtime.pluginInstallations,
+    installationArtifacts: services.runtime.installationArtifacts,
   };
 }
 
@@ -45,6 +51,10 @@ export async function previewLocalImport(
   signal.throwIfAborted();
   if (kind === 'plugin') {
     if (!/\.(zip|tgz|tar\.gz)$/i.test(file.name)) throw new Error('插件请选择 ZIP 或 TGZ 便携包');
+    const release = await inspectLocalRelease(file, signal);
+    if (release) return { kind: 'release', file, release, sha256: await digestLocalFile(file, signal),
+      target: `${release.name}（${release.id}）`,
+      summary: `版本 ${release.version}，${release.componentCount} 个组件、${release.toolCount} 个工具；目录与资源大小已核对，服务器将继续校验摘要，安装后自动启用。` };
     const prepared = await prepare(
       {
         kind: 'plugin',
@@ -134,6 +144,18 @@ export async function submitLocalImport(
   signal: AbortSignal,
 ): Promise<string> {
   signal.throwIfAborted();
+  if (preview.kind === 'release') {
+    if (!ports.installations || !ports.installationArtifacts) throw new Error('当前宿主尚未提供完整功能插件安装能力');
+    const artifact = await ports.installationArtifacts.upload(preview.file.name, preview.file, signal);
+    signal.throwIfAborted();
+    if (artifact.data.sha256 !== preview.sha256 || artifact.data.size !== preview.file.size)
+      throw new ApiError('protocol', 'offline_release_mismatch', '服务器产物摘要或大小不一致，已停止插件安装', null, artifact.logId);
+    const installed = await ports.installations.install({ kind: 'offline', artifactId: artifact.data.id }, signal);
+    signal.throwIfAborted();
+    if (installed.id !== preview.release.id || installed.version !== preview.release.version)
+      throw new Error('服务器安装结果与本地预览不一致，请刷新实际目录');
+    return `已安装并启用 ${installed.name} ${installed.version}。`;
+  }
   if (preview.kind === 'plugin') {
     const result = await ports.packages.upload(
       preview.plugin.kind,

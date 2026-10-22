@@ -8,7 +8,7 @@
   padding: 0;
   border: 0;
   background: transparent;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: var(--text-faint);
   flex-shrink: 0;
 }
@@ -30,7 +30,7 @@
   border: 1px solid transparent;
   border-radius: 999px;
   background: var(--surface-sunken);
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: var(--text-body);
   box-shadow: none;
 }

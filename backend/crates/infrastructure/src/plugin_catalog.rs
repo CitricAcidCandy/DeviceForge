@@ -12,14 +12,19 @@ use tokio::sync::Semaphore;
 pub(crate) mod metadata;
 
 pub struct FilePluginCatalog {
-    root: Arc<PathBuf>,
+    roots: Arc<Vec<PathBuf>>,
     artifacts: Arc<dyn ArtifactStore>,
     workers: Arc<Semaphore>,
     configurations: Option<Arc<dyn apk_domain::plugin_configurations::PluginConfigurationStore>>,
 }
 impl FilePluginCatalog {
     pub async fn open(root: &Path, artifacts: Arc<dyn ArtifactStore>) -> Result<Self> {
-        let root = tokio::fs::canonicalize(root)
+        Self::open_roots(vec![root.to_owned()], artifacts).await
+    }
+    pub async fn open_roots(paths: Vec<PathBuf>, artifacts: Arc<dyn ArtifactStore>) -> Result<Self> {
+        let mut roots = Vec::new();
+        for path in paths {
+        let root = tokio::fs::canonicalize(path)
             .await
             .map_err(|_| Error::Storage("插件部署目录不可访问".into()))?;
         if !tokio::fs::metadata(&root)
@@ -29,8 +34,10 @@ impl FilePluginCatalog {
         {
             return Err(Error::Invalid("插件部署根路径必须是目录".into()));
         }
+        if !roots.contains(&root) { roots.push(root); }
+        }
         Ok(Self {
-            root: Arc::new(root),
+            roots: Arc::new(roots),
             artifacts,
             workers: Arc::new(Semaphore::new(2)),
             configurations: None,
@@ -45,7 +52,7 @@ impl FilePluginCatalog {
     }
     async fn blocking<T: Send + 'static>(
         &self,
-        work: impl FnOnce(&Path, Arc<dyn ArtifactStore>) -> Result<T> + Send + 'static,
+        work: impl FnOnce(&[PathBuf], Arc<dyn ArtifactStore>) -> Result<T> + Send + 'static,
     ) -> Result<T> {
         let permit = self
             .workers
@@ -53,21 +60,23 @@ impl FilePluginCatalog {
             .acquire_owned()
             .await
             .map_err(|_| Error::Storage("插件部署工作池已关闭".into()))?;
-        let root = self.root.clone();
+        let roots = self.roots.clone();
         let artifacts = self.artifacts.clone();
         let context = LogContext::current().unwrap_or_default();
         let span = tracing::Span::current();
         tokio::task::spawn_blocking(move || {
             let _permit = permit;
-            context.sync_scope(|| span.in_scope(|| work(&root, artifacts)))
+            context.sync_scope(|| span.in_scope(|| work(&roots, artifacts)))
         })
         .await
         .map_err(|_| Error::Dependency("插件部署读取工作异常".into()))?
     }
     pub async fn initial(&self) -> Result<Vec<Arc<ProcessPlugin>>> {
         let configurations = self.configurations.clone();
-        self.blocking(move |root, artifacts| {
+        self.blocking(move |roots, artifacts| {
             let mut plugins = Vec::new();
+            let mut seen = std::collections::HashSet::new();
+            for root in roots {
             for (count, entry) in std::fs::read_dir(root)
                 .map_err(|_| Error::Storage("插件目录读取失败".into()))?
                 .enumerate()
@@ -92,6 +101,9 @@ impl FilePluginCatalog {
                 if !kind.is_dir() {
                     continue;
                 }
+                if !entry.path().join("manifest.json").exists() || !seen.insert(id.to_owned()) { continue; }
+                // 托管发布由安装用例按持久启停意图恢复，不能在这里提前加载。
+                if entry.path().join("installation.json").exists() { continue; }
                 if plugins.len() >= 256 {
                     return Err(Error::TooLarge);
                 }
@@ -101,6 +113,7 @@ impl FilePluginCatalog {
                     artifacts.clone(),
                     configurations.clone(),
                 )?);
+            }
             }
             plugins.sort_by(|left, right| left.manifest().id.cmp(&right.manifest().id));
             Ok(plugins)
@@ -166,7 +179,11 @@ impl PluginCatalog for FilePluginCatalog {
         let id = id.to_owned();
         let configurations = self.configurations.clone();
         let plugin = self
-            .blocking(move |root, artifacts| read_plugin(root, &id, artifacts, configurations))
+            .blocking(move |roots, artifacts| {
+                let root = roots.iter().find(|root| root.join(&id).join("manifest.json").exists())
+                    .ok_or_else(|| Error::NotFound("插件尚未部署".into()))?;
+                read_plugin(root, &id, artifacts, configurations)
+            })
             .await?;
         Ok(PluginContribution {
             id: plugin.manifest().id.clone(),

@@ -31,6 +31,7 @@ import {
   verifyNpxUnifiedDiscovery,
 } from './cli-smoke-unified-discovery.mjs';
 import { configureOrdinaryNpx, verifyOrdinaryNpx } from './cli-smoke-ordinary.mjs';
+import { createNpxConfigurationCheck } from './cli-smoke-configurations.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const temporary = await mkdtemp(join(tmpdir(), 'deviceforge-npx-'));
@@ -197,6 +198,14 @@ try {
     '显式令牌',
   );
   await verifyServedHost(`http://127.0.0.1:${webPort}`, authorizedPhase);
+  const verifyUserConfigurations = createNpxConfigurationCheck(
+    environment.DEVICEFORGE_USER_DIR,
+    dataDirectory,
+  );
+  authorizedPhase.user_configurations = await verifyUserConfigurations(
+    `http://127.0.0.1:${webPort}`,
+    shutdownTarget.headers,
+  );
   evidence.stage = '显式令牌普通业务';
   authorizedPhase.ordinary_business = await verifyOrdinaryNpx({
     base: `http://127.0.0.1:${webPort}`,
@@ -370,6 +379,10 @@ try {
     '默认免令牌',
   );
   await verifyServedHost(`http://127.0.0.1:${webPort}`, anonymousPhase);
+  anonymousPhase.user_configurations = await verifyUserConfigurations(
+    `http://127.0.0.1:${webPort}`,
+    anonymousHeaders,
+  );
   evidence.stage = '默认免令牌普通业务';
   anonymousPhase.ordinary_business = await verifyOrdinaryNpx({
     base: `http://127.0.0.1:${webPort}`,

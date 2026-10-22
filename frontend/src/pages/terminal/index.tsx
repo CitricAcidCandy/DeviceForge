@@ -113,7 +113,9 @@ export function TerminalPage({ services }: { services: ProductServices }) {
         const next = readProfiles(view.values);
         setProfiles(next);
         setProfilesError(next.length ? null : '终端配置里还没有档案');
-        setProfile((current) => current ?? next[0]?.name ?? null);
+        setProfile((current) =>
+          next.some((item) => item.name === current) ? current : next[0]?.name ?? null,
+        );
         return next;
       })
       .catch((error: unknown) => {
@@ -140,7 +142,7 @@ export function TerminalPage({ services }: { services: ProductServices }) {
     if (!session) return;
     if (session.status !== 'opening' && session.status !== 'running') return;
     stick.current = true;
-    void reader.run((signal) => terminal.pollOutput({ limit: 200 }, signal), { quiet: true });
+    void reader.run((signal) => terminal.pollOutput({}, signal), { quiet: true });
     return () => reader.cancel();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.id, session?.status, terminal]);
@@ -188,8 +190,8 @@ export function TerminalPage({ services }: { services: ProductServices }) {
     >
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
-          <h1 className="text-[22px] font-semibold text-[color:var(--text-strong)]">终端</h1>
-          <span className="flex items-center gap-1.5 font-mono text-[11px] text-[color:var(--text-faint)]">
+          <h1 className="text-[24px] font-semibold text-[color:var(--text-strong)]">终端</h1>
+          <span className="flex items-center gap-1.5 font-mono text-[12px] text-[color:var(--text-faint)]">
             <span className={`size-1.5 rounded-full ${dotTone(session?.status)}`} aria-hidden="true" />
             {session ? (stateText[session.status] ?? session.status) : '未打开'}
             {profile && (
@@ -206,7 +208,7 @@ export function TerminalPage({ services }: { services: ProductServices }) {
           <div className="flex items-stretch">
             <Button
               size="sm"
-              className="rounded-r-none text-[12px]"
+              className="rounded-r-none text-[13px]"
               disabled={!terminalAvailable || !profile || live || action.pending}
               title={live ? '先关闭当前会话' : '用当前档案开新会话'}
               onClick={() => profile && openWith(profile)}
@@ -226,7 +228,7 @@ export function TerminalPage({ services }: { services: ProductServices }) {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-72">
-                <DropdownMenuLabel className="text-[11px] font-normal text-[color:var(--text-faint)]">
+                <DropdownMenuLabel className="text-[12px] font-normal text-[color:var(--text-faint)]">
                   在档案中新建会话
                 </DropdownMenuLabel>
                 {profiles.length === 0 ? (
@@ -235,11 +237,11 @@ export function TerminalPage({ services }: { services: ProductServices }) {
                   profiles.map((item) => (
                     <DropdownMenuItem key={item.name} onSelect={() => openWith(item.name)}>
                       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                        <span className="truncate font-mono text-[12px] text-[color:var(--text-strong)]">
+                        <span className="truncate font-mono text-[13px] text-[color:var(--text-strong)]">
                           {item.name}
                         </span>
                         {item.detail && (
-                          <span className="truncate font-mono text-[11px] text-[color:var(--text-faint)]">
+                          <span className="truncate font-mono text-[12px] text-[color:var(--text-faint)]">
                             {item.detail}
                           </span>
                         )}
@@ -251,7 +253,7 @@ export function TerminalPage({ services }: { services: ProductServices }) {
                 {profilesError && (
                   <>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem disabled className="text-[11px]">
+                    <DropdownMenuItem disabled className="text-[12px]">
                       <span className="line-clamp-2 text-left">{profilesError}</span>
                     </DropdownMenuItem>
                   </>
@@ -262,7 +264,7 @@ export function TerminalPage({ services }: { services: ProductServices }) {
           <Button
             variant="outline"
             size="sm"
-            className="text-[12px]"
+            className="text-[13px]"
             disabled={action.pending}
             onClick={() =>
               void action.run(
@@ -280,7 +282,7 @@ export function TerminalPage({ services }: { services: ProductServices }) {
           <Button
             variant="outline"
             size="sm"
-            className="text-[12px] text-[color:var(--destructive)]"
+            className="text-[13px] text-[color:var(--destructive)]"
             disabled={!session || session.status === 'finished'}
             onClick={() => void action.run((signal) => terminal.cancel(signal), { success: null })}
           >
@@ -291,9 +293,9 @@ export function TerminalPage({ services }: { services: ProductServices }) {
       </header>
 
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-white/10 bg-[color:var(--media-background)]">
-        <div className="flex h-10 shrink-0 items-center gap-2 border-b border-white/10 bg-white/[0.03] px-3.5 font-mono text-[11px] text-[color:var(--media-muted)]">
+        <div className="flex h-10 shrink-0 items-center gap-2 border-b border-white/10 bg-white/[0.03] px-3.5 font-mono text-[12px] text-[color:var(--media-muted)]">
           <span className={`size-1.5 rounded-full ${dotTone(session?.status)}`} aria-hidden="true" />
-          <span className="shrink-0 text-[12px] text-[color:var(--media-foreground)]">
+          <span className="shrink-0 text-[13px] text-[color:var(--media-foreground)]">
             {session ? shortId(session.id) : '未打开'}
           </span>
           {session && (
@@ -317,7 +319,7 @@ export function TerminalPage({ services }: { services: ProductServices }) {
             onClick={() =>
               reader.pending
                 ? reader.cancel()
-                : void reader.run((signal) => terminal.pollOutput({ limit: 200 }, signal), {
+                : void reader.run((signal) => terminal.pollOutput({}, signal), {
                     quiet: true,
                   })
             }
@@ -375,15 +377,15 @@ export function TerminalPage({ services }: { services: ProductServices }) {
             const node = event.currentTarget;
             stick.current = node.scrollHeight - node.scrollTop - node.clientHeight < 24;
           }}
-          className="min-h-0 flex-1 overflow-auto px-4 py-3 font-mono text-[13px] leading-[1.72] text-[color:var(--media-foreground)]"
+          className="min-h-0 flex-1 overflow-auto px-4 py-3 font-mono text-[14px] leading-[1.72] text-[color:var(--media-foreground)]"
         >
           {visible.length === 0 ? (
             <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
               <Terminal size={22} className="text-[color:var(--media-muted)]" aria-hidden="true" />
-              <p className="font-sans text-[13px] text-[color:var(--media-foreground)]">
+              <p className="font-sans text-[14px] text-[color:var(--media-foreground)]">
                 {session ? '等待会话输出' : '还没有打开的会话'}
               </p>
-              <p className="max-w-xs font-sans text-[12px] leading-5 text-[color:var(--media-muted)]">
+              <p className="max-w-xs font-sans text-[13px] leading-5 text-[color:var(--media-muted)]">
                 {session
                   ? '进程已经启动，第一块输出到达后会显示在这里。'
                   : terminalAvailable
@@ -394,7 +396,7 @@ export function TerminalPage({ services }: { services: ProductServices }) {
           ) : (
             <>
               {lines.length > visible.length && (
-                <p className="pb-2 text-[11px] text-[color:var(--media-muted)]">
+                <p className="pb-2 text-[12px] text-[color:var(--media-muted)]">
                   上游还有 {lines.length - visible.length} 行未渲染
                 </p>
               )}
@@ -415,7 +417,7 @@ export function TerminalPage({ services }: { services: ProductServices }) {
         </div>
 
         {session?.status === 'finished' && (
-          <div className="flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1 border-t border-white/10 bg-white/[0.02] px-3.5 py-2 font-mono text-[11px] text-[color:var(--media-muted)]">
+          <div className="flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1 border-t border-white/10 bg-white/[0.02] px-3.5 py-2 font-mono text-[12px] text-[color:var(--media-muted)]">
             <span>已结束</span>
             <span aria-hidden="true">·</span>
             <span>{cleanupText[session.completion?.cleanup ?? 'unconfirmed']}</span>
@@ -435,7 +437,7 @@ export function TerminalPage({ services }: { services: ProductServices }) {
 
         <div className="flex h-14 shrink-0 items-center gap-2 border-t border-white/10 bg-white/[0.03] px-3.5">
           <span
-            className="shrink-0 font-mono text-[13px] font-bold text-[color:color-mix(in_srgb,var(--primary)_55%,white)]"
+            className="shrink-0 font-mono text-[14px] font-bold text-[color:color-mix(in_srgb,var(--primary)_55%,white)]"
             aria-hidden="true"
           >
             $
@@ -454,16 +456,16 @@ export function TerminalPage({ services }: { services: ProductServices }) {
             }
             aria-label="终端输入"
             disabled={!writable}
-            className="min-w-0 flex-1 bg-transparent font-mono text-[13px] text-[color:var(--media-foreground)] outline-none placeholder:text-[color:var(--media-muted)] disabled:cursor-not-allowed"
+            className="min-w-0 flex-1 bg-transparent font-mono text-[14px] text-[color:var(--media-foreground)] outline-none placeholder:text-[color:var(--media-muted)] disabled:cursor-not-allowed"
           />
-          <span className="hidden shrink-0 font-mono text-[11px] text-[color:var(--media-muted)] sm:inline">
+          <span className="hidden shrink-0 font-mono text-[12px] text-[color:var(--media-muted)] sm:inline">
             {inputText[snapshot.inputState]}
           </span>
           <button
             type="button"
             onClick={send}
             disabled={!writable || !command.trim() || action.pending}
-            className="h-7 shrink-0 rounded-md bg-[color:var(--primary)] px-3 text-[12px] font-medium text-white transition-colors hover:bg-[color:var(--primary)]/90 disabled:bg-white/10 disabled:text-[color:var(--media-muted)]"
+            className="h-7 shrink-0 rounded-md bg-[color:var(--primary)] px-3 text-[13px] font-medium text-white transition-colors hover:bg-[color:var(--primary)]/90 disabled:bg-white/10 disabled:text-[color:var(--media-muted)]"
           >
             发送
           </button>
@@ -473,11 +475,11 @@ export function TerminalPage({ services }: { services: ProductServices }) {
       {raw && session && (
         <div className="flex max-h-64 shrink-0 flex-col gap-2 overflow-auto rounded-xl border border-[color:var(--hairline)] bg-[color:var(--card)] p-3">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] text-[color:var(--text-muted)]">原始会话记录</span>
+            <span className="text-[12px] text-[color:var(--text-muted)]">原始会话记录</span>
             <button
               type="button"
               onClick={() => setRaw(false)}
-              className="text-[11px] text-[color:var(--text-faint)] hover:text-[color:var(--text-body)]"
+              className="text-[12px] text-[color:var(--text-faint)] hover:text-[color:var(--text-body)]"
             >
               收起
             </button>

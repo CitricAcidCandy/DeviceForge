@@ -49,7 +49,7 @@
   padding-block: 3px;
 }
 .message-title {
-  font-size: 13px;
+  font-size: 0.875rem;
   font-weight: 600;
   line-height: 1.5;
   overflow-wrap: anywhere;
@@ -57,7 +57,7 @@
 .message-description {
   margin-top: 4px;
   color: var(--muted-foreground);
-  font-size: 12px;
+  font-size: 0.8125rem;
 }
 .message-close[data-slot='button'] {
   width: 30px;
@@ -70,11 +70,11 @@
   height: 30px;
   min-height: 30px;
   margin: 4px 0 0 -8px;
-  font-size: 12px;
+  font-size: 0.8125rem;
 }
 .message-diagnostics {
   margin-top: 5px;
-  font-size: 12px;
+  font-size: 0.8125rem;
 }
 .message-diagnostics > summary {
   cursor: pointer;
@@ -106,7 +106,7 @@
 .message-log code {
   flex: 1;
   min-width: 0;
-  font-size: 11px;
+  font-size: 0.75rem;
   user-select: text;
   overflow-wrap: anywhere;
 }

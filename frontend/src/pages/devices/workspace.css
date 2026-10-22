@@ -28,14 +28,14 @@
   border-left: 1px solid var(--hairline);
 }
 .topbar-context > b {
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 600;
   color: var(--text-strong);
   white-space: nowrap;
 }
 .topbar-device-meta {
   min-width: 0;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: var(--text-ghost);
   white-space: nowrap;
   overflow: hidden;
@@ -200,12 +200,12 @@
 }
 .device-screen-note {
   margin: 0;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   letter-spacing: 0.08em;
   color: var(--text-muted);
 }
 .device-screen-link {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: var(--primary);
   text-decoration: none;
   opacity: 0.75;
@@ -225,7 +225,7 @@
 }
 .device-stage-empty p {
   margin: 0;
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   color: var(--text-faint);
   letter-spacing: 0.02em;
 }
@@ -266,7 +266,7 @@
 }
 .device-directory-heading h2 {
   margin: 0;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 500;
   color: var(--text-strong);
 }
@@ -274,7 +274,7 @@
   padding: 1px 5px;
   border-radius: 4px;
   background: var(--surface-sunken);
-  font: 500 0.5625rem/1.4 var(--font-mono);
+  font: 500 0.6875rem/1.4 var(--font-mono);
   color: var(--text-faint);
 }
 .device-directory-actions {
@@ -307,7 +307,7 @@
   border: 0;
   background: transparent;
   padding: 0;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: var(--text-body);
   box-shadow: none;
 }
@@ -317,19 +317,19 @@
 .device-directory-connect [data-slot='button'] {
   width: 100%;
   height: 26px;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
 }
 .device-source-filter {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: var(--text-ghost);
 }
 .device-source-filter [data-slot='select-trigger'] {
   height: 24px;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   border-color: var(--hairline-strong);
   background: transparent;
 }
@@ -386,7 +386,7 @@
   flex: 1;
 }
 .device-list-copy strong {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 500;
   color: var(--text-body);
   overflow: hidden;
@@ -394,7 +394,7 @@
   white-space: nowrap;
 }
 .device-list-copy small {
-  font: 400 0.5625rem/1.3 var(--font-mono);
+  font: 400 0.6875rem/1.3 var(--font-mono);
   color: var(--text-ghost);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -415,7 +415,7 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: var(--text-faint);
 }
 .text-state > i {
@@ -441,7 +441,7 @@
 }
 .device-provider-list > summary {
   cursor: pointer;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: var(--text-ghost);
   list-style: none;
 }
@@ -469,12 +469,12 @@
   flex: 1;
 }
 .device-provider-item strong {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 500;
   color: var(--text-body);
 }
 .device-provider-item small {
-  font: 400 0.5625rem/1.3 var(--font-mono);
+  font: 400 0.6875rem/1.3 var(--font-mono);
   color: var(--text-ghost);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -500,10 +500,10 @@
   border-bottom: 1px solid var(--hairline);
 }
 .device-drawer [data-slot='sheet-title'] {
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 .device-drawer [data-slot='sheet-description'] {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   line-height: 1.6;
 }
 .device-facts {
@@ -520,13 +520,13 @@
   border-bottom: 1px solid var(--hairline);
 }
 .device-facts dt {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: var(--text-ghost);
   white-space: nowrap;
 }
 .device-facts dd {
   margin: 0;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: var(--text-body);
   text-align: right;
   overflow-wrap: anywhere;
@@ -545,13 +545,13 @@
 }
 .device-section-heading h3 {
   margin: 0;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 500;
   letter-spacing: 0.1em;
   color: var(--text-ghost);
 }
 .device-section-heading .muted {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: var(--text-ghost);
 }
 .device-drawer .device-shortcut-grid,
@@ -581,13 +581,13 @@
 }
 .device-shortcut strong {
   display: block;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 500;
   color: var(--text-body);
 }
 .device-shortcut small {
   display: block;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: var(--text-ghost);
 }
 .device-shortcut > svg:last-child {
@@ -607,7 +607,7 @@
   padding: 5px 8px;
   border-radius: 6px;
   background: var(--surface-sunken);
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: var(--text-muted);
   text-decoration: none;
 }
@@ -617,7 +617,7 @@
 }
 .device-shared-tools span {
   color: var(--text-ghost);
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
 }
 .device-advanced {
   border-top: 1px solid var(--hairline);
@@ -628,7 +628,7 @@
   align-items: center;
   gap: 6px;
   cursor: pointer;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: var(--text-faint);
   list-style: none;
 }
@@ -641,10 +641,10 @@
 }
 .device-advanced > summary span {
   color: var(--text-ghost);
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
 }
 .device-advanced .muted {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   line-height: 1.6;
 }
 .device-capability-action {
@@ -657,7 +657,7 @@
   justify-content: space-between;
   gap: 10px;
   cursor: pointer;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: var(--text-body);
   list-style: none;
 }
@@ -665,7 +665,7 @@
   display: none;
 }
 .device-capability-action > summary small {
-  font: 400 0.5625rem/1.4 var(--font-mono);
+  font: 400 0.6875rem/1.4 var(--font-mono);
   color: var(--text-ghost);
   white-space: nowrap;
 }
@@ -673,7 +673,7 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: var(--text-ghost);
 }
 .device-json-input {
@@ -682,7 +682,7 @@
   border: 1px solid var(--hairline-strong);
   border-radius: 6px;
   background: var(--surface-sunken);
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   line-height: 1.5;
   color: var(--text-muted);
   resize: vertical;
@@ -692,7 +692,7 @@
   flex-direction: column;
   gap: 6px;
   padding-top: 6px;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: var(--text-muted);
 }
 .device-task-result > p {

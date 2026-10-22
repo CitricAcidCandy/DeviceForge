@@ -120,7 +120,7 @@ export function WorkspaceHeader({
           <DropdownMenuItem onSelect={onRefreshConnection}>重新连接服务器</DropdownMenuItem>
           <DropdownMenuCheckboxItem checked={reduced} onCheckedChange={onReducedChange}>减少动态效果</DropdownMenuCheckboxItem>
           <DropdownMenuItem onSelect={() => onNavigate('settings')}>主题与设置</DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => onNavigate('plugins')}>管理插件</DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => onNavigate('marketplace')}>管理插件</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
     </div>

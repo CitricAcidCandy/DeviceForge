@@ -32,7 +32,7 @@
 }
 .picker-head h1 {
   margin: 0;
-  font-size: 1.375rem;
+  font-size: 1.5rem;
   font-weight: 600;
   letter-spacing: -0.01em;
   color: var(--text-strong);
@@ -61,7 +61,7 @@
 .picker-count {
   display: block;
   margin-top: 6px;
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   color: var(--text-faint);
 }
 .picker-actions {
@@ -94,7 +94,7 @@
   border: 0;
   background: transparent;
   box-shadow: none;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   color: var(--text-body);
 }
 .picker-search [data-slot='input']:focus-visible {
@@ -110,7 +110,7 @@
   border: 0;
   border-radius: 7px;
   background: transparent;
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   color: var(--text-muted);
   cursor: pointer;
   white-space: nowrap;
@@ -139,7 +139,7 @@
 }
 .picker-label {
   display: block;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   letter-spacing: 0.1em;
   color: var(--text-ghost);
 }
@@ -164,7 +164,7 @@
   border: 0;
   border-radius: 7px;
   background: transparent;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   color: var(--text-body);
   cursor: pointer;
   text-align: left;
@@ -174,7 +174,7 @@
 }
 .picker-source b {
   font-weight: 400;
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   color: var(--text-faint);
 }
 .picker-source[aria-pressed='true'] {
@@ -187,7 +187,7 @@
 }
 .picker-source.is-idle {
   color: var(--text-ghost);
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   padding-left: 9px;
 }
 
@@ -208,7 +208,7 @@
 .picker-columns {
   height: 28px;
   padding: 0 10px;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   letter-spacing: 0.08em;
   color: var(--text-ghost);
   border-bottom: 1px solid var(--hairline);
@@ -264,7 +264,7 @@
   min-width: 0;
 }
 .picker-name strong {
-  font-size: 0.875rem;
+  font-size: 0.9375rem;
   font-weight: 500;
   color: var(--text-strong);
   overflow: hidden;
@@ -272,13 +272,13 @@
   white-space: nowrap;
 }
 .picker-name small {
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   color: var(--text-faint);
 }
 .picker-id,
 .picker-caps,
 .picker-seen {
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   color: var(--text-muted);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -288,7 +288,7 @@
   color: var(--text-faint);
 }
 .picker-go {
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   color: var(--text-ghost);
   text-align: right;
 }
@@ -302,11 +302,11 @@
   align-items: flex-start;
   gap: 10px;
   padding: 34px 12px;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   color: var(--text-faint);
 }
 .picker-empty strong {
-  font-size: 0.875rem;
+  font-size: 0.9375rem;
   font-weight: 500;
   color: var(--text-body);
 }
@@ -331,14 +331,14 @@
   border-bottom: 1px solid var(--hairline);
 }
 .picker-provider-name {
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   color: var(--text-body);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .picker-provider-meta {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: var(--text-faint);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -346,11 +346,11 @@
 }
 .picker-provider .picker-link {
   height: 26px;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
 }
 .picker-provider-note {
   margin: 6px 0 0;
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   color: var(--text-ghost);
 }
 
@@ -366,7 +366,7 @@
   background: var(--surface-card);
 }
 .picker-detail-name {
-  font-size: 1.0625rem;
+  font-size: 1.125rem;
   font-weight: 600;
   color: var(--text-strong);
   overflow: hidden;
@@ -378,7 +378,7 @@
   align-items: center;
   gap: 6px;
   margin-top: -4px;
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   color: var(--text-body);
 }
 .picker-facts {
@@ -397,7 +397,7 @@
   gap: 12px;
 }
 .picker-facts dt {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: var(--text-faint);
   flex-shrink: 0;
 }
@@ -405,7 +405,7 @@
   margin: 0;
   flex: 1 1 auto;
   min-width: 0;
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   color: var(--text-body);
   text-align: right;
   /* 代次这类 UUID 不折行就只能看前半截，宁可占两行也要读全。 */
@@ -423,7 +423,7 @@
   padding: 0 8px;
   border-radius: 6px;
   background: var(--accent);
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: var(--primary-strong, #4b2ed6);
 }
 .picker-chip.is-idle {
@@ -434,7 +434,7 @@
   width: 100%;
   margin-top: auto;
   height: 36px;
-  font-size: 0.875rem;
+  font-size: 0.9375rem;
 }
 .picker-detail-empty {
   display: flex;
@@ -444,7 +444,7 @@
   gap: 10px;
   flex: 1;
   color: var(--text-ghost);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 .picker-detail-empty > svg {
   width: 18px;

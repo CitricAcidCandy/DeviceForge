@@ -43,9 +43,7 @@ async function verifyStaticRendering() {
       '终端',
       'AI 助手',
       '数据分析',
-      '插件',
       '任务与日志',
-      '工具供应',
       '市场',
       '设置',
       '工作台',
@@ -203,9 +201,7 @@ test('中后台分组导航、折叠与专注保留页面草稿，设备上下�
       ['terminal', '终端'],
       ['ai', 'AI 助手'],
       ['analysis', '数据分析'],
-      ['plugins', '插件'],
       ['tasks', '任务与日志'],
-      ['tools', '工具供应'],
       ['marketplace', '市场'],
       ['settings', '设置'],
     ];
@@ -219,8 +215,8 @@ test('中后台分组导航、折叠与专注保留页面草稿，设备上下�
       assert.equal(visibleRoutes.length, 1);
       assert.equal(visibleRoutes[0]?.getAttribute('data-route'), routeId);
     };
-    // 12 项：「文件与产物」收进设置的二级页，不在侧栏；画面与录制、应用与包已并入设备页。
-    assert.equal(navigation().querySelectorAll('button[data-navigation-route]').length, 12);
+    // 10 项：「文件与产物」收进设置的二级页；画面与录制、应用与包并入设备页；插件与工具供应并入市场。
+    assert.equal(navigation().querySelectorAll('button[data-navigation-route]').length, 10);
     assert.equal(
       Array.from(navigation().querySelectorAll('button[data-navigation-route]')).some(
         (entry) => entry.getAttribute('data-navigation-route') === 'files',

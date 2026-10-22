@@ -5,6 +5,8 @@ import type {
 } from '../../features/marketplace/index.ts';
 import type { PackageInfo, PackageKind, PluginInfo } from '../../services/api/index.ts';
 import type { SettingsSection } from '../../features/settings/index.ts';
+import { isReleaseEntry } from '../../features/plugin-installations/index.ts';
+import type { PluginInstallation } from '../../features/plugin-installations/index.ts';
 
 export const kindLabels: Record<MarketplaceKind, string> = {
   plugin: '插件',
@@ -100,9 +102,22 @@ export function configurationTarget(entry: MarketplaceEntry): SettingsSection | 
 export function installBlock(entry: MarketplaceEntry): string | null {
   if (entry.metadataIssues?.length) return '元数据不完整，无法安装';
   if (!entry.resource_id || !/^[a-f0-9]{64}$/i.test(entry.resource_id)) return '缺少有效资源摘要';
+  if (isReleaseEntry(entry)) return null;
   if (!pluginKind(entry))
     return entry.kind === 'plugin' ? '作者未声明插件运行位置' : '此条目提供文件下载';
   return null;
+}
+
+export function localInstallationEntry(installation: PluginInstallation): MarketplaceEntry {
+  return { metadata_version: 1, id: installation.id, kind: 'plugin', name: installation.name,
+    version: installation.version, summary: installation.summary, description: installation.description,
+    keywords: [], categories: ['function'], applies_to: ['deviceforge'], supports_mcp: 'none', supports_agent: false,
+    restart_policy: 'none', platforms: [], architectures: [], source: '', sourceName: '本地完整安装',
+    details: { release_format: 1, release_revision: installation.revision, release_enabled: installation.enabled } };
+}
+
+export function releaseConfigurationTargets(installation: PluginInstallation) {
+  return installation.components.map((component) => ({ kind: component.kind, id: component.id }));
 }
 
 export function localPackageEntry(pkg: PackageInfo, plugin?: PluginInfo): MarketplaceEntry {

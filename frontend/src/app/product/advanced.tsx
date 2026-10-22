@@ -7,7 +7,6 @@ import { AutomationPage } from '../../pages/automation/index.tsx';
 import { TerminalPage } from '../../pages/terminal/index.tsx';
 import { AiPage } from '../../pages/ai/index.tsx';
 import { AnalysisPage } from '../../pages/analysis/index.tsx';
-import { ToolsPage } from '../../pages/tools/index.tsx';
 
 // 画面与应用已并入设备工作台，这里只保留需要独立路由的深度调试与工坊页面。
 export function AdvancedPage({
@@ -33,8 +32,6 @@ export function AdvancedPage({
       return <AiPage services={services} />;
     case 'analysis':
       return <AnalysisPage services={services} />;
-    case 'tools':
-      return <ToolsPage services={services} />;
     default:
       return null;
   }

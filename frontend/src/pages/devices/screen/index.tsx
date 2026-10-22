@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { PointerEvent } from 'react';
-import { Camera, Download, Maximize2, Play } from 'lucide-react';
+import type { CSSProperties, PointerEvent } from 'react';
+import { Camera, Download, Maximize2, MoveDiagonal2, Play } from 'lucide-react';
 import { Button } from '../../../components/Button/index.tsx';
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
@@ -32,6 +32,25 @@ import './workspace.css';
 
 /** 右栏两个面：画面参数与应用。舞台常驻，切面不覆盖画面。 */
 export type WorkbenchPane = 'params' | 'apps';
+
+/* 画面缩放的取值范围与存档键：拖动画面四角的弧线来改。 */
+const ZOOM_MIN = 0.6;
+const ZOOM_MAX = 3;
+const ZOOM_STEP = 0.05;
+const ZOOM_STORAGE_KEY = 'deviceforge.device-screen.zoom';
+/* 四个角各自往外拖才是放大：左下角往左、往下拖就是放大。 */
+const CORNERS = {
+  nw: [-1, -1],
+  ne: [1, -1],
+  sw: [-1, 1],
+  se: [1, 1],
+} as const;
+type Corner = keyof typeof CORNERS;
+function readStoredZoom(): number {
+  if (typeof window === 'undefined') return 1;
+  const stored = Number(window.localStorage.getItem(ZOOM_STORAGE_KEY));
+  return Number.isFinite(stored) && stored >= ZOOM_MIN && stored <= ZOOM_MAX ? stored : 1;
+}
 
 export function DeviceScreen({
   services,
@@ -71,6 +90,22 @@ export function DeviceScreen({
   const [duration, setDuration] = useState('10000');
   const [size, setSize] = useState('1280');
   const [fps, setFps] = useState('30');
+  /*
+   * 画面缩放：1 = 自适应（等比铺满舞台可用区域），拖右下角手柄可以继续放大，
+   * 超出舞台的部分在画面区内部滚动，不会把整页撑开。
+   */
+  const [zoom, setZoom] = useState(readStoredZoom);
+  const [resizing, setResizing] = useState(false);
+  const zoomDrag = useRef<{ x: number; y: number; base: number } | null>(null);
+  const zoomTo = (value: number) => {
+    const next = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round(value * 100) / 100));
+    setZoom(next);
+    try {
+      window.localStorage.setItem(ZOOM_STORAGE_KEY, String(next));
+    } catch {
+      /* 隐私模式下写不进去，只影响下次进入的默认值 */
+    }
+  };
   const [control, setControl] = useState(false);
   const [text, setText] = useState('');
   const [sessionId, setSessionId] = useState('');
@@ -326,6 +361,27 @@ export function DeviceScreen({
       pressure: type === 'up' ? 0 : 1,
     });
   }
+  /**
+   * 右下角缩放手柄：往右下拖放大、往左上拖缩小。
+   * 位移取横纵之和，斜着拖和正着拖的手感一致；双击回到 100%。
+   */
+  function zoomPointer(event: PointerEvent<HTMLSpanElement>, type: 'down' | 'move' | 'up') {
+    if (type === 'down') {
+      event.preventDefault();
+      event.currentTarget.setPointerCapture(event.pointerId);
+      zoomDrag.current = { x: event.clientX, y: event.clientY, base: zoom };
+      setResizing(true);
+      return;
+    }
+    const drag = zoomDrag.current;
+    if (!drag) return;
+    if (type === 'up') {
+      zoomDrag.current = null;
+      setResizing(false);
+      return;
+    }
+    zoomTo(drag.base + (event.clientX - drag.x + (event.clientY - drag.y)) / 280);
+  }
   const key = (keycode: number) => {
     if (!controlReady) return;
     setControlError(null);
@@ -470,9 +526,22 @@ export function DeviceScreen({
   const stageReadout = [
     videoSize ? `${videoSize.width} × ${videoSize.height}` : '尺寸待返回',
     `${fps} fps`,
+    zoom === 1 ? null : `缩放 ${Math.round(zoom * 100)}%`,
     transportLabel,
     source || '尚未取到画面',
-  ].join(' · ');
+  ]
+    .filter(Boolean)
+    .join(' · ');
+  /* 画面框的等比尺寸交给 CSS 算：比例与它的倒数从真实画面尺寸来，缩放倍数来自手柄。 */
+  const frameStyle = {
+    '--frame-zoom': String(zoom),
+    ...(videoSize
+      ? {
+          '--frame-ratio': String(videoSize.width / videoSize.height),
+          '--frame-fit-inv': String(videoSize.height / videoSize.width),
+        }
+      : {}),
+  } as CSSProperties;
   const liveLine = activeSession
     ? `会话 ${selectedSession?.status ?? '已建立'}`
     : '未开始 · 先建立会话';
@@ -785,63 +854,100 @@ export function DeviceScreen({
       </aside>
       {/* ── 舞台：设备画面常驻 ────────────────────────────── */}
       <div className="workbench-stage" ref={stage}>
-        <div
-          className="media-frame"
-          data-orientation={orientation}
-          data-live={videoSize ? 'true' : 'false'}
-          style={videoSize ? { aspectRatio: `${videoSize.width} / ${videoSize.height}` } : undefined}
-        >
-          <div className="media-frame-screen">
-            <canvas
-              ref={(target) => {
-                canvas.current = target;
-                services.mediaDisplay.bind(target);
-              }}
-              aria-label="设备实时投屏画面"
-              role="img"
-              className={`media-canvas${controlReady ? ' is-interactive' : ''}${mediaKeyboard.focused ? ' is-keyboard-focused' : ''}`}
-              tabIndex={mediaKeyboard.tabIndex}
-              hidden={webMode}
-              onFocus={mediaKeyboard.onFocus}
-              onBlur={mediaKeyboard.onBlur}
-              onKeyDown={mediaKeyboard.onKeyDown}
-              onKeyUp={mediaKeyboard.onKeyUp}
-              onPaste={mediaClipboard.onPaste}
-              onPointerDown={(event) => pointer(event, 'down')}
-              onPointerMove={(event) => pointer(event, 'move')}
-              onPointerUp={(event) => pointer(event, 'up')}
-              onPointerCancel={(event) => pointer(event, 'up')}
-            />
-            <video
-              ref={services.mediaDisplay.bindVideo}
-              autoPlay
-              playsInline
-              muted
-              aria-label="设备 WebRTC 实时投屏画面"
-              className={`media-canvas${controlReady ? ' is-interactive' : ''}${mediaKeyboard.focused ? ' is-keyboard-focused' : ''}`}
-              tabIndex={mediaKeyboard.tabIndex}
-              hidden={!webMode}
-              onFocus={mediaKeyboard.onFocus}
-              onBlur={mediaKeyboard.onBlur}
-              onKeyDown={mediaKeyboard.onKeyDown}
-              onKeyUp={mediaKeyboard.onKeyUp}
-              onPaste={mediaClipboard.onPaste}
-              onResize={() => setWebVideoSize(services.mediaDisplay.videoSize())}
-              onLoadedMetadata={() => setWebVideoSize(services.mediaDisplay.videoSize())}
-              onPointerDown={(event) => pointer(event, 'down')}
-              onPointerMove={(event) => pointer(event, 'move')}
-              onPointerUp={(event) => pointer(event, 'up')}
-              onPointerCancel={(event) => pointer(event, 'up')}
-            />
-            {!device.selection && (
-              <EmptyState title="选择一台设备开始" description="在顶栏设备身份里选择工作设备。" />
-            )}
-            {device.selection && !videoSize && (
-              <EmptyState title="等待设备画面" description="点右栏底部的开始投屏拉取画面。" />
-            )}
+        {/* 只让画面层滚动：缩放手柄留在舞台里，放大后也不会跟着内容跑到看不见的地方。 */}
+        <div className="media-canvas-area">
+          <div
+            className="media-frame"
+            data-orientation={orientation}
+            data-live={videoSize ? 'true' : 'false'}
+            style={frameStyle}
+          >
+            <div className="media-frame-screen">
+              <canvas
+                ref={(target) => {
+                  canvas.current = target;
+                  services.mediaDisplay.bind(target);
+                }}
+                aria-label="设备实时投屏画面"
+                role="img"
+                className={`media-canvas${controlReady ? ' is-interactive' : ''}${mediaKeyboard.focused ? ' is-keyboard-focused' : ''}`}
+                tabIndex={mediaKeyboard.tabIndex}
+                hidden={webMode}
+                onFocus={mediaKeyboard.onFocus}
+                onBlur={mediaKeyboard.onBlur}
+                onKeyDown={mediaKeyboard.onKeyDown}
+                onKeyUp={mediaKeyboard.onKeyUp}
+                onPaste={mediaClipboard.onPaste}
+                onPointerDown={(event) => pointer(event, 'down')}
+                onPointerMove={(event) => pointer(event, 'move')}
+                onPointerUp={(event) => pointer(event, 'up')}
+                onPointerCancel={(event) => pointer(event, 'up')}
+              />
+              <video
+                ref={services.mediaDisplay.bindVideo}
+                autoPlay
+                playsInline
+                muted
+                aria-label="设备 WebRTC 实时投屏画面"
+                className={`media-canvas${controlReady ? ' is-interactive' : ''}${mediaKeyboard.focused ? ' is-keyboard-focused' : ''}`}
+                tabIndex={mediaKeyboard.tabIndex}
+                hidden={!webMode}
+                onFocus={mediaKeyboard.onFocus}
+                onBlur={mediaKeyboard.onBlur}
+                onKeyDown={mediaKeyboard.onKeyDown}
+                onKeyUp={mediaKeyboard.onKeyUp}
+                onPaste={mediaClipboard.onPaste}
+                onResize={() => setWebVideoSize(services.mediaDisplay.videoSize())}
+                onLoadedMetadata={() => setWebVideoSize(services.mediaDisplay.videoSize())}
+                onPointerDown={(event) => pointer(event, 'down')}
+                onPointerMove={(event) => pointer(event, 'move')}
+                onPointerUp={(event) => pointer(event, 'up')}
+                onPointerCancel={(event) => pointer(event, 'up')}
+              />
+              {!device.selection && (
+                <EmptyState title="选择一台设备开始" description="在顶栏设备身份里选择工作设备。" />
+              )}
+              {device.selection && !videoSize && (
+                <EmptyState title="等待设备画面" description="点右栏底部的开始投屏拉取画面。" />
+              )}
+            </div>
+            <span className="media-frame-gesture" aria-hidden="true" />
           </div>
-          <span className="media-frame-gesture" aria-hidden="true" />
         </div>
+        {/*
+          画面缩放手柄：拖动改大小，双击回到自适应，方向键微调。
+          它落在舞台底部预留的那条带子里，跟读数、操作胶囊互不遮挡。
+        */}
+        <span
+          className="media-zoom-grip"
+          role="slider"
+          tabIndex={0}
+          aria-label="画面缩放"
+          aria-valuemin={ZOOM_MIN * 100}
+          aria-valuemax={ZOOM_MAX * 100}
+          aria-valuenow={Math.round(zoom * 100)}
+          title={`拖动调整画面大小 · 当前 ${Math.round(zoom * 100)}% · 双击复位`}
+          data-dragging={resizing ? 'true' : undefined}
+          onPointerDown={(event) => zoomPointer(event, 'down')}
+          onPointerMove={(event) => zoomPointer(event, 'move')}
+          onPointerUp={(event) => zoomPointer(event, 'up')}
+          onPointerCancel={(event) => zoomPointer(event, 'up')}
+          onDoubleClick={() => zoomTo(1)}
+          onKeyDown={(event) => {
+            if (event.key === 'ArrowRight' || event.key === 'ArrowUp') {
+              event.preventDefault();
+              zoomTo(zoom + ZOOM_STEP);
+            } else if (event.key === 'ArrowLeft' || event.key === 'ArrowDown') {
+              event.preventDefault();
+              zoomTo(zoom - ZOOM_STEP);
+            } else if (event.key === '0' || event.key === 'Home') {
+              event.preventDefault();
+              zoomTo(1);
+            }
+          }}
+        >
+          <MoveDiagonal2 aria-hidden="true" />
+        </span>
         {control && (
           <p className="media-keyboard-hint" aria-live="polite">
             {mediaKeyboard.focused

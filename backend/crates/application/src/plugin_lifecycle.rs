@@ -16,6 +16,8 @@ pub struct PluginService {
     pending: Arc<Semaphore>,
     closed: CancellationToken,
     tracker: TaskTracker,
+    installations:
+        std::sync::OnceLock<Arc<dyn apk_domain::plugin_installations::InstallationStore>>,
 }
 impl PluginService {
     pub fn new(
@@ -32,6 +34,7 @@ impl PluginService {
             pending: Arc::new(Semaphore::new(2)),
             closed: CancellationToken::new(),
             tracker: TaskTracker::new(),
+            installations: std::sync::OnceLock::new(),
         })
     }
     /// 只在监听启动前装配初始贡献；运行中管理统一使用 load/unload。
@@ -57,6 +60,53 @@ impl PluginService {
     }
     pub async fn unload(self: &Arc<Self>, id: String) -> Result<PluginInfo> {
         self.change(id, false).await
+    }
+    pub fn bind_installations(
+        &self,
+        store: Arc<dyn apk_domain::plugin_installations::InstallationStore>,
+    ) -> Result<()> {
+        self.installations
+            .set(store)
+            .map_err(|_| Error::Conflict("插件安装存储已绑定".into()))
+    }
+    /// 仅由已持有 serialized 门禁的安装用例调用，避免再次取得同一管理锁。
+    pub(crate) async fn load_serialized(&self, id: &str) -> Result<PluginInfo> {
+        plugin_id(id)?;
+        let plugin = self.catalog.load(id).await?;
+        if plugin.id != id {
+            return Err(Error::Invalid("部署插件 ID 与请求不符".into()));
+        }
+        self.app.install_plugin(plugin).await
+    }
+    pub(crate) async fn validate_installation_operations(
+        &self,
+        operations: Vec<apk_domain::Operation>,
+    ) -> Result<()> {
+        self.app
+            .blocking(move || crate::registration::validate_operations(&operations))
+            .await
+    }
+    /// 更新与删除拒绝活动任务和未确认资源，不隐式取消正在工作的旧版。
+    pub(crate) async fn unload_idle_serialized(&self, id: &str) -> Result<()> {
+        if self.protected.contains(id) {
+            return Err(Error::Conflict("组件被长期来源引用，不能变更部署".into()));
+        }
+        if !self.list().iter().any(|plugin| plugin.id == id) {
+            return Ok(());
+        }
+        let app = self.app.clone();
+        let id = id.to_owned();
+        self.app
+            .blocking(move || {
+                let _active = app
+                    .active
+                    .lock()
+                    .map_err(|_| Error::Storage("任务准入状态异常".into()))?;
+                let owner = app.registry.detach_if_idle(&id)?;
+                app.registry.finish(&owner)?;
+                Ok(())
+            })
+            .await
     }
     pub(crate) async fn apply_configuration(
         self: &Arc<Self>,
@@ -113,6 +163,18 @@ impl PluginService {
     async fn change(self: &Arc<Self>, id: String, loading: bool) -> Result<PluginInfo> {
         plugin_id(&id)?;
         self.serialized(move |service| async move {
+            if let Some(store) = service.installations.get() {
+                if store.list().await?.iter().any(|release| {
+                    release
+                        .components
+                        .iter()
+                        .any(|component| component.id == id)
+                }) {
+                    return Err(Error::Conflict(
+                        "托管组件请通过统一发布启停，避免组件状态与发布状态分离".into(),
+                    ));
+                }
+            }
             tracing::info!(plugin_id = %id, loading, "插件生命周期变更开始");
             let result = async {
                 if loading {

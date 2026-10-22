@@ -105,7 +105,7 @@ export function DeviceDirectory({
     ? devices.length
       ? '换个搜索词或来源。'
       : '连接设备后点「发现设备」，并确认设备端已授权。'
-    : '在插件页启用设备提供者，回到这里重新发现。';
+    : '在市场页「已安装」启用设备提供者，回到这里重新发现。';
   return (
     <section className="device-picker" aria-label="选择设备">
       <header className="picker-head">
@@ -223,7 +223,7 @@ export function DeviceDirectory({
                 <span>{emptyHint}</span>
                 {snapshot.providers.length === 0 ? (
                   <Button size="sm" asChild>
-                    <a href="#plugins">去插件页启用</a>
+                    <a href="#marketplace">去市场页启用</a>
                   </Button>
                 ) : null}
               </div>

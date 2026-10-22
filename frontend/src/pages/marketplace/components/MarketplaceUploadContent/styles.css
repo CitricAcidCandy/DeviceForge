@@ -1,7 +1,7 @@
 .marketplace-upload-modes { display: flex; flex-wrap: wrap; gap: .5rem; margin-block: .75rem; }
 .marketplace-upload-content { min-width: 0; }
 .marketplace-upload-file-tree { max-height: 16rem; overflow: auto; padding: .75rem; background: var(--muted); border-radius: .5rem; }
-.marketplace-upload-file-tree li { display: flex; gap: 1rem; justify-content: space-between; min-width: 0; font-size: .8rem; }
+.marketplace-upload-file-tree li { display: flex; gap: 1rem; justify-content: space-between; min-width: 0; font-size: 0.8125rem; }
 .marketplace-upload-file-tree code { overflow-wrap: anywhere; }
 .marketplace-upload-file-tree span { flex-shrink: 0; }
-.marketplace-upload-digest { overflow-wrap: anywhere; font-size: .75rem; }
+.marketplace-upload-digest { overflow-wrap: anywhere; font-size: 0.8125rem; }

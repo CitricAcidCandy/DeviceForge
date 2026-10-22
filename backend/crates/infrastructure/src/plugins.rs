@@ -265,6 +265,11 @@ impl ProcessPlugin {
         } else {
             None
         };
+        let resources = if let Some(store) = &self.configurations {
+            execution_deadline::run(&cancel, deadline, store.resources_path(&self.manifest.id)).await?
+        } else {
+            None
+        };
         let prefix = format!("plugin.{}.", self.manifest.id);
         let name = operation
             .strip_prefix(&prefix)
@@ -340,6 +345,7 @@ impl ProcessPlugin {
                 timeout: Duration::from_secs(3600),
                 deadline: context.deadline,
                 configuration: configuration.as_deref(),
+                resources: resources.as_deref(),
             };
             if self.manifest.protocol_version == CONTEXT_PROTOCOL_VERSION {
                 process::cooperative::run_with_context(invocation, self.unresolved.clone()).await?
@@ -357,6 +363,7 @@ impl ProcessPlugin {
                 cancel: cancel.clone(),
                 directory: files.as_ref().map(|files| files.directory.path()),
                 configuration: configuration.as_deref(),
+                resources: resources.as_deref(),
             })
             .await;
             cleanup.observe(&result);

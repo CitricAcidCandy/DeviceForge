@@ -1,0 +1,54 @@
+{
+  "format_version": 1,
+  "host_api_version": 2,
+  "id": "automation",
+  "version": "0.1.0",
+  "name": "自动化操作",
+  "description": "提供动作序列、设备重复点击、Windows 鼠标操作及输入轨迹录制和回放。工具和存储位置由部署者配置，目标设备及动作范围按操作契约校验。",
+  "components": [
+    {
+      "id": "automation",
+      "kind": "server",
+      "version": "0.1.0",
+      "variants": []
+    }
+  ],
+  "tools": [
+    {
+      "id": "adb",
+      "version": "36.0.0",
+      "required": true,
+      "variants": [],
+      "bindings": [
+        {
+          "component_id": "automation",
+          "config_pointer": "/adb",
+          "entry": "adb"
+        }
+      ]
+    },
+    {
+      "id": "input-trace",
+      "version": "1.0.0.0",
+      "required": false,
+      "variants": [],
+      "bindings": [
+        {
+          "component_id": "automation",
+          "config_pointer": "/input_trace",
+          "entry": "input-trace"
+        }
+      ]
+    }
+  ],
+  "requirements": [
+    {
+      "component_id": "automation",
+      "config_pointer": "/desktop_enabled",
+      "title": "桌面自动化授权",
+      "description": "只有用户明确开启后才允许桌面自动化。",
+      "sensitive": false,
+      "required": false
+    }
+  ]
+}

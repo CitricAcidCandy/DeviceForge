@@ -3,12 +3,13 @@ use crate::{plugin_lifecycle::PluginService, registration};
 use apk_domain::{
     Error, Result, artifacts::ArtifactStream, plugin_packages::*, plugins::plugin_id,
 };
-use std::{sync::Arc, time::Duration};
+use std::{sync::{Arc, OnceLock}, time::Duration};
 
 pub struct PackageService {
     store: Arc<dyn PackageStore>,
     plugins: Arc<PluginService>,
     validators: Arc<tokio::sync::Semaphore>,
+    installations: OnceLock<Arc<dyn apk_domain::plugin_installations::InstallationStore>>,
 }
 impl PackageService {
     pub fn new(store: Arc<dyn PackageStore>, plugins: Arc<PluginService>) -> Arc<Self> {
@@ -16,13 +17,27 @@ impl PackageService {
             store,
             plugins,
             validators: Arc::new(tokio::sync::Semaphore::new(2)),
+            installations: OnceLock::new(),
         })
+    }
+    pub fn bind_installations(&self, store: Arc<dyn apk_domain::plugin_installations::InstallationStore>) -> Result<()> {
+        self.installations.set(store).map_err(|_| Error::Conflict("完整发布存储已绑定".into()))
+    }
+    async fn require_unmanaged(&self, kind: PackageKind, id: &str) -> Result<()> {
+        if let Some(store) = self.installations.get() {
+            for release in store.list().await? {
+                if release.components.iter().any(|component| component.kind == kind && component.id == id) {
+                    return Err(Error::Conflict("该组件由完整发布管理，请使用完整插件更新或卸载入口".into()));
+                }
+            }
+        }
+        Ok(())
     }
     pub async fn list(&self, kind: PackageKind) -> Result<Vec<PackageInfo>> {
         self.store.list(kind).await
     }
     pub async fn install(
-        &self,
+        self: &Arc<Self>,
         kind: PackageKind,
         format: PackageFormat,
         stream: ArtifactStream,
@@ -31,7 +46,7 @@ impl PackageService {
             .await
     }
     pub async fn install_expected(
-        &self,
+        self: &Arc<Self>,
         kind: PackageKind,
         format: PackageFormat,
         stream: ArtifactStream,
@@ -42,7 +57,11 @@ impl PackageService {
             let prepared = self
                 .prepare(kind, format, stream, expected_id, expected_version)
                 .await?;
-            prepared.commit().await
+            let service = self.clone();
+            self.plugins.serialized(move |_| async move {
+                service.require_unmanaged(kind, &prepared.info().id).await?;
+                prepared.commit().await
+            }).await
         })
         .await
         .map_err(|_| Error::Timeout)?
@@ -102,8 +121,10 @@ impl PackageService {
             let prepared = self
                 .prepare(kind, format, stream, Some(id.clone()), expected_version)
                 .await?;
+            let service = self.clone();
             self.plugins
                 .serialized(move |plugins| async move {
+                    service.require_unmanaged(kind, &id).await?;
                     require_unloaded(&plugins, kind, &id)?;
                     prepared.replace().await
                 })
@@ -115,8 +136,10 @@ impl PackageService {
     pub async fn delete(self: &Arc<Self>, kind: PackageKind, id: String) -> Result<PackageInfo> {
         plugin_id(&id)?;
         let store = self.store.clone();
+        let service = self.clone();
         self.plugins
             .serialized(move |plugins| async move {
+                service.require_unmanaged(kind, &id).await?;
                 require_unloaded(&plugins, kind, &id)?;
                 store.delete(kind, &id).await
             })

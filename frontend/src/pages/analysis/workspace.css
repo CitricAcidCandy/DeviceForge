@@ -1,13 +1,13 @@
 .analysis-workspace { display: grid; grid-template-columns: minmax(240px, 280px) minmax(0, 1fr); gap: 32px; margin-top: 24px; align-items: start; }
 .analysis-source { display: grid; gap: 12px; min-width: 0; padding-right: 28px; border-right: 1px solid var(--border); }
-.analysis-source > label { color: var(--muted-foreground); font-size: 13px; }
-.analysis-source > p { font-size: 12px; overflow-wrap: anywhere; }
+.analysis-source > label { color: var(--muted-foreground); font-size: 0.875rem; }
+.analysis-source > p { font-size: 0.8125rem; overflow-wrap: anywhere; }
 .analysis-source .form-item { grid-template-columns: minmax(0, 1fr); gap: 7px; margin: 12px 0; }
 .analysis-source .form-item > label { padding: 0; }
 .analysis-tool { min-width: 0; }
 .analysis-tool > .workspace-section { margin-top: 16px; padding-top: 0; border: 0; }
 .analysis-tool > .workspace-section > h2 { display: none; }
-.analysis-help { margin-bottom: 16px; font-size: 12px; color: var(--muted-foreground); }
+.analysis-help { margin-bottom: 16px; font-size: 0.8125rem; color: var(--muted-foreground); }
 .analysis-tool .form-grid { grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr)); }
 .analysis-tool .form-grid > [data-slot='button'] { align-self: start; justify-self: start; margin-top: 27px; }
 @media (max-width: 1100px) {

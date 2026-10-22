@@ -2,6 +2,7 @@
 import { parseOptions, help } from '../src/options.mjs';
 import { start } from '../src/start.mjs';
 import { installPlugin, listPlugins } from '../src/install.mjs';
+import { installPluginRelease, listPluginInstallations } from '../src/plugin-installations.mjs';
 import {
   readRootConfiguration,
   rootConfigurationPath,
@@ -23,7 +24,20 @@ try {
   else if (options.command === 'config.import') {
     const path = await importRootConfiguration(options.dataDirectory, options.source);
     console.log(`根配置已导入：${path}；下次启动生效，已安装内容和业务配置保留`);
-  } else if (options.command === 'plugin.install') {
+  } else if (['plugin.install', 'plugin.update'].includes(options.command)) {
+    const result = await installPluginRelease(options, { signal: controller.signal });
+    console.log(
+      `统一插件安装任务 ${result.job.id} 已完成；日志 ${result.logId}。请在市场查看安装状态与插件配置。`,
+    );
+  } else if (options.command === 'plugin.list') {
+    console.log(
+      JSON.stringify(
+        await listPluginInstallations(options, { signal: controller.signal }),
+        null,
+        2,
+      ),
+    );
+  } else if (options.command === 'plugin.install-legacy') {
     const installed = await installPlugin(options, { signal: controller.signal });
     console.log(
       `插件 ${installed.id}@${installed.version} 安装完成，贡献 ${installed.operations} 项操作；${installed.metadata_complete ? '市场元数据完整' : '缺少 market.json，目录将标记为元数据不完整'}；重启服务加载`,

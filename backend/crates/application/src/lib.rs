@@ -19,6 +19,8 @@ mod operation_budget;
 pub mod plugin_configurations;
 pub mod plugin_lifecycle;
 pub mod plugin_packages;
+pub mod plugin_installations;
+pub mod installation_operations;
 pub mod registration;
 mod registry;
 mod registry_aliases;

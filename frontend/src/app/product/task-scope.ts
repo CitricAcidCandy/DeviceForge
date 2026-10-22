@@ -58,9 +58,6 @@ const routeOperations: Readonly<Partial<Record<ProductRoute, ReadonlySet<string>
     ...pluginOperations('dex-analysis', ['inspect', 'scan_sdks']),
     ...pluginOperations('msgpack', ['encode', 'decode', 'query']),
   ]),
-  tools: new Set(pluginOperations('tool-supply', [
-    'catalog', 'plan', 'install', 'runtime_feature.status', 'runtime_feature.prepare', 'remove',
-  ])),
   settings: new Set(pluginOperations('settings', [
     'list', 'get', 'set', 'delete', 'import', 'remote.load', 'remote.save',
   ])),

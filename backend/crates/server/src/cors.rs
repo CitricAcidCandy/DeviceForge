@@ -23,11 +23,11 @@ pub(crate) async fn allow_browser(request: Request, next: Next) -> Response {
     );
     headers.insert(
         header::ACCESS_CONTROL_ALLOW_METHODS,
-        HeaderValue::from_static("GET, HEAD, POST, PATCH, DELETE, OPTIONS"),
+        HeaderValue::from_static("GET, HEAD, POST, PUT, PATCH, DELETE, OPTIONS"),
     );
     headers.insert(
         header::ACCESS_CONTROL_ALLOW_HEADERS,
-        HeaderValue::from_static("authorization, content-type, accept, range"),
+        HeaderValue::from_static("authorization, content-type, accept, range, x-deviceforge-plugin-release"),
     );
     headers.insert(
         header::ACCESS_CONTROL_EXPOSE_HEADERS,

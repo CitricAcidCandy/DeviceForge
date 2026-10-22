@@ -31,6 +31,7 @@ pub(crate) struct Invocation<'a> {
     pub timeout: Duration,
     pub deadline: Option<std::time::Instant>,
     pub configuration: Option<&'a Path>,
+    pub resources: Option<&'a Path>,
 }
 struct CleanupGuard {
     unresolved: Arc<AtomicBool>,
@@ -167,6 +168,9 @@ async fn run_version(
     let mut cmd = command(call.executable, call.args, true);
     if let Some(path) = call.configuration {
         cmd.env("DEVICEFORGE_PLUGIN_CONFIG", path);
+    }
+    if let Some(path) = call.resources {
+        cmd.env("DEVICEFORGE_PLUGIN_RESOURCES", path);
     }
     if let Some(directory) = call.directory {
         cmd.current_dir(directory);
@@ -481,6 +485,7 @@ mod tests {
                     cancel: cancel.clone(),
                     directory: None,
                     configuration: None,
+                    resources: None,
                     // 共享截止点不得被这个较短的兼容参数截断。
                     timeout: if outer_cancel {
                         Duration::from_millis(1)
@@ -565,6 +570,7 @@ setInterval(() => {}, 1000);
                 cancel: CancellationToken::new(),
                 directory: None,
                 configuration: None,
+                resources: None,
                 timeout: Duration::from_millis(50),
                 deadline: None,
             },
@@ -623,6 +629,7 @@ setInterval(() => {}, 1000);
                 cancel: CancellationToken::new(),
                 directory: None,
                 configuration: None,
+                resources: None,
                 timeout: Duration::from_secs(3600),
                 deadline: Some(std::time::Instant::now() - Duration::from_secs(1)),
             },
@@ -647,6 +654,7 @@ setInterval(() => {}, 1000);
                 cancel,
                 directory: None,
                 configuration: None,
+                resources: None,
                 timeout: Duration::from_secs(1),
                 deadline: Some(std::time::Instant::now() + Duration::from_secs(60)),
             },
@@ -671,6 +679,7 @@ setInterval(() => {}, 1000);
                 cancel,
                 directory: None,
                 configuration: None,
+                resources: None,
                 timeout: Duration::from_secs(3600),
                 deadline: Some(std::time::Instant::now() - Duration::from_secs(1)),
             },

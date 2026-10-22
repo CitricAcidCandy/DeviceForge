@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "host_api_version": 2,
+  "id": "msgpack",
+  "version": "0.1.0",
+  "name": "MessagePack 编解码",
+  "description": "提供 MessagePack 与 JSON 之间的转换及数据查询，复用公开任务和产物机制，无需配置外部程序。",
+  "components": [
+    {
+      "id": "msgpack",
+      "kind": "server",
+      "version": "0.1.0",
+      "variants": []
+    }
+  ],
+  "tools": [],
+  "requirements": []
+}

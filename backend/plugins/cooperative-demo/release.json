@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "host_api_version": 2,
+  "id": "cooperative_demo",
+  "version": "0.1.0",
+  "name": "合作取消示例",
+  "description": "供插件协议与生命周期验证使用，通过等待操作演示合作取消与清理状态，无需外部工具。",
+  "components": [
+    {
+      "id": "cooperative_demo",
+      "kind": "server",
+      "version": "0.1.0",
+      "variants": []
+    }
+  ],
+  "tools": [],
+  "requirements": []
+}

@@ -2,7 +2,11 @@
 
 通过公开协议5打开一个部署profile，使用同一真实工具进程持续收发原字节。当前没有PTY和resize，不把重复普通Job当作交互。完整合同见 [终端业务插件实施裁定](../../docs/implementation/终端业务插件实施裁定.md)。
 
-`manifest.json`声明唯一会话贡献 `plugin.terminal.open`，普通operations为空。打开业务为 `{"profile":"python"}`；profile只选择部署者定义的程序、固定argv及可选工作目录。默认旁置 `terminal.config.json`，可使用 `--config`绝对路径；示例配置见 `terminal.config.example.json`。
+`manifest.json`声明唯一会话贡献 `plugin.terminal.open`，普通operations为空。Windows默认档案为 `powershell`，打开业务为 `{"profile":"powershell"}`，进入Windows PowerShell普通命令行，可执行 `cd`、`dir`、`echo` 等命令。固定启动参数跳过用户启动脚本、保持交互，并将标准输入、输出和外部程序输入设为UTF-8，供页面按UTF-8收发中文。
+
+profile只选择部署者定义的程序、固定argv及可选工作目录。配置通过宿主保存到用户目录；没有宿主管理配置时兼容旁置 `terminal.config.json` 和 `--config`绝对路径，示例见 `terminal.config.example.json`。已有用户档案不会因默认模板更新被覆盖；需要切换时，在配置中新增 `powershell` 后从页面选择，已打开的会话仍保持原程序。非Windows部署者应将默认档案改为本机可用shell，例如 `/bin/sh` 配合 `["-i"]`；当前示例明确用于Windows。
+
+当前使用管道而非PTY。Windows CMD在UTF-8代码页下读取管道中的中文时存在提前退出问题，因此不作为默认档案；PowerShell的交互与中文输入已有真实进程验证。完整屏幕程序、方向键编辑和窗口尺寸调整仍不在当前管道能力范围。
 
 单块8192字节、通道8、累计输入1 MiB、双路合计输出16 MiB。输出保留UTF-8、非法UTF-8和零字节；EOF关闭工具stdin，取消仍可停止会话。所有行为消耗原截止点，取消、期限和背压不重新授予业务预算。工具使用Restricted环境，输入、配置和原始输出不进入生产诊断日志。
 

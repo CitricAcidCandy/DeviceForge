@@ -236,5 +236,6 @@ pub fn validate_local_schema(value: &Value) -> Result<()> {
 pub mod bundles;
 
 pub mod plugin_packages;
+pub mod plugin_installations;
 pub mod plugins;
 pub mod splits;

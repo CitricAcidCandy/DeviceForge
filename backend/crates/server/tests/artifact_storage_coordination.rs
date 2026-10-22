@@ -82,6 +82,7 @@ fn server_command(data: &Path) -> Command {
     }
     command
         .env("APK_DATA_DIR", data)
+        .env("DEVICEFORGE_USER_DIR", data.join("user"))
         .env("APK_PLUGIN_DIR", plugin_directory)
         .env("APK_BIND", "127.0.0.1:0")
         .env_remove("APK_API_TOKEN")

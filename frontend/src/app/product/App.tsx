@@ -4,7 +4,6 @@ import { PRODUCT_ROUTES, parseProductRoute } from './routes.ts';
 import type { ProductRoute } from './routes.ts';
 import { ProductShell } from './shell.tsx';
 import { DevicesPage } from '../../pages/devices/index.tsx';
-import { PluginsPage } from '../../pages/plugins/index.tsx';
 import { TasksPage } from '../../pages/tasks/index.tsx';
 import { SettingsPage } from '../../pages/settings/index.tsx';
 import { MarketplacePage } from '../../pages/marketplace/index.tsx';
@@ -50,7 +49,7 @@ export function App({ services }: { services: ProductServices }) {
       reported = signature;
       services.messages.warning(`有 ${failures.length} 项插件未能默认启用`, {
         id: 'plugin-default-failures',
-        description: '可到插件页重试失败项。',
+        description: '可到市场页「已安装」重试失败项。',
         details: failures.map((entry) => ({
           label: `${entry.kind === 'server' ? '服务器' : '浏览器'} · ${entry.id ?? '插件目录'}`,
           message: entry.message ?? '启用失败',
@@ -70,8 +69,6 @@ export function App({ services }: { services: ProductServices }) {
           <div key={entry.id} hidden={entry.id !== route} data-route={entry.id}>
             {entry.id === 'devices' ? (
               <DevicesPage services={services} active={route === 'devices'} />
-            ) : entry.id === 'plugins' ? (
-              <PluginsPage services={services} active={route === 'plugins'} />
             ) : entry.id === 'tasks' ? (
               <TasksPage services={services} />
             ) : entry.id === 'settings' ? (

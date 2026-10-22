@@ -1,14 +1,14 @@
 .frida-workspace { display: grid; grid-template-columns: minmax(260px, 300px) minmax(0, 1fr); gap: 32px; margin-top: 24px; align-items: start; }
 .frida-controls { min-width: 0; padding-right: 28px; border-right: 1px solid var(--border); }
-.frida-controls > h2 { font-size: 15px; }
+.frida-controls > h2 { font-size: 1rem; }
 .frida-controls .form-row { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
 .frida-controls .form-row > .form-field { max-width: none; }
 .frida-controls .form-row > [data-slot='button'] { margin-top: 0; justify-self: start; }
-.frida-server { margin-block: 20px; padding-block: 12px; border-block: 1px solid var(--border); font-size: 13px; }
+.frida-server { margin-block: 20px; padding-block: 12px; border-block: 1px solid var(--border); font-size: 0.875rem; }
 .frida-output { min-width: 0; min-height: 440px; }
 .frida-output .empty-state { padding-top: 0; margin-top: 0; }
 .frida-output .action-row { margin-block: 20px; }
-.frida-provenance { font-size: 12px; overflow-wrap: anywhere; margin-block: 8px 20px; }
+.frida-provenance { font-size: 0.8125rem; overflow-wrap: anywhere; margin-block: 8px 20px; }
 @media (max-width: 1050px) {
   .frida-workspace { grid-template-columns: minmax(0, 1fr); gap: 24px; }
   .frida-controls { padding: 0 0 24px; border-right: 0; border-bottom: 1px solid var(--border); }

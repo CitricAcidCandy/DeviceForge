@@ -1,0 +1,18 @@
+{
+  "format_version": 1,
+  "host_api_version": 2,
+  "id": "echo",
+  "version": "0.1.0",
+  "name": "输入回显示例",
+  "description": "供插件开发和协议验证使用，回显合法输入，无需外部工具或基础配置。",
+  "components": [
+    {
+      "id": "echo",
+      "kind": "server",
+      "version": "0.1.0",
+      "variants": []
+    }
+  ],
+  "tools": [],
+  "requirements": []
+}

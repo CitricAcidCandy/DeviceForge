@@ -83,20 +83,20 @@ function Track({
       }
     >
       <div className="flex w-[76px] shrink-0 flex-col py-3 pl-4">
-        <span className="text-[11px] font-medium text-[color:var(--text-muted)]">{label}</span>
+        <span className="text-[12px] font-medium text-[color:var(--text-muted)]">{label}</span>
         {note && (
-          <span className="mt-1 block text-[11px] leading-4 text-[color:var(--text-ghost)]">
+          <span className="mt-1 block text-[12px] leading-4 text-[color:var(--text-ghost)]">
             {note}
           </span>
         )}
         {gutterBody && (
-          <div className="mt-1 flex min-h-0 flex-1 flex-col justify-around text-[11px] text-[color:var(--text-muted)]">
+          <div className="mt-1 flex min-h-0 flex-1 flex-col justify-around text-[12px] text-[color:var(--text-muted)]">
             {gutterBody}
           </div>
         )}
       </div>
       <div className="min-w-0 flex-1 py-2 pr-2">{children}</div>
-      <div className="w-[84px] shrink-0 py-3 pr-5 text-right font-mono text-[12px] leading-[18px] text-[color:var(--text-strong)]">
+      <div className="w-[84px] shrink-0 py-3 pr-5 text-right font-mono text-[13px] leading-[18px] text-[color:var(--text-strong)]">
         {now ?? ''}
       </div>
     </div>
@@ -150,7 +150,7 @@ function FrameTrack({
   if (framed.length === 0)
     return (
       <div className="flex h-full items-center">
-        <p className="text-[12px] text-[color:var(--text-faint)]">{note}</p>
+        <p className="text-[13px] text-[color:var(--text-faint)]">{note}</p>
       </div>
     );
   return (
@@ -211,7 +211,7 @@ function AxisTrack({
       {marks.map((value) => (
         <span
           key={`label-${value}`}
-          className="absolute top-[18px] -translate-x-1/2 font-mono text-[11px] text-[color:var(--text-ghost)]"
+          className="absolute top-[18px] -translate-x-1/2 font-mono text-[12px] text-[color:var(--text-ghost)]"
           style={{ left: `${ratioOf(value, span) * 100}%` }}
         >
           {Math.round(value)}s
@@ -302,7 +302,7 @@ function FpsTrack({
   if (points.length === 0)
     return (
       <div className="flex h-full items-center">
-        <p className="text-[12px] text-[color:var(--text-faint)]">无帧率</p>
+        <p className="text-[13px] text-[color:var(--text-faint)]">无帧率</p>
       </div>
     );
   return (
@@ -379,7 +379,7 @@ function PerfTrack({
   if (rows.every((row) => row.points.length === 0))
     return (
       <div className="flex h-full items-center">
-        <p className="text-[12px] text-[color:var(--text-faint)]">无指标</p>
+        <p className="text-[13px] text-[color:var(--text-faint)]">无指标</p>
       </div>
     );
   const xDomain: readonly [number, number] = [0, Math.max(span, 0.001)];
@@ -446,7 +446,7 @@ function StackTrack({
   if (stacks.length === 0 || !layout)
     return (
       <div className="flex h-full items-center">
-        <p className="text-[12px] text-[color:var(--text-faint)]">{sample?.note ?? note}</p>
+        <p className="text-[13px] text-[color:var(--text-faint)]">{sample?.note ?? note}</p>
       </div>
     );
   const levels = Math.max(1, Math.min(layout.layout.levels, 6));
@@ -462,7 +462,7 @@ function StackTrack({
                 <div
                   key={bar.node.id}
                   title={`${bar.node.label} · ${flamePercent(bar.node.weight, String(layout.graph.totalWeight))}%`}
-                  className="absolute inset-y-0 overflow-hidden rounded-[4px] bg-[color:var(--accent)] px-[6px] text-[11px] leading-tight text-[color:var(--primary)]"
+                  className="absolute inset-y-0 overflow-hidden rounded-[4px] bg-[color:var(--accent)] px-[6px] text-[12px] leading-tight text-[color:var(--primary)]"
                   style={{
                     left: `${bar.x}%`,
                     width: `${Math.max(bar.width, 0.4)}%`,
@@ -474,7 +474,7 @@ function StackTrack({
           </div>
         ))}
       </div>
-      <p className="shrink-0 pt-1 text-[11px] text-[color:var(--text-ghost)]">
+      <p className="shrink-0 pt-1 text-[12px] text-[color:var(--text-ghost)]">
         {stacks.length} 个栈样本 · {layout.layout.levels} 层
         {layout.layout.omitted > 0 ? ` · 省略 ${layout.layout.omitted} 个窄条` : ''}
       </p>

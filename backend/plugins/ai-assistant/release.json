@@ -1,0 +1,49 @@
+{
+  "format_version": 1,
+  "host_api_version": 2,
+  "id": "ai-assistant",
+  "version": "0.1.0",
+  "name": "AI 测试助手",
+  "description": "提供 CLI 单次请求、持续会话、线程查询与关闭及实时输出。项目、工具入口和环境由服务器插件配置管理；使用前须准备对应 CLI 与认证。",
+  "components": [
+    {
+      "id": "ai-assistant",
+      "kind": "server",
+      "version": "0.1.0",
+      "variants": []
+    }
+  ],
+  "tools": [
+    {
+      "id": "codex-cli",
+      "version": "unresolved",
+      "required": true,
+      "variants": [],
+      "bindings": [
+        {
+          "component_id": "ai-assistant",
+          "config_pointer": "/executable",
+          "entry": "codex"
+        }
+      ]
+    }
+  ],
+  "requirements": [
+    {
+      "component_id": "ai-assistant",
+      "config_pointer": "/projects",
+      "title": "授权项目目录",
+      "description": "选择允许 AI 访问的本机项目目录；示例路径不能替代真实项目。",
+      "sensitive": false,
+      "required": true
+    },
+    {
+      "component_id": "ai-assistant",
+      "config_pointer": "/environment",
+      "title": "AI 认证与环境",
+      "description": "根据选定 CLI 的认证方式完成登录或配置环境；发行包不包含凭据。",
+      "sensitive": true,
+      "required": false
+    }
+  ]
+}

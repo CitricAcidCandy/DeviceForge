@@ -1,10 +1,10 @@
 .ui-stepper { display: flex; gap: 14px; padding: 0; margin: 0; list-style: none; }
 .ui-stepper-step { position: relative; display: flex; align-items: flex-start; gap: 10px; flex: 1 1 0; min-width: 0; color: var(--muted-foreground); }
-.ui-stepper-marker { position: relative; z-index: 1; display: inline-flex; flex-shrink: 0; align-items: center; justify-content: center; width: 30px; height: 30px; border: 1px solid var(--border); border-radius: 50%; color: var(--muted-foreground); background: var(--card); font-size: 0.8rem; font-weight: 650; }
+.ui-stepper-marker { position: relative; z-index: 1; display: inline-flex; flex-shrink: 0; align-items: center; justify-content: center; width: 30px; height: 30px; border: 1px solid var(--border); border-radius: 50%; color: var(--muted-foreground); background: var(--card); font-size: 0.8125rem; font-weight: 650; }
 .ui-stepper-step:not(:last-child)::after { content: ''; position: absolute; top: 14px; left: 30px; right: -14px; height: 1px; background: var(--border); }
 .ui-stepper-copy { position: relative; z-index: 1; display: grid; gap: 3px; padding: 3px 8px 3px 0; background: var(--card); }
-.ui-stepper-title { font-size: 0.84rem; font-weight: 600; line-height: 1.5; }
-.ui-stepper-copy small { font-size: 0.72rem; font-weight: 400; line-height: 1.45; }
+.ui-stepper-title { font-size: 0.875rem; font-weight: 600; line-height: 1.5; }
+.ui-stepper-copy small { font-size: 0.75rem; font-weight: 400; line-height: 1.45; }
 .ui-stepper-step[data-state='active'] { color: var(--primary); }
 .ui-stepper-step[data-state='active'] .ui-stepper-marker { color: var(--primary-foreground); border-color: var(--primary); background: var(--primary); box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary) 10%, transparent); }
 .ui-stepper-step[data-state='complete'] { color: var(--success); }

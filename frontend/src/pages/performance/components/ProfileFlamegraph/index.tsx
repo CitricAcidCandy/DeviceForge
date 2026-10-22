@@ -332,7 +332,7 @@ export function ProfileFlamegraphView({ stacks, intervals = [] }: ProfileFlamegr
                           x={x + 3}
                           y={y + 17}
                           fill="#242424"
-                          fontSize={12}
+                          fontSize={13}
                           style={{ pointerEvents: 'none' }}
                         >
                           {node.label.slice(0, Math.max(1, Math.floor((width - 6) / 7)))}

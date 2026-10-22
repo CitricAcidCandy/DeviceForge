@@ -12,11 +12,11 @@
 .settings-page .form-row .grow .form-item { margin-bottom: 12px; }
 .settings-page .form-section > .form-field:not(.form-item) { display: grid; grid-template-columns: 144px minmax(0, 720px); gap: 7px 20px; }
 .settings-page .form-section > .form-field:not(.form-item) > label { grid-row: 1 / 3; padding-top: 8px; }
-.settings-page .form-section > .form-field:not(.form-item) > small { grid-column: 2; font-size: 12px; }
+.settings-page .form-section > .form-field:not(.form-item) > small { grid-column: 2; font-size: 0.8125rem; }
 .settings-page .code-input { min-height: 220px; }
-.settings-consequence, .settings-note { margin: 8px 0 0 164px; font-size: 12px; color: var(--muted-foreground); }
+.settings-consequence, .settings-note { margin: 8px 0 0 164px; font-size: 0.8125rem; color: var(--muted-foreground); }
 .settings-disclosure { padding-block: 12px; border-top: 1px solid var(--border); }
-.settings-disclosure > summary { font-weight: 600; font-size: 14px; }
+.settings-disclosure > summary { font-weight: 600; font-size: 0.9375rem; }
 .settings-disclosure .settings-group { margin-top: 8px; padding-top: 12px; border: 0; }
 @media (max-width: 640px) {
   .settings-page .setting-row, .settings-page .form-row > .form-item,

@@ -3,6 +3,7 @@ import {
   createApiClient,
   createMcpTransport,
   uploadEndpoint,
+  uploadInstallationArtifactEndpoint,
 } from '../services/api/index.ts';
 import type { ClientOptions } from '../services/api/index.ts';
 import { createOperations } from '../features/operations/index.ts';
@@ -17,6 +18,8 @@ import type { ManagerOptions } from '../plugins/index.ts';
 import type { EsmImporter, HostContext, PackageEntryResolver } from '../plugin-sdk/index.ts';
 import { createHostContext } from './host-context.ts';
 import { createPluginPackages } from '../features/plugin-packages/index.ts';
+import { createInstallationGateway, createPluginInstallations } from '../features/plugin-installations/index.ts';
+import type { InstallationComponent, PluginInstallation } from '../features/plugin-installations/index.ts';
 import { createDevices } from '../features/devices/index.ts';
 import { createDeviceGateway } from './device-gateway.ts';
 import { createCatalogRefresh } from './catalog-refresh.ts';
@@ -115,14 +118,17 @@ export function createFrontendRuntime(options: RuntimeOptions) {
     ...(options.moduleTarget ? { moduleTarget: options.moduleTarget } : {}),
     ...(options.slotAdapter ? { slotAdapter: options.slotAdapter } : {}),
   });
-  const resolveEntry: PackageEntryResolver =
-    options.packageEntryResolver ??
-    ((descriptor, runId) =>
+  const releaseSources = new Map<string, { revision: string; url: string }>();
+  const resolveEntry: PackageEntryResolver = (descriptor, runId) => {
+    const release = releaseSources.get(descriptor.id);
+    if (release) return release.url;
+    return options.packageEntryResolver?.(descriptor, runId) ??
       browserPackageEntryUrl(options.baseUrl, {
         id: descriptor.id,
         run_id: runId,
         path: descriptor.entryPath,
-      }));
+      });
+  };
   const browserPackages = createInstalledPackageController(
     webPlugins,
     resolveEntry,
@@ -143,14 +149,55 @@ export function createFrontendRuntime(options: RuntimeOptions) {
     disableBrowser: browserPackages.disable,
     forgetBrowser: browserPackages.forget,
   });
+  async function prepareReleaseBrowser(installation: PluginInstallation, component: InstallationComponent, signal: AbortSignal) {
+      if (component.revision !== installation.revision) throw new Error('浏览器组件修订与功能安装修订不一致');
+      if (!component.entryUrl) throw new Error('浏览器组件缺少不可变入口地址');
+      const url = new URL(component.entryUrl, options.baseUrl);
+      const prefix = `/api/v2/plugin-installations/browser/${encodeURIComponent(component.id)}/revisions/${installation.revision}/assets/`;
+      if (url.origin !== new URL(options.baseUrl).origin || !url.pathname.startsWith(prefix) || url.search || url.hash)
+        throw new Error('浏览器组件入口超出当前安装修订的资源边界');
+      const previous = releaseSources.get(component.id);
+      if (previous && previous.revision !== installation.revision) await browserPackages.forget(component.id);
+      signal.throwIfAborted();
+      releaseSources.set(component.id, { revision: installation.revision, url: url.href });
+      browserPackages.register({ id: component.id, version: component.version, entryPath: component.entryPath });
+  }
+  const pluginInstallations = createPluginInstallations(createInstallationGateway(client), {
+    async enable(installation, component, signal) {
+      await prepareReleaseBrowser(installation, component, signal);
+      await browserPackages.enable({ id: component.id, version: component.version, entryPath: component.entryPath }, signal);
+    },
+    async disable(component, signal) {
+      await browserPackages.forget(component.id);
+      signal.throwIfAborted();
+      releaseSources.delete(component.id);
+    },
+  });
   const pluginConfigurations = createPluginConfigurations({
     server: createServerConfigurations(client),
     browser: browserConfigurations,
     async inspectBrowser(id, signal) {
+      const cached = pluginInstallations.snapshot().result?.data;
+      const known = cached?.find((installation) => installation.components.some((item) => item.kind === 'browser' && item.id === id));
+      if (known) {
+        const component = known.components.find((item) => item.kind === 'browser' && item.id === id);
+        if (!component) throw new Error('浏览器组件不在当前安装目录中');
+        await prepareReleaseBrowser(known, component, signal);
+        return webPlugins.inspectConfiguration(id, signal);
+      }
       const snapshot = pluginPackages.snapshot('browser');
       const packages = snapshot.result ?? (await pluginPackages.refresh('browser', signal));
       const pkg = packages.data.find((entry) => entry.id === id);
-      if (!pkg) throw new Error('浏览器插件不在当前安装目录中');
+      if (!pkg) {
+        const directory = await pluginInstallations.refresh(signal);
+        for (const installation of directory.data) {
+          const component = installation.components.find((item) => item.kind === 'browser' && item.id === id);
+          if (!component) continue;
+          await prepareReleaseBrowser(installation, component, signal);
+          return webPlugins.inspectConfiguration(id, signal);
+        }
+        throw new Error('浏览器插件不在当前安装目录中');
+      }
       browserPackages.register({ id: pkg.id, version: pkg.version, entryPath: pkg.entry_path });
       return webPlugins.inspectConfiguration(id, signal);
     },
@@ -198,6 +245,11 @@ export function createFrontendRuntime(options: RuntimeOptions) {
     devices,
     serverPlugins,
     pluginPackages,
+    pluginInstallations,
+    installationArtifacts: {
+      upload: (filename: string, content: Blob, signal: AbortSignal) => client.call(uploadInstallationArtifactEndpoint,
+        { filename, content }, AbortSignal.any([signal, lifetime.signal])),
+    },
     pluginConfigurations,
     webPlugins,
     themes,
@@ -230,6 +282,7 @@ export function createFrontendRuntime(options: RuntimeOptions) {
       devices.dispose();
       serverPlugins.dispose();
       pluginPackages.dispose();
+      pluginInstallations.dispose();
       disposal = (async () => {
         const results = await Promise.allSettled([
           webPlugins.dispose(),
@@ -239,6 +292,7 @@ export function createFrontendRuntime(options: RuntimeOptions) {
         ]);
         extensions.dispose();
         browserPackages.clearSources();
+        releaseSources.clear();
         browserConfigurations.dispose();
         const failures = results.filter((result) => result.status === 'rejected');
         if (failures.length)

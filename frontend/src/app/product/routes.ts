@@ -7,15 +7,14 @@ import {
   Terminal,
   Sparkles,
   ScanSearch,
-  Puzzle,
   ListChecks,
   Settings2,
-  Wrench,
   Store,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
 // 画面与录制、应用与包已并入设备工作台，作为该页的两个模式，不再单列路由。
+// 插件装载与工具供应已并入市场：市场同时承担检索、安装、启用与卸载，不再有独立页面。
 export type ProductRoute =
   | 'devices'
   | 'files'
@@ -25,9 +24,7 @@ export type ProductRoute =
   | 'terminal'
   | 'ai'
   | 'analysis'
-  | 'plugins'
   | 'tasks'
-  | 'tools'
   | 'marketplace'
   | 'settings';
 export interface ProductRouteInfo {
@@ -98,13 +95,6 @@ export const PRODUCT_ROUTES: readonly ProductRouteInfo[] = [
     icon: ScanSearch,
   },
   {
-    id: 'plugins',
-    label: '插件',
-    group: '工坊',
-    description: '在线安装、加载与撤销两类插件',
-    icon: Puzzle,
-  },
-  {
     id: 'tasks',
     label: '任务与日志',
     group: '工坊',
@@ -112,17 +102,10 @@ export const PRODUCT_ROUTES: readonly ProductRouteInfo[] = [
     icon: ListChecks,
   },
   {
-    id: 'tools',
-    label: '工具供应',
-    group: '工坊',
-    description: '所需运行工具的计划、安装与移除',
-    icon: Wrench,
-  },
-  {
     id: 'marketplace',
     label: '市场',
     group: '工坊',
-    description: '检索插件、工具、配置与分发资源',
+    description: '检索、安装、启用与卸载插件、工具、配置与分发资源',
     icon: Store,
   },
   {

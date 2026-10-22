@@ -1,6 +1,7 @@
 //! 服务器插件配置独立于包部署保存，兼容旧配置并为调用提供不可变文件。
 mod annotations;
 mod migration;
+mod resources;
 mod rules;
 mod storage;
 use apk_domain::{Error, Result, plugin_configurations::*, plugins::plugin_id};
@@ -20,7 +21,7 @@ pub(crate) fn validate_definition(value: &apk_plugin_sdk::ConfigurationDefinitio
 #[derive(Clone)]
 pub struct FilePluginConfigurations {
     root: PathBuf,
-    deployment: PathBuf,
+    deployment: Vec<PathBuf>,
     legacy: Vec<PathBuf>,
     _lock: Arc<fs::File>,
     _legacy_locks: Arc<Vec<fs::File>>,
@@ -38,16 +39,32 @@ impl FilePluginConfigurations {
         deployment: &Path,
         legacy: Vec<PathBuf>,
     ) -> Result<Arc<Self>> {
+        Self::open_with_deployments(root, vec![deployment.to_owned()], legacy).await
+    }
+
+    pub async fn open_with_deployments(
+        root: &Path,
+        deployments: Vec<PathBuf>,
+        legacy: Vec<PathBuf>,
+    ) -> Result<Arc<Self>> {
         let root = root.to_owned();
-        let deployment = deployment.to_owned();
         tokio::task::spawn_blocking(move || {
             fs::create_dir_all(&root).map_err(|_| Error::Storage("配置根目录创建失败".into()))?;
             let root =
                 fs::canonicalize(root).map_err(|_| Error::Storage("配置根目录不可访问".into()))?;
-            let deployment = fs::canonicalize(deployment)
-                .map_err(|_| Error::Storage("插件部署目录不可访问".into()))?;
-            if root.starts_with(&deployment) || deployment.starts_with(&root) {
-                return Err(Error::Invalid("配置根目录必须独立于插件部署目录".into()));
+            let mut deployment = Vec::new();
+            for path in deployments {
+                let path = fs::canonicalize(path)
+                    .map_err(|_| Error::Storage("插件部署目录不可访问".into()))?;
+                if root.starts_with(&path) || path.starts_with(&root) {
+                    return Err(Error::Invalid("配置根目录必须独立于插件部署目录".into()));
+                }
+                if !deployment.contains(&path) {
+                    deployment.push(path);
+                }
+            }
+            if deployment.is_empty() {
+                return Err(Error::Invalid("缺少插件部署目录".into()));
             }
             let lock_path = root.join(".configurations.lock");
             if let Ok(metadata) = fs::symlink_metadata(&lock_path)
@@ -132,7 +149,7 @@ impl FilePluginConfigurations {
 
     fn manifest(&self, id: &str) -> Result<apk_plugin_sdk::Manifest> {
         plugin_id(id)?;
-        let directory = self.deployment.join(id);
+        let directory = self.deployment_directory(id)?;
         let metadata =
             fs::symlink_metadata(&directory).map_err(|_| Error::NotFound("插件尚未部署".into()))?;
         if !metadata.is_dir()
@@ -148,6 +165,14 @@ impl FilePluginConfigurations {
             return Err(Error::Invalid("插件配置身份与部署不一致".into()));
         }
         Ok(manifest)
+    }
+
+    fn deployment_directory(&self, id: &str) -> Result<PathBuf> {
+        self.deployment
+            .iter()
+            .map(|root| root.join(id))
+            .find(|path| path.join("manifest.json").exists())
+            .ok_or_else(|| Error::NotFound("插件尚未部署".into()))
     }
 
     fn read(&self, id: &str) -> Result<(Option<ConfigurationDefinition>, State)> {
@@ -184,7 +209,7 @@ impl FilePluginConfigurations {
             });
         let executable_directory = Path::new(&manifest.executable)
             .parent()
-            .unwrap_or(&self.deployment);
+            .unwrap_or(&self.deployment[0]);
         let legacy = configured
             .map(|path| {
                 if path.is_absolute() {
@@ -206,7 +231,18 @@ impl FilePluginConfigurations {
             if !old.is_object() {
                 return Err(Error::Invalid("旧插件配置必须为 JSON 对象".into()));
             }
-            rules::merge(&mut values, &old);
+            if definition
+                .as_ref()
+                .map(|definition| rules::errors(definition, &old))
+                .transpose()?
+                .is_some_and(|errors| errors.is_empty())
+            {
+                // 完整有效的旧配置就是用户原值，不能合入互斥默认项或示例条目。
+                values = old;
+            } else {
+                // 兼容缺少新声明必填项的历史记录，保留旧值并补齐声明默认值。
+                rules::merge(&mut values, &old);
+            }
             ConfigurationSource::Legacy
         } else {
             ConfigurationSource::Defaults
@@ -360,27 +396,36 @@ impl PluginConfigurationStore for FilePluginConfigurations {
     async fn list(&self) -> Result<Vec<PluginConfiguration>> {
         self.work(|store| {
             let mut output = Vec::new();
-            for (count, entry) in fs::read_dir(&store.deployment)
-                .map_err(|_| Error::Storage("插件配置目录读取失败".into()))?
-                .enumerate()
-            {
-                if count >= 1024 {
-                    return Err(Error::TooLarge);
-                }
-                let entry = entry.map_err(|_| Error::Storage("插件配置条目读取失败".into()))?;
-                let name = entry.file_name().to_string_lossy().into_owned();
-                if name.starts_with('.')
-                    || !entry
-                        .file_type()
-                        .map_err(|_| Error::Storage("插件目录类型读取失败".into()))?
-                        .is_dir()
+            for deployment in &store.deployment {
+                for (count, entry) in fs::read_dir(deployment)
+                    .map_err(|_| Error::Storage("插件配置目录读取失败".into()))?
+                    .enumerate()
                 {
-                    continue;
-                }
-                let (definition, state) = store.read(&name)?;
-                output.push(Self::view(&name, definition, state)?);
-                if output.len() > 256 {
-                    return Err(Error::TooLarge);
+                    if count >= 1024 {
+                        return Err(Error::TooLarge);
+                    }
+                    let entry = entry.map_err(|_| Error::Storage("插件配置条目读取失败".into()))?;
+                    let name = entry.file_name().to_string_lossy().into_owned();
+                    if name.starts_with('.')
+                        || !entry
+                            .file_type()
+                            .map_err(|_| Error::Storage("插件目录类型读取失败".into()))?
+                            .is_dir()
+                    {
+                        continue;
+                    }
+                    if output
+                        .iter()
+                        .any(|value: &PluginConfiguration| value.id == name)
+                        || !entry.path().join("manifest.json").exists()
+                    {
+                        continue;
+                    }
+                    let (definition, state) = store.read(&name)?;
+                    output.push(Self::view(&name, definition, state)?);
+                    if output.len() > 256 {
+                        return Err(Error::TooLarge);
+                    }
                 }
             }
             output.sort_by(|left, right| left.id.cmp(&right.id));
@@ -445,8 +490,40 @@ impl PluginConfigurationStore for FilePluginConfigurations {
                 storage::write(&store.root.join(&id).join("state.json"), &state)?;
             }
             let path = storage::revision_path(&store.root, &id, state.applied_revision);
-            let _: Value = storage::json(&path)?;
-            Ok(Some(path))
+            let values: Value = storage::json(&path)?;
+            resources::effective(store, &id, state.applied_revision, path, values).map(Some)
+        })
+        .await
+    }
+    async fn resources_path(&self, id: &str) -> Result<Option<PathBuf>> {
+        let id = id.to_owned();
+        self.work(move |store| resources::path(store, &id)).await
+    }
+    async fn requirements_configured(&self, id: &str, pointers: &[String]) -> Result<bool> {
+        let id = id.to_owned();
+        let pointers = pointers.to_vec();
+        self.work(move |store| {
+            let (definition, state) = store.read(&id)?;
+            let Some(definition) = definition else {
+                return Ok(false);
+            };
+            if definition.version != state.definition_version
+                || !rules::errors(&definition, &state.values)?.is_empty()
+            {
+                return Ok(false);
+            }
+            Ok(pointers.iter().all(|pointer| {
+                state
+                    .values
+                    .pointer(pointer)
+                    .is_some_and(|value| match value {
+                        Value::Null => false,
+                        Value::String(value) => !value.trim().is_empty(),
+                        Value::Array(value) => !value.is_empty(),
+                        Value::Object(value) => !value.is_empty(),
+                        _ => true,
+                    })
+            }))
         })
         .await
     }

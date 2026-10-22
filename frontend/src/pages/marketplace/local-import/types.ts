@@ -1,5 +1,6 @@
 import type { JsonData } from '../../../shared/jobs/index.ts';
 import type { PackageMediaType } from '../../../services/api/index.ts';
+import type { LocalReleaseIdentity } from './release.ts';
 
 export type LocalImportKind = 'plugin' | 'tool' | 'config';
 export type LocalConfiguration =
@@ -39,6 +40,11 @@ export type LocalImportPreview = PreviewSummary &
           readonly kind: 'server' | 'browser';
         };
         readonly mediaType: PackageMediaType;
+        readonly sha256: string;
+      }
+    | {
+        readonly kind: 'release';
+        readonly release: LocalReleaseIdentity;
         readonly sha256: string;
       }
     | {

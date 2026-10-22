@@ -1,0 +1,83 @@
+{
+  "format_version": 1,
+  "host_api_version": 2,
+  "id": "ai-sdk",
+  "version": "0.1.0",
+  "name": "AI SDK 桥接",
+  "description": "提供 SDK 单次请求、线程恢复、实时会话和助手编排。使用前须在插件配置中指定 Node、CLI、worker 及项目；运行环境与认证资格由运行状态检查确认。",
+  "components": [
+    {
+      "id": "ai-sdk",
+      "kind": "server",
+      "version": "0.1.0",
+      "variants": []
+    }
+  ],
+  "tools": [
+    {
+      "id": "node",
+      "version": "24.14.0",
+      "required": true,
+      "variants": [],
+      "bindings": [
+        {
+          "component_id": "ai-sdk",
+          "config_pointer": "/node_executable",
+          "entry": "node"
+        }
+      ]
+    },
+    {
+      "id": "codex-sdk",
+      "version": "0.162.1",
+      "required": true,
+      "variants": [],
+      "bindings": [
+        {
+          "component_id": "ai-sdk",
+          "config_pointer": "/sdk_entry",
+          "entry": "sdk"
+        }
+      ]
+    },
+    {
+      "id": "codex-cli",
+      "version": "0.162.1",
+      "required": true,
+      "variants": [],
+      "bindings": [
+        {
+          "component_id": "ai-sdk",
+          "config_pointer": "/cli_executable",
+          "entry": "codex"
+        }
+      ]
+    }
+  ],
+  "requirements": [
+    {
+      "component_id": "ai-sdk",
+      "config_pointer": "/projects",
+      "title": "授权项目目录",
+      "description": "选择允许 SDK 访问的实际项目目录。",
+      "sensitive": false,
+      "required": true
+    },
+    {
+      "component_id": "ai-sdk",
+      "config_pointer": "/codex_home",
+      "title": "提供方认证目录",
+      "description": "选择属于当前服务用户的已认证 Codex 目录；发行包不包含登录状态。",
+      "sensitive": false,
+      "required": true
+    },
+    {
+      "component_id": "ai-sdk",
+      "config_pointer": "/state_root",
+      "title": "线程持久化目录",
+      "description": "选择 SDK 桥接线程与资格记录的实际存储目录。",
+      "sensitive": false,
+      "required": true
+    }
+  ]
+}

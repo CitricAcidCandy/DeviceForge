@@ -186,6 +186,7 @@ pub fn document() -> Value {
     plugin_package_paths(&mut document);
     crate::plugin_configuration_openapi::contribute(&mut document);
     crate::browser_configuration_openapi::contribute(&mut document);
+    crate::plugin_installation_openapi::contribute(&mut document);
     device_paths(&mut document);
     crate::interactive_openapi::contribute(&mut document);
     document

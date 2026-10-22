@@ -17,6 +17,9 @@ struct Extractor<'a> {
     total: u64,
     entries: usize,
     npm_prefix: bool,
+    file_limit: u64,
+    total_limit: u64,
+    entry_limit: usize,
 }
 impl Extractor<'_> {
     fn entry(
@@ -28,7 +31,7 @@ impl Extractor<'_> {
         executable: bool,
     ) -> Result<()> {
         self.entries += 1;
-        if self.entries > 4096 {
+        if self.entries > self.entry_limit {
             return Err(Error::TooLarge);
         }
         let name = name.trim_end_matches('/');
@@ -41,16 +44,22 @@ impl Extractor<'_> {
         } else {
             name
         };
-        let relative = paths::relative(name)?;
+        // 完整发布允许工具自身的点目录；旧便携上传继续沿用原有严格路径规则。
+        let relative = if self.entry_limit > 4096 {
+            apk_domain::plugin_installations::validate_release_path(name)?;
+            std::path::PathBuf::from(name)
+        } else {
+            paths::relative(name)?
+        };
         // Windows 大小写与别名不能产生两个相同目的文件。
         if !self.paths.insert(name.to_lowercase()) {
             return Err(Error::Invalid("归档包含重复路径".into()));
         }
-        if size > FILE_LIMIT
+        if size > self.file_limit
             || self
                 .total
                 .checked_add(size)
-                .is_none_or(|total| total > TOTAL_LIMIT)
+                .is_none_or(|total| total > self.total_limit)
         {
             return Err(Error::TooLarge);
         }
@@ -67,9 +76,9 @@ impl Extractor<'_> {
             .create_new(true)
             .open(&path)
             .map_err(|_| Error::Invalid("归档文件冲突或不可写".into()))?;
-        let copied = std::io::copy(&mut reader.take(FILE_LIMIT + 1), &mut file)
+        let copied = std::io::copy(&mut reader.take(self.file_limit + 1), &mut file)
             .map_err(|_| Error::Invalid("归档内容损坏".into()))?;
-        if copied != size || copied > FILE_LIMIT {
+        if copied != size || copied > self.file_limit {
             return Err(Error::Invalid("归档文件大小与声明不符".into()));
         }
         file.flush()
@@ -87,19 +96,71 @@ impl Extractor<'_> {
 }
 
 pub fn extract(input: &Path, root: &Path, format: PackageFormat) -> Result<()> {
+    extract_mode(
+        input,
+        root,
+        format,
+        matches!(format, PackageFormat::Tgz),
+        FILE_LIMIT,
+        TOTAL_LIMIT,
+        4096,
+    )
+}
+
+/// 发布资源使用普通归档根，不要求 npm package 前缀；仍复用逐条边界检查。
+pub(crate) fn extract_release(input: &Path, root: &Path, format: PackageFormat) -> Result<()> {
+    extract_mode(
+        input,
+        root,
+        format,
+        false,
+        4 * 1024 * 1024 * 1024,
+        8 * 1024 * 1024 * 1024,
+        32768,
+    )
+}
+
+pub(crate) fn extract_release_component(
+    input: &Path,
+    root: &Path,
+    format: PackageFormat,
+) -> Result<()> {
+    extract_mode(
+        input,
+        root,
+        format,
+        matches!(format, PackageFormat::Tgz),
+        2 * 1024 * 1024 * 1024,
+        8 * 1024 * 1024 * 1024,
+        32768,
+    )
+}
+
+fn extract_mode(
+    input: &Path,
+    root: &Path,
+    format: PackageFormat,
+    npm_prefix: bool,
+    file_limit: u64,
+    total_limit: u64,
+    entry_limit: usize,
+) -> Result<()> {
     let mut target = Extractor {
         root,
         paths: HashSet::new(),
         total: 0,
         entries: 0,
-        npm_prefix: matches!(format, PackageFormat::Tgz),
+        npm_prefix,
+        file_limit,
+        total_limit,
+        entry_limit,
     };
     let file = File::open(input).map_err(|_| Error::Storage("暂存归档读取失败".into()))?;
     match format {
         PackageFormat::Zip => {
             let mut archive =
                 zip::ZipArchive::new(file).map_err(|_| Error::Invalid("ZIP 格式无效".into()))?;
-            if archive.len() > 4096 {
+            if archive.len() > entry_limit {
                 return Err(Error::TooLarge);
             }
             for index in 0..archive.len() {
@@ -120,7 +181,7 @@ pub fn extract(input: &Path, root: &Path, format: PackageFormat) -> Result<()> {
         PackageFormat::Tgz => {
             // 将解压出的 TAR 字节也设上限，扩展头或尾部填充不能绕开文件总量。
             let gzip = flate2::read::MultiGzDecoder::new(file);
-            let mut limited = gzip.take(TOTAL_LIMIT + 16 * 1024 * 1024 + 1);
+            let mut limited = gzip.take(total_limit + 16 * 1024 * 1024 + 1);
             {
                 let mut archive = tar::Archive::new(&mut limited);
                 let mut pending_path = None;
@@ -132,7 +193,7 @@ pub fn extract(input: &Path, root: &Path, format: PackageFormat) -> Result<()> {
                     .raw(true)
                     .enumerate()
                 {
-                    if count >= 4096 {
+                    if count >= entry_limit {
                         return Err(Error::TooLarge);
                     }
                     let mut entry = entry.map_err(|_| Error::Invalid("TAR 条目无效".into()))?;

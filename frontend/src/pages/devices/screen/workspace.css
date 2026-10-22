@@ -1,13 +1,13 @@
 /*
  * 设备工作台 · 画面：舞台常驻，右栏在「画面参数」与「应用」之间切换。
  * 应用不再盖住画面——这是把「画面与录制」并进设备页之后唯一要守住的东西。
- * 右栏宽度取 --workbench-rail-width（任务面板原来的 296px）：够放参数，
- * 也不至于把舞台挤成一条。
+ * 右栏宽度取 --workbench-rail-width（384px）：参数表的标签与数值要能一眼读完，
+ * 296px 那版把「分辨率 / 传输 / 控制」挤成一团。
  */
 .device-workbench {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) var(--workbench-rail-width, 296px);
+  grid-template-columns: minmax(0, 1fr) var(--workbench-rail-width, 384px);
   grid-template-rows: minmax(0, 1fr);
   height: 100%;
   min-width: 0;
@@ -40,7 +40,7 @@
   padding: 0 6px;
   border: 0;
   background: transparent;
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   font-weight: 500;
   color: var(--text-faint);
   white-space: nowrap;
@@ -86,7 +86,7 @@
 }
 .rail-group h2 {
   margin: 0;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 500;
   letter-spacing: 0.04em;
   color: var(--text-faint);
@@ -104,12 +104,12 @@
   gap: 10px;
 }
 .rail-facts dt {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: var(--text-faint);
 }
 .rail-facts dd {
   margin: 0;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: var(--text-body);
   text-align: right;
 }
@@ -118,11 +118,11 @@
   align-items: center;
   gap: 7px;
   margin: 0;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: var(--text-body);
 }
 .rail-line-note {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: var(--text-ghost);
 }
 .rail-dot {
@@ -143,7 +143,7 @@
 }
 .rail-hint {
   margin: 0;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   line-height: 1.55;
   color: var(--text-faint);
 }
@@ -155,7 +155,7 @@
   margin: 0 -8px;
   padding: 7px 8px;
   border-radius: 6px;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: var(--text-body);
   text-decoration: none;
 }
@@ -174,7 +174,7 @@
   border-radius: 6px;
   background: var(--surface-sunken);
   color: var(--text-body);
-  font: 400 0.625rem/1.6 var(--font-mono);
+  font: 400 0.6875rem/1.6 var(--font-mono);
   resize: none;
 }
 .rail-clipboard::placeholder {
@@ -194,7 +194,7 @@
 }
 .rail-slot-name,
 .rail-slot-note {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: var(--text-ghost);
 }
 .rail-slot-name {
@@ -214,7 +214,7 @@
 .rail-fold {
   padding-top: 9px;
   border-top: 1px solid var(--hairline);
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
 }
 .rail-fold:first-of-type {
   padding-top: 0;
@@ -254,10 +254,10 @@
   height: 22px;
   padding-inline: 6px;
   border-radius: 5px;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 500;
 }
-/* 表单默认是「标签在左 144px」的横排；右栏内宽只有 232px，统一改成标签在上。 */
+/* 表单默认是「标签在左 144px」的横排；右栏只有 356px 内宽，统一改成标签在上。 */
 .workbench-rail .form-item {
   grid-template-columns: minmax(0, 1fr);
   gap: 4px;
@@ -265,7 +265,7 @@
 }
 .workbench-rail .form-item > label {
   padding-top: 0;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: var(--text-faint);
 }
 .workbench-rail .form-item .form-item-content > [data-slot='input'] {
@@ -285,7 +285,7 @@
 }
 .media-fields > .form-item > label {
   padding-top: 0;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: var(--text-faint);
 }
 .media-fields > .form-item .form-item-content > [data-slot='input'] {
@@ -295,18 +295,18 @@
   min-width: 0;
 }
 .media-fields .form-field input {
-  font: 400 0.625rem/1 var(--font-mono);
+  font: 400 0.6875rem/1 var(--font-mono);
 }
 .media-switch {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: var(--text-body);
 }
 /* Label 组件自带 13px：右栏里要跟着参数文字一起缩小。 */
 .media-switch label {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: var(--text-body);
 }
 /* 开关的拇指默认跟着 dark: 变体走，浅色皮肤上会变成黑点。这里直接钉成白拇指。 */
@@ -335,7 +335,7 @@
 }
 .workbench-rail .media-ownership > p {
   margin: 0 0 8px;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   line-height: 1.55;
   color: var(--text-faint);
 }
@@ -356,7 +356,7 @@
   object-fit: contain;
 }
 .workbench-rail .result-details {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
 }
 .share-control-choice {
   display: flex;
@@ -370,27 +370,44 @@
   grid-area: 1 / 1 / 2 / 2;
   position: relative;
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
   min-width: 0;
   min-height: 0;
-  padding: 22px 28px 16px;
+  /* 上下两条带子：上面给读数，下面给操作胶囊；中间全部是设备画面。 */
+  padding: 28px 20px 52px;
   background: var(--surface-canvas);
   overflow: hidden;
 }
 .workbench-stage:fullscreen {
-  padding: 24px;
+  padding: 28px 16px 52px;
   background: #0b0d12;
 }
-/* 框的比例来自真实画面尺寸；竖屏高度受限，横屏宽度受限。 */
+/*
+ * 画面层：既是等比尺寸的查询容器，也是唯一会滚动的层。
+ * 滚动手柄留在舞台里，放大后拖动缩放的入口不会被滚走。
+ */
+.media-canvas-area {
+  flex: 1 1 0;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  container-type: size;
+  overflow: auto;
+  scrollbar-width: thin;
+}
+/*
+ * 画面尺寸 = 可用区域内等比「contain」：
+ * 竖屏受高度限制，横屏受宽度限制，两种方向共用一条公式（--frame-fit-inv = 高 / 宽）。
+ * --frame-zoom 由右下角手柄拖动；放大后超出部分由 .media-canvas-area 滚动，不会把整页撑开。
+ */
 .media-frame {
   position: relative;
-  flex-shrink: 1;
-  height: min(100%, 640px);
-  aspect-ratio: 9 / 19.2;
-  max-width: 100%;
+  flex: 0 0 auto;
+  width: auto;
+  height: 100%;
+  height: calc(min(100cqh, 100cqw * var(--frame-fit-inv, 2.1333)) * var(--frame-zoom, 1));
+  aspect-ratio: var(--frame-ratio, 0.46875);
+  margin: auto;
   padding: 6px;
   border: 1px solid var(--hairline-strong);
   border-radius: 26px;
@@ -400,14 +417,45 @@
     0 26px 60px -34px rgb(23 27 36 / 38%);
 }
 .media-frame[data-orientation='landscape'] {
-  height: auto;
-  width: min(100%, 880px);
-  max-height: 100%;
   border-radius: 20px;
 }
 /* 横屏铺满整宽时会压到浮在左缘的工具轨：为那条通道让出宽度，画面仍是居中。 */
 .workbench-stage:has(.media-frame[data-orientation='landscape']) {
   padding-left: 68px;
+}
+/* 右下角缩放手柄：拖动改画面大小，双击回到「自适应」。 */
+.media-zoom-grip {
+  position: absolute;
+  right: 10px;
+  bottom: 13px;
+  z-index: 4;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--hairline-strong);
+  border-radius: 6px;
+  background: var(--surface-card);
+  color: var(--text-faint);
+  cursor: nwse-resize;
+  touch-action: none;
+  box-shadow: 0 10px 22px -18px rgb(23 27 36 / 70%);
+}
+.media-zoom-grip:hover,
+.media-zoom-grip:focus-visible {
+  border-color: var(--text-ghost);
+  color: var(--text-strong);
+}
+.media-zoom-grip[data-dragging='true'] {
+  border-color: var(--primary);
+  background: var(--accent);
+  color: var(--primary);
+}
+.media-zoom-grip > svg {
+  width: 12px;
+  height: 12px;
 }
 .media-frame-screen {
   position: absolute;
@@ -446,13 +494,13 @@
 }
 .media-frame-screen > .empty-state h3 {
   margin: 0;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 500;
 }
 .media-frame-screen > .empty-state p {
   margin: 0;
   max-width: 18em;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   line-height: 1.6;
   color: var(--media-muted);
 }
@@ -493,15 +541,27 @@ video.media-canvas {
   width: 18%;
 }
 
-/* 画面下方：一条读数 + 一枚主操作胶囊 */
+/* 读数浮在舞台顶部那条带子里，不占画面高度。 */
 .media-stage-readout {
+  position: absolute;
+  top: 6px;
+  left: 20px;
+  z-index: 3;
   margin: 0;
-  flex-shrink: 0;
-  font-size: 0.6875rem;
+  max-width: calc(100% - 40px);
+  font-size: 0.75rem;
   letter-spacing: 0.04em;
   color: var(--text-ghost);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
 }
 .media-stage-dock {
+  position: absolute;
+  left: 50%;
+  bottom: 9px;
+  z-index: 3;
   display: inline-flex;
   align-items: center;
   gap: 2px;
@@ -511,12 +571,13 @@ video.media-canvas {
   border-radius: 999px;
   background: var(--surface-card);
   box-shadow: 0 12px 28px -24px rgb(23 27 36 / 52%);
+  transform: translateX(-50%);
 }
 .media-stage-dock [data-slot='button'] {
   height: 26px;
   padding-inline: 10px;
   border-radius: 999px;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 400;
   color: var(--text-muted);
 }
@@ -536,10 +597,10 @@ video.media-canvas {
   position: absolute;
   left: 0;
   right: 0;
-  bottom: 132px;
+  bottom: 104px;
   z-index: 2;
   margin: 0;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: var(--text-ghost);
   text-align: center;
   pointer-events: none;
@@ -549,7 +610,7 @@ video.media-canvas {
 .media-controlbar {
   position: absolute;
   left: 50%;
-  bottom: 84px;
+  bottom: 58px;
   z-index: 3;
   display: flex;
   align-items: center;
@@ -564,7 +625,7 @@ video.media-canvas {
 .media-controlbar [data-slot='button'] {
   height: 24px;
   padding-inline: 8px;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 400;
   color: var(--media-foreground);
 }
@@ -586,7 +647,7 @@ video.media-canvas {
   border-radius: 6px;
   background: rgb(255 255 255 / 8%);
   color: var(--media-foreground);
-  font: 400 0.625rem/1 var(--font-mono);
+  font: 400 0.6875rem/1 var(--font-mono);
 }
 .media-controlbar-input::placeholder {
   color: var(--media-muted);
@@ -594,7 +655,7 @@ video.media-canvas {
 
 @media (max-width: 1180px) {
   .device-workbench {
-    grid-template-columns: minmax(0, 1fr) 240px;
+    grid-template-columns: minmax(0, 1fr) 312px;
   }
 }
 @media (max-width: 1024px) {
@@ -610,6 +671,11 @@ video.media-canvas {
   }
   .workbench-stage {
     grid-area: 1 / 1 / 2 / 2;
-    padding: 16px;
+    /* 堆叠布局里画面更矮，上下两条带子跟着收一点，但必须保留，否则胶囊会压住画面。 */
+    padding: 24px 12px 50px;
+  }
+  .media-stage-readout {
+    left: 12px;
+    max-width: calc(100% - 24px);
   }
 }

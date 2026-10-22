@@ -1,0 +1,67 @@
+{
+  "format_version": 1,
+  "host_api_version": 2,
+  "id": "frida",
+  "version": "0.1.0",
+  "name": "Frida 动态调试",
+  "description": "提供 Frida 服务部署与状态检查、进程枚举、脚本执行和权限分析。ADB、Frida 客户端及服务文件由插件配置固定；使用能力取决于目标设备权限。",
+  "components": [
+    {
+      "id": "frida",
+      "kind": "server",
+      "version": "0.1.0",
+      "variants": []
+    }
+  ],
+  "tools": [
+    {
+      "id": "adb",
+      "version": "36.0.0",
+      "required": true,
+      "variants": [],
+      "bindings": [
+        {
+          "component_id": "frida",
+          "config_pointer": "/tools/adb",
+          "entry": "adb"
+        }
+      ]
+    },
+    {
+      "id": "frida",
+      "version": "unresolved",
+      "required": true,
+      "variants": [],
+      "bindings": [
+        {
+          "component_id": "frida",
+          "config_pointer": "/tools/frida",
+          "entry": "frida"
+        }
+      ]
+    },
+    {
+      "id": "frida-ps",
+      "version": "unresolved",
+      "required": true,
+      "variants": [],
+      "bindings": [
+        {
+          "component_id": "frida",
+          "config_pointer": "/tools/frida_ps",
+          "entry": "frida-ps"
+        }
+      ]
+    }
+  ],
+  "requirements": [
+    {
+      "component_id": "frida",
+      "config_pointer": "/server_path",
+      "title": "设备端 Frida 服务",
+      "description": "用户准备与主机 Frida 版本和设备架构匹配的 frida-server，并确认设备执行权限。",
+      "sensitive": false,
+      "required": false
+    }
+  ]
+}

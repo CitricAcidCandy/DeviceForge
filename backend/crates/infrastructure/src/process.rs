@@ -142,6 +142,7 @@ pub(crate) struct PluginInvocation<'a> {
     pub cancel: CancellationToken,
     pub directory: Option<&'a std::path::Path>,
     pub configuration: Option<&'a std::path::Path>,
+    pub resources: Option<&'a std::path::Path>,
 }
 
 /// 配置路径在本次调用开始时固定，后续保存不会改变活动进程的配置快照。
@@ -156,6 +157,9 @@ pub(crate) async fn configured_plugin(call: PluginInvocation<'_>) -> Result<Vec<
             "DEVICEFORGE_PLUGIN_CONFIG".into(),
             path.as_os_str().to_owned(),
         );
+    }
+    if let Some(path) = call.resources {
+        command.env.insert("DEVICEFORGE_PLUGIN_RESOURCES".into(), path.as_os_str().to_owned());
     }
     if let Some(directory) = call.directory {
         for key in ["TEMP", "TMP", "TMPDIR"] {
