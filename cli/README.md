@@ -4,6 +4,10 @@ CLI 只负责分发边界，不复制设备业务。`bin/deviceforge.mjs` 是入
 
 ## 使用
 
+服务器插件和浏览器插件配置统一写入用户 `~/.deviceforge/plugin-configurations/`，分别位于 `server/<插件ID>/` 与 `browser/<插件ID>/`。该位置独立于插件程序、npm 缓存和业务数据目录；`--data-dir` 不改变插件配置归属。需要隔离部署或测试时可显式设置 `DEVICEFORGE_USER_DIR` 指向独立用户根。浏览器插件通过当前服务器保存配置，因此局域网客户端共享该服务器所属用户的配置。
+
+旧业务目录内的配置修订和插件旁置配置仅在用户目录不存在对应配置时复制，原文件保留。已存在的用户配置优先，不被随包默认值或旧目录覆盖。浏览器旧 localStorage 在首次没有服务端记录时导入，之后保存必须由服务器确认成功。
+
 在根目录执行 `npm run prepare:runtime` 构建当前平台 release 运行包，随后 `npm pack --pack-destination artifacts`。生成的 tgz 携带 Rust 宿主、插件校验器和前端资源，使用者只需 Node.js/npm，无需 Rust。资源服务由部署者独立启动和维护，其源码与程序均不进入 npx 包。发布 npm 后可使用 `npx @deviceforge/cli start`；当前没有发布 registry，验收与使用应指定本地打包 tgz：
 
 ```powershell
@@ -45,7 +49,7 @@ deviceforge start --data-dir D:\DeviceForgeData
 
 导入先校验，再在同卷临时文件中写入并替换；多个写入者通过 `config.json.lock` 互斥。无效导入保留原配置。异常进程留下的锁需核对后处理，不自动删除未知锁。导入只改变下次启动偏好，不重启已有服务，不覆盖插件、工具、任务或业务配置。`show/path/help` 不创建用户目录。
 
-服务器与浏览器插件默认分别在 `plugins`、`browser-plugins`，统一插件配置修订在后端数据目录内；日志和任务数据沿既有存储布局。工具供应插件仍以其明确配置的 `install_root` 为准，建议设为本实例数据目录下的 `tools`；不静默迁移部署者已有工具。`APK_PLUGIN_DIR`、`APK_BROWSER_PLUGIN_DIR`、`DEVICEFORGE_LOG_DIR` 等显式部署覆盖继续生效。
+服务器与浏览器插件程序默认分别在数据目录的 `plugins`、`browser-plugins`，插件配置统一在用户根的 `plugin-configurations`；日志和任务数据沿既有存储布局。工具供应插件仍以其明确配置的 `install_root` 为准，建议设为本实例数据目录下的 `tools`；不静默迁移部署者已有工具。`APK_PLUGIN_DIR`、`APK_BROWSER_PLUGIN_DIR`、`DEVICEFORGE_LOG_DIR` 等显式部署覆盖继续生效。
 
 页面的“本地导入”直接把合规服务器/浏览器插件安装到当前服务，并通过工具供应和配置接口导入工具包、业务配置或插件配置；它与“上传资源并发布”分开，不依赖市场可用。根启动配置使用上面的 CLI 导入命令，业务配置和插件配置分别遵循各自修订与生效机制。安装文件通过包校验不代表工具已在真实设备或目标平台运行验收。
 
@@ -71,6 +75,10 @@ deviceforge start --data-dir D:\DeviceForgeData
 ```
 
 plugin.json 使用公开 SDK 清单字段 id/version/protocol_version/args/operations 以及可选 artifacts/performance/devices，省略 executable；入口由安装器生成绝对路径。Node 入口使用当前 Node 程序，native 使用声明平台程序。版本必须与 npm 包一致，入口必须为包内非链接普通文件。
+
+插件名称、简介和详细描述使用包根的 `market.json`，不写入运行清单。安装器校验它的 ID、版本与展示字段后，将同份资料发布到插件部署根；即使 npm 入口位于 `node_modules` 内，宿主也能在市场离线时读取本地展示资料。缺少资料的旧包仍可本地安装，页面会提示资料不完整。三个展示字段分别最多 200、2000、20000 个 UTF-8 字节，中文同样按字节计量。
+
+工作区原生插件通过 `npm run pack:plugins -- 插件ID` 打包，生成的 TGZ 包含插件入口、便携清单、`market.json` 和已声明的公开配置模板。宿主依据 `configuration` 声明提供配置表单；实际配置、凭据和部署机器上的 ADB、scrcpy 等依赖工具不随这些模板打包。
 
 安装先复制到发布目录同卷的独立暂存区，限制 256 MiB、20000 文件、32 层，拒绝链接；再调用同包 Rust validate-plugin 校验协议、能力、命名空间与输入模式，最后原子 rename 发布。该门禁不执行插件代码。相同 ID 拒绝覆盖，同 ID 安装锁拒绝并发；失败或取消清理本次暂存/锁，崩溃遗留锁需要部署者检查处理。依赖获取阶段没有磁盘硬配额，管理员应控制 npm 源与包信任。
 

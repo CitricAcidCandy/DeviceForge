@@ -35,7 +35,10 @@ async function temporaryDeployment(directory) {
     'utf8',
   );
   const { defaultDeployment } = await import(pathToFileURL(deployment).href);
-  const config = defaultDeployment(directory);
+  const config = {
+    ...defaultDeployment(directory),
+    userDirectory: join(directory, 'user', '.deviceforge'),
+  };
   assert.equal(config.port, port);
   for (const target of [
     config.directory,

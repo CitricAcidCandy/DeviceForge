@@ -6,6 +6,8 @@
 
 API：`router(app, token, requests_per_second)` 使用默认 MCP 安全配置；`router_with_mcp` 允许部署者传入 SDK 配置；`openapi_document` 导出从 Rust 结构生成的公开接口；`mcp::default_config` 提供无会话 JSON 响应方式。HTTP 推荐 `/api/v2`，保留 v1 兼容；MCP 在 `/mcp`。MCP 请求的协议解析由官方 SDK 负责。
 
+`configuration_home.rs` 仅负责启动时解析用户根，默认 `~/.deviceforge`，显式覆盖为 `DEVICEFORGE_USER_DIR`；插件配置不跟随 `APK_DATA_DIR`。`router_with_browser_configurations` 在既有配置构造器参数末尾接收浏览器配置服务，旧构造器保持兼容。配置路由只转换GET/PATCH与错误包装，存储细节由基础设施端口负责。
+
 `main.rs` 通过 `ClientConnection` 获取真实 TCP 来源及接收端接口地址。HTTP 会话只把该连接是否为回环或同一服务器接口 IP 的结果交给应用，不信任 `Forwarded`、`X-Forwarded-For` 或浏览器业务字段。缺失连接元数据和既有 MCP 打开路径不授予本机身份。IPv4 映射 IPv6 地址按 IPv4 统一比较；多接口下与当前接收接口不同的本机来源暂不授予主控。
 
 局域网开发时浏览器 API 基础地址应直连后端，例如前端 `http://192.168.50.5:5173` 连接后端 `http://192.168.50.5:7031`。经过 Vite 回环代理时真实来源为代理，无法区分浏览器来源，因此必须关闭此类 API 回环转发入口，避免远端客户端取得本机身份。`cors.rs` 为可信局域网部署提供无 Cookie 凭据的跨域响应及预检，允许显式 Authorization 请求头并公开日志 ID；实际请求继续受既有可选令牌约束。

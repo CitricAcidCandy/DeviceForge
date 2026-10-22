@@ -253,6 +253,7 @@ impl Prepared {
             info: PluginInfo {
                 id: plugin.id.clone(),
                 version: plugin.version,
+                metadata: plugin.executor.plugin_metadata(),
                 generation: uuid::Uuid::new_v4().to_string(),
                 state: PluginState::Loaded,
                 operations: operations
@@ -513,6 +514,58 @@ mod tests {
         })
         .unwrap()
     }
+    struct DescribedEcho(&'static str);
+    #[async_trait]
+    impl Executor for DescribedEcho {
+        fn operations(&self) -> Vec<Operation> {
+            Echo.operations()
+        }
+        fn plugin_metadata(&self) -> Option<PluginDisplayMetadata> {
+            Some(PluginDisplayMetadata {
+                name: self.0.into(),
+                summary: "测试插件展示信息".into(),
+                description: "展示信息不改变操作贡献和插件身份。".into(),
+            })
+        }
+        async fn execute(&self, _: &str, value: Value, _: CancellationToken) -> Result<Value> {
+            Ok(value)
+        }
+    }
+
+    #[test]
+    fn plugin_metadata_belongs_to_registration_generation_and_is_optional_for_legacy_executors() {
+        let registry = Registry::new(vec![]).unwrap();
+        let legacy = registry.publish(prepared()).unwrap();
+        assert!(legacy.metadata.is_none());
+        assert!(
+            serde_json::to_value(&legacy)
+                .unwrap()
+                .get("metadata")
+                .is_none()
+        );
+        let owner = registry.detach("test").unwrap();
+        registry.finish(&owner).unwrap();
+        let described = Prepared::new(PluginContribution {
+            id: "test".into(),
+            version: "1".into(),
+            executor: Arc::new(DescribedEcho("回显工具")),
+        })
+        .unwrap();
+        let loaded = registry.publish(described).unwrap();
+        assert_eq!(loaded.metadata.as_ref().unwrap().name, "回显工具");
+        assert_ne!(loaded.generation, legacy.generation);
+        assert_eq!(
+            registry.plugins()[0].metadata.as_ref().unwrap().name,
+            "回显工具"
+        );
+        let owner = registry.detach("test").unwrap();
+        assert_eq!(owner.info().metadata.as_ref().unwrap().name, "回显工具");
+        let unloaded = registry.finish(&owner).unwrap();
+        assert_eq!(unloaded.metadata.as_ref().unwrap().name, "回显工具");
+        registry.publish(prepared()).unwrap();
+        assert!(registry.plugins()[0].metadata.is_none());
+    }
+
     #[test]
     fn old_snapshot_cannot_pass_admission_after_same_id_reloads() {
         let registry = Registry::new(vec![]).unwrap();

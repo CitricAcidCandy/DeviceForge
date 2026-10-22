@@ -71,6 +71,7 @@ delete environment.APK_APKSIGNER_JAR;
 delete environment.APK_PERFORMANCE_PLUGIN;
 if (selectedPerformanceDemo) environment.APK_PERFORMANCE_PLUGIN = 'performance_demo';
 const serverEnvironment = { ...environment, APK_API_TOKEN: token, APK_BIND: `127.0.0.1:${port}`, APK_DATA_DIR: join(temporary, 'data'), APK_PLUGIN_DIR: join(temporary, 'plugins'), APK_OPERATION_BINDINGS: harmonyDeployment.bindings, APK_ADB: deviceTool, APK_HDC: join(temporary, 'host-must-not-read-hdc'), APK_APKANALYZER: packageTool, APK_APKSIGNER: packageTool, APK_JAVA: packageTool, APK_BUNDLETOOL_JAR: 'mock-bundletool.jar', APK_APKTOOL_JAR: 'mock-apktool.jar', APK_BUNDLE_KEYSTORE: signingFile, APK_BUNDLE_KEY_ALIAS: 'test-key', APK_BUNDLE_STORE_PASSWORD_FILE: signingFile, APK_BUNDLE_KEY_PASSWORD_FILE: signingFile };
+serverEnvironment.DEVICEFORGE_USER_DIR = join(temporary, 'user', '.deviceforge');
 // 宿主不再消费包业务签名环境；实际签名资格由独立插件旁置配置验证。
 serverEnvironment.APK_BUNDLE_KEYSTORE = join(temporary, 'host-must-not-read-signing.jks');
 delete serverEnvironment.APK_BUNDLE_KEY_PASSWORD_FILE;

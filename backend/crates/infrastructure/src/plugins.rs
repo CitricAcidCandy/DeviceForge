@@ -25,6 +25,7 @@ mod process_cleanup;
 
 pub struct ProcessPlugin {
     manifest: Manifest,
+    metadata: Option<apk_domain::plugins::PluginDisplayMetadata>,
     artifacts: Option<Arc<dyn ArtifactStore>>,
     unresolved: Arc<AtomicBool>,
     devices: Option<apk_domain::devices::DeviceProviderDefinition>,
@@ -94,6 +95,7 @@ impl ProcessPlugin {
         let performance = performance::definition(&manifest, &operations, devices.as_ref())?;
         Ok(Self {
             manifest,
+            metadata: None,
             artifacts: None,
             unresolved: Arc::new(AtomicBool::new(false)),
             devices,
@@ -105,6 +107,13 @@ impl ProcessPlugin {
     }
     pub fn manifest(&self) -> &Manifest {
         &self.manifest
+    }
+    pub fn with_metadata(
+        mut self,
+        metadata: Option<apk_domain::plugins::PluginDisplayMetadata>,
+    ) -> Self {
+        self.metadata = metadata;
+        self
     }
     pub fn with_configurations(
         mut self,
@@ -166,6 +175,11 @@ fn load_inner(
         }
         let manifest = serde_json::from_slice(&bytes).map_err(|e| Error::Invalid(e.to_string()))?;
         let mut plugin = ProcessPlugin::new(manifest)?;
+        plugin.metadata = crate::plugin_catalog::metadata::read(
+            &path,
+            &plugin.manifest.id,
+            &plugin.manifest.version,
+        );
         plugin.artifacts = artifacts.clone();
         plugins.push(Arc::new(plugin));
     }
@@ -173,6 +187,9 @@ fn load_inner(
 }
 #[async_trait]
 impl Executor for ProcessPlugin {
+    fn plugin_metadata(&self) -> Option<apk_domain::plugins::PluginDisplayMetadata> {
+        self.metadata.clone()
+    }
     fn result_format(&self) -> ExecutorResultFormat {
         match self.manifest.protocol_version {
             ARTIFACT_PROTOCOL_VERSION | COOPERATIVE_PROTOCOL_VERSION | CONTEXT_PROTOCOL_VERSION => {

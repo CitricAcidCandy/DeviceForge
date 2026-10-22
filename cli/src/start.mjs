@@ -1,6 +1,7 @@
 import { createServer } from 'node:net';
 import { mkdir } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
+import { homedir } from 'node:os';
 import { setTimeout as delay } from 'node:timers/promises';
 import { loadRuntime } from './runtime.mjs';
 import { spawnManaged, stopManaged } from './processes.mjs';
@@ -59,6 +60,9 @@ export async function start(
     environment.APK_BROWSER_PLUGIN_DIR || join(options.dataDirectory, 'browser-plugins'),
   );
   await mkdir(browserPluginDirectory, { recursive: true });
+  const userDirectory = resolve(
+    environment.DEVICEFORGE_USER_DIR || join(homedir(), '.deviceforge'),
+  );
   const backendPort = await freePort();
   const logDirectory = resolve(
     environment.DEVICEFORGE_LOG_DIR || join(options.dataDirectory, 'logs'),
@@ -97,6 +101,7 @@ export async function start(
         APK_API_TOKEN: token,
         APK_BIND: `127.0.0.1:${backendPort}`,
         APK_DATA_DIR: options.dataDirectory,
+        DEVICEFORGE_USER_DIR: userDirectory,
         APK_PLUGIN_DIR: pluginDirectory,
         APK_BROWSER_PLUGIN_DIR: browserPluginDirectory,
         DEVICEFORGE_NODE: environment.DEVICEFORGE_NODE
@@ -113,7 +118,7 @@ export async function start(
     });
     await ready(backend, backendPort, headers, signal);
     onReady(
-      `DeviceForge 已启动，监听 ${options.ip}，前端/API ${options.port}，MCP ${options.mcpPort}；按 Ctrl+C 退出\n${network.urls.map((url) => `前端：${url.web}；MCP：${url.mcp}`).join('\n')}\n数据：${options.dataDirectory}\n根配置：${configurationPath}\n市场来源：${marketplaceSources.map((source) => source.url).join('，')}（资源服务需独立启动）\n日志：${logDirectory}`,
+      `DeviceForge 已启动，监听 ${options.ip}，前端/API ${options.port}，MCP ${options.mcpPort}；按 Ctrl+C 退出\n${network.urls.map((url) => `前端：${url.web}；MCP：${url.mcp}`).join('\n')}\n数据：${options.dataDirectory}\n根配置：${configurationPath}\n插件配置：${join(userDirectory, 'plugin-configurations')}\n市场来源：${marketplaceSources.map((source) => source.url).join('，')}（资源服务需独立启动）\n日志：${logDirectory}`,
     );
     const result = await Promise.race([stopped.then(() => null), backend.closed]);
     if (result && (result.failure || result.code !== 0))

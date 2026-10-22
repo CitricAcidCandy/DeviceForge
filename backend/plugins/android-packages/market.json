@@ -1,0 +1,8 @@
+{
+  "metadata_version": 1, "id": "android-packages", "kind": "plugin", "version": "0.1.0",
+  "name": "Android 安装包工具", "summary": "分析 APK、AAB 和 APKS，处理签名、解码与拆分包。",
+  "description": "提供清单分析、签名报告、APK 提取、APKS 构建、资源解码、SDK 扫描和拆分包提取。外部工具路径由插件配置指定，操作输入使用已上传的产物。",
+  "keywords": ["APK", "AAB", "APKS"], "categories": ["analysis", "build"], "applies_to": ["deviceforge"],
+  "supports_mcp": "server", "supports_agent": true, "restart_policy": "plugin_reload", "author": "DeviceForge", "license": "MIT",
+  "platforms": [], "architectures": [], "details": {"plugin_kind": "server"}
+}

@@ -1,5 +1,6 @@
 //! 服务器插件配置独立于包部署保存，兼容旧配置并为调用提供不可变文件。
 mod annotations;
+mod migration;
 mod rules;
 mod storage;
 use apk_domain::{Error, Result, plugin_configurations::*, plugins::plugin_id};
@@ -20,13 +21,23 @@ pub(crate) fn validate_definition(value: &apk_plugin_sdk::ConfigurationDefinitio
 pub struct FilePluginConfigurations {
     root: PathBuf,
     deployment: PathBuf,
+    legacy: Vec<PathBuf>,
     _lock: Arc<fs::File>,
+    _legacy_locks: Arc<Vec<fs::File>>,
     changes: Arc<Mutex<()>>,
     workers: Arc<Semaphore>,
 }
 
 impl FilePluginConfigurations {
     pub async fn open(root: &Path, deployment: &Path) -> Result<Arc<Self>> {
+        Self::open_with_legacy(root, deployment, Vec::new()).await
+    }
+
+    pub async fn open_with_legacy(
+        root: &Path,
+        deployment: &Path,
+        legacy: Vec<PathBuf>,
+    ) -> Result<Arc<Self>> {
         let root = root.to_owned();
         let deployment = deployment.to_owned();
         tokio::task::spawn_blocking(move || {
@@ -38,19 +49,57 @@ impl FilePluginConfigurations {
             if root.starts_with(&deployment) || deployment.starts_with(&root) {
                 return Err(Error::Invalid("配置根目录必须独立于插件部署目录".into()));
             }
+            let lock_path = root.join(".configurations.lock");
+            if let Ok(metadata) = fs::symlink_metadata(&lock_path)
+                && (!metadata.is_file() || storage::linked(&metadata))
+            {
+                return Err(Error::Invalid("配置存储锁必须为普通文件".into()));
+            }
             let lock = fs::OpenOptions::new()
                 .read(true)
                 .write(true)
                 .create(true)
                 .truncate(false)
-                .open(root.join(".configurations.lock"))
+                .open(lock_path)
                 .map_err(|_| Error::Storage("配置存储锁不可访问".into()))?;
             lock.try_lock()
                 .map_err(|_| Error::Conflict("配置目录已由其他宿主占用".into()))?;
+            let mut sources = Vec::new();
+            let mut legacy_locks = Vec::new();
+            for source in legacy {
+                if !source.exists() {
+                    continue;
+                }
+                let source = fs::canonicalize(source)
+                    .map_err(|_| Error::Storage("历史配置目录不可访问".into()))?;
+                if source == root || sources.contains(&source) {
+                    continue;
+                }
+                let lock_path = source.join(".configurations.lock");
+                if lock_path.exists() {
+                    let metadata = fs::symlink_metadata(&lock_path)
+                        .map_err(|_| Error::Storage("历史配置锁不可访问".into()))?;
+                    if !metadata.is_file() || storage::linked(&metadata) {
+                        return Err(Error::Invalid("历史配置锁必须为普通文件".into()));
+                    }
+                    let old_lock = fs::OpenOptions::new()
+                        .read(true)
+                        .write(true)
+                        .open(lock_path)
+                        .map_err(|_| Error::Storage("历史配置锁不可访问".into()))?;
+                    old_lock.try_lock().map_err(|_| {
+                        Error::Conflict("旧宿主仍占用历史插件配置，请先正常停止旧宿主".into())
+                    })?;
+                    legacy_locks.push(old_lock);
+                }
+                sources.push(source);
+            }
             Ok(Arc::new(Self {
                 root,
                 deployment,
+                legacy: sources,
                 _lock: Arc::new(lock),
+                _legacy_locks: Arc::new(legacy_locks),
                 changes: Arc::new(Mutex::new(())),
                 workers: Arc::new(Semaphore::new(2)),
             }))
@@ -109,7 +158,9 @@ impl FilePluginConfigurations {
             .map(rules::definition)
             .transpose()?;
         let state_path = self.root.join(id).join("state.json");
+        migration::import(&self.root, &self.legacy, id)?;
         if state_path.exists() {
+            storage::checked_directory(&self.root, id, false)?;
             let state: State = storage::json(&state_path)?;
             return Ok((definition, state));
         }
@@ -165,17 +216,19 @@ impl FilePluginConfigurations {
             .as_ref()
             .map(|definition| rules::sensitive_paths(&values, &definition.schema))
             .unwrap_or_default();
-        Ok((
-            definition,
-            State {
-                definition_version,
-                revision: 0,
-                applied_revision: 0,
-                values,
-                source,
-                sensitive_paths,
-            },
-        ))
+        let state = State {
+            definition_version,
+            revision: 0,
+            applied_revision: 0,
+            values,
+            source,
+            sensitive_paths,
+        };
+        if definition.is_some() {
+            storage::ensure_revision(&self.root, id, 0, &state.values)?;
+            storage::write(&state_path, &state)?;
+        }
+        Ok((definition, state))
     }
 
     fn view(
@@ -381,10 +434,6 @@ impl PluginConfigurationStore for FilePluginConfigurations {
             let Some(definition) = definition else {
                 return Ok(None);
             };
-            // 首次显式保存前继续使用插件原有 --config 或旁置文件，不由读取接管配置。
-            if !store.root.join(&id).join("state.json").exists() {
-                return Ok(None);
-            }
             if state.definition_version != definition.version
                 || (!rules::errors(&definition, &state.values)?.is_empty()
                     && state.revision == state.applied_revision)

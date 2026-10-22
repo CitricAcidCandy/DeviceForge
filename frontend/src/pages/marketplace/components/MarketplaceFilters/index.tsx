@@ -24,17 +24,21 @@ export function MarketplaceFilters({
     ? marketplaceCategories[query.kind]
     : [...new Set(Object.values(marketplaceCategories).flat())];
   return (
-    <section className="marketplace-filters" aria-label="市场筛选">
-      <div className="marketplace-search">
-        <Search aria-hidden="true" />
+    <section
+      className="flex flex-wrap items-end gap-2 rounded-[12px] border border-[color:var(--hairline)] bg-[color:var(--card)] p-3"
+      aria-label="市场筛选"
+    >
+      <div className="flex h-9 min-w-[220px] flex-1 items-center gap-2 rounded-md bg-[color:var(--surface-sunken)] px-3">
+        <Search className="size-3.5 shrink-0 text-[color:var(--text-ghost)]" aria-hidden="true" />
         <Input
           aria-label="搜索市场"
           placeholder="搜索名称、用途、关键词或作者…"
           value={query.q ?? ''}
           onChange={(event) => set('q', event.target.value)}
+          className="h-full w-full border-0 bg-transparent shadow-none"
         />
       </div>
-      <div className="marketplace-filter-primary">
+      <div className="flex flex-wrap items-end gap-2">
         <SelectField
           label="条目类型"
           value={query.kind ?? 'all'}
@@ -65,17 +69,17 @@ export function MarketplaceFilters({
           ]}
           onValueChange={(value) => set('applies_to', value)}
         />
-        <Button variant="ghost" onClick={() => onChange({ limit: 24 })}>
+        <Button variant="ghost" size="sm" className="h-9" onClick={() => onChange({ limit: 24 })}>
           <X />
           重置
         </Button>
       </div>
-      <details className="marketplace-filter-advanced">
-        <summary>
-          <SlidersHorizontal />
+      <details className="w-full">
+        <summary className="flex w-fit cursor-pointer items-center gap-1.5 text-[11px] text-[color:var(--text-muted)]">
+          <SlidersHorizontal className="size-3.5" />
           兼容性与能力筛选
         </summary>
-        <div className="marketplace-filter-options">
+        <div className="flex flex-wrap items-end gap-2 pt-2">
           <SelectField
             label="MCP"
             value={query.supports_mcp ?? 'all'}

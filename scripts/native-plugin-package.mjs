@@ -33,13 +33,14 @@ async function loadPlans(backend, selected, options) {
   const plans = await Promise.all(
     packages.map(async (pkg) => {
       const sourceDirectory = dirname(pkg.manifest_path);
-      const { manifest, configurationTemplates, assets } =
+      const { manifest, configurationTemplates, assets, marketMetadata } =
         await loadNativePluginSource(sourceDirectory);
       return {
         ...nativePluginPlan(pkg, manifest),
         sourceDirectory,
         configurationTemplates,
         assets,
+        marketMetadata,
       };
     }),
   );
@@ -108,6 +109,9 @@ async function packOne(plan, temporary, destination, compiled, options, cliVersi
   );
   await writeFile(join(directory, 'package.json'), JSON.stringify(plan.packageJson, null, 2));
   await writeFile(join(directory, 'plugin.json'), JSON.stringify(plan.portableManifest, null, 2));
+  // 展示资料属于插件自身；实际配置与凭据不进入发行包。
+  if (plan.marketMetadata)
+    await writeFile(join(directory, 'market.json'), JSON.stringify(plan.marketMetadata, null, 2));
   // 与真正安装器共用入口映射和 Rust 注册门禁，打包阶段也不执行插件。
   const manifest = await materializeManifest(directory, directory);
   const checkPath = join(temporary, `${plan.id}.validate.json`);

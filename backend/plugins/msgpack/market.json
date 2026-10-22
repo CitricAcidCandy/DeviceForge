@@ -1,0 +1,8 @@
+{
+  "metadata_version": 1, "id": "msgpack", "kind": "plugin", "version": "0.1.0",
+  "name": "MessagePack 编解码", "summary": "编码、解码 MessagePack 并查询结构化数据。",
+  "description": "提供 MessagePack 与 JSON 之间的转换及数据查询，复用公开任务和产物机制，无需配置外部程序。",
+  "keywords": ["MessagePack", "JSON", "编解码"], "categories": ["analysis", "utility"], "applies_to": ["deviceforge"],
+  "supports_mcp": "server", "supports_agent": true, "restart_policy": "plugin_reload", "author": "DeviceForge", "license": "MIT",
+  "platforms": [], "architectures": [], "details": {"plugin_kind": "server"}
+}

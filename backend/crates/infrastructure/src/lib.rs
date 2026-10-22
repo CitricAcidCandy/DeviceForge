@@ -21,6 +21,7 @@ pub mod performance_plugin;
 
 pub mod bundles;
 
+pub mod browser_configurations;
 pub mod plugin_catalog;
 pub mod plugin_configurations;
 pub mod plugin_packages;

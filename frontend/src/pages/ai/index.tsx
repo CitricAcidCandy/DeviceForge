@@ -14,10 +14,11 @@ import './workspace.css';
 export function AiPage({ services }: { services: ProductServices }) {
   const [provider, setProvider] = useState<'sdk' | 'cli'>('sdk');
   return (
-    <section className="product-page ai-page">
-      <PageTitle
-        title="AI 助手"
-      >
+    <section
+      className="product-page ai-page flex min-h-[560px] flex-1 flex-col gap-3"
+      data-product-page="ai"
+    >
+      <PageTitle title="AI 助手">
         <Select
           value={provider}
           onValueChange={(value) => {
@@ -33,10 +34,10 @@ export function AiPage({ services }: { services: ProductServices }) {
           </SelectContent>
         </Select>
       </PageTitle>
-      <div hidden={provider !== 'sdk'}>
+      <div hidden={provider !== 'sdk'} className="flex min-h-0 flex-1 flex-col">
         <AiProviderPanel services={services} provider="sdk" />
       </div>
-      <div hidden={provider !== 'cli'}>
+      <div hidden={provider !== 'cli'} className="flex min-h-0 flex-1 flex-col">
         <AiProviderPanel services={services} provider="cli" />
       </div>
     </section>

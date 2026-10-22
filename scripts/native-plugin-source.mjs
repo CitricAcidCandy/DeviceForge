@@ -2,6 +2,7 @@ import { copyFile, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { readJson, regularFile } from '../cli/src/paths.mjs';
 import { loadNativePluginAssets } from './native-plugin-assets.mjs';
+import { readMarketMetadata } from '../cli/src/plugin-package.mjs';
 
 // 正式清单优先；只在文件不存在时兼容旧示例，损坏的正式清单不能被掩盖。
 export async function loadNativePluginSource(directory) {
@@ -47,7 +48,8 @@ export async function loadNativePluginSource(directory) {
     }
   }
   const assets = await loadNativePluginAssets(directory);
-  return { manifest, configurationTemplates, assets };
+  const marketMetadata = await readMarketMetadata(directory, manifest);
+  return { manifest, configurationTemplates, assets, marketMetadata };
 }
 
 // 打包器与验证共用模板复制入口，实际配置与凭据始终留在部署目录。

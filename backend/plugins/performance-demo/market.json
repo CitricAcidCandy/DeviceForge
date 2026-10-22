@@ -1,0 +1,8 @@
+{
+  "metadata_version": 1, "id": "performance_demo", "kind": "plugin", "version": "0.1.0",
+  "name": "性能采样协议示例", "summary": "生成合成采样数据，用于验证性能插件接入协议。",
+  "description": "仅用于性能提供者的协议与生命周期验证，返回合成采样，不表示真实设备性能，无需基础配置。",
+  "keywords": ["示例", "性能", "合成"], "categories": ["performance"], "applies_to": ["deviceforge"],
+  "supports_mcp": "server", "supports_agent": true, "restart_policy": "plugin_reload", "author": "DeviceForge", "license": "MIT",
+  "platforms": [], "architectures": [], "details": {"plugin_kind": "server"}
+}

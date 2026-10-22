@@ -6,6 +6,10 @@ import { tmpdir } from 'node:os';
 import { materializeManifest, readMarketMetadata } from '../src/plugin-package.mjs';
 import { installPlugin, listPlugins } from '../src/install.mjs';
 import { loadRuntime } from '../src/runtime.mjs';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+import { npmCommand } from '../src/processes.mjs';
+import { inside } from '../src/paths.mjs';
 
 async function fixture(directory, schema = { type: 'object' }) {
   const source = join(directory, 'plugin source');
@@ -109,9 +113,67 @@ test('market.json 缺失可本地安装，存在时校验展示元数据', async
       }),
     );
     assert.equal((await readMarketMetadata(source, manifest)).name, '测试插件');
+    const valid = JSON.parse(await readFile(join(source, 'market.json'), 'utf8'));
+    for (const field of ['name', 'summary', 'description']) {
+      await writeFile(join(source, 'market.json'), JSON.stringify({ ...valid, [field]: ' ' }));
+      await assert.rejects(readMarketMetadata(source, manifest), /market.json 字段无效/);
+    }
+    // 中文按 UTF-8 字节计量，与宿主展示字段的上限保持一致。
+    const boundaryName = '中'.repeat(66) + 'ab';
+    assert.equal(Buffer.byteLength(boundaryName, 'utf8'), 200);
+    await writeFile(join(source, 'market.json'), JSON.stringify({ ...valid, name: boundaryName }));
+    assert.equal((await readMarketMetadata(source, manifest)).name, boundaryName);
+    await writeFile(
+      join(source, 'market.json'),
+      JSON.stringify({ ...valid, name: boundaryName + 'c' }),
+    );
+    await assert.rejects(readMarketMetadata(source, manifest), /market.json 字段无效/);
     await writeFile(join(source, 'market.json'), '{}');
     await assert.rejects(readMarketMetadata(source, manifest), /market.json 字段无效/);
   } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('TGZ 安装保留深层 npm 入口，并将插件展示资料发布到部署根', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'deviceforge-market-package-'));
+  try {
+    const source = await fixture(directory);
+    const metadata = {
+      metadata_version: 1,
+      id: 'test',
+      kind: 'plugin',
+      version: '1.0.0',
+      name: '可移植测试插件',
+      summary: '安装后显示本地名称',
+      description: '验证离线 TGZ 展示资料的部署位置。',
+      keywords: ['测试'],
+      categories: ['function'],
+      applies_to: ['deviceforge'],
+      supports_mcp: 'server',
+      supports_agent: true,
+      restart_policy: 'plugin_reload',
+      details: { plugin_kind: 'server' },
+    };
+    await writeFile(join(source, 'market.json'), JSON.stringify(metadata));
+    const npm = npmCommand(process.env);
+    const packed = await promisify(execFile)(
+      npm.command,
+      [...npm.prefix, 'pack', '--ignore-scripts', '--json', '--pack-destination', directory],
+      { cwd: source, windowsHide: true, timeout: 30000 },
+    );
+    const archive = join(directory, JSON.parse(packed.stdout)[0].filename);
+    const dataDirectory = join(directory, 'data');
+    const options = { source: archive, dataDirectory };
+    const result = await installPlugin(options, { runtime: await loadRuntime(), environment: {} });
+    assert.equal(result.metadata_complete, true);
+    const deployed = join(dataDirectory, 'plugins', 'test');
+    assert.deepEqual(JSON.parse(await readFile(join(deployed, 'market.json'), 'utf8')), metadata);
+    const manifest = JSON.parse(await readFile(join(deployed, 'manifest.json'), 'utf8'));
+    assert.ok(manifest.args[0].includes('node_modules'));
+    assert.equal((await listPlugins(options, {}))[0].metadata_complete, true);
+  } finally {
+    assert.ok(inside(tmpdir(), directory) && directory !== tmpdir());
     await rm(directory, { recursive: true, force: true });
   }
 });

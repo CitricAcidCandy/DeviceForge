@@ -6,6 +6,8 @@
 
 API：`Application::new(store, executors, concurrency, capacity)` 检查注册冲突并恢复中断任务；`operations` 返回运行时贡献；线上提交、查询、事件与取消使用 `submit_async/get_async/list_async/events_async/cancel_async`；`shutdown` 停止接收、取消并等待已有任务退出。
 
+`browser_configurations.rs` 只编排合法插件ID、完整记录与修订比较存储端口，不依赖部署目录、文件或浏览器生命周期；未在线安装的随包插件也可保存配置。契约见 [浏览器插件用户配置](../../docs/contracts/浏览器插件用户配置.md)。
+
 同步领域存储端口保留，线上访问由 `blocking.rs` 限制最多 4 个 `spawn_blocking` 工作。许可由工作闭包持有，取消等待者不能提前释放仍在执行的名额。日志上下文和 span 同时传播至阻塞线程与后台任务。原同步方法仅供工作池、启动和兼容测试使用，禁止从 HTTP/MCP 请求线程直接调用。
 
 任务容量包含排队和运行任务。所有执行器受同一个并发上限约束。输入使用注册时编译的 JSON Schema 验证器；只允许文档内引用，避免模式解析访问外部资源。取消的终态由存储端口保护，晚到结果不能覆盖。服务装配应只创建一个应用实例，禁止对共享任务库重复恢复。

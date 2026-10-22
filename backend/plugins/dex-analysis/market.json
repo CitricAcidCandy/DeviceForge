@@ -1,0 +1,8 @@
+{
+  "metadata_version": 1, "id": "dex-analysis", "kind": "plugin", "version": "0.1.0",
+  "name": "DEX 分析", "summary": "检查 DEX 结构并扫描安装包中的 SDK 特征。",
+  "description": "对上传的 Android 包和 DEX 产物执行结构检查与 SDK 特征扫描，不需要配置服务器端程序入口。",
+  "keywords": ["DEX", "SDK", "分析"], "categories": ["analysis"], "applies_to": ["deviceforge"],
+  "supports_mcp": "server", "supports_agent": true, "restart_policy": "plugin_reload", "author": "DeviceForge", "license": "MIT",
+  "platforms": [], "architectures": [], "details": {"plugin_kind": "server"}
+}

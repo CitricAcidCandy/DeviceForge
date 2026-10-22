@@ -147,6 +147,13 @@ test('18 个工作区插件声明均通过便携清单、模板复制和安装�
       fileURLToPath(new URL(`../../backend/plugins/${id}/`, import.meta.url)),
     );
     const definition = source.manifest.configuration;
+    assert.equal(source.marketMetadata.id, source.manifest.id, id);
+    assert.equal(source.marketMetadata.version, source.manifest.version, id);
+    assert.ok(
+      source.marketMetadata.name.trim() && source.marketMetadata.name !== source.manifest.id,
+      id,
+    );
+    assert.ok(source.marketMetadata.summary.trim() && source.marketMetadata.description.trim(), id);
     assert.equal(definition.version, 1, id);
     assert.equal(definition.schema.type, 'object', id);
     assert.equal(definition.schema.additionalProperties, false, id);
@@ -162,6 +169,7 @@ test('18 个工作区插件声明均通过便携清单、模板复制和安装�
       source.manifest,
     );
     assert.deepEqual(plan.portableManifest.configuration, definition);
+    assert.ok(plan.packageJson.files.includes('market.json'), id);
     await fixture(async (directory) => {
       await mkdir(join(directory, 'bin'));
       await copyNativePluginConfiguration(source, directory);

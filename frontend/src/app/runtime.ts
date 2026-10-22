@@ -31,7 +31,12 @@ import { registerPerformanceService } from './performance-service.ts';
 import { createHttpMirroringStreaming } from '../features/mirroring-streaming/index.ts';
 import type { MirroringStreamSink } from '../features/mirroring-streaming/index.ts';
 import { registerMirroringStreamingService } from './mirroring-streaming-service.ts';
-import { createBrowserConfigurations, createPluginConfigurations, createServerConfigurations } from '../features/plugin-configurations/index.ts';
+import {
+  createBrowserConfigurationPersistence,
+  createBrowserConfigurations,
+  createPluginConfigurations,
+  createServerConfigurations,
+} from '../features/plugin-configurations/index.ts';
 
 export interface RuntimeOptions extends ClientOptions {
   readonly panelTarget: ManagerOptions['panelTarget'];
@@ -87,13 +92,25 @@ export function createFrontendRuntime(options: RuntimeOptions) {
     client,
     createCatalogRefresh(operations.refresh, devices, operations.invalidate),
   );
-  const browserConfigurations = createBrowserConfigurations(options.baseUrl, typeof window === 'undefined' ? undefined : window.localStorage);
+  let legacyStorage: Storage | undefined;
+  try {
+    legacyStorage = typeof window === 'undefined' ? undefined : window.localStorage;
+  } catch {
+    legacyStorage = undefined;
+  }
+  const browserConfigurations = createBrowserConfigurations({
+    baseUrl: options.baseUrl,
+    persistence: createBrowserConfigurationPersistence(client),
+    legacyStorage,
+    signal: lifetime.signal,
+  });
   const webPlugins = createPluginManager({
     host: context,
     panelTarget: options.panelTarget,
     extensionRegistry: extensions,
-    configuration: (plugin) => browserConfigurations.prepare(plugin.id, plugin.configuration ?? null),
-    configurationApplied: (plugin) => browserConfigurations.markApplied(plugin.id),
+    configuration: (plugin, signal) =>
+      browserConfigurations.prepare(plugin.id, plugin.configuration ?? null, signal),
+    configurationApplied: (plugin, signal) => browserConfigurations.markApplied(plugin.id, signal),
     ...(options.componentTarget ? { componentTarget: options.componentTarget } : {}),
     ...(options.moduleTarget ? { moduleTarget: options.moduleTarget } : {}),
     ...(options.slotAdapter ? { slotAdapter: options.slotAdapter } : {}),
@@ -131,7 +148,7 @@ export function createFrontendRuntime(options: RuntimeOptions) {
     browser: browserConfigurations,
     async inspectBrowser(id, signal) {
       const snapshot = pluginPackages.snapshot('browser');
-      const packages = snapshot.result ?? await pluginPackages.refresh('browser', signal);
+      const packages = snapshot.result ?? (await pluginPackages.refresh('browser', signal));
       const pkg = packages.data.find((entry) => entry.id === id);
       if (!pkg) throw new Error('浏览器插件不在当前安装目录中');
       browserPackages.register({ id: pkg.id, version: pkg.version, entryPath: pkg.entry_path });
@@ -141,9 +158,24 @@ export function createFrontendRuntime(options: RuntimeOptions) {
       const selected = themes.snapshot().selected;
       await webPlugins.unload(id);
       signal.throwIfAborted();
-      await webPlugins.load(id);
-      signal.throwIfAborted();
-      if (selected?.pluginId === id && themes.snapshot().themes.some((theme) => theme.id === selected.id)) themes.select(selected.id);
+      let cancellation: Promise<void> | null = null;
+      const cancel = () => {
+        cancellation = webPlugins.unload(id);
+        void cancellation.catch(() => undefined);
+      };
+      signal.addEventListener('abort', cancel, { once: true });
+      try {
+        await webPlugins.load(id);
+        signal.throwIfAborted();
+      } finally {
+        signal.removeEventListener('abort', cancel);
+        if (cancellation) await cancellation;
+      }
+      if (
+        selected?.pluginId === id &&
+        themes.snapshot().themes.some((theme) => theme.id === selected.id)
+      )
+        themes.select(selected.id);
     },
   });
   let lastOperations: unknown = null;

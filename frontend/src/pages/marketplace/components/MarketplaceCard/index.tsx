@@ -76,6 +76,7 @@ export function MarketplaceCard({
       >
         <h3>{entry.name}</h3>
         <span className="marketplace-version">v{entry.version || '未知'}</span>
+        {entry.name !== entry.id && <small className="marketplace-card-source" title="插件标识">{entry.id}</small>}
         <p>{entry.summary || '暂无简介'}</p>
       </button>
       <div className="marketplace-tags">

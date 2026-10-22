@@ -13,6 +13,7 @@ import type { PluginScope } from './scope.ts';
 import { createExtensionRegistry } from './extensions/registry.ts';
 import type { ExtensionRegistry } from './extensions/registry.ts';
 import { createExtensionMounts } from './extensions/mounts.ts';
+import { awaitActive } from './extensions/await-active.ts';
 
 export type TrustedRegistration = { readonly id: string; readonly trusted: true } & (
   | { readonly plugin: WebPlugin }
@@ -44,8 +45,11 @@ export interface ManagerOptions {
   ) => HTMLElement | null;
   readonly moduleTarget?: (route: string, pluginId: string, moduleId: string) => HTMLElement | null;
   readonly slotAdapter?: SlotAdapter;
-  readonly configuration?: (plugin: WebPlugin) => ConfigurationAccess | undefined;
-  readonly configurationApplied?: (plugin: WebPlugin) => void;
+  readonly configuration?: (
+    plugin: WebPlugin,
+    signal: AbortSignal,
+  ) => ConfigurationAccess | undefined | Promise<ConfigurationAccess | undefined>;
+  readonly configurationApplied?: (plugin: WebPlugin, signal: AbortSignal) => void | Promise<void>;
 }
 
 export function createPluginManager(options: ManagerOptions) {
@@ -71,7 +75,12 @@ export function createPluginManager(options: ManagerOptions) {
     }
   }
   function assertClean(id: string) {
-    if (cleanupFailed.has(id)) throw new HostError('protocol', 'plugin_cleanup_failed', '插件资源清理未确认，当前运行实例禁止重新启用、重载或删除');
+    if (cleanupFailed.has(id))
+      throw new HostError(
+        'protocol',
+        'plugin_cleanup_failed',
+        '插件资源清理未确认，当前运行实例禁止重新启用、重载或删除',
+      );
   }
   async function cleanup(runtime: Runtime) {
     runtime.scope.close();
@@ -128,11 +137,32 @@ export function createPluginManager(options: ManagerOptions) {
         [...running.values()].flatMap((item) => (item.plugin ? [item.plugin] : [])).concat(plugin),
       );
       runtime.plugin = plugin;
-      const configuration = options.configuration?.(plugin);
-      if (configuration) runtime.context = { ...runtime.context, configuration: {
-        get() { active(runtime); return configuration.get(); },
-        subscribe(listener) { active(runtime); return runtime.scope.track(configuration.subscribe((value) => { if (!runtime.scope.context.signal.aborted) listener(value); })); },
-      } };
+      const prepareConfiguration = options.configuration;
+      const configuration = prepareConfiguration
+        ? await awaitActive(
+            () => Promise.resolve(prepareConfiguration(plugin, runtime.scope.context.signal)),
+            runtime.scope.context.signal,
+          )
+        : undefined;
+      active(runtime);
+      if (configuration)
+        runtime.context = {
+          ...runtime.context,
+          configuration: {
+            get() {
+              active(runtime);
+              return configuration.get();
+            },
+            subscribe(listener) {
+              active(runtime);
+              return runtime.scope.track(
+                configuration.subscribe((value) => {
+                  if (!runtime.scope.context.signal.aborted) listener(value);
+                }),
+              );
+            },
+          },
+        };
       runtime.context = registry.attach(
         id,
         runtime.generation,
@@ -149,7 +179,12 @@ export function createPluginManager(options: ManagerOptions) {
       runtime.activationStarted = true;
       await plugin.activate?.(runtime.context);
       active(runtime);
-      options.configurationApplied?.(plugin);
+      const applyConfiguration = options.configurationApplied;
+      if (applyConfiguration)
+        await awaitActive(async () => {
+          await applyConfiguration(plugin, runtime.scope.context.signal);
+        }, runtime.scope.context.signal);
+      active(runtime);
       runtime.state = 'loaded';
       return { id, generation: runtime.generation, state: runtime.state };
     } catch (error) {
@@ -285,7 +320,9 @@ export function createPluginManager(options: ManagerOptions) {
       signal.throwIfAborted();
       const source = sources.get(id);
       if (!source) throw new Error('插件来源尚未登记');
-      const plugin = readPluginModule('plugin' in source ? source.plugin : await source.loader(signal));
+      const plugin = readPluginModule(
+        'plugin' in source ? source.plugin : await source.loader(signal),
+      );
       signal.throwIfAborted();
       if (plugin.id !== id) throw new Error('插件标识与登记来源不一致');
       return plugin.configuration ?? null;

@@ -21,7 +21,7 @@ const token = randomBytes(32).toString('hex');
 const environment = Object.fromEntries(Object.entries(process.env).filter(([key]) => !/^(APK_|DEVICEFORGE_)/.test(key)));
 const child = spawn(resolve(`target/${profile}`, `apk-server${suffix}`), [], {
   env: { ...environment, APK_API_TOKEN: token, APK_BIND: `127.0.0.1:${port}`,
-    APK_DATA_DIR: temporary, APK_PLUGIN_DIR: plugins, DEVICEFORGE_HTTP_RATE: '10000' },
+    APK_DATA_DIR: temporary, APK_PLUGIN_DIR: plugins, DEVICEFORGE_USER_DIR: join(temporary, 'user', '.deviceforge'), DEVICEFORGE_HTTP_RATE: '10000' },
   stdio: 'ignore', windowsHide: true,
 });
 let spawnError;

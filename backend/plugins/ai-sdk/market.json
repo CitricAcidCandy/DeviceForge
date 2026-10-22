@@ -1,0 +1,8 @@
+{
+  "metadata_version": 1, "id": "ai-sdk", "kind": "plugin", "version": "0.1.0",
+  "name": "AI SDK 桥接", "summary": "通过官方 SDK 桥接 AI 请求、持久线程与实时输出。",
+  "description": "提供 SDK 单次请求、线程恢复、实时会话和助手编排。使用前须在插件配置中指定 Node、CLI、worker 及项目；运行环境与认证资格由运行状态检查确认。",
+  "keywords": ["AI", "SDK", "线程"], "categories": ["integration", "workflow"], "applies_to": ["deviceforge"],
+  "supports_mcp": "server", "supports_agent": true, "restart_policy": "plugin_reload", "author": "DeviceForge", "license": "MIT",
+  "platforms": [], "architectures": [], "details": {"plugin_kind": "server"}
+}

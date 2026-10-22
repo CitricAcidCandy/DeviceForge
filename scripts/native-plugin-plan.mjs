@@ -48,7 +48,7 @@ export function nativePluginPlan(
       license: cargoPackage.license,
       os: [platform],
       cpu: [arch],
-      files: ['bin', 'plugin.json', 'README.md'],
+      files: ['bin', 'plugin.json', 'market.json', 'README.md'],
       deviceforge: {
         kind: 'server',
         manifest: 'plugin.json',

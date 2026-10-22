@@ -1,0 +1,8 @@
+{
+  "metadata_version": 1, "id": "mirroring", "kind": "plugin", "version": "0.1.0",
+  "name": "设备投屏与录制", "summary": "提供浏览器实时投屏、WebRTC 控制与设备画面录制。",
+  "description": "使用服务器配置的 ADB、scrcpy 与 scrcpy-server 提供实时画面、设备控制及录制。服务文件版本必须与配置一致；Android 17 推荐 scrcpy-server 3.3.4。工具文件需要单独准备。",
+  "keywords": ["投屏", "WebRTC", "scrcpy"], "categories": ["device", "utility"], "applies_to": ["deviceforge"],
+  "supports_mcp": "server", "supports_agent": true, "restart_policy": "plugin_reload", "author": "DeviceForge", "license": "MIT",
+  "platforms": [], "architectures": [], "details": {"plugin_kind": "server"}
+}

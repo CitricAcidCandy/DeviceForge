@@ -18,8 +18,9 @@ import type {
 import type { PackageInfo } from '../src/services/api/index.ts';
 import type { PreparationExecutor } from '../src/pages/marketplace/upload-preparation/index.ts';
 import type { LocalImportDialog } from '../src/pages/marketplace/components/LocalImportDialog/index.tsx';
+import type { MarketplacePage } from '../src/pages/marketplace/index.tsx';
 import { createProductServices } from '../src/app/product/services.ts';
-import { installedPackage as localInstalledPackage, success, requestUrl, deferred as deferredResult } from './fixtures.ts';
+import { installedPackage as localInstalledPackage, plugin, success, requestUrl, deferred as deferredResult } from './fixtures.ts';
 
 type UploadProps = ComponentProps<typeof MarketplaceUploadDialog>;
 type CardProps = ComponentProps<typeof MarketplaceCard>;
@@ -28,6 +29,10 @@ type FileProps = ComponentProps<typeof FileDropzone>;
 type StepProps = ComponentProps<typeof Stepper>;
 type ConfigurationProps = ComponentProps<typeof PluginConfigurationDialog>;
 type LocalImportProps = ComponentProps<typeof LocalImportDialog>;
+
+function marketplacePageModule(value: unknown): value is { MarketplacePage: typeof MarketplacePage } {
+  return value !== null && typeof value === 'object' && 'MarketplacePage' in value && typeof value.MarketplacePage === 'function';
+}
 
 function localImportModule(value: unknown): value is { LocalImportDialog: ComponentType<LocalImportProps> } {
   return value !== null && typeof value === 'object' && 'LocalImportDialog' in value && typeof value.LocalImportDialog === 'function';
@@ -629,6 +634,52 @@ test('市场卡片分别派发详情、下载、安装、更新与已安装配�
   }
 });
 
+test('已安装列表使用宿主声明的中文名称和描述，包部署与直接部署均可打开真实配置工厂', async () => {
+  const browser = await fixture();
+  const named = plugin({ id: 'android-device', version: '0.1.0', metadata: {
+    name: '安卓设备', summary: '发现与管理安卓设备', description: '提供设备发现和应用管理。',
+  } });
+  const direct = plugin({ id: 'mirroring', version: '0.1.0', metadata: {
+    name: '设备投屏', summary: '实时投屏与设备控制', description: '配置服务器上的投屏依赖工具。',
+  } });
+  const calls: string[] = [];
+  const services = createProductServices({ baseUrl: 'http://localhost:7031', panelTarget: () => null,
+    transport: async (input) => {
+      const path = requestUrl(input).pathname; calls.push(path);
+      if (path === '/api/v2/plugins') return success([named, direct]);
+      if (path === '/api/v2/plugin-packages/server') return success([localInstalledPackage('server', { id: named.id, version: named.version })]);
+      if (path === '/api/v2/plugin-packages/browser') return success([]);
+      if (path === '/api/v2/plugin-configurations/server/android-device') return success({
+        kind: 'server', id: named.id, definition: null, values: {}, revision: 0, applied_revision: 0,
+        pending_reload: false, compatible: true, field_errors: [], source: 'defaults',
+      });
+      throw new Error(`测试遇到非预期请求：${path}`);
+    } });
+  const loaded: unknown = await browser.server.ssrLoadModule('/src/pages/marketplace/index.tsx');
+  assert.ok(marketplacePageModule(loaded));
+  try {
+    await act(async () => { browser.root.render(createElement(loaded.MarketplacePage, {
+      services: { ...services, marketplace: marketplaceMock() },
+    })); });
+    await browser.click('已安装 2');
+    assert.match(browser.target.textContent ?? '', /安卓设备/);
+    assert.match(browser.target.textContent ?? '', /设备投屏/);
+    assert.doesNotMatch(browser.target.textContent ?? '', /元数据不完整/);
+    await browser.click('查看 安卓设备 详情');
+    assert.match(browser.documentRef.querySelector('[role="dialog"]')?.textContent ?? '', /提供设备发现和应用管理/);
+    await browser.click('关闭');
+    const card = Array.from(browser.target.querySelectorAll('.marketplace-card')).find((value) => value.textContent?.includes('安卓设备'));
+    assert.ok(card);
+    assert.match(card.textContent ?? '', /android-device/);
+    const configure = Array.from(card.querySelectorAll('button')).find((value) => value.textContent?.trim() === '配置');
+    assert.ok(configure);
+    await act(async () => configure.click());
+    assert.match(browser.documentRef.querySelector('[role="dialog"]')?.textContent ?? '', /配置 · 安卓设备/);
+    assert.match(browser.documentRef.querySelector('[role="status"]')?.textContent ?? '', /此插件无需配置/);
+    assert.ok(calls.includes('/api/v2/plugin-configurations/server/android-device'));
+  } finally { await browser.close(); await services.dispose(); }
+});
+
 test('详情对话框显示来源摘要平台权限重启和类型字段，并派发下载更新及关闭', async () => {
   const browser = await fixture();
   const loaded: unknown = await browser.server.ssrLoadModule(
@@ -727,6 +778,46 @@ test('空对象 schema 对话框明确无需配置并隐藏保存和重载操作
     assert.equal(labels.includes('保存配置'), false);
     assert.equal(labels.includes('保存并重载'), false);
     assert.equal(labels.includes('恢复默认'), false);
+  } finally { await browser.close(); }
+});
+
+test('配置加载失败展示可复制的真实日志 ID，重新读取后可保存和恢复默认', async () => {
+  const browser = await fixture();
+  const loaded: unknown = await browser.server.ssrLoadModule('/src/components/PluginConfigurationDialog/index.tsx');
+  assert.ok(configurationModule(loaded));
+  let reads = 0;
+  let copied = '';
+  const savedRevisions: string[] = [];
+  const resetRevisions: string[] = [];
+  Object.defineProperty(browser.windowRef.navigator, 'clipboard', { configurable: true,
+    value: { writeText: async (value: string) => { copied = value; } } });
+  const initial = configurationValue({ definition: { version: 1, apply_policy: 'next_invocation',
+    schema: { type: 'object', properties: { count: { type: 'integer', title: '次数' } } }, defaults: { count: 1 } }, values: { count: 2 } });
+  try {
+    await act(async () => { browser.root.render(createElement(loaded.PluginConfigurationDialog, {
+      open: true, title: '安卓设备', onClose() {},
+      load: async () => { reads++; if (reads === 1) throw Object.assign(new Error('当前服务器不支持插件配置，请更新服务器后重试。服务器返回：接口不存在'), { logId: 'config-failed-log' }); return initial; },
+      save: async (revision, values) => { savedRevisions.push(revision); return { ...initial, values, revision: '2' }; },
+      reset: async (revision) => { resetRevisions.push(revision); return { ...initial, values: { count: 1 }, revision: '3' }; },
+      apply: async () => { throw new Error('下次调用生效不应重载'); },
+    })); });
+    const alert = browser.documentRef.querySelector('[role="alert"]');
+    assert.match(alert?.textContent ?? '', /服务器不支持插件配置/);
+    assert.match(alert?.textContent ?? '', /config-failed-log/);
+    assert.doesNotMatch(browser.documentRef.body.textContent ?? '', /此插件无需配置/);
+    await browser.click('复制日志 ID');
+    assert.equal(copied, 'config-failed-log');
+    await browser.click('重新读取');
+    assert.equal(reads, 2);
+    assert.equal(browser.documentRef.querySelector('[role="alert"]'), null);
+    await fillText(browser, '次数', '5');
+    await browser.click('保存配置');
+    assert.deepEqual(savedRevisions, ['1']);
+    await browser.click('恢复默认');
+    assert.deepEqual(resetRevisions, ['2']);
+    const input = browser.documentRef.querySelector('input[type="number"]');
+    assert.ok(input instanceof browser.windowRef.HTMLInputElement);
+    assert.equal(input.value, '1');
   } finally { await browser.close(); }
 });
 

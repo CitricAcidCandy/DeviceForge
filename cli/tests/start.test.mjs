@@ -11,10 +11,12 @@ import { loadRuntime } from '../src/runtime.mjs';
 import { inside } from '../src/paths.mjs';
 
 // 不让其他端测试的部署配置影响本次真实启动；测试目录和进程各自拥有。
-const cleanEnvironment = () =>
-  Object.fromEntries(
+const cleanEnvironment = (directory) => ({
+  ...Object.fromEntries(
     Object.entries(process.env).filter(([key]) => !/^(APK_|DEVICEFORGE_)/.test(key)),
-  );
+  ),
+  DEVICEFORGE_USER_DIR: join(directory, 'user', '.deviceforge'),
+});
 
 async function removeTemporary(directory) {
   const target = resolve(directory);
@@ -76,7 +78,7 @@ test('真实后端通过独立前端/API 与 MCP 端口共享任务，取消关�
     { ip: '127.0.0.1', port: web.port, mcpPort: mcp.port, dataDirectory: directory },
     {
       signal: controller.signal,
-      environment: { ...cleanEnvironment(), APK_API_TOKEN: token },
+      environment: { ...cleanEnvironment(directory), APK_API_TOKEN: token },
       onReady: notify,
     },
   );
@@ -170,7 +172,7 @@ for (const ip of ['127.0.0.1', '0.0.0.0']) {
       notify = resolve;
     });
     let announced = false;
-    const environment = cleanEnvironment();
+    const environment = cleanEnvironment(directory);
     // 分别验证未配置与显式空字符串，二者都不得生成随机令牌。
     if (ip === '0.0.0.0') environment.APK_API_TOKEN = '';
     const running = start(
@@ -295,7 +297,7 @@ test('市场未提供 HTTP 服务时宿主仍可启动，退出后保留独立�
       },
       {
         signal: controller.signal,
-        environment: cleanEnvironment(),
+        environment: cleanEnvironment(directory),
         runtime: { ...runtime, resourceServer: join(directory, 'not-bundled-resource-server') },
         onReady: notify,
       },
@@ -333,7 +335,7 @@ for (const occupied of ['web', 'mcp']) {
         start(
           { ip: '0.0.0.0', port: web.port, mcpPort: mcp.port, dataDirectory: directory },
           {
-            environment: cleanEnvironment(),
+            environment: cleanEnvironment(directory),
             onReady: () => {
               announced = true;
             },

@@ -112,6 +112,7 @@ try {
       APK_API_TOKEN: '',
       APK_BIND: `127.0.0.1:${port}`,
       APK_DATA_DIR: join(temporary, 'data'),
+      DEVICEFORGE_USER_DIR: join(temporary, 'user', '.deviceforge'),
       APK_PLUGIN_DIR: join(temporary, 'server-plugins'),
       APK_BROWSER_PLUGIN_DIR: join(temporary, 'browser-plugins'),
       DEVICEFORGE_NODE: process.execPath,

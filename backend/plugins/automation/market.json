@@ -1,0 +1,8 @@
+{
+  "metadata_version": 1, "id": "automation", "kind": "plugin", "version": "0.1.0",
+  "name": "自动化操作", "summary": "执行设备动作序列、重复点击和输入轨迹录放。",
+  "description": "提供动作序列、设备重复点击、Windows 鼠标操作及输入轨迹录制和回放。工具和存储位置由部署者配置，目标设备及动作范围按操作契约校验。",
+  "keywords": ["自动化", "点击", "轨迹"], "categories": ["workflow", "utility"], "applies_to": ["deviceforge"],
+  "supports_mcp": "server", "supports_agent": true, "restart_policy": "plugin_reload", "author": "DeviceForge", "license": "MIT",
+  "platforms": [], "architectures": [], "details": {"plugin_kind": "server"}
+}

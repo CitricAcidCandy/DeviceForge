@@ -170,7 +170,8 @@ export function useMarketplace(services: ProductServices, active: boolean, insta
         (best, item) => (!best || newerVersion(item.version, best.version) ? item : best),
         null,
       );
-    return { pkg, installed: { version: pkg.version }, entry: entry ?? localPackageEntry(pkg), removable: true, removeDisabled: false };
+    const local = localPackageEntry(pkg, (serverRuntime.result?.data ?? []).find((plugin) => plugin.id === pkg.id));
+    return { pkg, installed: { version: pkg.version }, entry: entry && !entry.metadataIssues?.length ? entry : local, removable: true, removeDisabled: false };
   });
   const builtinEntries = (serverRuntime.result?.data ?? []).filter((plugin) => !packages.some((pkg) => pkg.kind === 'server' && pkg.id === plugin.id)).map((plugin) => ({
     pkg: undefined,

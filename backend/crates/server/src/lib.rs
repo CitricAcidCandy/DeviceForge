@@ -27,6 +27,8 @@ struct ApiState {
     runtime: Option<runtime::RuntimeServices>,
     packages: Option<Arc<apk_application::plugin_packages::PackageService>>,
     configurations: Option<Arc<apk_application::plugin_configurations::PluginConfigurationService>>,
+    browser_configurations:
+        Option<Arc<apk_application::browser_configurations::BrowserConfigurationService>>,
 }
 struct Gate {
     token: String,
@@ -119,6 +121,7 @@ pub fn router_with_mcp(
         None,
         None,
         None,
+        None,
     )
 }
 pub fn router_with_artifacts(
@@ -134,6 +137,7 @@ pub fn router_with_artifacts(
         requests_per_second,
         config,
         Some(artifacts),
+        None,
         None,
         None,
         None,
@@ -156,6 +160,7 @@ pub fn router_with_runtime(
         Some(runtime),
         None,
         None,
+        None,
     )
 }
 pub fn router_with_packages(
@@ -175,6 +180,7 @@ pub fn router_with_packages(
         Some(artifacts),
         Some(runtime),
         Some(packages),
+        None,
         None,
     )
 }
@@ -198,6 +204,33 @@ pub fn router_with_configurations(
         Some(runtime),
         Some(packages),
         Some(configurations),
+        None,
+    )
+}
+#[allow(clippy::too_many_arguments)]
+pub fn router_with_browser_configurations(
+    app: Arc<Application>,
+    token: String,
+    requests_per_second: u32,
+    config: mcp::StreamableHttpServerConfig,
+    artifacts: Arc<dyn apk_domain::artifacts::ArtifactStore>,
+    runtime: runtime::RuntimeServices,
+    packages: Arc<apk_application::plugin_packages::PackageService>,
+    configurations: Arc<apk_application::plugin_configurations::PluginConfigurationService>,
+    browser_configurations: Arc<
+        apk_application::browser_configurations::BrowserConfigurationService,
+    >,
+) -> apk_domain::Result<Router> {
+    build_router(
+        app,
+        token,
+        requests_per_second,
+        config,
+        Some(artifacts),
+        Some(runtime),
+        Some(packages),
+        Some(configurations),
+        Some(browser_configurations),
     )
 }
 #[allow(clippy::too_many_arguments)]
@@ -210,6 +243,9 @@ fn build_router(
     runtime: Option<runtime::RuntimeServices>,
     packages: Option<Arc<apk_application::plugin_packages::PackageService>>,
     configurations: Option<Arc<apk_application::plugin_configurations::PluginConfigurationService>>,
+    browser_configurations: Option<
+        Arc<apk_application::browser_configurations::BrowserConfigurationService>,
+    >,
 ) -> apk_domain::Result<Router> {
     let plugin_service = runtime
         .as_ref()
@@ -229,6 +265,7 @@ fn build_router(
         runtime,
         packages,
         configurations,
+        browser_configurations,
         gate: Arc::new(Gate {
             token,
             window: Mutex::new((Instant::now(), 0)),
@@ -261,6 +298,10 @@ fn build_router(
         .route("/api/v2/diagnostics/logging", get(runtime::logging))
         .route("/api/v2/system/shutdown", post(runtime::shutdown))
         .route("/api/v2/plugins", get(plugin_routes::list))
+        .route(
+            "/api/v2/browser-plugin-configurations/{id}",
+            get(browser_configuration_routes::get).patch(browser_configuration_routes::patch),
+        )
         .route(
             "/api/v2/plugin-configurations",
             get(plugin_configuration_routes::list),
@@ -479,6 +520,8 @@ pub fn openapi_document() -> Value {
 }
 
 mod artifacts;
+mod browser_configuration_openapi;
+mod browser_configuration_routes;
 pub mod client_connection;
 mod correlation;
 mod cors;

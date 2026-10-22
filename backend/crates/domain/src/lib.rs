@@ -9,6 +9,7 @@ mod executor_result;
 pub use executor_result::ExecutorResultFormat;
 pub mod operation_execution;
 pub use operation_execution::{OperationExecution, OperationExecutionSource};
+pub mod browser_configurations;
 pub mod interactive;
 pub mod plugin_configurations;
 
@@ -102,6 +103,10 @@ pub struct Operation {
 #[async_trait]
 pub trait Executor: Send + Sync {
     fn operations(&self) -> Vec<Operation>;
+    /// 默认没有展示元数据，插件标识和执行贡献不依赖市场描述。
+    fn plugin_metadata(&self) -> Option<plugins::PluginDisplayMetadata> {
+        None
+    }
     /// 默认没有独立会话；不改变已有贡献构造或普通执行签名。
     fn session_provider(&self) -> Option<std::sync::Arc<dyn interactive::SessionProvider>> {
         None

@@ -6,7 +6,7 @@ export function defaultDeployment(root) {
   const dataDirectory = join(directory, 'data');
   return {
     directory,
-    binary: join(directory, 'server-control-ownership-20261016.exe'),
+    binary: join(directory, 'server-user-configurations-20261022.exe'),
     dataDirectory,
     pluginDirectory: join(directory, 'plugins'),
     browserPluginDirectory: join(directory, 'browser-plugins'),

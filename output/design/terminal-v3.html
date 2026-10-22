@@ -1,0 +1,400 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<title>终端 · 会话带设计稿 v3</title>
+<style>
+  :root {
+    --canvas: #f4f6fb;
+    --card: #ffffff;
+    --hairline: #e6eaf3;
+    --hairline-strong: #d5dbe8;
+    --strong: #171b24;
+    --body: #3f4757;
+    --muted: #6c7688;
+    --faint: #97a0b1;
+    --ghost: #a3acbc;
+    --primary: #6c4cf5;
+    --primary-ink: #4e33d6;
+    --accent: #eeeaff;
+    --accent-line: #d9d0ff;
+    --success: #0e9f78;
+    --danger: #d9415e;
+    --warn: #d98a00;
+    --media: #14161c;
+    --media-chrome: #191c24;
+    --media-line: #262b36;
+    --media-text: #c9d1da;
+    --media-muted: #8a939d;
+    --media-dim: #5f6878;
+    --media-err: #e88c99;
+    --ui: Inter, "Microsoft YaHei", "PingFang SC", system-ui, sans-serif;
+    --mono: "JetBrains Mono", Consolas, "Cascadia Mono", monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: #dfe4ee;
+    font-family: var(--ui);
+    color: var(--body);
+    padding: 36px;
+  }
+  .board { display: flex; gap: 56px; align-items: flex-start; flex-wrap: wrap; }
+  .item { display: flex; flex-direction: column; gap: 14px; }
+  .caption { display: flex; align-items: baseline; gap: 12px; padding-left: 2px; }
+  .caption b { font-size: 13px; font-weight: 600; color: #2c3444; letter-spacing: .2px; }
+  .caption span { font-size: 12px; color: #7b869c; }
+
+  /* ── 页面外壳 ───────────────────────────── */
+  .page {
+    width: 1424px; height: 805px; background: var(--canvas);
+    display: flex; flex-direction: column; overflow: hidden;
+    box-shadow: 0 18px 50px rgb(26 33 51 / 14%);
+  }
+  .shell { flex: 1; display: flex; min-height: 0; }
+  .sidebar {
+    width: 236px; flex: 0 0 236px; background: #fff; border-right: 1px solid var(--hairline);
+    display: flex; flex-direction: column;
+  }
+  .brand { height: 56px; display: flex; align-items: center; gap: 10px; padding: 0 16px; }
+  .brand-mark {
+    width: 28px; height: 28px; border-radius: 7px; background: var(--primary); color: #fff;
+    font: 700 15px/28px var(--mono); text-align: center;
+  }
+  .brand-name { display: flex; flex-direction: column; gap: 1px; font-size: 13px; font-weight: 600; color: var(--strong); letter-spacing: .5px; line-height: 1.2; }
+  .brand-name small { font-size: 11px; font-weight: 400; color: var(--ghost); letter-spacing: 0; }
+  .service { display: flex; align-items: center; gap: 7px; padding: 6px 16px 12px; border-bottom: 1px solid var(--hairline); font-size: 12px; }
+  .service b { font-weight: 400; color: var(--body); }
+  .service span:last-child { margin-left: auto; font-size: 11px; color: var(--success); }
+  .dot { width: 6px; height: 6px; border-radius: 3px; background: var(--success); flex: 0 0 6px; }
+  .nav { padding: 12px 8px; display: flex; flex-direction: column; gap: 2px; }
+  .nav h2 { font-size: 11px; font-weight: 400; color: var(--faint); margin: 0; padding: 0 8px 0 8px; height: 26px; display: flex; align-items: center; }
+  .nav a { display: flex; align-items: center; gap: 9px; height: 32px; padding: 0 8px; border-radius: 8px; font-size: 13px; color: var(--body); text-decoration: none; }
+  .nav a svg { width: 15px; height: 15px; stroke: var(--muted); flex: 0 0 15px; }
+  .nav a.on { background: var(--accent); color: var(--primary-ink); font-weight: 600; }
+  .nav a.on svg { stroke: var(--primary); }
+  .sidebar-foot { margin-top: auto; height: 40px; border-top: 1px solid var(--hairline); display: flex; align-items: center; gap: 8px; padding: 0 12px; }
+  .sidebar-foot svg { width: 15px; height: 15px; stroke: #8a93a3; }
+  .sidebar-foot span { margin-left: auto; font: 11px var(--mono); color: var(--ghost); }
+
+  .main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  .topbar { height: 54px; flex: 0 0 54px; background: #fff; border-bottom: 1px solid var(--hairline); display: flex; align-items: center; gap: 10px; padding: 0 14px; }
+  .topbar > svg { stroke: #8a93a3; color: #8a93a3; }
+  .btn svg { stroke: var(--muted); }
+  .crumb { display: flex; align-items: center; gap: 5px; font-size: 12px; }
+  .crumb em { font-style: normal; color: var(--faint); }
+  .crumb b { font-weight: 600; color: var(--strong); }
+  .vline { width: 1px; height: 16px; background: var(--hairline); }
+  .chip-device { display: flex; align-items: center; gap: 6px; height: 26px; padding: 0 9px; border: 1px solid var(--hairline); border-radius: 7px; background: #fbfcfe; font-size: 12px; color: var(--body); }
+  .chip-device span:last-child { font-size: 11px; color: var(--success); }
+  .grow { flex: 1; }
+  .hint { font-size: 11px; color: var(--ghost); }
+  .kbd { height: 20px; padding: 0 5px; border: 1px solid var(--hairline-strong); border-radius: 4px; font: 11px/18px var(--mono); color: #8a93a3; background: #fff; }
+  .conn { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--body); }
+  .ghost-btn { height: 26px; padding: 0 9px; border-radius: 6px; background: var(--canvas); font-size: 11px; color: var(--muted); display: flex; align-items: center; }
+
+  .content { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 18px 24px 20px; gap: 14px; }
+  .page-head { height: 34px; display: flex; align-items: center; justify-content: space-between; }
+  .page-head h1 { margin: 0; font-size: 22px; font-weight: 600; color: var(--strong); letter-spacing: 0; }
+  .head-actions { display: flex; gap: 8px; }
+  .btn { height: 28px; padding: 0 10px; border: 1px solid var(--hairline); border-radius: 7px; background: #fff; display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--body); }
+  .btn svg { width: 13px; height: 13px; }
+  .btn.danger { color: var(--danger); }
+  .btn.danger svg { stroke: var(--danger); }
+  .btn[aria-disabled="true"] { color: var(--ghost); border-color: var(--hairline); }
+  .btn[aria-disabled="true"] svg { stroke: var(--ghost); }
+
+  /* ── 会话带 ─────────────────────────────── */
+  .strip { height: 32px; display: flex; align-items: center; gap: 6px; }
+  .tab {
+    height: 32px; display: flex; align-items: center; gap: 7px; padding: 0 10px;
+    border: 1px solid var(--hairline); border-radius: 8px; background: #fff;
+    font-size: 13px; color: var(--muted); white-space: nowrap;
+  }
+  .tab time { font: 11px var(--mono); color: var(--ghost); }
+  .tab.on { background: var(--accent); border-color: var(--accent-line); color: var(--primary-ink); font-weight: 600; }
+  .tab.on time { color: #8f7fd8; }
+  .tab .dot.end { background: #c3cad6; }
+  .tab .dot.open { background: var(--warn); }
+  .tab.new { color: var(--muted); border-style: solid; border-color: var(--hairline-strong); background: transparent; }
+  .tab.new svg { width: 13px; height: 13px; stroke: var(--muted); }
+  .tab.primary { background: var(--primary); border-color: var(--primary); color: #fff; font-weight: 500; }
+  .tab.primary svg { stroke: #fff; }
+  .tab .caret { width: 11px; height: 11px; stroke: currentColor; opacity: .7; }
+  .capacity { margin-left: auto; display: flex; align-items: center; gap: 10px; font: 11px var(--mono); color: var(--ghost); }
+  .capacity b { font-weight: 400; color: var(--faint); }
+
+  /* ── 终端面 ─────────────────────────────── */
+  .terminal {
+    flex: 1; min-height: 0; background: var(--media); border: 1px solid #1f232b;
+    border-radius: 12px; display: flex; flex-direction: column; overflow: hidden;
+  }
+  .tbar { height: 40px; flex: 0 0 40px; display: flex; align-items: center; gap: 9px; padding: 0 14px; background: var(--media-chrome); border-bottom: 1px solid var(--media-line); font: 11px var(--mono); color: var(--media-muted); }
+  .tbar .uuid { font-size: 12px; color: #e4e9ee; }
+  .tbar .grow { flex: 1; }
+  .tbar .sep { color: #4a5260; }
+  .tbar .dim { color: var(--media-dim); }
+  .tbar svg { width: 15px; height: 15px; stroke: var(--media-muted); }
+  .tbar .dot { background: #3dd68c; }
+  .tbar .dot.off { background: #4a5260; }
+  .out { flex: 1; min-height: 0; overflow: hidden; padding: 14px 18px; display: flex; flex-direction: column; gap: 12px; }
+  .meta-line { font: 11px var(--mono); color: var(--media-dim); }
+  pre { margin: 0; font: 13px/22px var(--mono); color: var(--media-text); white-space: pre-wrap; word-break: break-word; }
+  pre .err { color: var(--media-err); }
+  .in-row { height: 54px; flex: 0 0 54px; display: flex; align-items: center; gap: 8px; padding: 0 14px 0 16px; background: var(--media-chrome); border-top: 1px solid var(--media-line); }
+  .in-row .prompt { font: 700 13px var(--mono); color: #8b7bff; }
+  .in-row .caret { width: 2px; height: 16px; background: var(--primary); }
+  .in-row .ph { font: 13px var(--mono); color: var(--media-dim); }
+  .in-row .state { font: 11px var(--mono); color: var(--media-dim); }
+  .send { height: 28px; padding: 0 12px; border-radius: 6px; background: var(--primary); color: #fff; font-size: 12px; display: flex; align-items: center; }
+  .send.off { background: #242833; color: #6b7280; }
+  .warn-chip { height: 22px; padding: 0 8px; border-radius: 4px; border: 1px solid #4a3b1f; background: #221c12; color: #d9a441; font: 11px var(--mono); display: flex; align-items: center; }
+
+  .empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; }
+  .empty svg { width: 24px; height: 24px; stroke: #3e4553; }
+  .empty h3 { margin: 0; font-size: 14px; font-weight: 600; color: var(--media-text); }
+  .empty p { margin: 0; font-size: 12px; line-height: 18px; color: #6e7988; text-align: center; }
+
+  .statusbar { height: 26px; flex: 0 0 26px; background: #fff; border-top: 1px solid var(--hairline); display: flex; align-items: center; gap: 8px; padding: 0 14px; font: 11px var(--mono); color: var(--faint); }
+  .statusbar .dot { width: 5px; height: 5px; }
+
+  /* ── 明细卡 ─────────────────────────────── */
+  .detail { background: var(--canvas); border: 1px solid var(--hairline); border-radius: 12px; padding: 28px; }
+  .popover { width: 320px; background: #fff; border: 1px solid var(--hairline); border-radius: 10px; box-shadow: 0 12px 32px rgb(23 27 36 / 12%); overflow: hidden; }
+  .popover header { padding: 10px 12px 6px; font-size: 11px; color: var(--faint); }
+  .pop-item { height: 46px; display: flex; align-items: center; gap: 9px; padding: 0 12px 0 10px; }
+  .pop-item .bar { width: 2px; height: 18px; border-radius: 1px; background: transparent; }
+  .pop-item.on { background: #f7f5ff; }
+  .pop-item.on .bar { background: var(--primary); }
+  .pop-item div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .pop-item b { font-size: 13px; font-weight: 500; color: var(--strong); }
+  .pop-item code { font: 11px var(--mono); color: var(--ghost); }
+  .pop-item em { margin-left: auto; font-style: normal; font: 11px var(--mono); color: var(--ghost); }
+  .popover footer { border-top: 1px solid var(--hairline); padding: 9px 12px; font: 11px var(--mono); color: var(--ghost); display: flex; justify-content: space-between; }
+  .spec { margin-top: 14px; font-size: 12px; line-height: 20px; color: #6b7488; width: 620px; }
+  .spec code { font: 11px var(--mono); color: #4b5468; }
+  .detail.dark { background: var(--media); border-color: #1f232b; }
+  .detail.dark .spec { color: #7d8798; }
+  .detail.dark .spec code { color: #a9b3c2; }
+  .page-head h1 { letter-spacing: 0; }
+</style>
+</head>
+<body>
+<div class="board" id="board"></div>
+
+<script>
+const icons = {
+  smartphone: '<rect x="5" y="2" width="14" height="20" rx="2.5"/><path d="M11 18h2"/>',
+  activity: '<path d="M3 12h3.5l2.5 7 4-14 2.5 7H21"/>',
+  code: '<path d="M17 7l4 5-4 5M7 7l-4 5 4 5M14 4l-4 16"/>',
+  workflow: '<rect x="3" y="3" width="7" height="7" rx="1.6"/><path d="M6.5 10v5.5A2 2 0 0 0 8.5 17.5H14"/><rect x="14" y="14" width="7" height="7" rx="1.6"/>',
+  terminal: '<path d="M5 17l6-5-6-5M13 19h6"/>',
+  sparkles: '<path d="M11 3.5l1.7 4.3 4.3 1.7-4.3 1.7L11 15.5 9.3 11.2 5 9.5l4.3-1.7L11 3.5z"/><path d="M17.5 15l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9.9-2.1z"/>',
+  scan: '<path d="M3 8V5.5A2.5 2.5 0 0 1 5.5 3H8M16 3h2.5A2.5 2.5 0 0 1 21 5.5V8M21 16v2.5a2.5 2.5 0 0 1-2.5 2.5H16M8 21H5.5A2.5 2.5 0 0 1 3 18.5V16"/><circle cx="11.5" cy="11.5" r="3"/><path d="M13.8 13.8L16.5 16.5"/>',
+  puzzle: '<path d="M9.5 4a2 2 0 1 1 4 0v1h3a1 1 0 0 1 1 1v3.5a2 2 0 1 0 0 4V17a1 1 0 0 1-1 1h-3v-1a2 2 0 1 0-4 0v1h-3a1 1 0 0 1-1-1v-3.5a2 2 0 1 1 0-4V6a1 1 0 0 1 1-1h3V4z"/>',
+  list: '<path d="M4 6.5l1.5 1.5L8 5.5M4 13.5l1.5 1.5L8 12.5M4 20l1.5-1.5L8 20M11 6.5h9M11 13.5h9M11 20h6"/>',
+  wrench: '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.1-3.1a6 6 0 0 1-7.6 7.6l-5.9 5.9a2.1 2.1 0 0 1-3-3l5.9-5.9a6 6 0 0 1 7.6-7.6l-3.1 3.1z"/>',
+  store: '<path d="M3.5 9L5 4h14l1.5 5M4 9h16v9.5a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 18.5V9zM9.5 20v-5h5v5"/>',
+  gear: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  caret: '<path d="M6 9l6 6 6-6"/>',
+  refresh: '<path d="M20.5 12a8.5 8.5 0 1 1-2.6-6.1M20.5 4v4h-4"/>',
+  power: '<path d="M12 3v9"/><path d="M6.8 6.8a7.5 7.5 0 1 0 10.4 0"/>',
+  pause: '<path d="M9 5v14M15 5v14"/>',
+  more: '<circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>',
+  chevron: '<path d="M9 6l6 6-6 6"/>',
+  panel: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16M16 9.5L13.5 12l2.5 2.5"/>',
+  screen: '<rect x="2.5" y="4.5" width="19" height="15" rx="2.5"/><path d="M6.5 10l2.5 2-2.5 2M11.5 14.5h4"/>'
+};
+const svg = (name, w = 15, cls = '') => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" class="${cls}" style="width:${w}px;height:${w}px">${icons[name]}</svg>`;
+
+const NAV = [
+  ['工作台', [['设备', 'smartphone', false]]],
+  ['深度调试', [['性能与调用栈', 'activity', false], ['Frida', 'code', false], ['自动化', 'workflow', false], ['终端', 'terminal', true]]],
+  ['扩展创作', [['AI 助手', 'sparkles', false], ['数据分析', 'scan', false]]],
+  ['工坊', [['插件', 'puzzle', false], ['任务与日志', 'list', false], ['工具供应', 'wrench', false], ['市场', 'store', false], ['设置', 'gear', false]]]
+];
+
+function sidebar() {
+  return `<aside class="sidebar">
+    <div class="brand"><span class="brand-mark">F</span>
+      <span class="brand-name">FORGE<small>设备工坊</small></span></div>
+    <div class="service"><span class="dot"></span><b>本机服务</b><span>已连接</span></div>
+    <nav class="nav">
+      ${NAV.map(([g, items]) => `<h2>${g}</h2>${items.map(([label, icon, on]) =>
+        `<a href="#" class="${on ? 'on' : ''}">${svg(icon)}${label}</a>`).join('')}`).join('')}
+    </nav>
+    <div class="sidebar-foot">${svg('gear')}<span>v0.1.0</span></div>
+  </aside>`;
+}
+
+function topbar() {
+  return `<header class="topbar">
+    ${svg('panel')}
+    <div class="crumb"><em>深度调试</em>${svg('chevron', 11)}<b>终端</b></div>
+    <div class="vline"></div>
+    <div class="chip-device"><span class="dot"></span><span>Pixel 8</span><span>在线</span></div>
+    <div class="grow"></div>
+    <span class="hint">搜索或运行命令</span><span class="kbd">Ctrl K</span>
+    <div class="vline"></div>
+    <span class="conn"><span class="dot"></span>服务器已连接</span>
+    <span class="ghost-btn">专注</span>
+    ${svg('refresh')}${svg('more')}
+  </header>`;
+}
+
+const SESSIONS = [
+  { title: '设备 Shell', time: '12:41', state: 'run', on: true, uuid: '4f2a8c1e', profile: 'plugin.terminal.open' },
+  { title: 'Python REPL', time: '11:58', state: 'end' },
+  { title: '构建日志', time: '昨天', state: 'end' }
+];
+
+function strip(mode) {
+  if (mode === 'empty') {
+    return `<div class="strip">
+      <div class="tab primary">${svg('plus', 13)}新会话${svg('caret', 11, 'caret')}</div>
+      <div class="capacity"><b>记录 0/8</b></div>
+    </div>`;
+  }
+  return `<div class="strip">
+    ${SESSIONS.map((s) => `<div class="tab ${s.on ? 'on' : ''}">
+      <span class="dot ${s.state === 'run' ? '' : 'end'}"></span>${s.title}<time>${s.time}</time>
+    </div>`).join('')}
+    <div class="tab new">${svg('plus', 13)}新会话${svg('caret', 11, 'caret')}</div>
+    <div class="capacity"><b>运行 1</b><span>记录 3/8</span></div>
+  </div>`;
+}
+
+const OUTPUT = `$ adb shell getprop ro.build.version.release
+13
+
+$ adb shell dumpsys meminfo com.forge.probe
+Applications Memory Usage (in Kilobytes):
+Uptime: 1284637 Realtime: 1284637
+
+** MEMINFO in pid 8412 [com.forge.probe] **
+TOTAL PSS 42,180 kB · Native 18,420 kB · Dalvik 9,214 kB
+
+$ adb shell ls -l /data/local/tmp
+-rw-r--r-- 1 shell shell 2097152 10-22 12:38 probe.bin
+-rwxr-xr-x 1 shell shell   18432 10-22 12:39 forge-probe
+
+$ adb shell logcat -d -t 3 *:E`;
+
+function terminal(mode) {
+  if (mode === 'empty') {
+    return `<section class="terminal">
+      <div class="tbar"><span class="dot off"></span><span>未打开</span>
+        <div class="grow"></div><span class="dim">0 行</span><span class="dim">游标 0</span>${svg('more')}</div>
+      <div class="empty">
+        ${svg('screen', 24)}
+        <h3>还没有打开的会话</h3>
+        <p>选择「新会话」并挑一个档案；输出保留在服务进程内，刷新页面后可重新接上。</p>
+      </div>
+      <div class="in-row"><span class="prompt" style="color:#3e4553">$</span>
+        <span class="ph" style="color:#3e4553">会话未打开</span>
+        <div class="grow"></div><span class="state" style="color:#3e4553">未连接</span>
+        <span class="send off">发送</span></div>
+    </section>`;
+  }
+  return `<section class="terminal">
+    <div class="tbar"><span class="dot"></span><span class="uuid">4f2a8c1e</span>
+      <span class="sep">·</span><span>plugin.terminal.open</span>
+      <span class="sep">·</span><span>bash</span>
+      <div class="grow"></div><span>46 行</span><span class="dim">游标 128</span>${svg('pause')}${svg('more')}</div>
+    <div class="out">
+      <div class="meta-line">4f2a8c1e-3c71-4a9e-9d20-8f61b2c7e514 · 2026-10-22 12:41 打开</div>
+      <pre>${OUTPUT.replace(/\n/g, '<br>')}
+<span class="err">E/ForgeProbe: sensor batch flush timeout, retry=2</span>
+<span class="err">E/ForgeProbe: fd 41 leaked: /data/local/tmp/probe.sock</span></pre>
+    </div>
+    <div class="in-row"><span class="prompt">$</span><span class="caret"></span>
+      <span class="ph">输入命令，Enter 发送</span>
+      <div class="grow"></div><span class="state">可输入</span><span class="send">发送</span></div>
+  </section>`;
+}
+
+function page(mode) {
+  const empty = mode === 'empty';
+  return `<div class="page">
+    <div class="shell">${sidebar()}
+      <div class="main">${topbar()}
+        <div class="content">
+          <div class="page-head"><h1>终端</h1>
+            <div class="head-actions">
+              <span class="btn">${svg('refresh')}刷新目录</span>
+              <span class="btn danger" ${empty ? 'aria-disabled="true"' : ''}>${svg('power')}关闭会话</span>
+            </div>
+          </div>
+          ${strip(mode)}
+          ${terminal(mode)}
+        </div>
+        <div class="statusbar"><span class="dot"></span>服务器已连接 · 端点 127.0.0.1:8787
+          <div class="grow"></div>浏览器插件 3 · opr_9c1e · v0.1.0</div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function menuCard() {
+  const rows = [
+    ['设备 Shell', 'plugin.terminal.open', '完整', true],
+    ['交互式 Python', 'plugin.python.repl', '完整', false],
+    ['主机 Shell', 'plugin.host.shell', '尾部', false],
+    ['构建日志', 'plugin.build.log', '尾部', false]
+  ];
+  return `<div class="item">
+    <div class="caption"><b>03 新会话 · 档案菜单</b><span>档案从列表降级成建会话时的参数</span></div>
+    <div class="detail" style="width:420px">
+      <div class="popover">
+        <header>在档案中新建会话</header>
+        ${rows.map(([t, id, ret, on]) => `<div class="pop-item ${on ? 'on' : ''}">
+          <span class="bar"></span>
+          <div><b>${t}</b><code>${id}</code></div>
+          <em>${ret}</em>
+        </div>`).join('')}
+        <footer><span>上限 4 运行中</span><span>记录 8 条</span></footer>
+      </div>
+      <p class="spec">菜单行展示档案标题与 ID，右侧是输出保留策略（<code>complete</code> / <code>bounded_tail</code>）。
+      选完即开会话，不再需要先「选中档案」再点「新会话」——那两步原来分居两处，是这一栏最别扭的地方。</p>
+    </div>
+  </div>`;
+}
+
+function resumeCard() {
+  return `<div class="item">
+    <div class="caption"><b>04 接回旧会话 · 输入态未确认</b><span>当前代码里这一步是死路，需要显式说清楚</span></div>
+    <div class="detail dark" style="width:720px">
+      <div class="terminal" style="height:132px;flex:none">
+        <div class="tbar"><span class="dot"></span><span class="uuid">4f2a8c1e</span>
+          <span class="sep">·</span><span>plugin.terminal.open</span>
+          <div class="grow"></div><span class="dim">已接回 · 游标 128</span>${svg('more')}</div>
+        <div class="in-row"><span class="prompt">$</span>
+          <span class="caret" style="opacity:.35"></span>
+          <span class="ph">输入命令，Enter 发送</span>
+          <div class="grow"></div>
+          <span class="warn-chip">可写性未确认</span>
+          <span class="send">发送</span></div>
+      </div>
+      <p class="spec">接回的会话不会自己恢复输入权限（<code>inputState</code> 停在 <code>unknown</code>）。
+      这里不再静默禁用输入框：发送按钮保持可用，首次发送由服务端判定，失败时把原因写在输入条上方一行，而不是让用户对着灰色输入框猜。</p>
+    </div>
+  </div>`;
+}
+
+const board = document.getElementById('board');
+board.innerHTML = `
+  <div class="item">
+    <div class="caption"><b>01 运行中</b><span>撤掉左栏，会话变成一条标签带，宽度全给输出</span></div>
+    ${page('run')}
+  </div>
+  <div class="item">
+    <div class="caption"><b>02 未打开</b><span>空状态下带里只剩一个主按钮</span></div>
+    ${page('empty')}
+  </div>
+  ${menuCard()}
+  ${resumeCard()}
+`;
+</script>
+</body>
+</html>

@@ -54,7 +54,7 @@ async function start() {
   const selected = await port();
   base = `http://127.0.0.1:${selected}`;
   const environment = Object.fromEntries(Object.entries(process.env).filter(([key]) => !/^(APK_|DEVICEFORGE_)/.test(key)));
-  const child = spawn(binary, [], { cwd: output, env: { ...environment, APK_BIND: `127.0.0.1:${selected}`, APK_DATA_DIR: data, APK_PLUGIN_DIR: deployment, DEVICEFORGE_HTTP_RATE: '10000' }, windowsHide: true, stdio: 'ignore' });
+  const child = spawn(binary, [], { cwd: output, env: { ...environment, APK_BIND: `127.0.0.1:${selected}`, APK_DATA_DIR: data, APK_PLUGIN_DIR: deployment, DEVICEFORGE_USER_DIR: join(output, 'user', '.deviceforge'), DEVICEFORGE_HTTP_RATE: '10000' }, windowsHide: true, stdio: 'ignore' });
   let spawnError;
   child.once('error', (error) => { spawnError = error; });
   const closed = new Promise((done) => child.once('close', (code, signal) => done({ code, signal })));
@@ -139,7 +139,7 @@ try {
   let current = await call(configPath('config_next'));
   check('首次读取旧配置且敏感映射与普通密码均遮蔽', current.source === 'legacy' && current.revision === 0 && current.values.count === 3 && current.values.token === '********' && current.values.headers.private === '********');
   let actual = await result(await invoke('config_next'));
-  check('首次保存前实际调用仍使用原配置', actual.count === 3 && actual.managed === false);
+  check('首次调用即使用用户目录初始配置副本', actual.count === 3 && actual.managed === true && actual.revision_file === '0.json');
   current = await call(configPath('config_next'), { method: 'PATCH', input: { expected_revision: 0, patch: { count: 5, token: '********', headers: { private: '********' } } } });
   check('保存推进修订且下次调用策略立即标为已应用', current.revision === 1 && current.applied_revision === 1 && current.compatible);
   actual = await result(await invoke('config_next'));

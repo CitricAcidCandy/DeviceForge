@@ -1,0 +1,8 @@
+{
+  "metadata_version": 1, "id": "marketplace", "kind": "plugin", "version": "0.1.0",
+  "name": "资源市场目录", "summary": "读取市场来源并检索各来源公开的资源目录。",
+  "description": "提供市场来源与目录查询，为插件、工具和配置提供发现入口。实际安装仍由宿主的插件包和工具供应接口完成，市场资料不决定服务器程序路径。",
+  "keywords": ["市场", "目录", "资源"], "categories": ["integration"], "applies_to": ["deviceforge"],
+  "supports_mcp": "server", "supports_agent": true, "restart_policy": "plugin_reload", "author": "DeviceForge", "license": "MIT",
+  "platforms": [], "architectures": [], "details": {"plugin_kind": "server"}
+}

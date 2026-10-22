@@ -1,0 +1,8 @@
+{
+  "metadata_version": 1, "id": "ai-assistant", "kind": "plugin", "version": "0.1.0",
+  "name": "AI 测试助手", "summary": "通过已配置的 CLI 执行 AI 请求、恢复轮次和实时会话。",
+  "description": "提供 CLI 单次请求、持续会话、线程查询与关闭及实时输出。项目、工具入口和环境由服务器插件配置管理；使用前须准备对应 CLI 与认证。",
+  "keywords": ["AI", "测试", "会话"], "categories": ["integration", "workflow"], "applies_to": ["deviceforge"],
+  "supports_mcp": "server", "supports_agent": true, "restart_policy": "plugin_reload", "author": "DeviceForge", "license": "MIT",
+  "platforms": [], "architectures": [], "details": {"plugin_kind": "server"}
+}

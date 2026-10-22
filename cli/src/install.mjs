@@ -125,6 +125,9 @@ export async function installPlugin(options, { signal, runtime, environment = pr
     await writeFile(join(staged, 'manifest.json'), JSON.stringify(published, null, 2), {
       flag: 'w',
     });
+    // npm 入口可能位于 node_modules 深处，宿主始终从部署根读取展示资料。
+    if (marketMetadata)
+      await writeFile(join(staged, 'market.json'), JSON.stringify(marketMetadata, null, 2));
     signal?.throwIfAborted();
     // 禁止覆盖已存在目录，Windows/Unix 非空目录的原子 rename 都会拒绝竞争安装。
     await atomicRename(staged, destination);

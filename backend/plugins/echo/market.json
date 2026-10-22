@@ -1,0 +1,8 @@
+{
+  "metadata_version": 1, "id": "echo", "kind": "plugin", "version": "0.1.0",
+  "name": "输入回显示例", "summary": "演示独立服务器插件的输入校验与结果返回。",
+  "description": "供插件开发和协议验证使用，回显合法输入，无需外部工具或基础配置。",
+  "keywords": ["示例", "回显"], "categories": ["function"], "applies_to": ["deviceforge"],
+  "supports_mcp": "server", "supports_agent": true, "restart_policy": "plugin_reload", "author": "DeviceForge", "license": "MIT",
+  "platforms": [], "architectures": [], "details": {"plugin_kind": "server"}
+}

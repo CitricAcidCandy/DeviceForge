@@ -50,6 +50,11 @@ const marketRestart = new Set([
   'service_restart',
   'device_restart',
 ]);
+const displayText = (value, maximum) =>
+  typeof value === 'string' &&
+  value.trim().length > 0 &&
+  !value.includes('\0') &&
+  Buffer.byteLength(value, 'utf8') <= maximum;
 
 export async function readMarketMetadata(root, manifest) {
   let metadata;
@@ -63,9 +68,9 @@ export async function readMarketMetadata(root, manifest) {
     metadata?.metadata_version !== 1 ||
     metadata.id !== manifest.id ||
     metadata.version !== manifest.version ||
-    typeof metadata.name !== 'string' ||
-    typeof metadata.summary !== 'string' ||
-    typeof metadata.description !== 'string' ||
+    !displayText(metadata.name, 200) ||
+    !displayText(metadata.summary, 2000) ||
+    !displayText(metadata.description, 20000) ||
     !marketKinds.has(metadata.kind) ||
     !Array.isArray(metadata.applies_to) ||
     !Array.isArray(metadata.keywords) ||

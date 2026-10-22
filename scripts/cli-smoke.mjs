@@ -37,6 +37,7 @@ const temporary = await mkdtemp(join(tmpdir(), 'deviceforge-npx-'));
 const npm = npmCommand();
 const npx = join(dirname(npm.prefix[0]), 'npx-cli.js');
 const environment = { ...process.env, npm_config_cache: join(temporary, 'cache') };
+environment.DEVICEFORGE_USER_DIR = join(temporary, 'user', '.deviceforge');
 // 高频行为矩阵使用独立限流配置；本次不验证生产默认请求容量。
 environment.DEVICEFORGE_HTTP_RATE = '10000';
 // 使用独立于数据目录的相对插件路径，验证安装、列举和 Rust 启动使用同一部署位置。

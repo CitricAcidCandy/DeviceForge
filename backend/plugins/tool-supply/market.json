@@ -1,0 +1,8 @@
+{
+  "metadata_version": 1, "id": "tool-supply", "kind": "plugin", "version": "0.1.0",
+  "name": "工具供应", "summary": "检查、安装、导入和移除受清单管理的依赖工具。",
+  "description": "根据部署者指定的工具清单检查本地差异、规划更新、校验归档并安装，支持本地产物导入及运行时功能准备。清单来源、安装目录和资源限额由插件配置管理。",
+  "keywords": ["工具", "依赖", "安装"], "categories": ["runtime", "utility"], "applies_to": ["deviceforge"],
+  "supports_mcp": "server", "supports_agent": true, "restart_policy": "plugin_reload", "author": "DeviceForge", "license": "MIT",
+  "platforms": [], "architectures": [], "details": {"plugin_kind": "server"}
+}

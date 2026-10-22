@@ -25,11 +25,20 @@ export interface PluginConfigurationDialogProps {
   readonly onApplied?: () => void;
 }
 
+function failureDetails(reason: unknown): { message: string; logId: string | null } {
+  return {
+    message: reason instanceof Error ? reason.message : typeof reason === 'string' ? reason : '配置操作失败',
+    logId: reason !== null && typeof reason === 'object' && 'logId' in reason &&
+      typeof reason.logId === 'string' && reason.logId.trim() ? reason.logId : null,
+  };
+}
+
 export function PluginConfigurationDialog({ open, title, onClose, load, save, reset, apply, onApplied }: PluginConfigurationDialogProps) {
   const [snapshot, setSnapshot] = useState<ConfigurationDialogValue | null>(null);
   const [values, setValues] = useState<SchemaValue>({});
   const [errors, setErrors] = useState<readonly SchemaIssue[]>([]);
-  const [error, setError] = useState('');
+  const [error, setFailure] = useState<ReturnType<typeof failureDetails> | null>(null);
+  const setError = (reason: unknown) => setFailure(reason ? failureDetails(reason) : null);
   const [feedback, setFeedback] = useState('');
   const [busy, setBusy] = useState(false);
   const [refresh, setRefresh] = useState(0);
@@ -42,7 +51,7 @@ export function PluginConfigurationDialog({ open, title, onClose, load, save, re
     const controller = new AbortController(); request.current = controller; setBusy(true);
     void current.current.load(controller.signal).then((result) => {
       if (!controller.signal.aborted) { setSnapshot(result); setValues(result.values); setErrors(result.fieldErrors); }
-    }).catch((reason: unknown) => { if (!controller.signal.aborted) setError(reason instanceof Error ? reason.message : '配置读取失败'); })
+    }).catch((reason: unknown) => { if (!controller.signal.aborted) setError(reason); })
       .finally(() => { if (!controller.signal.aborted) setBusy(false); if (request.current === controller) request.current = null; });
     return () => { controller.abort(); request.current?.abort(); request.current = null; };
   }, [open, title, refresh]);
@@ -68,14 +77,18 @@ export function PluginConfigurationDialog({ open, title, onClose, load, save, re
       setSnapshot(result); setValues(result.values); setErrors(result.fieldErrors);
       setFeedback(result.pendingReload ? '配置已保存，重载插件后生效' : action === 'reset' ? '已恢复默认配置' : '配置已保存并生效');
       if (action === 'apply' || action === 'saveApply') current.current.onApplied?.();
-    } catch (reason) { if (!controller.signal.aborted) setError(reason instanceof Error ? reason.message : '配置操作失败'); }
+    } catch (reason) { if (!controller.signal.aborted) setError(reason); }
     finally { if (request.current === controller) { request.current = null; if (!controller.signal.aborted) setBusy(false); } }
   }
   function close() { request.current?.abort(); onClose(); }
+  async function copyLogId(logId: string) {
+    try { await navigator.clipboard.writeText(logId); setFeedback('日志 ID 已复制'); }
+    catch { setFeedback('复制失败，请手动选择日志 ID'); }
+  }
   const configurable = snapshot?.definition && hasSchemaFields(snapshot.definition.schema);
   return <DialogShell open={open} onOpenChange={(next) => { if (!next) close(); }} title={`配置 · ${title}`} description="配置由插件声明，并在保存前校验。" size="lg" footer={<>
     <Button type="button" variant="outline" onClick={close}>关闭</Button>
-    {snapshot && <Button type="button" variant="outline" disabled={busy} onClick={() => setRefresh((value) => value + 1)}>重新读取</Button>}
+    {(snapshot || error) && <Button type="button" variant="outline" disabled={busy} onClick={() => setRefresh((value) => value + 1)}>重新读取</Button>}
     {configurable && snapshot?.definition && <>
       <Button type="button" variant="outline" disabled={busy} onClick={() => void run('reset')}>恢复默认</Button>
       <Button type="button" disabled={busy} onClick={() => void run('save')}>保存配置</Button>
@@ -84,7 +97,10 @@ export function PluginConfigurationDialog({ open, title, onClose, load, save, re
     </>}
   </>}>
     {busy && !snapshot && <p role="status">正在读取插件配置…</p>}
-    {error && <p className="form-error" role="alert">{error}</p>}
+    {error && <div className="form-error" role="alert">
+      <p>{error.message}</p>
+      {error.logId && <p>日志 ID：<code>{error.logId}</code> <Button type="button" variant="ghost" size="sm" onClick={() => void copyLogId(error.logId ?? '')}>复制日志 ID</Button></p>}
+    </div>}
     {feedback && <p className="form-success" role="status">{feedback}</p>}
     {snapshot && !configurable && <p role="status">此插件无需配置。</p>}
     {configurable && snapshot?.definition && <>

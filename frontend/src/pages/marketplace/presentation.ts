@@ -105,18 +105,21 @@ export function installBlock(entry: MarketplaceEntry): string | null {
   return null;
 }
 
-export function localPackageEntry(pkg: PackageInfo): MarketplaceEntry {
+export function localPackageEntry(pkg: PackageInfo, plugin?: PluginInfo): MarketplaceEntry {
+  const metadata = pkg.kind === 'server' && plugin?.id === pkg.id && plugin.version === pkg.version
+    ? plugin.metadata
+    : undefined;
   return {
     metadata_version: 1,
     id: pkg.id,
     kind: 'plugin',
-    name: pkg.id,
+    name: metadata?.name ?? pkg.id,
     version: pkg.version,
-    summary: '已安装的本地插件，当前市场未提供描述',
-    description: '',
+    summary: metadata?.summary ?? '已安装的本地插件，当前市场未提供描述',
+    description: metadata?.description ?? '',
     keywords: [],
     categories: [],
-    applies_to: [],
+    applies_to: metadata ? ['deviceforge'] : [],
     supports_mcp: 'none',
     supports_agent: false,
     restart_policy: 'plugin_reload',
@@ -125,15 +128,16 @@ export function localPackageEntry(pkg: PackageInfo): MarketplaceEntry {
     details: { plugin_kind: pkg.kind },
     source: '',
     sourceName: '本地安装',
-    metadataIssues: ['缺少市场元数据'],
+    ...(metadata ? {} : { metadataIssues: ['缺少市场元数据'] }),
   };
 }
 
 export function localServerEntry(plugin: PluginInfo): MarketplaceEntry {
-  return { metadata_version: 1, id: plugin.id, kind: 'plugin', name: plugin.id, version: plugin.version,
-    summary: '宿主服务器插件，配置来自插件自身声明', description: '', keywords: [], categories: [], applies_to: ['deviceforge'],
+  return { metadata_version: 1, id: plugin.id, kind: 'plugin', name: plugin.metadata?.name ?? plugin.id, version: plugin.version,
+    summary: plugin.metadata?.summary ?? '宿主服务器插件，配置来自插件自身声明', description: plugin.metadata?.description ?? '', keywords: [], categories: [], applies_to: ['deviceforge'],
     supports_mcp: 'none', supports_agent: false, restart_policy: 'plugin_reload', platforms: [], architectures: [],
-    details: { plugin_kind: 'server' }, source: '', sourceName: '宿主插件目录', metadataIssues: ['缺少市场元数据'] };
+    details: { plugin_kind: 'server' }, source: '', sourceName: '宿主插件目录',
+    ...(plugin.metadata ? {} : { metadataIssues: ['缺少市场元数据'] }) };
 }
 
 export function describeDetail(value: unknown): string {

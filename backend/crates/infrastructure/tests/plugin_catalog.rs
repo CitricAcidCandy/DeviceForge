@@ -1,4 +1,4 @@
-use apk_domain::{Error, plugins::PluginCatalog};
+use apk_domain::{Error, Executor, plugins::PluginCatalog};
 use apk_infrastructure::{artifacts::FileArtifacts, plugin_catalog::FilePluginCatalog};
 use serde_json::json;
 use std::{path::Path, sync::Arc};
@@ -114,4 +114,122 @@ async fn linked_directory_and_linked_manifest_are_rejected() {
         catalog.load("manifest_link").await,
         Err(Error::Invalid(_))
     ));
+}
+
+fn display(id: &str, version: &str, name: &str) -> serde_json::Value {
+    json!({
+        "metadata_version": 1, "id": id, "version": version,
+        "name": name, "summary": "管理设备连接和应用", "description": "通过插件提供设备能力。",
+        "kind": "plugin", "details": {"plugin_kind": "server"}
+    })
+}
+
+#[tokio::test]
+async fn initial_and_hot_load_publish_identity_checked_local_display_metadata() {
+    let root = tempfile::tempdir().unwrap();
+    deploy(root.path(), "device", "device");
+    let path = root.path().join("device/market.json");
+    std::fs::write(
+        &path,
+        serde_json::to_vec(&display("device", "1.0.0", "设备管理")).unwrap(),
+    )
+    .unwrap();
+    let catalog = catalog(root.path()).await;
+    let initial = catalog.initial().await.unwrap();
+    let first = initial[0].plugin_metadata().unwrap();
+    assert_eq!(first.name, "设备管理");
+    assert_eq!(first.summary, "管理设备连接和应用");
+    assert_eq!(first.description, "通过插件提供设备能力。");
+    std::fs::write(
+        &path,
+        serde_json::to_vec(&display("device", "1.0.0", "设备工具")).unwrap(),
+    )
+    .unwrap();
+    let loaded = catalog.load("device").await.unwrap();
+    assert_eq!(loaded.executor.plugin_metadata().unwrap().name, "设备工具");
+    assert_eq!(initial[0].plugin_metadata().unwrap().name, "设备管理");
+    assert_eq!(loaded.executor.operations()[0].id, "plugin.device.echo");
+}
+
+#[tokio::test]
+async fn missing_invalid_and_oversized_display_metadata_do_not_block_plugin_loading() {
+    let root = tempfile::tempdir().unwrap();
+    deploy(root.path(), "device", "device");
+    let catalog = catalog(root.path()).await;
+    assert!(
+        catalog
+            .load("device")
+            .await
+            .unwrap()
+            .executor
+            .plugin_metadata()
+            .is_none()
+    );
+    assert!(
+        catalog.initial().await.unwrap()[0]
+            .plugin_metadata()
+            .is_none()
+    );
+    let path = root.path().join("device/market.json");
+    let mut empty = display("device", "1.0.0", "设备管理");
+    empty["name"] = json!("  ");
+    let mut missing = display("device", "1.0.0", "设备管理");
+    missing.as_object_mut().unwrap().remove("description");
+    let mut unsupported = display("device", "1.0.0", "设备管理");
+    unsupported["metadata_version"] = json!(2);
+    for bytes in [
+        b"{".to_vec(),
+        vec![b' '; 65537],
+        serde_json::to_vec(&display("another", "1.0.0", "设备管理")).unwrap(),
+        serde_json::to_vec(&display("device", "2.0.0", "设备管理")).unwrap(),
+        serde_json::to_vec(&display("device", "1.0.0", &"a".repeat(201))).unwrap(),
+        serde_json::to_vec(&empty).unwrap(),
+        serde_json::to_vec(&missing).unwrap(),
+        serde_json::to_vec(&unsupported).unwrap(),
+    ] {
+        std::fs::write(&path, bytes).unwrap();
+        let plugin = catalog.load("device").await.unwrap();
+        assert!(plugin.executor.plugin_metadata().is_none());
+        assert_eq!(plugin.executor.operations()[0].id, "plugin.device.echo");
+    }
+}
+
+#[tokio::test]
+async fn directory_and_linked_display_metadata_are_ignored_without_reading_external_text() {
+    let root = tempfile::tempdir().unwrap();
+    let outside = tempfile::tempdir().unwrap();
+    deploy(root.path(), "directory", "directory");
+    deploy(root.path(), "linked", "linked");
+    std::fs::create_dir(root.path().join("directory/market.json")).unwrap();
+    let foreign = outside.path().join("market.json");
+    std::fs::write(
+        &foreign,
+        serde_json::to_vec(&display("linked", "1.0.0", "外部资料")).unwrap(),
+    )
+    .unwrap();
+    let linked = root.path().join("linked/market.json");
+    #[cfg(windows)]
+    std::os::windows::fs::symlink_file(&foreign, &linked).unwrap();
+    #[cfg(unix)]
+    std::os::unix::fs::symlink(&foreign, &linked).unwrap();
+    let catalog = catalog(root.path()).await;
+    for id in ["directory", "linked"] {
+        assert!(
+            catalog
+                .load(id)
+                .await
+                .unwrap()
+                .executor
+                .plugin_metadata()
+                .is_none()
+        );
+    }
+    assert!(
+        catalog
+            .initial()
+            .await
+            .unwrap()
+            .iter()
+            .all(|plugin| plugin.plugin_metadata().is_none())
+    );
 }

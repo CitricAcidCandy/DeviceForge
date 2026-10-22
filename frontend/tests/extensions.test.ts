@@ -20,6 +20,7 @@ import { createNamedSlotAdapter } from '../src/plugins/index.ts';
 import { createTaskLab } from '../src/plugins/examples/task-lab.ts';
 import { deferred, job, requestUrl, signal, success } from './fixtures.ts';
 import { children, dom } from './dom-fixtures.ts';
+import { browserConfigurationServer } from './browser-configuration-fixtures.ts';
 
 function runtime(overrides: Partial<RuntimeOptions> = {}) {
   return createFrontendRuntime({
@@ -830,8 +831,11 @@ test('替换渲染冲突拒绝第二贡献，失败挂载恢复宿主默认rende
 
 test('可运行任务实验样例只用公开SDK执行命令与输入钩子并保留真实响应日志', async () => {
   let posted: unknown;
+  const configurations = browserConfigurationServer();
   const instance = runtime({
-    transport: async (_url, init) => {
+    transport: async (url, init) => {
+      if (requestUrl(url).pathname.startsWith('/api/v2/browser-plugin-configurations/'))
+        return configurations.transport(url, init);
       posted = submittedBody(init);
       return success(job(), 'sample-request-log');
     },

@@ -1,0 +1,8 @@
+{
+  "metadata_version": 1, "id": "cooperative_demo", "kind": "plugin", "version": "0.1.0",
+  "name": "合作取消示例", "summary": "演示独立插件的取消通知、退出与资源清理确认。",
+  "description": "供插件协议与生命周期验证使用，通过等待操作演示合作取消与清理状态，无需外部工具。",
+  "keywords": ["示例", "取消", "清理"], "categories": ["function"], "applies_to": ["deviceforge"],
+  "supports_mcp": "server", "supports_agent": true, "restart_policy": "plugin_reload", "author": "DeviceForge", "license": "MIT",
+  "platforms": [], "architectures": [], "details": {"plugin_kind": "server"}
+}

@@ -11,8 +11,12 @@ import {
 import {
   configurationTarget,
   installedPackage,
+  localPackageEntry,
+  localServerEntry,
   newerVersion,
 } from '../src/pages/marketplace/presentation.ts';
+import { createFrontendRuntime } from '../src/app/runtime.ts';
+import { installedPackage as packageFixture, plugin, success } from './fixtures.ts';
 
 const signal = () => new AbortController().signal;
 const digest = (value: string) => createHash('sha256').update(value).digest('hex');
@@ -235,4 +239,28 @@ test('实际安装状态同时匹配 ID 与插件位置，更新遵循语义版�
     }),
     { scope: 'user', owner_id: 'demo', section: 'options' },
   );
+});
+
+test('生产插件目录保留本地展示元数据，已安装回退按 ID 和版本匹配且兼容旧宿主', async () => {
+  const named = plugin({ id: 'android-device', version: '0.1.0', metadata: {
+    name: '安卓设备', summary: '连接和管理安卓设备', description: '提供发现、应用管理和设备输入等能力。',
+  } });
+  const instance = createFrontendRuntime({ baseUrl: 'http://localhost:7031', panelTarget: () => null,
+    transport: async () => success([named, plugin({ id: 'legacy' })]) });
+  try {
+    await instance.serverPlugins.refresh(signal());
+    const loaded = instance.serverPlugins.snapshot().result?.data.find((value) => value.id === named.id);
+    assert.ok(loaded);
+    const standalone = localServerEntry(loaded);
+    assert.equal(standalone.name, named.metadata?.name);
+    assert.equal(standalone.description, named.metadata?.description);
+    assert.equal(standalone.metadataIssues, undefined);
+    const pkg = packageFixture('server', { id: named.id, version: named.version });
+    assert.equal(localPackageEntry(pkg, loaded).summary, named.metadata?.summary);
+    assert.equal(localPackageEntry({ ...pkg, version: '0.0.1' }, loaded).name, named.id);
+    assert.equal(localPackageEntry({ ...pkg, kind: 'browser' }, loaded).name, named.id);
+    const old = localServerEntry(plugin({ id: 'legacy' }));
+    assert.equal(old.name, 'legacy');
+    assert.ok(old.metadataIssues?.length);
+  } finally { await instance.dispose(); }
 });

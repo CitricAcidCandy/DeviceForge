@@ -23,7 +23,7 @@ pub(crate) async fn allow_browser(request: Request, next: Next) -> Response {
     );
     headers.insert(
         header::ACCESS_CONTROL_ALLOW_METHODS,
-        HeaderValue::from_static("GET, HEAD, POST, DELETE, OPTIONS"),
+        HeaderValue::from_static("GET, HEAD, POST, PATCH, DELETE, OPTIONS"),
     );
     headers.insert(
         header::ACCESS_CONTROL_ALLOW_HEADERS,

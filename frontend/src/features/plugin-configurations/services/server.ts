@@ -1,4 +1,4 @@
-import { applyPluginConfigurationEndpoint, patchPluginConfigurationEndpoint, pluginConfigurationEndpoint, resetPluginConfigurationEndpoint } from '../../../services/api/index.ts';
+import { ApiError, applyPluginConfigurationEndpoint, patchPluginConfigurationEndpoint, pluginConfigurationEndpoint, resetPluginConfigurationEndpoint } from '../../../services/api/index.ts';
 import type { ApiClient, PluginConfigurationDto } from '../../../services/api/index.ts';
 import { isSchemaValue, mapSchemaSecrets, redactSchemaDefaults } from '../../../utils/schema.ts';
 import type { PluginConfigurationController, PluginConfigurationView } from '../types/index.ts';
@@ -16,11 +16,22 @@ function revision(value: string): number {
   if (!Number.isSafeInteger(result) || result < 0) throw new Error('配置修订号无效，请重新读取');
   return result;
 }
+
+function configurationFailure(reason: unknown): never {
+  if (reason instanceof ApiError && reason.status === 404 && reason.code === 'not_found' && reason.message === '接口不存在') {
+    const failure = new ApiError(reason.kind, reason.code,
+      '当前服务器不支持插件配置，请更新服务器后重试。服务器返回：接口不存在',
+      reason.status, reason.logId, reason.retryAfter);
+    failure.cause = reason;
+    throw failure;
+  }
+  throw reason;
+}
 export function createServerConfigurations(client: ApiClient): PluginConfigurationController {
   return {
-    async get(target, signal) { return view((await client.call(pluginConfigurationEndpoint, target.id, signal)).data); },
-    async save(target, expected, values, signal) { return view((await client.call(patchPluginConfigurationEndpoint, { id: target.id, body: { expected_revision: revision(expected), patch: values } }, signal)).data); },
-    async reset(target, expected, signal) { return view((await client.call(resetPluginConfigurationEndpoint, { id: target.id, body: { expected_revision: revision(expected) } }, signal)).data); },
-    async apply(target, expected, signal) { return view((await client.call(applyPluginConfigurationEndpoint, { id: target.id, body: { expected_revision: revision(expected) } }, signal)).data); },
+    async get(target, signal) { return view((await client.call(pluginConfigurationEndpoint, target.id, signal).catch(configurationFailure)).data); },
+    async save(target, expected, values, signal) { return view((await client.call(patchPluginConfigurationEndpoint, { id: target.id, body: { expected_revision: revision(expected), patch: values } }, signal).catch(configurationFailure)).data); },
+    async reset(target, expected, signal) { return view((await client.call(resetPluginConfigurationEndpoint, { id: target.id, body: { expected_revision: revision(expected) } }, signal).catch(configurationFailure)).data); },
+    async apply(target, expected, signal) { return view((await client.call(applyPluginConfigurationEndpoint, { id: target.id, body: { expected_revision: revision(expected) } }, signal).catch(configurationFailure)).data); },
   };
 }

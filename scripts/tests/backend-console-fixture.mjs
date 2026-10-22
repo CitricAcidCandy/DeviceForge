@@ -44,6 +44,7 @@ export async function testConfiguration(directory) {
       process.platform === 'win32' ? 'apk-server.exe' : 'apk-server',
     ),
     dataDirectory: join(directory, 'data'),
+    userDirectory: join(directory, 'user', '.deviceforge'),
     pluginDirectory: join(directory, 'plugins'),
     browserPluginDirectory: join(directory, 'browser-plugins'),
     logDirectory: join(directory, 'logs'),

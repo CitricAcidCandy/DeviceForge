@@ -1,0 +1,8 @@
+{
+  "metadata_version": 1, "id": "android-device", "kind": "plugin", "version": "0.1.0",
+  "name": "Android 设备", "summary": "连接 Android 设备，管理应用、截图、输入与性能采集。",
+  "description": "通过部署者配置的 ADB 提供设备发现与连接、应用安装和启停、截图、输入、性能采样及 Root 分析。能力可用性依实际设备、权限和工具而定；工具入口在插件配置中管理。",
+  "keywords": ["Android", "ADB", "设备"], "categories": ["device", "performance"], "applies_to": ["deviceforge"],
+  "supports_mcp": "server", "supports_agent": true, "restart_policy": "plugin_reload", "author": "DeviceForge", "license": "MIT",
+  "platforms": [], "architectures": [], "details": {"plugin_kind": "server"}
+}

@@ -216,32 +216,45 @@ async fn accepted_tcp_socket_injects_a_local_identity_without_forwarded_headers(
 #[tokio::test]
 async fn cors_preflight_allows_lan_bearer_requests_without_cookie_credentials() {
     let (app, router, _) = setup("required-token").await;
-    let preflight = Request::builder()
-        .method("OPTIONS")
-        .uri("/api/v2/sessions")
-        .header("origin", "http://192.168.50.5:5173")
-        .header("access-control-request-method", "POST")
-        .header(
-            "access-control-request-headers",
-            "authorization,content-type",
-        )
-        .body(Body::empty())
-        .unwrap();
-    let response = router.clone().oneshot(preflight).await.unwrap();
-    assert_eq!(response.status(), StatusCode::NO_CONTENT);
-    assert_eq!(response.headers()["access-control-allow-origin"], "*");
-    assert!(
-        response.headers()["access-control-allow-headers"]
-            .to_str()
-            .unwrap()
-            .contains("authorization")
-    );
-    assert!(
-        !response
-            .headers()
-            .contains_key("access-control-allow-credentials")
-    );
-    assert!(response.headers().contains_key("x-deviceforge-log-id"));
+    // 配置保存使用 PATCH，真实浏览器须先通过跨域预检才能发送请求。
+    for (path, method) in [
+        ("/api/v2/sessions", "POST"),
+        ("/api/v2/plugin-configurations/server/test", "PATCH"),
+    ] {
+        let preflight = Request::builder()
+            .method("OPTIONS")
+            .uri(path)
+            .header("origin", "http://192.168.50.5:5173")
+            .header("access-control-request-method", method)
+            .header(
+                "access-control-request-headers",
+                "authorization,content-type",
+            )
+            .body(Body::empty())
+            .unwrap();
+        let response = router.clone().oneshot(preflight).await.unwrap();
+        assert_eq!(response.status(), StatusCode::NO_CONTENT);
+        assert_eq!(response.headers()["access-control-allow-origin"], "*");
+        assert!(
+            response.headers()["access-control-allow-methods"]
+                .to_str()
+                .unwrap()
+                .split(',')
+                .any(|allowed| allowed.trim() == method)
+        );
+        assert!(
+            response.headers()["access-control-allow-headers"]
+                .to_str()
+                .unwrap()
+                .contains("authorization")
+        );
+        assert!(
+            !response
+                .headers()
+                .contains_key("access-control-allow-credentials")
+        );
+        assert!(response.headers().contains_key("x-deviceforge-log-id"));
+    }
     let request = Request::builder()
         .uri("/api/v2/session-definitions")
         .header("origin", "http://192.168.50.5:5173")

@@ -1,0 +1,8 @@
+{
+  "metadata_version": 1, "id": "frida", "kind": "plugin", "version": "0.1.0",
+  "name": "Frida 动态调试", "summary": "管理 Frida 服务、枚举进程并执行受控调试脚本。",
+  "description": "提供 Frida 服务部署与状态检查、进程枚举、脚本执行和权限分析。ADB、Frida 客户端及服务文件由插件配置固定；使用能力取决于目标设备权限。",
+  "keywords": ["Frida", "调试", "脚本"], "categories": ["device", "analysis"], "applies_to": ["deviceforge"],
+  "supports_mcp": "server", "supports_agent": true, "restart_policy": "plugin_reload", "author": "DeviceForge", "license": "MIT",
+  "platforms": [], "architectures": [], "details": {"plugin_kind": "server"}
+}

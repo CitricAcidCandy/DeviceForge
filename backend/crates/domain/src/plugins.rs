@@ -29,9 +29,19 @@ pub enum PluginState {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+pub struct PluginDisplayMetadata {
+    pub name: String,
+    pub summary: String,
+    pub description: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct PluginInfo {
     pub id: String,
     pub version: String,
+    /// 展示信息来自独立市场元数据；旧部署可以省略，不参与插件执行协议。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub metadata: Option<PluginDisplayMetadata>,
     pub generation: String,
     pub state: PluginState,
     pub operations: Vec<String>,

@@ -154,7 +154,7 @@ async function scenario(mode, manifest) {
     base = `http://127.0.0.1:${port}`;
     child = spawn(binary('apk-server'), [], { cwd: backend,
       env: { ...environment, APK_API_TOKEN: token, APK_BIND: `127.0.0.1:${port}`,
-        APK_DATA_DIR: temporary, APK_PLUGIN_DIR: plugins, DEVICEFORGE_HTTP_RATE: '10000' },
+        APK_DATA_DIR: temporary, APK_PLUGIN_DIR: plugins, DEVICEFORGE_USER_DIR: join(temporary, 'user', '.deviceforge'), DEVICEFORGE_HTTP_RATE: '10000' },
       stdio: 'ignore', windowsHide: true });
     let spawnError;
     child.on('error', (error) => { spawnError = error; });

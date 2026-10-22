@@ -75,6 +75,7 @@ function environment(config) {
     ...process.env,
     APK_BIND: config.bind ?? `0.0.0.0:${config.port}`,
     APK_DATA_DIR: config.dataDirectory,
+    ...(config.userDirectory ? { DEVICEFORGE_USER_DIR: config.userDirectory } : {}),
     APK_PLUGIN_DIR: config.pluginDirectory,
     APK_BROWSER_PLUGIN_DIR: config.browserPluginDirectory,
     APK_PERFORMANCE_PLUGIN: 'android-device',

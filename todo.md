@@ -1,5 +1,23 @@
 # DeviceForge 开发与验收记录
 
+## 2026-10-22 插件配置统一持久化到用户目录
+
+- [x] 按用户确认拆分插件程序与用户配置：默认 `~/.deviceforge/plugin-configurations/{server,browser}`，显式隔离使用 `DEVICEFORGE_USER_DIR`。CLI `--data-dir`、业务根及插件安装根不改变配置归属，启动输出展示插件配置根。初始插件程序和依赖工具继续保留原部署位置。
+- [x] 服务器旧状态与全部既存不可变修订仅在目标无状态时复制，源文件保留；声明默认值或旁置模板首次读取即物化，运行插件消费用户快照。浏览器新增有界原值记录、CAS、独占锁与原子发布API；localStorage只作无远端记录时的首次导入源，默认值也首次落盘，API失败不假报本地保存成功。
+- [x] 前端prepare/markApplied异步接入生命周期，激活前取得原值、应用确认失败回滚新代；取消与晚到结果不覆盖运行值。无配置声明插件零配置请求。新增配置/API/生命周期定点35项通过，补公开SDK示例新接口夹具后配置与扩展最终51项通过；生成API、408源码check和build通过。
+- [x] 隔离真实HTTP+Edge组合32项通过，首次浏览器10项行为通过；真实页面刷新、同用户根换业务目录重启、全新浏览器上下文复读、配置实际落盘与插件真实消费均通过，宿主/浏览器/端口/profile清理确认。本机7031已正常更新为 `server-user-configurations-20261022.exe`（PID65464），13配置实际进入用户根，投屏修订1与原值、应用标记保留，旧文件摘要不变；默认BAT已切新副本。
+- [x] 后端架构、6项规则、fmt、workspace Clippy和debug build通过；服务器配置7项、浏览器存储9项及HTTP/OpenAPI4项、配置根1项通过。全部证据在 `artifacts/plugin-user-configurations-20261022/`，两端验收文档分属各自docs。
+- [ ] 完整workspace测试、运行时功能冒烟和当前release/npx分发正在统一收口。完整前端首轮100文件98通过；扩展夹具失败已定点修复，既有 `product-plugin-startup.test.ts` 两条DOM断言仍失败，不能记全量通过。没有操作设备、公开发布、性能或跨平台验收。
+
+## 2026-10-22 插件中文资料与配置入口修复
+
+- [x] 查明7031旧宿主没有配置接口、13份部署清单缺少配置声明，本地市场条目只使用ID。新增可选 `PluginInfo.metadata`，从插件部署根 `market.json` 读取名称、简介与描述；18个源码插件补中文资料，原生打包及CLI安装保留资料。运行清单与执行协议没有混入市场字段，旧包可降级展示。
+- [x] 预览正常升级当前宿主和13插件二进制/配置声明，保留原工具配置、executable、args与业务数据。真实浏览器发现跨域规则遗漏PATCH，补齐规则及预检回归后再次正常更新宿主；最终PID94104，默认BAT入口指向 `server-plugin-configurations-20261022-cors.exe`。部署备份与两次身份报告在 `artifacts/plugin-metadata-configuration-20261022/`。
+- [x] 真实Edge8项通过：13个中文标题/简介/详情、Android18字段、DEX无需配置、投屏6字段与原值保存/重读、390px卡片；投屏修订0→1、重读1、值未变。最终四图经视觉子代理复核通过，本轮卡片无阻断，既有全局顶栏/底栏拥挤保留。浏览器正常退出、端口/profile清理。另有隔离真实Rust投屏插件8项消费证据、配置HTTP23项通过；没有操作真机。
+- [x] 根测试80项、元数据目录7项与注册定点1项、跨域定点1项、最终fmt/Clippy/workspace build、前端生成/403源码check/独立生产构建通过；6类debug运行时/日志/生命周期/在线包冒烟通过。完整前端97文件中96通过，既有默认插件启动断言失败；workspace首次因本轮冒烟占用debug宿主程序而构建失败，收口重跑后仍在既有Harmony截图假HDC的call-05 ready超时，协议集127/128，不记全量通过。原失败和修正后的探针结果均保留。
+- [x] Windows x64 release投屏TGZ已核对7成员、中文资料与配置声明；原包另存。prepare首次npm ci遇Tailwind原生模块EPERM，停止本轮Vite后重试成功并恢复预览；新runtime根测试再次80/80、release配置23项通过。CLI候选42成员/12,657,503字节，真实npx两阶段退出0、包SHA与候选一致、8原生插件及HTTP/MCP回归通过，监听和临时目录清理；报告 `artifacts/npx-raw-pQ7b3n/report.json`。候选包集中在本轮 `packages/`，没有公开发布。
+- 验收详见 `backend/docs/verification/插件展示与配置入口验收-20261022.md`、`frontend/docs/verification/插件名称描述与配置入口验收-20261022.md`。本轮不扩大为真机投屏、性能、其他平台或公开发布完成，ADB/scrcpy等工具仍独立准备。
+
 ## 2026-10-22 荣耀 Android 17 投屏启动后断开
 
 - [x] 用户日志 `b888f5e1-579d-441a-8bbd-9bb4fa5ac1db` 对应旧会话输出GET200；用户确认目标荣耀PTP-AN70。公开会话复现约三秒EOF，同次设备崩溃记录 `AbstractMethodError: IDisplayWindowListener.onDisplayAnimationsDisabledChanged`，证明旧scrcpy-server3.3.1监听接口不兼容Android17。原失败、净化崩溃行、版本裁定均保留于 `artifacts/webrtc-eof-20261022/`。
@@ -1646,3 +1664,9 @@ Android环境观测已随实际Root读取通道标记权限；普通无Root不�
 - 删除 `pages/performance/workspace.css`（515 行规则在 TSX 中零引用），同步移除页面 import 与 `check-ui-policy` 白名单条目；该文件删除后 `gap-3` 生效，页头与内容间距恢复 12px。
 - 实际验证：`check:ui-policy` 退出 0；`check:architecture` 403 源码通过；`tsc --noEmit` 退出 0；`vite build` 成功（20.33s，仅既有 chunk/sourcemap 警告）；`tests/performance-board.test.ts` 5/5 通过（本机 5173 占用导致 Vite 端口 24678 告警，不影响断言）。全套 96 文件测试仍在运行，未计入通过。
 - 真实浏览器截图在 `artifacts/performance-header-20261022/`（1440/1280/1024/760 与 3× 细节）。运行态排布用临时 mock 会话截图后已回滚，源码无 mock 残留。未接真机，采集中的真实读数与按钮可用态未验收；归档录制面板未改；未提交。
+
+### 2026-10-22 荣耀 Android 17 投屏修复与后端门禁收口
+
+- 日志 `b888f5e1-579d-441a-8bbd-9bb4fa5ac1db` 的提前断开已定位为 scrcpy-server 3.3.1 在 Android 17 缺少显示监听 Binder 回调。改用官方 3.3.4 并固定版本身份；荣耀 PTP-AN70、生产前端工厂、Edge、本机真实 UDP 两轮各播放约30秒，分别解码219/338帧，释放及再次开启成功。视觉子代理审核可辨认、无全黑或明显破损。清理后无会话、设备进程、forward、独占目录或插件 cleanup_failed。详情和包摘要见 `backend/docs/implementation/投屏直播插件实施.md` 及 `artifacts/webrtc-eof-20261022/device-validation.json`。
+- 后端架构28模块/6规则、fmt、workspace Clippy、workspace build、runtime/runtime-performance/logging/plugin-lifecycle/cooperative 冒烟通过。全workspace测试 `cargo test --workspace -j 1` 退出101：Harmony协议套件127/128，64 MiB截图用例在测试假HDC `call-05` 等ready超时。该单测独立串行1/1通过；完整Harmony协议集串行复跑仍相同127/128、393.74秒，测试套件上下文的ready超时尚未查明，保留两个失败原件，不能写完整workspace test通过。完整门禁记录在 `artifacts/webrtc-eof-20261022/gates/`。
+- 短时本机播放不覆盖长时稳定性、音频、同事LAN/NAT/TURN、延迟/性能、原生复制菜单或正式分发；两轮丢帧108与8不作流畅度结论。控制权双版本夹具和旧WebRTC夹具失败原样保留，不归因于 scrcpy 版本兼容。工作区现有 `frontend/src/app/product/layout.css` 并行修改未触碰。

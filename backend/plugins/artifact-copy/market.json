@@ -1,0 +1,8 @@
+{
+  "metadata_version": 1, "id": "artifact_copy", "kind": "plugin", "version": "0.1.0",
+  "name": "产物复制示例", "summary": "演示插件读取输入产物并发布新的输出产物。",
+  "description": "供公开产物协议开发与验证使用，复制已登记的输入产物，无需配置外部工具。",
+  "keywords": ["示例", "产物"], "categories": ["function"], "applies_to": ["deviceforge"],
+  "supports_mcp": "server", "supports_agent": true, "restart_policy": "plugin_reload", "author": "DeviceForge", "license": "MIT",
+  "platforms": [], "architectures": [], "details": {"plugin_kind": "server"}
+}

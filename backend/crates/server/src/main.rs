@@ -6,6 +6,7 @@ use apk_infrastructure::{plugin_catalog::FilePluginCatalog, store::SqliteStore};
 use apk_server::client_connection::ClientConnection;
 use std::{path::PathBuf, sync::Arc};
 mod artifact_config;
+mod configuration_home;
 mod limits;
 mod operation_bindings;
 
@@ -49,11 +50,20 @@ async fn run(
         .map(PathBuf::from)
         .unwrap_or_else(|| data.join("plugins"));
     tokio::fs::create_dir_all(&plugin_directory).await?;
+    let user_home = configuration_home::from_environment()?;
+    let configuration_root = user_home.join("plugin-configurations");
     let configuration_store =
-        apk_infrastructure::plugin_configurations::FilePluginConfigurations::open(
-            &data.join("plugin-configurations"),
+        apk_infrastructure::plugin_configurations::FilePluginConfigurations::open_with_legacy(
+            &configuration_root.join("server"),
             &plugin_directory,
+            vec![
+                configuration_root.clone(),
+                data.join("plugin-configurations"),
+            ],
         )
+        .await?;
+    // 初次启动即保值物化默认与历史配置，不依赖用户先打开配置弹窗。
+    apk_domain::plugin_configurations::PluginConfigurationStore::list(configuration_store.as_ref())
         .await?;
     let catalog = Arc::new(
         FilePluginCatalog::open(&plugin_directory, artifacts.clone())
@@ -132,7 +142,14 @@ async fn run(
         configuration_store,
         plugin_service.clone(),
     );
-    let router = apk_server::router_with_configurations(
+    let browser_configurations =
+        apk_application::browser_configurations::BrowserConfigurationService::new(
+            apk_infrastructure::browser_configurations::FileBrowserConfigurations::open(
+                &configuration_root.join("browser"),
+            )
+            .await?,
+        );
+    let router = apk_server::router_with_browser_configurations(
         app.clone(),
         token,
         rate,
@@ -145,6 +162,7 @@ async fn run(
         },
         packages,
         configurations,
+        browser_configurations,
     )?;
     let bind = std::env::var("APK_BIND").unwrap_or_else(|_| "127.0.0.1:7031".into());
     let listener = tokio::net::TcpListener::bind(&bind).await?;

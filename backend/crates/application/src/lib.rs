@@ -9,6 +9,7 @@ mod alias_plan;
 #[cfg(test)]
 mod alias_regression;
 mod blocking;
+pub mod browser_configurations;
 mod completion;
 pub mod devices;
 mod execution;

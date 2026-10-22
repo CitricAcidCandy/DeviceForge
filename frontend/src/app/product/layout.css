@@ -390,28 +390,49 @@
   max-width: 1600px;
   margin-inline: auto;
 }
-/* 性能页按视口高度铺满：五条轨迹弹性分配高度，视口太矮时整页滚动。 */
-.product-shell[data-route='performance'] .workplane {
+/* 仪器型页面（性能 / AI / 终端 / 市场）按视口高度铺满：内部用 flex 分配，视口太矮时整页滚动。 */
+.product-shell[data-route='performance'] .workplane,
+.product-shell[data-route='ai'] .workplane,
+.product-shell[data-route='terminal'] .workplane,
+.product-shell[data-route='marketplace'] .workplane {
   display: flex;
   flex-direction: column;
 }
-.product-shell[data-route='performance'] .workplane > [data-route] {
+.product-shell[data-route='performance'] .workplane > [data-route],
+.product-shell[data-route='ai'] .workplane > [data-route],
+.product-shell[data-route='terminal'] .workplane > [data-route],
+.product-shell[data-route='marketplace'] .workplane > [data-route] {
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
-  min-height: 0;
+  min-height: 560px;
   /* 自动外边距会让弹性子项退化成收缩宽度，这里固定铺满。 */
   width: 100%;
   margin-inline: 0;
-  /* 视口太矮时不压缩轨迹，改为整页滚动。 */
-  min-height: 560px;
   /* 仪器面板越宽越好读，不受全局 1600 限宽。 */
   max-width: none;
 }
+
 /* 舞台型页面自己管边距：工作区不留内衬，画面顶到边缘。 */
 .product-shell[data-route='devices'] .workplane,
 .product-shell[data-route='tasks'] .workplane {
   padding: 0;
+}
+/* 终端与 AI 助手是常驻工作台：内部各自滚动，整页不滚。 */
+.product-shell[data-route='terminal'] .workplane,
+.product-shell[data-route='ai'] .workplane {
+  display: flex;
+  flex-direction: column;
+}
+.product-shell[data-route='terminal'] .workplane > [data-route],
+.product-shell[data-route='ai'] .workplane > [data-route] {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 480px;
+  width: 100%;
+  margin-inline: 0;
+  max-width: none;
 }
 /* 舞台型页面自带内容区，工作区按列排，主区吃满剩余高度。 */
 .product-shell[data-route='devices'] .workplane,

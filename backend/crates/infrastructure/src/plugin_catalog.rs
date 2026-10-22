@@ -9,6 +9,7 @@ use std::{
     sync::Arc,
 };
 use tokio::sync::Semaphore;
+pub(crate) mod metadata;
 
 pub struct FilePluginCatalog {
     root: Arc<PathBuf>,
@@ -151,7 +152,8 @@ fn read_plugin(
     if manifest.id != id {
         return Err(Error::Invalid("插件 ID 必须与部署目录一致".into()));
     }
-    let mut plugin = ProcessPlugin::with_artifacts(manifest, artifacts)?;
+    let display = metadata::read(&directory, &manifest.id, &manifest.version);
+    let mut plugin = ProcessPlugin::with_artifacts(manifest, artifacts)?.with_metadata(display);
     if let Some(configurations) = configurations {
         plugin = plugin.with_configurations(configurations);
     }

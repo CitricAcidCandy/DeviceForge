@@ -1,0 +1,8 @@
+{
+  "metadata_version": 1, "id": "harmony-device", "kind": "plugin", "version": "0.1.0",
+  "name": "Harmony 设备", "summary": "通过 HDC 管理 Harmony 设备、应用、截图与输入。",
+  "description": "提供设备发现与连接、应用安装和管理、截图及输入。HDC 程序、传输限额及相关部署选项通过插件配置管理，实际能力以设备与工具状态为准。",
+  "keywords": ["Harmony", "HDC", "设备"], "categories": ["device"], "applies_to": ["deviceforge"],
+  "supports_mcp": "server", "supports_agent": true, "restart_policy": "plugin_reload", "author": "DeviceForge", "license": "MIT",
+  "platforms": [], "architectures": [], "details": {"plugin_kind": "server"}
+}

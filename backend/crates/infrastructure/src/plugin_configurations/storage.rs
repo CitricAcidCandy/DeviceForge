@@ -9,6 +9,34 @@ use std::{
 };
 
 pub(super) const LIMIT: u64 = 256 * 1024;
+pub(super) fn linked(metadata: &fs::Metadata) -> bool {
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::MetadataExt;
+        metadata.file_attributes() & 0x400 != 0
+    }
+    #[cfg(not(windows))]
+    {
+        metadata.file_type().is_symlink()
+    }
+}
+
+pub(super) fn checked_directory(root: &Path, id: &str, create: bool) -> Result<PathBuf> {
+    let directory = root.join(id);
+    if create && !directory.exists() {
+        fs::create_dir(&directory).map_err(|_| Error::Storage("配置目录创建失败".into()))?;
+    }
+    let metadata =
+        fs::symlink_metadata(&directory).map_err(|_| Error::Storage("配置目录不可访问".into()))?;
+    if !metadata.is_dir()
+        || linked(&metadata)
+        || fs::canonicalize(&directory).map_err(|_| Error::Storage("配置目录不可访问".into()))?
+            != directory
+    {
+        return Err(Error::Invalid("配置目录必须为非链接普通目录".into()));
+    }
+    Ok(directory)
+}
 #[derive(Clone, Serialize, Deserialize)]
 pub(super) struct State {
     #[serde(default)]
@@ -24,7 +52,7 @@ pub(super) struct State {
 pub(super) fn json<T: serde::de::DeserializeOwned>(path: &Path) -> Result<T> {
     let metadata =
         fs::symlink_metadata(path).map_err(|_| Error::NotFound("配置文件不存在".into()))?;
-    if !metadata.is_file() || metadata.file_type().is_symlink() {
+    if !metadata.is_file() || linked(&metadata) {
         return Err(Error::Invalid("配置必须为普通文件".into()));
     }
     if metadata.len() > LIMIT {
@@ -72,8 +100,7 @@ pub(super) fn ensure_revision(
     revision: u64,
     values: &Value,
 ) -> Result<PathBuf> {
-    let directory = root.join(id);
-    fs::create_dir_all(&directory).map_err(|_| Error::Storage("配置修订目录创建失败".into()))?;
+    let directory = checked_directory(root, id, true)?;
     let path = revision_path(root, id, revision);
     if path.exists() {
         let existing: Value = json(&path)?;

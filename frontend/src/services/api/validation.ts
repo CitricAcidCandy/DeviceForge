@@ -57,6 +57,11 @@ export function isJobEvent(value: unknown): value is JobEventDto {
     jobStatus(value.status)
   );
 }
+function isPluginMetadata(value: unknown): boolean {
+  return value === undefined || value === null ||
+    (isRecord(value) && ['name', 'summary', 'description'].every((key) =>
+      typeof value[key] === 'string' && value[key].trim().length > 0));
+}
 export function isPluginInfo(value: unknown): value is PluginInfo {
   return (
     isRecord(value) &&
@@ -66,6 +71,7 @@ export function isPluginInfo(value: unknown): value is PluginInfo {
     typeof value.protected === 'boolean' &&
     (value.state === 'loaded' || value.state === 'draining' || value.state === 'unloaded') &&
     isArrayOf((item): item is string => typeof item === 'string')(value.operations) &&
+    isPluginMetadata(value.metadata) &&
     // 后端协议 3 已要求此字段；旧生成类型更新后仍使用同一校验。
     typeof value.cleanup_failed === 'boolean'
   );

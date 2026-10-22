@@ -64,8 +64,7 @@ impl Fixture {
 }
 
 #[tokio::test]
-async fn legacy_is_read_only_until_first_save_then_cas_and_masked_merge_control_managed_snapshots()
-{
+async fn legacy_is_copied_once_then_cas_and_masked_merge_control_user_snapshots() {
     let fixture = Fixture::new("next_invocation").await;
     let view = fixture.store.get("demo").await.unwrap();
     assert!(matches!(view.source, ConfigurationSource::Legacy));
@@ -77,14 +76,13 @@ async fn legacy_is_read_only_until_first_save_then_cas_and_masked_merge_control_
             .get("default")
             .is_none()
     );
-    assert!(
-        fixture
-            .store
-            .invocation_path("demo")
-            .await
-            .unwrap()
-            .is_none()
-    );
+    let initial = fixture
+        .store
+        .invocation_path("demo")
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(Fixture::raw(&initial)["count"], 2);
     fs::write(
         fixture
             .directory
@@ -93,7 +91,7 @@ async fn legacy_is_read_only_until_first_save_then_cas_and_masked_merge_control_
         br#"{"count":3,"token":"changed-secret","environment":{"PRIVATE":"changed-map-secret"}}"#,
     )
     .unwrap();
-    assert_eq!(fixture.store.get("demo").await.unwrap().values["count"], 3);
+    assert_eq!(fixture.store.get("demo").await.unwrap().values["count"], 2);
     let saved = fixture
         .store
         .patch(
@@ -113,8 +111,8 @@ async fn legacy_is_read_only_until_first_save_then_cas_and_masked_merge_control_
         .unwrap()
         .unwrap();
     let raw = Fixture::raw(&snapshot);
-    assert_eq!(raw["token"], "changed-secret");
-    assert_eq!(raw["environment"]["PRIVATE"], "changed-map-secret");
+    assert_eq!(raw["token"], "legacy-secret");
+    assert_eq!(raw["environment"]["PRIVATE"], "private-secret");
     assert!(matches!(
         fixture.store.patch("demo", 0, json!({"count":5})).await,
         Err(Error::Conflict(_))
@@ -403,4 +401,86 @@ async fn concurrent_cas_has_one_winner_and_incompatible_upgrade_keeps_saved_valu
     assert!(repaired.compatible);
     assert_eq!(repaired.revision, 2);
     assert_eq!(repaired.values["count"], 3);
+}
+
+#[tokio::test]
+async fn historical_revisions_migrate_without_changing_applied_values_or_source_files() {
+    let fixture = Fixture::new("plugin_reload").await;
+    fixture
+        .store
+        .patch("demo", 0, json!({"count":7}))
+        .await
+        .unwrap();
+    let old_root = fixture.directory.path().join("managed");
+    let source = fs::read(old_root.join("demo/state.json")).unwrap();
+    let root = fixture
+        .directory
+        .path()
+        .join("user/plugin-configurations/server");
+    let deployment = fixture.directory.path().join("plugins");
+    drop(fixture.store);
+    let store =
+        FilePluginConfigurations::open_with_legacy(&root, &deployment, vec![old_root.clone()])
+            .await
+            .unwrap();
+    let view = store.get("demo").await.unwrap();
+    assert_eq!(view.revision, 1);
+    assert_eq!(view.applied_revision, 0);
+    assert_eq!(view.values["count"], 7);
+    let invocation = store.invocation_path("demo").await.unwrap().unwrap();
+    assert_eq!(Fixture::raw(&invocation)["count"], 2);
+    assert_eq!(fs::read(old_root.join("demo/state.json")).unwrap(), source);
+    store.mark_applied("demo", 1).await.unwrap();
+    assert_eq!(
+        store
+            .patch("demo", 1, json!({"count":8}))
+            .await
+            .unwrap()
+            .revision,
+        2
+    );
+    drop(store);
+    let store =
+        FilePluginConfigurations::open_with_legacy(&root, &deployment, vec![old_root.clone()])
+            .await
+            .unwrap();
+    assert_eq!(store.get("demo").await.unwrap().values["count"], 8);
+    assert_eq!(fs::read(old_root.join("demo/state.json")).unwrap(), source);
+}
+
+#[tokio::test]
+async fn first_defaults_survive_relocation_and_updated_bundled_defaults() {
+    let mut fixture = Fixture::new("next_invocation").await;
+    fs::remove_file(
+        fixture
+            .directory
+            .path()
+            .join("plugins/demo/bin/legacy.json"),
+    )
+    .unwrap();
+    assert_eq!(fixture.store.get("demo").await.unwrap().values["count"], 1);
+    fixture.manifest["configuration"]["defaults"]["count"] = json!(9);
+    fixture.write_manifest();
+    assert_eq!(fixture.store.get("demo").await.unwrap().values["count"], 1);
+    let root = fixture.directory.path().join("managed");
+    let deployment = fixture.directory.path().join("other-deployment/demo");
+    fs::create_dir_all(&deployment).unwrap();
+    fs::write(
+        deployment.join("manifest.json"),
+        serde_json::to_vec(&fixture.manifest).unwrap(),
+    )
+    .unwrap();
+    drop(fixture.store);
+    let store = FilePluginConfigurations::open(&root, deployment.parent().unwrap())
+        .await
+        .unwrap();
+    assert_eq!(store.get("demo").await.unwrap().values["count"], 1);
+    assert!(
+        store
+            .invocation_path("demo")
+            .await
+            .unwrap()
+            .unwrap()
+            .starts_with(fs::canonicalize(root).unwrap())
+    );
 }

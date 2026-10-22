@@ -405,7 +405,7 @@ try {
   const environment = Object.fromEntries(Object.entries(process.env).filter(([key]) => !/^(APK_|DEVICEFORGE_)/.test(key)));
   child = spawn(binary, [], { cwd: backend, windowsHide: true, stdio: 'ignore',
     env: { ...environment, APK_BIND: `127.0.0.1:${port}`, APK_DATA_DIR: temporary,
-      APK_PLUGIN_DIR: plugins, APK_BROWSER_PLUGIN_DIR: browserPlugins,
+      APK_PLUGIN_DIR: plugins, APK_BROWSER_PLUGIN_DIR: browserPlugins, DEVICEFORGE_USER_DIR: join(temporary, 'user', '.deviceforge'),
       DEVICEFORGE_NODE: process.execPath, DEVICEFORGE_HTTP_RATE: '10000',
       APK_MCP_HOSTS: `127.0.0.1:${port}`, APK_MCP_ORIGINS: base } });
   child.on('error', (error) => { spawnError = error; });

@@ -1,0 +1,8 @@
+{
+  "metadata_version": 1, "id": "settings", "kind": "plugin", "version": "0.1.0",
+  "name": "用户与工作区设置", "summary": "管理分区设置、版本修订、导入和远端配置同步。",
+  "description": "按用户或工作区命名空间管理配置区，支持比较修订后保存、导入及远端读取和保存。存储根和远端服务选项由插件部署配置管理；它与宿主插件基础配置存储相互独立。",
+  "keywords": ["设置", "配置", "同步"], "categories": ["utility", "integration"], "applies_to": ["deviceforge"],
+  "supports_mcp": "server", "supports_agent": true, "restart_policy": "plugin_reload", "author": "DeviceForge", "license": "MIT",
+  "platforms": [], "architectures": [], "details": {"plugin_kind": "server"}
+}
