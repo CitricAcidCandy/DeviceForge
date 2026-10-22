@@ -20,8 +20,8 @@ fn call_directory(root: &Path) -> PathBuf {
     panic!("夹具调用超限")
 }
 
-fn identity(scid: &str) -> String {
-    format!("a=$(tr '\\000' '\\n' < /proc/$p/cmdline); n=$(printf '%s\\n' \"$a\" | head -n 1); [ \"$n\" = app_process ] && printf '%s\\n' \"$a\" | grep -Fxq com.genymobile.scrcpy.Server && printf '%s\\n' \"$a\" | grep -Fxq 3.3.1 && printf '%s\\n' \"$a\" | grep -Fxq scid={scid} && printf '%s\\n' \"$a\" | grep -Fxq tunnel_forward=true")
+fn identity(scid: &str, version: &str) -> String {
+    format!("a=$(tr '\\000' '\\n' < /proc/$p/cmdline); n=$(printf '%s\\n' \"$a\" | head -n 1); [ \"$n\" = app_process ] && printf '%s\\n' \"$a\" | grep -Fxq com.genymobile.scrcpy.Server && printf '%s\\n' \"$a\" | grep -Fxq {version} && printf '%s\\n' \"$a\" | grep -Fxq scid={scid} && printf '%s\\n' \"$a\" | grep -Fxq tunnel_forward=true")
 }
 
 fn main_inner() -> io::Result<()> {
@@ -30,6 +30,8 @@ fn main_inner() -> io::Result<()> {
     let root = env::current_exe()?.parent().unwrap().canonicalize()?;
     let plan = root.join("plans").join(&args[1]);
     assert!(plan.is_dir());
+    let version = fs::read_to_string(plan.join("server-version"))?;
+    assert!(matches!(version.as_str(), "3.3.1" | "3.3.4"), "夹具服务器版本不在白名单");
     let call = call_directory(&root);
     fs::write(call.join("pid"), std::process::id().to_string())?;
     let category = match args[2].as_str() {
@@ -74,8 +76,7 @@ fn main_inner() -> io::Result<()> {
             let script = &args[3];
             let remote = fs::read_to_string(plan.join("remote-dir"))?;
             let scid = fs::read_to_string(plan.join("scid"))?;
-            assert!(script.starts_with(&format!("echo $$ > {remote}/pid && CLASSPATH={remote}/server.jar exec app_process / ")));
-            assert!(script.contains(" com.genymobile.scrcpy.Server 3.3.1 "));
+            assert!(script.starts_with(&format!("echo $$ > {remote}/pid && CLASSPATH={remote}/server.jar exec app_process / com.genymobile.scrcpy.Server {version} ")));
             assert_eq!(field(script, "scid="), scid);
             for fixed in ["tunnel_forward=true", "send_device_meta=false", "send_dummy_byte=false", "cleanup=false"] {
                 assert!(script.split_whitespace().any(|item| item == fixed));
@@ -93,7 +94,7 @@ fn main_inner() -> io::Result<()> {
         "ready" => {
             let remote = fs::read_to_string(plan.join("remote-dir"))?;
             let scid = fs::read_to_string(plan.join("scid"))?;
-            let expected = format!("i=0; while [ $i -lt 100 ]; do if [ -f {remote}/pid ]; then p=$(cat {remote}/pid); case $p in ''|*[!0-9]*) exit 71;; esac; if [ -e /proc/$p ]; then if {} && grep -q ' @scrcpy_{scid}$' /proc/net/unix; then echo DFML_READY; exit 0; fi; fi; fi; i=$((i+1)); sleep 0.05; done; exit 78", identity(&scid));
+            let expected = format!("i=0; while [ $i -lt 100 ]; do if [ -f {remote}/pid ]; then p=$(cat {remote}/pid); case $p in ''|*[!0-9]*) exit 71;; esac; if [ -e /proc/$p ]; then if {} && grep -q ' @scrcpy_{scid}$' /proc/net/unix; then echo DFML_READY; exit 0; fi; fi; fi; i=$((i+1)); sleep 0.05; done; exit 78", identity(&scid, &version));
             assert_eq!(args[3], expected);
             let deadline = Instant::now() + Duration::from_secs(10);
             while !plan.join("epoch-1").join("listening").exists() {
@@ -105,7 +106,7 @@ fn main_inner() -> io::Result<()> {
         "cleanup" => {
             let remote = fs::read_to_string(plan.join("remote-dir"))?;
             let scid = fs::read_to_string(plan.join("scid"))?;
-            let expected = format!("i=0; while [ ! -f {remote}/pid ]; do i=$((i+1)); [ $i -le 10 ] || exit 77; sleep 0.05; done; if [ -f {remote}/pid ]; then p=$(cat {remote}/pid); case $p in ''|*[!0-9]*) exit 71;; esac; if [ -e /proc/$p ]; then {} || exit 72; kill -TERM $p || exit 73; i=0; while kill -0 $p 2>/dev/null; do i=$((i+1)); [ $i -le 20 ] || exit 74; sleep 0.05; done; fi; fi; rm -rf {remote} || exit 75; [ ! -e {remote} ] || exit 76; echo DFML_CLEAN", identity(&scid));
+            let expected = format!("i=0; while [ ! -f {remote}/pid ]; do i=$((i+1)); [ $i -le 10 ] || exit 77; sleep 0.05; done; if [ -f {remote}/pid ]; then p=$(cat {remote}/pid); case $p in ''|*[!0-9]*) exit 71;; esac; if [ -e /proc/$p ]; then {} || exit 72; kill -TERM $p || exit 73; i=0; while kill -0 $p 2>/dev/null; do i=$((i+1)); [ $i -le 20 ] || exit 74; sleep 0.05; done; fi; fi; rm -rf {remote} || exit 75; [ ! -e {remote} ] || exit 76; echo DFML_CLEAN", identity(&scid, &version));
             assert_eq!(args[3], expected);
             for name in ["remote-pid", "remote-owner", "remote-dir"] { fs::remove_file(plan.join(name))?; }
             fs::write(plan.join("remote-cleaned"), "1")?;

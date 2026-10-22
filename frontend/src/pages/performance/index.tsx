@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { ListTree } from 'lucide-react';
 import { Button } from '../../components/Button/index.tsx';
 import { Checkbox } from '../../components/Checkbox/index.tsx';
 import { Label } from '../../components/Label/index.tsx';
@@ -48,7 +49,6 @@ import type { ProductServices } from '../../app/product/services.ts';
 import { BlobDownload } from '../../components/BlobDownload/index.tsx';
 import { PerformanceReadings, ProfileArchiveView, SampleBoard } from './components/index.ts';
 import type { BoardSample } from './components/index.ts';
-import './workspace.css';
 
 const stateLabel: Record<PerformanceSession['state'], string> = {
   running: '运行中',
@@ -446,6 +446,12 @@ function PerformanceSessionPanel({
     sourceDevice.local_id === devices.selection.localId;
   const running = session?.state === 'running';
   const paused = session?.state === 'paused';
+  // 状态色只给状态本身，包名、进度、点数据保持中性灰。
+  const stateTone = running
+    ? 'text-[color:var(--success)]'
+    : paused
+      ? 'text-[color:var(--warning)]'
+      : 'text-[color:var(--text-faint)]';
   const waitJob =
     action.error instanceof PerformanceWaitFailure || action.error instanceof PerformanceJobFailure
       ? action.error.job.id
@@ -492,108 +498,136 @@ function PerformanceSessionPanel({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3">
-      <div className="flex shrink-0 flex-wrap items-center gap-3">
-        {session ? (
-          <>
-            <span className="flex items-center gap-2 font-mono text-[11px] text-[color:var(--text-muted)]">
-              <span
-                className={
-                  running
-                    ? 'text-[color:var(--success)]'
-                    : paused
-                      ? 'text-[color:var(--warning)]'
-                      : 'text-[color:var(--text-faint)]'
-                }
-              >
-                ● {stateLabel[session.state]}
+      {/* 一行工具条：左边只读状态，右边动作按主次收成一组，换行也不会散开。 */}
+      <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2">
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1.5">
+          {session ? (
+            <>
+              <span className="flex min-w-0 items-center gap-x-2.5 font-mono text-[11px]">
+                <span className="flex shrink-0 items-center gap-1.5">
+                  <span className={stateTone} aria-hidden>
+                    ●
+                  </span>
+                  <span className={stateTone}>{stateLabel[session.state]}</span>
+                </span>
+                <span className="truncate text-[color:var(--text-muted)]">
+                  {session.request.target.package}
+                </span>
+                <span className="shrink-0 tabular-nums text-[color:var(--text-muted)]">
+                  {elapsed.toFixed(0)}s / {targetDuration}s
+                </span>
+                <span className="shrink-0 tabular-nums text-[color:var(--text-faint)]">
+                  {readings.length} 点
+                </span>
               </span>
-              <span>{session.request.target.package}</span>
-              <span>
-                {elapsed.toFixed(0)}s / {targetDuration}s
-              </span>
-              <span>{readings.length} 点</span>
-            </span>
-            <div className="h-[3px] w-[160px] overflow-hidden rounded-full bg-[color:var(--surface-sunken)]">
               <div
-                className="h-full rounded-full bg-[color:var(--primary)]"
-                style={{ width: `${progress}%` }}
+                className="h-[3px] w-28 overflow-hidden rounded-full bg-[color:var(--surface-sunken)]"
+                role="progressbar"
+                aria-label="采集进度"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={Math.round(progress)}
+              >
+                <div
+                  className="h-full rounded-full bg-[color:var(--primary)]"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+            </>
+          ) : (
+            <span className="flex items-center gap-2 text-[12px] text-[color:var(--text-faint)]">
+              <span
+                className="size-1.5 rounded-full bg-[color:var(--hairline-strong)]"
+                aria-hidden
               />
-            </div>
-          </>
-        ) : (
-          <span className="text-[12px] text-[color:var(--text-faint)]">尚未开始采集</span>
-        )}
-        <div className="flex-1" />
-        <Sheet>
-          <SheetTrigger asChild>
-            <Button size="sm" variant="ghost">
-              会话与明细
-            </Button>
-          </SheetTrigger>
-          <SheetContent className="w-[420px] sm:max-w-[420px]">
-            <SheetHeader>
-              <SheetTitle>会话与明细</SheetTitle>
-            </SheetHeader>
-            <div className="min-h-0 flex-1 overflow-auto">
-              <SessionDrawer
-                sessions={sessions}
-                current={session}
-                readings={readings}
-                latest={latest}
-                session={session}
-                services={services}
-                loadId={loadId}
-                onLoadIdChange={setLoadId}
-                onLoad={() => {
-                  if (loadId) void action.run((signal) => readSession(loadId, signal));
-                }}
-                onSelect={(id) => void action.run((signal) => readSession(id, signal))}
-                onRefresh={() => void history.run((signal) => readHistory(false, signal))}
-                onNextPage={() => void history.run((signal) => readHistory(true, signal))}
-                hasNext={!!historyCursor}
-                pending={action.pending}
-              />
-            </div>
-          </SheetContent>
-        </Sheet>
-        {session && (
-          <>
-            <Button
-              size="sm"
-              variant="ghost"
-              disabled={!pauseAvailable || !running || action.pending}
-              onClick={() => void action.run((signal) => performance.pause(session.id, signal))}
-            >
-              暂停
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              disabled={
-                !resumeAvailable ||
-                !paused ||
-                !sameSource ||
-                !snapshot.liveAvailable ||
-                snapshot.needsReconcile ||
-                action.pending
-              }
-              onClick={() => void action.run((signal) => performance.resume(session.id, signal))}
-            >
-              继续
-            </Button>
-            <Button
-              size="sm"
-              variant="destructive"
-              disabled={!stopAvailable || !(running || paused) || action.pending}
-              onClick={() => void action.run((signal) => performance.stop(session.id, signal))}
-            >
-              终止
-            </Button>
-          </>
-        )}
-        <Button size="sm" disabled={!startAvailable || action.pending} onClick={() => setOpen(true)}>
-          {session ? '重新采集' : '开始采集'}
-        </Button>
+              尚未开始采集
+            </span>
+          )}
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1.5 rounded-[4px] bg-[color:var(--card)]"
+              >
+                <ListTree className="size-3.5" aria-hidden />
+                会话与明细
+              </Button>
+            </SheetTrigger>
+            <SheetContent className="w-full sm:max-w-[420px]">
+              <SheetHeader>
+                <SheetTitle>会话与明细</SheetTitle>
+              </SheetHeader>
+              <div className="min-h-0 flex-1 overflow-auto">
+                <SessionDrawer
+                  sessions={sessions}
+                  current={session}
+                  readings={readings}
+                  latest={latest}
+                  session={session}
+                  services={services}
+                  loadId={loadId}
+                  onLoadIdChange={setLoadId}
+                  onLoad={() => {
+                    if (loadId) void action.run((signal) => readSession(loadId, signal));
+                  }}
+                  onSelect={(id) => void action.run((signal) => readSession(id, signal))}
+                  onRefresh={() => void history.run((signal) => readHistory(false, signal))}
+                  onNextPage={() => void history.run((signal) => readHistory(true, signal))}
+                  hasNext={!!historyCursor}
+                  pending={action.pending}
+                />
+              </div>
+            </SheetContent>
+          </Sheet>
+          {session && (
+            <>
+              <Button
+                size="sm"
+                variant="ghost"
+                disabled={!pauseAvailable || !running || action.pending}
+                onClick={() => void action.run((signal) => performance.pause(session.id, signal))}
+              >
+                暂停
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                disabled={
+                  !resumeAvailable ||
+                  !paused ||
+                  !sameSource ||
+                  !snapshot.liveAvailable ||
+                  snapshot.needsReconcile ||
+                  action.pending
+                }
+                onClick={() => void action.run((signal) => performance.resume(session.id, signal))}
+              >
+                继续
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="text-[color:var(--destructive)] hover:bg-[color:var(--destructive)]/10 hover:text-[color:var(--destructive)]"
+                disabled={!stopAvailable || !(running || paused) || action.pending}
+                onClick={() => void action.run((signal) => performance.stop(session.id, signal))}
+              >
+                终止
+              </Button>
+            </>
+          )}
+          <span className="mx-1 h-5 w-px shrink-0 bg-[color:var(--hairline-strong)]" aria-hidden />
+          <Button
+            size="sm"
+            variant={session ? 'outline' : 'default'}
+            disabled={!startAvailable || action.pending}
+            onClick={() => setOpen(true)}
+          >
+            {session ? '重新采集' : '开始采集'}
+          </Button>
+        </div>
       </div>
       <CollectDialog
         devices={devices}
@@ -737,7 +771,7 @@ function RootProfilePanel({
               归档与导出
             </Button>
           </SheetTrigger>
-          <SheetContent className="w-[460px] sm:max-w-[460px]">
+          <SheetContent className="w-full sm:max-w-[460px]">
             <SheetHeader>
               <SheetTitle>归档与导出</SheetTitle>
             </SheetHeader>
@@ -866,6 +900,16 @@ function RootProfilePanel({
 
 type Source = 'session' | 'archive';
 
+// 模式切换按页头下划线 tab 处理：标题和切换共用一条发丝线，指示条压在线上的那 2px。
+const modeTabClass = [
+  'relative flex h-8 items-end px-0.5 pb-2.5 text-[12px] leading-none',
+  'text-[color:var(--text-muted)] transition-colors',
+  'after:absolute after:inset-x-0 after:-bottom-px after:h-0.5 after:bg-[color:var(--primary)]',
+  'after:opacity-0 after:transition-opacity',
+  'hover:text-[color:var(--text-strong)]',
+  'aria-pressed:text-[color:var(--text-strong)] aria-pressed:after:opacity-100',
+].join(' ');
+
 export function PerformancePage({ services }: { services: ProductServices }) {
   const devices = useSnapshot(services.runtime.devices);
   const [packageId, setPackageId] = useState('');
@@ -878,17 +922,12 @@ export function PerformancePage({ services }: { services: ProductServices }) {
       data-product-page="performance"
       aria-label="性能与调用栈"
     >
-      <header className="flex flex-wrap items-end justify-between gap-3">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-[22px] font-semibold text-[color:var(--text-strong)]">性能与调用栈</h1>
-          <span className="font-mono text-[11px] text-[color:var(--text-faint)]">
-            {devices.selected
-              ? `${devices.selected.model ?? reference?.localId ?? ''} · ${reference?.localId ?? ''}`
-              : '未选择设备'}
-            {packageId ? ` · ${packageId}` : ''}
-          </span>
-        </div>
-        <div className="flex h-9 items-center rounded-md bg-[color:var(--surface-sunken)] p-0.5">
+      {/* 页头用一条发丝线收口：标题停在线上，模式切换压在这条线上，不再是一块浮在角落的胶囊。 */}
+      <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-2 border-b border-[color:var(--hairline)]">
+        <h1 className="pb-2 text-[22px] font-semibold leading-tight text-[color:var(--text-strong)]">
+          性能与调用栈
+        </h1>
+        <div role="group" aria-label="采集方式" className="flex items-center gap-5">
           {(
             [
               ['session', '持续采样'],
@@ -898,32 +937,34 @@ export function PerformancePage({ services }: { services: ProductServices }) {
             <button
               key={value}
               type="button"
-              data-current={source === value}
+              aria-pressed={source === value}
               onClick={() => setSource(value)}
-              className="h-8 rounded-[4px] px-3 text-[12px] text-[color:var(--text-muted)] data-[current=true]:bg-[color:var(--card)] data-[current=true]:text-[color:var(--text-strong)]"
+              className={modeTabClass}
             >
               {label}
             </button>
           ))}
         </div>
       </header>
-      {source === 'session' ? (
-        <PerformanceSessionPanel
-          services={services}
-          devices={devices}
-          packageId={packageId}
-          onPackage={setPackageId}
-        />
-      ) : rootCompatible && reference ? (
-        <RootProfilePanel
-          key={JSON.stringify(reference)}
-          services={services}
-          reference={reference}
-          packageId={packageId}
-        />
-      ) : (
-        <EmptyState title="需要 Android 设备" description="归档录制只支持 Android 设备。" />
-      )}
+      <div className="flex min-h-0 flex-1 flex-col">
+        {source === 'session' ? (
+          <PerformanceSessionPanel
+            services={services}
+            devices={devices}
+            packageId={packageId}
+            onPackage={setPackageId}
+          />
+        ) : rootCompatible && reference ? (
+          <RootProfilePanel
+            key={JSON.stringify(reference)}
+            services={services}
+            reference={reference}
+            packageId={packageId}
+          />
+        ) : (
+          <EmptyState title="需要 Android 设备" description="归档录制只支持 Android 设备。" />
+        )}
+      </div>
     </section>
   );
 }

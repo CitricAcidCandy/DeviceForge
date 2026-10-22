@@ -405,6 +405,8 @@
   margin-inline: 0;
   /* 视口太矮时不压缩轨迹，改为整页滚动。 */
   min-height: 560px;
+  /* 仪器面板越宽越好读，不受全局 1600 限宽。 */
+  max-width: none;
 }
 /* 舞台型页面自己管边距：工作区不留内衬，画面顶到边缘。 */
 .product-shell[data-route='devices'] .workplane,

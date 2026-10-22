@@ -7,6 +7,13 @@ export { SelectField } from './SelectField/index.tsx';
 export type { SelectFieldProps, SelectFieldOption } from './SelectField/index.tsx';
 export { FileDropzone } from './FileDropzone/index.tsx';
 export type { FileDropzoneProps } from './FileDropzone/index.tsx';
+export { MultiTrackChart } from './MultiTrackChart/index.tsx';
+export type {
+  ChartSeries,
+  ChartPoint,
+  ChartTrack,
+  MultiTrackChartProps,
+} from './MultiTrackChart/index.tsx';
 export { Stepper } from './Stepper/index.tsx';
 export type { StepperProps, StepperStep } from './Stepper/index.tsx';
 export { DialogShell } from './DialogShell/index.tsx';

@@ -60,30 +60,6 @@ export function ProductShell({
   }
   // 顶栏身份：当前选中的设备跨页面都需要被看见，这里只拼一条事实行。
   // 状态文案与设备页的 deviceStates 保持一致；颜色之外必须给出文字，颜色不是唯一信息。
-  const deviceStateText: Readonly<Record<string, string>> = {
-    online: '在线',
-    offline: '离线',
-    unauthorized: '等待设备授权',
-    unknown: '状态未知',
-  };
-  const selectedDevice = devices.selected;
-  const selectedProvider = devices.providers.find(
-    (provider) =>
-      selectedDevice &&
-      provider.id === selectedDevice.reference.providerId &&
-      provider.generation === selectedDevice.reference.generation,
-  );
-  const identity = selectedDevice
-    ? {
-        name: selectedDevice.model ?? selectedDevice.reference.localId,
-        state: selectedDevice.state,
-        meta: [
-          deviceStateText[selectedDevice.state] ?? '状态未知',
-          selectedProvider?.definition.platform ?? '未知提供者',
-          selectedDevice.reference.localId,
-        ].join(' · '),
-      }
-    : null;
   useEffect(() => {
     const preference = window.matchMedia('(prefers-reduced-motion: reduce)');
     setReduced(preference.matches);
@@ -149,14 +125,11 @@ export function ProductShell({
           }}
           onNavigate={navigate}
           activeTasks={activeTasks}
-          identity={identity}
+          deviceSlot={route === 'devices' ? null : <DeviceContext services={services} />}
         />
         <div className="workspace-main">
           <div className="workspace-content">
             <main id="workplane" className="workplane" tabIndex={-1} data-product-workspace>
-              {(['performance', 'frida', 'automation'] as readonly ProductRoute[]).includes(
-                route,
-              ) && <DeviceContext services={services} />}
               {children}            </main>
           </div>
         </div>

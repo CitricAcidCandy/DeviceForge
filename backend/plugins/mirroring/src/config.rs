@@ -16,6 +16,13 @@ pub(crate) struct Live {
     pub server_version: String,
     pub video_encoder: Option<String>,
 }
+pub(crate) fn server_version(value: &str) -> Option<&'static str> {
+    match value {
+        "3.3.1" => Some("3.3.1"),
+        "3.3.4" => Some("3.3.4"),
+        _ => None,
+    }
+}
 fn valid_video_encoder(value: &str) -> bool {
     !value.is_empty()
         && value.len() <= 128
@@ -58,9 +65,9 @@ pub(crate) async fn read() -> Result<Config, String> {
         return Err("投屏部署版本或工具入口无效".into());
     }
     if let Some(live) = &config.live
-        && (!live.scrcpy_server.is_absolute() || live.server_version != "3.3.1")
+        && (!live.scrcpy_server.is_absolute() || server_version(&live.server_version).is_none())
     {
-        return Err("直播服务文件须为绝对路径且版本须为3.3.1".into());
+        return Err("直播服务文件须为绝对路径且版本须为3.3.1或3.3.4".into());
     }
     if config
         .live
@@ -74,7 +81,18 @@ pub(crate) async fn read() -> Result<Config, String> {
 }
 #[cfg(test)]
 mod tests {
-    use super::valid_video_encoder;
+    use super::{server_version, valid_video_encoder};
+
+    #[test]
+    fn only_qualified_server_versions_are_accepted() {
+        assert_eq!(server_version("3.3.1"), Some("3.3.1"));
+        assert_eq!(server_version("3.3.4"), Some("3.3.4"));
+        for value in [
+            "", "3.3.2", "3.3.40", "5.0.1", "3.3.4 ", "3.3.4;id", "3.3.4\n",
+        ] {
+            assert_eq!(server_version(value), None);
+        }
+    }
 
     #[test]
     fn encoder_name_cannot_escape_server_argument() {

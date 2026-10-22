@@ -85,19 +85,18 @@ test('时间轴刻度按跨度取整秒步长，并覆盖末端', async () => {
   assert.deepEqual([...new Set(ticks)], ['0', '2', '4', '6', '8', '10']);
 });
 
-test('帧率轨用真实采样点连折线，掉帧点单独标色', async () => {
+test('帧率轨交给图表组件渲染，右列显示选中点读数', async () => {
   const markup = await renderBoard(3);
-  assert.match(markup, /<polyline[^>]*stroke="var\(--primary\)"/);
-  const warning = markup.match(/bg-\[color:var\(--warning\)\]/g) ?? [];
-  assert.equal(warning.length, 1, '只有 41.5 fps 那一点低于下限');
+  assert.match(markup, /aria-label="帧率曲线"/, '帧率轨应渲染图表容器');
+  assert.match(markup, /30–60/, '量程写在标签列');
   assert.match(markup, />41\.5 fps</, '右列显示选中点的读数');
 });
 
 test('性能数据轨三条、数值进入共享右列', async () => {
   const markup = await renderBoard(3);
-  assert.match(markup, /CPU %/);
-  assert.match(markup, /内存 PSS/);
-  assert.match(markup, /内存 RSS/);
+  assert.match(markup, /aria-label="CPU % 曲线"/);
+  assert.match(markup, /aria-label="内存 PSS 曲线"/);
+  assert.match(markup, /aria-label="内存 RSS 曲线"/);
   assert.match(markup, />23 %</, '选中点 CPU 为 20 + 3');
   assert.match(markup, /0\.39 GB/, 'PSS 400 MiB 换算为 0.39 GB');
 });

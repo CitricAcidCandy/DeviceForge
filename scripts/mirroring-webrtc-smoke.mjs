@@ -12,10 +12,12 @@ import { poll } from './device-provider/client.mjs';
 
 const args = process.argv.slice(2);
 const option = (name) => args.find((item) => item.startsWith(name + '='))?.slice(name.length + 1);
-for (const name of ['--frozen-input', '--plugin-input', '--tool', '--browser'])
+for (const name of ['--frozen-input', '--plugin-input', '--tool', '--browser', '--server-version'])
   assert.ok(args.filter((item) => item.startsWith(name + '=')).length <= 1);
-assert.ok(args.every((item) => ['--frozen-input=', '--plugin-input=', '--tool=', '--browser='].some((prefix) => item.startsWith(prefix))));
+assert.ok(args.every((item) => ['--frozen-input=', '--plugin-input=', '--tool=', '--browser=', '--server-version='].some((prefix) => item.startsWith(prefix))));
 assert.ok(option('--frozen-input') && option('--plugin-input') && option('--tool'), '必须传入宿主、插件冻结目录和假ADB');
+const serverVersion = option('--server-version') ?? '3.3.1';
+assert.ok(['3.3.1', '3.3.4'].includes(serverVersion), '服务器版本仅支持3.3.1或3.3.4');
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const frozen = resolve(option('--frozen-input'));
@@ -24,6 +26,7 @@ const directory = join(root, 'artifacts', 'mirroring-webrtc-smoke-' + randomUUID
 const snapshot = join(directory, 'snapshot');
 const report = {
   timestamp: new Date().toISOString(), passed: false, checks: [], requests: [],
+  server_version: serverVersion,
   scope: '隔离宿主、同ID插件、真实Edge ICE/视频解码、假ADB/scrcpy及本次资源清理',
   limitations: ['假ADB与FFmpeg媒体不等于真机', '单机回环不等于同事局域网、NAT或TURN', '该驱动不部署到当前7031宿主'],
 };
@@ -53,9 +56,11 @@ try {
   const fixture = await prepareFixture(directory, join(snapshot, 'fake-adb.exe'), {
     'webrtc-check': {}, 'no-answer': {}, 'legacy-check': {},
   });
+  for (const device of ['webrtc-check', 'no-answer', 'legacy-check'])
+    await writeFile(join(fixture.plan(device), 'server-version'), serverVersion, { flag: 'wx' });
   report.media = await prepareMedia(snapshot, fixture, 'webrtc-check');
   const config = join(snapshot, 'mirroring.config.json');
-  await writeFile(config, JSON.stringify({ format_version: 1, scrcpy: fixture.adb, adb: fixture.adb, live: { scrcpy_server: fixture.server, server_version: '3.3.1' } }), { flag: 'wx' });
+  await writeFile(config, JSON.stringify({ format_version: 1, scrcpy: fixture.adb, adb: fixture.adb, live: { scrcpy_server: fixture.server, server_version: serverVersion } }), { flag: 'wx' });
   manifest.executable = join(snapshot, 'deviceforge-mirroring-plugin.exe');
   manifest.args = ['--config', config];
   host = await prepareHost({ root, binary: join(snapshot, 'apk-server.exe'), directory: join(directory, 'data'), report, port: await reservePort() });

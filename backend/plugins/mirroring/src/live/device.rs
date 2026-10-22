@@ -13,6 +13,7 @@ use std::{
 use tokio::net::TcpStream;
 static NEXT: AtomicU64 = AtomicU64::new(1);
 pub(crate) struct Device {
+    server_version: &'static str,
     pub directory: String,
     pub scid: String,
     pub port: Option<u16>,
@@ -38,6 +39,7 @@ impl Device {
             ordinal as u32
         );
         Self {
+            server_version: "3.3.1",
             directory: format!("/data/local/tmp/deviceforge_{nonce}"),
             scid: format!("{:08x}", ((value as u32) & 0x7fff_ffff).max(1)),
             port: None,
@@ -84,6 +86,9 @@ impl Device {
         video: bool,
     ) -> Result<(), String> {
         let live = config.live.as_ref().ok_or("未配置直播服务器")?;
+        // 在创建资源前固定本次版本，启动、就绪及清理始终核对同一进程身份。
+        self.server_version = crate::config::server_version(&live.server_version)
+            .ok_or("直播服务版本须为3.3.1或3.3.4")?;
         let meta = checked(context, async {
             tokio::fs::symlink_metadata(&live.scrcpy_server)
                 .await
@@ -205,8 +210,9 @@ impl Device {
             String::new()
         };
         format!(
-            "echo $$ > {dir}/pid && CLASSPATH={dir}/server.jar exec app_process / com.genymobile.scrcpy.Server 3.3.1 scid={scid} tunnel_forward=true video={video} video_bit_rate={rate} audio={audio}{audio_codec} max_size={size} max_fps={fps} control={control} clipboard_autosync={clipboard}{encoder} send_device_meta=false send_dummy_byte=false cleanup=false",
+            "echo $$ > {dir}/pid && CLASSPATH={dir}/server.jar exec app_process / com.genymobile.scrcpy.Server {version} scid={scid} tunnel_forward=true video={video} video_bit_rate={rate} audio={audio}{audio_codec} max_size={size} max_fps={fps} control={control} clipboard_autosync={clipboard}{encoder} send_device_meta=false send_dummy_byte=false cleanup=false",
             dir = self.directory,
+            version = self.server_version,
             scid = self.scid,
             audio = open.audio,
             control = open.control,
@@ -220,7 +226,8 @@ impl Device {
     }
     fn pid_identity_script(&self) -> String {
         format!(
-            "a=$(tr '\\000' '\\n' < /proc/$p/cmdline); n=$(printf '%s\\n' \"$a\" | head -n 1); [ \"$n\" = app_process ] && printf '%s\\n' \"$a\" | grep -Fxq com.genymobile.scrcpy.Server && printf '%s\\n' \"$a\" | grep -Fxq 3.3.1 && printf '%s\\n' \"$a\" | grep -Fxq scid={scid} && printf '%s\\n' \"$a\" | grep -Fxq tunnel_forward=true",
+            "a=$(tr '\\000' '\\n' < /proc/$p/cmdline); n=$(printf '%s\\n' \"$a\" | head -n 1); [ \"$n\" = app_process ] && printf '%s\\n' \"$a\" | grep -Fxq com.genymobile.scrcpy.Server && printf '%s\\n' \"$a\" | grep -Fxq {version} && printf '%s\\n' \"$a\" | grep -Fxq scid={scid} && printf '%s\\n' \"$a\" | grep -Fxq tunnel_forward=true",
+            version = self.server_version,
             scid = self.scid
         )
     }
@@ -433,6 +440,28 @@ fn cleanup_forward_port(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn qualified_version_is_shared_by_start_readiness_and_cleanup() {
+        let open: Open = serde_json::from_str(r#"{"device_id":"demo"}"#).unwrap();
+        for version in ["3.3.1", "3.3.4"] {
+            let mut device = Device::new();
+            device.server_version = crate::config::server_version(version).unwrap();
+            assert!(device.script(&open, None).contains(&format!(
+                "com.genymobile.scrcpy.Server {version} scid={} ",
+                device.scid
+            )));
+            assert!(
+                device
+                    .script_mode(&open, None, "raw", false)
+                    .contains(&format!("com.genymobile.scrcpy.Server {version} "))
+            );
+            for script in [device.ready_script(), device.cleanup_script()] {
+                assert!(script.contains(&format!("grep -Fxq {version} &&")));
+                assert!(script.contains(&format!("grep -Fxq scid={} &&", device.scid)));
+            }
+        }
+    }
+
     #[test]
     fn unique_resource_names_and_private_cleanup() {
         let first = Device::new();

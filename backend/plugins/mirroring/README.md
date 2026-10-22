@@ -4,7 +4,7 @@
 
 部署者通过旁置 mirroring.config.json 固定 scrcpy 与 adb，请求不选择入口路径。失败不发布部分视频，清理未确认保留 Failed，不以直接进程回收推断所有远端资源。
 
-新增协议 5 会话贡献 open，通过部署者固定的 scrcpy-server 3.3.1 与 ADB 提供 H264 Annex B 视频、48 kHz 双声道 PCM s16le 音频、实时触摸/按键/文本/剪贴板/旋转/视频重置。打开输入只指定设备与有限编码参数；部署配置示例见 mirroring.live.config.example.json。默认由设备选择编码器；可在 `live.video_encoder` 指定经过目标设备验证的名称。三星本轮实测中 `c2.android.avc.encoder` 触发系统原生崩溃，移除强制值后选中 `c2.qti.avc.encoder`。该设备强制设置 Baseline 参数也触发系统崩溃，相关尝试已撤销，WebRTC 仍按真实 SPS 生成协商。名称只接受 1 至 128 字节的 ASCII 字母、数字、点、下划线和短横线，不由浏览器请求选择。旧格式 1 和旧录制协议保持。
+新增协议 5 会话贡献 open，通过部署者固定的 scrcpy-server 3.3.1 或 3.3.4 与 ADB 提供 H264 Annex B 视频、48 kHz 双声道 PCM s16le 音频、实时触摸/按键/文本/剪贴板/旋转/视频重置。推荐部署官方 3.3.4，`live.server_version` 必须与服务文件一致；Android 17 的新增显示回调会使旧 3.3.1 进程崩溃，3.3.4 已包含上游兼容修复。启动、就绪与清理共同使用本次经过白名单校验的版本身份。打开输入只指定设备与有限编码参数；部署配置示例见 mirroring.live.config.example.json。默认由设备选择编码器；可在 `live.video_encoder` 指定经过目标设备验证的名称。三星本轮实测中 `c2.android.avc.encoder` 触发系统原生崩溃，移除强制值后选中 `c2.qti.avc.encoder`。该设备强制设置 Baseline 参数也触发系统崩溃，相关尝试已撤销，WebRTC 仍按真实 SPS 生成协商。名称只接受 1 至 128 字节的 ASCII 字母、数字、点、下划线和短横线，不由浏览器请求选择。旧格式 1 和旧录制协议保持。
 
 媒体采用 DFML 24 字节包头，包含类型、关键帧/配置标志、微秒时间戳、长度和代次。单载荷最多 4 MiB，按完整帧串行经过 8192 字节公开会话块。会话采用有界尾部缓存与连续输出模式，原截止点最长一小时；不能从过期游标或截断媒体继续解码。控制为 UTF-8 JSON 行且必须匹配当前 epoch，不回放旧代控制；EOF 只关闭控制输入。精确合同见 [实施文档](../../docs/implementation/投屏直播插件实施.md)。
 

@@ -14,7 +14,7 @@ rustc --edition 2021 scripts/mirroring-webrtc-smoke/fake-adb.rs -o artifacts/web
 node scripts/mirroring-webrtc-smoke.mjs --frozen-input=宿主冻结目录 --plugin-input=插件冻结目录 --tool=artifacts/webrtc-fake-adb.exe
 ```
 
-冻结宿主目录需有 `apk-server.exe`，插件目录需有 `manifest.json` 和 `deviceforge-mirroring-plugin.exe`。可传 `--browser=Edge绝对路径`。单独验证浏览器/CDP 可用：`node frontend/scripts/webrtc-browser-probe.ts --browser-smoke`。每轮在 `artifacts/mirroring-webrtc-smoke-*` 留存输入 SHA、媒体、隔离服务与浏览器报告；失败保留，不把早期版本通过外推到新版本。
+冻结宿主目录需有 `apk-server.exe`，插件目录需有 `manifest.json` 和 `deviceforge-mirroring-plugin.exe`。可传 `--browser=Edge绝对路径`；服务版本默认 3.3.1，验证新版时传 `--server-version=3.3.4`。夹具从各计划的固定文件独立读取期望版本，精确核对启动、就绪与清理，不能从生产命令反推期望。单独验证浏览器/CDP 可用：`node frontend/scripts/webrtc-browser-probe.ts --browser-smoke`。每轮在 `artifacts/mirroring-webrtc-smoke-*` 留存输入 SHA、媒体、隔离服务与浏览器报告；失败保留，不把早期版本通过外推到新版本。
 
 本轮只证明 Windows 本机假设备和真实 Edge。真机画面、音频播放、局域网防火墙、NAT/TURN、正式分发、持续运行和延迟另行验收。
 

@@ -5,6 +5,7 @@ import {
 } from '../../../../features/android-profile/index.ts';
 import type { StackSample } from '../../../../features/android-profile/index.ts';
 import { flamePercent, layoutFlamegraph } from '../ProfileFlamegraph/layout.ts';
+import { MultiTrackChart } from '../../../../components/MultiTrackChart/index.tsx';
 
 /**
  * 一条轨迹上的一个采样点。五个轨迹共用同一组 x（按真实时间戳换算），
@@ -53,6 +54,7 @@ function percent(value: number | null, top: number): number {
 function Track({
   label,
   note,
+  gutterBody,
   now,
   grow,
   fixed,
@@ -61,6 +63,8 @@ function Track({
 }: {
   label: string;
   note?: string | undefined;
+  /** 标签列里的副内容，例如性能三条的名称，避免占用绘图区宽度。 */
+  gutterBody?: React.ReactNode;
   now?: React.ReactNode;
   grow?: number;
   fixed?: number;
@@ -78,12 +82,17 @@ function Track({
           : { flexGrow: 0, flexShrink: 0, flexBasis: fixed }
       }
     >
-      <div className="w-[76px] shrink-0 py-3 pl-4">
+      <div className="flex w-[76px] shrink-0 flex-col py-3 pl-4">
         <span className="text-[11px] font-medium text-[color:var(--text-muted)]">{label}</span>
         {note && (
           <span className="mt-1 block text-[11px] leading-4 text-[color:var(--text-ghost)]">
             {note}
           </span>
+        )}
+        {gutterBody && (
+          <div className="mt-1 flex min-h-0 flex-1 flex-col justify-around text-[11px] text-[color:var(--text-muted)]">
+            {gutterBody}
+          </div>
         )}
       </div>
       <div className="min-w-0 flex-1 py-2 pr-2">{children}</div>
@@ -232,6 +241,20 @@ function AxisTrack({
   );
 }
 
+function nearestIndexAt(samples: readonly BoardSample[], x: number): number {
+  if (samples.length === 0) return 0;
+  let best = 0;
+  let distance = Number.POSITIVE_INFINITY;
+  samples.forEach((sample, index) => {
+    const gap = Math.abs(sample.t - x);
+    if (gap < distance) {
+      distance = gap;
+      best = index;
+    }
+  });
+  return best;
+}
+
 function nearestIndex(samples: readonly BoardSample[], span: number, ratio: number): number {
   if (samples.length === 0) return 0;
   const target = ratio * span;
@@ -260,7 +283,7 @@ function polyline(
     .join(' ');
 }
 
-/** 帧率轨：折线只连真实采样点，不做插值；高度按行高拉伸，点位用百分比。 */
+/** 帧率轨：折线与采样点交给 MultiTrackChart，量程固定 30–60。 */
 function FpsTrack({
   samples,
   span,
@@ -273,10 +296,9 @@ function FpsTrack({
   onSelect: (index: number) => void;
 }) {
   const points = samples.flatMap((sample) =>
-    sample.fps == null ? [] : [{ t: sample.t, value: sample.fps }],
+    sample.fps == null ? [] : [{ x: sample.t, y: sample.fps }],
   );
-  const jank = points.filter((point) => point.value < JANK_BELOW).length;
-  const level = (value: number) => (1 - percent(value, FPS_CEIL)) * 100;
+  const xDomain: readonly [number, number] = [0, Math.max(span, 0.001)];
   if (points.length === 0)
     return (
       <div className="flex h-full items-center">
@@ -284,59 +306,23 @@ function FpsTrack({
       </div>
     );
   return (
-    <div className="flex h-full min-h-0 gap-3">
-      <div className="flex w-[54px] shrink-0 flex-col justify-between py-1 text-[11px] text-[color:var(--text-ghost)]">
-        <span className="font-mono">{FPS_CEIL}</span>
-        {jank > 0 && <span className="font-mono text-[color:var(--warning)]">Jank {jank}</span>}
-        <span className="font-mono">{FPS_FLOOR}</span>
-      </div>
+    <div className="flex h-full min-h-0">
       <div className="min-w-0 flex-1">
-        <Plot
-          label="帧率曲线"
-          onPick={(ratio) => onSelect(nearestIndex(samples, span, ratio))}
-        >
-          {[FPS_CEIL, (FPS_CEIL + FPS_FLOOR) / 2, FPS_FLOOR].map((value) => (
-            <div
-              key={value}
-              className="absolute inset-x-0 h-px bg-[color:var(--hairline)]"
-              style={{ top: `${(1 - percent(value, FPS_CEIL)) * 100}%` }}
-            />
-          ))}
-          <svg
-            className="absolute inset-0 h-full w-full overflow-visible"
-            viewBox="0 0 1000 100"
-            preserveAspectRatio="none"
-            aria-hidden="true"
-          >
-            <polyline
-              points={polyline(points, span, FPS_CEIL)}
-              fill="none"
-              stroke="var(--primary)"
-              strokeWidth={1.5}
-              vectorEffect="non-scaling-stroke"
-              strokeLinejoin="round"
-            />
-          </svg>
-          {points.length <= 120 &&
-            points.map((point, index) => (
-              <span
-                key={index}
-                className={
-                  'pointer-events-none absolute h-[5px] w-[5px] -translate-x-1/2 -translate-y-1/2 rounded-full ' +
-                  (point.value < JANK_BELOW
-                    ? 'bg-[color:var(--warning)]'
-                    : 'bg-[color:var(--primary)]')
-                }
-                style={{ left: `${ratioOf(point.t, span) * 100}%`, top: `${level(point.value)}%` }}
-              />
-            ))}
-          {samples[selected] && (
-            <div
-              className="pointer-events-none absolute inset-y-0 w-px border-l border-dashed border-[color:var(--primary)]"
-              style={{ left: `${ratioOf(samples[selected].t, span) * 100}%` }}
-            />
-          )}
-        </Plot>
+        <MultiTrackChart
+          ariaLabel="帧率曲线"
+          xDomain={xDomain}
+          insets={{ left: 0, right: 0 }}
+          cursorX={samples[selected]?.t ?? null}
+          onPickX={(x) => onSelect(nearestIndexAt(samples, x))}
+          tracks={[
+            {
+              id: 'fps',
+              domain: [FPS_FLOOR, FPS_CEIL],
+              splitLine: true,
+              series: [{ id: 'fps', points, warnBelow: JANK_BELOW }],
+            },
+          ]}
+        />
       </div>
     </div>
   );
@@ -396,64 +382,41 @@ function PerfTrack({
         <p className="text-[12px] text-[color:var(--text-faint)]">无指标</p>
       </div>
     );
+  const xDomain: readonly [number, number] = [0, Math.max(span, 0.001)];
   return (
     <div className="flex h-full min-h-0 flex-col justify-between">
       {rows.map((row) => {
-        const top = Math.max(...row.points.map((point) => point.value), 1);
-        const floor = Math.min(...row.points.map((point) => point.value), 0);
-        const level = (value: number) =>
-          floor === top ? 50 : (1 - (value - floor) / (top - floor)) * 100;
+        const values = row.points.map((point) => point.value);
+        const top = Math.max(...values, 1);
+        const floor = Math.min(...values, 0);
+        const pad = top === floor ? Math.max(Math.abs(top) * 0.1, 1) : 0;
         return (
           <div
             key={row.label}
-            className="flex min-h-0 flex-1 items-center gap-3 border-t border-[color:var(--hairline)]/60 first:border-t-0"
+            className="flex min-h-0 flex-1 items-center border-t border-[color:var(--hairline)]/60 first:border-t-0"
           >
-            <span className="w-[54px] shrink-0 text-[11px] text-[color:var(--text-muted)]">
-              {row.label}
-            </span>
             <div className="h-full min-w-0 flex-1 py-[3px]">
-              <Plot
-                label={`${row.label} 曲线`}
-                onPick={(ratio) => onSelect(nearestIndex(samples, span, ratio))}
-              >
-                {row.points.length > 1 && (
-                  <svg
-                    className="absolute inset-0 h-full w-full overflow-visible"
-                    viewBox="0 0 1000 100"
-                    preserveAspectRatio="none"
-                    aria-hidden="true"
-                  >
-                    <polyline
-                      points={row.points
-                        .map(
-                          (point) =>
-                            `${(ratioOf(point.t, span) * 1000).toFixed(2)},${(floor === top ? 50 : (1 - (point.value - floor) / (top - floor)) * 100).toFixed(2)}`,
-                        )
-                        .join(' ')}
-                      fill="none"
-                      stroke="var(--primary)"
-                      strokeOpacity={0.55}
-                      strokeWidth={1.2}
-                      vectorEffect="non-scaling-stroke"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                )}
-                {row.points.length <= 120 &&
-                  row.points.map((point, index) => (
-                    <span
-                      key={index}
-                      className="pointer-events-none absolute h-[4px] w-[4px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[color:var(--primary)] opacity-70"
-                      style={{ left: `${ratioOf(point.t, span) * 100}%`, top: `${level(point.value)}%` }}
-                    />
-                  ))}
-                {cursor != null && (
-                  <div
-                    className="pointer-events-none absolute inset-y-0 w-px bg-[color:var(--accent)]"
-                    style={{ left: `${ratioOf(cursor, span) * 100}%` }}
-                  />
-                )}
-              </Plot>
+              <MultiTrackChart
+                ariaLabel={`${row.label} 曲线`}
+                xDomain={xDomain}
+                insets={{ left: 0, right: 0 }}
+                cursorX={cursor}
+                onPickX={(x) => onSelect(nearestIndexAt(samples, x))}
+                tracks={[
+                  {
+                    id: row.label,
+                    domain: [floor - pad, top + pad],
+                    series: [
+                      {
+                        id: row.label,
+                        points: row.points.map((point) => ({ x: point.t, y: point.value })),
+                        opacity: 0.9,
+                        width: 1.2,
+                      },
+                    ],
+                  },
+                ]}
+              />
             </div>
           </div>
         );
@@ -572,13 +535,17 @@ function BoardSkeleton() {
           ))}
         </div>
       </Track>
-      <Track label="性能数据" grow={2}>
+      <Track
+        label="性能数据"
+        gutterBody={[0, 1, 2].map((row) => (
+          <Shimmer key={row} className="h-[8px] w-[40px]" />
+        ))}
+        grow={2}
+      >
         <div className="flex h-full flex-col justify-around">
           {[0, 1, 2].map((row) => (
-            <div key={row} className="flex items-center gap-3">
-              <Shimmer className="h-[8px] w-[52px]" />
-              <Shimmer className="h-[2px] flex-1" />
-              <Shimmer className="h-[8px] w-[40px]" />
+            <div key={row} className="h-full">
+              <Shimmer className="h-[2px] w-full" />
             </div>
           ))}
         </div>
@@ -604,6 +571,7 @@ export function SampleBoard({
 }: SampleBoardProps) {
   const current = samples[selected];
   const rows = metricRows(samples, selected);
+  const jankCount = samples.filter((sample) => sample.fps != null && sample.fps < JANK_BELOW).length;
   if (samples.length === 0) return <BoardSkeleton />;
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[12px] border border-[color:var(--hairline)] bg-[color:var(--card)]">
@@ -626,6 +594,7 @@ export function SampleBoard({
       </Track>
       <Track
         label="帧率"
+        note={`${FPS_FLOOR}–${FPS_CEIL}${jankCount > 0 ? ` · Jank ${jankCount}` : ''}`}
         now={current?.fps == null ? '' : `${current.fps.toFixed(1)} fps`}
         grow={3}
       >
@@ -633,6 +602,9 @@ export function SampleBoard({
       </Track>
       <Track
         label="性能数据"
+        gutterBody={rows.map((row) => (
+          <span key={row.label}>{row.label}</span>
+        ))}
         grow={2}
         now={
           rows.every((row) => row.points.length === 0) ? null : (

@@ -54,7 +54,7 @@ export interface WorkspaceIdentity {
 export function WorkspaceHeader({
   route, collapsed, onCollapse, drawerOpen, onDrawerChange, reduced, onReducedChange,
   focused, onFocusedChange, connectionText, connectionError,
-  onRefreshConnection, onNavigate, activeTasks, identity,
+  onRefreshConnection, onNavigate, activeTasks, deviceSlot,
 }: {
   route: ProductRoute;
   collapsed: boolean;
@@ -70,8 +70,8 @@ export function WorkspaceHeader({
   onRefreshConnection(): void;
   onNavigate(route: ProductRoute): void;
   activeTasks: number;
-  /** 当前工作设备：有设备就常驻顶栏，跨页面都看得见自己在操作哪一台。 */
-  identity?: WorkspaceIdentity | null;
+  /** 当前工作设备的选择器：挂在顶栏，不占页面正文，跨页面都在。 */
+  deviceSlot?: React.ReactNode;
 }) {
   const currentRoute = PRODUCT_ROUTES.find((entry) => entry.id === route);
   return <header className="workspace-topbar global-bar">
@@ -94,13 +94,7 @@ export function WorkspaceHeader({
         <li className="breadcrumb-group">{currentRoute?.group}</li>
         <li aria-current="page"><ChevronRight aria-hidden="true" /><span>{currentRoute?.label}</span></li>
       </ol></nav>
-      {identity ? (
-        <div className="topbar-context">
-          <span className={`device-state-dot state-${identity.state}`} aria-hidden="true" />
-          <b>{identity.name}</b>
-          <span className="topbar-device-meta mono">{identity.meta}</span>
-        </div>
-      ) : null}
+      {deviceSlot}
     </div>
     <div className="global-actions">
       <span className="command-hint" aria-hidden="true">搜索或运行命令<kbd>Ctrl K</kbd></span>
