@@ -276,10 +276,10 @@ export function DeviceDirectory({
                     aria-label={`选择设备 ${device.model ?? device.reference.localId}，${platform}，${device.reference.localId}`}
                     onClick={() => select(device.reference)}
                     className={cn(
-                      'grid h-[92px] w-full grid-cols-[44px_minmax(0,1fr)_auto_16px] items-center gap-3.5 rounded-xl border bg-card px-4 text-left transition-colors',
+                      'grid h-[92px] w-full grid-cols-[44px_minmax(0,1fr)_auto_16px] items-center gap-3.5 rounded-[12px] border bg-card px-4 text-left transition-colors',
                       current
                         ? 'border-primary bg-accent/20'
-                        : 'border-hairline hover:border-hairline-strong hover:shadow-[0_10px_26px_-22px_rgba(23,27,36,0.55)]',
+                        : 'border-hairline hover:border-hairline-strong hover:shadow-card',
                     )}
                   >
                     <DeviceBadge

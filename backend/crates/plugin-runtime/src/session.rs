@@ -41,7 +41,7 @@ where
     let mut reader = BufReader::new(reader);
     let (open, context) = transport::handshake(&mut reader, &mut writer, options).await?;
     let id = open.session_id.clone();
-    let (execution, sequence) =
+    let (execution, sequence, completion_deadline) =
         lifecycle::run(&mut reader, &mut writer, open, context, options, handler).await?;
     transport::finished(
         &mut writer,
@@ -49,6 +49,7 @@ where
         sequence,
         execution,
         options.transport_grace,
+        completion_deadline,
     )
     .await
 }

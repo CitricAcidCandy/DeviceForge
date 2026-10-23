@@ -51,6 +51,12 @@ struct ChannelsNotice {
 
 impl Guard {
     fn finish(&mut self, exit: SessionExit) {
+        if self.spawned
+            && exit.process_exited
+            && let Some(lease) = &self.lease
+        {
+            lease.process_exited();
+        }
         if self.spawned && exit.cleanup != SessionCleanup::Complete {
             self.unresolved.store(true, Ordering::Release);
             if let Some(lease) = &self.lease {
@@ -163,6 +169,7 @@ async fn execute(call: &mut Call, guard: &mut Guard) -> SessionExit {
         resources.as_deref(),
         &call.cancel,
         deadline,
+        &call.unresolved,
     )
     .await
     {
@@ -206,7 +213,7 @@ async fn execute(call: &mut Call, guard: &mut Guard) -> SessionExit {
         command,
         options,
         hard_cancel,
-        Arc::new((files.clone(), tool_lease)),
+        Arc::new((files.clone(), tool_lease.process_lease())),
     )
     .await
     {

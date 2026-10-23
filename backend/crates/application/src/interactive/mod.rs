@@ -110,6 +110,13 @@ impl Application {
         if registered.owner.info().cleanup_failed {
             return Err(Error::CleanupFailed);
         }
+        if registered
+            .owner
+            .recovering
+            .load(std::sync::atomic::Ordering::Acquire)
+        {
+            return Err(Error::Conflict("插件正在核对资源，请稍后重试".into()));
+        }
         if tokio::time::Instant::now() >= deadline {
             return Err(Error::Timeout);
         }
@@ -137,6 +144,7 @@ impl Application {
             completion: None,
         };
         let cancel = registered.owner.cancel.child_token();
+        let recovery_input = input.clone();
         let launch = registered.provider.open(
             SessionRequest {
                 session_id: info.id.clone(),
@@ -164,6 +172,8 @@ impl Application {
         let consumer_owner = registered.owner.clone();
         let consumer_entry = entry.clone();
         let consumer_token = consumer_owner.tracker.token();
+        let recovery_app = self.clone();
+        let recovery_owner = consumer_owner.clone();
         let start = tokio_util::sync::CancellationToken::new();
         let supervisor_start = start.clone();
         let consumer_start = start.clone();
@@ -175,9 +185,14 @@ impl Application {
                 .await;
         }));
         self.tracker.spawn(LogContext::propagate(async move {
-            let _owner = consumer_token;
             consumer_start.cancelled().await;
             supervision::consume(launch.handle, consumer_entry, consumer_owner, completed).await;
+            drop(consumer_token);
+            // 仅在本次真实监督结束并释放owner凭据后做一次恢复，不重放会话。
+            tokio::task::yield_now().await;
+            recovery_app
+                .auto_recover_finished_session(recovery_owner, recovery_input)
+                .await;
         }));
         drop(entries);
         drop(active);

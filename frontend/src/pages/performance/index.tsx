@@ -49,6 +49,7 @@ import type { ProductServices } from '../../app/product/services.ts';
 import { BlobDownload } from '../../components/BlobDownload/index.tsx';
 import { PerformanceReadings, ProfileArchiveView, SampleBoard } from './components/index.ts';
 import type { BoardSample } from './components/index.ts';
+import { usePerformancePolling } from './hooks/usePerformancePolling.ts';
 
 const stateLabel: Record<PerformanceSession['state'], string> = {
   running: '运行中',
@@ -307,7 +308,7 @@ function CollectDialog({
   onPackage: (value: string) => void;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onStarted: () => void;
+  onStarted: (id: string) => void;
 }) {
   const operations = useSnapshot(services.runtime.operations);
   const action = useAction();
@@ -347,7 +348,7 @@ function CollectDialog({
       );
       if (!signal.aborted) {
         onOpenChange(false);
-        onStarted();
+        onStarted(result.data.id);
       }
       return result;
     });
@@ -436,6 +437,7 @@ function PerformanceSessionPanel({
   const pauseAvailable = useOperationAvailable(services, 'android.performance.pause');
   const resumeAvailable = useOperationAvailable(services, 'android.performance.resume');
   const stopAvailable = useOperationAvailable(services, 'android.performance.stop');
+  usePerformancePolling(performance, snapshot.selection, samplesAvailable);
   const session = snapshot.session;
   const sourceDevice = session?.source?.device;
   const sameSource =
@@ -477,10 +479,9 @@ function PerformanceSessionPanel({
   const progress = targetDuration > 0 ? Math.min(100, (elapsed / targetDuration) * 100) : 0;
 
   async function readSession(id: string, signal: AbortSignal) {
-    const result = await performance.select(id, signal);
-    if (samplesAvailable && !signal.aborted)
-      await performance.samples(id, { after: 0, limit: 100 }, signal);
-    return result;
+    return performance.snapshot().selection === id
+      ? performance.inspect(id, signal)
+      : performance.select(id, signal);
   }
 
   async function readHistory(next: boolean, signal: AbortSignal) {
@@ -636,9 +637,9 @@ function PerformanceSessionPanel({
         onPackage={onPackage}
         open={open}
         onOpenChange={setOpen}
-        onStarted={() => {
-          const id = services.runtime.performance.snapshot().session?.id;
-          if (id) void action.run((signal) => readSession(id, signal));
+        onStarted={(id) => {
+          setLoadId(id);
+          void action.run((signal) => readSession(id, signal), { success: null });
         }}
       />
       <SampleBoard

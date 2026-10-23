@@ -1,30 +1,24 @@
 import { useState } from 'react';
-import { Button } from '../../../../components/Button/index.tsx';
-import { Textarea } from '../../../../components/Textarea/index.tsx';
-import { Label } from '../../../../components/Label/index.tsx';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '../../../../components/Select/index.tsx';
-import { Field, EmptyState, JsonResult } from '../../../../components/index.ts';
-import { useOperationAvailable } from '../../../../app/product/capabilities.tsx';
-import { ActionFeedback, ErrorNotice } from '../../../../app/product/feedback.tsx';
+import { SlidersHorizontalIcon } from 'lucide-react';
+import { EmptyState, JsonResult } from '../../../../components/index.ts';
+import { ErrorNotice, ActionFeedback } from '../../../../app/product/feedback.tsx';
 import { useAction, useSnapshot } from '../../../../app/product/hooks.ts';
+import { useOperationAvailable } from '../../../../app/product/capabilities.tsx';
+import { cn } from '../../../../utils/classnames.ts';
 import type { ProductServices } from '../../../../app/product/services.ts';
+import { SessionList } from '../SessionList/index.tsx';
+import { PromptComposer } from '../PromptComposer/index.tsx';
+import { AiSettingsSheet } from '../AiSettingsSheet/index.tsx';
+import type {
+  AiMode,
+  QualificationView,
+  ThreadStatusView,
+} from '../AiSettingsSheet/index.tsx';
 
-type AiMode = 'stream' | 'single' | 'turn' | 'assistant';
 interface Answer {
   readonly text: string;
   readonly thread_id: string;
   readonly project_id: string;
-}
-interface Qualification {
-  readonly ready: boolean;
-  readonly projects: readonly string[];
-  readonly reason: string | null;
 }
 const itemNames: Readonly<Record<string, string>> = {
   agent_message: '回答',
@@ -36,25 +30,29 @@ const itemNames: Readonly<Record<string, string>> = {
   todo_list: '任务计划',
 };
 
+/**
+ * AI 助手主面板：左侧会话栏、中间会话流、设置收进右侧抽屉。
+ * 配置与线程操作不再常驻，主区只保留"当前在干什么"。
+ */
 export function AiProviderPanel({
   services,
   provider,
+  onProviderChange,
 }: {
   services: ProductServices;
   provider: 'sdk' | 'cli';
+  onProviderChange: (value: 'sdk' | 'cli') => void;
 }) {
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [project, setProject] = useState('');
   const [thread, setThread] = useState('');
   const [prompt, setPrompt] = useState('');
   const [resumeId, setResumeId] = useState('');
   const [mode, setMode] = useState<AiMode>('stream');
   const [answer, setAnswer] = useState<Answer | null>(null);
-  const [qualification, setQualification] = useState<Qualification | null>(null);
-  const [threadStatus, setThreadStatus] = useState<{
-    closed: boolean;
-    uncertain: boolean;
-    turns: string;
-  } | null>(null);
+  const [lastPrompt, setLastPrompt] = useState('');
+  const [qualification, setQualification] = useState<QualificationView | null>(null);
+  const [threadStatus, setThreadStatus] = useState<ThreadStatusView | null>(null);
   const action = useAction();
   const turn = useAction();
   const stream = provider === 'sdk' ? services.runtime.aiSdkStreaming : services.aiStreaming;
@@ -75,6 +73,23 @@ export function AiProviderPanel({
     ) ?? false;
   const liveSession = Boolean(current.session && current.session.status !== 'finished');
   const busy = turn.pending || action.pending;
+  const streamText = mode === 'stream' ? (current.stream.text ?? '') : '';
+  const answerText = streamText || answer?.text || '';
+  const items = mode === 'stream' ? current.stream.items : [];
+  const threadLabel = thread || project || '新会话';
+  const statusLabel = liveSession
+    ? '运行中'
+    : answerText
+      ? '已完成'
+      : current.session
+        ? String(current.session.status)
+        : '待发送';
+  const statusTone = liveSession
+    ? 'text-[color:var(--primary)]'
+    : answerText
+      ? 'text-[color:var(--success)]'
+      : 'text-[color:var(--text-faint)]';
+
   async function refresh(signal: AbortSignal) {
     await services.runtime.operations.refresh(signal);
     if (provider === 'sdk') await services.runtime.aiSdk.refreshOperations(signal);
@@ -82,6 +97,7 @@ export function AiProviderPanel({
     return stream.refreshRecords(signal);
   }
   async function submit(signal: AbortSignal) {
+    setLastPrompt(prompt);
     if (mode === 'stream') {
       await stream.refreshDefinitions(signal);
       await stream.open(
@@ -128,334 +144,316 @@ export function AiProviderPanel({
     }
     return result;
   }
+  function resetConversation() {
+    turn.cancel();
+    setThread('');
+    setAnswer(null);
+    setLastPrompt('');
+    setResumeId('');
+    setThreadStatus(null);
+  }
+  const submitLabel =
+    mode === 'stream'
+      ? '发送'
+      : mode === 'single'
+        ? '发起单次任务'
+        : mode === 'assistant'
+          ? '运行编排助手'
+          : '发起线程续聊';
+  const canSubmit =
+    Boolean(project) &&
+    Boolean(prompt.trim()) &&
+    !busy &&
+    (mode === 'stream' ? streamAvailable && !liveSession : canSubmitJob);
+
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3">
-      <div className="flex flex-wrap items-end gap-2 rounded-[12px] border border-[color:var(--hairline)] bg-[color:var(--card)] p-3">
-        <Field
-          label="项目 ID"
-          value={project}
-          onChange={(value) => {
-            turn.cancel();
-            setProject(value);
-            setThread('');
-            setThreadStatus(null);
-          }}
-          placeholder="服务器项目白名单中的 ID"
-        />
-        <Field
-          label="线程 ID"
-          value={thread}
-          onChange={(value) => {
-            turn.cancel();
-            setThread(value);
-            setThreadStatus(null);
-          }}
-        />
-        <div className="form-field w-40">
-          <Label htmlFor={`ai-mode-${provider}`}>执行方式</Label>
-          <Select
-            value={mode}
-            disabled={busy}
-            onValueChange={(value) => {
-              if (
-                value === 'stream' ||
-                value === 'single' ||
-                value === 'turn' ||
-                value === 'assistant'
-              )
-                setMode(value);
-            }}
-          >
-            <SelectTrigger id={`ai-mode-${provider}`}>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="stream">实时回答</SelectItem>
-              <SelectItem value="single">单次任务</SelectItem>
-              <SelectItem value="turn">线程续聊任务</SelectItem>
-              {provider === 'sdk' && <SelectItem value="assistant">编排助手任务</SelectItem>}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="flex-1" />
-        <Button variant="outline" size="sm" disabled={busy} onClick={() => void action.run(refresh)}>
-          刷新目录
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={!canStatus || busy}
-          onClick={() =>
-            void action.run(async (signal) => {
-              if (provider === 'sdk') {
-                await services.runtime.aiSdk.refreshOperations(signal);
-                const result = await services.runtime.aiSdk.runtimeStatus(signal);
-                if (!signal.aborted)
-                  setQualification({
-                    ready: result.data.ready,
-                    projects: result.data.projects,
-                    reason: result.data.reason,
-                  });
-                return result;
-              }
-              const result = await services.aiAssistant.runtimeStatus(signal);
-              if (!signal.aborted)
-                setQualification({
-                  ready: result.data.configured,
-                  projects: result.data.projects,
-                  reason: null,
-                });
-              return result;
-            })
-          }
-        >
-          检查配置
-        </Button>
-      </div>
-
-      {qualification && (
-        <p className="flex flex-wrap items-center gap-2 px-1 text-[13px] text-[color:var(--text-muted)]">
-          <span
-            className={
-              qualification.ready
-                ? 'text-[color:var(--success)]'
-                : 'text-[color:var(--warning)]'
-            }
-          >
-            ● {qualification.ready ? '运行资格就绪' : '运行资格未就绪'}
-          </span>
-          <span>{qualification.reason ?? '项目由服务器部署配置提供'}</span>
-          <span className="font-mono text-[12px] text-[color:var(--text-faint)]">
-            可用项目：{qualification.projects.join('、') || '无'}
-          </span>
-        </p>
-      )}
-
-      <div
-        className="flex min-h-0 flex-1 flex-col gap-3 overflow-auto rounded-[12px] border border-[color:var(--hairline)] bg-[color:var(--card)] px-4 py-3"
-        role="log"
-        aria-label={`${provider} 助手回答`}
-      >
-        {mode === 'stream' && current.stream.text ? (
-          <p className="whitespace-pre-wrap text-[14px] leading-[1.75] text-[color:var(--text-body)]">
-            {current.stream.text}
-          </p>
-        ) : answer ? (
-          <>
-            <p className="font-mono text-[12px] text-[color:var(--text-faint)]">
-              {answer.project_id} · 线程 {answer.thread_id}
-            </p>
-            <p className="whitespace-pre-wrap text-[14px] leading-[1.75] text-[color:var(--text-body)]">
-              {answer.text}
-            </p>
-          </>
-        ) : (
-          <div className="flex h-full items-center justify-center">
-            <p className="text-[13px] text-[color:var(--text-faint)]">输入问题开始对话</p>
+    <div className="flex min-h-0 flex-1">
+      <SessionList
+        items={current.records}
+        selectedId={resumeId}
+        onSelect={setResumeId}
+        onCreate={resetConversation}
+      />
+      <div className="flex min-h-0 flex-1 flex-col bg-[color:var(--card)]">
+        <header className="flex shrink-0 items-center justify-between gap-3 px-7 pb-3.5 pt-4">
+          <h1 className="min-w-0 truncate text-[17px] font-semibold text-[color:var(--text-strong)]">
+            {threadLabel}
+          </h1>
+          <div className="flex shrink-0 items-center gap-2">
+            <span
+              className={cn(
+                'flex h-6 items-center gap-1.5 rounded-[5px] bg-[color:var(--accent)] px-2 text-[11px] font-medium',
+                statusTone,
+              )}
+            >
+              <span
+                className={cn(
+                  'size-1.5 rounded-full',
+                  liveSession
+                    ? 'bg-[color:var(--primary)]'
+                    : answerText
+                      ? 'bg-[color:var(--success)]'
+                      : 'bg-[color:var(--text-ghost)]',
+                )}
+                aria-hidden="true"
+              />
+              {statusLabel}
+            </span>
+            <button
+              type="button"
+              onClick={() => setSettingsOpen(true)}
+              aria-label="打开对话设置"
+              className="flex size-7 items-center justify-center rounded-[5px] bg-[color:var(--surface-sunken)] text-[color:var(--text-body)] transition-colors hover:bg-[color:var(--surface-hover)]"
+            >
+              <SlidersHorizontalIcon className="size-3.5" aria-hidden="true" />
+            </button>
           </div>
-        )}
-        {current.stream.items.length > 0 && mode === 'stream' && (
-          <details className="mt-auto">
-            <summary className="text-[12px] text-[color:var(--text-muted)]">
-              执行过程 · {current.stream.items.length} 项
-            </summary>
-            <ul className="flex flex-col gap-1 pt-2 text-[13px] text-[color:var(--text-muted)]">
-              {current.stream.items.map((item) => (
-                <li key={item.item.id} className="flex gap-2">
-                  <span className="text-[color:var(--text-faint)]">
-                    {itemNames[item.item.type] ?? item.item.type}
-                  </span>
-                  <span>
-                    {item.item.status === 'completed'
-                      ? '完成'
-                      : item.item.status === 'failed'
-                        ? '失败'
-                        : '进行中'}
-                  </span>
-                  <span className="truncate">{item.item.text}</span>
-                </li>
-              ))}
-            </ul>
-          </details>
-        )}
-      </div>
+        </header>
+        <div className="h-px shrink-0 bg-[color:var(--hairline)]" aria-hidden="true" />
 
-      <div className="flex shrink-0 flex-col gap-2 rounded-[12px] border border-[color:var(--hairline)] bg-[color:var(--card)] p-3">
-        <Label htmlFor={`assistant-prompt-${provider}`} className="sr-only">
-          发给助手
-        </Label>
-        <textarea
+        <div
+          className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-7 py-4"
+          role="log"
+          aria-label={`${provider} 助手回答`}
+        >
+          {lastPrompt && (
+            <div className="flex justify-end">
+              <p className="max-w-[36rem] whitespace-pre-wrap rounded-[10px] bg-[color:var(--surface-sunken)] px-3.5 py-2.5 text-[14px] leading-[1.6] text-[color:var(--text-strong)]">
+                {lastPrompt}
+              </p>
+            </div>
+          )}
+          {answerText ? (
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-2">
+                <span
+                  className={cn(
+                    'size-1.5 rounded-full',
+                    liveSession ? 'bg-[color:var(--primary)]' : 'bg-[color:var(--success)]',
+                  )}
+                  aria-hidden="true"
+                />
+                <span className="font-mono text-[11px] font-medium tracking-[0.06em] text-[color:var(--text-faint)]">
+                  {provider === 'sdk' ? 'CODEX SDK' : 'CODEX CLI'}
+                </span>
+                <span className="font-mono text-[11px] text-[color:var(--text-ghost)]">
+                  {statusLabel}
+                </span>
+              </div>
+              <p className="whitespace-pre-wrap text-[14px] leading-[1.75] text-[color:var(--text-body)]">
+                {answerText}
+              </p>
+              {items.length > 0 && (
+                <div className="flex flex-col gap-1 pt-1">
+                  {items.map((item) => (
+                    <div
+                      key={item.item.id}
+                      className="flex items-center justify-between gap-3 rounded-[6px] bg-[color:var(--accent)] px-2.5 py-2"
+                    >
+                      <span className="truncate font-mono text-[12px] text-[color:var(--primary)]">
+                        {itemNames[item.item.type] ?? item.item.type} · {item.item.text}
+                      </span>
+                      <span
+                        className={cn(
+                          'shrink-0 font-mono text-[11px]',
+                          item.item.status === 'failed'
+                            ? 'text-[color:var(--destructive)]'
+                            : item.item.status === 'completed'
+                              ? 'text-[color:var(--success)]'
+                              : 'text-[color:var(--warning)]',
+                        )}
+                      >
+                        {item.item.status === 'completed'
+                          ? '完成'
+                          : item.item.status === 'failed'
+                            ? '失败'
+                            : '进行中'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : items.length === 0 ? (
+            <div className="flex min-h-[12rem] flex-1 items-center justify-center">
+              <EmptyState
+                title="还没有对话"
+                description="在下面描述要完成的任务，或用右侧对话设置调整连接方式。"
+              />
+            </div>
+          ) : null}
+        </div>
+
+        <PromptComposer
           id={`assistant-prompt-${provider}`}
           value={prompt}
-          onChange={(event) => setPrompt(event.target.value)}
           placeholder="描述要完成的任务…"
-          rows={3}
-          className="w-full resize-none rounded-md bg-transparent text-[14px] leading-[1.7] text-[color:var(--text-strong)] outline-none placeholder:text-[color:var(--text-ghost)]"
+          submitLabel={submitLabel}
+          pending={busy}
+          canSubmit={canSubmit}
+          canCancel={liveSession && !action.pending}
+          sessionLabel={`${current.session?.id ?? '未建立会话'} · ${current.session?.status ?? '待发送'}`}
+          actions={[
+            {
+              label: '检查配置',
+              disabled: !canStatus || busy,
+              onClick: () =>
+                void action.run(async (signal) => {
+                  if (provider === 'sdk') {
+                    await services.runtime.aiSdk.refreshOperations(signal);
+                    const result = await services.runtime.aiSdk.runtimeStatus(signal);
+                    if (!signal.aborted)
+                      setQualification({
+                        ready: result.data.ready,
+                        projects: result.data.projects,
+                        reason: result.data.reason,
+                      });
+                    return result;
+                  }
+                  const result = await services.aiAssistant.runtimeStatus(signal);
+                  if (!signal.aborted)
+                    setQualification({
+                      ready: result.data.configured,
+                      projects: result.data.projects,
+                      reason: null,
+                    });
+                  return result;
+                }),
+            },
+            {
+              label: '刷新目录',
+              disabled: busy,
+              onClick: () => void action.run(refresh),
+            },
+            {
+              label: '新建会话',
+              disabled: busy,
+              onClick: resetConversation,
+            },
+          ]}
+          onChange={setPrompt}
+          onSubmit={() => void turn.run(submit)}
+          onCancel={() => void action.run((signal) => stream.cancel(signal))}
         />
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            size="sm"
-            disabled={
-              !project ||
-              !prompt.trim() ||
-              busy ||
-              (mode === 'stream' && (!streamAvailable || liveSession)) ||
-              (mode !== 'stream' && !canSubmitJob)
-            }
-            onClick={() => void turn.run(submit)}
-          >
-            {mode === 'stream'
-              ? '发送'
-              : mode === 'single'
-                ? '发起单次任务'
-                : mode === 'assistant'
-                  ? '运行编排助手'
-                  : '发起线程续聊'}
-          </Button>
-          <Button size="sm" variant="ghost" disabled={!turn.pending} onClick={turn.cancel}>
-            暂停等待
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            disabled={!current.session || turn.pending}
-            onClick={() => void turn.run((signal) => stream.pollOutput({ limit: 100 }, signal))}
-          >
-            继续读取
-          </Button>
-          <div className="flex-1" />
-          <span className="font-mono text-[12px] text-[color:var(--text-ghost)]">
-            {current.session?.id ?? '未建立会话'} · {current.session?.status ?? '待发送'}
-          </span>
-          <Button
-            size="sm"
-            variant="destructive"
-            disabled={!liveSession || action.pending}
-            onClick={() => void action.run((signal) => stream.cancel(signal))}
-          >
-            停止本次会话
-          </Button>
+
+        <div className="px-7 pb-3">
+          <ErrorNotice error={current.terminalError} />
+          <ActionFeedback {...turn} />
+          <ActionFeedback {...action} />
+          <details className="text-[12px] text-[color:var(--text-ghost)]">
+            <summary className="cursor-pointer">原始结果</summary>
+            <JsonResult value={turn.result} />
+            <JsonResult value={action.result} />
+          </details>
         </div>
       </div>
 
-      <details className="shrink-0 rounded-[12px] border border-[color:var(--hairline)] bg-[color:var(--card)] px-4 py-2">
-        <summary className="text-[12px] text-[color:var(--text-muted)]">线程与会话管理</summary>
-        <div className="flex flex-col gap-2 pt-3">
-          <div className="flex flex-wrap gap-2">
-            <Button
-              size="sm"
-              variant="ghost"
-              disabled={!thread || !project || !canQuery || busy}
-              onClick={() =>
-                void action.run(async (signal) => {
-                  if (provider === 'sdk') {
-                    await services.runtime.aiSdk.refreshOperations(signal);
-                    const result = await services.runtime.aiSdk.getThread(
-                      { project_id: project, thread_id: thread },
-                      signal,
-                    );
-                    if (!signal.aborted) setThreadStatus(result.data);
-                    return result;
-                  }
-                  const result = await services.aiAssistant.getSession(
-                    { project_id: project, thread_id: thread },
-                    signal,
-                  );
-                  if (!signal.aborted) setThreadStatus(result.data);
-                  return result;
-                })
-              }
-            >
-              查询线程
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              disabled={!thread || !project || !canClose || busy}
-              onClick={() =>
-                void action.run(async (signal) => {
-                  if (provider === 'sdk') {
-                    await services.runtime.aiSdk.refreshOperations(signal);
-                    const result = await services.runtime.aiSdk.closeThread(
-                      { project_id: project, thread_id: thread },
-                      signal,
-                    );
-                    if (!signal.aborted) setThreadStatus(result.data);
-                    return result;
-                  }
-                  const result = await services.aiAssistant.closeSession(
-                    { project_id: project, thread_id: thread },
-                    signal,
-                  );
-                  if (!signal.aborted) setThreadStatus(result.data);
-                  return result;
-                })
-              }
-            >
-              关闭线程
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              disabled={!current.session || action.pending}
-              onClick={() => void action.run((signal) => stream.query(signal))}
-            >
-              查询会话状态
-            </Button>
-          </div>
-          {threadStatus && (
-            <p className="text-[12px] text-[color:var(--text-muted)]">
-              线程{threadStatus.closed ? '已关闭' : '开放'} · {threadStatus.turns} 轮 ·{' '}
-              {threadStatus.uncertain ? '状态存在不确定性，请重新查询' : '状态已确认'}
-            </p>
-          )}
-          <details>
-            <summary className="text-[12px] text-[color:var(--text-muted)]">恢复已有实时会话</summary>
-            <div className="flex flex-wrap items-end gap-2 pt-2">
-              <Field label="实时传输会话 ID" value={resumeId} onChange={setResumeId} />
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={!resumeId || !project || busy}
-                onClick={() =>
-                  void action.run((signal) =>
-                    stream.resume(
-                      resumeId,
-                      { project_id: project, ...(thread ? { thread_id: thread } : {}) },
-                      signal,
-                    ),
-                  )
-                }
-              >
-                恢复会话
-              </Button>
-            </div>
-            {current.records.length > 0 && (
-              <div className="flex flex-wrap gap-1 pt-2">
-                {current.records.map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => setResumeId(item.id)}
-                    className="rounded px-2 py-1 font-mono text-[12px] text-[color:var(--text-muted)] hover:bg-[color:var(--surface-hover)]"
-                  >
-                    {item.id.slice(0, 8)} · {item.status}
-                  </button>
-                ))}
-              </div>
-            )}
-          </details>
-        </div>
-      </details>
-
-      <ErrorNotice error={current.terminalError} />
-      <ActionFeedback {...turn} />
-      <ActionFeedback {...action} />
-      <details className="text-[12px] text-[color:var(--text-ghost)]">
-        <summary>原始结果</summary>
-        <JsonResult value={turn.result} />
-        <JsonResult value={action.result} />
-      </details>
+      <AiSettingsSheet
+        open={settingsOpen}
+        onOpenChange={setSettingsOpen}
+        provider={provider}
+        onProviderChange={onProviderChange}
+        mode={mode}
+        onModeChange={(value) => {
+          turn.cancel();
+          setMode(value);
+        }}
+        project={project}
+        onProjectChange={(value) => {
+          turn.cancel();
+          setProject(value);
+          setThread('');
+          setThreadStatus(null);
+        }}
+        thread={thread}
+        onThreadChange={(value) => {
+          turn.cancel();
+          setThread(value);
+          setThreadStatus(null);
+        }}
+        resumeId={resumeId}
+        onResumeIdChange={setResumeId}
+        busy={busy}
+        canStatus={canStatus}
+        canQuery={canQuery}
+        canClose={canClose}
+        qualification={qualification}
+        threadStatus={threadStatus}
+        records={current.records}
+        onRefresh={() => void action.run(refresh)}
+        onCheckStatus={() =>
+          void action.run(async (signal) => {
+            if (provider === 'sdk') {
+              await services.runtime.aiSdk.refreshOperations(signal);
+              const result = await services.runtime.aiSdk.runtimeStatus(signal);
+              if (!signal.aborted)
+                setQualification({
+                  ready: result.data.ready,
+                  projects: result.data.projects,
+                  reason: result.data.reason,
+                });
+              return result;
+            }
+            const result = await services.aiAssistant.runtimeStatus(signal);
+            if (!signal.aborted)
+              setQualification({
+                ready: result.data.configured,
+                projects: result.data.projects,
+                reason: null,
+              });
+            return result;
+          })
+        }
+        onQueryThread={() =>
+          void action.run(async (signal) => {
+            if (provider === 'sdk') {
+              await services.runtime.aiSdk.refreshOperations(signal);
+              const result = await services.runtime.aiSdk.getThread(
+                { project_id: project, thread_id: thread },
+                signal,
+              );
+              if (!signal.aborted) setThreadStatus(result.data);
+              return result;
+            }
+            const result = await services.aiAssistant.getSession(
+              { project_id: project, thread_id: thread },
+              signal,
+            );
+            if (!signal.aborted) setThreadStatus(result.data);
+            return result;
+          })
+        }
+        onCloseThread={() =>
+          void action.run(async (signal) => {
+            if (provider === 'sdk') {
+              await services.runtime.aiSdk.refreshOperations(signal);
+              const result = await services.runtime.aiSdk.closeThread(
+                { project_id: project, thread_id: thread },
+                signal,
+              );
+              if (!signal.aborted) setThreadStatus(result.data);
+              return result;
+            }
+            const result = await services.aiAssistant.closeSession(
+              { project_id: project, thread_id: thread },
+              signal,
+            );
+            if (!signal.aborted) setThreadStatus(result.data);
+            return result;
+          })
+        }
+        onResume={() =>
+          void action.run((signal) =>
+            stream.resume(
+              resumeId,
+              { project_id: project, ...(thread ? { thread_id: thread } : {}) },
+              signal,
+            ),
+          )
+        }
+        onQuerySession={() => void action.run((signal) => stream.query(signal))}
+        hasSession={Boolean(current.session)}
+      />
     </div>
   );
 }

@@ -28,7 +28,7 @@ pub(super) async fn run<R, W, F, Fut>(
     context: InvocationContext,
     options: SessionOptions,
     handler: F,
-) -> Result<(Execution, u64), String>
+) -> Result<(Execution, u64, Option<Instant>), String>
 where
     R: AsyncBufRead + Unpin,
     W: AsyncWrite + Unpin,
@@ -53,7 +53,13 @@ where
         handler(open, context, input, output).await
     };
     let controls = control::observe(reader, &id, sender, options, state.clone());
-    let outputs = pump::output(writer, &id, receiver, state.clone());
+    let outputs = pump::output(
+        writer,
+        &id,
+        receiver,
+        state.clone(),
+        options.transport_grace,
+    );
     tokio::pin!(work, controls, outputs);
     let mut execution = None;
     let mut output_result = None;
@@ -99,6 +105,6 @@ where
     }
     // 已有真实 Execution；后续终态传输成功与否不改变其 cleanup 字段。
     guard.armed = false;
-    let sequence = output_result.expect("会话输出监督已结束")?;
-    Ok((execution, sequence))
+    let (sequence, completion_deadline) = output_result.expect("会话输出监督已结束")?;
+    Ok((execution, sequence, completion_deadline))
 }

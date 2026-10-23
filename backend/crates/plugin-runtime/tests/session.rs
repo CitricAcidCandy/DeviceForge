@@ -10,3 +10,5 @@ mod limits;
 mod rejection;
 #[path = "session/support.rs"]
 mod support;
+#[path = "session/transport_recovery.rs"]
+mod transport_recovery;

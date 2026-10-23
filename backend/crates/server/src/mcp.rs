@@ -132,6 +132,31 @@ impl McpAdapter {
                 let input: PluginInput = decode(input)?;
                 encode(self.plugin_service()?.unload(input.id).await?)
             }
+            "deviceforge.plugin_recovery_status" => {
+                let input: PluginInput = decode(input)?;
+                encode(self.app.plugin_recovery_view(&input.id)?)
+            }
+            "deviceforge.recover_plugin" => {
+                #[derive(serde::Deserialize)]
+                #[serde(deny_unknown_fields)]
+                struct Input {
+                    id: String,
+                    generation: String,
+                    input: Value,
+                }
+                let input: Input = decode(input)?;
+                encode(
+                    self.app
+                        .recover_plugin(
+                            input.id,
+                            apk_domain::plugin_recovery::RecoveryInput {
+                                generation: input.generation,
+                                input: input.input,
+                            },
+                        )
+                        .await?,
+                )
+            }
             operation => encode(self.app.submit_async(operation.into(), input).await?),
         }
     }

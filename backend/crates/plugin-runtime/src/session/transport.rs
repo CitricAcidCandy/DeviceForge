@@ -54,15 +54,16 @@ where
 }
 
 pub(super) enum Written {
-    Complete,
+    Complete(Option<Instant>),
     Abandoned,
 }
 
-/// 半帧已写出后无法安全追加终态；零字节中断才可丢弃该输出帧。
+/// 取消后仅补完已经开始的当前帧，后续终态共享首次固定的传输截止点。
 pub(super) async fn output<W: AsyncWrite + Unpin>(
     writer: &mut W,
     event: &SessionEvent,
     state: &State,
+    grace: Duration,
 ) -> Result<Written, String> {
     event.validate().map_err(str::to_owned)?;
     let bytes = encode(event, SESSION_FRAME_LIMIT)?;
@@ -74,9 +75,9 @@ pub(super) async fn output<W: AsyncWrite + Unpin>(
             biased;
             _ = time::sleep_until(deadline) => {
                 state.fail(crate::ContextError::Timeout.to_string());
-                return interrupted(offset);
+                return interrupted(writer, &bytes, offset, grace).await;
             }
-            _ = cancel.cancelled() => return interrupted(offset),
+            _ = cancel.cancelled() => return interrupted(writer, &bytes, offset, grace).await,
             result = writer.write(&bytes[offset..]) => result.map_err(|_| "会话输出写入失败")?,
         };
         if count == 0 {
@@ -88,20 +89,35 @@ pub(super) async fn output<W: AsyncWrite + Unpin>(
         biased;
         _ = time::sleep_until(deadline) => {
             state.fail(crate::ContextError::Timeout.to_string());
-            interrupted(offset)
+            interrupted(writer, &bytes, offset, grace).await
         }
-        _ = cancel.cancelled() => interrupted(offset),
-        result = writer.flush() => result.map(|()| Written::Complete)
+        _ = cancel.cancelled() => interrupted(writer, &bytes, offset, grace).await,
+        result = writer.flush() => result.map(|()| Written::Complete(None))
             .map_err(|_| "会话输出刷新失败".into()),
     }
 }
 
-fn interrupted(offset: usize) -> Result<Written, String> {
+async fn interrupted<W: AsyncWrite + Unpin>(
+    writer: &mut W,
+    bytes: &[u8],
+    offset: usize,
+    grace: Duration,
+) -> Result<Written, String> {
     if offset == 0 {
-        Ok(Written::Abandoned)
-    } else {
-        Err("会话输出帧部分写入后中断，无法安全发送终态".into())
+        return Ok(Written::Abandoned);
     }
+    let until = Instant::now() + grace;
+    time::timeout_at(until, async {
+        writer
+            .write_all(&bytes[offset..])
+            .await
+            .map_err(|_| "会话在途帧补全失败")?;
+        writer.flush().await.map_err(|_| "会话在途帧刷新失败")
+    })
+    .await
+    .map_err(|_| "会话输出帧部分写入后在宽限内未完成，无法安全发送终态".to_owned())?
+    .map_err(str::to_owned)?;
+    Ok(Written::Complete(Some(until)))
 }
 
 // JSON 序列化本身也受帧上限约束，不先分配任意大的业务结果。
@@ -140,6 +156,7 @@ pub(super) async fn finished<W: AsyncWrite + Unpin>(
     sequence: u64,
     execution: Execution,
     grace: Duration,
+    completion_deadline: Option<Instant>,
 ) -> Result<(), String> {
     let outcome = match execution.outcome {
         Ok(output) => SessionOutcome {
@@ -168,8 +185,12 @@ pub(super) async fn finished<W: AsyncWrite + Unpin>(
             encode(&event, SESSION_FINISH_LIMIT)?
         }
     };
-    // 真实处理器已结束；此宽限只用于传输确认，不延长业务或清理期限。
-    time::timeout(grace, async {
+    // 补完过在途帧时不能再次授时；处理器过晚返回也不发送超期终态。
+    let until = completion_deadline.unwrap_or_else(|| Instant::now() + grace);
+    if Instant::now() >= until {
+        return Err("会话终态传输超过宽限".into());
+    }
+    time::timeout_at(until, async {
         writer
             .write_all(&bytes)
             .await
@@ -200,3 +221,6 @@ fn normalize_error(mut error: String) -> String {
     }
     error
 }
+
+#[cfg(test)]
+mod tests;

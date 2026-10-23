@@ -538,6 +538,7 @@ async fn v2_protocol_rejects_invalid_responses_and_preserves_null_envelope() {
         let plugin = crate::plugins::ProcessPlugin::new(Manifest {
             id: "probe".into(),
             configuration: None,
+            recovery: None,
             version: "0.1.0".into(),
             protocol_version: ARTIFACT_PROTOCOL_VERSION,
             executable: executable.to_string_lossy().into_owned(),

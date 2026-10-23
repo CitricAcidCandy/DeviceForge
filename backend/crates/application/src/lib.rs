@@ -22,6 +22,7 @@ pub mod plugin_configurations;
 pub mod plugin_installations;
 pub mod plugin_lifecycle;
 pub mod plugin_packages;
+pub mod plugin_recovery;
 pub mod registration;
 mod registry;
 mod registry_aliases;
@@ -48,6 +49,8 @@ pub struct Application {
     device_locks: devices::locks::Locks,
     device_refreshes: Arc<Semaphore>,
     sessions: interactive::Sessions,
+    recovery_cancel: CancellationToken,
+    recovery_slots: Arc<Semaphore>,
 }
 
 impl Application {
@@ -89,6 +92,8 @@ impl Application {
             device_locks: Default::default(),
             device_refreshes: Arc::new(Semaphore::new(2)),
             sessions: Default::default(),
+            recovery_cancel: CancellationToken::new(),
+            recovery_slots: Arc::new(Semaphore::new(2)),
         }))
     }
     pub fn operations(&self) -> Vec<Operation> {
@@ -191,6 +196,7 @@ impl Application {
             attempt.reject(devices::attempt::Rejection::Cancelled);
         }
         self.sessions.cancel_all();
+        self.recovery_cancel.cancel();
         for (id, token) in &tokens {
             if completions
                 .get(id)

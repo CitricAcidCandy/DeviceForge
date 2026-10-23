@@ -410,6 +410,10 @@ fn build_router(
         .route("/api/v2/plugins/{id}/load", post(plugin_routes::load))
         .route("/api/v2/plugins/{id}/unload", post(plugin_routes::unload))
         .route(
+            "/api/v2/plugins/{id}/recovery",
+            get(plugin_recovery::get).post(plugin_recovery::recover),
+        )
+        .route(
             "/api/v2/plugin-packages/{kind}",
             get(plugin_package_routes::list)
                 .post(plugin_package_routes::install)
@@ -655,6 +659,7 @@ mod plugin_installation_mcp;
 mod plugin_installation_openapi;
 pub mod plugin_installations;
 mod plugin_package_routes;
+mod plugin_recovery;
 mod plugin_routes;
 mod response_stream;
 mod responses;

@@ -290,21 +290,6 @@
   margin-top: 8px;
 }
 
-.media-segment {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 2px;
-  padding: 2px;
-  border-radius: 7px;
-  background: var(--surface-sunken);
-}
-.media-segment [data-slot='button'] {
-  height: 22px;
-  padding-inline: 6px;
-  border-radius: 5px;
-  font-size: 0.8125rem;
-  font-weight: 500;
-}
 /* 表单默认是「标签在左 144px」的横排；右栏只有 356px 内宽，统一改成标签在上。 */
 .workbench-rail .form-item {
   grid-template-columns: minmax(0, 1fr);
@@ -420,13 +405,14 @@
   display: flex;
   min-width: 0;
   min-height: 0;
-  /* 上下两条带子：上面给读数，下面给操作胶囊；中间全部是设备画面。 */
-  padding: 28px 20px 52px;
+  /* 上下两条带子：上面给读数，下面给操作胶囊与控制条；中间全部是设备画面。
+     下带高度由行内 --stage-bottom 传入——开启设备控制时控制条要站进来，不能压在画面上。 */
+  padding: 28px 20px var(--stage-bottom, 52px);
   background: var(--surface-canvas);
   overflow: hidden;
 }
 .workbench-stage:fullscreen {
-  padding: 28px 16px 52px;
+  padding: 28px 16px var(--stage-bottom, 52px);
   background: #0b0d12;
 }
 /*
@@ -556,22 +542,6 @@ video.media-canvas {
   outline: 2px solid var(--ring);
   outline-offset: -2px;
 }
-.media-frame-gesture {
-  position: absolute;
-  bottom: 12px;
-  left: 50%;
-  width: 34%;
-  height: 3px;
-  border-radius: 2px;
-  background: rgb(255 255 255 / 34%);
-  transform: translateX(-50%);
-  pointer-events: none;
-}
-.media-frame[data-orientation='landscape'] .media-frame-gesture {
-  bottom: 14px;
-  width: 18%;
-}
-
 /* 读数浮在舞台顶部那条带子里，不占画面高度。 */
 .media-stage-readout {
   position: absolute;
@@ -628,7 +598,7 @@ video.media-canvas {
   position: absolute;
   left: 0;
   right: 0;
-  bottom: 104px;
+  bottom: 82px;
   z-index: 2;
   margin: 0;
   font-size: 0.8125rem;
@@ -641,7 +611,7 @@ video.media-canvas {
 .media-controlbar {
   position: absolute;
   left: 50%;
-  bottom: 58px;
+  bottom: 44px;
   z-index: 3;
   display: flex;
   align-items: center;
@@ -703,7 +673,7 @@ video.media-canvas {
   .workbench-stage {
     grid-area: 1 / 1 / 2 / 2;
     /* 堆叠布局里画面更矮，上下两条带子跟着收一点，但必须保留，否则胶囊会压住画面。 */
-    padding: 24px 12px 50px;
+    padding: 24px 12px var(--stage-bottom-compact, 50px);
   }
   .media-stage-readout {
     /* 工具轨在这个断点贴左上角，读数条右移让位。 */

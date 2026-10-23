@@ -149,7 +149,10 @@ pub(crate) async fn invoke(
             app.session_remove(&request.id)?;
             encode(SessionRemoved { id: request.id })
         }
-        operation => encode(app.open_session(operation, input)?),
+        operation => encode(
+            app.open_session_recovering_with_client(operation, input, None)
+                .await?,
+        ),
     }
 }
 

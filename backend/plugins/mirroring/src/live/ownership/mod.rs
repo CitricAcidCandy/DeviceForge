@@ -1,3 +1,4 @@
+pub(crate) mod recovery;
 mod rules;
 mod state;
 mod storage;

@@ -14,6 +14,7 @@ pub use operation_execution::{OperationExecution, OperationExecutionSource};
 pub mod browser_configurations;
 pub mod interactive;
 pub mod plugin_configurations;
+pub mod plugin_recovery;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -130,6 +131,19 @@ pub trait Executor: Send + Sync {
     /// 默认用于无外部会话的执行器；合作插件不可确定清理后必须持续返回 true。
     fn has_unresolved_resources(&self) -> bool {
         false
+    }
+    /// 显式声明资源恢复预算，旧执行器默认不支持。
+    fn recovery_timeout(&self) -> Option<std::time::Duration> {
+        None
+    }
+    /// 只供排空并冻结准入后的恢复用例调用，不得重放普通业务。
+    async fn recover_resources(
+        &self,
+        _input: Value,
+        _cancel: CancellationToken,
+        _context: ExecutionContext,
+    ) -> Result<plugin_recovery::RecoveryReport> {
+        Err(Error::Conflict("当前插件不支持自动核对与恢复".into()))
     }
     async fn execute(
         &self,

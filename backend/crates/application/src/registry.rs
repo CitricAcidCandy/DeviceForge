@@ -20,9 +20,14 @@ pub(crate) struct Registered {
 }
 pub(crate) struct Owner {
     info: PluginInfo,
-    executor: Arc<dyn Executor>,
+    pub(crate) executor: Arc<dyn Executor>,
     draining: AtomicBool,
     unresolved: AtomicBool,
+    pub(crate) risk_revision: std::sync::atomic::AtomicU64,
+    pub(crate) recovering: AtomicBool,
+    pub(crate) recovery_admission: std::sync::Mutex<()>,
+    pub(crate) recovery_report:
+        std::sync::Mutex<Option<apk_domain::plugin_recovery::RecoveryReport>>,
     pub cancel: CancellationToken,
     pub tracker: TaskTracker,
     pub provider: Option<apk_domain::devices::DeviceProviderDefinition>,
@@ -44,7 +49,33 @@ impl Owner {
         info
     }
     pub(crate) fn mark_unresolved(&self) {
+        let _gate = self
+            .recovery_admission
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        self.risk_revision.fetch_add(1, Ordering::AcqRel);
         self.unresolved.store(true, Ordering::Release);
+    }
+    pub(crate) fn confirm_recovery(&self, expected: u64) -> bool {
+        let _gate = self
+            .recovery_admission
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if self.risk_revision.load(Ordering::Acquire) != expected {
+            return false;
+        }
+        self.unresolved.store(false, Ordering::Release);
+        true
+    }
+    pub(crate) fn claim(&self) -> Result<tokio_util::task::task_tracker::TaskTrackerToken> {
+        let _gate = self
+            .recovery_admission
+            .lock()
+            .map_err(|_| Error::Storage("插件资源准入异常".into()))?;
+        if self.recovering.load(Ordering::Acquire) {
+            return Err(Error::Conflict("插件正在核对资源".into()));
+        }
+        Ok(self.tracker.token())
     }
 }
 pub(crate) struct Snapshot {
@@ -277,6 +308,10 @@ impl Prepared {
             executor: plugin.executor.clone(),
             draining: AtomicBool::new(false),
             unresolved: AtomicBool::new(false),
+            risk_revision: std::sync::atomic::AtomicU64::new(0),
+            recovering: AtomicBool::new(false),
+            recovery_admission: std::sync::Mutex::new(()),
+            recovery_report: std::sync::Mutex::new(None),
             cancel: CancellationToken::new(),
             tracker: TaskTracker::new(),
             provider,
@@ -313,6 +348,9 @@ impl Registry {
             .owners
             .get(id)
             .ok_or_else(|| Error::NotFound("插件未加载".into()))?;
+        if owner.recovering.load(Ordering::Acquire) {
+            return Err(Error::Conflict("插件正在核对资源，暂不能卸载或替换".into()));
+        }
         if prepared.owner.info.id != id {
             return Err(Error::Invalid("重载插件身份不一致".into()));
         }
@@ -413,6 +451,9 @@ impl Registry {
             .get(id)
             .cloned()
             .ok_or_else(|| Error::NotFound("插件未加载".into()))?;
+        if owner.recovering.load(Ordering::Acquire) {
+            return Err(Error::Conflict("插件正在核对资源，暂不能卸载或替换".into()));
+        }
         if require_idle {
             if owner.info().cleanup_failed {
                 return Err(Error::CleanupFailed);
@@ -473,6 +514,11 @@ impl Registry {
             .0
             .write()
             .map_err(|_| Error::Storage("注册表排空异常".into()))?;
+        if owner.recovering.load(Ordering::Acquire) {
+            return Err(Error::Conflict(
+                "插件正在核对资源，排空完成需等待恢复结束".into(),
+            ));
+        }
         if snapshot
             .owners
             .get(&owner.info.id)

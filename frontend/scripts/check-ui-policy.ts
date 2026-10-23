@@ -32,7 +32,6 @@ const CSS_ALLOWLIST = new Set([
   'components/SchemaForm/styles.css',
   'components/SelectField/styles.css',
   'components/Stepper/styles.css',
-  'pages/ai/workspace.css',
   'pages/analysis/workspace.css',
   'pages/automation/workspace.css',
   'pages/devices/apps/workspace.css',
@@ -152,9 +151,6 @@ async function scanTsx(directory: string, checkPage: boolean): Promise<void> {
  * 规则与 CSS 清单一致——改到哪条，哪条就从基线里删掉；新增一律失败。
  */
 const BASELINE: Readonly<Record<string, readonly string[]>> = {
-    "pages/ai/index.tsx": [
-      "responsive"
-    ],
     "pages/analysis/index.tsx": [
       "responsive"
     ],

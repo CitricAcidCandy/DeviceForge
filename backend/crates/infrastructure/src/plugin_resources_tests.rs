@@ -52,14 +52,21 @@ impl Fixture {
         fs::write(&self.resources, serde_json::to_vec(&value).unwrap()).unwrap();
     }
     async fn acquire(&self) -> Result<Arc<ToolLease>> {
+        self.acquire_for(&Arc::new(AtomicBool::new(false))).await
+    }
+    async fn acquire_for(&self, unresolved: &Arc<AtomicBool>) -> Result<Arc<ToolLease>> {
         acquire(
             Some(&self.resources),
             &CancellationToken::new(),
             Instant::now() + Duration::from_secs(5),
+            unresolved,
         )
         .await
     }
 }
+
+#[path = "plugin_resources/recovery_tests.rs"]
+mod recovery_tests;
 
 #[tokio::test]
 async fn managed_acquire_waits_before_read_lease_and_unmanaged_calls_bypass_full_pool() {
@@ -76,6 +83,7 @@ async fn managed_acquire_waits_before_read_lease_and_unmanaged_calls_bypass_full
         None,
         &CancellationToken::new(),
         Instant::now() + Duration::from_secs(5),
+        &Arc::new(AtomicBool::new(false)),
     )
     .await
     .unwrap();

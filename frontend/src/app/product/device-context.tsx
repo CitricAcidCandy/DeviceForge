@@ -227,7 +227,7 @@ export function DeviceContext({ services }: { services: ProductServices }) {
           align="start"
           sideOffset={8}
           collisionPadding={12}
-          className="flex w-[372px] max-w-[calc(100vw-24px)] flex-col overflow-hidden rounded-[14px] border border-hairline bg-card p-0 shadow-[0_18px_42px_-24px_rgba(23,27,36,0.34)]"
+          className="flex w-[372px] max-w-[calc(100vw-24px)] flex-col overflow-hidden rounded-[14px] border border-hairline bg-card p-0 shadow-pop"
         >
           <div className="flex h-[46px] shrink-0 items-center justify-between gap-3 border-b border-hairline px-4">
             <span className="text-[11px] font-semibold tracking-[0.02em] text-faint">切换设备</span>
@@ -312,7 +312,7 @@ export function DeviceContext({ services }: { services: ProductServices }) {
             <div
               role="presentation"
               style={{ top: preview.top, left: preview.left }}
-              className="pointer-events-none fixed z-[60] hidden w-[232px] rounded-xl border border-hairline bg-card p-3.5 shadow-[0_18px_42px_-26px_rgba(23,27,36,0.38)] min-[900px]:block"
+              className="pointer-events-none fixed z-[60] hidden w-[232px] rounded-[12px] border border-hairline bg-card p-3.5 shadow-preview min-[900px]:block"
             >
               <div className="flex min-w-0 items-center gap-2.5">
                 <DeviceBadge

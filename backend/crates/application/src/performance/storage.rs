@@ -120,7 +120,7 @@ impl PerformanceService {
             .filter(|active| active.pending_terminal.is_none())
             .and_then(|active| active.runtime.owner());
         // 待重试终态只有历史归属，不向已排空的旧 owner 添加读闭包。
-        let token = owner.as_ref().map(|owner| owner.tracker.token());
+        let token = owner.as_ref().map(|owner| owner.claim()).transpose()?;
         Ok((owner, token))
     }
 
@@ -132,7 +132,7 @@ impl PerformanceService {
     ) -> Result<T> {
         // 排队也登记排空凭据；取得许可后将凭据整体转交真实工作闭包。
         let service_token = self.0.tracker.token();
-        let owner_token = owner.as_ref().map(|owner| owner.tracker.token());
+        let owner_token = owner.as_ref().map(|owner| owner.claim()).transpose()?;
         let permit = context
             .wait(self.0.storage_workers.clone().acquire_owned())
             .await?

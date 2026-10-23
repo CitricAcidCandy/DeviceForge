@@ -30,6 +30,8 @@ pub struct PortableServerManifest {
     pub id: String,
     pub version: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub recovery: Option<crate::recovery::RecoveryAccess>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub configuration: Option<crate::ConfigurationDefinition>,
     pub protocol_version: u32,
     #[serde(default)]

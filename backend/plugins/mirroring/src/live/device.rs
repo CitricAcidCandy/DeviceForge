@@ -1,10 +1,16 @@
 //! 本次服务器、远端目录和精确转发的资源所有权。
+mod cleanup;
+mod journal;
+
 use super::{checked, model::Open};
-use crate::config::Config;
+use crate::{
+    config::Config,
+    recovery::{self, Ledger, Stage},
+};
 use deviceforge_plugin_runtime::InvocationContext;
 use deviceforge_tool_process::{
-    Environment, ExecutionOptions, StreamOptions, StreamingProcess, ToolCommand, capture,
-    spawn_stream,
+    Environment, ExecutionOptions, StreamOptions, StreamingProcess, ToolCommand,
+    capture_with_lease, spawn_stream_with_lease,
 };
 use std::{
     sync::atomic::{AtomicU64, Ordering},
@@ -22,6 +28,7 @@ pub(crate) struct Device {
     pub server_attempted: bool,
     pub server: Option<StreamingProcess>,
     pub unresolved: bool,
+    ledger: Option<Ledger>,
 }
 impl Device {
     pub(crate) fn new() -> Self {
@@ -48,6 +55,7 @@ impl Device {
             server_attempted: false,
             server: None,
             unresolved: false,
+            ledger: None,
         }
     }
     pub(crate) async fn prepare(
@@ -102,16 +110,35 @@ impl Device {
         {
             return Err("直播服务文件无效或超限".into());
         }
-        // mkdir 可能已执行但响应丢失，因此调用前登记待清理的独占目录。
+        // 台账原子发布成功之前不允许任何 ADB 副作用。
+        self.ledger = Some(
+            recovery::new_record(
+                &open.device_id,
+                &self.directory,
+                &self.scid,
+                self.server_version,
+            )
+            .await?,
+        );
+        self.stage(journal::Resource::Directory, Stage::Attempting)
+            .await?;
         self.directory_created = true;
         command(
             config,
             &open.device_id,
-            vec!["shell".into(), "mkdir".into(), self.directory.clone()],
+            vec![
+                "shell".into(),
+                recovery::remote::create(&self.ledger.as_ref().ok_or("资源台账缺失")?.record),
+            ],
             context.deadline().into(),
             context.cancellation(),
+            self.tool_lease(),
         )
         .await?;
+        self.stage(journal::Resource::Directory, Stage::Confirmed)
+            .await?;
+        self.stage(journal::Resource::Upload, Stage::Attempting)
+            .await?;
         command(
             config,
             &open.device_id,
@@ -125,8 +152,13 @@ impl Device {
             ],
             context.deadline().into(),
             context.cancellation(),
+            self.tool_lease(),
         )
         .await?;
+        self.stage(journal::Resource::Upload, Stage::Confirmed)
+            .await?;
+        self.stage(journal::Resource::Forward, Stage::Attempting)
+            .await?;
         self.forward_attempted = true;
         let output = command(
             config,
@@ -139,6 +171,7 @@ impl Device {
             ],
             context.deadline().into(),
             context.cancellation(),
+            self.tool_lease(),
         )
         .await?;
         let port = std::str::from_utf8(&output)
@@ -147,6 +180,8 @@ impl Device {
             .filter(|value| *value != 0)
             .ok_or("ADB未返回有效独占端口")?;
         self.port = Some(port);
+        self.stage(journal::Resource::Forward, Stage::Confirmed)
+            .await?;
         let args = vec![
             "-s".into(),
             open.device_id.clone(),
@@ -165,10 +200,17 @@ impl Device {
         execution.stdout_limit = 1024 * 1024;
         execution.stderr_limit = 1024 * 1024;
         self.server_attempted = true;
+        self.stage(journal::Resource::Server, Stage::Attempting)
+            .await?;
         self.server = Some(
-            spawn_stream(tool, StreamOptions::new(execution), context.cancellation())
-                .await
-                .map_err(|_| "无法启动设备直播服务器")?,
+            spawn_stream_with_lease(
+                tool,
+                StreamOptions::new(execution),
+                context.cancellation(),
+                self.tool_lease().ok_or("资源台账租约缺失")?,
+            )
+            .await
+            .map_err(|_| "无法启动设备直播服务器")?,
         );
         let ready = command(
             config,
@@ -176,11 +218,26 @@ impl Device {
             vec!["shell".into(), self.ready_script()],
             context.deadline().into(),
             context.cancellation(),
+            self.tool_lease(),
         )
         .await?;
         if ready != b"DFML_READY\n" && ready != b"DFML_READY\r\n" {
             return Err("设备直播套接字未就绪".into());
         }
+        let record = &self.ledger.as_ref().ok_or("资源台账缺失")?.record;
+        let receipt = command(
+            config,
+            &open.device_id,
+            vec!["shell".into(), recovery::remote::receipt(record)],
+            context.deadline().into(),
+            context.cancellation(),
+            self.tool_lease(),
+        )
+        .await?;
+        let identity = recovery::remote::parse_identity(&receipt, record)?;
+        self.ledger.as_mut().ok_or("资源台账缺失")?.record.remote = Some(identity);
+        self.stage(journal::Resource::Server, Stage::Confirmed)
+            .await?;
         Ok(())
     }
     pub(crate) fn script(&self, open: &Open, video_encoder: Option<&str>) -> String {
@@ -209,8 +266,13 @@ impl Device {
         } else {
             String::new()
         };
+        let prefix = self
+            .ledger
+            .as_ref()
+            .map(|ledger| recovery::remote::launch_prefix(&ledger.record))
+            .unwrap_or_else(|| format!("echo $$ > {}/pid && ", self.directory));
         format!(
-            "echo $$ > {dir}/pid && CLASSPATH={dir}/server.jar exec app_process / com.genymobile.scrcpy.Server {version} scid={scid} tunnel_forward=true video={video} video_bit_rate={rate} audio={audio}{audio_codec} max_size={size} max_fps={fps} control={control} clipboard_autosync={clipboard}{encoder} send_device_meta=false send_dummy_byte=false cleanup=false",
+            "{prefix}CLASSPATH={dir}/server.jar exec app_process / com.genymobile.scrcpy.Server {version} scid={scid} tunnel_forward=true video={video} video_bit_rate={rate} audio={audio}{audio_codec} max_size={size} max_fps={fps} control={control} clipboard_autosync={clipboard}{encoder} send_device_meta=false send_dummy_byte=false cleanup=false",
             dir = self.directory,
             version = self.server_version,
             scid = self.scid,
@@ -225,6 +287,9 @@ impl Device {
         )
     }
     fn pid_identity_script(&self) -> String {
+        if let Some(ledger) = &self.ledger {
+            return recovery::remote::identity(&ledger.record);
+        }
         format!(
             "a=$(tr '\\000' '\\n' < /proc/$p/cmdline); n=$(printf '%s\\n' \"$a\" | head -n 1); [ \"$n\" = app_process ] && printf '%s\\n' \"$a\" | grep -Fxq com.genymobile.scrcpy.Server && printf '%s\\n' \"$a\" | grep -Fxq {version} && printf '%s\\n' \"$a\" | grep -Fxq scid={scid} && printf '%s\\n' \"$a\" | grep -Fxq tunnel_forward=true",
             version = self.server_version,
@@ -261,108 +326,6 @@ impl Device {
         })
         .await
     }
-    pub(crate) fn cleanup_script(&self) -> String {
-        // PID 与命令行身份精确匹配；PID 复用或无法核对时拒绝杀其他进程。
-        let await_pid = if self.server_attempted {
-            format!(
-                "i=0; while [ ! -f {dir}/pid ]; do i=$((i+1)); [ $i -le 10 ] || exit 77; sleep 0.05; done; ",
-                dir = self.directory
-            )
-        } else {
-            String::new()
-        };
-        let identity = self.pid_identity_script();
-        format!(
-            "{await_pid}if [ -f {dir}/pid ]; then p=$(cat {dir}/pid); case $p in ''|*[!0-9]*) exit 71;; esac; if [ -e /proc/$p ]; then {identity} || exit 72; kill -TERM $p || exit 73; i=0; while kill -0 $p 2>/dev/null; do i=$((i+1)); [ $i -le 20 ] || exit 74; sleep 0.05; done; fi; fi; rm -rf {dir} || exit 75; [ ! -e {dir} ] || exit 76; echo DFML_CLEAN",
-            dir = self.directory,
-            identity = identity
-        )
-    }
-    pub(crate) async fn cleanup(&mut self, config: &Config, open: &Open) -> bool {
-        let mut complete = !self.unresolved;
-        let mut owned_port = None;
-        if let Some(server) = self.server.as_mut() {
-            server.cancel();
-            if server.wait().await.is_err_and(|error| {
-                matches!(error, deviceforge_tool_process::Error::CleanupFailed { .. })
-            }) {
-                complete = false;
-            }
-        }
-        self.server = None;
-        // 直接进程已有独立的回收上限；远端清理不复用已被退出等待消耗的预算。
-        // 后续全部远端命令共享本阶段绝对期限，不能逐条续期。
-        let deadline = tokio::time::Instant::now() + Duration::from_secs(2);
-        if self.directory_created {
-            let result = command(
-                config,
-                &open.device_id,
-                vec!["shell".into(), self.cleanup_script()],
-                deadline,
-                tokio_util::sync::CancellationToken::new(),
-            )
-            .await;
-            if !matches!(result,Ok(ref output) if output==b"DFML_CLEAN\n" || output==b"DFML_CLEAN\r\n")
-            {
-                complete = false;
-            }
-        }
-        // 删除前精确核对归属；原端口已被别人复用时不得删除其映射。
-        if self.forward_attempted {
-            let result = command(
-                config,
-                &open.device_id,
-                vec!["forward".into(), "--list".into()],
-                deadline,
-                tokio_util::sync::CancellationToken::new(),
-            )
-            .await;
-            match result.and_then(|output| {
-                cleanup_forward_port(&output, &open.device_id, &self.scid, self.port)
-            }) {
-                Ok(Some(port)) if self.port.is_none() || self.port == Some(port) => {
-                    self.port = Some(port);
-                    owned_port = Some(port);
-                }
-                Ok(None) => self.port = None,
-                Ok(Some(_)) => {
-                    complete = false;
-                }
-                Err(_) => complete = false,
-            }
-        }
-        if let Some(port) = owned_port {
-            if command(
-                config,
-                &open.device_id,
-                vec!["forward".into(), "--remove".into(), format!("tcp:{port}")],
-                deadline,
-                tokio_util::sync::CancellationToken::new(),
-            )
-            .await
-            .is_err()
-            {
-                complete = false;
-            } else {
-                let result = command(
-                    config,
-                    &open.device_id,
-                    vec!["forward".into(), "--list".into()],
-                    deadline,
-                    tokio_util::sync::CancellationToken::new(),
-                )
-                .await;
-                if !matches!(
-                    result.and_then(|output| forward_port(&output, &open.device_id, &self.scid)),
-                    Ok(None)
-                ) {
-                    complete = false;
-                }
-            }
-        }
-        self.unresolved = !complete;
-        complete
-    }
 }
 async fn command(
     config: &Config,
@@ -370,17 +333,10 @@ async fn command(
     args: Vec<String>,
     deadline: tokio::time::Instant,
     cancel: tokio_util::sync::CancellationToken,
+    lease: Option<std::sync::Arc<recovery::ledger::ToolLease>>,
 ) -> Result<Vec<u8>, String> {
-    let mut argv = vec!["-s".into(), device.into()];
-    argv.extend(args);
-    let mut tool = ToolCommand::new(&config.adb, &argv);
-    tool.environment = Environment::Restricted;
-    let mut options = ExecutionOptions::new(deadline);
-    options.stdout_limit = 8192;
-    options.stderr_limit = 8192;
-    capture(tool, options, cancel)
+    command_result(config, device, args, deadline, cancel, lease)
         .await
-        .map(|output| output.stdout)
         .map_err(|error| {
             if matches!(error, deviceforge_tool_process::Error::CleanupFailed { .. }) {
                 "ADB直播直接进程清理未确认".into()
@@ -389,52 +345,39 @@ async fn command(
             }
         })
 }
-fn forward_port(output: &[u8], device: &str, scid: &str) -> Result<Option<u16>, String> {
-    let text = std::str::from_utf8(output).map_err(|_| "ADB转发清单无效")?;
-    let remote = format!("localabstract:scrcpy_{scid}");
-    let mut port = None;
-    for line in text.lines() {
-        let fields: Vec<_> = line.split_ascii_whitespace().collect();
-        if fields.len() == 3 && fields[0] == device && fields[2] == remote {
-            let parsed = fields[1]
-                .strip_prefix("tcp:")
-                .and_then(|value| value.parse::<u16>().ok())
-                .filter(|value| *value != 0)
-                .ok_or("ADB转发端口无效")?;
-            if port.replace(parsed).is_some() {
-                return Err("ADB独占转发归属冲突".into());
-            }
-        }
-    }
-    Ok(port)
-}
 
-fn cleanup_forward_port(
-    output: &[u8],
+async fn command_result(
+    config: &Config,
     device: &str,
-    scid: &str,
-    expected: Option<u16>,
-) -> Result<Option<u16>, String> {
-    let owned = forward_port(output, device, scid)?;
-    if let Some(expected) = expected {
-        let text = std::str::from_utf8(output).map_err(|_| "ADB转发清单无效")?;
-        let local = format!("tcp:{expected}");
-        let remote = format!("localabstract:scrcpy_{scid}");
-        for line in text.lines().filter(|line| !line.trim().is_empty()) {
-            let fields: Vec<_> = line.split_ascii_whitespace().collect();
-            if fields.len() != 3 {
-                return Err("ADB转发清单无效".into());
-            }
-            // 本地 TCP 端口属于 ADB 全局映射，其他设备复用也不得删除或宣称确认。
-            if fields[1] == local && (fields[0] != device || fields[2] != remote) {
-                return Err("ADB独占转发端口已被其他归属使用".into());
-            }
-        }
-        if owned.is_some_and(|port| port != expected) {
-            return Err("ADB独占转发端口与原归属不符".into());
-        }
+    args: Vec<String>,
+    deadline: tokio::time::Instant,
+    cancel: tokio_util::sync::CancellationToken,
+    lease: Option<std::sync::Arc<recovery::ledger::ToolLease>>,
+) -> Result<Vec<u8>, deviceforge_tool_process::Error> {
+    let mut argv = vec!["-s".into(), device.into()];
+    argv.extend(args);
+    let mut tool = ToolCommand::new(&config.adb, &argv);
+    tool.environment = Environment::Restricted;
+    let mut options = ExecutionOptions::new(deadline);
+    options.stdout_limit = 8192;
+    options.stderr_limit = 8192;
+    if let Some(lease) = lease {
+        capture_with_lease(tool, options, cancel, lease)
+            .await
+            .map(|output| output.stdout)
+    } else {
+        let lease = recovery::process_lease(true)
+            .await
+            .map_err(|error| {
+                deviceforge_tool_process::Error::ProcessIo(std::io::Error::other(error))
+            })?
+            .ok_or_else(|| {
+                deviceforge_tool_process::Error::ProcessIo(std::io::Error::other("插件正在恢复"))
+            })?;
+        capture_with_lease(tool, options, cancel, lease)
+            .await
+            .map(|output| output.stdout)
     }
-    Ok(owned)
 }
 
 #[cfg(test)]
@@ -462,105 +405,6 @@ mod tests {
         }
     }
 
-    #[test]
-    fn unique_resource_names_and_private_cleanup() {
-        let first = Device::new();
-        let second = Device::new();
-        assert_ne!(first.directory, second.directory);
-        assert!(first.directory.starts_with("/data/local/tmp/deviceforge_"));
-        let script = first.cleanup_script();
-        assert!(script.contains(&format!("grep -Fxq scid={}", first.scid)));
-        assert!(script.contains("grep -Fxq com.genymobile.scrcpy.Server"));
-        assert!(script.contains("|| exit 72"));
-        assert!(!script.contains("pkill"));
-        assert!(!script.contains("kill-server"));
-    }
-    #[test]
-    fn lost_forward_reply_requires_exact_owner() {
-        assert_eq!(
-            forward_port(
-                b"other tcp:8 localabstract:scrcpy_1234\ndemo tcp:42 localabstract:scrcpy_1234\n",
-                "demo",
-                "1234"
-            )
-            .unwrap(),
-            Some(42)
-        );
-        assert!(
-            forward_port(
-                b"demo tcp:42 localabstract:scrcpy_1234\ndemo tcp:43 localabstract:scrcpy_1234\n",
-                "demo",
-                "1234"
-            )
-            .is_err()
-        );
-        assert_eq!(forward_port(b"", "demo", "1234").unwrap(), None);
-    }
-    #[test]
-    fn reused_known_port_never_confirms_or_deletes_foreign_forward() {
-        assert!(
-            cleanup_forward_port(
-                b"demo tcp:42 localabstract:foreign\n",
-                "demo",
-                "1234",
-                Some(42)
-            )
-            .is_err()
-        );
-        assert!(
-            cleanup_forward_port(
-                b"other tcp:42 localabstract:scrcpy_1234\n",
-                "demo",
-                "1234",
-                Some(42)
-            )
-            .is_err()
-        );
-        assert!(
-            cleanup_forward_port(
-                b"demo tcp:43 localabstract:scrcpy_1234\n",
-                "demo",
-                "1234",
-                Some(42)
-            )
-            .is_err()
-        );
-        assert_eq!(
-            cleanup_forward_port(
-                b"demo tcp:42 localabstract:scrcpy_1234\n",
-                "demo",
-                "1234",
-                Some(42)
-            )
-            .unwrap(),
-            Some(42)
-        );
-        assert_eq!(
-            cleanup_forward_port(
-                b"other tcp:43 localabstract:foreign\n",
-                "demo",
-                "1234",
-                Some(42)
-            )
-            .unwrap(),
-            None
-        );
-        assert_eq!(
-            cleanup_forward_port(b"", "demo", "1234", Some(42)).unwrap(),
-            None
-        );
-    }
-
-    #[test]
-    fn attempted_server_without_pid_is_never_claimed_clean() {
-        let mut device = Device::new();
-        assert!(!device.cleanup_script().contains("exit 77"));
-        device.server_attempted = true;
-        let script = device.cleanup_script();
-        assert!(script.starts_with("i=0; while [ ! -f "));
-        assert!(script.contains("[ $i -le 10 ] || exit 77"));
-        assert!(script.find("exit 77").unwrap() < script.find("rm -rf").unwrap());
-    }
     #[test]
     fn readiness_requires_owned_process_and_socket() {
         let device = Device::new();

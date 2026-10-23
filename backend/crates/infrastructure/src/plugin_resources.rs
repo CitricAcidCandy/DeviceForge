@@ -1,19 +1,19 @@
-//! 受限阻塞校验与真实进程工具租约；未确认的外部资源保守保留到宿主退出。
+//! 受限阻塞校验与真实进程工具租约；未确认资源进入可显式恢复的有界债务台账。
 use apk_domain::{Error, Result};
 use apk_plugin_sdk::resources::ManagedResources;
 use deviceforge_tool_repository::{ReadLease, Repository};
 use std::{
     path::Path,
-    sync::{
-        Arc, OnceLock,
-        atomic::{AtomicBool, Ordering},
-    },
+    sync::{Arc, OnceLock, atomic::AtomicBool},
 };
 use tokio::{
     sync::{OwnedSemaphorePermit, Semaphore},
     time::Instant,
 };
 use tokio_util::sync::CancellationToken;
+mod recovery;
+
+pub(crate) use recovery::{confirm_recovery, recovery_ready};
 
 struct ValidationPool {
     workers: Arc<Semaphore>,
@@ -78,21 +78,31 @@ fn validation_pool() -> &'static ValidationPool {
 
 pub(crate) struct ToolLease {
     reader: Option<ReadLease>,
-    retained: AtomicBool,
+    recovery: recovery::Call,
 }
 impl ToolLease {
+    fn new(reader: Option<ReadLease>, unresolved: &Arc<AtomicBool>) -> Result<Arc<Self>> {
+        Ok(Arc::new(Self {
+            reader,
+            recovery: recovery::Call::register(unresolved)?,
+        }))
+    }
+
     pub(crate) fn retain(&self) {
-        self.retained.store(true, Ordering::Release);
+        self.recovery.retain();
+    }
+
+    pub(crate) fn process_exited(&self) {
+        self.recovery.process_exited();
+    }
+
+    pub(crate) fn process_lease(self: &Arc<Self>) -> Arc<recovery::ProcessLease> {
+        Arc::new(recovery::ProcessLease(self.clone()))
     }
 }
 impl Drop for ToolLease {
     fn drop(&mut self) {
-        if self.retained.load(Ordering::Acquire)
-            && let Some(reader) = self.reader.take()
-        {
-            // 外部资源退出无法证明，不能用直接子进程退出替代工具使用结束。
-            std::mem::forget(reader);
-        }
+        self.recovery.release(self.reader.take());
     }
 }
 fn shared_error(error: deviceforge_tool_repository::Error) -> Error {
@@ -110,16 +120,15 @@ pub(crate) async fn acquire(
     path: Option<&Path>,
     cancel: &CancellationToken,
     deadline: Instant,
+    unresolved: &Arc<AtomicBool>,
 ) -> Result<Arc<ToolLease>> {
     crate::execution_deadline::check(cancel, Some(deadline))?;
     let Some(path) = path else {
-        return Ok(Arc::new(ToolLease {
-            reader: None,
-            retained: AtomicBool::new(false),
-        }));
+        return ToolLease::new(None, unresolved);
     };
     let path = path.to_owned();
     let work_cancel = cancel.clone();
+    let unresolved = unresolved.clone();
     validation_pool()
         .work(cancel, deadline, move || {
             let check = || crate::execution_deadline::check(&work_cancel, Some(deadline));
@@ -159,10 +168,7 @@ pub(crate) async fn acquire(
                 _ => None,
             };
             check()?;
-            Ok(Arc::new(ToolLease {
-                reader,
-                retained: AtomicBool::new(false),
-            }))
+            ToolLease::new(reader, &unresolved)
         })
         .await
 }

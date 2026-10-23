@@ -1,3 +1,4 @@
+mod cleanup;
 mod media;
 mod peer;
 mod reader;
@@ -106,9 +107,15 @@ pub(super) async fn run(
         device.cleanup(&config, &prepared),
         controller.close(),
     );
-    if unresolved || !peer_clean || !device_clean || !control_clean {
+    if let Some(error) = cleanup::failure(
+        result.as_ref().err().map(String::as_str),
+        unresolved,
+        peer_clean,
+        device_clean,
+        control_clean,
+    ) {
         return Execution {
-            outcome: Err("WebRTC 或设备资源清理未确认".into()),
+            outcome: Err(error),
             cleanup: CleanupOutcome::Failed,
         };
     }

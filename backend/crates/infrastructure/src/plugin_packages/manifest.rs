@@ -143,6 +143,7 @@ pub fn validate(
                 args.insert(0, node_script_path(&entry_file));
             }
             let mut manifest = Manifest {
+                recovery: portable.recovery,
                 id: portable.id.clone(),
                 version: portable.version.clone(),
                 configuration: portable.configuration.clone(),

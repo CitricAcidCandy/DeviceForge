@@ -5,7 +5,7 @@ import {
 } from './controls.mjs';
 
 export async function verifyProductPublications(config) {
-  const result = { passed: false, dom_assertions: [], progress: [], snapshots: [] };
+  const result = { passed: false, dom_assertions: [], progress: [], snapshots: [], feedback_captures: [] };
   let observer;
   const gateway = async (path, options) => {
     const response = await request(new URL(`/__publication/${path}`, config.gateway), options);
@@ -51,6 +51,44 @@ export async function verifyProductPublications(config) {
     }
     result.dom_assertions.push({ name, passed: true, steps });
   }
+  async function capturePublicationFeedback(name, completed = false) {
+    const root = dialog();
+    const targets = completed
+      ? [...root.querySelectorAll('section[role="status"]')].filter((node) => node.textContent.includes('已发布「'))
+      : [...root.querySelectorAll('[role="alert"], [role="status"], p')].filter((node) =>
+        node.getAttribute('role') === 'alert' ||
+        (node.getAttribute('role') === 'status' && node.getAttribute('aria-label') !== '完整发布进度') ||
+        node.textContent.includes('取消等待或请求失败不表示服务器已经回滚'));
+    check(targets.length > 0, `截图缺少真实结果区 ${name}`);
+    // 只滚动真实页面，不更改节点、样式或可见性；原上部图保留在旧轮证据目录。
+    targets.at(-1).scrollIntoView({ behavior: 'instant', block: 'end', inline: 'nearest' });
+    let previous, stable = 0;
+    const rectangles = await wait(async () => {
+      await pause(100);
+      const values = targets.map((node) => {
+        const rect = node.getBoundingClientRect();
+        const clip = { top: 0, left: 0, right: innerWidth, bottom: innerHeight };
+        for (let ancestor = node.parentElement; ancestor; ancestor = ancestor.parentElement) {
+          const style = getComputedStyle(ancestor), bounds = ancestor.getBoundingClientRect();
+          if (/(auto|scroll|hidden|clip)/.test(style.overflowY)) {
+            clip.top = Math.max(clip.top, bounds.top); clip.bottom = Math.min(clip.bottom, bounds.bottom);
+          }
+          if (/(auto|scroll|hidden|clip)/.test(style.overflowX)) {
+            clip.left = Math.max(clip.left, bounds.left); clip.right = Math.min(clip.right, bounds.right);
+          }
+        }
+        return { text: node.innerText, role: node.getAttribute('role'),
+          top: rect.top, bottom: rect.bottom, left: rect.left, right: rect.right,
+          fully_visible: rect.width > 0 && rect.height > 0 && rect.top >= clip.top - 1 &&
+            rect.bottom <= clip.bottom + 1 && rect.left >= clip.left - 1 && rect.right <= clip.right + 1 };
+      });
+      const signature = JSON.stringify(values);
+      stable = signature === previous ? stable + 1 : 0; previous = signature;
+      return stable >= 2 && values.every((value) => value.fully_visible) ? values : null;
+    }, `反馈完整进入视口且布局稳定 ${name}`, 5000);
+    await screenshot(name);
+    result.feedback_captures.push({ name, scroll_only: true, layout_stable: true, targets: rectangles });
+  }
   async function publishFixture(fixture, name, image) {
     await phase('normal', name);
     await openPublication(fixture);
@@ -59,7 +97,7 @@ export async function verifyProductPublications(config) {
     verifyPublicationSteps(`${name}：成功后三步全部完成且无进行中读屏状态`, true);
     const value = await snapshot(name);
     result.dom_assertions.push({ name, passed: true, text: dialog().innerText });
-    await screenshot(image);
+    await capturePublicationFeedback(image, true);
     await click('完成', dialog());
     await wait(() => !dialog(), '完成后关闭发布弹窗');
     return value;
@@ -99,7 +137,7 @@ export async function verifyProductPublications(config) {
     await wait(() => dialog()?.querySelector('[role="alert"]'), '旧市场能力失败提示');
     check(/能力|不支持|升级|完整功能/.test(dialog().querySelector('[role="alert"]').textContent), '旧市场错误没有可读说明');
     await snapshot('legacy-capabilities');
-    await screenshot('02-legacy-capabilities');
+    await capturePublicationFeedback('02-legacy-capabilities');
     result.dom_assertions.push({ name: '旧能力失败保留可读错误及当前表单', passed: true });
     await closeDialog();
 
@@ -109,7 +147,7 @@ export async function verifyProductPublications(config) {
     await wait(() => dialog()?.querySelector('[role="alert"]')?.textContent.includes('受控资源上传失败'), '真实资源请求失败提示');
     check(dialog().textContent.includes('重试') && button('确认上传并发布', dialog()), '上传失败后未保留重试入口');
     await snapshot('resource-error');
-    await screenshot('03-resource-error');
+    await capturePublicationFeedback('03-resource-error');
     result.dom_assertions.push({ name: '资源上传失败可重试且不误报完成', passed: true });
     await closeDialog();
 
@@ -124,7 +162,7 @@ export async function verifyProductPublications(config) {
     await wait(async () => (await gateway('snapshot')).requests.some((item) => item.phase === 'cancel-publication' && item.client_aborted), '浏览器请求实际中断');
     check(dialog().textContent.includes('不表示服务器已经回滚'), '取消反馈必须保留远端状态边界');
     await snapshot('cancel-publication');
-    await screenshot('04-publication-cancelled');
+    await capturePublicationFeedback('04-publication-cancelled');
     result.dom_assertions.push({ name: '取消实际中断请求并说明远端状态边界', passed: true });
     await closeDialog();
 
@@ -144,7 +182,7 @@ export async function verifyProductPublications(config) {
     check(/冲突|409|不可变|同一|相同|已存在/.test(dialog().querySelector('[role="alert"]').textContent), '清单冲突没有可读说明');
     check(button('确认上传并发布', dialog()) && !button('完成', dialog()), '冲突后不能误报发布成功');
     await snapshot('conflicting-publication');
-    await screenshot('11-publication-conflict');
+    await capturePublicationFeedback('11-publication-conflict');
     result.dom_assertions.push({ name: '同一身份不同清单由真实市场拒绝且不误报完成', passed: true });
     await closeDialog();
 

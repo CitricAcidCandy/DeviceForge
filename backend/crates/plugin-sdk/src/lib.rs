@@ -7,6 +7,7 @@ pub mod devices;
 pub mod execution;
 pub mod packages;
 pub mod performance;
+pub mod recovery;
 pub mod resources;
 pub mod session;
 pub mod session_access;
@@ -103,6 +104,9 @@ pub struct PerformanceSample {
 pub struct Manifest {
     pub id: String,
     pub version: String,
+    /// 可选资源核对入口，只能在已排空且冻结准入时由宿主调用。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub recovery: Option<recovery::RecoveryAccess>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub configuration: Option<ConfigurationDefinition>,
     pub protocol_version: u32,

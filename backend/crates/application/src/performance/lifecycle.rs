@@ -247,7 +247,8 @@ impl PerformanceService {
             let token = runtime
                 .as_ref()
                 .and_then(|runtime| runtime.owner())
-                .map(|owner| owner.tracker.token());
+                .map(|owner| owner.claim())
+                .transpose()?;
             (runtime, token, self.0.tracker.token())
         };
         let service = self.clone();

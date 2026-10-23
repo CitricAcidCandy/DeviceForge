@@ -145,8 +145,11 @@ pub(crate) struct PluginInvocation<'a> {
 /// 配置路径在本次调用开始时固定，后续保存不会改变活动进程的配置快照。
 pub(crate) async fn configured_plugin(call: PluginInvocation<'_>) -> Result<Vec<u8>> {
     crate::execution_deadline::check(&call.cancel, Some(call.deadline))?;
+    // 旧协议没有显式恢复入口，单次独立身份仍沿用直接进程持锁与保守回收。
+    let unresolved = Arc::new(std::sync::atomic::AtomicBool::new(false));
     let lease =
-        crate::plugin_resources::acquire(call.resources, &call.cancel, call.deadline).await?;
+        crate::plugin_resources::acquire(call.resources, &call.cancel, call.deadline, &unresolved)
+            .await?;
     let mut command = ToolCommand::new(call.executable, call.args);
     command.input = Some(&call.input);
     command.directory = call.directory;
@@ -175,7 +178,7 @@ pub(crate) async fn configured_plugin(call: PluginInvocation<'_>) -> Result<Vec<
             command,
             ExecutionOptions::new(call.deadline),
             call.cancel.clone(),
-            lease,
+            lease.process_lease(),
         ),
         &call.cancel,
         call.deadline,

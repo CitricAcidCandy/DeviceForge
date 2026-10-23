@@ -13,6 +13,7 @@ use tokio_util::sync::CancellationToken;
 fn manifest(mode: &str, fps: bool) -> Manifest {
     Manifest {
         configuration: None,
+        recovery: None,
         id: "performance_demo".into(),
         version: "0.1.0".into(),
         protocol_version: ARTIFACT_PROTOCOL_VERSION,

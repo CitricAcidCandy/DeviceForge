@@ -48,11 +48,16 @@ async fn open(
         .map_err(|_| ApiError::new(StatusCode::BAD_REQUEST, "invalid_input", "会话打开请求无效"))?;
     Ok((
         StatusCode::ACCEPTED,
-        Json(state.app.open_session_with_client(
-            &request.operation,
-            request.input,
-            connection.map(|Extension(ConnectInfo(client))| client.is_local()),
-        )?),
+        Json(
+            state
+                .app
+                .open_session_recovering_with_client(
+                    &request.operation,
+                    request.input,
+                    connection.map(|Extension(ConnectInfo(client))| client.is_local()),
+                )
+                .await?,
+        ),
     ))
 }
 

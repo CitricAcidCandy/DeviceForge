@@ -120,7 +120,7 @@ impl Paths {
             .map_err(|_| "设备控制协调状态写入失败")?;
         file.sync_all().map_err(|_| "设备控制协调状态刷新失败")?;
         drop(file);
-        std::fs::rename(pending, self.state()).map_err(|_| "设备控制协调状态发布失败".into())
+        crate::recovery::atomic::replace(&pending, &self.state())
     }
 }
 

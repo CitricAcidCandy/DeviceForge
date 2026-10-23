@@ -22,6 +22,7 @@ mod execution;
 mod interactive;
 mod performance;
 mod process_cleanup;
+mod recovery;
 
 pub struct ProcessPlugin {
     manifest: Manifest,
@@ -43,6 +44,7 @@ fn valid_name(name: &str) -> bool {
 }
 impl ProcessPlugin {
     pub fn new(manifest: Manifest) -> Result<Self> {
+        recovery::validate(&manifest)?;
         if let Some(definition) = &manifest.configuration {
             crate::plugin_configurations::validate_definition(definition)?;
         }
@@ -209,6 +211,20 @@ impl Executor for ProcessPlugin {
     }
     fn has_unresolved_resources(&self) -> bool {
         self.unresolved.load(Ordering::Acquire)
+    }
+    fn recovery_timeout(&self) -> Option<Duration> {
+        self.manifest
+            .recovery
+            .as_ref()
+            .map(|value| Duration::from_millis(value.timeout_ms))
+    }
+    async fn recover_resources(
+        &self,
+        input: Value,
+        cancel: CancellationToken,
+        context: ExecutionContext,
+    ) -> Result<apk_domain::plugin_recovery::RecoveryReport> {
+        recovery::run(self, input, cancel, context).await
     }
     fn operations(&self) -> Vec<Operation> {
         execution::operations(&self.manifest)
@@ -450,6 +466,7 @@ mod tests {
         let mut manifest = Manifest {
             id: "test".into(),
             configuration: None,
+            recovery: None,
             version: "0.1.0".into(),
             protocol_version: 99,
             executable: std::env::current_exe()

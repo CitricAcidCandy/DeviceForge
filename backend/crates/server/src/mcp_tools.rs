@@ -77,7 +77,19 @@ pub(crate) fn management_tools(management: bool) -> Vec<Tool> {
             (
                 "deviceforge.unload_plugin",
                 "撤销插件贡献，取消并等待在途任务；受保护插件拒绝卸载",
+                job.clone(),
+            ),
+            (
+                "deviceforge.plugin_recovery_status",
+                "读取插件资源核对状态和当前代际",
                 job,
+            ),
+            (
+                "deviceforge.recover_plugin",
+                "按当前代际核对并恢复资源，不重放业务或终止活跃会话",
+                json!({"type":"object","additionalProperties":false,
+                    "properties":{"id":{"type":"string"},"generation":{"type":"string"},"input":{"type":"object"}},
+                    "required":["id","generation","input"]}),
             ),
         ] {
             tools.push(Tool::new(

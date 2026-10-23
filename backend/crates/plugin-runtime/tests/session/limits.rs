@@ -312,6 +312,16 @@ async fn partially_written_output_never_appends_finished_but_waits_for_real_clea
             "传输失败也须保留处理器至真实清理"
         );
         release.send(()).unwrap();
+        observe(
+            async {
+                while !returned.load(Ordering::SeqCst) {
+                    tokio::task::yield_now().await;
+                }
+            },
+            "持续背压时真实处理器仍须完成清理",
+        )
+        .await;
+        advance(options.transport_grace + Duration::from_millis(1)).await;
         let result = observe(&mut session.running, "真实清理后返回传输错误")
             .await
             .unwrap();

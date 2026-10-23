@@ -201,13 +201,20 @@ impl SourceBinding {
         let application = access.application()?;
         application.registry.with_current(&self.registered, || {
             crate::operation_budget::check(deadline, Some(cancel))?;
+            if self
+                .owner
+                .recovering
+                .load(std::sync::atomic::Ordering::Acquire)
+            {
+                return Err(Error::Conflict("性能来源正在核对资源".into()));
+            }
             if self.owner.info().cleanup_failed {
                 return Err(Error::CleanupFailed);
             }
             if self.owner.cancel.is_cancelled() {
                 return Err(Error::Conflict("性能来源代际已撤销".into()));
             }
-            Ok(self.owner.tracker.token())
+            self.owner.claim()
         })
     }
 
@@ -221,10 +228,17 @@ impl SourceBinding {
         let application = access.application()?;
         application.registry.with_current(&self.registered, || {
             crate::operation_budget::check(deadline, Some(cancel))?;
+            if self
+                .owner
+                .recovering
+                .load(std::sync::atomic::Ordering::Acquire)
+            {
+                return Err(Error::Conflict("性能来源正在核对资源".into()));
+            }
             if self.owner.cancel.is_cancelled() {
                 return Err(Error::Conflict("性能来源代际已撤销".into()));
             }
-            Ok(self.owner.tracker.token())
+            self.owner.claim()
         })
     }
 

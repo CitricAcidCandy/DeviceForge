@@ -168,7 +168,9 @@ async fn run_version(
     if Instant::now() >= deadline {
         return Err(Error::Timeout);
     }
-    let lease = crate::plugin_resources::acquire(call.resources, &call.cancel, deadline).await?;
+    let lease =
+        crate::plugin_resources::acquire(call.resources, &call.cancel, deadline, &unresolved)
+            .await?;
     let mut cmd = command(call.executable, call.args, true);
     if let Some(path) = call.configuration {
         cmd.env("DEVICEFORGE_PLUGIN_CONFIG", path);
@@ -331,6 +333,10 @@ async fn run_version(
         })
         .await;
     }
+    // 已知退出的 Owner 同步撤销租约登记；返回后恢复调用不能把自身误判为活动。
+    // 未知退出仍由 Drop 移交后台，不能用业务排空代替真实 reap。
+    drop(guard);
+    drop(child);
     result
 }
 

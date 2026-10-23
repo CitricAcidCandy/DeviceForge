@@ -1,44 +1,20 @@
 import { useState } from 'react';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '../../components/Select/index.tsx';
-import { PageTitle } from '../../components/index.ts';
 import type { ProductServices } from '../../app/product/services.ts';
 import { AiProviderPanel } from './components/AiProviderPanel/index.tsx';
-import './workspace.css';
 
+/**
+ * AI 助手页：只负责 SDK / CLI 两个提供者的切换，
+ * 具体界面与业务状态由各自的 AiProviderPanel 持有。
+ */
 export function AiPage({ services }: { services: ProductServices }) {
   const [provider, setProvider] = useState<'sdk' | 'cli'>('sdk');
   return (
-    <section
-      className="product-page ai-page flex min-h-[560px] flex-1 flex-col gap-3"
-      data-product-page="ai"
-    >
-      <PageTitle title="AI 助手">
-        <Select
-          value={provider}
-          onValueChange={(value) => {
-            if (value === 'sdk' || value === 'cli') setProvider(value);
-          }}
-        >
-          <SelectTrigger aria-label="AI 提供者">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="sdk">Codex SDK</SelectItem>
-            <SelectItem value="cli">Codex CLI</SelectItem>
-          </SelectContent>
-        </Select>
-      </PageTitle>
+    <section className="flex min-h-0 flex-1 flex-col" data-product-page="ai">
       <div hidden={provider !== 'sdk'} className="flex min-h-0 flex-1 flex-col">
-        <AiProviderPanel services={services} provider="sdk" />
+        <AiProviderPanel services={services} provider="sdk" onProviderChange={setProvider} />
       </div>
       <div hidden={provider !== 'cli'} className="flex min-h-0 flex-1 flex-col">
-        <AiProviderPanel services={services} provider="cli" />
+        <AiProviderPanel services={services} provider="cli" onProviderChange={setProvider} />
       </div>
     </section>
   );

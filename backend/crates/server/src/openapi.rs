@@ -188,8 +188,26 @@ pub fn document() -> Value {
     crate::browser_configuration_openapi::contribute(&mut document);
     crate::plugin_installation_openapi::contribute(&mut document);
     device_paths(&mut document);
+    recovery_paths(&mut document);
     crate::interactive_openapi::contribute(&mut document);
     document
+}
+
+fn recovery_paths(document: &mut Value) {
+    use apk_domain::plugin_recovery::{RecoveryInput, RecoveryView};
+    let get = endpoint("读取插件资源核对状态", "200", schema::<RecoveryView>());
+    let mut post = endpoint(
+        "核对并恢复已排空插件的资源",
+        "200",
+        schema::<RecoveryView>(),
+    );
+    post["requestBody"] = json!({"required":true,"content":{"application/json":{"schema":schema::<RecoveryInput>()}}});
+    document["paths"]["/api/v2/plugins/{id}/recovery"] = json!({
+        "parameters":[{"name":"id","in":"path","required":true,"schema":{"type":"string","maxLength":99}}],
+        "get":v2_endpoint(get), "post":v2_endpoint(post)
+    });
+    document["components"]["schemas"]["RecoveryView"] = schema::<RecoveryView>();
+    document["components"]["schemas"]["RecoveryInput"] = schema::<RecoveryInput>();
 }
 
 fn device_paths(document: &mut Value) {

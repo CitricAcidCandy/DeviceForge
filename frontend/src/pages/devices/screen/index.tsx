@@ -20,9 +20,17 @@ import { errorLogId, useAction, useSnapshot } from '../../../app/product/hooks.t
 import { withSelectedDevice } from '../../../app/product/device-target.ts';
 import { capabilityGate } from '../../../features/device-apps/index.ts';
 import { createMediaControlQueue } from './media-controls.ts';
+import { devicePoint } from './pointer-map.ts';
+import {
+  FPS_STORAGE_KEY,
+  SIZE_STORAGE_KEY,
+  readStoredNumber,
+  storeNumber,
+} from './preferences.ts';
 import { useMediaKeyboard } from './use-media-keyboard.ts';
 import { useMediaClipboard } from './use-media-clipboard.ts';
 import { MediaOwnershipControls } from './MediaOwnershipControls/index.tsx';
+import { RecoveryPanel, usePluginRecovery } from './RecoveryPanel/index.tsx';
 import { createMediaShareUrl, parseMediaShare, resolveMediaShareControl } from './media-share.ts';
 import { useBlobUrl } from '../../../components/BlobDownload/index.tsx';
 import { DeviceApps } from '../apps/index.tsx';
@@ -48,14 +56,15 @@ const CORNERS = {
 } as const;
 type Corner = keyof typeof CORNERS;
 /*
- * 弧线的落位：整块 34×34 的命中区摆到机身外面 18px 处，弧线朝外鼓、两端压在机身边上。
+ * 四角弧线：半径 = 机身圆角 + 外扩 8px，和机身四个角的弧度同心同曲率（竖屏 26+8=34，横屏 20+8=28）。
+ * 只有描边本身收指针事件（pointer-events: stroke），所以不会挡住画面四角。
  * 旋转 90° 就把同一条弧线交给下一个角，不用画四份路径。
  */
 const CORNER_STYLE: Record<Corner, string> = {
-  nw: '-left-[18px] -top-[18px] cursor-nwse-resize',
-  ne: '-right-[18px] -top-[18px] rotate-90 cursor-nesw-resize',
-  se: '-right-[18px] -bottom-[18px] rotate-180 cursor-nwse-resize',
-  sw: '-left-[18px] -bottom-[18px] rotate-[270deg] cursor-nesw-resize',
+  nw: '-left-2 -top-2 cursor-nwse-resize',
+  ne: '-right-2 -top-2 rotate-90 cursor-nesw-resize',
+  se: '-right-2 -bottom-2 rotate-180 cursor-nwse-resize',
+  sw: '-left-2 -bottom-2 rotate-[270deg] cursor-nesw-resize',
 };
 function readStoredZoom(): number {
   if (typeof window === 'undefined') return 1;
@@ -84,28 +93,33 @@ export function DeviceScreen({
   const action = useAction();
   const reader = useAction();
   const recording = useAction();
-  const [transport, setTransport] = useState<'webrtc' | 'legacy'>('webrtc');
   const [openingTransport, setOpeningTransport] = useState<'webrtc' | 'legacy' | null>(null);
   const webAvailable = typeof RTCPeerConnection !== 'undefined' && (webSnapshot.definitions?.sessions.some(
     (item) => item.id === 'plugin.mirroring.open_webrtc',
   ) ?? false);
+  // 传输方式只保留 WebRTC：界面上不再给「兼容」选项，WebRTC 不可用时静默退回兼容模式。
   const webMode = Boolean(webSnapshot.session) ||
-    (!legacySnapshot.session && (reader.pending && openingTransport
-      ? openingTransport === 'webrtc'
-      : transport === 'webrtc' && webAvailable));
+    (!legacySnapshot.session &&
+      (openingTransport ? openingTransport === 'webrtc' : webAvailable));
   const currentWebMode = useRef(webMode);
   currentWebMode.current = webMode;
   const [webVideoSize, setWebVideoSize] = useState<{ width: number; height: number } | null>(null);
   const [displayError, setDisplayError] = useState<unknown>(null);
   const snapshot = legacySnapshot;
   const [duration, setDuration] = useState('10000');
-  const [size, setSize] = useState('1280');
-  const [fps, setFps] = useState('30');
+  const [size, setSize] = useState(() => readStoredNumber(SIZE_STORAGE_KEY, '1280'));
+  const [fps, setFps] = useState(() => readStoredNumber(FPS_STORAGE_KEY, '30'));
   /*
    * 画面缩放：1 = 自适应（等比铺满舞台可用区域），拖画面四角的弧线可以继续放大，
    * 超出舞台的部分在画面区内部滚动，不会把整页撑开。
    */
   const [zoom, setZoom] = useState(readStoredZoom);
+  useEffect(() => {
+    storeNumber(SIZE_STORAGE_KEY, size);
+  }, [size]);
+  useEffect(() => {
+    storeNumber(FPS_STORAGE_KEY, fps);
+  }, [fps]);
   const [resizing, setResizing] = useState(false);
   const zoomDrag = useRef<{ x: number; y: number; base: number; span: number; corner: Corner } | null>(
     null,
@@ -229,7 +243,7 @@ export function DeviceScreen({
       ),
   );
   const androidTarget = Boolean(
-    (shareInfo !== null || device.selected?.state === 'online') &&
+    shareInfo !== null || device.selected?.state === 'online' &&
       provider?.definition.capabilities.some((item) =>
         item.operation.startsWith('plugin.android-device.'),
       ),
@@ -257,6 +271,17 @@ export function DeviceScreen({
     inputState === 'writable' &&
     selectedSession?.status === 'running';
   const ownership = webMode ? webSnapshot.ownership : null;
+  const recovery = usePluginRecovery({
+    client: services.client,
+    active,
+    target: shareInfo ? { key: `share:${shareInfo.deviceId}`, deviceId: shareInfo.deviceId }
+      : device.selection ? { key: JSON.stringify(device.selection), deviceId: device.selection.localId } : { key: 'plugin:mirroring' },
+    failures: [reader.error, controlError, ...Object.values(webSnapshot.errors), ...Object.values(snapshot.errors)],
+    blocked: ownership?.blocked ?? false,
+    onRecovered: async (signal) => {
+      await Promise.allSettled([webRtc.refreshDefinitions(signal), live.refreshDefinitions(signal)]);
+    },
+  });
   const controlReady = Boolean(controlChannelReady && (!webMode ||
     ownership?.hasControl === true && !ownership.transitioning && !ownership.blocked));
   const controlIdentity = `${selectedSession?.id ?? ''}:${webMode ? webSnapshot.epoch : snapshot.epoch}:${ownership?.controlRevision ?? ''}:${ownership?.hasControl ?? ''}`;
@@ -292,6 +317,7 @@ export function DeviceScreen({
       setWebVideoSize(null);
       setDisplayError(null);
       await webRtc.refreshDefinitions(signal);
+      await recovery.prepareOpen(signal);
       const result = await webRtc.open({
         device_id: shareInfo.deviceId,
         max_size: Number(size),
@@ -305,7 +331,7 @@ export function DeviceScreen({
       setControl(shareInfo.control);
       return result;
     }, { pending: '正在打开分享直播…' });
-  }, [active, fps, reader, shareInfo, size, webRtc]);
+  }, [active, fps, reader, shareInfo, size, webRtc, recovery.prepareOpen]);
   // 分享链接自带控制权：直接把控制条亮出来，不依赖打开会话那条副作用是否跑到。
   useEffect(() => {
     if (shareInfo) setControl(shareInfo.control);
@@ -355,22 +381,16 @@ export function DeviceScreen({
     if (!controlReady || !videoSize || (type === 'move' && !event.buttons)) return;
     const rect = event.currentTarget.getBoundingClientRect();
     if (type === 'down') event.currentTarget.setPointerCapture(event.pointerId);
-    const width = videoSize.width;
-    const height = videoSize.height;
+    // 画面在容器里等比居中，元素矩形含留白带；换算必须走「真正被画面占满」的那块。
+    const point = devicePoint(rect, videoSize, event.clientX, event.clientY);
     void send({
       type: 'touch',
       action: type,
       pointer_id: event.pointerId,
-      width,
-      height,
-      x: Math.min(
-        width - 1,
-        Math.max(0, Math.floor(((event.clientX - rect.left) * width) / rect.width)),
-      ),
-      y: Math.min(
-        height - 1,
-        Math.max(0, Math.floor(((event.clientY - rect.top) * height) / rect.height)),
-      ),
+      width: videoSize.width,
+      height: videoSize.height,
+      x: point.x,
+      y: point.y,
       pressure: type === 'up' ? 0 : 1,
     });
   }
@@ -498,10 +518,11 @@ export function DeviceScreen({
   }
   function startLive(): void {
     setOpeningTransport(webMode ? 'webrtc' : 'legacy');
-    void reader.run((signal) =>
-      withSelectedDevice(services, signal, async (reference, active) => {
+    void reader.run((signal) => {
+      const openTarget = async (reference: DeviceRef | null, deviceId: string, active: AbortSignal) => {
+        await recovery.prepareOpen(active);
         const input = {
-          device_id: reference.localId,
+          device_id: deviceId,
           max_size: Number(size),
           max_fps: Number(fps),
           audio: false,
@@ -517,11 +538,13 @@ export function DeviceScreen({
           services.mediaDisplay.bind(canvas.current);
           await live.open(input, active);
         }
-        setSource(reference.localId);
+        setSource(shareInfo ? `分享设备 ${deviceId}` : deviceId);
         setLiveReference(reference);
         return webMode ? webRtc.snapshot() : live.pollOutput({ limit: 100 }, active);
-      }),
-    );
+      };
+      return shareInfo ? openTarget(null, shareInfo.deviceId, signal)
+        : withSelectedDevice(services, signal, (reference, active) => openTarget(reference, reference.localId, active));
+    });
   }
   function checkLive(): void {
     void action.run(async (signal) => {
@@ -561,6 +584,8 @@ export function DeviceScreen({
     .filter(Boolean)
     .join(' · ');
   /* 画面框的等比尺寸交给 CSS 算：比例与它的倒数从真实画面尺寸来，缩放倍数来自手柄。 */
+  // 开启设备控制时下带要长高，给控制条留位置；不开控制维持原来的 52px。
+  const stageStyle = (control ? { '--stage-bottom': '96px' } : {}) as CSSProperties;
   const frameStyle = {
     '--frame-zoom': String(zoom),
     ...(videoSize
@@ -634,37 +659,18 @@ export function DeviceScreen({
                     </dd>
                   </div>
                 </dl>
-                <details className="rail-fold">
-                  <summary>投屏参数</summary>
-                  <div className="media-segment" role="group" aria-label="投屏传输方式">
-                    <Button
-                      size="xs"
-                      variant={webMode ? 'default' : 'ghost'}
-                      disabled={!webAvailable || activeSession || reader.pending}
-                      onClick={() => setTransport('webrtc')}
-                    >
-                      WebRTC
-                    </Button>
-                    <Button
-                      size="xs"
-                      variant={!webMode ? 'default' : 'ghost'}
-                      disabled={!legacyAvailable || activeSession || reader.pending}
-                      onClick={() => setTransport('legacy')}
-                    >
-                      兼容
-                    </Button>
-                  </div>
-                  {!webAvailable && (
-                    <p className="rail-hint">未提供 WebRTC 会话。</p>
-                  )}
+                <div className="flex flex-col gap-2">
+                  <h3 className="text-[11px] font-semibold tracking-[0.06em] text-faint">
+                    投屏参数
+                  </h3>
                   <div className="media-fields">
                     <Field
-                      label="最大尺寸"
+                      label="分辨率上限"
                       value={size}
                       onChange={setSize}
                       type="number"
-                      min={256}
-                      max={8192}
+                      min={64}
+                      max={4096}
                     />
                     <Field
                       label="帧率上限"
@@ -675,6 +681,9 @@ export function DeviceScreen({
                       max={240}
                     />
                   </div>
+                  <p className="rail-hint">
+                    长边上限，实际分辨率按设备屏幕等比缩放，重新打开投屏后生效。
+                  </p>
                   <div className="media-actions">
                     <Button variant="outline" size="sm" disabled={action.pending} onClick={checkLive}>
                       检查直播能力
@@ -691,7 +700,7 @@ export function DeviceScreen({
                       暂停读取
                     </Button>
                   </div>
-                </details>
+                </div>
               </section>
               {webMode && selectedSession && (
                 <MediaOwnershipControls
@@ -875,10 +884,15 @@ export function DeviceScreen({
             </>
           )}
         </div>
+        <div className="max-h-[45dvh] shrink-0 overflow-y-auto px-3 pb-3">
+          <RecoveryPanel state={recovery.state} activeSession={activeSession}
+            recover={recovery.recover} refresh={recovery.refresh} cancel={recovery.cancel} />
+        </div>
         {pane === 'params' && (
           <div className="rail-foot">
             <Button
-              disabled={!androidTarget || !liveAvailable || Boolean(activeSession) || reader.pending}
+              disabled={!androidTarget || !liveAvailable || Boolean(activeSession) || reader.pending ||
+                recovery.state.phase === 'recovering' || recovery.state.result?.data.recovering}
               onClick={startLive}
             >
               <Play aria-hidden="true" />
@@ -888,9 +902,9 @@ export function DeviceScreen({
         )}
       </aside>
       {/* ── 舞台：设备画面常驻 ────────────────────────────── */}
-      <div className="workbench-stage" ref={stage}>
-        {/* 只让画面层滚动：四角弧线长在画面外面，放大后要跟着画面走。留 20px 内边距给弧线站脚。 */}
-        <div className="media-canvas-area p-5">
+      <div className="workbench-stage" ref={stage} style={stageStyle}>
+        {/* 只让画面层滚动：四角弧线长在画面外面，放大后要跟着画面走。留 10px 内边距给括弧站脚。 */}
+        <div className="media-canvas-area p-2.5">
           <div
             className="media-frame group/frame"
             data-orientation={orientation}
@@ -923,6 +937,11 @@ export function DeviceScreen({
                 autoPlay
                 playsInline
                 muted
+                // 关掉浏览器的媒体浮层（画中画/投送/下载）：它会盖在画面顶部，挡设备画面。
+                controls={false}
+                controlsList="nodownload noplaybackrate noremoteplayback"
+                disablePictureInPicture
+                disableRemotePlayback
                 aria-label="设备 WebRTC 实时投屏画面"
                 className={`media-canvas${controlReady ? ' is-interactive' : ''}${mediaKeyboard.focused ? ' is-keyboard-focused' : ''}`}
                 tabIndex={mediaKeyboard.tabIndex}
@@ -946,7 +965,6 @@ export function DeviceScreen({
                 <EmptyState title="等待设备画面" description="点右栏底部的开始投屏拉取画面。" />
               )}
             </div>
-            <span className="media-frame-gesture" aria-hidden="true" />
             {/*
               四角弧线：画在机身外侧的留白里，四段四分之一圆各自朝外，跟机身弧度同向。
               拖动改大小，双击回到自适应；键盘焦点落在这一组上，方向键微调。
@@ -982,8 +1000,10 @@ export function DeviceScreen({
                   data-corner={corner}
                   aria-hidden="true"
                   className={cn(
-                    'pointer-events-auto absolute size-9 touch-none text-muted-foreground transition-colors duration-150',
-                    'hover:text-primary group-focus-visible/corners:text-primary group-data-[dragging=true]/corners:text-primary group-hover/frame:text-body',
+                    'pointer-events-none absolute size-[34px] touch-none text-ghost transition-colors duration-150',
+                    'group-data-[orientation=landscape]/frame:size-[28px]',
+                    'group-hover/frame:text-muted-foreground',
+                    'hover:text-primary group-focus-visible/corners:text-primary group-data-[dragging=true]/corners:text-primary',
                     CORNER_STYLE[corner],
                   )}
                   onPointerDown={(event) => zoomPointer(event, 'down', corner)}
@@ -991,17 +1011,30 @@ export function DeviceScreen({
                   onPointerUp={(event) => zoomPointer(event, 'up', corner)}
                   onPointerCancel={(event) => zoomPointer(event, 'up', corner)}
                 >
+                  {/*
+                    白芯 + 灰边：粗描边打底、细白描边压中间。
+                    尺寸走行内 width/height：全局 svg { width:1.1em } 是未分层规则，会盖住 size-* 工具类。
+                  */}
                   <svg
-                    viewBox="0 0 36 36"
+                    viewBox="0 0 34 34"
                     fill="none"
                     aria-hidden="true"
-                    className="size-9 overflow-visible"
+                    style={{ width: '100%', height: '100%' }}
+                    className="overflow-visible"
                   >
                     <path
-                      d="M0 36A36 36 0 0 1 36 0"
+                      d="M0 34A34 34 0 0 1 34 0"
                       stroke="currentColor"
-                      strokeWidth={3.5}
+                      strokeWidth={4}
                       strokeLinecap="round"
+                      pointerEvents="stroke"
+                    />
+                    <path
+                      d="M0 34A34 34 0 0 1 34 0"
+                      stroke="#ffffff"
+                      strokeWidth={2.5}
+                      strokeLinecap="round"
+                      pointerEvents="none"
                     />
                   </svg>
                 </span>

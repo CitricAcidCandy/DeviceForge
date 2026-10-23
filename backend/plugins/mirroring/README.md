@@ -16,6 +16,10 @@ WebRTC 按设备独占控制：普通参与者申请接管，由当前控制者�
 
 本次远端目录、服务文件、pid、SCID 和 ADB 转发分别登记。设备清理先取消并等待本地 ADB 流式进程，由公共工具库使用独立回收预算；该等待结束后，远端进程、独占目录和精确转发的清理命令共用新建的两秒绝对期限，不逐条续期，也不让本地退出等待消耗远端命令预算。失败保留 Failed，不执行 kill-server、pkill 或全局清理。设备断开仅在清理全部确认后有限重连，未确认的远端资源不能由本地 ADB 退出替代。
 
+2026-10-23增加清理阶段的有限兜底：尚未确认的目录与转发阶段最多尝试两轮，仍共用首次远端截止点；确认成功的阶段不重复。删除回执失败可同预算查表确认，但PID、端口归属冲突、非法输出及直接进程未确认不会被重试成功覆盖。精确限制见[设备清理模块](src/live/device/cleanup/README.md)。WebRTC清理失败另保留原始业务错误并列出失败阶段。该早期补丁本身不解除宿主cleanup_failed或控制权blocked；后续独立恢复实现见下一段，不将早期测试转计新版本通过。
+
+2026-10-23后续接入[持久资源台账与自动恢复](src/recovery/README.md)：首个ADB副作用之前原子记录意图、各阶段更新、入口与工具监督持租约、同设备恢复和登记互斥。新直播先核对旧资源与持久控制状态；协议4特殊操作runtime.recover全插件核对，明确coverage、inspected及remaining，不混入普通operations。确认后才撤台账及恢复blocked，宿主另根据真实协议终态决定解除全局风险。未知旧资源和外来转发不猜测清理；普通录制也记录外部工具资源债务。真实WebRTC复开与真机验收仍独立于单元测试。
+
 WebRTC 会话最终用 `tokio::join!` 同时收口 Peer、视频设备资源与独立控制端，等待三路清理全部结束后汇总结果，避免串行叠加；任一路失败都返回清理未确认。控制端内部仍先释放输入和设备资源，再按真实结果注销控制权。宿主合作取消窗口为五秒，但工具超时后的进程回收和文件操作仍有各自等待，当前证据不保证所有故障路径都在五秒内完成。
 
 2026-10-16 最新投屏库回归为 [60/60](../../../artifacts/mirroring-ownership-final-20261016/mirroring-test-cleanup-budget.log)，相同版本的 [Clippy](../../../artifacts/mirroring-ownership-final-20261016/clippy-cleanup-budget.log) 与 [debug 构建](../../../artifacts/mirroring-ownership-final-20261016/build-cleanup-budget.log) 完成。隔离宿主、三个真实浏览器 WebRTC 会话及独立假 ADB 连续两轮均为 12/12：[首轮报告](../../../artifacts/mirroring-ownership-smoke-9922db88-b89a-49f3-bd01-6a8ad9f64579/report.json)、[第二轮报告](../../../artifacts/mirroring-ownership-smoke-38b3506a-ef3a-4163-b561-a401779945b4/report.json)。覆盖申请、拒绝、同意、主控抢回、三次复制归属、旧代与越权输入零字节、合法输入共 84 字节，以及六组视频/控制资源清理和插件卸载。

@@ -4,6 +4,7 @@
   "protocol_version": 4,
   "executable": "deviceforge-mirroring-plugin.exe",
   "args": [],
+  "recovery": {"api_version":1,"operation":"runtime.recover","timeout_ms":30000},
   "artifacts": {
     "input_fields": [],
     "outputs": true

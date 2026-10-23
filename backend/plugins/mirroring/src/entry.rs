@@ -29,6 +29,7 @@ where
     R: AsyncRead + Unpin,
     W: AsyncWrite + Unpin,
 {
+    let lease = crate::recovery::process_lease(true).await?;
     let origin = time::Instant::now();
     let mut reader = BufReader::new(reader);
     let bytes = time::timeout(Duration::from_secs(5), first(&mut reader))
@@ -39,11 +40,35 @@ where
         .get("protocol_version")
         .and_then(Value::as_u64)
         .ok_or("投屏首帧缺少协议版本")?;
+    let recovering =
+        version == 4 && frame.get("operation").and_then(Value::as_str) == Some("runtime.recover");
+    // 恢复处理器随后尝试排他租约；其他协议从首帧前到真实处理终态始终持共享租约。
+    let (shared, recovery_lease) = if recovering {
+        drop(lease);
+        (None, crate::recovery::process_lease(false).await?)
+    } else {
+        (Some(lease.ok_or("插件正在排他恢复，暂不接受新调用")?), None)
+    };
+    let _leases = (shared, recovery_lease.clone());
     drop(frame);
     let reader = Cursor::new(bytes).chain(reader);
     match version {
         4 => {
-            deviceforge_plugin_runtime::serve_io_with_context(reader, writer, crate::execute).await
+            deviceforge_plugin_runtime::serve_io_with_context(
+                reader,
+                writer,
+                move |request, context| {
+                    let lease = recovery_lease.clone();
+                    async move {
+                        if recovering {
+                            crate::recovery::execute_with_lease(request, context, lease).await
+                        } else {
+                            crate::execute(request, context).await
+                        }
+                    }
+                },
+            )
+            .await
         }
         5 => {
             let options = deviceforge_plugin_runtime::session::SessionOptions {

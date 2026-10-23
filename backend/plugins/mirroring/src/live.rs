@@ -5,7 +5,7 @@ mod device_messages;
 mod lifecycle;
 mod model;
 mod owned_control;
-mod ownership;
+pub(crate) mod ownership;
 mod pressed_inputs;
 mod webrtc;
 mod wire;
@@ -25,6 +25,7 @@ pub async fn execute(
     let webrtc = open.operation == "open_webrtc";
     let client_id = open.session_id.clone();
     let master = open.client.as_ref().is_some_and(|client| client.is_local);
+    let mut recovery_unconfirmed = false;
     let result = async {
         context.check().map_err(|error| error.to_string())?;
         validate_access(&open)?;
@@ -37,6 +38,17 @@ pub async fn execute(
         let config = checked(&context, crate::config::read()).await?;
         if config.live.is_none() {
             return Err("部署者未配置直播服务".into());
+        }
+        if let Err(error) =
+            crate::recovery::before_session(&parameters.device_id, &config, &context).await
+        {
+            match error {
+                crate::recovery::AdmissionError::Busy(message) => return Err(message),
+                crate::recovery::AdmissionError::Unconfirmed(message) => {
+                    recovery_unconfirmed = true;
+                    return Err(format!("投屏资源自动核对未通过：{message}"));
+                }
+            }
         }
         Ok((parameters, config))
     }
@@ -51,7 +63,18 @@ pub async fn execute(
         Ok((parameters, config)) => {
             lifecycle::run(parameters, config, context, input, output).await
         }
-        Err(error) => Execution::complete(Err(error)),
+        Err(error) => open_failure(error, recovery_unconfirmed),
+    }
+}
+
+fn open_failure(error: String, recovery_unconfirmed: bool) -> Execution {
+    Execution {
+        outcome: Err(error),
+        cleanup: if recovery_unconfirmed {
+            apk_plugin_sdk::cooperative::CleanupOutcome::Failed
+        } else {
+            apk_plugin_sdk::cooperative::CleanupOutcome::Complete
+        },
     }
 }
 fn validate_access(open: &SessionOpen) -> Result<(), String> {
@@ -86,6 +109,23 @@ mod access_tests {
     use super::validate_access;
     use apk_plugin_sdk::{ArtifactContext, ArtifactInput, session::SessionOpen};
     use serde_json::json;
+
+    #[test]
+    fn only_unconfirmed_recovery_marks_host_resource_risk() {
+        use apk_plugin_sdk::cooperative::CleanupOutcome;
+        assert_eq!(
+            super::open_failure("台账仍有未确认资源".into(), true).cleanup,
+            CleanupOutcome::Failed
+        );
+        assert_eq!(
+            super::open_failure("直播打开输入无效".into(), false).cleanup,
+            CleanupOutcome::Complete
+        );
+        assert_eq!(
+            super::open_failure("设备正在并发核对".into(), false).cleanup,
+            CleanupOutcome::Complete
+        );
+    }
 
     #[test]
     fn shared_recording_permission_is_not_a_live_input() {

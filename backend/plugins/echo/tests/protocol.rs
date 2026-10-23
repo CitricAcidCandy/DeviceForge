@@ -13,6 +13,7 @@ async fn independent_process_returns_correlated_response() {
         args: vec![],
         performance: None,
         configuration: None,
+        recovery: None,
         devices: None,
         sessions: None,
         artifacts: None,
