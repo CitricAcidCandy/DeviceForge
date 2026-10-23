@@ -44,6 +44,8 @@ impl Harness {
             None,
             None,
             browser,
+            None,
+            None,
         )
         .unwrap();
         Self {

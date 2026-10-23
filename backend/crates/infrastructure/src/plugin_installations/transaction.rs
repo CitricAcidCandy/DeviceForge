@@ -1,5 +1,5 @@
 //! 可恢复发布事务；活动文件逐个原子替换，以发布状态记录作为提交点。
-use super::{FilePluginInstallations, content, paths, prepare::Prepared, storage};
+use super::{FilePluginInstallations, content, paths, prepare::Prepared, repository, storage};
 use apk_domain::{Error, Result, plugin_installations::*};
 use serde::{Deserialize, Serialize};
 use std::{
@@ -20,6 +20,8 @@ struct Journal {
     id: String,
     revision: Option<String>,
     previous: Option<InstalledRelease>,
+    #[serde(default)]
+    target: Option<InstalledRelease>,
     files: BTreeMap<String, Option<Vec<u8>>>,
 }
 
@@ -108,6 +110,12 @@ fn validate_journal(journal: &Journal) -> Result<()> {
             return Err(Error::Invalid("事务发布身份不符".into()));
         }
     }
+    if let Some(target) = &journal.target {
+        storage::validate_record(target)?;
+        if target.id != journal.id {
+            return Err(Error::Invalid("事务目标发布身份不符".into()));
+        }
+    }
     if journal.files.len() > 256 {
         return Err(Error::TooLarge);
     }
@@ -130,122 +138,63 @@ fn validate_journal(journal: &Journal) -> Result<()> {
     Ok(())
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn record(revision: char) -> InstalledRelease {
-        InstalledRelease {
-            id: "sample".into(),
-            version: "1.0".into(),
-            name: "测试".into(),
-            description: "恢复测试".into(),
-            revision: revision.to_string().repeat(64),
-            enabled: false,
-            status: InstallationStatus::Installed,
-            installed_at: 0,
-            components: vec![InstalledComponent {
-                id: "browser".into(),
-                kind: apk_domain::plugin_packages::PackageKind::Browser,
-                version: "1.0".into(),
-                revision: revision.to_string().repeat(64),
-                entry_path: "dist/index.js".into(),
-                entry_url: None,
-            }],
-            tools: vec![],
-            requirements: vec![],
-        }
-    }
-
-    #[test]
-    fn interrupted_transaction_restores_all_active_files_and_record() {
-        let directory = tempfile::tempdir().unwrap();
-        let root = paths::open_root(directory.path()).unwrap();
-        for path in [
-            "installations/releases",
-            "installations/transactions",
-            "browser-plugins/browser",
-        ] {
-            paths::create_directory(&root, path).unwrap();
-        }
-        let old = record('a');
-        let new = record('b');
-        paths::write(&storage::record_path(&root, "sample"), &old).unwrap();
-        for relative in active_paths(&old) {
-            paths::write_bytes(&root.join(relative), b"old-value").unwrap();
-        }
-        let journal = Journal {
-            id: "sample".into(),
-            revision: Some(new.revision.clone()),
-            previous: Some(old.clone()),
-            files: capture(&root, Some(&old), Some(&new)).unwrap(),
-        };
-        paths::write(&journal_path(&root), &journal).unwrap();
-        paths::write_bytes(
-            &root.join("browser-plugins/browser/manifest.json"),
-            b"partial-new-value",
-        )
-        .unwrap();
-        recover(&root).unwrap();
-        assert_eq!(
-            storage::read_optional(&root, "sample")
-                .unwrap()
-                .unwrap()
-                .revision,
-            old.revision
-        );
-        for relative in active_paths(&old) {
-            assert_eq!(fs::read(root.join(relative)).unwrap(), b"old-value");
-        }
-        assert_eq!(
-            fs::read_dir(root.join("installations/transactions"))
-                .unwrap()
-                .count(),
-            0
-        );
-    }
-
-    #[test]
-    fn committed_transaction_keeps_new_state_and_rejects_nonactive_recovery_path() {
-        let directory = tempfile::tempdir().unwrap();
-        let root = paths::open_root(directory.path()).unwrap();
-        for path in [
-            "installations/releases",
-            "installations/transactions",
-            "browser-plugins/browser",
-        ] {
-            paths::create_directory(&root, path).unwrap();
-        }
-        let old = record('a');
-        let new = record('b');
-        paths::write(&storage::record_path(&root, "sample"), &new).unwrap();
-        for relative in active_paths(&new) {
-            paths::write_bytes(&root.join(relative), b"new-value").unwrap();
-        }
-        let mut journal = Journal {
-            id: "sample".into(),
-            revision: Some(new.revision.clone()),
-            previous: Some(old),
-            files: capture(&root, Some(&new), None).unwrap(),
-        };
-        paths::write(&journal_path(&root), &journal).unwrap();
-        recover(&root).unwrap();
-        assert_eq!(
-            storage::read_optional(&root, "sample")
-                .unwrap()
-                .unwrap()
-                .revision,
-            new.revision
-        );
-        journal
-            .files
-            .insert("browser-plugins/browser/private.txt".into(), Some(vec![]));
-        assert!(validate_journal(&journal).is_err());
-    }
-}
 fn journal_path(root: &Path) -> PathBuf {
     root.join("installations/transactions")
         .join(format!("{}.json", uuid::Uuid::new_v4()))
+}
+
+fn block_journal(root: &Path, journal: &Journal, phase: &str, reason: &str) -> Result<()> {
+    let mut record = storage::read_optional(root, &journal.id)?
+        .or_else(|| journal.target.clone())
+        .or_else(|| journal.previous.clone())
+        .ok_or_else(|| Error::Storage("恢复受阻但没有可持久化的发布身份".into()))?;
+    if let Some(previous) = &journal.previous {
+        record.enabled = previous.enabled;
+    }
+    storage::block(root, record, phase, reason)?;
+    Ok(())
+}
+
+/// 回收器保护上一版和未决事务两端的全部资源，日志损坏时停止回收。
+pub(super) fn retained_records(root: &Path) -> Result<Vec<InstalledRelease>> {
+    let mut records = Vec::new();
+    let installations = root.join("installations");
+    for (count, entry) in fs::read_dir(&installations)
+        .map_err(|_| Error::Storage("上版快照目录不可读".into()))?
+        .enumerate()
+    {
+        if count >= 1024 {
+            return Err(Error::TooLarge);
+        }
+        let path = entry
+            .map_err(|_| Error::Storage("上版快照不可读".into()))?
+            .path();
+        let name = path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or("");
+        if name.starts_with("previous-") && name.ends_with(".json") {
+            let journal: Journal = paths::read(&path, JOURNAL_LIMIT)?;
+            validate_journal(&journal)?;
+            records.extend(journal.previous);
+        }
+    }
+    for (count, entry) in fs::read_dir(installations.join("transactions"))
+        .map_err(|_| Error::Storage("回收事务目录不可读".into()))?
+        .enumerate()
+    {
+        if count >= 512 {
+            return Err(Error::TooLarge);
+        }
+        let path = entry
+            .map_err(|_| Error::Storage("回收事务不可读".into()))?
+            .path();
+        let journal: Journal = paths::read(&path, JOURNAL_LIMIT)?;
+        validate_journal(&journal)?;
+        records.extend(journal.previous);
+        records.extend(journal.target);
+    }
+    Ok(records)
 }
 
 pub(super) fn recover(root: &Path) -> Result<()> {
@@ -262,21 +211,81 @@ pub(super) fn recover(root: &Path) -> Result<()> {
         let journal: Journal = paths::read(&path, JOURNAL_LIMIT)?;
         validate_journal(&journal)?;
         let current = storage::read_optional(root, &journal.id)?;
-        if current.as_ref().map(|record| &record.revision) != journal.revision.as_ref() {
-            restore(root, &journal)?;
+        let rollback_blocked = current
+            .as_ref()
+            .and_then(|record| record.failure.as_ref())
+            .is_some_and(|failure| failure.phase.starts_with("transaction_rollback"));
+        if rollback_blocked
+            || current.as_ref().map(|record| &record.revision) != journal.revision.as_ref()
+        {
+            if restore(root, &journal).is_err() {
+                block_journal(
+                    root,
+                    &journal,
+                    "transaction_rollback",
+                    "启动时恢复活动文件失败，保留事务日志以供重试",
+                )?;
+                continue;
+            }
+        } else if let Some(target) = &journal.target {
+            // 提交点已存在时补齐上一版保护，再清除仅由文件事务产生的阻断。
+            let snapshot = root
+                .join("installations")
+                .join(format!("previous-{}.json", journal.id));
+            if paths::write(&snapshot, &journal).is_err() {
+                block_journal(
+                    root,
+                    &journal,
+                    "transaction_cleanup",
+                    "已提交发布的上版快照仍无法写入",
+                )?;
+                continue;
+            }
+            if current.as_ref().is_some_and(|record| {
+                record.status == InstallationStatus::RecoveryBlocked
+                    && record
+                        .failure
+                        .as_ref()
+                        .is_some_and(|failure| failure.phase == "transaction_cleanup")
+            }) && paths::write(&storage::record_path(root, &journal.id), target).is_err()
+            {
+                block_journal(
+                    root,
+                    &journal,
+                    "transaction_cleanup",
+                    "已提交发布的恢复状态仍无法写入",
+                )?;
+                continue;
+            }
         }
-        fs::remove_file(path).map_err(|_| Error::Storage("恢复日志清理失败".into()))?;
+        if fs::remove_file(path).is_err() {
+            let phase = if rollback_blocked
+                || current.as_ref().map(|record| &record.revision) != journal.revision.as_ref()
+            {
+                "transaction_rollback_cleanup"
+            } else {
+                "transaction_cleanup"
+            };
+            block_journal(root, &journal, phase, "已恢复稳定视图，但事务日志清理失败")?;
+        }
     }
     Ok(())
 }
 
 pub(super) fn commit(
     store: &FilePluginInstallations,
-    prepared: Prepared,
+    mut prepared: Prepared,
     expected: Option<String>,
 ) -> Result<InstalledRelease> {
     let _keep_stage = &prepared.stage;
     let current = storage::optional(store, &prepared.info.id)?;
+    if current
+        .as_ref()
+        .is_some_and(|record| record.status == InstallationStatus::RecoveryBlocked)
+    {
+        return Err(Error::Conflict("恢复受阻的发布不能更新".into()));
+    }
+    prepared.info.enabled = current.as_ref().is_none_or(|record| record.enabled);
     if current.as_ref().map(|record| record.revision.as_str()) != expected.as_deref() {
         return Err(Error::Conflict("安装修订已变化，未覆盖旧发布".into()));
     }
@@ -311,21 +320,26 @@ pub(super) fn commit(
             return Err(Error::Conflict("组件目录已有非托管部署".into()));
         }
     }
+    let repository = repository::open(&store.root)?;
+    let writer = repository.write().map_err(repository::error)?;
+    repository::sync(store, &writer, std::slice::from_ref(&prepared.info))?;
     for tool in &prepared.tools {
-        let relative = tool
-            .destination
-            .strip_prefix(&store.root)
-            .map_err(|_| Error::Invalid("工具目录越界".into()))?
-            .to_string_lossy()
-            .replace('\\', "/");
-        let parent = relative.rsplit_once('/').unwrap().0;
-        paths::create_directory(&store.root, parent)?;
-        if tool.destination.exists() {
-            content::verify(&tool.destination)?;
-        } else {
-            fs::rename(&tool.staged, &tool.destination)
-                .map_err(|_| Error::Storage("工具发布失败".into()))?;
-        }
+        let key = repository
+            .key_for_entry(&tool.destination.join("__entry__"))
+            .map_err(repository::error)?;
+        let stage = repository.stage().map_err(repository::error)?;
+        let payload = stage.path().join("payload");
+        fs::rename(&tool.staged, &payload)
+            .map_err(|_| Error::Storage("共享工具暂存移交失败".into()))?;
+        writer
+            .publish(&key, &payload, &|| Ok(()))
+            .map_err(repository::error)?;
+    }
+    // 准备与提交之间复用内容可能变化；提交点前在同一写锁下重新验证所有工具。
+    for tool in &prepared.info.tools {
+        writer
+            .verify(&repository::key(tool), &|| Ok(()))
+            .map_err(repository::error)?;
     }
     for identity in &prepared.identities {
         let relative = format!(
@@ -354,21 +368,22 @@ pub(super) fn commit(
                 .map_err(|_| Error::Storage("组件版本发布失败".into()))?;
         }
     }
+    paths::write(
+        &store
+            .root
+            .join("installations/manifests")
+            .join(format!("{}.json", prepared.info.revision)),
+        &prepared.manifest,
+    )?;
     let journal = Journal {
         id: prepared.info.id.clone(),
         revision: Some(prepared.info.revision.clone()),
         previous: current.clone(),
+        target: Some(prepared.info.clone()),
         files: capture(&store.root, current.as_ref(), Some(&prepared.info))?,
     };
     let journal_path = journal_path(&store.root);
     paths::write(&journal_path, &journal)?;
-    paths::write(
-        &store
-            .root
-            .join("installations")
-            .join(format!("previous-{}.json", prepared.info.id)),
-        &journal,
-    )?;
     let outcome = (|| {
         if let Some(current) = &current {
             for relative in active_paths(current) {
@@ -396,11 +411,44 @@ pub(super) fn commit(
         )
     })();
     if let Err(error) = outcome {
-        restore(&store.root, &journal)?;
-        fs::remove_file(&journal_path).map_err(|_| Error::Storage("回滚日志清理失败".into()))?;
+        if restore(&store.root, &journal).is_err() {
+            block_journal(
+                &store.root,
+                &journal,
+                "transaction_rollback",
+                "切换失败且旧活动文件恢复失败",
+            )?;
+            return Err(Error::Storage("发布回滚受阻，请检查安装状态".into()));
+        }
+        if fs::remove_file(&journal_path).is_err() {
+            block_journal(
+                &store.root,
+                &journal,
+                "transaction_rollback_cleanup",
+                "切换已回滚，但日志清理失败",
+            )?;
+        }
         return Err(error);
     }
-    fs::remove_file(journal_path).map_err(|_| Error::Storage("提交日志清理失败".into()))?;
+    if paths::write(
+        &store
+            .root
+            .join("installations")
+            .join(format!("previous-{}.json", prepared.info.id)),
+        &journal,
+    )
+    .is_err()
+        || fs::remove_file(journal_path).is_err()
+    {
+        block_journal(
+            &store.root,
+            &journal,
+            "transaction_cleanup",
+            "发布已切换，但上版快照或事务日志写入清理失败",
+        )?;
+        return Err(Error::Storage("发布提交清理受阻，请检查安装状态".into()));
+    }
+    repository::sync(store, &writer, &[])?;
     Ok(prepared.info)
 }
 
@@ -431,10 +479,14 @@ pub(super) fn validate_identities(
 }
 
 pub(super) fn delete(store: &FilePluginInstallations, record: &InstalledRelease) -> Result<()> {
+    let repository = repository::open(&store.root)?;
+    let writer = repository.write().map_err(repository::error)?;
+    repository::sync(store, &writer, &[])?;
     let journal = Journal {
         id: record.id.clone(),
         revision: None,
         previous: Some(record.clone()),
+        target: None,
         files: capture(&store.root, Some(record), None)?,
     };
     let path = journal_path(&store.root);
@@ -451,12 +503,36 @@ pub(super) fn delete(store: &FilePluginInstallations, record: &InstalledRelease)
             .map_err(|_| Error::Storage("安装记录删除失败".into()))
     })();
     if let Err(error) = result {
-        restore(&store.root, &journal)?;
-        fs::remove_file(path).map_err(|_| Error::Storage("回滚日志清理失败".into()))?;
+        if restore(&store.root, &journal).is_err() {
+            block_journal(
+                &store.root,
+                &journal,
+                "transaction_rollback",
+                "删除失败且活动文件恢复失败",
+            )?;
+            return Err(Error::Storage("删除回滚受阻，请检查安装状态".into()));
+        }
+        if fs::remove_file(path).is_err() {
+            block_journal(
+                &store.root,
+                &journal,
+                "transaction_rollback_cleanup",
+                "删除已回滚，但事务日志清理失败",
+            )?;
+            return Err(Error::Storage("回滚日志清理受阻，请检查安装状态".into()));
+        }
         return Err(error);
     }
-    fs::remove_file(path).map_err(|_| Error::Storage("删除日志清理失败".into()))?;
-    Ok(())
+    if fs::remove_file(path).is_err() {
+        block_journal(
+            &store.root,
+            &journal,
+            "transaction_cleanup",
+            "删除活动文件已完成，但事务日志清理失败",
+        )?;
+        return Err(Error::Storage("删除清理受阻，请检查安装状态".into()));
+    }
+    repository::sync(store, &writer, &[])
 }
 
 pub(super) fn restore_previous(
@@ -464,6 +540,9 @@ pub(super) fn restore_previous(
     id: &str,
     expected: &str,
 ) -> Result<InstalledRelease> {
+    let repository = repository::open(&store.root)?;
+    let writer = repository.write().map_err(repository::error)?;
+    repository::sync(store, &writer, &[])?;
     storage::require_revision(store, id, expected)?;
     let path = store
         .root
@@ -485,16 +564,47 @@ pub(super) fn restore_previous(
         id: id.to_owned(),
         revision: Some(previous.revision.clone()),
         previous: Some(current.clone()),
+        target: Some(previous.clone()),
         files: capture(&store.root, Some(&current), Some(&previous))?,
     };
     let recovery_path = journal_path(&store.root);
     paths::write(&recovery_path, &reversal)?;
     if let Err(error) = restore(&store.root, &journal) {
-        restore(&store.root, &reversal)?;
-        fs::remove_file(recovery_path)
-            .map_err(|_| Error::Storage("恢复事务日志清理失败".into()))?;
+        if restore(&store.root, &reversal).is_err() {
+            block_journal(
+                &store.root,
+                &reversal,
+                "transaction_rollback",
+                "恢复上版失败，反向回滚也未完成",
+            )?;
+            return Err(Error::Storage("上版恢复受阻，请检查安装状态".into()));
+        }
+        if fs::remove_file(recovery_path).is_err() {
+            block_journal(
+                &store.root,
+                &reversal,
+                "transaction_rollback_cleanup",
+                "恢复上版已回滚，但事务日志清理失败",
+            )?;
+            return Err(Error::Storage(
+                "恢复事务日志清理受阻，请检查安装状态".into(),
+            ));
+        }
         return Err(error);
     }
-    fs::remove_file(recovery_path).map_err(|_| Error::Storage("恢复事务日志清理失败".into()))?;
+    if paths::write(&path, &reversal).is_err() || fs::remove_file(recovery_path).is_err() {
+        block_journal(
+            &store.root,
+            &reversal,
+            "transaction_cleanup",
+            "上版恢复已完成，但事务日志清理失败",
+        )?;
+        return Err(Error::Storage("上版恢复清理受阻，请检查安装状态".into()));
+    }
+    repository::sync(store, &writer, &[])?;
     Ok(previous)
 }
+
+#[cfg(test)]
+#[path = "transaction_tests.rs"]
+mod tests;

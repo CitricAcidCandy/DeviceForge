@@ -18,6 +18,7 @@ export const help = `DeviceForge · 设备工坊
       deviceforge plugin install <release.json完整URL|离线ZIP> [--api-url 服务地址] [--release-id ID --release-version 版本 --manifest-sha256 摘要]
       deviceforge plugin update <发布ID> <release.json完整URL|离线ZIP> --expected-revision 旧修订 [--api-url 服务地址]
       deviceforge plugin list [--api-url 服务地址]
+      deviceforge plugin cleanup [--dry-run true|false] [--api-url 服务地址]
       deviceforge plugin install-legacy <本地目录|npm包名|本地tgz> [--data-dir 目录]
       deviceforge plugin list-legacy [--data-dir 目录]
       deviceforge config show [--data-dir 目录]
@@ -36,6 +37,7 @@ config import 校验后原子替换根配置；不会导入令牌或业务/插�
 统一安装使用当前运行服务的用户目录；URL 安装须同时提供 ID、版本、SHA-256，必要输入不足时须先配置。
 --api-url 默认 http://127.0.0.1:7030，或 DEVICEFORGE_API_URL；不会启动另一个后端。
 Ctrl+C 结束客户端等待，已提交的服务器任务可在任务页面继续查看。
+cleanup 默认只预览；--dry-run false 才由服务器清理未被引用的资源。
 install-legacy/list-legacy 保留旧离线部署兼容入口，不处理依赖工具或统一安装记录。
 `;
 
@@ -53,7 +55,7 @@ export function parseOptions(args, environment = process.env) {
     args[0] === 'start'
       ? 'start'
       : args[0] === 'plugin' &&
-          ['install', 'list', 'update', 'install-legacy', 'list-legacy'].includes(args[1])
+          ['install', 'list', 'update', 'cleanup', 'install-legacy', 'list-legacy'].includes(args[1])
         ? `plugin.${args[1]}`
         : args[0] === 'config' && ['show', 'path', 'import'].includes(args[1])
           ? `config.${args[1]}`
@@ -68,8 +70,9 @@ export function parseOptions(args, environment = process.env) {
     marketplaceConfigPath: null,
     marketplaceSources: [{ name: '本地默认市场', url: DEFAULT_MARKETPLACE_URL }],
   };
-  const unified = ['plugin.install', 'plugin.update', 'plugin.list'].includes(command);
+  const unified = ['plugin.install', 'plugin.update', 'plugin.list', 'plugin.cleanup'].includes(command);
   if (unified) options.apiUrl = environment.DEVICEFORGE_API_URL || 'http://127.0.0.1:7030';
+  if (command === 'plugin.cleanup') options.dryRun = true;
   const rest = args.slice(command === 'start' ? 1 : 2);
   if (command === 'plugin.update') {
     if (!rest[0] || !/^[a-z0-9][a-z0-9._-]{0,98}$/.test(rest[0]) || rest[0].startsWith('builtin.'))
@@ -118,6 +121,7 @@ export function parseOptions(args, environment = process.env) {
         '--release-version',
         '--manifest-sha256',
         '--expected-revision',
+        '--dry-run',
       ].includes(key) ||
       seen.has(key) ||
       !value ||
@@ -132,7 +136,14 @@ export function parseOptions(args, environment = process.env) {
     } else if (key === '--ip') {
       if (command !== 'start') throw new Error('--ip 只用于启动命令');
       options.ip = value;
-    } else if (key === '--data-dir') options.dataDirectory = resolve(value);
+    } else if (key === '--data-dir') {
+      if (command === 'plugin.cleanup') throw new Error('清理位置由服务器用户目录决定，不接受 --data-dir');
+      options.dataDirectory = resolve(value);
+    } else if (key === '--dry-run') {
+      if (command !== 'plugin.cleanup' || !['true', 'false'].includes(value))
+        throw new Error('--dry-run 只用于资源清理，值必须为 true 或 false');
+      options.dryRun = value === 'true';
+    }
     else if (
       [
         '--api-url',
@@ -142,7 +153,7 @@ export function parseOptions(args, environment = process.env) {
         '--expected-revision',
       ].includes(key)
     ) {
-      if (!unified || (command === 'plugin.list' && key !== '--api-url'))
+      if (!unified || (['plugin.list', 'plugin.cleanup'].includes(command) && key !== '--api-url'))
         throw new Error(`${key} 只用于统一安装命令`);
       const field = {
         '--api-url': 'apiUrl',

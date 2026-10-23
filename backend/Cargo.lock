@@ -121,6 +121,7 @@ dependencies = [
  "deviceforge-data-codec",
  "deviceforge-observability",
  "deviceforge-tool-process",
+ "deviceforge-tool-repository",
  "flate2",
  "futures-util",
  "jsonschema",
@@ -1012,6 +1013,7 @@ dependencies = [
  "serde_json",
  "tokio",
  "tokio-util",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -1057,11 +1059,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "deviceforge-tool-repository"
+version = "0.1.0"
+dependencies = [
+ "fs2",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "thiserror 2.0.21",
+]
+
+[[package]]
 name = "deviceforge-tool-supply-plugin"
 version = "0.1.0"
 dependencies = [
  "apk-plugin-sdk",
  "deviceforge-plugin-runtime",
+ "deviceforge-tool-repository",
  "fs2",
  "futures-util",
  "reqwest",

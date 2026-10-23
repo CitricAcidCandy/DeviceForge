@@ -6,6 +6,7 @@ import { randomBytes } from 'node:crypto';
 import { createServer } from 'node:net';
 import { setTimeout as delay } from 'node:timers/promises';
 import assert from 'node:assert/strict';
+import { smokeBinary } from './smoke-binaries.mjs';
 
 const temporary = await mkdtemp(join(tmpdir(), 'deviceforge-lifecycle-'));
 const plugins = join(temporary, 'plugins');
@@ -19,7 +20,7 @@ const profile = process.argv.includes('--release') ? 'release' : 'debug';
 const suffix = process.platform === 'win32' ? '.exe' : '';
 const token = randomBytes(32).toString('hex');
 const environment = Object.fromEntries(Object.entries(process.env).filter(([key]) => !/^(APK_|DEVICEFORGE_)/.test(key)));
-const child = spawn(resolve(`target/${profile}`, `apk-server${suffix}`), [], {
+const child = spawn(smokeBinary('apk-server', profile), [], {
   env: { ...environment, APK_API_TOKEN: token, APK_BIND: `127.0.0.1:${port}`,
     APK_DATA_DIR: temporary, APK_PLUGIN_DIR: plugins, DEVICEFORGE_USER_DIR: join(temporary, 'user', '.deviceforge'), DEVICEFORGE_HTTP_RATE: '10000' },
   stdio: 'ignore', windowsHide: true,
@@ -91,7 +92,7 @@ try {
   assert.equal((await call('/api/v2/plugins', { headers: {} })).response.status, 401);
   assert.equal((await call('/api/v2/plugins/missing/load', { method: 'POST' })).response.status, 404);
   assert.equal((await call('/api/v2/plugins/builtin.adb/load', { method: 'POST' })).response.status, 400);
-  const echo = resolve(`target/${profile}`, `deviceforge-echo-plugin${suffix}`);
+  const echo = smokeBinary('deviceforge-echo-plugin', profile);
   // 服务已经启动，之后才部署与加载；无需重启宿主。
   await deploy('echo', echo, [], [operation('echo')]);
   const first = await manage('echo', 'load');
@@ -185,9 +186,40 @@ setTimeout(() => process.stdout.write(JSON.stringify({protocol_version:1,request
   await mkdir(resolve('../artifacts'), { recursive: true });
   await writeFile(resolve(`../artifacts/plugin-lifecycle-smoke-${profile}.json`), `${JSON.stringify(report, null, 2)}\n`);
   console.log(JSON.stringify(report, null, 2));
+} catch (error) {
+  // 失败先保留任务和进程标记，避免清理后只能看到排队超时。
+  const diagnostic = {
+    timestamp: new Date().toISOString(),
+    profile,
+    passed: false,
+    error: error.stack,
+    temporary,
+  };
+  for (const [name, path] of [
+    ['jobs', '/api/v2/jobs?limit=100'],
+    ['plugins', '/api/v2/plugins'],
+  ]) {
+    try {
+      diagnostic[name] = (await call(path)).body.data;
+    } catch (failure) {
+      diagnostic[`${name}_error`] = failure.message;
+    }
+  }
+  try {
+    diagnostic.markers = await readdir(join(temporary, 'markers'));
+  } catch {
+    diagnostic.markers = [];
+  }
+  await mkdir(resolve('../artifacts'), { recursive: true });
+  const location = resolve(
+    `../artifacts/plugin-lifecycle-smoke-failure-${profile}-${Date.now()}.json`,
+  );
+  await writeFile(location, `${JSON.stringify(diagnostic, null, 2)}\n`);
+  console.error(`生命周期失败证据：${location}`);
+  throw error;
 } finally {
   if (!graceful && child.exitCode === null) { child.kill(); await closed; }
   const target = resolve(temporary); const within = relative(resolve(tmpdir()), target);
   if (!within || within.startsWith('..') || isAbsolute(within)) throw new Error('插件生命周期测试清理路径越界');
-  await rm(target, { recursive: true, force: true });
+  if (graceful) await rm(target, { recursive: true, force: true });
 }

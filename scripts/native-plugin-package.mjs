@@ -55,6 +55,8 @@ async function compilePlugins(plans, metadata, options) {
     '--locked',
     '--release',
     '--bins',
+    '-j',
+    '1',
     '--target',
     host,
     '--message-format=json-render-diagnostics',

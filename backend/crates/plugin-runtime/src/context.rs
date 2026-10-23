@@ -68,6 +68,7 @@ where
     F: FnOnce(Request, InvocationContext) -> Fut,
     Fut: Future<Output = Execution>,
 {
+    crate::stdio::prepare()?;
     serve_io_with_context(tokio::io::stdin(), tokio::io::stdout(), handler).await
 }
 

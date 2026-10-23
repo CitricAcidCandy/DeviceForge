@@ -20,13 +20,17 @@ npx --yes --package .\artifacts\deviceforge-cli-0.1.0.tgz deviceforge plugin ins
 
 默认绑定 0.0.0.0；--ip 接受 IPv4/IPv6 字面量。前端/API 默认 7030，独立 MCP 默认 7032，端口不能相同。MCP 端口仅提供 /mcp，前端端口也可代理 /mcp；两者共用 Rust 任务。本地和局域网默认免鉴权，未配置或显式空字符串 APK_API_TOKEN 都按空令牌启动，不自动生成随机令牌。可选配置非空令牌时不得包含空白，客户端以 Bearer 使用 API；CLI 不打印令牌、不把它放入 HTML 或代客户端注入。具体业务界面和令牌输入交互等待前端设计。
 
-数据默认 ~/.deviceforge，可由 --data-dir 或 DEVICEFORGE_DATA_DIR 配置；插件默认 data-dir/plugins，可由部署 APK_PLUGIN_DIR 配置。相对 APK_PLUGIN_DIR 按 CLI 当前工作目录解析，安装、列举和启动共用该位置，Rust 接收绝对路径。持久数据不写 npm 缓存。工具部署继续通过 APK_ADB/APK_HDC 等配置。错误的 Host 被拒绝，MCP Origin 按实际网卡与两端口生成；未支持任意自定义域名。市场默认地址为 `http://127.0.0.1:7040`，可用 `--marketplace-url http://服务器地址:7040` 直接覆盖，或使用 `--marketplace-config .\marketplace.json` 读取 `{ "sources": [{ "name": "团队市场", "url": "https://market.example.com" }] }`，两参数互斥。来源仅注入启动环境，浏览器地址覆盖由设置页按当前浏览器保存。资源服务未启动或地址暂不可达不阻塞宿主启动，退出启动器也不会停止独立资源服务。
+业务数据默认 ~/.deviceforge，可由 --data-dir 或 DEVICEFORGE_DATA_DIR 配置。统一发布的组件、共享工具与插件配置使用服务器用户根，由 DEVICEFORGE_USER_DIR 或默认用户目录决定，不随 --data-dir 移动，也不写入 npm 缓存。旧独立插件目录 data-dir/plugins、部署 APK_PLUGIN_DIR 和工具变量 APK_ADB/APK_HDC 等仅作兼容入口；统一安装按发布清单自动准备并绑定工具。相对 APK_PLUGIN_DIR 按 CLI 当前工作目录解析，兼容安装、列举和启动共用该位置，Rust 接收绝对路径。
+
+错误的 Host 被拒绝，MCP Origin 按实际网卡与两端口生成；未支持任意自定义域名。市场默认地址为 `http://127.0.0.1:7040`，可用 `--marketplace-url http://服务器地址:7040` 直接覆盖，或使用 `--marketplace-config .\marketplace.json` 读取 `{ "sources": [{ "name": "团队市场", "url": "https://market.example.com" }] }`，两参数互斥。来源仅注入启动环境，浏览器地址覆盖由设置页按当前浏览器保存。资源服务未启动或地址暂不可达不阻塞宿主启动，退出启动器也不会停止独立资源服务。
 
 Ctrl+C/SIGTERM、启动失败或后端异常退出时停止对外监听与本次进程。正常停止先通过本次回环后端的 system/shutdown 接口收敛任务/会话并刷新日志，最多等待 5 秒；超时才强制清理本次服务树。就绪探测和内部关闭只在配置非空令牌时发送 Authorization；空令牌部署也可直接调用 system/shutdown 让 npx 正常退出。默认日志写入 data-dir/logs，启动输出日志位置；DEVICEFORGE_LOG_DIR 可调整，相对值按 CLI 工作目录解析。设备操作不会自动回滚，外部设备进程需单独验收。
 
 ## 用户目录与根配置
 
-Windows 默认使用 `%USERPROFILE%\.deviceforge`（例如 `C:\Users\用户名\.deviceforge`），其他系统使用 `~/.deviceforge`。优先级为 `--data-dir`、`DEVICEFORGE_DATA_DIR`、默认用户目录；换启动目录、退出或重新下载 npx 程序都不会主动删除这个目录。原先已经使用该默认目录，无需搬迁；显式指定的数据目录继续独立，不自动合并项目预览目录或其他实例。
+Windows 的默认用户根为 `%USERPROFILE%\.deviceforge`（例如 `C:\Users\用户名\.deviceforge`），其他系统为 `~/.deviceforge`，可通过 `DEVICEFORGE_USER_DIR` 显式选择。统一发布的组件、工具和插件配置固定归属该服务器用户根；隔离部署或测试时须为服务器选择独立的用户根。
+
+业务数据目录另按 `--data-dir`、`DEVICEFORGE_DATA_DIR`、默认用户目录的优先级选择；它不改变统一发布资源与插件配置的归属。换启动目录、退出或重新下载 npx 程序都不会主动删除持久目录。显式指定的业务数据目录继续独立，不自动合并项目预览目录或其他实例。
 
 首次启动创建 `config.json`，后续启动自动读取；启动参数覆盖根配置但只作用于本次运行，不静默保存。根配置只管理监听和市场默认来源，格式如下：
 
@@ -49,24 +53,28 @@ deviceforge start --data-dir D:\DeviceForgeData
 
 导入先校验，再在同卷临时文件中写入并替换；多个写入者通过 `config.json.lock` 互斥。无效导入保留原配置。异常进程留下的锁需核对后处理，不自动删除未知锁。导入只改变下次启动偏好，不重启已有服务，不覆盖插件、工具、任务或业务配置。`show/path/help` 不创建用户目录。
 
-服务器与浏览器插件程序默认分别在数据目录的 `plugins`、`browser-plugins`，插件配置统一在用户根的 `plugin-configurations`；日志和任务数据沿既有存储布局。工具供应插件仍以其明确配置的 `install_root` 为准，建议设为本实例数据目录下的 `tools`；不静默迁移部署者已有工具。`APK_PLUGIN_DIR`、`APK_BROWSER_PLUGIN_DIR`、`DEVICEFORGE_LOG_DIR` 等显式部署覆盖继续生效。
+旧独立服务器与浏览器插件的兼容部署目录分别为业务数据目录下的 `plugins`、`browser-plugins`，可由 `APK_PLUGIN_DIR`、`APK_BROWSER_PLUGIN_DIR` 覆盖；日志和任务数据沿既有存储布局，`DEVICEFORGE_LOG_DIR` 继续生效。统一发布使用用户根下的组件与共享工具仓库，插件配置位于 `plugin-configurations`。工具供应的托管模式复用共享仓库；旧自定义供应模式仍使用显式 `install_root`，不会静默迁移部署者已有工具。不要把兼容目录或 `install_root` 当作统一发布资源的目标目录。
 
 页面的“本地导入”直接把合规服务器/浏览器插件安装到当前服务，并通过工具供应和配置接口导入工具包、业务配置或插件配置；它与“上传资源并发布”分开，不依赖市场可用。根启动配置使用上面的 CLI 导入命令，业务配置和插件配置分别遵循各自修订与生效机制。安装文件通过包校验不代表工具已在真实设备或目标平台运行验收。
 
 ## 统一插件安装
 
-`plugin install` 和 `plugin update` 调用正在运行的服务，统一处理 `release.json` URL 或自包含离线 ZIP；`plugin list` 返回同一服务的公开安装视图。`--api-url` 默认为 `DEVICEFORGE_API_URL` 或 `http://127.0.0.1:7030`，不会启动第二个服务器。安装位置由服务器用户根决定；调用端的 `--data-dir` 不选择远端安装位置。
+`plugin install` 和 `plugin update` 调用正在运行的服务，统一处理 `release.json` URL 或自包含离线 ZIP；`plugin list` 返回同一服务的公开安装视图。`--api-url` 默认为 `DEVICEFORGE_API_URL` 或 `http://127.0.0.1:7030`，不会启动第二个服务器。安装位置由服务器用户根决定；调用端的 `--data-dir` 不选择远端安装位置，服务器自己的 `--data-dir` 也不改变统一发布组件、工具与配置的用户根。
 
 ```powershell
 deviceforge plugin install .\mirroring-0.1.0-win32-x64.zip --api-url http://127.0.0.1:7030
 deviceforge plugin install https://market.example/api/v1/resources/实际摘要 --release-id mirroring --release-version 0.1.0 --manifest-sha256 实际摘要
 deviceforge plugin update mirroring .\update.zip --expected-revision 旧清单SHA256
 deviceforge plugin list --api-url http://127.0.0.1:7030
+deviceforge plugin cleanup --api-url http://127.0.0.1:7030
+deviceforge plugin cleanup --dry-run false --api-url http://127.0.0.1:7030
 ```
 
-URL 来源须同时提供发布 ID、版本和清单原字节 SHA-256；离线 ZIP 不混用这些市场参数。离线先流式上传到 `POST /api/v2/plugin-installations/artifacts?filename=...`，随后与在线来源共用安装 API。客户端接受不超过 1 GiB 的普通 ZIP，服务器仍独立执行完整清单、依赖、摘要与入口验证。更新须携带实际旧修订，避免覆盖并发修改。新安装客户端不依赖 CLI 自带的 Rust 校验器，不执行 npm 脚本。
+URL 来源须同时提供发布 ID、版本和清单原字节 SHA-256；离线 ZIP 不混用这些市场参数。离线先流式上传到 `POST /api/v2/plugin-installations/artifacts?filename=...`，随后与在线来源共用安装 API。客户端接受不超过 4 GiB 的普通 ZIP，服务器仍独立执行完整清单、依赖、摘要与入口验证。更新须携带实际旧修订，避免覆盖并发修改。新安装客户端不依赖 CLI 自带的 Rust 校验器，不执行 npm 脚本。
 
 接收 202 任务后，CLI 等待 `succeeded` 才报告完成；失败和取消均返回错误。默认单请求 30 秒、整个等待 10 分钟，Ctrl+C 只结束本地等待，已经提交的任务可在任务页继续查看。每次响应核对日志 ID，可选令牌仅发送到请求头。安装后的启用状态由服务返回决定；必要账号、项目、签名或路径输入不足时，在市场补齐配置。更新保留已有配置，发行包不得带用户凭据。
+
+`plugin cleanup` 调用 `POST /api/v2/plugin-installations/cleanup`，默认提交 `dry_run:true` 预览未引用的缓存与展开资源。显式 `--dry-run false` 才执行清理；服务器决定可回收集合并保留被安装记录引用的资源，CLI 不接收任意删除路径或 `--data-dir`。客户端等待 `installation.cleanup` 任务成功后输出 `dry_run`、`items`、`total_bytes` 和关联任务/日志 ID；202 本身不代表清理完成。
 
 发布者通过 `node scripts/pack-plugin-release.mjs pack` 组合真实插件包和工具依赖；`plan` 只核验本地闭包，`publish` 才上传资源并最后写市场目录。完整格式、输入说明和命令见 [发布层说明](../scripts/plugin-releases/README.md)。源码 `release.json` 的空变体不能作为可安装成品，缺少必需工具或真实摘要会阻止打包。
 

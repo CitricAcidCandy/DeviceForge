@@ -72,13 +72,14 @@ impl Application {
                 if let Some(attempt) = &discovery {
                     self.registry.begin_discovery(attempt)?;
                 }
-                let value = execution::execute(
+                let value = execution::execute_reported(
                     plan.target.executor.as_ref(),
                     &plan.target.operation.id,
                     plan.input.clone(),
                     token.clone(),
                     owner.map(AsRef::as_ref),
                     deadline,
+                    crate::job_progress::JobProgressReporter::new(self, job.id.clone()),
                 )
                 .await?;
                 let (projected, directory) = if let Some(attempt) = &discovery {

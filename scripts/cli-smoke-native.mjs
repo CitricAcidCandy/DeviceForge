@@ -31,7 +31,7 @@ export async function installNativePlugins({
     const installed = await runNpx([
       ...prefix,
       'plugin',
-      'install',
+      'install-legacy',
       pkg.archive,
       '--data-dir',
       dataDirectory,

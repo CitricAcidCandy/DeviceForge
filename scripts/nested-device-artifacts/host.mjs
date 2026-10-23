@@ -7,6 +7,7 @@ import { isAbsolute, join, relative, resolve } from 'node:path';
 import { poll } from '../device-provider/client.mjs';
 import { clientFor } from './client.mjs';
 import { events, exited } from './fixtures.mjs';
+import { smokeBinary } from '../../backend/scripts/smoke-binaries.mjs';
 
 async function bounded(promise, milliseconds, label) {
   let timer;
@@ -51,13 +52,7 @@ export async function readHostLogs(dataDirectory) {
 }
 
 export async function prepareHost(root, profile, report) {
-  const binary = resolve(
-    root,
-    'backend',
-    'target',
-    profile,
-    `apk-server${process.platform === 'win32' ? '.exe' : ''}`,
-  );
+  const binary = smokeBinary('apk-server', profile);
   assert.ok((await stat(binary)).isFile(), '必须等待集成负责人交接当前构建');
   const temporary = await mkdtemp(join(tmpdir(), 'deviceforge-nested-artifacts-'));
   report.temporary_retained = temporary;
@@ -83,6 +78,7 @@ export async function prepareHost(root, profile, report) {
       ...environment,
       APK_BIND: `127.0.0.1:${endpoint}`,
       APK_DATA_DIR: temporary,
+      DEVICEFORGE_USER_DIR: join(temporary, 'user'),
       APK_PLUGIN_DIR: plugins,
       APK_BROWSER_PLUGIN_DIR: browser,
       DEVICEFORGE_NODE: process.execPath,

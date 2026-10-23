@@ -17,6 +17,7 @@ import {
 } from './browser-plugin-fixture.mjs';
 import { runBrowser } from './browser-driver.mjs';
 import { mountBuiltBrowserAssets } from './browser-built-assets.mjs';
+import { smokeBinary } from '../backend/scripts/smoke-binaries.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 assert.ok(
@@ -24,12 +25,7 @@ assert.ok(
   '仅支持 --release',
 );
 const profile = process.argv.includes('--release') ? 'release' : 'debug';
-const binary = resolve(
-  root,
-  'backend/target',
-  profile,
-  process.platform === 'win32' ? 'apk-server.exe' : 'apk-server',
-);
+const binary = smokeBinary('apk-server', profile);
 const temporary = await mkdtemp(join(tmpdir(), 'deviceforge-browser-'));
 const reportPath = resolve(root, 'artifacts', `browser-plugin-smoke-${profile}.json`);
 const report = {

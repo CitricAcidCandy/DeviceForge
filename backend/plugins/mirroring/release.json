@@ -4,7 +4,7 @@
   "id": "mirroring",
   "version": "0.1.0",
   "name": "设备投屏与录制",
-  "description": "使用服务器配置的 ADB、scrcpy 与 scrcpy-server 提供实时画面、设备控制及录制。服务文件版本必须与配置一致；Android 17 推荐 scrcpy-server 3.3.4。工具文件需要单独准备。",
+  "description": "提供实时画面、设备控制及录制。完整发布包自动准备并绑定 ADB、scrcpy 和匹配的 scrcpy-server 3.3.4；用户只需选择目标设备并确认连接与控制权限，无需单独填写必需工具路径。",
   "components": [
     {
       "id": "mirroring",

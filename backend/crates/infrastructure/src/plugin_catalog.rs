@@ -21,20 +21,25 @@ impl FilePluginCatalog {
     pub async fn open(root: &Path, artifacts: Arc<dyn ArtifactStore>) -> Result<Self> {
         Self::open_roots(vec![root.to_owned()], artifacts).await
     }
-    pub async fn open_roots(paths: Vec<PathBuf>, artifacts: Arc<dyn ArtifactStore>) -> Result<Self> {
+    pub async fn open_roots(
+        paths: Vec<PathBuf>,
+        artifacts: Arc<dyn ArtifactStore>,
+    ) -> Result<Self> {
         let mut roots = Vec::new();
         for path in paths {
-        let root = tokio::fs::canonicalize(path)
-            .await
-            .map_err(|_| Error::Storage("插件部署目录不可访问".into()))?;
-        if !tokio::fs::metadata(&root)
-            .await
-            .map_err(|_| Error::Storage("插件部署目录不可访问".into()))?
-            .is_dir()
-        {
-            return Err(Error::Invalid("插件部署根路径必须是目录".into()));
-        }
-        if !roots.contains(&root) { roots.push(root); }
+            let root = tokio::fs::canonicalize(path)
+                .await
+                .map_err(|_| Error::Storage("插件部署目录不可访问".into()))?;
+            if !tokio::fs::metadata(&root)
+                .await
+                .map_err(|_| Error::Storage("插件部署目录不可访问".into()))?
+                .is_dir()
+            {
+                return Err(Error::Invalid("插件部署根路径必须是目录".into()));
+            }
+            if !roots.contains(&root) {
+                roots.push(root);
+            }
         }
         Ok(Self {
             roots: Arc::new(roots),
@@ -77,43 +82,47 @@ impl FilePluginCatalog {
             let mut plugins = Vec::new();
             let mut seen = std::collections::HashSet::new();
             for root in roots {
-            for (count, entry) in std::fs::read_dir(root)
-                .map_err(|_| Error::Storage("插件目录读取失败".into()))?
-                .enumerate()
-            {
-                if count >= 1024 {
-                    return Err(Error::TooLarge);
+                for (count, entry) in std::fs::read_dir(root)
+                    .map_err(|_| Error::Storage("插件目录读取失败".into()))?
+                    .enumerate()
+                {
+                    if count >= 1024 {
+                        return Err(Error::TooLarge);
+                    }
+                    let entry = entry.map_err(|_| Error::Storage("插件目录条目读取失败".into()))?;
+                    let name = entry.file_name();
+                    let id = name
+                        .to_str()
+                        .ok_or_else(|| Error::Invalid("插件目录名称必须为 UTF-8".into()))?;
+                    if id.starts_with('.') {
+                        continue;
+                    }
+                    let kind = entry
+                        .file_type()
+                        .map_err(|_| Error::Storage("插件目录条目不可访问".into()))?;
+                    if kind.is_symlink() {
+                        return Err(Error::Invalid("插件目录不得为链接".into()));
+                    }
+                    if !kind.is_dir() {
+                        continue;
+                    }
+                    if !entry.path().join("manifest.json").exists() || !seen.insert(id.to_owned()) {
+                        continue;
+                    }
+                    // 托管发布由安装用例按持久启停意图恢复，不能在这里提前加载。
+                    if entry.path().join("installation.json").exists() {
+                        continue;
+                    }
+                    if plugins.len() >= 256 {
+                        return Err(Error::TooLarge);
+                    }
+                    plugins.push(read_plugin(
+                        root,
+                        id,
+                        artifacts.clone(),
+                        configurations.clone(),
+                    )?);
                 }
-                let entry = entry.map_err(|_| Error::Storage("插件目录条目读取失败".into()))?;
-                let name = entry.file_name();
-                let id = name
-                    .to_str()
-                    .ok_or_else(|| Error::Invalid("插件目录名称必须为 UTF-8".into()))?;
-                if id.starts_with('.') {
-                    continue;
-                }
-                let kind = entry
-                    .file_type()
-                    .map_err(|_| Error::Storage("插件目录条目不可访问".into()))?;
-                if kind.is_symlink() {
-                    return Err(Error::Invalid("插件目录不得为链接".into()));
-                }
-                if !kind.is_dir() {
-                    continue;
-                }
-                if !entry.path().join("manifest.json").exists() || !seen.insert(id.to_owned()) { continue; }
-                // 托管发布由安装用例按持久启停意图恢复，不能在这里提前加载。
-                if entry.path().join("installation.json").exists() { continue; }
-                if plugins.len() >= 256 {
-                    return Err(Error::TooLarge);
-                }
-                plugins.push(read_plugin(
-                    root,
-                    id,
-                    artifacts.clone(),
-                    configurations.clone(),
-                )?);
-            }
             }
             plugins.sort_by(|left, right| left.manifest().id.cmp(&right.manifest().id));
             Ok(plugins)
@@ -180,7 +189,9 @@ impl PluginCatalog for FilePluginCatalog {
         let configurations = self.configurations.clone();
         let plugin = self
             .blocking(move |roots, artifacts| {
-                let root = roots.iter().find(|root| root.join(&id).join("manifest.json").exists())
+                let root = roots
+                    .iter()
+                    .find(|root| root.join(&id).join("manifest.json").exists())
                     .ok_or_else(|| Error::NotFound("插件尚未部署".into()))?;
                 read_plugin(root, &id, artifacts, configurations)
             })

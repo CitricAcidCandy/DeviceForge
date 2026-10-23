@@ -11,6 +11,7 @@ pub mod process;
 pub mod store;
 
 mod plugin_artifacts;
+mod plugin_resources;
 pub mod reverse;
 
 pub mod device_input;
@@ -24,6 +25,6 @@ pub mod bundles;
 pub mod browser_configurations;
 pub mod plugin_catalog;
 pub mod plugin_configurations;
-pub mod plugin_packages;
 pub mod plugin_installations;
+pub mod plugin_packages;
 pub mod splits;

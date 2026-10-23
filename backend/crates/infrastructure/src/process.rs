@@ -35,12 +35,9 @@ fn command(executable: &str, args: &[String], plugin: bool) -> Command {
         .stderr(Stdio::piped())
         .kill_on_drop(true);
     if plugin {
-        command.env_clear();
-        for key in ["PATH", "SystemRoot", "TEMP", "TMP", "HOME", "USERPROFILE"] {
-            if let Some(value) = std::env::var_os(key) {
-                command.env(key, value);
-            }
-        }
+        command
+            .env_clear()
+            .envs(tool_process::restricted_environment());
     }
     #[cfg(windows)]
     command.creation_flags(0x08000000);
@@ -148,6 +145,8 @@ pub(crate) struct PluginInvocation<'a> {
 /// 配置路径在本次调用开始时固定，后续保存不会改变活动进程的配置快照。
 pub(crate) async fn configured_plugin(call: PluginInvocation<'_>) -> Result<Vec<u8>> {
     crate::execution_deadline::check(&call.cancel, Some(call.deadline))?;
+    let lease =
+        crate::plugin_resources::acquire(call.resources, &call.cancel, call.deadline).await?;
     let mut command = ToolCommand::new(call.executable, call.args);
     command.input = Some(&call.input);
     command.directory = call.directory;
@@ -159,7 +158,10 @@ pub(crate) async fn configured_plugin(call: PluginInvocation<'_>) -> Result<Vec<
         );
     }
     if let Some(path) = call.resources {
-        command.env.insert("DEVICEFORGE_PLUGIN_RESOURCES".into(), path.as_os_str().to_owned());
+        command.env.insert(
+            "DEVICEFORGE_PLUGIN_RESOURCES".into(),
+            path.as_os_str().to_owned(),
+        );
     }
     if let Some(directory) = call.directory {
         for key in ["TEMP", "TMP", "TMPDIR"] {
@@ -169,10 +171,11 @@ pub(crate) async fn configured_plugin(call: PluginInvocation<'_>) -> Result<Vec<
         }
     }
     await_capture(
-        tool_process::capture(
+        tool_process::capture_with_lease(
             command,
             ExecutionOptions::new(call.deadline),
             call.cancel.clone(),
+            lease,
         ),
         &call.cancel,
         call.deadline,
@@ -388,6 +391,31 @@ pub(crate) async fn isolated_text_until(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn plugin_command_uses_shared_restricted_runtime_environment() {
+        fn normalized(key: &std::ffi::OsStr) -> std::ffi::OsString {
+            if cfg!(windows) {
+                key.to_string_lossy().to_uppercase().into()
+            } else {
+                key.to_owned()
+            }
+        }
+        let command = command("unused-plugin-environment-test", &[], true);
+        let actual: std::collections::BTreeMap<_, _> = command
+            .as_std()
+            .get_envs()
+            .filter_map(|(key, value)| value.map(|value| (normalized(key), value.to_owned())))
+            .collect();
+        let expected: std::collections::BTreeMap<_, _> = tool_process::restricted_environment()
+            .into_iter()
+            .map(|(key, value)| (normalized(&key), value))
+            .collect();
+        assert!(
+            actual == expected,
+            "宿主启动插件须保留公共运行环境快照，且不能额外继承宿主变量"
+        );
+    }
 
     #[test]
     fn cleanup_failure_is_not_replaced_by_its_cause() {

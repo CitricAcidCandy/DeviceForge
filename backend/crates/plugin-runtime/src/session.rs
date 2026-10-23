@@ -20,6 +20,7 @@ where
     F: FnOnce(SessionOpen, InvocationContext, SessionInput, SessionOutput) -> Fut,
     Fut: Future<Output = Execution>,
 {
+    crate::stdio::prepare()?;
     serve_session_io(tokio::io::stdin(), tokio::io::stdout(), options, handler).await
 }
 

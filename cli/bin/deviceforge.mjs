@@ -2,7 +2,7 @@
 import { parseOptions, help } from '../src/options.mjs';
 import { start } from '../src/start.mjs';
 import { installPlugin, listPlugins } from '../src/install.mjs';
-import { installPluginRelease, listPluginInstallations } from '../src/plugin-installations.mjs';
+import { installPluginRelease, listPluginInstallations, cleanupPluginResources } from '../src/plugin-installations.mjs';
 import {
   readRootConfiguration,
   rootConfigurationPath,
@@ -37,6 +37,9 @@ try {
         2,
       ),
     );
+  } else if (options.command === 'plugin.cleanup') {
+    const result = await cleanupPluginResources(options, { signal: controller.signal });
+    console.log(JSON.stringify({ job_id: result.job.id, log_id: result.logId, ...result.report }, null, 2));
   } else if (options.command === 'plugin.install-legacy') {
     const installed = await installPlugin(options, { signal: controller.signal });
     console.log(

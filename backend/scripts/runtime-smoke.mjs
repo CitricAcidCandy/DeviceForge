@@ -10,6 +10,7 @@ import { deployMessagePackPlugin, verifyMessagePack } from './msgpack-smoke.mjs'
 import { deployAndroidPackages } from './android-packages-deployment.mjs';
 import { deployAndroidDevice } from './android-device-deployment.mjs';
 import { deployHarmonyDevice } from './harmony-device-deployment.mjs';
+import { smokeBinary } from './smoke-binaries.mjs';
 
 const temporaryParent = resolve(tmpdir());
 const temporary = await mkdtemp(join(temporaryParent, 'deviceforge-smoke-'));
@@ -24,15 +25,15 @@ const base = `http://127.0.0.1:${port}`;
 const token = randomBytes(32).toString('hex');
 const suffix = process.platform === 'win32' ? '.exe' : '';
 const profile = process.argv.includes('--release') ? 'release' : 'debug';
-const binary = resolve('target', profile, `apk-server${suffix}`);
-const plugin = resolve('target', profile, `deviceforge-echo-plugin${suffix}`);
+const binary = smokeBinary('apk-server', profile);
+const plugin = smokeBinary('deviceforge-echo-plugin', profile);
 const pluginDirectory = join(temporary, 'plugins', 'echo');
 await mkdir(pluginDirectory, { recursive: true });
 await writeFile(join(pluginDirectory, 'manifest.json'), JSON.stringify({
   id: 'echo', version: '0.1.0', protocol_version: 1, executable: plugin, args: [],
   operations: [{ name: 'echo', title: '回显', input_schema: { type: 'object' } }],
 }));
-const artifactPlugin = resolve('target', profile, `deviceforge-artifact-copy-plugin${suffix}`);
+const artifactPlugin = smokeBinary('deviceforge-artifact-copy-plugin', profile);
 const artifactPluginDirectory = join(temporary, 'plugins', 'artifact_copy');
 await mkdir(artifactPluginDirectory, { recursive: true });
 await writeFile(join(artifactPluginDirectory, 'manifest.json'), JSON.stringify({
@@ -42,7 +43,7 @@ await writeFile(join(artifactPluginDirectory, 'manifest.json'), JSON.stringify({
 }));
 const selectedPerformanceDemo = process.argv.includes('--performance-plugin');
 await deployMessagePackPlugin(temporary, suffix, profile);
-const performancePlugin = resolve('target', profile, `deviceforge-performance-demo-plugin${suffix}`);
+const performancePlugin = smokeBinary('deviceforge-performance-demo-plugin', profile);
 const performancePluginDirectory = join(temporary, 'plugins', 'performance_demo');
 await mkdir(performancePluginDirectory, { recursive: true });
 await writeFile(join(performancePluginDirectory, 'manifest.json'), JSON.stringify({

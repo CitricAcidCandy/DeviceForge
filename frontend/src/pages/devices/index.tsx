@@ -118,7 +118,10 @@ export function DevicesPage({ services, active }: { services: ProductServices; a
               : '设备发现未完成'
             : '设备发现已完成';
           const options = {
-            description: `已完成 ${result.data.discovered} 个提供者的发现${result.data.failures.length ? `，${result.data.failures.length} 个失败` : ''}`,
+            description: [
+              `已完成 ${result.data.discovered} 个提供者的发现${result.data.failures.length ? `，${result.data.failures.length} 个失败` : ''}`,
+              ...result.data.failures.map((failure) => `${failure.provider}：${failure.message}`),
+            ].join('；'),
             logId: result.logId,
             details: result.data.failures.map((failure) => ({
               label: failure.provider,

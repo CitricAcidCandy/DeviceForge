@@ -23,6 +23,7 @@ fn config(root: &Path) -> Config {
         download_limit: MANIFEST_LIMIT,
         extracted_limit: MANIFEST_LIMIT,
         file_limit: 100,
+        repository: None,
     }
 }
 

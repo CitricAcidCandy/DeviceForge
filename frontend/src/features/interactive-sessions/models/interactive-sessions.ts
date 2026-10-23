@@ -18,7 +18,18 @@ import {
 import { createSessionState } from './state.ts';
 import type { SessionRequest } from './state.ts';
 import { waitForPoll } from './polling.ts';
-import type { InteractiveSessionOptions, SessionReadOptions } from '../types/index.ts';
+import {
+  TERMINAL_PROTOCOL,
+  terminalInput,
+  terminalResize,
+  terminalSize,
+} from '../utils/terminal.ts';
+import type {
+  InteractiveSessionOptions,
+  SessionInfoView,
+  SessionReadOptions,
+  TerminalSize,
+} from '../types/index.ts';
 export type * from '../types/index.ts';
 export function createInteractiveSessions(
   gateway: SessionGateway,
@@ -26,6 +37,7 @@ export function createInteractiveSessions(
 ) {
   const interval = pollInterval(options.pollIntervalMs);
   const state = createSessionState();
+  let releasingTerminal: Promise<ApiResult<SessionInfoView> | null> | null = null;
   async function read(
     context: SessionRequest,
     request: (signal: AbortSignal) => Promise<ApiResult<unknown>>,
@@ -88,6 +100,73 @@ export function createInteractiveSessions(
     state.observe(context, data.session, result.logId, data);
     return { data, logId: result.logId };
   }
+  function send(bytes: readonly number[], signal: AbortSignal) {
+    const copied = copyBytes(bytes);
+    const context = state.begin('input', signal);
+    const selected = identity(context);
+    return run(context, async () => {
+      const result = await read(context, (requestSignal) =>
+        gateway.send(selected.id, copied, requestSignal),
+      );
+      const data = decodeReceipt(result.data, selected.id, result.logId);
+      state.update(context, {}, result.logId);
+      return { data, logId: result.logId };
+    });
+  }
+  function terminalRecord(id: string, remove: boolean, signal: AbortSignal) {
+    const sessionId = normalizeSessionId(id);
+    const context = state.begin(remove ? 'remove_record' : 'release_record', signal);
+    return run(context, async () => {
+      const observed = await read(context, (requestSignal) =>
+        gateway.get(sessionId, requestSignal),
+      );
+      const selected = decodeInfo(observed.data, observed.logId, { id: sessionId });
+      const current = state.snapshot().session;
+      if (selected.operation !== 'plugin.terminal.open' || selected.plugin_id !== 'terminal')
+        throw new ApiError(
+          'protocol',
+          'not_terminal_record',
+          '这里只能管理终端会话记录',
+          null,
+          observed.logId,
+        );
+      if (current?.id === selected.id && current.status !== 'finished')
+        throw new ApiError(
+          'protocol',
+          'current_terminal_record',
+          '当前会话请使用上方的关闭会话操作',
+          null,
+          observed.logId,
+        );
+      if (remove && selected.status !== 'finished')
+        throw new ApiError(
+          'protocol',
+          'session_not_finished',
+          '只能删除已结束的终端记录',
+          null,
+          observed.logId,
+        );
+      const result = await read(context, (requestSignal) =>
+        remove
+          ? gateway.remove(sessionId, requestSignal)
+          : gateway.release(sessionId, requestSignal),
+      );
+      const data = remove
+        ? decodeRemoved(result.data, sessionId, result.logId)
+        : decodeInfo(result.data, result.logId, selected);
+      if (!remove && 'status' in data && data.status !== 'stopping' && data.status !== 'finished')
+        throw new ApiError(
+          'protocol',
+          'invalid_session_release',
+          '释放请求未返回Stopping或Finished',
+          null,
+          result.logId,
+        );
+      const records = await read(context, (requestSignal) => gateway.list(requestSignal));
+      state.update(context, { records: decodeRecords(records.data, records.logId) }, result.logId);
+      return { data, logId: result.logId };
+    });
+  }
   return {
     refreshDefinitions(signal: AbortSignal) {
       const context = state.begin('definitions', signal);
@@ -110,6 +189,48 @@ export function createInteractiveSessions(
     open,
     openTerminal: (profile: string, signal: AbortSignal) =>
       open({ operation: 'plugin.terminal.open', input: { profile } }, signal),
+    openPtyTerminal: (profile: string, size: TerminalSize, signal: AbortSignal) =>
+      open(
+        {
+          operation: 'plugin.terminal.open',
+          input: {
+            profile,
+            terminal: { protocol: TERMINAL_PROTOCOL, ...terminalSize(size) },
+          },
+        },
+        signal,
+      ),
+    sendTerminalInput: (text: string, signal: AbortSignal) => send(terminalInput(text), signal),
+    resizeTerminal: (size: TerminalSize, signal: AbortSignal) => send(terminalResize(size), signal),
+    closeTerminalRecord: (id: string, signal: AbortSignal) => terminalRecord(id, false, signal),
+    removeTerminalRecord: (id: string, signal: AbortSignal) => terminalRecord(id, true, signal),
+    releaseSelectedTerminal(): Promise<ApiResult<SessionInfoView> | null> {
+      if (releasingTerminal) return releasingTerminal;
+      const selected = state.snapshot().session;
+      if (
+        !selected ||
+        selected.operation !== 'plugin.terminal.open' ||
+        selected.plugin_id !== 'terminal' ||
+        selected.status === 'finished'
+      )
+        return Promise.resolve(null);
+      // 页面结束时先发keepalive；独立截止点不受本地clear/dispose撤销，也不自动重试。
+      releasingTerminal = (async () => {
+        const signal = AbortSignal.timeout(5000);
+        const result = await abortable(gateway.release(selected.id, signal), signal);
+        const data = decodeInfo(result.data, result.logId, selected);
+        if (data.status !== 'stopping' && data.status !== 'finished')
+          throw new ApiError(
+            'protocol',
+            'invalid_session_release',
+            '释放请求未返回Stopping或Finished',
+            null,
+            result.logId,
+          );
+        return { data, logId: result.logId };
+      })();
+      return releasingTerminal;
+    },
     resume(id: string, signal: AbortSignal, after = 0) {
       const sessionId = normalizeSessionId(id);
       normalizeRead({}, after);
@@ -177,19 +298,7 @@ export function createInteractiveSessions(
         }
       });
     },
-    send(bytes: readonly number[], signal: AbortSignal) {
-      const copied = copyBytes(bytes);
-      const context = state.begin('input', signal);
-      const selected = identity(context);
-      return run(context, async () => {
-        const result = await read(context, (requestSignal) =>
-          gateway.send(selected.id, copied, requestSignal),
-        );
-        const data = decodeReceipt(result.data, selected.id, result.logId);
-        state.update(context, {}, result.logId);
-        return { data, logId: result.logId };
-      });
-    },
+    send,
     eof(signal: AbortSignal) {
       const context = state.begin('eof', signal);
       const selected = identity(context);

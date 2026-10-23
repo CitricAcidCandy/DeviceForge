@@ -105,19 +105,41 @@ pub(crate) async fn execute(
     owner: Option<&Owner>,
     deadline: Option<tokio::time::Instant>,
 ) -> Result<Value> {
+    execute_reported(
+        executor,
+        operation,
+        input,
+        cancel,
+        owner,
+        deadline,
+        std::sync::Arc::new(apk_domain::NoProgress),
+    )
+    .await
+}
+
+pub(crate) async fn execute_reported(
+    executor: &dyn Executor,
+    operation: &str,
+    input: Value,
+    cancel: CancellationToken,
+    owner: Option<&Owner>,
+    deadline: Option<tokio::time::Instant>,
+    progress: std::sync::Arc<dyn apk_domain::ProgressReporter>,
+) -> Result<Value> {
     // 到调用执行器之间没有 await，避免异步状态更新后使用旧准入结论。
     crate::operation_budget::check(deadline, Some(&cancel))?;
     if owner.is_some_and(|owner| owner.info().cleanup_failed) {
         return Err(Error::Conflict("插件资源清理未确认，拒绝启动执行器".into()));
     }
     let result = executor
-        .execute_with_context(
+        .execute_with_progress(
             operation,
             input,
             cancel,
             apk_domain::ExecutionContext {
                 deadline: deadline.map(tokio::time::Instant::into_std),
             },
+            progress,
         )
         .await;
     if matches!(result, Err(Error::CleanupFailed))

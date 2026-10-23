@@ -56,6 +56,10 @@ export function installedPackage(
   return packages.find((pkg) => pkg.id === entry.id && pkg.kind === kind);
 }
 
+export function installedEntry(entry: MarketplaceEntry, packages: readonly PackageInfo[], installations: readonly PluginInstallation[]) {
+  return isReleaseEntry(entry) ? installations.find((item) => item.id === entry.id) : installedPackage(entry, packages);
+}
+
 // 按语义版本判断升级，拒绝把旧版本或未知版本顺序误报为更新。
 export function newerVersion(candidate: string, installed: string): boolean {
   const parse = (value: string) => /^(\d+)\.(\d+)\.(\d+)(?:-([\w.-]+))?(?:\+[\w.-]+)?$/.exec(value);
@@ -113,11 +117,18 @@ export function localInstallationEntry(installation: PluginInstallation): Market
     version: installation.version, summary: installation.summary, description: installation.description,
     keywords: [], categories: ['function'], applies_to: ['deviceforge'], supports_mcp: 'none', supports_agent: false,
     restart_policy: 'none', platforms: [], architectures: [], source: '', sourceName: '本地完整安装',
-    details: { release_format: 1, release_revision: installation.revision, release_enabled: installation.enabled } };
+    details: { release_format: 1, release_revision: installation.revision, release_enabled: installation.enabled, release_status: installation.status } };
 }
 
 export function releaseConfigurationTargets(installation: PluginInstallation) {
   return installation.components.map((component) => ({ kind: component.kind, id: component.id }));
+}
+
+export function entryConfigurationTargets(entry: MarketplaceEntry, installations: readonly PluginInstallation[]) {
+  const installation = installations.find((item) => item.id === entry.id);
+  if (isReleaseEntry(entry)) return installation ? releaseConfigurationTargets(installation) : [];
+  const kind = pluginKind(entry);
+  return kind ? [{ kind, id: entry.id }] : [];
 }
 
 export function localPackageEntry(pkg: PackageInfo, plugin?: PluginInfo): MarketplaceEntry {

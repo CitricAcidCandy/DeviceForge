@@ -5,13 +5,14 @@ import { fileURLToPath } from 'node:url';
 const boundaries = {
   'apk-domain': { internal: [], external: ['serde', 'serde_json', 'thiserror', 'async-trait', 'tokio-util', 'schemars', 'futures-util', 'bytes', 'uuid'] },
   'apk-application': { internal: ['apk-domain', 'deviceforge-observability'] },
-  'apk-infrastructure': { internal: ['apk-domain', 'apk-plugin-sdk', 'deviceforge-data-codec', 'deviceforge-observability', 'deviceforge-tool-process', 'deviceforge-android-package-core'] },
+  'apk-infrastructure': { internal: ['apk-domain', 'apk-plugin-sdk', 'deviceforge-data-codec', 'deviceforge-observability', 'deviceforge-tool-process', 'deviceforge-tool-repository', 'deviceforge-android-package-core'] },
   'apk-server': { internal: ['apk-domain', 'apk-application', 'apk-infrastructure', 'apk-plugin-sdk', 'deviceforge-observability'] },
   'deviceforge-observability': { internal: [], external: ['tracing', 'tracing-subscriber', 'tracing-appender', 'tokio', 'uuid', 'serde', 'schemars', 'tempfile', 'thiserror'] },
   'apk-plugin-sdk': { internal: [], external: ['serde', 'serde_json'] },
-  'deviceforge-plugin-runtime': { internal: ['apk-plugin-sdk'], external: ['serde_json', 'tokio', 'tokio-util'] },
+  'deviceforge-plugin-runtime': { internal: ['apk-plugin-sdk'], external: ['serde_json', 'tokio', 'tokio-util', 'windows-sys'] },
   'deviceforge-data-codec': { internal: [], external: ['serde', 'serde_json', 'thiserror', 'rmpv'] },
   'deviceforge-tool-process': { internal: [], external: ['tokio', 'tokio-util', 'thiserror', 'windows-sys'] },
+  'deviceforge-tool-repository': { internal: [], external: ['serde', 'serde_json', 'thiserror', 'sha2', 'fs2', 'tempfile'] },
   'deviceforge-android-package-core': { internal: [], external: ['zip', 'quick-xml', 'serde', 'thiserror'] },
 };
 
@@ -23,9 +24,14 @@ export function validatePackages(metadata, root) {
   const failures = [];
   for (const item of packages) {
     const location = relative(root, item.manifest_path).split(sep).join('/');
-    const rule = location.startsWith('plugins/') ? { internal: ['apk-plugin-sdk', 'deviceforge-data-codec', 'deviceforge-plugin-runtime', 'deviceforge-tool-process', 'deviceforge-android-package-core'] } : boundaries[item.name];
+    const rule = location.startsWith('plugins/') ? { internal: ['apk-plugin-sdk', 'deviceforge-data-codec', 'deviceforge-plugin-runtime', 'deviceforge-tool-process', 'deviceforge-tool-repository', 'deviceforge-android-package-core'] } : boundaries[item.name];
     if (!rule) { failures.push(`${location}: 未定义模块职责和依赖规则`); continue; }
     for (const dependency of item.dependencies.filter((value) => value.kind !== 'dev')) {
+      if (item.name === 'deviceforge-plugin-runtime' && dependency.name === 'windows-sys' &&
+          (dependency.kind !== null || dependency.target !== 'cfg(windows)' ||
+           (dependency.features ?? []).some((feature) => !['Win32_Foundation', 'Win32_System_Console'].includes(feature)))) {
+        failures.push(`${location}: 运行库原生依赖仅限Windows标准句柄准备，不允许构建依赖或其他系统能力`);
+      }
       if (internal.has(dependency.name) && !rule.internal.includes(dependency.name)) {
         failures.push(`${location}: ${item.name} 不得依赖 ${dependency.name}`);
       } else if (!internal.has(dependency.name) && rule.external && !rule.external.includes(dependency.name)) {

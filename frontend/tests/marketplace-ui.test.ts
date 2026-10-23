@@ -4,6 +4,7 @@ import { act, createElement } from 'react';
 import type { ComponentProps, ComponentType } from 'react';
 import { JSDOM } from 'jsdom';
 import { createServer } from 'vite';
+import { strToU8, zipSync } from 'fflate';
 import type { MarketplaceUploadDialog } from '../src/pages/marketplace/components/MarketplaceUploadDialog/index.tsx';
 import type { MarketplaceCard } from '../src/pages/marketplace/components/MarketplaceCard/index.tsx';
 import type { MarketplaceDetail } from '../src/pages/marketplace/components/MarketplaceDetail/index.tsx';
@@ -21,6 +22,7 @@ import type { LocalImportDialog } from '../src/pages/marketplace/components/Loca
 import type { MarketplacePage } from '../src/pages/marketplace/index.tsx';
 import { createProductServices } from '../src/app/product/services.ts';
 import { installedPackage as localInstalledPackage, plugin, success, requestUrl, deferred as deferredResult } from './fixtures.ts';
+import { release } from './plugin-installations-fixture.ts';
 
 type UploadProps = ComponentProps<typeof MarketplaceUploadDialog>;
 type CardProps = ComponentProps<typeof MarketplaceCard>;
@@ -29,6 +31,10 @@ type FileProps = ComponentProps<typeof FileDropzone>;
 type StepProps = ComponentProps<typeof Stepper>;
 type ConfigurationProps = ComponentProps<typeof PluginConfigurationDialog>;
 type LocalImportProps = ComponentProps<typeof LocalImportDialog>;
+
+function localPluginArchive(name: string) {
+  return new File([new Uint8Array(zipSync({ 'dist/index.js': strToU8('export default {};') }))], name);
+}
 
 function marketplacePageModule(value: unknown): value is { MarketplacePage: typeof MarketplacePage } {
   return value !== null && typeof value === 'object' && 'MarketplacePage' in value && typeof value.MarketplacePage === 'function';
@@ -173,6 +179,14 @@ async function fixture() {
 
 type BrowserFixture = Awaited<ReturnType<typeof fixture>>;
 
+async function settled(condition: () => boolean, message: string) {
+  for (let attempt = 0; attempt < 100; attempt++) {
+    if (condition()) return;
+    await act(async () => { await new Promise<void>((resolve) => setTimeout(resolve, 10)); });
+  }
+  assert.ok(condition(), message);
+}
+
 function selectedFiles(files: readonly File[]): FileList {
   return {
     length: files.length,
@@ -241,6 +255,14 @@ function marketplaceMock(overrides: Partial<MarketplaceController> = {}): Market
     setUrl: (value) => value,
     resetUrl: () => 'http://127.0.0.1:7040',
     search: async () => ({ entries: [], total: 0, offset: 0, limit: 20 }),
+    releaseCapabilities: async () => ({
+      api_version: 1,
+      release_publication: {
+        format_versions: [1], host_api_versions: [2], resource_max_bytes: 2_147_483_648,
+        catalog_last: true, immutable_versions: true,
+      },
+    }),
+    probeResource: async () => false,
     upload: async () => resource,
     publish: async (entry) => entry,
     download: async () => ({
@@ -254,6 +276,7 @@ function marketplaceMock(overrides: Partial<MarketplaceController> = {}): Market
 }
 
 async function advanceToReview(browser: BrowserFixture) {
+  await selectLegacyUpload(browser);
   await chooseFile(browser, new File(['zip'], 'demo.zip', { type: 'application/zip' }));
   await browser.click('下一步');
   assert.match(
@@ -270,6 +293,14 @@ async function advanceToReview(browser: BrowserFixture) {
   );
 }
 
+async function selectLegacyUpload(browser: BrowserFixture) {
+  assert.equal(browser.button('完整功能插件').getAttribute('aria-pressed'), 'true');
+  assert.equal(browser.documentRef.querySelector('[aria-label="发布确认"]'), null);
+  await browser.click('独立组件或其他资源');
+  assert.equal(browser.button('独立组件或其他资源').getAttribute('aria-pressed'), 'true');
+  assert.match(browser.documentRef.querySelector('[aria-current="step"]')?.textContent ?? '', /选择资源/);
+}
+
 function deferred<T>() {
   let complete: ((value: T) => void) | undefined;
   const promise = new Promise<T>((resolve) => {
@@ -284,7 +315,7 @@ function deferred<T>() {
   };
 }
 
-test('上传对话框完成三步校验，确认阶段连续 Enter 只上传发布一次', async () => {
+test('显式切换兼容上传后完成三步校验，确认阶段连续 Enter 只上传发布一次', async () => {
   const browser = await fixture();
   const loaded: unknown = await browser.server.ssrLoadModule(
     '/src/pages/marketplace/components/MarketplaceUploadDialog/index.tsx',
@@ -323,6 +354,7 @@ test('上传对话框完成三步校验，确认阶段连续 Enter 只上传发�
         }),
       );
     });
+    await selectLegacyUpload(browser);
     assert.match(
       browser.documentRef.querySelector('[aria-current="step"]')?.textContent ?? '',
       /选择资源/,
@@ -381,7 +413,7 @@ test('上传对话框完成三步校验，确认阶段连续 Enter 只上传发�
   }
 });
 
-test('切换路由关闭上传对话框会取消等待，晚到上传不发布且重新打开回到第一步', async () => {
+test('关闭兼容上传会取消等待，晚到上传不发布，重开默认完整发布并可切回第一步', async () => {
   const browser = await fixture();
   const loaded: unknown = await browser.server.ssrLoadModule(
     '/src/pages/marketplace/components/MarketplaceUploadDialog/index.tsx',
@@ -425,6 +457,7 @@ test('切换路由关闭上传对话框会取消等待，晚到上传不发布�
     assert.equal(signals[0]?.aborted, true);
     assert.equal(browser.documentRef.querySelector('[role="dialog"]'), null);
     await render(true);
+    await selectLegacyUpload(browser);
     assert.match(
       browser.documentRef.querySelector('[aria-current="step"]')?.textContent ?? '',
       /选择资源/,
@@ -437,6 +470,85 @@ test('切换路由关闭上传对话框会取消等待，晚到上传不发布�
     assert.equal(browser.documentRef.querySelector('[role="status"]'), null);
     assert.equal(browser.documentRef.querySelector('.ui-file-selected'), null);
     assert.equal(browser.button('下一步').disabled, false);
+  } finally {
+    await browser.close();
+  }
+});
+
+test('兼容上传区分目录提交、刷新通知和取消后的迟到结果', async (context) => {
+  const browser = await fixture();
+  const loaded: unknown = await browser.server.ssrLoadModule('/src/pages/marketplace/components/MarketplaceUploadDialog/index.tsx');
+  assert.ok(uploadModule(loaded));
+  const UploadDialog = loaded.MarketplaceUploadDialog;
+  let generation = 0;
+  async function render(props: Partial<UploadProps>) {
+    await act(async () => browser.root.render(createElement(UploadDialog, {
+      key: ++generation, open: true, onOpenChange() {}, marketplace: marketplaceMock(),
+      prepare: prepareForInteractionTest, onPublished() {}, ...props,
+    })));
+    await advanceToReview(browser);
+  }
+  try {
+    await context.test('目录已提交而异步刷新失败时保留成功，只提示手动刷新', async () => {
+      let publications = 0;
+      let refreshed = 0;
+      await render({
+        marketplace: marketplaceMock({ publish: async (entry) => { publications++; return entry; } }),
+        onPublished() { refreshed++; return Promise.reject(new Error('目录刷新失败')); },
+      });
+      await browser.click('确认上传并发布');
+      assert.equal(publications, 1);
+      assert.equal(refreshed, 1);
+      assert.equal(browser.documentRef.querySelector('[role="alert"]'), null);
+      assert.match(browser.documentRef.querySelector('[role="dialog"]')?.textContent ?? '', /已上传并发布.*发布已完成.*请手动刷新市场目录/);
+      assert.equal(browser.button('完成').disabled, false);
+      const form = browser.documentRef.querySelector('form');
+      assert.ok(form);
+      await act(async () => { form.dispatchEvent(new browser.windowRef.Event('submit', { bubbles: true, cancelable: true })); });
+      assert.equal(publications, 1);
+    });
+
+    await context.test('取消上传保留服务器不回滚提示，旧上传不能发布或清掉新请求的忙碌状态', async () => {
+      const oldUpload = deferred<MarketplaceResourceRecord>();
+      const newUpload = deferred<MarketplaceResourceRecord>();
+      const signals: AbortSignal[] = [];
+      let uploads = 0;
+      let publications = 0;
+      await render({ marketplace: marketplaceMock({
+        upload: async (_file, _kind, signal) => {
+          signals.push(signal);
+          return ++uploads === 1 ? oldUpload.promise : newUpload.promise;
+        },
+        publish: async (entry) => { publications++; return entry; },
+      }) });
+      await browser.click('确认上传并发布');
+      assert.equal(browser.button('完整功能插件').disabled, true);
+      await browser.click('取消当前操作');
+      assert.equal(signals[0]?.aborted, true);
+      assert.match(browser.documentRef.querySelector('[role="dialog"]')?.textContent ?? '', /已取消当前发布等待.*市场目录提交可能已完成.*不表示服务器已经回滚/);
+      await browser.click('确认上传并发布');
+      await act(async () => { oldUpload.resolve(resource); });
+      assert.equal(publications, 0);
+      assert.equal(browser.button('上传发布中…').disabled, true);
+      assert.equal(browser.button('完整功能插件').disabled, true);
+      await act(async () => { newUpload.resolve(resource); });
+      assert.equal(publications, 1);
+      assert.match(browser.documentRef.querySelector('[role="dialog"]')?.textContent ?? '', /已上传并发布/);
+      assert.equal(browser.documentRef.querySelector('[role="alert"]'), null);
+    });
+
+    await context.test('目录冲突保留日志 ID 与不回滚提示，不通知成功', async () => {
+      let refreshed = 0;
+      await render({
+        marketplace: marketplaceMock({ publish: async () => { throw Object.assign(new Error('同版本目录已存在'), { logId: 'legacy-catalog-conflict' }); } }),
+        onPublished() { refreshed++; },
+      });
+      await browser.click('确认上传并发布');
+      assert.equal(refreshed, 0);
+      assert.match(browser.documentRef.querySelector('[role="alert"]')?.textContent ?? '', /同版本目录已存在.*legacy-catalog-conflict/);
+      assert.match(browser.documentRef.querySelector('[role="dialog"]')?.textContent ?? '', /已上传资源可在重试时复用.*请先刷新目录确认/);
+      assert.equal(browser.button('确认上传并发布').disabled, false);
+    });
   } finally {
     await browser.close();
   }
@@ -563,7 +675,7 @@ test('步骤条随当前步骤更新完成和待办语义，保留可访问的�
   }
 });
 
-test('市场卡片分别派发详情、下载、安装、更新与已安装配置卸载，忙碌时阻止操作', async () => {
+test('市场卡片区分发布清单和独立资源下载，派发管理动作并在忙碌时阻止操作', async () => {
   const browser = await fixture();
   const loaded: unknown = await browser.server.ssrLoadModule(
     '/src/pages/marketplace/components/MarketplaceCard/index.tsx',
@@ -629,6 +741,25 @@ test('市场卡片分别派发详情、下载、安装、更新与已安装配�
     assert.equal(browser.button('已安装').disabled, true);
     await render({ entry: entry({ metadataIssues: ['缺少摘要'] }) });
     assert.equal(browser.button('安装').disabled, true);
+    for (const format of ['release_format_version', 'release_format']) {
+      const details = { [format]: 1 };
+      const releaseEntry = entry({ details });
+      await render({ entry: releaseEntry });
+      assert.equal(Array.from(browser.documentRef.querySelectorAll('button')).some(
+        (node) => node.textContent?.trim() === '下载',
+      ), false, '完整发布不能把清单标作普通资源下载');
+      const before = calls.length;
+      await browser.click('下载发布清单');
+      assert.deepEqual(calls.slice(before), ['download'], '清单按钮只派发已有下载动作');
+      await render({ entry: releaseEntry, busy: true });
+      await browser.click('下载发布清单');
+      assert.equal(calls.length, before + 1, '忙碌时不重复下载清单');
+      await render({ entry: entry({ details, resource_id: '' }) });
+      assert.equal(browser.button('下载发布清单').disabled, true);
+    }
+    await render({ entry: entry({ kind: 'tool', details: { release_format_version: 1 } }) });
+    await browser.click('下载');
+    assert.equal(calls.at(-1), 'download', '独立工具保持普通资源下载');
   } finally {
     await browser.close();
   }
@@ -680,7 +811,131 @@ test('已安装列表使用宿主声明的中文名称和描述，包部署与�
   } finally { await browser.close(); await services.dispose(); }
 });
 
-test('详情对话框显示来源摘要平台权限重启和类型字段，并派发下载更新及关闭', async () => {
+test('完整安装合并显示外显名称与描述，配置选择使用真实组件标识，统一停用卸载不调用旧包端点', async () => {
+  const browser = await fixture();
+  const requests: string[] = [];
+  let current = release(true);
+  let removed = false;
+  const dto = () => ({ id: current.id, name: current.name, description: current.description, version: current.version,
+    revision: current.revision, enabled: current.enabled, status: current.status, installed_at: 1, tools: [], requirements: [],
+    components: current.components.map((component) => ({ id: component.id, kind: component.kind, version: component.version,
+      revision: component.revision, entry_path: component.entryPath, entry_url: component.entryUrl })) });
+  const services = createProductServices({ baseUrl: 'http://localhost:7031', panelTarget: () => null,
+    transport: async (input, init) => {
+      const path = requestUrl(input).pathname, method = init?.method ?? 'GET';
+      requests.push(`${method} ${path}`);
+      if (path === '/api/v2/plugin-installations' && method === 'GET') return success(removed ? [] : [dto()]);
+      if (path === '/api/v2/plugins') return success(removed ? [] : [plugin({ id: 'example-server' })]);
+      if (path === '/api/v2/plugin-packages/server') return success(removed ? [] : [localInstalledPackage('server', { id: 'example-server' })]);
+      if (path === '/api/v2/plugin-packages/browser') return success(removed ? [] : [localInstalledPackage('browser', { id: 'example-browser' })]);
+      if (path === '/api/v2/plugin-configurations/server/example-server') return success({
+        kind: 'server', id: 'example-server', definition: null, values: {}, revision: 0, applied_revision: 0,
+        pending_reload: false, compatible: true, field_errors: [], source: 'defaults',
+      });
+      if (path.endsWith('/enabled')) {
+        assert.equal(method, 'PATCH');
+        assert.deepEqual(JSON.parse(String(init?.body)), { expected_revision: current.revision, enabled: false });
+        current = { ...current, enabled: false, status: 'installed' };
+        return success({ id: 'manage-job', operation: 'installation.enabled', input: {}, created_at: 1, status: 'succeeded' });
+      }
+      if (path === '/api/v2/plugin-installations/example-release' && method === 'DELETE') {
+        assert.deepEqual(JSON.parse(String(init?.body)), { expected_revision: current.revision });
+        removed = true;
+        return success({ id: 'manage-job', operation: 'installation.uninstall', input: {}, created_at: 1, status: 'succeeded' });
+      }
+      if (path === '/api/v2/jobs/manage-job/events') return success([]);
+      if (path === '/api/v2/jobs/manage-job') return success({ id: 'manage-job', operation: removed ? 'installation.uninstall' : 'installation.enabled', input: {}, created_at: 1, status: 'succeeded' });
+      throw new Error(`完整安装不应请求：${method} ${path}`);
+    } });
+  const loaded: unknown = await browser.server.ssrLoadModule('/src/pages/marketplace/index.tsx');
+  assert.ok(marketplacePageModule(loaded));
+  try {
+    await act(async () => browser.root.render(createElement(loaded.MarketplacePage, { services: { ...services, marketplace: marketplaceMock() } })));
+    await browser.click('已安装 1');
+    assert.equal(browser.target.querySelectorAll('.marketplace-card').length, 1);
+    assert.match(browser.target.textContent ?? '', /示例功能/);
+    assert.match(browser.target.textContent ?? '', /服务器与浏览器组件共同组成一个功能/);
+    await browser.click('配置');
+    assert.ok(browser.button('服务器组件 · example-server'));
+    assert.ok(browser.button('浏览器组件 · example-browser'));
+    await browser.click('服务器组件 · example-server');
+    assert.match(browser.documentRef.querySelector('[role="dialog"]')?.textContent ?? '', /示例功能 · example-server/);
+    assert.ok(requests.includes('GET /api/v2/plugin-configurations/server/example-server'));
+    assert.equal(requests.some((value) => value.endsWith('/plugin-configurations/server/example-release')), false);
+    await browser.click('关闭');
+    await browser.click('关闭');
+    await browser.click('停用');
+    assert.equal(current.enabled, false);
+    assert.ok(browser.button('启用'));
+    await browser.click('卸载');
+    await browser.click('确认卸载');
+    assert.equal(removed, true);
+    await settled(() => browser.target.textContent?.includes('还没有安装插件') ?? false, '卸载后应重读底层目录，不能出现旧组件');
+    assert.match(browser.target.textContent ?? '', /还没有安装插件/);
+    assert.equal(requests.some((value) => /^(POST|DELETE) .*plugin-packages\//.test(value)), false);
+  } finally { await browser.close(); await services.dispose(); }
+});
+
+test('托管资源入口先展示检查报告，再允许显式清理并保留日志', async () => {
+  const browser = await fixture();
+  const calls: boolean[] = [];
+  const services = createProductServices({ baseUrl: 'http://localhost:7031', panelTarget: () => null,
+    transport: async (input, init) => {
+      const path = requestUrl(input).pathname;
+      if (path === '/api/v2/plugin-installations/cleanup') {
+        calls.push(JSON.parse(String(init?.body)).dry_run);
+        return success({ id: 'cleanup-job', operation: 'installation.cleanup', status: 'queued', input: {}, created_at: 1 });
+      }
+      if (path === '/api/v2/jobs/cleanup-job') return success({ id: 'cleanup-job', operation: 'installation.cleanup',
+        status: 'succeeded', input: {}, created_at: 1, result: { dry_run: calls.at(-1), items: [], total_bytes: 0 } }, 'cleanup-ui-log');
+      return success([]);
+    },
+  });
+  const loaded: unknown = await browser.server.ssrLoadModule('/src/pages/marketplace/index.tsx');
+  assert.ok(marketplacePageModule(loaded));
+  try {
+    await act(async () => browser.root.render(createElement(loaded.MarketplacePage, { services: { ...services, marketplace: marketplaceMock() } })));
+    await browser.click('已安装 0');
+    await browser.click('托管资源');
+    assert.equal([...browser.documentRef.querySelectorAll('button')].some((button) => button.textContent?.trim() === '清理未引用资源'), false);
+    await browser.click('检查资源引用');
+    assert.deepEqual(calls, [true]);
+    assert.match(browser.documentRef.querySelector('[role="dialog"]')?.textContent ?? '', /cleanup-ui-log/);
+    await browser.click('清理未引用资源');
+    assert.deepEqual(calls, [true, false]);
+    assert.match(browser.documentRef.querySelector('[role="dialog"]')?.textContent ?? '', /资源清理任务已完成/);
+  } finally { await browser.close(); await services.dispose(); }
+});
+
+test('恢复受阻卡片禁止启用更新，浏览器失败只派发本客户端重试', async () => {
+  const browser = await fixture();
+  const loaded: unknown = await browser.server.ssrLoadModule('/src/pages/marketplace/components/MarketplaceCard/index.tsx');
+  assert.ok(cardModule(loaded));
+  const calls: string[] = [];
+  const render = async (recoveryBlocked: boolean) => {
+    const installation = { ...release(!recoveryBlocked), ...(recoveryBlocked ? { status: 'recovery_blocked' as const } : {}) };
+    await act(async () => browser.root.render(createElement(loaded.MarketplaceCard, {
+      entry: entry({ id: installation.id, version: '2.0.0', details: { release_format: 1 } }), installed: { version: '1.0.0' },
+      installedTab: true, installation, clientState: { id: installation.id, revision: installation.revision, phase: 'failed', message: '导入失败', logId: 'client-failed-log' },
+      busy: false, onDetail() {}, onDownload() {}, onInstall() { calls.push('install'); }, onRemove() {}, onConfigure() {},
+      onSetEnabled() { calls.push('enabled'); }, onRetryBrowser() { calls.push('retry-browser'); },
+    })));
+  };
+  try {
+    await render(true);
+    assert.equal(browser.button('启用').disabled, true);
+    assert.equal(browser.button('更新').disabled, true);
+    assert.match(browser.target.textContent ?? '', /恢复受阻/);
+    await browser.click('启用'); await browser.click('更新');
+    assert.deepEqual(calls, []);
+    await render(false);
+    assert.match(browser.target.textContent ?? '', /client-failed-log/);
+    await browser.click('重试本客户端');
+    assert.deepEqual(calls, ['retry-browser']);
+  } finally { await browser.close(); }
+});
+
+test('详情对话框显示资源信息并区分发布清单下载，派发下载更新及关闭', async () => {
   const browser = await fixture();
   const loaded: unknown = await browser.server.ssrLoadModule(
     '/src/pages/marketplace/components/MarketplaceDetail/index.tsx',
@@ -747,6 +1002,22 @@ test('详情对话框显示来源摘要平台权限重启和类型字段，并�
       ),
       false,
     );
+    await browser.click('下载');
+    assert.equal(calls.at(-1), 'download', '独立工具详情保持普通资源下载');
+    for (const format of ['release_format_version', 'release_format']) {
+      const details = { [format]: 1 };
+      await render(entry({ details }));
+      const releaseDialog = browser.documentRef.querySelector('[role="dialog"]');
+      assert.ok(releaseDialog);
+      assert.equal(Array.from(releaseDialog.querySelectorAll('button')).some(
+        (node) => node.textContent?.trim() === '下载',
+      ), false, '完整发布详情明确下载的是清单');
+      const before = calls.length;
+      await browser.click('下载发布清单');
+      assert.deepEqual(calls.slice(before), ['download']);
+      await render(entry({ details, resource_id: '' }));
+      assert.equal(browser.button('下载发布清单').disabled, true);
+    }
     await render(entry({ metadataIssues: ['缺少插件运行位置'] }));
     assert.match(
       browser.documentRef.querySelector('[role="status"]')?.textContent ?? '',
@@ -893,8 +1164,9 @@ test('本地导入对话框先检查摘要再明确安装，成功后不自动�
   try {
     await render(true);
     await browser.click('检查导入内容'); assert.match(browser.documentRef.querySelector('[role="alert"]')?.textContent ?? '', /先选择/);
-    await chooseFile(browser, new File(['local bytes'], 'plugin.zip'));
+    await chooseFile(browser, localPluginArchive('plugin.zip'));
     await browser.click('检查导入内容');
+    await settled(() => browser.documentRef.querySelector('[role="dialog"]')?.textContent?.includes('浏览器插件 local.plugin') ?? false, '真实ZIP目录检查与摘要尚未完成');
     assert.match(browser.documentRef.querySelector('[role="dialog"]')?.textContent ?? '', /浏览器插件 local.plugin/);
     assert.match(browser.documentRef.querySelector('[role="dialog"]')?.textContent ?? '', /SHA-256/);
     assert.equal(calls.length, 0);
@@ -922,11 +1194,14 @@ test('本地导入取消旧上传后，新预览不被旧请求迟到失败清�
   const prepare: PreparationExecutor = async () => ({ files: [{ path: 'dist/index.js', size: 10 }], excluded: [], totalSize: 10, metadata: null, identity: { id: 'local.plugin', version: '1.0', kind: 'browser' } });
   try {
     await act(async () => { browser.root.render(createElement(loaded.LocalImportDialog, { open: true, services, onOpenChange() {}, onImported() { throw new Error('旧请求不能交付成功'); }, prepare })); });
-    await chooseFile(browser, new File(['first bytes'], 'first.zip'));
-    await browser.click('检查导入内容'); await browser.click('确认导入'); await entered.promise;
-    await browser.click('取消当前等待');
-    await chooseFile(browser, new File(['new bytes'], 'new.zip'));
+    await chooseFile(browser, localPluginArchive('first.zip'));
     await browser.click('检查导入内容');
+    await settled(() => [...browser.documentRef.querySelectorAll('button')].some((button) => button.textContent?.trim() === '确认导入'), '首个导入预览尚未完成');
+    await browser.click('确认导入'); await entered.promise;
+    await browser.click('取消当前等待');
+    await chooseFile(browser, localPluginArchive('new.zip'));
+    await browser.click('检查导入内容');
+    await settled(() => [...browser.documentRef.querySelectorAll('button')].some((button) => button.textContent?.trim() === '确认导入'), '新导入预览尚未完成');
     assert.equal(browser.button('确认导入').disabled, false);
     await act(async () => { uploading.reject(new Error('旧上传迟到失败')); await new Promise<void>(resolve => setTimeout(resolve, 0)); });
     assert.equal(browser.button('确认导入').disabled, false);

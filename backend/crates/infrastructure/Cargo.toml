@@ -30,6 +30,7 @@ deviceforge-data-codec.workspace = true
 tracing.workspace = true
 deviceforge-observability.workspace = true
 deviceforge-tool-process.workspace = true
+deviceforge-tool-repository.workspace = true
 deviceforge-android-package-core.workspace = true
 
 [dev-dependencies]

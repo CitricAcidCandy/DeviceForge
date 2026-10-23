@@ -17,11 +17,24 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-pub(crate) fn entry_present(config: &Config, state: &Installed) -> Result<bool> {
+pub(crate) fn entry_present(config: &Config, state: &Installed, budget: &Budget) -> Result<bool> {
+    let content = if config.repository.is_some() {
+        Some(crate::managed::content_path(config, state, budget)?)
+    } else {
+        None
+    };
     let Some(entry) = &state.entry_file else {
         return Ok(true);
     };
-    let path = storage::target(config, &state.module_id)?.join(unpack::relative(entry, false)?);
+    let path = if let Some(content) = content {
+        content.join(unpack::relative(
+            state.archive_root.as_deref().unwrap_or(""),
+            true,
+        )?)
+    } else {
+        storage::target(config, &state.module_id)?
+    }
+    .join(unpack::relative(entry, false)?);
     Ok(storage::metadata(&path, "检查模块入口失败")?
         .is_some_and(|metadata| metadata.is_file() && !metadata.file_type().is_symlink()))
 }
@@ -58,6 +71,9 @@ pub(crate) fn row(module: &Module, installed: Option<&Installed>, present: bool)
 }
 pub(crate) async fn execute(input: Input, config: &Config, budget: &Budget) -> Result<Value> {
     if let Input::Remove(id) = &input {
+        if config.repository.is_some() {
+            return crate::managed::remove(config, id, budget);
+        }
         return transaction::remove(config, id, budget);
     }
     let client = network::client()?;
@@ -77,7 +93,7 @@ pub(crate) async fn execute(input: Input, config: &Config, budget: &Budget) -> R
                     budget.check()?;
                     let installed = local.iter().find(|state| state.module_id == module.name);
                     let present = installed
-                        .map(|state| entry_present(config, state))
+                        .map(|state| entry_present(config, state, budget))
                         .transpose()?
                         .unwrap_or(false);
                     modules.push(row(module, installed, present)?);
@@ -93,7 +109,7 @@ pub(crate) async fn execute(input: Input, config: &Config, budget: &Budget) -> R
                     continue;
                 }
                 modules.push(json!({"module_id":state.module_id,"kind":state.kind,"installed_version":state.version,
-                    "available_version":null,"entry_present":entry_present(config,state)?,"action":"local_only","feature_key":state.feature_key}));
+                    "available_version":null,"entry_present":entry_present(config,state,budget)?,"action":"local_only","feature_key":state.feature_key}));
             }
             budget.check()?;
             let result = json!({"manifest_version":null,"manifest_source":null,
@@ -120,7 +136,7 @@ pub(crate) async fn execute(input: Input, config: &Config, budget: &Budget) -> R
                 let installed = storage::installed(config, &module.name, budget)?;
                 let present = installed
                     .as_ref()
-                    .map(|state| entry_present(config, state))
+                    .map(|state| entry_present(config, state, budget))
                     .transpose()?
                     .unwrap_or(false);
                 let next = row(module, installed.as_ref(), present)?;
@@ -197,7 +213,7 @@ pub(crate) fn requires_install(config: &Config, module: &Module, budget: &Budget
     let previous = storage::installed(config, id, budget)?;
     let present = previous
         .as_ref()
-        .map(|state| entry_present(config, state))
+        .map(|state| entry_present(config, state, budget))
         .transpose()?
         .unwrap_or(false);
     let next = action(module, previous.as_ref(), present)?;
@@ -214,6 +230,14 @@ async fn install_staged(
     client: &reqwest::Client,
     budget: &Budget,
 ) -> Result<Value> {
+    if config.repository.is_some() {
+        let state = state(module, manifest_version, module.sha256.to_ascii_lowercase())?;
+        if crate::managed::reuse(config, &state, transaction, budget)? {
+            return Ok(
+                json!({"module_id":module.name,"version":module.version,"sha256":state.sha256,"changed":true}),
+            );
+        }
+    }
     let archive = transaction.path.join("archive.zip");
     let checksum = network::archive(
         client,
@@ -283,7 +307,22 @@ pub(crate) async fn install_archive(
             return Err(Error::Invalid("归档缺少清单声明的入口文件"));
         }
     }
-    let state = Installed {
+    let state = state(module, manifest_version, checksum)?;
+    if config.repository.is_some() {
+        crate::managed::publish(config, &state, &content, transaction, budget)?;
+        return Ok(
+            json!({"module_id":module.name,"version":module.version,"sha256":state.sha256,"changed":true}),
+        );
+    }
+    storage::write_state(&payload, &state, budget)?;
+    let target = storage::target(config, &module.name)?;
+    transaction::replace(&target, &payload, &transaction.path.join("backup"), budget)?;
+    Ok(
+        json!({"module_id":module.name,"version":module.version,"sha256":state.sha256,"changed":true}),
+    )
+}
+fn state(module: &Module, manifest_version: &str, checksum: String) -> Result<Installed> {
+    Ok(Installed {
         module_id: module.name.clone(),
         version: module.version.clone(),
         sha256: checksum,
@@ -298,11 +337,5 @@ pub(crate) async fn install_archive(
         entry_file: module.entry_file.clone(),
         feature_key: module.feature_key.clone(),
         archive_root: Some(module.archive_root.clone().unwrap_or_default()),
-    };
-    storage::write_state(&payload, &state, budget)?;
-    let target = storage::target(config, &module.name)?;
-    transaction::replace(&target, &payload, &transaction.path.join("backup"), budget)?;
-    Ok(
-        json!({"module_id":module.name,"version":module.version,"sha256":state.sha256,"changed":true}),
-    )
+    })
 }

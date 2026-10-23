@@ -9,6 +9,7 @@ use axum::{
 use futures_util::StreamExt;
 use serde_json::json;
 use sha2::{Digest, Sha256};
+use std::sync::Arc;
 use tokio::{
     fs,
     io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt},
@@ -17,19 +18,20 @@ use tokio_util::io::ReaderStream;
 use tower_http::cors::{Any, CorsLayer};
 
 use crate::{
-    CatalogResult, MarketEntry, ResourceRecord, Store, model::CatalogQuery, store::StoreError,
+    CatalogResult, MarketEntry, ResourceRecord, Store, capabilities::RESOURCE_MAX_BYTES,
+    model::CatalogQuery, store::StoreError,
 };
-
-const MAX_UPLOAD_BYTES: u64 = 2 * 1024 * 1024 * 1024;
 
 #[derive(Clone)]
 pub struct AppState {
     pub store: Store,
+    uploads: Arc<tokio::sync::Semaphore>,
 }
 
 pub fn router(store: Store) -> Router {
     Router::new()
         .route("/api/v1/health", get(health))
+        .route("/api/v1/capabilities", get(capabilities))
         .route("/api/v1/resources", post(upload_resource))
         .route(
             "/api/v1/resources/{sha256}",
@@ -42,11 +44,18 @@ pub fn router(store: Store) -> Router {
             delete(delete_catalog_entry),
         )
         .layer(CorsLayer::permissive().expose_headers(Any))
-        .with_state(AppState { store })
+        .with_state(AppState {
+            store,
+            uploads: Arc::new(tokio::sync::Semaphore::new(4)),
+        })
 }
 
 async fn health() -> Json<serde_json::Value> {
     Json(json!({ "status": "ok", "service": "deviceforge-resource-server" }))
+}
+
+async fn capabilities() -> Json<serde_json::Value> {
+    Json(crate::capabilities::document())
 }
 
 async fn upload_resource(
@@ -54,11 +63,15 @@ async fn upload_resource(
     headers: HeaderMap,
     body: Body,
 ) -> Result<(StatusCode, Json<ResourceRecord>), ApiError> {
+    let _permit = state
+        .uploads
+        .try_acquire()
+        .map_err(|_| ApiError::Conflict)?;
     let content_length = headers
         .get(header::CONTENT_LENGTH)
         .and_then(|value| value.to_str().ok())
         .and_then(|value| value.parse::<u64>().ok());
-    if content_length.is_some_and(|size| size > MAX_UPLOAD_BYTES) {
+    if content_length.is_some_and(|size| size > RESOURCE_MAX_BYTES) {
         return Err(ApiError::PayloadTooLarge);
     }
     let mut filename =
@@ -73,6 +86,7 @@ async fn upload_resource(
         .unwrap_or_else(|| "application/octet-stream".to_owned());
     let kind = header_text(&headers, "x-resource-kind").unwrap_or_else(|| "resource".to_owned());
     let temporary = state.store.temp_path();
+    let _cleanup = UploadCleanup(temporary.clone());
     let mut file = fs::File::create(&temporary).await?;
     let mut stream = body.into_data_stream();
     let mut digest = Sha256::new();
@@ -81,7 +95,7 @@ async fn upload_resource(
         let chunk =
             chunk.map_err(|error| ApiError::BadRequest(format!("上传数据无效：{error}")))?;
         size = size.saturating_add(chunk.len() as u64);
-        if size > MAX_UPLOAD_BYTES {
+        if size > RESOURCE_MAX_BYTES {
             let _ = fs::remove_file(&temporary).await;
             return Err(ApiError::PayloadTooLarge);
         }
@@ -107,6 +121,18 @@ async fn upload_resource(
     Ok((StatusCode::CREATED, Json(record)))
 }
 
+struct UploadCleanup(std::path::PathBuf);
+impl Drop for UploadCleanup {
+    fn drop(&mut self) {
+        let path = self.0.clone();
+        if let Ok(runtime) = tokio::runtime::Handle::try_current() {
+            runtime.spawn(async move {
+                let _ = fs::remove_file(path).await;
+            });
+        }
+    }
+}
+
 async fn resource_metadata(
     State(state): State<AppState>,
     Path(sha256): Path<String>,
@@ -123,6 +149,18 @@ async fn download_resource(
 ) -> Result<Response, ApiError> {
     let record = load_resource(state.store.clone(), sha256).await?;
     let path = state.store.resource_path(&record)?;
+    // HEAD 和条件请求也核对真实文件，不能只凭数据库宣称资源完整可用。
+    let mut file = fs::File::open(path).await.map_err(|error| {
+        if error.kind() == std::io::ErrorKind::NotFound {
+            ApiError::NotFound
+        } else {
+            ApiError::from(error)
+        }
+    })?;
+    let metadata = file.metadata().await?;
+    if !metadata.is_file() || metadata.len() != record.size {
+        return Err(ApiError::Internal("资源文件长度与元数据不符".into()));
+    }
     let (start, end) = parse_range(headers.get(header::RANGE), record.size)?;
     if headers
         .get(header::IF_NONE_MATCH)
@@ -139,7 +177,6 @@ async fn download_resource(
     let mut response = if method == Method::HEAD {
         Response::new(Body::empty())
     } else {
-        let mut file = fs::File::open(path).await?;
         if start != 0 {
             file.seek(std::io::SeekFrom::Start(start)).await?;
         }

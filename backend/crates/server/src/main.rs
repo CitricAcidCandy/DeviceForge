@@ -8,6 +8,7 @@ use std::{path::PathBuf, sync::Arc};
 mod artifact_config;
 mod configuration_home;
 mod limits;
+mod market_sources;
 mod operation_bindings;
 
 #[tokio::main]
@@ -51,12 +52,25 @@ async fn run(
         .unwrap_or_else(|| data.join("plugins"));
     tokio::fs::create_dir_all(&plugin_directory).await?;
     let user_home = configuration_home::from_environment()?;
-    let installation_artifacts = Arc::new(apk_infrastructure::artifacts::FileArtifacts::with_limit(
-        data.join("installation-artifacts"), 4 * 1024 * 1024 * 1024,
-    ).await?);
-    let installation_store = apk_infrastructure::plugin_installations::FilePluginInstallations::open(
-        &user_home, installation_artifacts.clone(), std::env::var_os("DEVICEFORGE_NODE").map(PathBuf::from),
-    ).await?;
+    let installation_artifacts = Arc::new(
+        apk_infrastructure::artifacts::FileArtifacts::with_limits(
+            data.join("installation-artifacts"),
+            4 * 1024 * 1024 * 1024,
+            16 * 1024 * 1024 * 1024,
+            Some(24 * 60 * 60),
+        )
+        .await?,
+    );
+    let installation_artifact_worker =
+        installation_artifacts.spawn_retention_worker(shutdown.clone());
+    let installation_store =
+        apk_infrastructure::plugin_installations::FilePluginInstallations::open_with_sources(
+            &user_home,
+            installation_artifacts.clone(),
+            std::env::var_os("DEVICEFORGE_NODE").map(PathBuf::from),
+            market_sources::from_environment().await?,
+        )
+        .await?;
     let managed_plugins = user_home.join("plugins");
     let configuration_root = user_home.join("plugin-configurations");
     let configuration_store =
@@ -73,9 +87,12 @@ async fn run(
     apk_domain::plugin_configurations::PluginConfigurationStore::list(configuration_store.as_ref())
         .await?;
     let catalog = Arc::new(
-        FilePluginCatalog::open_roots(vec![managed_plugins, plugin_directory.clone()], artifacts.clone())
-            .await?
-            .with_configurations(configuration_store.clone()),
+        FilePluginCatalog::open_roots(
+            vec![managed_plugins, plugin_directory.clone()],
+            artifacts.clone(),
+        )
+        .await?
+        .with_configurations(configuration_store.clone()),
     );
     let loaded = catalog.initial().await?;
     {
@@ -101,11 +118,13 @@ async fn run(
         selected_performance,
     )?;
     executors.push(Arc::new(performance.clone()));
-    let installation_operations = Arc::new(apk_application::installation_operations::InstallationOperations::default());
+    let installation_operations =
+        Arc::new(apk_application::installation_operations::InstallationOperations::default());
     executors.push(installation_operations.clone());
     let app = Application::new_with_bindings(store, executors, 4, 128, bindings)?;
     performance.bind(&app)?;
     let plugin_service = PluginService::new(app.clone(), catalog, Default::default());
+    plugin_service.bind_installations(installation_store.clone())?;
     for plugin in loaded {
         plugin_service
             .seed(PluginContribution {
@@ -152,15 +171,20 @@ async fn run(
         configuration_store.clone(),
         plugin_service.clone(),
     );
-    let browser_configuration_store = apk_infrastructure::browser_configurations::FileBrowserConfigurations::open(
-        &configuration_root.join("browser"),
-    ).await?;
+    let browser_configuration_store =
+        apk_infrastructure::browser_configurations::FileBrowserConfigurations::open(
+            &configuration_root.join("browser"),
+        )
+        .await?;
     let browser_configurations =
         apk_application::browser_configurations::BrowserConfigurationService::new(
             browser_configuration_store.clone(),
         );
     let installations = apk_application::plugin_installations::InstallationService::new(
-        installation_store, plugin_service.clone(), configuration_store, browser_configuration_store,
+        installation_store,
+        plugin_service.clone(),
+        configuration_store,
+        browser_configuration_store,
     );
     installation_operations.bind(installations.clone())?;
     installations.restore().await?;
@@ -197,6 +221,9 @@ async fn run(
         }
         mcp_shutdown.cancel();
         if let Some(worker) = artifact_worker {
+            worker.shutdown().await;
+        }
+        if let Some(worker) = installation_artifact_worker {
             worker.shutdown().await;
         }
         plugin_service.close();

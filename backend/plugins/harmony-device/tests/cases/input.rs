@@ -514,12 +514,17 @@ fn interrupt(stage: usize, mode: &str) {
         json!({"kind":"text","x":1,"y":2,"text":"value","enter":true}),
     );
     input.normal("uitest uiInput inputText 1 2 'value'", true);
-    let start = Instant::now();
-    let mut running = input.begin(if mode == "deadline" {
+    let remaining = if mode == "deadline" {
         Duration::from_secs(2)
     } else {
         Duration::from_secs(20)
-    });
+    };
+    let spawning = Instant::now();
+    let mut running = input.fixture.begin_request(input.request.clone());
+    // Ready前进程创建不属于发送Start后的执行耗时，原期限及其余断言保持不变。
+    let start = Instant::now();
+    let ready_wait = start.duration_since(spawning);
+    running.start(remaining);
     let mut probes = Vec::new();
     for ordinal in 1..stage {
         if mode == "deadline" {
@@ -565,13 +570,23 @@ fn interrupt(stage: usize, mode: &str) {
             .exists()
     );
     assert!(!input.fixture.root.join("unused-output").exists());
+    let elapsed = start.elapsed();
+    fs::write(
+        input.fixture.root.join("interruption-timing.json"),
+        serde_json::to_vec(&json!({
+            "mode":mode,"stage":stage,"ready_wait_ns":ready_wait.as_nanos(),
+            "start_to_completion_ns":elapsed.as_nanos(),"budget_ns":remaining.as_nanos()
+        }))
+        .unwrap(),
+    )
+    .unwrap();
     assert!(
-        start.elapsed() < Duration::from_secs(5),
+        elapsed < Duration::from_secs(5),
         "原期限和既有清理点不得重授"
     );
     if mode == "deadline" {
         assert!(
-            start.elapsed() < Duration::from_millis(2750),
+            elapsed < Duration::from_millis(2750),
             "前面阶段消耗的预算不得在后续阶段重授"
         );
     }

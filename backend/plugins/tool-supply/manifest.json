@@ -132,7 +132,7 @@
     }
   ],
   "configuration": {
-    "version": 1,
+    "version": 2,
     "schema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "type": "object",
@@ -165,11 +165,18 @@
           "default": true
         },
         "install_root": {
-          "type": "string",
+          "type": ["string", "null"],
           "title": "工具安装根目录",
-          "description": "本机绝对目录，插件会建立目录；切换不会搬迁既有工具。",
+          "description": "仅自定义仓库模式使用本机绝对目录；托管模式自动使用宿主用户目录中的共享仓库，切换模式不会搬迁旧工具。",
           "minLength": 1,
           "maxLength": 4096
+        },
+        "repository_mode": {
+          "type": "string",
+          "title": "工具仓库模式",
+          "description": "managed 使用宿主共享工具仓库，custom 保留独立安装目录；旧配置省略此项继续使用 custom。",
+          "enum": ["managed", "custom"],
+          "default": "custom"
         },
         "allow_http": {
           "type": "boolean",
@@ -198,8 +205,24 @@
           "default": 10000
         }
       },
-      "required": [
-        "install_root"
+      "allOf": [
+        {
+          "if": {
+            "properties": {"repository_mode": {"const": "managed"}},
+            "required": ["repository_mode"]
+          },
+          "else": {
+            "required": ["install_root"],
+            "properties": {
+              "install_root": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "^(?:[A-Za-z]:[\\\\/]|/|\\\\\\\\)",
+                "not": {"pattern": "(?:^|[\\\\/])\\.\\.(?:[\\\\/]|$)"}
+              }
+            }
+          }
+        }
       ],
       "oneOf": [
         {
@@ -233,9 +256,10 @@
       ]
     },
     "defaults": {
+      "repository_mode": "managed",
       "local_manifest": "C:/DeviceForge/catalog/tool-catalog.json",
       "manifest_cache_enabled": true,
-      "install_root": "C:/DeviceForge/tools",
+      "install_root": null,
       "allow_http": false,
       "download_limit_bytes": 536870912,
       "extracted_limit_bytes": 1073741824,

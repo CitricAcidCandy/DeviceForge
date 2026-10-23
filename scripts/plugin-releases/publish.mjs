@@ -96,6 +96,8 @@ function catalogEntry(metadata, manifest, sha256) {
   );
   return {
     ...entry,
+    // 在线目录展示统一发布的描述，旧独立包元数据文件保持原有语义。
+    description: manifest.description,
     categories,
     resource_id: sha256,
     details: { ...(metadata.details ?? {}), release_format_version: 1, host_api_version: 2 },

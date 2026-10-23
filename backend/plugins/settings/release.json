@@ -21,7 +21,7 @@
       "title": "设置存储目录",
       "description": "按部署需要选择实际目录；升级不会迁移旧业务数据。",
       "sensitive": false,
-      "required": false
+      "required": true
     }
   ]
 }

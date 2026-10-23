@@ -35,3 +35,11 @@ HTTP `POST /api/v2/jobs` 发送 `{"operation":"plugin.guide_echo.echo","input":{
 MCP 调用同名操作工具同样提交任务；用 `deviceforge.get_job`、`deviceforge.cancel_job` 和 `deviceforge.job_events` 继续消费。工具查询成功不等于任务成功，必须等到终态。MCP 日志关联位于结果 `_meta["deviceforge/log_id"]`。浏览器插件优先使用公开 `HostContext.listOperations/submit/getJob`，不自行拼接带部署细节的私有路由。
 
 协议 5 是独立会话 API 与 `serve_session` 入口，提供持续输入、EOF、双路输出和明确清理终态；单块字节最多 8192，输出共享递增序号。不要把会话帧发给普通任务操作，不把通信断开或进程退出推断为外部资源已释放。
+
+## 托管配置与工具资源
+
+完整发布将 `release.json` 的 `tools/entries/bindings` 转成不可变资源描述，宿主以 `DEVICEFORGE_PLUGIN_RESOURCES` 传入该描述文件的绝对路径。Rust 用 `apk_plugin_sdk::managed_resources() -> io::Result<Option<ManagedResources>>` 读取，再用 `resources.entry("工具ID","资源键")?` 得到本次绑定入口；不要解析宿主安装记录或拼接 `tools/<版本>`。旧部署没有变量时为 `None`，变量存在但描述损坏则报错，不能静默回退。
+
+描述包含 `format_version:1`、`release_id/revision/tools/bindings` 和可选 `repository`。需供应共享内容时使用公开仓库描述与 `deviceforge-tool-repository`，不绕过写锁、引用和调用读租约。工具供应 managed 模式允许省略/null 安装根；custom 或旧未声明模式必须提供本机合法绝对根，旧目录不自动搬迁。
+
+`DEVICEFORGE_PLUGIN_CONFIG` 指向宿主为本次调用选择的有效配置快照，SDK 的 `managed_config_path()` 可定位。用户配置原值和修订保存于用户根 `plugin-configurations/server`；托管绑定只补默认入口，用户高级显式路径优先，schema 必需 const 可在有效快照补齐但有歧义时失败。更改工具默认值不覆盖已保存的原值；不要把该快照、描述文件或绝对入口返回给浏览器。独立运行的旧旁置配置继续兼容，必要输入与敏感值满足性须由宿主原值门禁判断。

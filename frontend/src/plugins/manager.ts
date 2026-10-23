@@ -36,6 +36,7 @@ interface Runtime {
 }
 export interface ManagerOptions {
   readonly host: HostContext;
+  readonly hostForPlugin?: (id: string) => HostContext;
   readonly panelTarget: (pluginId: string, panelId: string) => HTMLElement | null;
   readonly extensionRegistry?: ExtensionRegistry;
   readonly componentTarget?: (
@@ -115,7 +116,7 @@ export function createPluginManager(options: ManagerOptions) {
     }
     const source = sources.get(id);
     if (!source) throw new Error('插件未经过可信预注册');
-    const scope = createPluginScope(options.host);
+    const scope = createPluginScope(options.hostForPlugin?.(id) ?? options.host);
     const runtime: Runtime = {
       id,
       generation: ++generation,

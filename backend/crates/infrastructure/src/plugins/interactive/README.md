@@ -29,6 +29,8 @@ ready 缓存握手结果。监督先发布真实 ready/exit，再撤销输入；
 
 匹配会话 ID、连续共享序号、唯一有效 Finished、明确 complete 及真实进程成功退出全部成立后才记 Complete。有效终态明确 failed 时记 Failed；缺失或坏终态、强制终止、非零退出、监督 Drop 记 Unconfirmed。真实 Finished 的 sequence 单独保存，取消丢弃输出后不猜序号。process_exited 只证明直接进程退出，不能证明派生进程或远端资源已释放。
 
+业务尚未启动时单独确认：准备阶段拒绝且未创建进程，或取消/到期发生在从未尝试写入 Start、直接插件进程已确认回收的阶段，可以记 Complete，并保留原失败原因及空业务结果。协议5提供者在 Start 前不得调用业务处理器。只要尝试过 Start 写入，即使写入结果不明确，也继续按可能已启动处理，不能凭直接进程退出降低清理要求。
+
 客户端句柄 Drop 仅请求合作取消，不 abort 监督。监督继续持有输入副本租约；公共进程层在直接进程退出确认前持有同一租约。已启动进程的清理未确认须粘性标记 unresolved，后续成功不能清除，provider 拒绝新的 open，宿主应阻止卸载完成和同 ID 重载。未轮询监督被丢弃时，通道 Drop 发布缓存 Unconfirmed 并撤销句柄，不虚构进程退出。
 
 测试由独立 `infrastructure/tests/interactive_sessions*` 覆盖真实插件进程。适配器通过不表示宿主注册卸载、HTTP/MCP、终端界面、真机或外部资源验收全部完成；集成构建与服务门禁由主代理执行。

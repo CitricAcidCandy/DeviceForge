@@ -51,6 +51,7 @@ export interface RequestSpec {
   readonly body?: string | Blob | ArrayBuffer;
   readonly contentType?: string;
   readonly keepalive?: boolean;
+  readonly headers?: Readonly<Record<string, string>>;
 }
 export interface Endpoint<I, O> {
   readonly request: (input: I) => RequestSpec;

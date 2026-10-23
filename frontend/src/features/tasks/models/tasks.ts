@@ -18,18 +18,18 @@ export function createTasks(
   let closed = false;
   const combined = (signal: AbortSignal) =>
     closed ? AbortSignal.abort() : AbortSignal.any([signal, lifetime.signal]);
-  const get = (id: string, signal: AbortSignal) => client.call(jobEndpoint, id, combined(signal));
-  async function submit(input: TaskSubmission, signal: AbortSignal) {
+  const get = (id: string, signal: AbortSignal, requestClient: ApiClient = client) => requestClient.call(jobEndpoint, id, combined(signal));
+  async function submit(input: TaskSubmission, signal: AbortSignal, requestClient: ApiClient = client) {
     const current = combined(signal);
     const transformed = beforeSubmit ? await beforeSubmit(input, current) : input;
-    return client.call(submitEndpoint, transformed, current);
+    return requestClient.call(submitEndpoint, transformed, current);
   }
   return {
     list: (query: JobQuery, signal: AbortSignal) =>
       client.call(jobsEndpoint, query, combined(signal)),
     submit,
     get,
-    cancel: (id: string, signal: AbortSignal) => client.call(cancelEndpoint, id, combined(signal)),
+    cancel: (id: string, signal: AbortSignal, requestClient: ApiClient = client) => requestClient.call(cancelEndpoint, id, combined(signal)),
     events: (id: string, query: EventQuery, signal: AbortSignal) =>
       client.call(eventsEndpoint, { id, query }, combined(signal)),
     select: (id: string, signal: AbortSignal) =>

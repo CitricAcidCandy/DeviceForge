@@ -9,6 +9,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
 import { isDeepStrictEqual } from 'node:util';
 import { browserFixture, deploymentSnapshot, failedFixtures, serverFixture, sha256 } from './online-plugins/fixtures.mjs';
+import { smokeBinary } from './smoke-binaries.mjs';
 
 // 仅使用已有宿主构建；夹具通过真正 HTTP 上传，不调用 Cargo/npm 或分发工具。
 const backend = fileURLToPath(new URL('../', import.meta.url));
@@ -16,7 +17,7 @@ const arguments_ = process.argv.slice(2);
 assert.ok(arguments_.every((value) => value === '--release'), '仅支持 --release 参数');
 const profile = arguments_.includes('--release') ? 'release' : 'debug';
 const suffix = process.platform === 'win32' ? '.exe' : '';
-const binary = resolve(backend, 'target', profile, `apk-server${suffix}`);
+const binary = smokeBinary('apk-server', profile);
 const reportPath = resolve(backend, '..', 'artifacts', `online-plugins-smoke-${profile}.json`);
 const uuid = /^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/;
 const report = { timestamp: new Date().toISOString(), profile, platform: process.platform, architecture: process.arch,

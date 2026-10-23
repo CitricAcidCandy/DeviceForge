@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button, DialogShell, FileDropzone, SelectField } from '../../../../components/index.ts';
-import { errorLogId } from '../../../../app/product/hooks.ts';
+import { errorLogId, useSnapshot } from '../../../../app/product/hooks.ts';
+import { InstallationProgress } from '../InstallationProgress/index.tsx';
 import type { ProductServices } from '../../../../app/product/services.ts';
 import {
   localImportPorts,
@@ -41,6 +42,12 @@ export function LocalImportDialog({
   const [logId, setLogId] = useState<string | null>(null);
   const [feedback, setFeedback] = useState('');
   const request = useRef<AbortController | null>(null);
+  const progressSource = useMemo(() => ({
+    snapshot: services.runtime.pluginInstallations.progressSnapshot,
+    subscribe: (listener: (value: ReturnType<typeof services.runtime.pluginInstallations.progressSnapshot>) => void) =>
+      services.runtime.pluginInstallations.subscribeProgress(() => listener(services.runtime.pluginInstallations.progressSnapshot())),
+  }), [services]);
+  const installationProgress = useSnapshot(progressSource);
   useEffect(() => {
     if (!open) {
       request.current?.abort();
@@ -269,6 +276,7 @@ export function LocalImportDialog({
           </div>
         )}
         {pending && <p role="status">正在处理本地导入…</p>}
+        {pending && preview?.kind === 'release' && <InstallationProgress value={installationProgress} />}
         {error && (
           <div role="alert" className="form-error">
             <p>{error}</p>

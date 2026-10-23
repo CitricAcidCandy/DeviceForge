@@ -19,17 +19,12 @@
       "component_id": "tool-supply",
       "config_pointer": "/local_manifest",
       "title": "工具供应清单",
-      "description": "选择实际存在的供应清单或在配置中提供受信任的在线来源。",
+      "description": "选择实际存在的本地供应清单，或在远端清单地址中提供受信任的在线来源。",
       "sensitive": false,
-      "required": true
-    },
-    {
-      "component_id": "tool-supply",
-      "config_pointer": "/install_root",
-      "title": "工具安装目录",
-      "description": "选择实际工具安装根目录；建议使用当前用户的 .deviceforge/tools。",
-      "sensitive": false,
-      "required": true
+      "required": true,
+      "any_of": [
+        "/manifest_url"
+      ]
     }
   ]
 }

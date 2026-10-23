@@ -31,6 +31,51 @@ test('工具公共库不得引用宿主或框架，生产和构建依赖均受�
   }
 });
 
+test('插件运行库的原生依赖仅允许Windows标准句柄，不能扩大到构建脚本或其他系统能力', () => {
+  const create = () => {
+    const metadata = graph('windows-sys', null, 'deviceforge-plugin-runtime', 'crates/plugin-runtime');
+    Object.assign(metadata.packages[0].dependencies[0], {
+      target: 'cfg(windows)', features: ['Win32_Foundation', 'Win32_System_Console'],
+    });
+    return metadata;
+  };
+  assert.deepEqual(validatePackages(create(), root), []);
+  for (const change of [
+    { target: null }, { target: 'cfg(unix)' }, { kind: 'build' },
+    { features: ['Win32_Foundation', 'Win32_Networking_WinSock'] },
+  ]) {
+    const metadata = create();
+    Object.assign(metadata.packages[0].dependencies[0], change);
+    assert.match(validatePackages(metadata, root).join(), /仅限Windows标准句柄/);
+  }
+  assert.match(validatePackages(graph('axum', null, 'deviceforge-plugin-runtime',
+    'crates/plugin-runtime'), root).join(), /领域边界/);
+});
+
+test('共享工具仓库只供基础设施和独立插件消费，不能回依宿主或网络运行时', () => {
+  for (const dependency of ['apk-infrastructure', 'tokio', 'reqwest', 'apk-plugin-sdk']) {
+    assert.notDeepEqual(validatePackages(graph(dependency, null,
+      'deviceforge-tool-repository', 'crates/tool-repository'), root), []);
+  }
+  for (const [name, location, allowed] of [
+    ['apk-infrastructure', 'crates/infrastructure', true],
+    ['supplier-plugin', 'plugins/supplier', true],
+    ['apk-domain', 'crates/domain', false],
+    ['apk-application', 'crates/application', false],
+    ['apk-server', 'crates/server', false],
+    ['apk-plugin-sdk', 'crates/plugin-sdk', false],
+  ]) {
+    const metadata = graph('deviceforge-tool-repository', null, name, location);
+    metadata.workspace_members.push('repository');
+    metadata.packages.push({ id: 'repository', name: 'deviceforge-tool-repository',
+      manifest_path: resolve(root, 'crates/tool-repository/Cargo.toml'),
+      dependencies: [{ name: 'fs2', kind: null }] });
+    const failures = validatePackages(metadata, root);
+    if (allowed) assert.deepEqual(failures, []);
+    else assert.match(failures.join(), /不得依赖/);
+  }
+});
+
 test('工具公共库只供适配器和独立插件使用，领域和用例不能绕过端口', () => {
   for (const [name, location, allowed] of [
     ['apk-infrastructure', 'crates/infrastructure', true],

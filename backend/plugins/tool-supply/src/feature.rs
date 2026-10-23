@@ -42,7 +42,7 @@ pub(crate) async fn status(
         let installed = storage::installed(config, &module.name, budget)?;
         let present = installed
             .as_ref()
-            .map(|state| operations::entry_present(config, state))
+            .map(|state| operations::entry_present(config, state, budget))
             .transpose()?
             .unwrap_or(false);
         let row = operations::row(module, installed.as_ref(), present)?;

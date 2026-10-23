@@ -1,6 +1,7 @@
 // 七业务服务回归只部署真实插件清单，工具与签名均为本次假样本。
 import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
+import { smokeBinary } from './smoke-binaries.mjs';
 
 export async function deployAndroidPackages(temporary, tool, signingFile, suffix, profile = 'debug') {
   const directory = join(temporary, 'plugins', 'android-packages');
@@ -26,7 +27,7 @@ export async function deployAndroidPackages(temporary, tool, signingFile, suffix
     scratch_root: scratch,
   }));
   const manifest = JSON.parse(await readFile(new URL('../plugins/android-packages/manifest.example.json', import.meta.url), 'utf8'));
-  manifest.executable = resolve('target', profile, `deviceforge-android-packages-plugin${suffix}`);
+  manifest.executable = smokeBinary('deviceforge-android-packages-plugin', profile);
   manifest.args = ['--config', configuration];
   await writeFile(join(directory, 'manifest.json'), JSON.stringify(manifest));
   const bindings = join(temporary, 'android-packages-bindings.json');

@@ -9,6 +9,7 @@ import {
   installPluginRelease,
   installationApiUrl,
   listPluginInstallations,
+  cleanupPluginResources,
 } from '../src/plugin-installations.mjs';
 import { parseOptions } from '../src/options.mjs';
 
@@ -28,6 +29,11 @@ const job = (status = 'queued') => ({
   result: null,
   error: null,
   created_at: 0,
+});
+const cleanupReport = (dryRun) => ({
+  dry_run: dryRun,
+  items: [{ resource: 'artifacts/orphan.bin', bytes: 12 }],
+  total_bytes: 12,
 });
 async function server(run, handler) {
   const instance = createServer(async (request, response) => {
@@ -240,6 +246,123 @@ test('列表使用同一个公开安装视图', async () => {
     },
   );
 });
+test('资源清理默认预览并等待 installation.cleanup 任务结果', async () => {
+  const calls = [];
+  await server(
+    async (apiUrl) => {
+      const result = await cleanupPluginResources(
+        { apiUrl },
+        { environment: {}, pollIntervalMs: 1 },
+      );
+      assert.equal(result.job.status, 'succeeded');
+      assert.deepEqual(result.report, cleanupReport(true));
+    },
+    (request, body) => {
+      calls.push({ method: request.method, path: request.url });
+      if (request.method === 'POST') {
+        assert.equal(request.url, '/api/v2/plugin-installations/cleanup');
+        assert.deepEqual(JSON.parse(body), { dry_run: true });
+        return { status: 202, data: { ...job(), operation: 'installation.cleanup' } };
+      }
+      return {
+        data: {
+          ...job('succeeded'),
+          operation: 'installation.cleanup',
+          result: cleanupReport(true),
+        },
+      };
+    },
+  );
+  assert.deepEqual(
+    calls.map((item) => item.method),
+    ['POST', 'GET'],
+  );
+});
+test('资源清理显式 false 才提交实际删除并返回汇总', async () => {
+  await server(
+    async (apiUrl) => {
+      const result = await cleanupPluginResources(
+        { apiUrl, dryRun: false },
+        { environment: {}, pollIntervalMs: 1 },
+      );
+      assert.equal(result.report.dry_run, false);
+      assert.equal(result.report.total_bytes, 12);
+    },
+    (request, body) => {
+      if (request.method === 'POST') {
+        assert.deepEqual(JSON.parse(body), { dry_run: false });
+        return {
+          status: 202,
+          data: {
+            ...job('succeeded'),
+            operation: 'installation.cleanup',
+            result: cleanupReport(false),
+          },
+        };
+      }
+      throw new Error('不应轮询已完成任务');
+    },
+  );
+});
+test('资源清理拒绝错误操作、无效报告和非202响应', async () => {
+  await server(
+    async (apiUrl) => {
+      await assert.rejects(
+        cleanupPluginResources({ apiUrl }, { environment: {} }),
+        /操作或状态无效/,
+      );
+    },
+    () => ({ status: 202, data: { ...job('succeeded'), operation: 'installation.install' } }),
+  );
+  await server(
+    async (apiUrl) => {
+      await assert.rejects(cleanupPluginResources({ apiUrl }, { environment: {} }), /缺少有效报告/);
+    },
+    () => ({
+      status: 202,
+      data: { ...job('succeeded'), operation: 'installation.cleanup', result: null },
+    }),
+  );
+  await server(
+    async (apiUrl) => {
+      await assert.rejects(cleanupPluginResources({ apiUrl }, { environment: {} }), /返回202/);
+    },
+    () => ({ status: 200, data: { ...job('succeeded'), operation: 'installation.cleanup' } }),
+  );
+});
+test('资源清理失败或取消时不输出成功报告', async () => {
+  for (const status of ['failed', 'cancelled'])
+    await server(
+      async (apiUrl) => {
+        await assert.rejects(cleanupPluginResources({ apiUrl }, { environment: {} }), /失败|取消/);
+      },
+      () => ({
+        status: 202,
+        data: { ...job(status), operation: 'installation.cleanup', result: cleanupReport(true) },
+      }),
+    );
+});
+test('资源清理报告必须匹配预览模式与安全整数汇总', async () => {
+  for (const report of [
+    cleanupReport(false),
+    { ...cleanupReport(true), total_bytes: 13 },
+    { ...cleanupReport(true), items: [{ resource: 'blob', bytes: -1 }] },
+    { ...cleanupReport(true), items: [{ resource: 'blob\n伪日志', bytes: 12 }] },
+    { ...cleanupReport(true), total_bytes: Number.MAX_SAFE_INTEGER + 1 },
+  ])
+    await server(
+      async (apiUrl) => {
+        await assert.rejects(
+          cleanupPluginResources({ apiUrl }, { environment: {} }),
+          /报告|汇总|资源/,
+        );
+      },
+      () => ({
+        status: 202,
+        data: { ...job('succeeded'), operation: 'installation.cleanup', result: report },
+      }),
+    );
+});
 test('入口参数区分统一和兼容安装，更新要求CAS，地址拒绝凭据', () => {
   assert.equal(
     parseOptions(['plugin', 'install', 'offline.zip', '--api-url', 'http://127.0.0.1:7031'], {})
@@ -250,6 +373,20 @@ test('入口参数区分统一和兼容安装，更新要求CAS，地址拒绝�
     parseOptions(['plugin', 'install-legacy', 'package.tgz'], {}).command,
     'plugin.install-legacy',
   );
+  assert.equal(parseOptions(['plugin', 'cleanup'], {}).command, 'plugin.cleanup');
+  assert.equal(parseOptions(['plugin', 'cleanup'], {}).dryRun, true);
+  assert.equal(parseOptions(['plugin', 'cleanup', '--dry-run', 'false'], {}).dryRun, false);
+  assert.throws(
+    () => parseOptions(['plugin', 'cleanup', '--data-dir', 'x'], {}),
+    /清理位置由服务器用户目录决定/,
+  );
+  for (const args of [
+    ['plugin', 'cleanup', '--release-id', 'demo'],
+    ['plugin', 'cleanup', '--dry-run', 'yes'],
+    ['plugin', 'cleanup', '--dry-run'],
+    ['plugin', 'install', 'offline.zip', '--dry-run', 'false'],
+  ])
+    assert.throws(() => parseOptions(args, {}));
   assert.equal(
     parseOptions(['plugin', 'update', 'demo', 'offline.zip', '--expected-revision', revision], {})
       .updateId,

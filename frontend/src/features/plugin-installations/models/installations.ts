@@ -6,15 +6,43 @@ import type { ApiResult } from '../../../services/api/index.ts';
 import type { JobOptions, TaskRecord } from '../../../shared/jobs/index.ts';
 import type {
   InstallationBrowserLifecycle, InstallationClientState, InstallationComponent, InstallationGateway,
-  InstallationPlan, InstallationSource, PluginInstallation,
+  InstallationPlan, InstallationProgress, InstallationSource, PluginInstallation,
 } from '../types/index.ts';
 
 export function createPluginInstallations(gateway: InstallationGateway, browser: InstallationBrowserLifecycle, options: JobOptions = {}) {
   const resource = createLatestResource<readonly PluginInstallation[]>();
   const lifetime = new AbortController();
+  let progress: InstallationProgress | null = null;
+  let eventSequence = 0;
+  const progressListeners = new Set<() => void>();
+  function publishProgress(value: InstallationProgress) {
+    if (lifetime.signal.aborted) return;
+    progress = Object.freeze(value);
+    for (const listener of [...progressListeners]) {
+      if (lifetime.signal.aborted) break;
+      try { listener(); } catch { /* 进度展示失败不改变安装任务。 */ }
+    }
+  }
   const runner = createJobRunner({
     submit: async () => { throw new Error('安装任务必须从公开安装端点提交'); },
-    getJob: gateway.getJob,
+    async getJob(id, signal) {
+      const result = await gateway.getJob(id, signal);
+      if (gateway.getEvents) {
+        const updates = await gateway.getEvents(id, { after: eventSequence }, signal);
+        signal.throwIfAborted();
+        for (const event of updates.data) {
+          if (event.job_id !== id || !Number.isSafeInteger(event.sequence) || event.sequence <= eventSequence)
+            throw new ApiError('protocol', 'invalid_installation_event', '安装任务事件身份或顺序无效', null, updates.logId);
+          eventSequence = event.sequence;
+          if (event.progress) publishProgress({ jobId: id, operation: result.data.operation, status: event.status,
+            progress: Object.freeze({ ...event.progress }), logId: updates.logId });
+        }
+      }
+      signal.throwIfAborted();
+      publishProgress({ jobId: id, operation: result.data.operation, status: result.data.status,
+        progress: progress?.jobId === id ? progress.progress : null, logId: result.logId });
+      return result;
+    },
     cancelJob: async () => { throw new Error('取消安装等待不自动撤销服务器任务'); },
   }, options);
   const clients = new Map<string, InstallationClientState>();
@@ -90,14 +118,19 @@ export function createPluginInstallations(gateway: InstallationGateway, browser:
   }
   async function wait(submitted: ApiResult<TaskRecord>, signal: AbortSignal) {
     signal.throwIfAborted();
-    await runner.resume({ id: submitted.data.id, operation: submitted.data.operation, submitLogId: submitted.logId }, signal, () => undefined);
+    eventSequence = 0;
+    publishProgress({ jobId: submitted.data.id, operation: submitted.data.operation, status: submitted.data.status,
+      progress: null, logId: submitted.logId });
+    const outcome = await runner.resume({ id: submitted.data.id, operation: submitted.data.operation, submitLogId: submitted.logId }, signal, (value) => value);
     signal.throwIfAborted();
+    return outcome;
   }
   async function enableInstalled(value: PluginInstallation, signal: AbortSignal): Promise<PluginInstallation> {
     const revision = value.revision;
+    if (value.status === 'recovery_blocked') throw new Error('功能插件安装恢复受阻，请先检查服务器恢复日志');
     if (value.status === 'configuration_required') {
-      publishClient({ id: value.id, revision, phase: 'failed', message: '功能插件已安装，请完成配置后启用', logId: null });
-      throw new Error('功能插件已安装，请完成配置后启用');
+      publishClient({ id: value.id, revision, phase: 'disabled', message: '功能插件已安装，请完成配置后启用', logId: null });
+      return value;
     }
     if (!value.enabled || value.status !== 'enabled') {
       await wait(await gateway.setEnabled(value.id, value.revision, true, signal), signal);
@@ -105,6 +138,10 @@ export function createPluginInstallations(gateway: InstallationGateway, browser:
       value = installed(value.id);
     }
     if (value.revision !== revision) throw new Error('启用期间功能插件已更新，请刷新后重试');
+    if (value.status === 'configuration_required') {
+      publishClient({ id: value.id, revision, phase: 'disabled', message: '功能插件已安装，请完成配置后启用', logId: null });
+      return value;
+    }
     await activate(value, signal);
     return value;
   }
@@ -139,6 +176,11 @@ export function createPluginInstallations(gateway: InstallationGateway, browser:
     snapshot: resource.snapshot,
     subscribe: resource.subscribe,
     clientSnapshot: () => clientSnapshot,
+    progressSnapshot: () => progress,
+    subscribeProgress(listener: () => void) {
+      lifetime.signal.throwIfAborted(); progressListeners.add(listener);
+      return () => { progressListeners.delete(listener); };
+    },
     subscribeClient(listener: () => void) {
       lifetime.signal.throwIfAborted(); listeners.add(listener);
       return () => { listeners.delete(listener); };
@@ -186,15 +228,20 @@ export function createPluginInstallations(gateway: InstallationGateway, browser:
         await refresh(active);
         const previous = installed(id);
         if (previous.revision !== revision) throw new Error('功能插件已更新，请刷新后重试');
+        if (previous.status === 'recovery_blocked') throw new Error('功能插件安装恢复受阻，请先检查服务器恢复日志');
         const planned = await plan(source, active);
         active.throwIfAborted();
         if (planned.data.id !== id) throw new Error('更新包功能标识与当前插件不一致');
-        await stopInstalled(previous, active);
+        // 宿主更新负责保留服务器启停意图，本地只撤销旧浏览器组件。
+        await deactivate(previous, active);
         await wait(await gateway.update(id, revision, source, active), active);
         await refresh(active);
         const value = installed(id);
         if (!matches(value, planned.data)) throw new Error('更新后版本或修订与计划不一致，请刷新目录');
-        return enableInstalled(value, active);
+        if (previous.enabled && value.enabled && value.status === 'enabled') await activate(value, active);
+        else publishClient({ id: value.id, revision: value.revision, phase: 'disabled',
+          message: value.status === 'configuration_required' ? '功能插件已更新，请完成配置后启用' : null, logId: null });
+        return value;
       });
     },
     setEnabled(id: string, revision: string, enabled: boolean, signal: AbortSignal) {
@@ -202,10 +249,15 @@ export function createPluginInstallations(gateway: InstallationGateway, browser:
         await refresh(active);
         const previous = installed(id);
         if (previous.revision !== revision) throw new Error('功能插件已更新，请刷新后重试');
+        if (enabled && previous.status === 'recovery_blocked') throw new Error('功能插件安装恢复受阻，请先检查服务器恢复日志');
         if (!enabled) await deactivate(previous, active);
         await wait(await gateway.setEnabled(id, revision, enabled, active), active);
         await refresh(active);
         const value = installed(id);
+        if (enabled && value.status === 'configuration_required') {
+          publishClient({ id: value.id, revision: value.revision, phase: 'disabled', message: '功能插件已安装，请完成配置后启用', logId: null });
+          throw new Error('功能插件已安装，请完成配置后启用');
+        }
         if (value.enabled !== enabled || value.revision !== revision) throw new Error('服务器启停状态或修订与请求不一致，请刷新目录');
         if (enabled) await activate(value, active);
         return value;
@@ -224,7 +276,15 @@ export function createPluginInstallations(gateway: InstallationGateway, browser:
         notifyClients();
       });
     },
-    dispose() { lifetime.abort(); resource.dispose(); runner.dispose(); clients.clear(); clientSnapshot = []; listeners.clear(); },
+    cleanup(dryRun: boolean, signal: AbortSignal) {
+      return serial(signal, async (active) => {
+        if (!gateway.cleanup) throw new Error('当前服务器未提供托管资源清理接口');
+        const outcome = await wait(await gateway.cleanup(dryRun, active), active);
+        await refresh(active);
+        return { data: outcome.data, logId: outcome.logId };
+      });
+    },
+    dispose() { lifetime.abort(); resource.dispose(); runner.dispose(); clients.clear(); clientSnapshot = []; listeners.clear(); progressListeners.clear(); },
   };
 }
 export type PluginInstallations = ReturnType<typeof createPluginInstallations>;

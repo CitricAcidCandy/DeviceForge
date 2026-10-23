@@ -124,7 +124,7 @@ try {
     });
     if (!deployment) {
       const installed = await host.runNpx(
-        [...host.prefix, 'plugin', 'install', pluginArchive, '--data-dir', host.directory],
+        [...host.prefix, 'plugin', 'install-legacy', pluginArchive, '--data-dir', host.directory],
         'Harmony正式TGZ安装',
       );
       deployment = await inspectInstalled(host, report, source, pluginBinary);
@@ -138,7 +138,7 @@ try {
       });
     }
     const listed = await host.runNpx(
-      [...host.prefix, 'plugin', 'list', '--data-dir', host.directory],
+      [...host.prefix, 'plugin', 'list-legacy', '--data-dir', host.directory],
       'Harmony安装目录列举',
     );
     assert.deepEqual(JSON.parse(listed.stdout), [

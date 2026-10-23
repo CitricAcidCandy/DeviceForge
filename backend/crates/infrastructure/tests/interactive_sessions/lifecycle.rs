@@ -31,6 +31,8 @@ async fn precancel_or_expired_original_deadline_launches_no_process_and_keeps_no
                 .is_err()
         );
         let exit = running.wait().await;
+        assert_eq!(exit.cleanup, SessionCleanup::Complete);
+        assert!(exit.process_exited);
         let failure = exit.failure.as_deref().expect("启动前失败保留");
         if cancelled {
             assert!(matches!(failure, Error::Cancelled));
@@ -39,6 +41,54 @@ async fn precancel_or_expired_original_deadline_launches_no_process_and_keeps_no
         }
         assert!(!fixture.marker("started").exists());
         assert!(!fixture.plugin.has_unresolved_resources());
+    }
+}
+
+#[tokio::test(start_paused = true)]
+async fn cancel_or_timeout_before_start_confirms_direct_exit_and_allows_next_session() {
+    for expire in [false, true] {
+        let fixture = Fixture::new();
+        let deadline = Instant::now() + Duration::from_secs(10);
+        let cancel = CancellationToken::new();
+        let mut running = fixture.launch(
+            "before-start",
+            json!({"mode":"hold","ready_gate":true}),
+            deadline,
+            cancel.clone(),
+        );
+        let open = fixture.event("open").await;
+        let pid = support::pid(&open);
+        assert!(!fixture.marker("start").exists());
+        if expire {
+            advance(Duration::from_secs(10) + Duration::from_millis(1)).await;
+        } else {
+            cancel.cancel();
+        }
+        let exit = running.wait().await;
+        assert_eq!(exit.cleanup, SessionCleanup::Complete);
+        assert!(exit.process_exited);
+        assert!(exit.sequence.is_none());
+        assert!(exit.outcome.is_none());
+        assert!(if expire {
+            matches!(exit.failure.as_deref(), Some(Error::Timeout))
+        } else {
+            matches!(exit.failure.as_deref(), Some(Error::Cancelled))
+        });
+        fixture.assert_exited(pid).await;
+        assert!(!fixture.marker("start").exists());
+        assert!(!fixture.plugin.has_unresolved_resources());
+        // 同提供者再次打开，防止已确认未启动的取消污染后续准入。
+        let mut next = fixture.launch(
+            "after-before-start",
+            json!({"mode":"hold"}),
+            Instant::now() + BUDGET,
+            CancellationToken::new(),
+        );
+        observe(next.handle().ready(), "取消后再次准备")
+            .await
+            .unwrap();
+        next.handle().input().cancel();
+        assert_eq!(next.wait().await.cleanup, SessionCleanup::Complete);
     }
 }
 

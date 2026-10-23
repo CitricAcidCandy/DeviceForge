@@ -17,7 +17,17 @@
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "profile": {"type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-z0-9][a-z0-9._-]*$"}
+            "profile": {"type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-z0-9][a-z0-9._-]*$"},
+            "terminal": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "protocol": {"type": "string", "const": "deviceforge.terminal.v1"},
+                "cols": {"type": "integer", "minimum": 20, "maximum": 500},
+                "rows": {"type": "integer", "minimum": 5, "maximum": 200}
+              },
+              "required": ["protocol", "cols", "rows"]
+            }
           },
           "required": ["profile"]
         }

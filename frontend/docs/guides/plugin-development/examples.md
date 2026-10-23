@@ -195,3 +195,22 @@ export default {
 示例每次交互撤销上次等待，防止旧响应覆盖当前视图；它不会自动取消上次已经接受的服务器任务。要停止服务器任务，使用已有任务 ID 点击取消，再查询确认终态。终态为 `succeeded/failed/cancelled`；`queued/running` 仍在执行中。面板输出保留响应日志 ID，未收到服务器响应或本地输入错误可没有日志 ID。
 
 修改为 React 或 TypeScript 时，先构建浏览器 ESM，并把依赖一起打进归档；入口仍遵守相同对象和清理契约。不要从宿主私有源码导入 React、状态或 API，不假定 `@deviceforge/plugin-sdk` 已在 npm 发布。此最小示例未提供设备权限判断、业务结果解析或自动轮询，需要按自己的功能另加验证。
+
+## 成套发布示例的归属
+
+上例是可独立核验的底层浏览器组件。若配套后端指南 examples 主题的 `guide_echo@1.0.0`，使用一个外层 `release.json` 组成功能 `guide-suite@1.0.0`，而不是合并插件入口。发布清单保持 `format_version:1,host_api_version:2`，组件为：
+
+```json
+[
+  {"id":"guide_echo","kind":"server","version":"1.0.0","variants":[
+    {"platform":"any","path":"blobs/<服务器SHA-256>","sha256":"<服务器SHA-256>","size":1,"format":"tgz"}
+  ]},
+  {"id":"browser_guide_example","kind":"browser","version":"0.1.0","variants":[
+    {"platform":"any","path":"blobs/<浏览器SHA-256>","sha256":"<浏览器SHA-256>","size":1,"format":"tgz"}
+  ]}
+]
+```
+
+这是 components 数组结构模板，尖括号和 size=1 必须由发布器替换为真实归档摘要与大小，不能直接安装。完整顶层含 `id/version/name/description/components/tools/requirements`；本例不执行外部工具，tools 与 requirements 可为空。离线目录根直接是 release.json 与 blobs/ 下两个实际 TGZ，不多套工程目录；完整顶层示例可通过 `target=backend,topic=examples` 读取。
+
+安装按 packaging 的在线或离线统一流程进行，再验证浏览器面板能发现并调用 `plugin.guide_echo.echo`，查到真实终态和日志。打开面板不会替用户安装配套服务；不能把只成功挂载的旧独立包算作成套发布通过。用户根配置、服务器 SDK 资源描述、托管路径和高级覆盖保持边界，不进入浏览器 HostContext。

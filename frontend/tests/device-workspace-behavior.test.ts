@@ -114,13 +114,64 @@ test('全量设备发现串行调用真实刷新端点，失败保留日志并�
       result.data.failures.map((item) => [item.provider, item.logId]),
       [['second', 'log-error']],
     );
-    assert.equal(result.logId, 'third-log');
+    assert.equal(result.logId, 'log-error');
     assert.deepEqual(paths, [
       '/api/v2/device-providers',
       '/api/v2/device-providers/first/refresh',
       '/api/v2/device-providers/second/refresh',
       '/api/v2/device-providers/third/refresh',
     ]);
+  } finally {
+    await services.dispose();
+  }
+});
+
+for (const firstHasLogId of [true, false]) {
+  test(`全部设备发现失败时保留${firstHasLogId ? '首个' : '后续可用的'}失败日志，不退回提供者查询日志`, async () => {
+    const services = createProductServices({
+      baseUrl: 'http://localhost:7031',
+      panelTarget: () => null,
+      transport: async (input) => {
+        const path = requestUrl(input).pathname;
+        if (path.endsWith('/device-providers'))
+          return success([provider('first'), provider('second')], 'providers-success-log');
+        if (path.includes('/first/') && !firstHasLogId) throw new Error('受控网络中断');
+        const logId = path.includes('/first/') ? 'first-failure-log' : 'second-failure-log';
+        return Response.json(
+          { log_id: logId, error: { code: 'cleanup_failed', message: '插件资源清理未确认' } },
+          { status: 500, headers: { 'x-deviceforge-log-id': logId } },
+        );
+      },
+    });
+    try {
+      const result = await discoverProviders(services.runtime.devices, signal());
+      assert.equal(result.data.discovered, 0);
+      assert.equal(result.data.failures.length, 2);
+      assert.equal(result.logId, firstHasLogId ? 'first-failure-log' : 'second-failure-log');
+      assert.equal(result.data.failures[0]?.logId, firstHasLogId ? 'first-failure-log' : null);
+      assert.equal(result.data.failures[1]?.logId, 'second-failure-log');
+    } finally {
+      await services.dispose();
+    }
+  });
+}
+
+test('发现失败没有响应日志时保持空值，不以成功查询日志替代', async () => {
+  const services = createProductServices({
+    baseUrl: 'http://localhost:7031',
+    panelTarget: () => null,
+    transport: async (input) => {
+      if (requestUrl(input).pathname.endsWith('/device-providers'))
+        return success([provider()], 'providers-success-log');
+      throw new Error('受控网络中断');
+    },
+  });
+  try {
+    const result = await discoverProviders(services.runtime.devices, signal());
+    assert.equal(result.data.discovered, 0);
+    assert.equal(result.data.failures.length, 1);
+    assert.equal(result.data.failures[0]?.logId, null);
+    assert.equal(result.logId, null);
   } finally {
     await services.dispose();
   }

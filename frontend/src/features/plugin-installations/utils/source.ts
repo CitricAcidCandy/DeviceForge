@@ -2,7 +2,7 @@ import type { MarketplaceEntry } from '../../marketplace/index.ts';
 import type { InstallationSource } from '../types/index.ts';
 
 export function isReleaseEntry(entry: MarketplaceEntry): boolean {
-  return entry.kind === 'plugin' && entry.details['release_format'] === 1;
+  return entry.kind === 'plugin' && (entry.details['release_format_version'] === 1 || entry.details['release_format'] === 1);
 }
 
 export function marketInstallationSource(entry: MarketplaceEntry): InstallationSource {

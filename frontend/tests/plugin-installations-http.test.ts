@@ -41,6 +41,7 @@ test('HTTP 安装继承既有令牌、按冻结请求体等待任务并从不可
         return success({ id: 'enable-job', operation: 'installation.enabled', status: 'queued', input: {}, created_at: 1 }, 'enable-log', 202);
       }
       if (url.pathname.startsWith('/api/v2/jobs/')) {
+        if (url.pathname.endsWith('/events')) return success([]);
         const enabling = url.pathname.endsWith('/enable-job');
         return success({ id: enabling ? 'enable-job' : 'install-job', operation: enabling ? 'installation.enabled' : 'installation.install', status: 'succeeded', input: {}, created_at: 1, result: null });
       }
@@ -77,5 +78,127 @@ test('安装目录损坏字段在 API 边界拒绝并保留日志，不运行浏
   try {
     await assert.rejects(runtime.pluginInstallations.refresh(signal()), (reason: unknown) => reason instanceof ApiError && reason.kind === 'protocol' && reason.logId === 'malformed-installation-log');
     assert.deepEqual(runtime.webPlugins.snapshot(), []);
+  } finally { await runtime.dispose(); }
+});
+
+test('HTTP 配置需求兼容旧发布无候选路径，也接受空候选、转义指针和16项上限', async () => {
+  const requirement = { component_id: 'example-server', config_pointer: '/token', title: '凭据',
+    description: '填写令牌或配置凭据来源', required: true, sensitive: true };
+  let current: unknown = requirement;
+  const runtime = createFrontendRuntime({ baseUrl: 'http://localhost:7031', panelTarget: () => null,
+    transport: async () => success([{ ...installedDto(), requirements: [current] }], 'requirement-compatible-log'),
+  });
+  try {
+    for (const value of [
+      requirement,
+      { ...requirement, any_of: [] },
+      { ...requirement, any_of: ['/credentials/file', '/sources/a~1b', '/sources/a~0b', '/凭据/文件'] },
+      { ...requirement, any_of: Array.from({ length: 16 }, (_, index) => `/sources/${index}`) },
+    ]) {
+      current = value;
+      await runtime.pluginInstallations.refresh(signal());
+      const result = runtime.pluginInstallations.snapshot().result;
+      assert.equal(result?.logId, 'requirement-compatible-log');
+      assert.equal(result?.data[0]?.id, 'example-release');
+      assert.equal(result?.data[0]?.name, '示例功能');
+    }
+    assert.deepEqual(runtime.webPlugins.snapshot(), []);
+  } finally { await runtime.dispose(); }
+});
+
+test('HTTP 拒绝候选配置路径的错误类型、空字符串、超量和重复并保留日志', async () => {
+  let anyOf: unknown;
+  const runtime = createFrontendRuntime({ baseUrl: 'http://localhost:7031', panelTarget: () => null,
+    transport: async () => success([{ ...installedDto(), requirements: [{
+      component_id: 'example-server', config_pointer: '/token', title: '凭据', description: '',
+      required: true, sensitive: true, any_of: anyOf,
+    }] }], 'requirement-invalid-log'),
+  });
+  try {
+    for (const invalid of [
+      null, false, 1, '/credentials/file', {}, [''], ['   '], [null], [1], ['/credentials/file', false],
+      ['/credentials/file', '/credentials/file'], ['/token'],
+      Array.from({ length: 17 }, (_, index) => `/sources/${index}`),
+    ]) {
+      anyOf = invalid;
+      await assert.rejects(runtime.pluginInstallations.refresh(signal()), (reason: unknown) => reason instanceof ApiError &&
+        reason.kind === 'protocol' && reason.logId === 'requirement-invalid-log');
+    }
+    assert.deepEqual(runtime.webPlugins.snapshot(), []);
+  } finally { await runtime.dispose(); }
+});
+
+test('HTTP 目录保留恢复受阻状态，客户端恢复不加载其浏览器', async () => {
+  const imports: string[] = [];
+  const runtime = createFrontendRuntime({ baseUrl: 'http://localhost:7031', panelTarget: () => null,
+    esmImporter: async (url) => { imports.push(url); throw new Error('恢复受阻时不应加载模块'); },
+    transport: async () => success([{ ...installedDto(true), status: 'recovery_blocked' }], 'recovery-directory-log'),
+  });
+  try {
+    await runtime.pluginInstallations.restore(signal());
+    assert.equal(runtime.pluginInstallations.snapshot().result?.data[0]?.status, 'recovery_blocked');
+    assert.equal(runtime.pluginInstallations.snapshot().result?.logId, 'recovery-directory-log');
+    assert.deepEqual(imports, []);
+    assert.deepEqual(runtime.pluginInstallations.clientSnapshot(), []);
+  } finally { await runtime.dispose(); }
+});
+
+test('HTTP 未知安装状态在边界拒绝并保留日志', async () => {
+  const runtime = createFrontendRuntime({ baseUrl: 'http://localhost:7031', panelTarget: () => null,
+    transport: async () => success([{ ...installedDto(true), status: 'unknown_status' }], 'unknown-status-log'),
+  });
+  try {
+    await assert.rejects(runtime.pluginInstallations.refresh(signal()), (reason: unknown) => reason instanceof ApiError &&
+      reason.kind === 'protocol' && reason.logId === 'unknown-status-log');
+    assert.deepEqual(runtime.webPlugins.snapshot(), []);
+  } finally { await runtime.dispose(); }
+});
+
+test('HTTP 任务进度接受未知总量，拒绝非法阶段与字节并保留日志', async () => {
+  let progress: unknown = { stage: 'downloading', resource_id: '0'.repeat(64), completed_bytes: 2 };
+  const runtime = createFrontendRuntime({ baseUrl: 'http://localhost:7031', panelTarget: () => null,
+    transport: async () => success([{ job_id: 'progress-job', sequence: 1, timestamp: 1, status: 'running', progress }], 'progress-boundary-log'),
+  });
+  try {
+    const unknownTotal = await runtime.tasks.events('progress-job', {}, signal());
+    assert.equal(unknownTotal.data[0]?.progress?.total_bytes, undefined);
+    assert.equal(unknownTotal.data[0]?.progress?.resource_id, '0'.repeat(64), '真实下载进度使用可能以数字开头的摘要');
+    for (const invalid of [
+      { stage: 'unknown', completed_bytes: 0 },
+      { stage: 'downloading', completed_bytes: -1 },
+      { stage: 'downloading', completed_bytes: 3, total_bytes: 2 },
+      { stage: 'downloading', completed_bytes: 0.5 },
+      { stage: 'downloading', completed_bytes: 0, resource_id: '../payload' },
+    ]) {
+      progress = invalid;
+      await assert.rejects(runtime.tasks.events('progress-job', {}, signal()), (reason: unknown) =>
+        reason instanceof ApiError && reason.kind === 'protocol' && reason.logId === 'progress-boundary-log');
+    }
+  } finally { await runtime.dispose(); }
+});
+
+test('HTTP 托管资源检查和清理明确发送 dry_run，不隐式清理其他接口', async () => {
+  const requests: boolean[] = [];
+  const runtime = createFrontendRuntime({ baseUrl: 'http://localhost:7031', panelTarget: () => null,
+    transport: async (input, init) => {
+      const path = requestUrl(input).pathname;
+      if (path === '/api/v2/plugin-installations/cleanup') {
+        assert.equal(init?.method, 'POST');
+        const body = JSON.parse(String(init?.body));
+        requests.push(body.dry_run);
+        return success({ id: 'cleanup-job', operation: 'installation.cleanup', status: 'queued', input: {}, created_at: 1 }, 'cleanup-submit-log', 202);
+      }
+      if (path === '/api/v2/jobs/cleanup-job') return success({ id: 'cleanup-job', operation: 'installation.cleanup',
+        status: 'succeeded', input: {}, created_at: 1, result: { dry_run: requests.at(-1), items: [], total_bytes: 0 } }, 'cleanup-terminal-log');
+      assert.ok(path === '/api/v2/jobs/cleanup-job/events' || path === '/api/v2/plugin-installations');
+      return success([]);
+    },
+  });
+  try {
+    const report = await runtime.pluginInstallations.cleanup(true, signal());
+    assert.equal(report.logId, 'cleanup-terminal-log');
+    assert.deepEqual(requests, [true]);
+    await runtime.pluginInstallations.cleanup(false, signal());
+    assert.deepEqual(requests, [true, false]);
   } finally { await runtime.dispose(); }
 });

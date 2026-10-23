@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, PointerEvent } from 'react';
-import { Camera, Download, Maximize2, MoveDiagonal2, Play } from 'lucide-react';
+import { Camera, Download, LayoutGrid, Maximize2, Play, SlidersHorizontal } from 'lucide-react';
 import { Button } from '../../../components/Button/index.tsx';
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
@@ -13,6 +13,7 @@ import {
   downloadPublishedArtifact,
 } from '../../../shared/jobs/index.ts';
 import { EmptyState, Field, JsonResult } from '../../../components/index.ts';
+import { cn } from '../../../utils/classnames.ts';
 import { useOperationAvailable } from '../../../app/product/capabilities.tsx';
 import { ActionFeedback, ErrorNotice } from '../../../app/product/feedback.tsx';
 import { errorLogId, useAction, useSnapshot } from '../../../app/product/hooks.ts';
@@ -46,6 +47,16 @@ const CORNERS = {
   se: [1, 1],
 } as const;
 type Corner = keyof typeof CORNERS;
+/*
+ * 弧线的落位：整块 34×34 的命中区摆到机身外面 18px 处，弧线朝外鼓、两端压在机身边上。
+ * 旋转 90° 就把同一条弧线交给下一个角，不用画四份路径。
+ */
+const CORNER_STYLE: Record<Corner, string> = {
+  nw: '-left-[18px] -top-[18px] cursor-nwse-resize',
+  ne: '-right-[18px] -top-[18px] rotate-90 cursor-nesw-resize',
+  se: '-right-[18px] -bottom-[18px] rotate-180 cursor-nwse-resize',
+  sw: '-left-[18px] -bottom-[18px] rotate-[270deg] cursor-nesw-resize',
+};
 function readStoredZoom(): number {
   if (typeof window === 'undefined') return 1;
   const stored = Number(window.localStorage.getItem(ZOOM_STORAGE_KEY));
@@ -91,12 +102,14 @@ export function DeviceScreen({
   const [size, setSize] = useState('1280');
   const [fps, setFps] = useState('30');
   /*
-   * 画面缩放：1 = 自适应（等比铺满舞台可用区域），拖右下角手柄可以继续放大，
+   * 画面缩放：1 = 自适应（等比铺满舞台可用区域），拖画面四角的弧线可以继续放大，
    * 超出舞台的部分在画面区内部滚动，不会把整页撑开。
    */
   const [zoom, setZoom] = useState(readStoredZoom);
   const [resizing, setResizing] = useState(false);
-  const zoomDrag = useRef<{ x: number; y: number; base: number } | null>(null);
+  const zoomDrag = useRef<{ x: number; y: number; base: number; span: number; corner: Corner } | null>(
+    null,
+  );
   const zoomTo = (value: number) => {
     const next = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round(value * 100) / 100));
     setZoom(next);
@@ -362,14 +375,26 @@ export function DeviceScreen({
     });
   }
   /**
-   * 右下角缩放手柄：往右下拖放大、往左上拖缩小。
-   * 位移取横纵之和，斜着拖和正着拖的手感一致；双击回到 100%。
+   * 四角弧线：每个角只认自己那一侧的位移——左下角往左、往下拖是放大，其余同理。
+   * 位移投影到该角的外向对角线上，再按当前画面高度折算成倍数，大画面也不会一拖就失控。
+   * 双击回到 100%，方向键微调。
    */
-  function zoomPointer(event: PointerEvent<HTMLSpanElement>, type: 'down' | 'move' | 'up') {
+  function zoomPointer(
+    event: PointerEvent<HTMLSpanElement>,
+    type: 'down' | 'move' | 'up',
+    corner: Corner,
+  ) {
     if (type === 'down') {
       event.preventDefault();
       event.currentTarget.setPointerCapture(event.pointerId);
-      zoomDrag.current = { x: event.clientX, y: event.clientY, base: zoom };
+      const frame = event.currentTarget.closest('.media-frame');
+      zoomDrag.current = {
+        x: event.clientX,
+        y: event.clientY,
+        base: zoom,
+        span: frame instanceof HTMLElement ? frame.getBoundingClientRect().height : 0,
+        corner,
+      };
       setResizing(true);
       return;
     }
@@ -380,7 +405,10 @@ export function DeviceScreen({
       setResizing(false);
       return;
     }
-    zoomTo(drag.base + (event.clientX - drag.x + (event.clientY - drag.y)) / 280);
+    const [signX, signY] = CORNERS[drag.corner];
+    const outward = signX * (event.clientX - drag.x) + signY * (event.clientY - drag.y);
+    const gain = Math.min(560, Math.max(240, drag.span * 0.62));
+    zoomTo(drag.base + outward / gain);
   }
   const key = (keycode: number) => {
     if (!controlReady) return;
@@ -559,7 +587,8 @@ export function DeviceScreen({
             aria-controls="workbench-pane"
             onClick={() => onPaneChange?.('params')}
           >
-            画面参数
+            <SlidersHorizontal aria-hidden="true" />
+            <span>画面参数</span>
           </button>
           <button
             type="button"
@@ -571,7 +600,8 @@ export function DeviceScreen({
             title={packages.reason ?? undefined}
             onClick={() => onPaneChange?.('apps')}
           >
-            应用
+            <LayoutGrid aria-hidden="true" />
+            <span>应用</span>
           </button>
         </div>
         <div className="rail-pane" id="workbench-pane" role="tabpanel"
@@ -580,9 +610,9 @@ export function DeviceScreen({
             <DeviceApps services={services} embedded compact />
           ) : (
             <>
+              {/* ── 画面：先给四条事实，参数折起来 ── */}
               <section className="rail-group">
-                <h2>投屏</h2>
-                <dl className="rail-facts">
+                <dl className="rail-metrics">
                   <div>
                     <dt>分辨率</dt>
                     <dd className="mono">
@@ -599,7 +629,9 @@ export function DeviceScreen({
                   </div>
                   <div>
                     <dt>控制</dt>
-                    <dd>{controlReady ? '可操作' : control ? '等待就绪' : '只读'}</dd>
+                    <dd data-tone={controlReady ? 'on' : control ? 'wait' : undefined}>
+                      {controlReady ? '可操作' : control ? '等待就绪' : '只读'}
+                    </dd>
                   </div>
                 </dl>
                 <details className="rail-fold">
@@ -643,15 +675,6 @@ export function DeviceScreen({
                       max={240}
                     />
                   </div>
-                  <div className="media-switch">
-                    <Switch
-                      id="media-control"
-                      checked={control}
-                      onCheckedChange={setControl}
-                      disabled={Boolean(activeSession) || shareInfo?.control === false}
-                    />
-                    <Label htmlFor="media-control">开启设备控制</Label>
-                  </div>
                   <div className="media-actions">
                     <Button variant="outline" size="sm" disabled={action.pending} onClick={checkLive}>
                       检查直播能力
@@ -677,40 +700,52 @@ export function DeviceScreen({
                   actions={webRtc}
                 />
               )}
-              {control && (
-                <section className="rail-group" aria-live="polite">
-                  <h2>剪贴板</h2>
-                  <textarea
-                    readOnly
-                    value={mediaClipboard.text ?? ''}
-                    placeholder="当前控制者在设备内复制后，文本会显示在这里"
-                    aria-label="设备剪贴板文本"
-                    rows={2}
-                    className="rail-clipboard"
+              {/* ── 控制：开关常驻，剪贴板只在开启后出现 ── */}
+              <section className="rail-group">
+                <h2>设备控制</h2>
+                <div className="media-switch">
+                  <Switch
+                    id="media-control"
+                    checked={control}
+                    onCheckedChange={setControl}
+                    disabled={Boolean(activeSession) || shareInfo?.control === false}
                   />
-                  <div className="media-actions">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={!controlReady || !webMode}
-                      onClick={mediaClipboard.copySelection}
-                    >
-                      复制设备选中文本
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={!mediaClipboard.text || !controlReady}
-                      onClick={mediaClipboard.copyToComputer}
-                    >
-                      复制到电脑
-                    </Button>
+                  <Label htmlFor="media-control">开启设备控制</Label>
+                </div>
+                {control && (
+                  <div className="rail-clipboard-block" aria-live="polite">
+                    <textarea
+                      readOnly
+                      value={mediaClipboard.text ?? ''}
+                      placeholder="在设备内复制文本后，会出现在这里"
+                      aria-label="设备剪贴板文本"
+                      rows={2}
+                      className="rail-clipboard"
+                    />
+                    <div className="media-actions">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={!controlReady || !webMode}
+                        onClick={mediaClipboard.copySelection}
+                      >
+                        复制设备选中文本
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={!mediaClipboard.text || !controlReady}
+                        onClick={mediaClipboard.copyToComputer}
+                      >
+                        复制到电脑
+                      </Button>
+                    </div>
+                    <p className="rail-hint">
+                      {mediaClipboard.message || '设备内复制的内容只同步给当前控制者。'}
+                    </p>
                   </div>
-                  <p className="rail-hint">
-                    {mediaClipboard.message || '设备内复制的内容只同步给当前控制者。'}
-                  </p>
-                </section>
-              )}
+                )}
+              </section>
               <section className="rail-group">
                 <h2>录制</h2>
                 <p className="rail-line">
@@ -770,7 +805,7 @@ export function DeviceScreen({
                 <JsonResult value={recording.result} />
               </section>
               <section className="rail-group">
-                <h2>直播</h2>
+                <h2>会话</h2>
                 <p className="rail-line">
                   <span
                     className={`rail-dot${activeSession ? ' is-live' : ''}`}
@@ -788,7 +823,7 @@ export function DeviceScreen({
                     分享直播
                   </Button>
                   <Button
-                    variant="ghost"
+                    variant="outline"
                     size="sm"
                     disabled={!selectedSession || action.pending}
                     onClick={releaseLive}
@@ -796,6 +831,30 @@ export function DeviceScreen({
                     释放直播
                   </Button>
                 </div>
+                <details className="rail-fold">
+                  <summary>恢复已知会话</summary>
+                  <Field label="直播会话 ID" value={sessionId} onChange={setSessionId} />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={webMode || !sessionId || action.pending}
+                    onClick={() =>
+                      void action.run(async (signal) => {
+                        await services.mediaDisplay.prepare(false);
+                        const sameSession = live.snapshot().session?.id === sessionId;
+                        const result = await live.resume(sessionId, signal);
+                        if (!signal.aborted && !sameSession) {
+                          setLiveReference(null);
+                          setSource(`恢复会话 ${sessionId}`);
+                        }
+                        return result;
+                      })
+                    }
+                  >
+                    恢复画面读取位置
+                  </Button>
+                  <p className="rail-hint">恢复其它会话会关闭控制。</p>
+                </details>
               </section>
               {imageUrl && (
                 <section className="rail-group">
@@ -808,30 +867,6 @@ export function DeviceScreen({
                   <img src={imageUrl} alt="设备截图预览" className="screenshot-preview" />
                 </section>
               )}
-              <details className="rail-fold">
-                <summary>恢复已知会话</summary>
-                <Field label="直播会话 ID" value={sessionId} onChange={setSessionId} />
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={webMode || !sessionId || action.pending}
-                  onClick={() =>
-                    void action.run(async (signal) => {
-                      await services.mediaDisplay.prepare(false);
-                      const sameSession = live.snapshot().session?.id === sessionId;
-                      const result = await live.resume(sessionId, signal);
-                      if (!signal.aborted && !sameSession) {
-                        setLiveReference(null);
-                        setSource(`恢复会话 ${sessionId}`);
-                      }
-                      return result;
-                    })
-                  }
-                >
-                  恢复画面读取位置
-                </Button>
-                <p className="rail-hint">恢复其它会话会关闭控制。</p>
-              </details>
               <div className="rail-slot" aria-label="插件插槽：由插件在此渲染工具">
                 <span className="rail-slot-name mono">workshop.extensions</span>
                 <span className="rail-slot-note">插件可在此处渲染工具</span>
@@ -854,10 +889,10 @@ export function DeviceScreen({
       </aside>
       {/* ── 舞台：设备画面常驻 ────────────────────────────── */}
       <div className="workbench-stage" ref={stage}>
-        {/* 只让画面层滚动：缩放手柄留在舞台里，放大后也不会跟着内容跑到看不见的地方。 */}
-        <div className="media-canvas-area">
+        {/* 只让画面层滚动：四角弧线长在画面外面，放大后要跟着画面走。留 20px 内边距给弧线站脚。 */}
+        <div className="media-canvas-area p-5">
           <div
-            className="media-frame"
+            className="media-frame group/frame"
             data-orientation={orientation}
             data-live={videoSize ? 'true' : 'false'}
             style={frameStyle}
@@ -912,42 +947,68 @@ export function DeviceScreen({
               )}
             </div>
             <span className="media-frame-gesture" aria-hidden="true" />
+            {/*
+              四角弧线：画在机身外侧的留白里，四段四分之一圆各自朝外，跟机身弧度同向。
+              拖动改大小，双击回到自适应；键盘焦点落在这一组上，方向键微调。
+            */}
+            <div
+              className="group/corners pointer-events-none absolute inset-0 z-[5] touch-none outline-none focus-visible:outline-2 focus-visible:outline-offset-6 focus-visible:outline-ring"
+              role="slider"
+              tabIndex={0}
+              aria-label="画面缩放"
+              aria-valuemin={Math.round(ZOOM_MIN * 100)}
+              aria-valuemax={Math.round(ZOOM_MAX * 100)}
+              aria-valuenow={Math.round(zoom * 100)}
+              aria-valuetext={`${Math.round(zoom * 100)}%`}
+              title={`拖动四角弧线调整画面大小 · 双击复位（当前 ${Math.round(zoom * 100)}%）`}
+              data-dragging={resizing ? 'true' : undefined}
+              onDoubleClick={() => zoomTo(1)}
+              onKeyDown={(event) => {
+                if (event.key === 'ArrowRight' || event.key === 'ArrowUp') {
+                  event.preventDefault();
+                  zoomTo(zoom + ZOOM_STEP);
+                } else if (event.key === 'ArrowLeft' || event.key === 'ArrowDown') {
+                  event.preventDefault();
+                  zoomTo(zoom - ZOOM_STEP);
+                } else if (event.key === '0' || event.key === 'Home') {
+                  event.preventDefault();
+                  zoomTo(1);
+                }
+              }}
+            >
+              {(Object.keys(CORNERS) as Corner[]).map((corner) => (
+                <span
+                  key={corner}
+                  data-corner={corner}
+                  aria-hidden="true"
+                  className={cn(
+                    'pointer-events-auto absolute size-9 touch-none text-muted-foreground transition-colors duration-150',
+                    'hover:text-primary group-focus-visible/corners:text-primary group-data-[dragging=true]/corners:text-primary group-hover/frame:text-body',
+                    CORNER_STYLE[corner],
+                  )}
+                  onPointerDown={(event) => zoomPointer(event, 'down', corner)}
+                  onPointerMove={(event) => zoomPointer(event, 'move', corner)}
+                  onPointerUp={(event) => zoomPointer(event, 'up', corner)}
+                  onPointerCancel={(event) => zoomPointer(event, 'up', corner)}
+                >
+                  <svg
+                    viewBox="0 0 36 36"
+                    fill="none"
+                    aria-hidden="true"
+                    className="size-9 overflow-visible"
+                  >
+                    <path
+                      d="M0 36A36 36 0 0 1 36 0"
+                      stroke="currentColor"
+                      strokeWidth={3.5}
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                </span>
+              ))}
+            </div>
           </div>
         </div>
-        {/*
-          画面缩放手柄：拖动改大小，双击回到自适应，方向键微调。
-          它落在舞台底部预留的那条带子里，跟读数、操作胶囊互不遮挡。
-        */}
-        <span
-          className="media-zoom-grip"
-          role="slider"
-          tabIndex={0}
-          aria-label="画面缩放"
-          aria-valuemin={ZOOM_MIN * 100}
-          aria-valuemax={ZOOM_MAX * 100}
-          aria-valuenow={Math.round(zoom * 100)}
-          title={`拖动调整画面大小 · 当前 ${Math.round(zoom * 100)}% · 双击复位`}
-          data-dragging={resizing ? 'true' : undefined}
-          onPointerDown={(event) => zoomPointer(event, 'down')}
-          onPointerMove={(event) => zoomPointer(event, 'move')}
-          onPointerUp={(event) => zoomPointer(event, 'up')}
-          onPointerCancel={(event) => zoomPointer(event, 'up')}
-          onDoubleClick={() => zoomTo(1)}
-          onKeyDown={(event) => {
-            if (event.key === 'ArrowRight' || event.key === 'ArrowUp') {
-              event.preventDefault();
-              zoomTo(zoom + ZOOM_STEP);
-            } else if (event.key === 'ArrowLeft' || event.key === 'ArrowDown') {
-              event.preventDefault();
-              zoomTo(zoom - ZOOM_STEP);
-            } else if (event.key === '0' || event.key === 'Home') {
-              event.preventDefault();
-              zoomTo(1);
-            }
-          }}
-        >
-          <MoveDiagonal2 aria-hidden="true" />
-        </span>
         {control && (
           <p className="media-keyboard-hint" aria-live="polite">
             {mediaKeyboard.focused

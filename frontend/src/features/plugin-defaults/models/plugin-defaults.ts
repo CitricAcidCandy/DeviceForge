@@ -1,5 +1,6 @@
 import { ApiError } from '../../../services/api/index.ts';
 import type { PackageKind } from '../../../services/api/index.ts';
+import { ownedInstallationComponents } from '../../plugin-installations/index.ts';
 import type {
   PluginDefaultsGateway,
   PluginDefaultsResult,
@@ -112,6 +113,19 @@ export function createPluginDefaults(gateway: PluginDefaultsGateway) {
         current,
       );
       try {
+        if (gateway.installations) {
+          try { await awaitActive(gateway.installations.restore(signal), signal); }
+          catch (error) {
+            check();
+            failed('browser', null, error);
+            // 目录读取失败时不越过统一安装意图启用底层包。
+            if (!gateway.installations.snapshot().result) {
+              publish({ ...state, phase: 'completed' }, current);
+              return state;
+            }
+          }
+        }
+        const owned = ownedInstallationComponents(gateway.installations?.snapshot().result?.data ?? []);
         for (const kind of ['server', 'browser'] as const) {
           check();
           const targets = failures.filter((item) => item.kind === kind);
@@ -121,6 +135,7 @@ export function createPluginDefaults(gateway: PluginDefaultsGateway) {
               const running = await awaitActive(gateway.serverPlugins.refresh(signal), signal);
               check();
               for (const plugin of running.data) {
+                if (owned.has(`server:${plugin.id}`)) continue;
                 if (
                   mode === 'retry' &&
                   !targets.some((item) => item.id === null || item.id === plugin.id)
@@ -166,6 +181,7 @@ export function createPluginDefaults(gateway: PluginDefaultsGateway) {
             check();
             if (
               pkg.kind !== kind ||
+              owned.has(`${kind}:${pkg.id}`) ||
               (mode === 'retry' && !retryAll && !targets.some((item) => item.id === pkg.id))
             )
               continue;

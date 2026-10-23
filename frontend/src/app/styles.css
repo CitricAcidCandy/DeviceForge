@@ -33,6 +33,30 @@
   --color-accent-warm: var(--accent-warm);
   --color-accent-violet: var(--accent-violet);
   --color-surface-elevated: var(--surface-elevated);
+  /*
+   * 语义色令牌：界面里只允许用这些工具类（text-ink / bg-surface-hover / border-hairline …），
+   * 不在别的 CSS 文件里手写规则块。缺色就先在这里加令牌。
+   */
+  --color-ink: var(--text-strong);
+  --color-body: var(--text-body);
+  --color-faint: var(--text-faint);
+  --color-ghost: var(--text-ghost);
+  --color-hairline: var(--hairline);
+  --color-hairline-strong: var(--hairline-strong);
+  --color-surface-card: var(--surface-card);
+  --color-surface-hover: var(--surface-hover);
+  --color-surface-sunken: var(--surface-sunken);
+  /* 设备身份：平台徽标四色 + 离线降饱和版，跨界面共用。 */
+  --color-platform-android: #0e9f78;
+  --color-platform-android-tint: #e6f7f1;
+  --color-platform-android-idle: #5fa891;
+  --color-platform-android-idle-tint: #f1f7f4;
+  --color-platform-ios: #3f4757;
+  --color-platform-ios-tint: #eef1f6;
+  --color-platform-harmony: #c2410c;
+  --color-platform-harmony-tint: #fdf0e8;
+  --color-platform-emulator: #6c7688;
+  --color-platform-emulator-tint: #f1f3f7;
   --radius-sm: 0.25rem;
   --radius-md: 0.375rem;
   --radius-lg: 0.5rem;

@@ -39,6 +39,7 @@ fn config(directory: &tempfile::TempDir, url: String) -> Config {
         download_limit: MANIFEST_LIMIT,
         extracted_limit: MANIFEST_LIMIT,
         file_limit: 100,
+        repository: None,
     }
 }
 

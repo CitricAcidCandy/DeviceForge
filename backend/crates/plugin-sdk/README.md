@@ -6,6 +6,24 @@
 
 API：Manifest 声明入口、操作与可选产物能力；Request / Response 经标准输入 / 输出传输。PROTOCOL_VERSION 保留 1，ARTIFACT_PROTOCOL_VERSION 为 2。Response.result 区分缺失与显式 null。协议 1 序列化省略未使用的产物字段，宿主保持原成功结果。
 
+## 完整发布与托管工具
+
+开发者在现有服务器/浏览器组件包之外维护版本化 `release.json`，一次发布完整功能。源码可声明兼容版本范围；发布器锁定真实组件、工具的固定版本、大小和摘要，生成市场资源与自包含离线 ZIP。宿主在全部必要依赖校验完成后启用组件，工具不依赖用户修改系统 PATH。完整契约见 [统一插件安装](../../docs/contracts/统一插件安装v1.md)，打包、在线发布和十八个官方声明见 [发布工具](../../../scripts/plugin-releases/README.md)。
+
+公开 `apk_plugin_sdk::resources` 模块沿独立环境变量 `DEVICEFORGE_PLUGIN_RESOURCES` 读取本次发布的不可变绑定文件，不修改任务协议1—4的握手。以下读取只返回服务器本地路径，不能把绝对路径或文件内容放入公开日志：
+
+```rust
+use apk_plugin_sdk::resources::managed_resources;
+
+fn managed_adb() -> std::io::Result<Option<std::path::PathBuf>> {
+    managed_resources()?
+        .map(|resources| resources.entry("adb", "adb").map(std::path::Path::to_path_buf))
+        .transpose()
+}
+```
+
+旧部署没有变量时返回 `None`；变量存在但损坏时返回错误，不静默回退。也可在发布清单中声明配置 JSON Pointer 绑定，由宿主生成有效快照；用户保存的自定义路径优先，原配置及修订不变。工具目录包含执行程序、DLL、JAR、脚本运行时及资源文件的完整闭包。凭据、设备授权和签名材料由用户提供，不进入绑定文件或发布归档。
+
 普通操作可在 Contribution.execution 声明版本化总预算，见 [预算模块](src/execution.README.md)。省略/null 由宿主注册层固化默认值；设备/性能专用操作不重复声明，进程请求不新增字段。本批纯声明和回归已落盘，尚未由本角色执行测试。
 
 cooperative 模块定义协议 3 控制帧、取消原因与清理确认，COOPERATIVE_PROTOCOL_VERSION 为 3；请求仍使用 Request，响应包装为 CooperativeResponse。公开异步运行库位于 ../plugin-runtime，样例位于 plugins/cooperative-demo。协议 3 仍是每任务一个进程，完整契约见 ../../docs/合作取消插件协议.md。

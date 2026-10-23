@@ -15,6 +15,7 @@ fn release(id: &str, revision: char) -> InstalledRelease {
         revision: revision.to_string().repeat(64),
         enabled: false,
         status: InstallationStatus::Installed,
+        failure: None,
         installed_at: 0,
         components: vec![InstalledComponent {
             id: "sample_browser".into(),
@@ -53,8 +54,10 @@ impl PreparedInstallation for Prepared {
             return Err(Error::Conflict("修订不符".into()));
         }
         *self.previous.lock().unwrap() = current.clone();
-        *current = Some(self.info.clone());
-        Ok(self.info)
+        let mut info = self.info;
+        info.enabled = current.as_ref().is_none_or(|record| record.enabled);
+        *current = Some(info.clone());
+        Ok(info)
     }
 }
 #[async_trait]
@@ -91,6 +94,9 @@ impl InstallationStore for Store {
         if value.revision != expected {
             return Err(Error::Conflict("修订不符".into()));
         }
+        if value.status == InstallationStatus::RecoveryBlocked {
+            return Err(Error::Conflict("恢复受阻".into()));
+        }
         value.enabled = enabled;
         value.status = if enabled {
             InstallationStatus::Enabled
@@ -110,6 +116,36 @@ impl InstallationStore for Store {
         let previous = self.previous.lock().unwrap().clone().unwrap();
         *self.current.lock().unwrap() = Some(previous.clone());
         Ok(previous)
+    }
+    async fn recovery_blocked(
+        &self,
+        id: &str,
+        expected: &str,
+        phase: &str,
+        reason: &str,
+    ) -> Result<InstalledRelease> {
+        let mut value = self.get(id).await?;
+        if value.revision != expected {
+            return Err(Error::Conflict("修订不符".into()));
+        }
+        value.status = InstallationStatus::RecoveryBlocked;
+        value.failure = Some(InstallationFailure {
+            phase: phase.into(),
+            reason: reason.into(),
+        });
+        *self.current.lock().unwrap() = Some(value.clone());
+        Ok(value)
+    }
+    async fn cleanup_resources(
+        &self,
+        dry_run: bool,
+        _: Vec<String>,
+    ) -> Result<ResourceCleanupReport> {
+        Ok(ResourceCleanupReport {
+            dry_run,
+            items: vec![],
+            total_bytes: 0,
+        })
     }
     async fn delete(&self, id: &str, _: &str) -> Result<InstalledRelease> {
         let value = self.get(id).await?;
@@ -233,6 +269,7 @@ async fn missing_required_configuration_stays_disabled_then_user_can_enable() {
     next.requirements.push(ReleaseRequirement {
         component_id: "sample_browser".into(),
         config_pointer: "/token".into(),
+        any_of: vec![],
         title: "令牌".into(),
         description: "请输入账号令牌".into(),
         sensitive: true,
@@ -254,6 +291,139 @@ async fn missing_required_configuration_stays_disabled_then_user_can_enable() {
         .await
         .unwrap();
     assert!(enabled.enabled);
+}
+
+#[tokio::test]
+async fn either_requirement_source_enables_and_empty_sources_block_generic_browser_release() {
+    for values in [
+        json!({"local_manifest":"catalog.json","manifest_url":null}),
+        json!({"local_manifest":null,"manifest_url":"https://example.invalid/catalog"}),
+        json!({"local_manifest":null,"manifest_url":null}),
+        json!({"local_manifest":" ","manifest_url":""}),
+    ] {
+        let mut next = release("third-party-source", 'a');
+        next.requirements.push(ReleaseRequirement {
+            component_id: "sample_browser".into(),
+            config_pointer: "/local_manifest".into(),
+            any_of: vec!["/manifest_url".into()],
+            title: "清单来源".into(),
+            description: "选择本地或远端清单".into(),
+            sensitive: true,
+            required: true,
+        });
+        let (service, _, configurations) = setup(next, None);
+        *configurations.values.lock().unwrap() = Some(BrowserConfigurationRecord {
+            version: 1,
+            values: values.clone(),
+            revision: "defaults".into(),
+            applied: "defaults".into(),
+            sensitive_paths: vec!["/local_manifest".into(), "/manifest_url".into()],
+        });
+        let installed = service.install(source(), None).await.unwrap();
+        let expected = ["/local_manifest", "/manifest_url"]
+            .iter()
+            .any(|pointer| values.pointer(pointer).is_some_and(configured));
+        assert_eq!(installed.enabled, expected);
+        assert_eq!(
+            installed.status,
+            if expected {
+                InstallationStatus::Enabled
+            } else {
+                InstallationStatus::ConfigurationRequired
+            }
+        );
+        if !expected {
+            let blocked = service
+                .set_enabled(installed.id, installed.revision, true)
+                .await
+                .unwrap();
+            assert!(!blocked.enabled);
+            assert_eq!(blocked.status, InstallationStatus::ConfigurationRequired);
+        }
+    }
+}
+
+#[tokio::test]
+async fn server_requirement_alternatives_read_original_sensitive_values_from_store() {
+    use apk_infrastructure::plugin_configurations::FilePluginConfigurations;
+    use std::fs;
+    let directory = tempfile::tempdir().unwrap();
+    let deployment = directory.path().join("plugins/sample_server");
+    fs::create_dir_all(&deployment).unwrap();
+    let manifest = json!({
+        "id":"sample_server","version":"1","protocol_version":1,
+        "executable":deployment.join("plugin.exe"),"args":[],"operations":[],
+        "configuration":{
+            "version":1,"apply_policy":"next_invocation",
+            "schema":{"type":"object","additionalProperties":false,"properties":{
+                "local_manifest":{"type":["string","null"],"writeOnly":true},
+                "manifest_url":{"type":["string","null"],"writeOnly":true},
+                "token":{"type":["string","null"],"writeOnly":true}
+            }},
+            "defaults":{"local_manifest":null,"manifest_url":null,"token":null}
+        }
+    });
+    fs::write(
+        deployment.join("manifest.json"),
+        serde_json::to_vec(&manifest).unwrap(),
+    )
+    .unwrap();
+    let configurations = FilePluginConfigurations::open(
+        &directory.path().join("managed"),
+        &directory.path().join("plugins"),
+    )
+    .await
+    .unwrap();
+    let mut next = release("third-party-source", 'a');
+    next.components[0].kind = PackageKind::Server;
+    next.components[0].id = "sample_server".into();
+    next.requirements.push(ReleaseRequirement {
+        component_id: "sample_server".into(),
+        config_pointer: "/local_manifest".into(),
+        any_of: vec!["/manifest_url".into()],
+        title: "清单来源".into(),
+        description: "选择本地或远端清单".into(),
+        sensitive: true,
+        required: true,
+    });
+    let (mut service, _, _) = setup(next.clone(), None);
+    Arc::get_mut(&mut service).unwrap().server_configurations = configurations.clone();
+    assert!(service.requires_configuration(&next).await.unwrap());
+    for (revision, patch, required) in [
+        (0, json!({"local_manifest":" ","manifest_url":""}), true),
+        (
+            1,
+            json!({"manifest_url":"https://example.invalid/catalog"}),
+            false,
+        ),
+        (
+            2,
+            json!({"manifest_url":null,"local_manifest":"catalog.json"}),
+            false,
+        ),
+    ] {
+        let masked = configurations
+            .patch("sample_server", revision, patch)
+            .await
+            .unwrap();
+        assert!(masked.compatible);
+        assert_eq!(masked.values["local_manifest"], "********");
+        assert_eq!(
+            service.requires_configuration(&next).await.unwrap(),
+            required
+        );
+    }
+    // 每个必填声明独立满足，不能用一个来源填值绕过另一个必填输入。
+    let mut token = next.requirements[0].clone();
+    token.config_pointer = "/token".into();
+    token.any_of.clear();
+    next.requirements.push(token);
+    assert!(service.requires_configuration(&next).await.unwrap());
+    configurations
+        .patch("sample_server", 3, json!({"token":"present"}))
+        .await
+        .unwrap();
+    assert!(!service.requires_configuration(&next).await.unwrap());
 }
 
 #[tokio::test]
@@ -300,4 +470,202 @@ async fn failed_new_component_restores_previous_release_and_pre_cancel_does_not_
         Err(Error::Cancelled)
     ));
     assert!(store.list().await.unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn startup_skips_blocked_release_and_keeps_enabled_intent() {
+    let mut blocked = release("feature", 'a');
+    blocked.enabled = true;
+    blocked.status = InstallationStatus::RecoveryBlocked;
+    blocked.failure = Some(InstallationFailure {
+        phase: "activation_cleanup".into(),
+        reason: "测试恢复受阻".into(),
+    });
+    let (service, store, _) = setup(release("feature", 'b'), Some(blocked.clone()));
+    service.restore().await.unwrap();
+    let current = store.get("feature").await.unwrap();
+    assert!(current.enabled);
+    assert_eq!(current.status, InstallationStatus::RecoveryBlocked);
+    assert!(
+        service
+            .set_enabled(current.id, current.revision, false)
+            .await
+            .is_err()
+    );
+    assert!(
+        service
+            .install(source(), Some(blocked.revision))
+            .await
+            .is_err()
+    );
+}
+
+#[tokio::test]
+async fn cancelled_queued_mutations_do_not_write_after_lifecycle_gate_opens() {
+    use std::{future::Future, task::Poll};
+
+    let old = release("feature", 'a');
+    let (service, store, _) = setup(release("feature", 'b'), Some(old.clone()));
+    for operation in 0..3 {
+        let (entered_tx, entered_rx) = tokio::sync::oneshot::channel();
+        let (release_tx, release_rx) = tokio::sync::oneshot::channel();
+        let plugins = service.plugins.clone();
+        let blocker = tokio::spawn(async move {
+            plugins
+                .serialized(move |_| async move {
+                    entered_tx.send(()).unwrap();
+                    release_rx.await.unwrap();
+                    Ok(())
+                })
+                .await
+        });
+        entered_rx.await.unwrap();
+        let cancel = CancellationToken::new();
+        let queued_cancel = cancel.clone();
+        let id = old.id.clone();
+        let revision = old.revision.clone();
+        let queued_service = service.clone();
+        let mut queued = Box::pin(async move {
+            match operation {
+                0 => queued_service
+                    .set_enabled_cancelled(id, revision, true, queued_cancel)
+                    .await
+                    .map(|_| ()),
+                1 => queued_service
+                    .delete_cancelled(id, revision, queued_cancel)
+                    .await
+                    .map(|_| ()),
+                _ => queued_service
+                    .cleanup_resources_cancelled(false, queued_cancel)
+                    .await
+                    .map(|_| ()),
+            }
+        });
+        // 每轮只保留阻塞者和一个排队者，不改变生产准入上限。
+        std::future::poll_fn(|context| {
+            assert!(queued.as_mut().poll(context).is_pending());
+            Poll::Ready(())
+        })
+        .await;
+        cancel.cancel();
+        release_tx.send(()).unwrap();
+        blocker.await.unwrap().unwrap();
+        assert!(matches!(queued.await, Err(Error::Cancelled)));
+    }
+    let unchanged = store.get(&old.id).await.unwrap();
+    assert!(!unchanged.enabled);
+    assert_eq!(unchanged.revision, old.revision);
+}
+
+#[tokio::test]
+async fn progress_storage_failure_after_commit_does_not_rollback_a_ready_release() {
+    struct Reporter(Mutex<Vec<apk_domain::JobStage>>);
+    #[async_trait]
+    impl apk_domain::ProgressReporter for Reporter {
+        async fn report(&self, progress: apk_domain::JobProgress) -> Result<()> {
+            self.0.lock().unwrap().push(progress.stage);
+            if matches!(
+                progress.stage,
+                apk_domain::JobStage::Activating | apk_domain::JobStage::Complete
+            ) {
+                Err(Error::Storage("模拟进度存储故障".into()))
+            } else {
+                Ok(())
+            }
+        }
+    }
+    let reporter = Arc::new(Reporter(Mutex::new(vec![])));
+    let (service, store, _) = setup(release("feature", 'a'), None);
+    let installed = service
+        .install_with_progress(source(), None, CancellationToken::new(), reporter.clone())
+        .await
+        .unwrap();
+    assert!(installed.enabled);
+    assert_eq!(
+        store.get("feature").await.unwrap().revision,
+        installed.revision
+    );
+    assert_eq!(
+        *reporter.0.lock().unwrap(),
+        [
+            apk_domain::JobStage::Preparing,
+            apk_domain::JobStage::Deploying,
+            apk_domain::JobStage::Activating,
+            apk_domain::JobStage::Complete
+        ]
+    );
+}
+
+struct UnconfirmedExecutor;
+#[async_trait]
+impl apk_domain::Executor for UnconfirmedExecutor {
+    fn operations(&self) -> Vec<apk_domain::Operation> {
+        vec![apk_domain::Operation {
+            id: "plugin.server.inspect".into(),
+            title: "资源未确认夹具".into(),
+            input_schema: json!({"type":"object"}),
+            execution: None,
+        }]
+    }
+    fn has_unresolved_resources(&self) -> bool {
+        true
+    }
+    async fn execute(&self, _: &str, _: Value, _: CancellationToken) -> Result<Value> {
+        Err(Error::CleanupFailed)
+    }
+}
+
+#[tokio::test]
+async fn unconfirmed_component_blocks_all_release_mutations_and_persists_recovery_state() {
+    for action in ["update", "enable", "disable", "delete"] {
+        let mut old = release("feature", 'a');
+        old.enabled = true;
+        old.status = InstallationStatus::Enabled;
+        old.components[0].kind = PackageKind::Server;
+        old.components[0].id = "server".into();
+        let mut next = old.clone();
+        next.version = "b".into();
+        next.revision = "b".repeat(64);
+        let (service, store, _) = setup(next, Some(old.clone()));
+        service
+            .plugins
+            .seed(PluginContribution {
+                id: "server".into(),
+                version: "1".into(),
+                executor: Arc::new(UnconfirmedExecutor),
+            })
+            .await
+            .unwrap();
+        let result = match action {
+            "update" => service.install(source(), Some(old.revision.clone())).await,
+            "enable" => {
+                service
+                    .set_enabled(old.id.clone(), old.revision.clone(), true)
+                    .await
+            }
+            "disable" => {
+                service
+                    .set_enabled(old.id.clone(), old.revision.clone(), false)
+                    .await
+            }
+            _ => service.delete(old.id.clone(), old.revision.clone()).await,
+        };
+        assert!(result.is_err(), "{action}");
+        let retained = store.get(&old.id).await.unwrap();
+        assert_eq!(
+            retained.status,
+            InstallationStatus::RecoveryBlocked,
+            "{action}"
+        );
+        assert_eq!(retained.revision, old.revision);
+        assert_eq!(retained.version, old.version);
+        assert_eq!(retained.failure.unwrap().phase, "component_cleanup");
+        assert!(
+            service
+                .set_enabled(old.id.clone(), old.revision, true)
+                .await
+                .is_err()
+        );
+        assert!(service.plugins.list()[0].cleanup_failed);
+    }
 }

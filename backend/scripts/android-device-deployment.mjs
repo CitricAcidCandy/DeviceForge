@@ -1,5 +1,6 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
+import { smokeBinary } from './smoke-binaries.mjs';
 
 export async function deployAndroidDevice(temporary, tool, suffix, profile, packageDeployment, java) {
   const directory = join(temporary, 'plugins', 'android-device');
@@ -10,7 +11,7 @@ export async function deployAndroidDevice(temporary, tool, suffix, profile, pack
     tools: { adb: tool, java, bundletool: { kind: 'java_jar', jar: join(packageDeployment.directory, 'mock-bundletool.jar') } },
   }));
   const manifest = JSON.parse(await readFile(new URL('../plugins/android-device/manifest.example.json', import.meta.url), 'utf8'));
-  manifest.executable = resolve('target', profile, `deviceforge-android-device-plugin${suffix}`);
+  manifest.executable = smokeBinary('deviceforge-android-device-plugin', profile);
   manifest.args = ['--config', configuration];
   await writeFile(join(directory, 'manifest.json'), JSON.stringify(manifest));
   const packages = JSON.parse(await readFile(packageDeployment.bindings, 'utf8'));

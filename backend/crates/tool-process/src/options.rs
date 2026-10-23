@@ -5,7 +5,7 @@ use tokio::time::Instant;
 pub const DEFAULT_OUTPUT_LIMIT: u64 = 1024 * 1024;
 pub const MAX_CLEANUP_TIMEOUT: Duration = Duration::from_secs(2);
 
-/// 受限模式只继承查找工具和使用临时目录所需的六个环境变量。
+/// 受限模式只继承公共白名单中的程序查找、系统、目录与终端运行环境。
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum Environment {
     #[default]

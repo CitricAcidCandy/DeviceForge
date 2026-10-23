@@ -1,5 +1,7 @@
 export { createApiClient } from './client.ts';
 export type { ClientOptions } from './client.ts';
+export { withRequestHeaders, withPluginRelease, pluginReleaseHeaders } from './request-headers.ts';
+export type { PluginReleaseReference } from './request-headers.ts';
 export { ApiError } from './errors.ts';
 export type { ApiErrorKind } from './errors.ts';
 export * from './endpoints.ts';
@@ -24,6 +26,7 @@ export type {
   ConfigurationPatchDto,
   ConfigurationRevisionDto,
   SubmitJob,
+  RequestSpec,
   UploadQuery,
 } from './types.ts';
 export type {

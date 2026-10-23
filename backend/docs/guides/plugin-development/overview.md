@@ -24,4 +24,8 @@
 
 先用 `manifest` 确定贡献、输入模式和预算，再用 `sdk` 选择协议和公共库，按 `lifecycle` 实现期限、取消和清理。`examples` 提供可直接运行的 Node 协议 1 包与 Rust 协议 4 入口；`packaging` 说明自包含包、部署和加载；`validation` 列出实际调用与失败检查。
 
-配套浏览器插件通过公开 `HostContext.listOperations/submit/getJob` 调用服务器操作，查询终态后读取结果；文件先上传得到产物 ID，再由服务器声明选择输入，输出仍以产物 ID 下载。前后端包分别安装、分别启用，不能把安装成功或页面出现当成服务器业务已成功。
+配套浏览器插件通过公开 `HostContext.listOperations/submit/getJob` 调用服务器操作，查询终态后读取结果；文件先上传得到产物 ID，再由服务器声明选择输入，输出仍以产物 ID 下载。
+
+当前推荐交付一个完整功能发布：`release.json` 使用 `format_version:1`、`host_api_version:2`，组合同一功能的服务器组件、浏览器组件和工具依赖，市场只展示一个功能条目。两类组件的底层包格式保持独立；统一安装器负责成套计划、安装、配置、启停与更新，缺必需输入时为 `configuration_required`。旧单组件安装/加载入口保留兼容，不能用它拆装已经归统一发布管理的组件。
+
+配置、插件和工具归运行宿主的用户根，默认 `<home>/.deviceforge`，宿主可用 `DEVICEFORGE_USER_DIR` 指定。根 `config.json` 保存启动/市场配置，插件配置分别保存于 `plugin-configurations/server` 与 `browser`，工具位于 `tools`；npx 缓存只保存运行分发文件。托管资源用 SDK 与 `DEVICEFORGE_PLUGIN_RESOURCES` 读取，用户高级路径覆盖保留优先级；不把开发机绝对路径、令牌或示例项目写入发布默认值。在线来源和含完整闭包的离线 ZIP 走同一安装用例，具体字段见 `manifest`、`sdk` 和 `packaging`。

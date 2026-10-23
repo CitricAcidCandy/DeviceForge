@@ -198,6 +198,16 @@ impl ReleaseManifest {
                 return Err(Error::Invalid("用户输入声明无效".into()));
             }
             pointer(&requirement.config_pointer)?;
+            if requirement.any_of.len() > 16 {
+                return Err(Error::Invalid("用户输入候选配置指针超过16项".into()));
+            }
+            let mut pointers = HashSet::from([requirement.config_pointer.as_str()]);
+            for candidate in &requirement.any_of {
+                pointer(candidate)?;
+                if !pointers.insert(candidate.as_str()) {
+                    return Err(Error::Invalid("用户输入候选配置指针重复".into()));
+                }
+            }
         }
         if serde_json::to_vec(self)
             .map_err(|_| Error::Invalid("发布声明无法编码".into()))?

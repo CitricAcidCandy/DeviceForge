@@ -4,6 +4,8 @@ mod migration;
 mod resources;
 mod rules;
 mod storage;
+#[cfg(test)]
+mod tests;
 use apk_domain::{Error, Result, plugin_configurations::*, plugins::plugin_id};
 use serde_json::{Value, json};
 use std::{
@@ -27,6 +29,7 @@ pub struct FilePluginConfigurations {
     _legacy_locks: Arc<Vec<fs::File>>,
     changes: Arc<Mutex<()>>,
     workers: Arc<Semaphore>,
+    invocation_waiters: Arc<Semaphore>,
 }
 
 impl FilePluginConfigurations {
@@ -119,6 +122,7 @@ impl FilePluginConfigurations {
                 _legacy_locks: Arc::new(legacy_locks),
                 changes: Arc::new(Mutex::new(())),
                 workers: Arc::new(Semaphore::new(2)),
+                invocation_waiters: Arc::new(Semaphore::new(8)),
             }))
         })
         .await
@@ -134,6 +138,34 @@ impl FilePluginConfigurations {
             .clone()
             .try_acquire_owned()
             .map_err(|_| Error::Conflict("配置工作池已满".into()))?;
+        self.work_with_permit(permit, work).await
+    }
+
+    /// 调用读取等待执行名额，取消与绝对期限由调用方的执行上下文覆盖。
+    async fn invocation_work<T: Send + 'static>(
+        &self,
+        work: impl FnOnce(&Self) -> Result<T> + Send + 'static,
+    ) -> Result<T> {
+        let waiting = self
+            .invocation_waiters
+            .clone()
+            .try_acquire_owned()
+            .map_err(|_| Error::Conflict("配置调用等待队列已满".into()))?;
+        let permit = self
+            .workers
+            .clone()
+            .acquire_owned()
+            .await
+            .map_err(|_| Error::Conflict("配置工作池正在关闭".into()))?;
+        drop(waiting);
+        self.work_with_permit(permit, work).await
+    }
+
+    async fn work_with_permit<T: Send + 'static>(
+        &self,
+        permit: tokio::sync::OwnedSemaphorePermit,
+        work: impl FnOnce(&Self) -> Result<T> + Send + 'static,
+    ) -> Result<T> {
         let store = self.clone();
         tokio::task::spawn_blocking(move || {
             let _permit = permit;
@@ -474,7 +506,7 @@ impl PluginConfigurationStore for FilePluginConfigurations {
     }
     async fn invocation_path(&self, id: &str) -> Result<Option<PathBuf>> {
         let id = id.to_owned();
-        self.work(move |store| {
+        self.invocation_work(move |store| {
             let (definition, state) = store.read(&id)?;
             let Some(definition) = definition else {
                 return Ok(None);
@@ -497,7 +529,8 @@ impl PluginConfigurationStore for FilePluginConfigurations {
     }
     async fn resources_path(&self, id: &str) -> Result<Option<PathBuf>> {
         let id = id.to_owned();
-        self.work(move |store| resources::path(store, &id)).await
+        self.invocation_work(move |store| resources::path(store, &id))
+            .await
     }
     async fn requirements_configured(&self, id: &str, pointers: &[String]) -> Result<bool> {
         let id = id.to_owned();
@@ -512,7 +545,7 @@ impl PluginConfigurationStore for FilePluginConfigurations {
             {
                 return Ok(false);
             }
-            Ok(pointers.iter().all(|pointer| {
+            Ok(pointers.iter().any(|pointer| {
                 state
                     .values
                     .pointer(pointer)

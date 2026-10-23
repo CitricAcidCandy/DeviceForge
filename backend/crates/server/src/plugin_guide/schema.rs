@@ -56,7 +56,7 @@ pub(crate) fn tool() -> Tool {
     });
     Tool::new(
         super::TOOL_NAME,
-        "开发 DeviceForge 插件前先读取此指南。返回随当前宿主发布的前端、后端或配套插件中文文档、版本与来源；只读、幂等，不执行代码、不创建任务。",
+        "开发 DeviceForge 插件前先读取此指南。返回随当前宿主发布的前端、后端或配套插件中文文档、版本与来源，含完整功能发布、托管资源、配置和旧入口兼容；只读、幂等，不执行代码、不创建任务。",
         schema.as_object().expect("固定指南模式为对象").clone(),
     )
     .with_annotations(

@@ -5,7 +5,13 @@ use std::collections::HashSet;
 pub(crate) fn parse(output: &str) -> Result<Vec<PluginDevice>> {
     let mut devices = Vec::new();
     let mut ids = HashSet::new();
-    for line in output.lines() {
+    for raw_line in output.split_inclusive('\n') {
+        // HDC在Windows实测返回CRCRLF；只兼容明确行尾，不清洗行内或末尾裸CR。
+        let line = raw_line
+            .strip_suffix("\r\r\n")
+            .or_else(|| raw_line.strip_suffix("\r\n"))
+            .or_else(|| raw_line.strip_suffix('\n'))
+            .unwrap_or(raw_line);
         if line.chars().any(char::is_control) {
             return Err(Error::Dependency("HDC发现输出含非法控制符"));
         }
@@ -60,6 +66,38 @@ mod tests {
         assert_eq!(devices[0].id, "HDC001");
         assert_eq!(devices[0].raw_state.as_deref(), Some("device"));
         assert_eq!(devices[0].capabilities.len(), 8);
+    }
+
+    #[test]
+    fn crcrlf_empty_marker_is_an_explicit_empty_directory() {
+        assert!(parse("[Empty]\r\r\n").unwrap().is_empty());
+    }
+
+    #[test]
+    fn crcrlf_device_lines_keep_order_and_capabilities() {
+        let devices = parse(" HDC001 \r\r\n127.0.0.1:5555\r\r\n").unwrap();
+        assert_eq!(devices.len(), 2);
+        assert_eq!(devices[0].id, "HDC001");
+        assert_eq!(devices[1].id, "127.0.0.1:5555");
+        assert!(devices.iter().all(|device| device.capabilities.len() == 8));
+    }
+
+    #[test]
+    fn crcrlf_compatibility_does_not_accept_other_control_characters() {
+        for output in [
+            "HDC\r001\r\r\n",
+            "HDC001\r",
+            "HDC001\r\r",
+            "HDC001\rHDC002\n",
+            "HDC001\t\r\r\n",
+            "HDC001\r\r\r\n",
+            "\u{1b}[0mHDC001\r\r\n",
+        ] {
+            assert_eq!(
+                parse(output).unwrap_err().to_string(),
+                "工具依赖失败：HDC发现输出含非法控制符"
+            );
+        }
     }
 
     #[test]

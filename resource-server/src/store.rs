@@ -78,6 +78,12 @@ impl Store {
                  payload TEXT NOT NULL,
                  PRIMARY KEY (id, version)
              );
+             CREATE TABLE IF NOT EXISTS release_identities (
+                 id TEXT NOT NULL,
+                 version TEXT NOT NULL,
+                 sha256 TEXT NOT NULL,
+                 PRIMARY KEY (id, version)
+             );
              CREATE VIRTUAL TABLE IF NOT EXISTS market_entries_fts USING fts5(
                  id UNINDEXED,
                  version UNINDEXED,
@@ -143,6 +149,7 @@ impl Store {
 
     pub fn insert_market_entry(&self, entry: &MarketEntry) -> Result<(), StoreError> {
         validate_market_entry(entry).map_err(|error| StoreError::Metadata(error.to_string()))?;
+        crate::releases::validate(self, entry)?;
         let payload = serde_json::to_string(entry).map_err(|_| StoreError::Conflict)?;
         let visibility = match entry.visibility {
             Visibility::Market => "market",
@@ -150,6 +157,23 @@ impl Store {
         };
         let connection = self.connection.lock().map_err(|_| StoreError::Conflict)?;
         let transaction = connection.unchecked_transaction()?;
+        let previous: Option<String> = transaction
+            .query_row(
+                "SELECT sha256 FROM release_identities WHERE id = ?1 AND version = ?2",
+                params![entry.id, entry.version],
+                |row| row.get(0),
+            )
+            .optional()?;
+        if previous.as_deref().is_some_and(|previous| {
+            entry.details.get("release_format_version").is_none()
+                || entry.resource_id.as_deref() != Some(previous)
+        }) {
+            return Err(StoreError::Conflict);
+        }
+        if entry.details.get("release_format_version").is_some() {
+            let digest = entry.resource_id.as_deref().ok_or(StoreError::Missing)?;
+            transaction.execute("INSERT OR IGNORE INTO release_identities (id, version, sha256) VALUES (?1, ?2, ?3)", params![entry.id,entry.version,digest])?;
+        }
         if transaction
             .query_row(
                 "SELECT 1 FROM market_entries WHERE id = ?1 AND version = ?2",

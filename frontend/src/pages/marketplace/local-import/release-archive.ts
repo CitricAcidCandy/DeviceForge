@@ -2,7 +2,7 @@ import { inflateSync } from 'fflate';
 import { safeRelativePath } from '../upload-preparation/rules.ts';
 import { crc32 } from '../upload-preparation/zip-directory.ts';
 
-interface Entry { readonly name: string; readonly size: number; readonly compressed: number; readonly offset: number; readonly method: number; readonly crc: number }
+export interface ReleaseArchiveEntry { readonly name: string; readonly size: number; readonly compressed: number; readonly offset: number; readonly method: number; readonly crc: number }
 const MANIFEST_LIMIT = 256 * 1024;
 async function bytes(file: Blob, start: number, end: number, signal: AbortSignal) {
   signal.throwIfAborted();
@@ -26,7 +26,7 @@ export async function releaseArchive(file: File, signal: AbortSignal) {
   if (count > 4096 || size > 8 * 1024 * 1024 || start + size > tailStart + end) throw new Error('离线 ZIP 目录超过预览限制');
   const directory = await bytes(file, start, start + size, signal);
   const view = new DataView(directory.buffer, directory.byteOffset, directory.byteLength);
-  const entries = new Map<string, Entry>();
+  const entries = new Map<string, ReleaseArchiveEntry>();
   let position = 0;
   for (let index = 0; index < count; ++index) {
     if (position + 46 > directory.length || view.getUint32(position, true) !== 0x02014b50) throw new Error('离线 ZIP 目录结构损坏');
@@ -41,7 +41,7 @@ export async function releaseArchive(file: File, signal: AbortSignal) {
     const flags = view.getUint16(position + 8, true), method = view.getUint16(position + 10, true);
     if ((flags & 1) || ![0, 8].includes(method) || ((mode & 0o170000) !== 0 && ![0o100000, 0o040000].includes(mode & 0o170000)))
       throw new Error('离线 ZIP 不支持加密、特殊文件或当前压缩格式');
-    const entry: Entry = { name: path, size: view.getUint32(position + 24, true), compressed: view.getUint32(position + 20, true),
+    const entry: ReleaseArchiveEntry = { name: path, size: view.getUint32(position + 24, true), compressed: view.getUint32(position + 20, true),
       offset: view.getUint32(position + 42, true), method, crc: view.getUint32(position + 16, true) };
     if ([entry.size, entry.compressed, entry.offset].includes(0xffffffff) || entry.offset + 30 + entry.compressed > start)
       throw new Error('离线 ZIP 资源位置无效或使用 ZIP64');
@@ -65,5 +65,5 @@ export async function releaseArchive(file: File, signal: AbortSignal) {
   // 固定缓冲区避免伪造展开大小导致动态扩容，额外一个字节用来识别截断溢出。
   const output = manifest.method === 0 ? compressed : inflateSync(compressed, { out: new Uint8Array(manifest.size + 1) });
   if (output.byteLength !== manifest.size || crc32(output) !== manifest.crc) throw new Error('release.json 大小或 CRC 不一致');
-  return { manifest: output, entries };
+  return { manifest: output, entries, dataEnd: start };
 }

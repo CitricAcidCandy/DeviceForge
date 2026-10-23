@@ -9,18 +9,15 @@ import type {
   DeviceRef,
   DeviceSnapshot,
 } from '../../plugin-sdk/index.ts';
+import { deviceStateLabels } from '../../features/devices/index.ts';
 import { deviceKey, sameDevice } from '../../features/device-apps/index.ts';
 import type { DeviceTaskServices } from '../../features/device-apps/index.ts';
 
 export { deviceKey, sameDevice };
 export const providerKey = (provider: DeviceProviderInfo): string =>
   JSON.stringify([provider.id, provider.generation]);
-export const deviceStates = {
-  online: '在线',
-  offline: '离线',
-  unauthorized: '等待设备授权',
-  unknown: '状态未知',
-};
+// 文案只有一处：与选择页、顶栏胶囊共用 features/devices 里的同一份。
+export const deviceStates = deviceStateLabels;
 
 export function capabilityReason(
   snapshot: DeviceSnapshot,
@@ -68,36 +65,8 @@ export function parseCapabilityInput(text: string): { [key: string]: JsonData } 
   return value;
 }
 
-// 全量发现按提供者串行，避免超过服务器发现队列；单个失败不吞掉其他提供者。
-export async function discoverProviders(devices: DeviceAccess, signal: AbortSignal) {
-  const listed = await devices.refreshProviders(signal);
-  const failures: { provider: string; message: string; logId: string | null }[] = [];
-  let discovered = 0;
-  let logId = listed.logId;
-  for (const provider of listed.data) {
-    if (signal.aborted)
-      throw new ApiError('cancelled', 'cancelled', '设备发现等待已取消', null, logId);
-    try {
-      const result = await devices.refreshProvider(provider.id, provider.generation, signal);
-      discovered += 1;
-      logId = result.logId ?? logId;
-    } catch (error) {
-      if (signal.aborted) throw error;
-      failures.push({
-        provider: provider.id,
-        message: error instanceof Error ? error.message : '发现失败，请重新查询',
-        logId:
-          error !== null &&
-          typeof error === 'object' &&
-          'logId' in error &&
-          typeof error.logId === 'string'
-            ? error.logId
-            : null,
-      });
-    }
-  }
-  return { data: { discovered, failures }, logId };
-}
+// 发现流程已下沉到 features/devices，供选择页与顶栏胶囊共用。
+export { discoverProviders } from '../../features/devices/index.ts';
 
 // 离散动作接纳后继续查询终态；选择、声明或输入模式换代会撤销旧任务等待。
 export async function executeCapability(

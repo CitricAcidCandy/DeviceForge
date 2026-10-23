@@ -3,10 +3,17 @@ import { copyFile, mkdir, writeFile, mkdtemp, rm, realpath } from 'node:fs/promi
 import { dirname, join, resolve, relative, isAbsolute, sep, basename } from 'node:path';
 import { tmpdir } from 'node:os';
 import { createHash } from 'node:crypto';
-import { validateRelease, selectRelease, releaseResources, relativePath } from './contract.mjs';
+import {
+  validateRelease,
+  selectRelease,
+  releaseResources,
+  relativePath,
+  OFFLINE_LIMIT,
+} from './contract.mjs';
 import { readJson, measureFile, verifyFile, assertWithin } from './io.mjs';
 import { verifyEntries, writeZip, writeTgz } from './archive.mjs';
 import { portableOfficialMembers } from './templates.mjs';
+import { fixedVersion, versionSatisfied } from './versions.mjs';
 
 const fail = (condition, message) => {
   if (!condition) throw new Error(message);
@@ -30,18 +37,20 @@ async function inputVariant(input, base, tool) {
     format: input.format,
   };
   if (tool) variant.entries = input.entries;
-  const members = await verifyEntries(file, variant);
+  const members = await verifyEntries(file, variant, { collect: !tool });
   return { file, variant, members };
 }
 
-function portableComponent(members, component, platform) {
+function portableComponent(members, component, platform, inputVersion) {
   const prefix = members.has('package/package.json') ? 'package/' : '';
   const bytes = members.get(`${prefix}package.json`);
   fail(bytes && bytes.length <= 256 * 1024, '组件缺少有界便携 package.json');
   const descriptor = JSON.parse(bytes),
     entry = descriptor.deviceforge;
   fail(
-    descriptor.version === component.version &&
+    fixedVersion(descriptor.version) &&
+      versionSatisfied(component.version, descriptor.version) &&
+      (inputVersion === undefined || inputVersion === descriptor.version) &&
       entry?.kind === component.kind &&
       typeof entry.manifest === 'string',
     '组件便携描述或版本不匹配',
@@ -51,7 +60,7 @@ function portableComponent(members, component, platform) {
   fail(manifestBytes && manifestBytes.length <= 256 * 1024, '组件缺少便携清单');
   const manifest = JSON.parse(manifestBytes);
   fail(
-    manifest.id === component.id && manifest.version === component.version,
+    manifest.id === component.id && manifest.version === descriptor.version,
     '组件清单身份与发布声明不匹配',
   );
   if (component.kind === 'server') {
@@ -63,6 +72,7 @@ function portableComponent(members, component, platform) {
     relativePath(executable.path);
     fail(members.has(prefix + executable.path), '组件程序入口不存在');
   }
+  return descriptor.version;
 }
 
 export async function prepareRelease(sourcePath, inputPath, platform, { staging } = {}) {
@@ -94,32 +104,32 @@ export async function prepareRelease(sourcePath, inputPath, platform, { staging 
     const input = inputs.components?.[component.id];
     fail(input, `插件组件缺实际归档：${component.id}`);
     let { file, variant, members } = await inputVariant(input, base, false);
-    portableComponent(members, component, variant.platform);
+    const version = portableComponent(members, component, variant.platform, input.version);
+    const locked = { ...component, version };
     if (staging) {
-      members = portableOfficialMembers(component, members);
+      members = portableOfficialMembers(locked, members);
       file = join(staging, `${component.id}.tgz`);
       await writeTgz(file, members);
       const measured = await measureFile(file);
       variant = { ...variant, ...measured, path: `blobs/${measured.sha256}`, format: 'tgz' };
     }
     files.set(variant.sha256, file);
-    components.push({ ...component, variants: [variant] });
+    components.push({ ...locked, variants: [variant] });
   }
   const tools = [];
   for (const tool of source.tools) {
     const input = inputs.tools?.[tool.id];
     if (!input) {
       fail(tool.required === false, `必需工具缺实际归档：${tool.id}`);
-      tools.push({ ...tool, variants: [] });
       continue;
     }
-    const { file, variant } = await inputVariant(input, base, true);
-    const version = input.version ?? tool.version;
-    fail(version !== 'unresolved', `工具必须填写已核验版本：${tool.id}`);
+    const version = input.version;
+    fail(fixedVersion(version), `工具必须填写已核验固定版本：${tool.id}`);
     fail(
-      tool.version === 'unresolved' || version === tool.version,
-      `工具版本与固定声明不一致：${tool.id}`,
+      versionSatisfied(tool.version, version),
+      `工具版本不满足源码范围或与固定声明不一致：${tool.id}`,
     );
+    const { file, variant } = await inputVariant(input, base, true);
     files.set(variant.sha256, file);
     tools.push({ ...tool, version, variants: [variant] });
   }
@@ -138,7 +148,8 @@ export async function verifyReleaseDirectory(directory) {
   }
   // 同一摘要可以被不同资源键引用，每份入口声明仍独立验证。
   for (const tool of manifest.tools)
-    for (const variant of tool.variants) await verifyEntries(files.get(variant.sha256), variant);
+    for (const variant of tool.variants)
+      await verifyEntries(files.get(variant.sha256), variant, { collect: false });
   for (const component of manifest.components)
     for (const variant of component.variants)
       portableComponent(
@@ -183,7 +194,7 @@ export async function packRelease({
       revision: digestBytes(manifestBytes),
       resources: members.length,
       archive,
-      ...(await measureFile(archive, 1024 * 1024 * 1024)),
+      ...(await measureFile(archive, OFFLINE_LIMIT)),
     };
     await writeFile(join(directory, 'pack-report.json'), jsonBytes(report), { flag: 'wx' });
     return report;

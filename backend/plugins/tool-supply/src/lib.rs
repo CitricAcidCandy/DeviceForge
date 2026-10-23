@@ -6,6 +6,7 @@ mod error;
 mod feature;
 mod input;
 mod local_import;
+mod managed;
 mod manifest;
 mod network;
 mod operations;
@@ -67,3 +68,6 @@ mod feature_tests;
 
 #[cfg(test)]
 mod source_tests;
+
+#[cfg(test)]
+mod managed_tests;

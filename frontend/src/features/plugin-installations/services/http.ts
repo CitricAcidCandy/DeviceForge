@@ -1,6 +1,6 @@
 import {
   installationsEndpoint, installationPlanEndpoint, installReleaseEndpoint,
-  updateReleaseEndpoint, enableReleaseEndpoint, uninstallReleaseEndpoint, jobEndpoint,
+  updateReleaseEndpoint, enableReleaseEndpoint, uninstallReleaseEndpoint, jobEndpoint, eventsEndpoint, cleanupInstallationResourcesEndpoint,
 } from '../../../services/api/index.ts';
 import type { ApiClient, InstalledReleaseDto, InstallationSourceDto } from '../../../services/api/index.ts';
 import type { InstallationGateway, InstallationSource, PluginInstallation } from '../types/index.ts';
@@ -37,5 +37,7 @@ export function createInstallationGateway(client: ApiClient): InstallationGatewa
     uninstall: (id, revision, signal) => client.call(uninstallReleaseEndpoint,
       { id, body: { expected_revision: revision } }, signal),
     getJob: (id, signal) => client.call(jobEndpoint, id, signal),
+    getEvents: (id, query, signal) => client.call(eventsEndpoint, { id, query }, signal),
+    cleanup: (dryRun, signal) => client.call(cleanupInstallationResourcesEndpoint, { dry_run: dryRun }, signal),
   };
 }

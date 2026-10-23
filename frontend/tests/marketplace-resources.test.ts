@@ -13,10 +13,13 @@ import {
   installedPackage,
   localPackageEntry,
   localServerEntry,
+  localInstallationEntry,
+  releaseConfigurationTargets,
   newerVersion,
 } from '../src/pages/marketplace/presentation.ts';
 import { createFrontendRuntime } from '../src/app/runtime.ts';
 import { installedPackage as packageFixture, plugin, success } from './fixtures.ts';
+import { release } from './plugin-installations-fixture.ts';
 
 const signal = () => new AbortController().signal;
 const digest = (value: string) => createHash('sha256').update(value).digest('hex');
@@ -263,4 +266,16 @@ test('生产插件目录保留本地展示元数据，已安装回退按 ID 和�
     assert.equal(old.name, 'legacy');
     assert.ok(old.metadataIssues?.length);
   } finally { await instance.dispose(); }
+});
+
+test('完整功能安装项保留外显名称、状态和真实组件配置目标', () => {
+  const value = release(true);
+  const entry = localInstallationEntry(value);
+  assert.equal(entry.name, '示例功能');
+  assert.equal(entry.summary, '完整功能');
+  assert.equal(entry.details['release_status'], 'enabled');
+  assert.deepEqual(releaseConfigurationTargets(value), [
+    { kind: 'server', id: 'example-server' },
+    { kind: 'browser', id: 'example-browser' },
+  ]);
 });

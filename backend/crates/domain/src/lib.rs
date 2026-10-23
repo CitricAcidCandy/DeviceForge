@@ -5,6 +5,8 @@ use tokio_util::sync::CancellationToken;
 
 mod execution;
 pub use execution::ExecutionContext;
+mod progress;
+pub use progress::{JobProgress, JobStage, NoProgress, ProgressReporter};
 mod executor_result;
 pub use executor_result::ExecutorResultFormat;
 pub mod operation_execution;
@@ -83,6 +85,8 @@ pub struct JobEvent {
     pub job_id: String,
     pub status: JobStatus,
     pub timestamp: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub progress: Option<JobProgress>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema, PartialEq, Eq)]
 pub struct Device {
@@ -143,6 +147,18 @@ pub trait Executor: Send + Sync {
     ) -> Result<Value> {
         self.execute(operation, input, cancel).await
     }
+    /// 可选的进度通道；默认保持既有执行器与上下文契约不变。
+    async fn execute_with_progress(
+        &self,
+        operation: &str,
+        input: Value,
+        cancel: CancellationToken,
+        context: ExecutionContext,
+        _progress: std::sync::Arc<dyn ProgressReporter>,
+    ) -> Result<Value> {
+        self.execute_with_context(operation, input, cancel, context)
+            .await
+    }
 }
 pub trait JobStore: Send + Sync {
     fn create(&self, job: &Job) -> Result<()>;
@@ -157,6 +173,9 @@ pub trait JobStore: Send + Sync {
     ) -> Result<Job>;
     fn events(&self, id: &str, after: u64) -> Result<Vec<JobEvent>>;
     fn recover(&self) -> Result<()>;
+    fn progress(&self, _id: &str, _progress: JobProgress) -> Result<()> {
+        Ok(())
+    }
 }
 pub fn identifier(value: &str) -> Result<()> {
     if value.is_empty()
@@ -235,7 +254,7 @@ pub fn validate_local_schema(value: &Value) -> Result<()> {
 
 pub mod bundles;
 
-pub mod plugin_packages;
 pub mod plugin_installations;
+pub mod plugin_packages;
 pub mod plugins;
 pub mod splits;

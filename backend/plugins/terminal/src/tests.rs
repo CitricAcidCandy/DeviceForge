@@ -54,12 +54,13 @@ fn open_rejects_free_program_paths_arguments_shell_unknown_fields_and_wrong_type
         json!({"profile":"Tool"}),
         json!({"profile":"-tool"}),
         json!({"profile":"t".repeat(65)}),
+        json!({"profile":"tool","terminal":null}),
     ] {
         let request = SessionOpen::new("case", "open", input);
         assert!(operation::parse(&request).is_err());
     }
     let request = SessionOpen::new("case", "open", json!({"profile":"tool-1._"}));
-    assert_eq!(operation::parse(&request).unwrap(), "tool-1._");
+    assert_eq!(operation::parse(&request).unwrap().profile, "tool-1._");
     assert!(
         operation::parse(&SessionOpen::new(
             "case",
@@ -95,4 +96,36 @@ fn terminal_rejects_input_and_output_artifacts_and_does_not_choose_server_paths(
             path: "/unaccepted".into(),
         });
     assert!(operation::parse(&request).is_err());
+}
+
+#[test]
+fn terminal_open_accepts_versioned_size_and_rejects_partial_unknown_and_out_of_bounds() {
+    let valid = json!({"profile":"powershell","terminal":{"protocol":"deviceforge.terminal.v1","cols":120,"rows":30}});
+    assert_eq!(
+        operation::parse(&SessionOpen::new("case", "open", valid))
+            .unwrap()
+            .terminal
+            .unwrap()
+            .size()
+            .unwrap()
+            .cols,
+        120
+    );
+    for terminal in [
+        json!({}),
+        json!({"protocol":"other","cols":80,"rows":24}),
+        json!({"protocol":"deviceforge.terminal.v1","cols":19,"rows":24}),
+        json!({"protocol":"deviceforge.terminal.v1","cols":80,"rows":4}),
+        json!({"protocol":"deviceforge.terminal.v1","cols":80,"rows":24,"shell":true}),
+        json!({"protocol":"deviceforge.terminal.v1","cols":80.5,"rows":24}),
+    ] {
+        assert!(
+            operation::parse(&SessionOpen::new(
+                "case",
+                "open",
+                json!({"profile":"tool","terminal":terminal})
+            ))
+            .is_err()
+        );
+    }
 }

@@ -20,7 +20,7 @@ pub(crate) enum Error {
     TooLarge,
     #[error("终端工具退出码为{0:?}")]
     NonZero(Option<i32>),
-    #[error("终端直接进程清理未确认")]
+    #[error("终端进程或资源清理未确认")]
     CleanupFailed,
 }
 

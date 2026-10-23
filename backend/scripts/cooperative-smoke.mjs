@@ -7,13 +7,14 @@ import { tmpdir } from 'node:os';
 import { isAbsolute, join, relative, resolve } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
+import { smokeBinary } from './smoke-binaries.mjs';
 
 // 只使用已有构建产物；由主代理统一构建，避免与共享工作区的门禁争用。
 const backend = fileURLToPath(new URL('../', import.meta.url));
 const profile = process.argv.includes('--release') ? 'release' : 'debug';
 assert.ok(process.argv.slice(2).every((value) => value === '--release'), '仅支持 --release 参数');
 const suffix = process.platform === 'win32' ? '.exe' : '';
-const binary = (name) => resolve(backend, 'target', profile, `${name}${suffix}`);
+const binary = (name) => smokeBinary(name, profile);
 const reportPath = resolve(backend, '..', 'artifacts', `cooperative-smoke-${profile}.json`);
 const uuid = /^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/;
 const pluginId = 'cooperative_demo';

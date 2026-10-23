@@ -137,6 +137,9 @@ async fn guide_is_discoverable_with_read_only_schema_on_empty_deployment() {
         .find(|tool| tool["name"] == TOOL)
         .expect("未装配插件管理也应发现开发指南");
     assert_eq!(tool["annotations"]["readOnlyHint"], true);
+    assert_eq!(tool["annotations"]["destructiveHint"], false);
+    assert_eq!(tool["annotations"]["idempotentHint"], true);
+    assert_eq!(tool["annotations"]["openWorldHint"], false);
     let schema = &tool["inputSchema"];
     assert_eq!(schema["additionalProperties"], false);
     assert_eq!(schema["required"], json!(["target"]));
@@ -145,9 +148,15 @@ async fn guide_is_discoverable_with_read_only_schema_on_empty_deployment() {
         json!(["frontend", "backend", "fullstack"])
     );
     assert_eq!(schema["properties"]["topic"]["enum"], json!(TOPICS));
-    let default = guide(&router, json!({"target": "frontend"})).await;
-    let overview = guide(&router, json!({"target": "frontend", "topic": "overview"})).await;
-    assert_eq!(default, overview, "缺省主题必须与显式 overview 一致");
+    assert_eq!(schema["properties"]["topic"]["default"], "overview");
+    for target in ["frontend", "backend", "fullstack"] {
+        let default = guide(&router, json!({"target": target})).await;
+        let overview = guide(&router, json!({"target": target, "topic": "overview"})).await;
+        assert_eq!(
+            default, overview,
+            "{target} 缺省主题必须与显式 overview 一致"
+        );
+    }
     assert!(app.list(8).unwrap().is_empty());
     app.shutdown().await.unwrap();
 }
@@ -158,7 +167,9 @@ async fn every_target_topic_returns_bounded_embedded_versioned_documents_without
     for target in ["frontend", "backend", "fullstack"] {
         for topic in TOPICS {
             let result = guide(&router, json!({"target": target, "topic": topic})).await;
-            assert_eq!(result["guide_version"], 1);
+            assert_eq!(result["guide_version"], 2);
+            assert_eq!(result["release_format_versions"], json!([1]));
+            assert_eq!(result["release_host_api_versions"], json!([2]));
             assert_eq!(result["host_version"], env!("CARGO_PKG_VERSION"));
             assert_eq!(result["frontend_sdk_version"], 2);
             assert_eq!(
@@ -176,12 +187,15 @@ async fn every_target_topic_returns_bounded_embedded_versioned_documents_without
             } else {
                 &[target]
             };
+            assert_eq!(documents.len(), expected_targets.len());
             for expected in expected_targets {
-                assert!(
-                    documents
-                        .iter()
-                        .any(|document| document["target"] == *expected),
-                    "{target}/{topic} 缺少 {expected} 指南"
+                let document = documents
+                    .iter()
+                    .find(|document| document["target"] == *expected)
+                    .unwrap_or_else(|| panic!("{target}/{topic} 缺少 {expected} 指南"));
+                assert_eq!(
+                    document["source"],
+                    format!("{expected}/docs/guides/plugin-development/{topic}.md")
                 );
             }
             for document in documents {
@@ -209,6 +223,50 @@ async fn every_target_topic_returns_bounded_embedded_versioned_documents_without
         app.list(8).unwrap().is_empty(),
         "21 种指南读取均不能创建任务"
     );
+    app.shutdown().await.unwrap();
+}
+
+#[tokio::test]
+async fn fullstack_knowledge_covers_release_resources_and_compatibility_without_jobs() {
+    let (app, router) = setup();
+    let overview = guide(&router, json!({"target":"fullstack","topic":"overview"})).await;
+    let workflow = overview["fullstack_workflow"].as_str().unwrap();
+    for term in [
+        "release.json",
+        "configuration_required",
+        "DEVICEFORGE_PLUGIN_RESOURCES",
+        "/api/v1/capabilities",
+        "旧单组件",
+        "catalog",
+    ] {
+        assert!(workflow.contains(term), "配套流程缺少 {term}");
+    }
+    for target in ["frontend", "backend"] {
+        for (topic, terms) in [
+            ("manifest", vec!["release.json", "any_of", "bindings"]),
+            (
+                "sdk",
+                vec!["DEVICEFORGE_PLUGIN_RESOURCES", "managed_resources", "原值"],
+            ),
+            (
+                "lifecycle",
+                vec!["expected_revision", "configuration_required", "旧"],
+            ),
+            ("examples", vec!["release.json", "blobs/"]),
+            (
+                "packaging",
+                vec!["/api/v1/capabilities", "/api/v1/catalog", "离线"],
+            ),
+            ("validation", vec!["缺", "SHA-256", "配置"]),
+        ] {
+            let result = guide(&router, json!({"target":target,"topic":topic})).await;
+            let content = result["documents"][0]["content"].as_str().unwrap();
+            for term in terms {
+                assert!(content.contains(term), "{target}/{topic} 缺少 {term}");
+            }
+        }
+    }
+    assert!(app.list(8).unwrap().is_empty());
     app.shutdown().await.unwrap();
 }
 

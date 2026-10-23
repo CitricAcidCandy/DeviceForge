@@ -17,6 +17,8 @@ import {
 import type { ManagerOptions } from '../plugins/index.ts';
 import type { EsmImporter, HostContext, PackageEntryResolver } from '../plugin-sdk/index.ts';
 import { createHostContext } from './host-context.ts';
+import { createReleaseHost } from './release-host.ts';
+import { createReleaseRequestClient } from './release-requests.ts';
 import { createPluginPackages } from '../features/plugin-packages/index.ts';
 import { createInstallationGateway, createPluginInstallations } from '../features/plugin-installations/index.ts';
 import type { InstallationComponent, PluginInstallation } from '../features/plugin-installations/index.ts';
@@ -53,7 +55,11 @@ export interface RuntimeOptions extends ClientOptions {
 }
 export function createFrontendRuntime(options: RuntimeOptions) {
   const lifetime = new AbortController();
-  const client = createApiClient(options);
+  const rawClient = createApiClient(options);
+  const client = createReleaseRequestClient(rawClient, {
+    installations: async () => pluginInstallations.snapshot().result?.data ?? [],
+    plugins: () => serverPlugins.snapshot().result?.data ?? [],
+  });
   const mcp = createMcpClient(createMcpTransport(options));
   const aiSdk = createHttpAiSdk(client);
   const aiSdkStreaming = createHttpAiSdkStreaming(client);
@@ -107,8 +113,14 @@ export function createFrontendRuntime(options: RuntimeOptions) {
     legacyStorage,
     signal: lifetime.signal,
   });
+  const releaseSources = new Map<string, { id: string; revision: string; url: string }>();
   const webPlugins = createPluginManager({
     host: context,
+    hostForPlugin(id) {
+      const release = releaseSources.get(id);
+      if (!release) return context;
+      return createReleaseHost(context, rawClient, release, tasks, devices);
+    },
     panelTarget: options.panelTarget,
     extensionRegistry: extensions,
     configuration: (plugin, signal) =>
@@ -118,7 +130,6 @@ export function createFrontendRuntime(options: RuntimeOptions) {
     ...(options.moduleTarget ? { moduleTarget: options.moduleTarget } : {}),
     ...(options.slotAdapter ? { slotAdapter: options.slotAdapter } : {}),
   });
-  const releaseSources = new Map<string, { revision: string; url: string }>();
   const resolveEntry: PackageEntryResolver = (descriptor, runId) => {
     const release = releaseSources.get(descriptor.id);
     if (release) return release.url;
@@ -159,7 +170,7 @@ export function createFrontendRuntime(options: RuntimeOptions) {
       const previous = releaseSources.get(component.id);
       if (previous && previous.revision !== installation.revision) await browserPackages.forget(component.id);
       signal.throwIfAborted();
-      releaseSources.set(component.id, { revision: installation.revision, url: url.href });
+      releaseSources.set(component.id, { id: installation.id, revision: installation.revision, url: url.href });
       browserPackages.register({ id: component.id, version: component.version, entryPath: component.entryPath });
   }
   const pluginInstallations = createPluginInstallations(createInstallationGateway(client), {
@@ -246,6 +257,7 @@ export function createFrontendRuntime(options: RuntimeOptions) {
     serverPlugins,
     pluginPackages,
     pluginInstallations,
+    requestClient: client,
     installationArtifacts: {
       upload: (filename: string, content: Blob, signal: AbortSignal) => client.call(uploadInstallationArtifactEndpoint,
         { filename, content }, AbortSignal.any([signal, lifetime.signal])),

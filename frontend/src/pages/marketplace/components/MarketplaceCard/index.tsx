@@ -11,6 +11,7 @@ import {
 import { Button, Badge } from '../../../../components/index.ts';
 import type { MarketplaceEntry, MarketplaceKind } from '../../../../features/marketplace/index.ts';
 import type { PackageInfo } from '../../../../services/api/index.ts';
+import { isReleaseEntry, type InstallationClientState, type PluginInstallation } from '../../../../features/plugin-installations/index.ts';
 import {
   categoryLabels,
   kindLabels,
@@ -33,6 +34,10 @@ export interface MarketplaceCardProps {
   removable?: boolean;
   removeDisabled?: boolean;
   installedTab?: boolean;
+  installation?: PluginInstallation | undefined;
+  clientState?: InstallationClientState | undefined;
+  onSetEnabled?: ((enabled: boolean) => void) | undefined;
+  onRetryBrowser?: (() => void) | undefined;
   busy: boolean;
   onDetail(): void;
   onDownload(): void;
@@ -49,6 +54,10 @@ export function MarketplaceCard({
   installedTab = false,
   removable = true,
   removeDisabled = false,
+  installation,
+  clientState,
+  onSetEnabled,
+  onRetryBrowser,
   busy,
   onDetail,
   onDownload,
@@ -59,6 +68,7 @@ export function MarketplaceCard({
   const Icon = kindIcons[entry.kind];
   const update = installed ? newerVersion(entry.version, installed.version) : false;
   const blocked = installBlock(entry);
+  const recoveryBlocked = installation?.status === 'recovery_blocked';
   return (
     <article className="marketplace-card flex min-h-44 flex-col gap-2 rounded-xl border border-[color:var(--hairline)] bg-[color:var(--card)] p-3.5">
       <div className="flex items-start gap-2.5">
@@ -95,7 +105,15 @@ export function MarketplaceCard({
         ))}
         {entry.supports_mcp !== 'none' && <Badge variant="info">{mcpLabels[entry.supports_mcp]}</Badge>}
         {entry.supports_agent && <Badge variant="violet">Agent</Badge>}
+        {installation && <Badge variant={recoveryBlocked || installation.status === 'configuration_required' ? 'warning' : 'outline'}>
+          {recoveryBlocked ? '恢复受阻' : installation.status === 'configuration_required' ? '需要配置' : installation.enabled ? '已启用' : '已停用'}
+        </Badge>}
       </div>
+
+      {recoveryBlocked && <p role="alert">安装恢复受阻，请查看服务器恢复日志，完成恢复后刷新目录。</p>}
+      {clientState?.phase === 'failed' && <p role="alert">本客户端：{clientState.message || '浏览器组件启动失败'}
+        {clientState.logId && <> · 日志 ID：<code>{clientState.logId}</code></>}
+      </p>}
 
       <div className="mt-auto flex items-center gap-1.5 border-t border-[color:var(--hairline)] pt-2.5">
         <span
@@ -107,6 +125,12 @@ export function MarketplaceCard({
         </span>
         {installedTab ? (
           <>
+            {installation && onSetEnabled && <Button variant="outline" size="sm"
+              disabled={busy || (recoveryBlocked && !installation.enabled)} onClick={() => onSetEnabled(!installation.enabled)}>
+              {installation.enabled ? '停用' : '启用'}
+            </Button>}
+            {installation?.enabled && installation.status === 'enabled' && clientState?.phase === 'failed' && onRetryBrowser &&
+              <Button variant="outline" size="sm" disabled={busy} onClick={onRetryBrowser}>重试本客户端</Button>}
             <Button
               variant="outline"
               size="sm"
@@ -122,7 +146,7 @@ export function MarketplaceCard({
               {removable ? '卸载' : '停用'}
             </Button>
             {update && (
-              <Button size="sm" disabled={busy || !!blocked} title={blocked ?? undefined} onClick={onInstall}>
+              <Button size="sm" disabled={busy || !!blocked || recoveryBlocked} title={blocked ?? undefined} onClick={onInstall}>
                 <ArrowUpCircle />
                 更新
               </Button>
@@ -132,13 +156,13 @@ export function MarketplaceCard({
           <>
             <Button variant="ghost" size="sm" disabled={busy || !entry.resource_id} onClick={onDownload}>
               <Download />
-              下载
+              {isReleaseEntry(entry) ? '下载发布清单' : '下载'}
             </Button>
             {entry.kind === 'plugin' && (
               <Button
                 variant={installed && !update ? 'ghost' : 'outline'}
                 size="sm"
-                disabled={busy || !!blocked || (!!installed && !update)}
+                disabled={busy || !!blocked || recoveryBlocked || (!!installed && !update)}
                 title={blocked ?? undefined}
                 onClick={onInstall}
               >

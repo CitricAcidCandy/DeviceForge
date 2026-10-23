@@ -10,7 +10,7 @@
 
 独立工程位于 `G:\Rust\DeviceForge`，旧 Electron 工程只作业务行为对照。新架构采用可替换端口和适配器，通过公开操作贡献接入设备工具及独立进程插件，HTTP 和 MCP 共用任务层。内部 apk-* crate 名称暂保留。
 
-当前实现：分层工程、SQLite 任务与事件、输入模式验证、并发调度、取消恢复、HTTP / OpenAPI、MCP、进程插件、受控产物、基础设备操作、安装包分析及性能会话。Frida、投屏及完整业务迁移仍在后续范围，具体以 backend/docs/guides/迁移清单.md 为准。
+当前实现与证据以 [当前进度与新会话交接](docs/当前进度与新会话交接.md) 为准。统一功能插件的清单、共享工具、配置持久化、成套前后端安装与分发入口见 [统一安装契约](backend/docs/contracts/统一插件安装v1.md)、[开发者发布工具](scripts/plugin-releases/README.md) 和 [用户安装操作](frontend/docs/implementation/统一插件安装前端接线-20261022.md)。各业务的真机、性能与公开发布分别验收。
 
 Rust 服务使用 Tokio + Axum 异步架构，线上任务与性能存储通过受限阻塞工作池执行。日志采用有界非阻塞 JSONL、轮转/保留和退出刷新；v2 HTTP、MCP、后台任务与插件调用携带关联日志 ID，v1 保留兼容。公开契约见 [日志与关联契约](backend/docs/contracts/日志与关联契约.md)，前端消费要求独立放在 [日志 ID 与接口消费](frontend/docs/contracts/日志ID与接口消费.md)。通用进程插件支持运行中加载/卸载/重载。公开离散设备提供者、能力路由与前端设备上下文已实现，当前 debug/release 设备、真实浏览器及 npx 分发集成通过；平台实现迁出宿主、常驻连接与真机尚未完成。
 
@@ -37,13 +37,13 @@ Rust 服务使用 Tokio + Axum 异步架构，线上任务与性能存储通过�
 
 ```powershell
 npx --yes --package .\artifacts\deviceforge-cli-0.1.0.tgz deviceforge start --ip 0.0.0.0 --port 7030 --mcp-port 7032
-npx --yes --package .\artifacts\deviceforge-cli-0.1.0.tgz deviceforge plugin install .\my-plugin
+npx --yes --package .\artifacts\deviceforge-cli-0.1.0.tgz deviceforge plugin install .\my-release.zip --api-url http://127.0.0.1:7030
 npx --yes --package .\artifacts\deviceforge-cli-0.1.0.tgz deviceforge plugin list
 ```
 
-默认允许局域网访问，前端/API 使用 7030，独立 MCP 使用 7032；可分别指定 IP 和端口。数据默认位于用户目录 `.deviceforge`，可用 `--data-dir` 修改。服务器插件安装支持便携本地目录、tgz 与 npm 包名，运行中安装后通过 HTTP/MCP 显式加载；配置令牌时携带鉴权。包格式与生命周期见 [cli/README.md](cli/README.md)，后端部署说明见 [命令行部署与插件安装](backend/docs/guides/命令行部署与插件安装.md)。
+默认允许局域网访问，前端/API 使用 7030，独立 MCP 使用 7032；可分别指定 IP 和端口。完整发布安装调用已运行的服务，自动准备服务器组件、可选浏览器组件与必需工具；支持市场清单和完整离线 ZIP。账号、项目、签名等必要输入不足时显示“需要配置”。统一安装的组件、工具与插件配置固定归属 `DEVICEFORGE_USER_DIR`，默认用户目录 `.deviceforge`；`--data-dir` 只改变业务数据与旧兼容部署目录。清除 npm 缓存不删除这些持久内容，但再次 npx 启动可能需要联网获取宿主。包格式与生命周期见 [cli/README.md](cli/README.md)，后端部署说明见 [命令行部署与插件安装](backend/docs/guides/命令行部署与插件安装.md)。
 
-`npm run pack:plugins` 为 echo、artifact_copy、msgpack、performance_demo、cooperative_demo 生成当前平台 release 插件 tgz，也可用 `npm run pack:plugins -- msgpack` 选择插件 ID。生成的包可直接交给上述 `plugin install`，开发者只维护 Cargo 与原有公开清单。在线上传要求包自包含运行依赖；安装与启用是独立操作。分发说明见 [原生插件分发](backend/docs/implementation/原生插件分发.md)。
+`npm run pack:plugins` 生成原生组件 TGZ，可用 `npm run pack:plugins -- msgpack` 选择插件 ID。完整发布还须通过 `pack:plugin-release` 组合组件与工具，形成用户一次安装的市场条目及离线 ZIP。便携目录、独立 TGZ 和 npm 包保留在 `plugin install-legacy` / `plugin list-legacy`，它们不自动准备工具，不覆盖完整发布拥有的组件。分发说明见 [开发者发布工具](scripts/plugin-releases/README.md) 和 [原生组件分发](backend/docs/implementation/原生插件分发.md)。
 
 当前 Windows x64 release 运行包已重建，真实 npx 验证默认免令牌与可选鉴权、五个原生插件、运行中热装卸、日志关联及正常退出。本阶段增加公开 Node 设备示例的实际安装、HTTP/MCP 发现与能力调用、重载换代、两种传输的旧引用拒绝，以及完整任务和事件历史保留。包内 `runtime/web/assets/plugin-host.js` 导出 `createFrontendRuntime` 与 `createNamedSlotAdapter`，提供可独立导入的生产宿主入口；应用用例与插件 SDK 的具体能力见前端文档。
 

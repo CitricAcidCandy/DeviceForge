@@ -1,4 +1,5 @@
 {
+  "repository_mode": "custom",
   "local_manifest": "tool-catalog.json",
   "manifest_cache_enabled": true,
   "install_root": "G:/DeviceForge/tools",

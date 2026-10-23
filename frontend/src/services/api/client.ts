@@ -71,7 +71,8 @@ export function createApiClient(options: ClientOptions): ApiClient {
     const url = new URL(spec.path, base);
     if (url.origin !== base.origin || !url.pathname.startsWith('/api/v2/'))
       throw new Error('端点超出同源 v2 API 边界');
-    const headers = new Headers({ accept: 'application/json' });
+    const headers = new Headers(spec.headers);
+    headers.set('accept', 'application/json');
     if (spec.contentType) headers.set('content-type', spec.contentType);
     try {
       const token = await abortable(

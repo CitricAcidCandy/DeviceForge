@@ -266,7 +266,8 @@ impl ProcessPlugin {
             None
         };
         let resources = if let Some(store) = &self.configurations {
-            execution_deadline::run(&cancel, deadline, store.resources_path(&self.manifest.id)).await?
+            execution_deadline::run(&cancel, deadline, store.resources_path(&self.manifest.id))
+                .await?
         } else {
             None
         };

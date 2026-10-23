@@ -30,6 +30,7 @@ export function useMarketplace(services: ProductServices, active: boolean, insta
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [generation, setGeneration] = useState(0);
+  const [cleanupResult, setCleanupResult] = useState<{ readonly data: unknown; readonly logId: string | null; readonly dryRun: boolean } | null>(null);
   const source = services.marketplace.currentUrl();
   const metadata = useInstalledMetadata(services.marketplace, active && installedTab, generation);
   const defaults = useSnapshot(services.pluginDefaults);
@@ -53,6 +54,18 @@ export function useMarketplace(services: ProductServices, active: boolean, insta
     browser = useSnapshot(browserSource);
   const serverRuntime = useSnapshot(services.runtime.serverPlugins);
   const installationState = useSnapshot(services.runtime.pluginInstallations);
+  const installationClientSource = useMemo(() => ({
+    snapshot: services.runtime.pluginInstallations.clientSnapshot,
+    subscribe: (listener: (value: ReturnType<typeof services.runtime.pluginInstallations.clientSnapshot>) => void) =>
+      services.runtime.pluginInstallations.subscribeClient(() => listener(services.runtime.pluginInstallations.clientSnapshot())),
+  }), [services]);
+  const installationClients = useSnapshot(installationClientSource);
+  const installationProgressSource = useMemo(() => ({
+    snapshot: services.runtime.pluginInstallations.progressSnapshot,
+    subscribe: (listener: (value: ReturnType<typeof services.runtime.pluginInstallations.progressSnapshot>) => void) =>
+      services.runtime.pluginInstallations.subscribeProgress(() => listener(services.runtime.pluginInstallations.progressSnapshot())),
+  }), [services]);
+  const installationProgress = useSnapshot(installationProgressSource);
   const installations = installationState.result?.data ?? [];
   const owned = ownedInstallationComponents(installations);
   const packages = [...(server.result?.data ?? []), ...(browser.result?.data ?? [])];
@@ -179,7 +192,13 @@ export function useMarketplace(services: ProductServices, active: boolean, insta
     });
   }
   function removeInstallation(id: string, revision: string) {
-    void action.run((signal) => services.runtime.pluginInstallations.uninstall(id, revision, signal), {
+    void action.run(async (signal) => {
+      await services.runtime.pluginInstallations.uninstall(id, revision, signal);
+      await Promise.all([
+        services.runtime.pluginPackages.refresh('server', signal), services.runtime.pluginPackages.refresh('browser', signal),
+        services.runtime.serverPlugins.refresh(signal),
+      ]);
+    }, {
       pending: '正在停用并卸载功能插件…', success: '功能插件已卸载，配置已保留',
     });
   }
@@ -187,6 +206,21 @@ export function useMarketplace(services: ProductServices, active: boolean, insta
     void action.run((signal) => services.runtime.pluginInstallations.setEnabled(id, revision, enabled, signal), {
       pending: enabled ? '正在启用功能插件…' : '正在停用功能插件…', success: enabled ? '功能插件已启用' : '功能插件已停用',
     });
+  }
+  function retryInstallationBrowser(id: string, revision: string) {
+    void action.run((signal) => services.runtime.pluginInstallations.retryBrowser(id, revision, signal), {
+      pending: '正在重试本实例浏览器组件…', success: '本实例浏览器组件已恢复',
+    });
+  }
+  function cleanupResources(dryRun: boolean) {
+    setCleanupResult(null);
+    void action.run(async (signal) => {
+      const result = await services.runtime.pluginInstallations.cleanup(dryRun, signal);
+      signal.throwIfAborted();
+      setCleanupResult({ ...result, dryRun });
+      return result;
+    }, { pending: dryRun ? '正在检查托管资源引用…' : '正在清理未引用的托管资源…',
+      success: dryRun ? '托管资源检查完成' : '托管资源清理完成' });
   }
   const installedEntries = packages.filter((pkg) => !owned.has(`${pkg.kind}:${pkg.id}`)).map((pkg) => {
     const entry = [...metadata.entries, ...catalog.entries]
@@ -221,6 +255,8 @@ export function useMarketplace(services: ProductServices, active: boolean, insta
     error,
     packages,
     installations,
+    installationClients,
+    installationProgress,
     installedEntries: [...releaseEntries, ...installedEntries, ...builtinEntries],
     action,
     download,
@@ -228,6 +264,9 @@ export function useMarketplace(services: ProductServices, active: boolean, insta
     remove,
     removeInstallation,
     setInstallationEnabled,
+    retryInstallationBrowser,
+    cleanupResult,
+    cleanupResources,
     refresh: () => setGeneration((value) => value + 1),
     installedMetadataError: metadata.error,
     packageError: installationState.error || server.error || browser.error,

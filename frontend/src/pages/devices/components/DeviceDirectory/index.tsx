@@ -1,18 +1,42 @@
 import { useState } from 'react';
-import { ChevronLeft, PlugZap, RefreshCw, Search } from 'lucide-react';
+import { ChevronLeft, ChevronRight, PlugZap, RefreshCw, Search } from 'lucide-react';
 import { Button } from '../../../../components/Button/index.tsx';
 import { Input } from '../../../../components/Input/index.tsx';
+import { DeviceBadge } from '../../../../components/DeviceBadge/index.tsx';
+import {
+  devicePlatformLetter,
+  devicePlatformLabel,
+  devicePlatformTone,
+  deviceStateCaption,
+  deviceStateLabel,
+  deviceStateTone,
+} from '../../../../features/devices/index.ts';
 import type {
   DeviceProviderInfo,
   DeviceRef,
   DeviceSnapshot,
 } from '../../../../plugin-sdk/index.ts';
-import { deviceKey, deviceStates, providerKey, sameDevice } from '../../workspace.ts';
-import './workspace.css';
+import { deviceKey, providerKey, sameDevice } from '../../workspace.ts';
+import { cn } from '../../../../utils/classnames.ts';
+
+const stateText: Record<string, string> = {
+  online: 'text-success',
+  offline: 'text-ghost',
+  unauthorized: 'text-warning',
+  unknown: 'text-ghost',
+};
+const stateDot: Record<string, string> = {
+  online: 'bg-success',
+  offline: 'bg-ghost',
+  unauthorized: 'bg-warning',
+  unknown: 'bg-hairline-strong',
+};
 
 /*
- * 设备选择：一台设备一段证据，选完就进工作台。
- * 左栏是来源，中间是设备（发丝线分隔，不用卡片），右栏只报当前选择的身份与能力。
+ * 设备选择：一台设备一张卡，平台徽标先说话，标识用等宽，状态只上色不铺底。
+ * 左列是设备清单（在线在前），右列是「当前选择 + 设备提供者」——提供者从列表脚注搬到这里，
+ * 列表因此只是设备清单，选择动作不再和「重新发现」抢注意力。
+ * 样式全部是 Tailwind 工具类，没有配套 CSS 文件。
  */
 export function DeviceDirectory({
   snapshot,
@@ -60,10 +84,22 @@ export function DeviceDirectory({
   const onlineCount = devices.filter(({ device }) => device.state === 'online').length;
   // 全在线时别把同一个数字报两遍。
   const countLabel = !devices.length
-    ? '0 台'
+    ? '还没有设备'
     : onlineCount === devices.length
-      ? `${devices.length} 台在线`
-      : `${devices.length} 台 · ${onlineCount} 台在线`;
+      ? `${devices.length} 台设备 · 全部在线`
+      : `${devices.length} 台设备 · ${onlineCount} 台在线`;
+  const groups = [
+    {
+      id: 'online',
+      label: '在线',
+      rows: matching.filter(({ device }) => device.state === 'online'),
+    },
+    {
+      id: 'idle',
+      label: '离线与待授权',
+      rows: matching.filter(({ device }) => device.state !== 'online'),
+    },
+  ].filter((group) => group.rows.length > 0);
   const selected = snapshot.selected;
   const selectedProvider = snapshot.providers.find(
     (provider) =>
@@ -94,8 +130,7 @@ export function DeviceDirectory({
   // 右栏只容四枚；剩下的折成 +N，悬停仍可看全量。
   const shownNames = availableNames.slice(0, 4);
   const hiddenNames = availableNames.length - shownNames.length;
-  const timeOf = (value: number) =>
-    new Date(value).toLocaleTimeString('zh-CN', { hour12: false });
+  const timeOf = (value: number) => new Date(value).toLocaleTimeString('zh-CN', { hour12: false });
   const emptyTitle = snapshot.providers.length
     ? devices.length
       ? '没有匹配的设备'
@@ -107,230 +142,344 @@ export function DeviceDirectory({
       : '连接设备后点「发现设备」，并确认设备端已授权。'
     : '在市场页「已安装」启用设备提供者，回到这里重新发现。';
   return (
-    <section className="device-picker" aria-label="选择设备">
-      <header className="picker-head">
-        <div className="picker-heading">
-          <div className="picker-heading-row">
-            <button
-              type="button"
-              className="picker-back"
-              onClick={onClose}
-              aria-label="退出设备选择"
-              title="退出设备选择"
-            >
-              <ChevronLeft aria-hidden="true" />
-            </button>
-            <h1>选择设备</h1>
-          </div>
-          <span className="picker-count mono">
-            {countLabel}
-            {pending ? ' · 正在读取' : ''}
-          </span>
-        </div>
-        <div className="picker-actions">
-          <div className="picker-search">
-            <Search aria-hidden="true" />
-            <Input
-              aria-label="搜索设备"
-              placeholder="搜索名称或标识"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-            />
-          </div>
-          <button type="button" className="picker-link" disabled={pending} onClick={read}>
-            读取目录
-          </button>
-          <button type="button" className="picker-link" disabled={pending} onClick={discoverAll}>
-            发现设备
-          </button>
+    <section aria-label="选择设备" className="flex min-h-0 min-w-0 flex-1 flex-col bg-background">
+      <header className="flex shrink-0 items-center justify-between gap-5 border-b border-hairline px-7 pb-[18px] pt-[22px] max-[1180px]:px-5 max-[1180px]:pb-4 max-[1180px]:pt-[18px]">
+        <div className="flex min-w-0 items-start gap-3">
           <button
             type="button"
-            className="picker-link"
+            onClick={onClose}
+            aria-label="退出设备选择"
+            title="退出设备选择"
+            className="mt-0.5 inline-flex size-8 shrink-0 items-center justify-center rounded-lg border border-hairline bg-card text-body hover:border-hairline-strong hover:text-ink"
+          >
+            <ChevronLeft aria-hidden="true" className="size-3.5" />
+          </button>
+          <div className="min-w-0">
+            <h1 className="text-2xl font-semibold leading-tight tracking-[-0.01em] text-ink">
+              选择设备
+            </h1>
+            <p className="mt-1 text-xs text-faint">
+              {countLabel}
+              {pending ? ' · 正在读取目录' : ''}
+            </p>
+          </div>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <Button variant="outline" size="sm" disabled={pending} onClick={read}>
+            <RefreshCw aria-hidden="true" />
+            读取目录
+          </Button>
+          <Button size="sm" disabled={pending} onClick={discoverAll}>
+            发现设备
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
             disabled={snapshot.providers.length === 0}
             onClick={connect}
           >
             连接地址
-          </button>
+          </Button>
         </div>
       </header>
-      <div className="picker-body">
-        <nav className="picker-sources" aria-label="设备来源">
-          <span className="picker-label">来源</span>
+      <div className="flex shrink-0 items-center gap-3.5 border-b border-hairline px-7 py-3.5 max-[1180px]:px-5 max-[1180px]:py-3 max-[900px]:flex-wrap">
+        <div className="flex h-9 min-w-[180px] flex-1 basis-[340px] items-center gap-2 rounded-[10px] border border-hairline bg-card px-2.5 text-ghost focus-within:border-primary/45">
+          <Search aria-hidden="true" className="size-3.5 shrink-0" />
+          <Input
+            aria-label="搜索设备"
+            placeholder="搜索名称、标识或提供者"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            className="h-[30px] border-0 bg-transparent px-0 text-[13px] shadow-none focus-visible:ring-0"
+          />
+        </div>
+        <div
+          role="group"
+          aria-label="设备来源"
+          className="flex min-w-0 items-center gap-2 overflow-x-auto [scrollbar-width:none]"
+        >
           <button
             type="button"
-            className="picker-source"
             aria-pressed={effectiveSource === 'all'}
             onClick={() => setSource('all')}
+            className={cn(
+              'inline-flex h-8 items-center gap-1 whitespace-nowrap rounded-full border px-3 text-[13px]',
+              effectiveSource === 'all'
+                ? 'border-transparent bg-accent font-semibold text-primary'
+                : 'border-hairline bg-card text-body hover:border-hairline-strong',
+            )}
           >
-            <span>全部</span>
-            <b className="mono">{devices.length}</b>
-          </button>
-          {platforms.map((platform) => (
-            <button
-              key={platform}
-              type="button"
-              className="picker-source"
-              aria-pressed={effectiveSource === platform}
-              onClick={() => setSource(platform)}
+            全部
+            <b
+              className={cn(
+                'font-normal',
+                effectiveSource === 'all' ? 'text-primary' : 'text-faint',
+              )}
             >
-              <span>{platform}</span>
-              <b className="mono">{countOf(platform)}</b>
-            </button>
+              {devices.length}
+            </b>
+          </button>
+          {platforms.map((platform) => {
+            const pressed = effectiveSource === platform;
+            return (
+              <button
+                key={platform}
+                type="button"
+                aria-pressed={pressed}
+                onClick={() => setSource(platform)}
+                className={cn(
+                  'inline-flex h-8 items-center gap-1 whitespace-nowrap rounded-full border px-3 text-[13px]',
+                  pressed
+                    ? 'border-transparent bg-accent font-semibold text-primary'
+                    : 'border-hairline bg-card text-body hover:border-hairline-strong',
+                )}
+              >
+                {devicePlatformLabel(platform)}
+                <b className={cn('font-normal', pressed ? 'text-primary' : 'text-faint')}>
+                  {countOf(platform)}
+                </b>
+              </button>
+            );
+          })}
+          {platforms.length === 0 ? (
+            <span className="inline-flex h-8 items-center rounded-full border border-hairline bg-card px-3 text-[13px] text-ghost">
+              无提供者
+            </span>
+          ) : null}
+        </div>
+        <span className="ml-auto whitespace-nowrap text-xs text-ghost max-[1180px]:hidden">
+          最近在线优先
+        </span>
+      </div>
+      <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_380px] gap-7 px-7 pb-6 pt-[18px] max-[1180px]:grid-cols-[minmax(0,1fr)_320px] max-[1180px]:gap-5 max-[1180px]:px-5 max-[1180px]:pb-5 max-[1180px]:pt-4 max-[900px]:grid-cols-1 max-[900px]:overflow-y-auto">
+        <div
+          aria-label="已发现设备"
+          className="flex min-h-0 flex-col gap-[18px] overflow-y-auto pr-1 [scrollbar-width:thin] max-[900px]:overflow-visible"
+        >
+          {groups.map((group) => (
+            <section className="flex flex-col gap-2.5" key={group.id}>
+              <h2 className="flex items-center gap-1.5 text-[11.5px] font-semibold tracking-[0.06em] text-ghost">
+                {group.label} <b className="font-medium">{group.rows.length}</b>
+              </h2>
+              {group.rows.map(({ directory, device }) => {
+                const platform = directory.provider.definition.platform;
+                const current = sameDevice(snapshot.selection, device.reference);
+                const usable = device.capabilities.filter((item) => item.available).length;
+                const idle = device.state !== 'online';
+                return (
+                  <button
+                    type="button"
+                    key={deviceKey(device.reference)}
+                    data-selected={current ? 'true' : undefined}
+                    data-device-reference={deviceKey(device.reference)}
+                    aria-pressed={current}
+                    aria-label={`选择设备 ${device.model ?? device.reference.localId}，${platform}，${device.reference.localId}`}
+                    onClick={() => select(device.reference)}
+                    className={cn(
+                      'grid h-[92px] w-full grid-cols-[44px_minmax(0,1fr)_auto_16px] items-center gap-3.5 rounded-xl border bg-card px-4 text-left transition-colors',
+                      current
+                        ? 'border-primary bg-accent/20'
+                        : 'border-hairline hover:border-hairline-strong hover:shadow-[0_10px_26px_-22px_rgba(23,27,36,0.55)]',
+                    )}
+                  >
+                    <DeviceBadge
+                      tone={devicePlatformTone(platform)}
+                      letter={devicePlatformLetter(platform)}
+                      size="lg"
+                      idle={idle}
+                    />
+                    <span className="flex min-w-0 flex-col gap-0.5">
+                      <span className="truncate text-[15px] font-semibold text-ink">
+                        {device.model ?? device.reference.localId}
+                      </span>
+                      <span className="truncate font-mono text-xs text-faint">
+                        {device.reference.localId}
+                      </span>
+                      <span className="truncate text-xs text-muted-foreground">
+                        {devicePlatformLabel(platform)} · {usable} 项能力 ·{' '}
+                        {timeOf(directory.observedAt)} 观测
+                      </span>
+                    </span>
+                    <span
+                      className={cn(
+                        'whitespace-nowrap text-xs font-semibold',
+                        stateText[deviceStateTone(device.state)],
+                      )}
+                    >
+                      {deviceStateCaption(device.state)}
+                    </span>
+                    <ChevronRight
+                      aria-hidden="true"
+                      className={cn('size-4', current ? 'text-primary' : 'text-ghost')}
+                    />
+                  </button>
+                );
+              })}
+            </section>
           ))}
-          {platforms.length === 0 ? <span className="picker-source is-idle">无提供者</span> : null}
-        </nav>
-        <div className="picker-main">
-          <div className="picker-columns" aria-hidden="true">
-            <span />
-            <span>设备</span>
-            <span>标识</span>
-            <span>能力</span>
-            <span>观测</span>
-            <span />
-          </div>
-          <div className="picker-rows" aria-label="已发现设备">
-            {matching.map(({ directory, device }) => {
-              const current = sameDevice(snapshot.selection, device.reference);
-              const usable = device.capabilities.filter((item) => item.available).length;
-              return (
+          {matching.length === 0 ? (
+            <div className="m-auto flex flex-col items-center gap-2 px-4 py-10 text-center text-[13px] text-faint">
+              <span className="grid size-10 place-items-center rounded-full bg-surface-sunken text-faint">
+                <PlugZap aria-hidden="true" className="size-[18px]" />
+              </span>
+              <strong className="text-[15px] font-semibold text-body">{emptyTitle}</strong>
+              <span className="max-w-[320px] leading-relaxed">{emptyHint}</span>
+              {snapshot.providers.length ? (
+                <Button size="sm" disabled={pending} onClick={discoverAll} className="mt-1.5">
+                  发现设备
+                </Button>
+              ) : (
+                <Button size="sm" asChild className="mt-1.5">
+                  <a href="#marketplace">去市场页启用</a>
+                </Button>
+              )}
+            </div>
+          ) : null}
+        </div>
+        <aside
+          aria-label="当前选择"
+          className="flex min-h-0 flex-col gap-4 overflow-y-auto [scrollbar-width:thin] max-[900px]:order-first max-[900px]:overflow-visible"
+        >
+          <section className="flex flex-col gap-3 rounded-[14px] border border-hairline bg-card p-[18px] max-[1180px]:p-4">
+            <h2 className="text-[11px] font-semibold tracking-[0.06em] text-faint">当前选择</h2>
+            {selected ? (
+              <>
+                <div className="flex min-w-0 items-center gap-2.5">
+                  <DeviceBadge
+                    tone={devicePlatformTone(selectedProvider?.definition.platform ?? '')}
+                    letter={devicePlatformLetter(selectedProvider?.definition.platform ?? '')}
+                    idle={selected.state !== 'online'}
+                  />
+                  <div className="min-w-0">
+                    <strong className="block truncate text-[19px] font-semibold text-ink">
+                      {selected.model ?? selected.reference.localId}
+                    </strong>
+                    <span className="mt-0.5 block truncate font-mono text-xs text-faint">
+                      {selected.reference.localId}
+                    </span>
+                  </div>
+                </div>
+                <span
+                  className={cn('text-xs font-medium', stateText[deviceStateTone(selected.state)])}
+                >
+                  {deviceStateLabel(selected.state)}
+                </span>
+                <dl className="grid grid-cols-2 border-y border-hairline py-1 [&>div]:min-w-0 [&>div]:py-2.5 [&>div:nth-child(odd)]:pr-3">
+                  <div>
+                    <dt className="text-[11px] text-faint">平台</dt>
+                    <dd className="mt-0.5 truncate text-[13px] text-ink">
+                      {devicePlatformLabel(selectedProvider?.definition.platform ?? '')}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-[11px] text-faint">代次</dt>
+                    <dd className="mt-0.5 truncate font-mono text-[13px] text-ink">
+                      {selected.reference.generation}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-[11px] text-faint">提供者</dt>
+                    <dd className="mt-0.5 truncate font-mono text-[13px] text-ink">
+                      {selected.reference.providerId}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-[11px] text-faint">观测</dt>
+                    <dd className="mt-0.5 truncate font-mono text-[13px] text-ink">
+                      {selectedDirectory ? timeOf(selectedDirectory.observedAt) : '—'}
+                    </dd>
+                  </div>
+                </dl>
+                <h3 className="text-[11px] font-semibold tracking-[0.06em] text-faint">能力</h3>
+                <div
+                  className="flex flex-wrap gap-1.5"
+                  title={availableNames.join('、') || undefined}
+                >
+                  {shownNames.length ? (
+                    <>
+                      {shownNames.map((name) => (
+                        <span
+                          key={name}
+                          className="inline-flex h-6 items-center rounded-md bg-surface-sunken px-2 text-[11.5px] text-body"
+                        >
+                          {name}
+                        </span>
+                      ))}
+                      {hiddenNames > 0 ? (
+                        <span className="inline-flex h-6 items-center rounded-md bg-surface-sunken px-2 font-mono text-[11.5px] text-ghost">
+                          +{hiddenNames}
+                        </span>
+                      ) : null}
+                    </>
+                  ) : (
+                    <span className="inline-flex h-6 items-center rounded-md bg-surface-sunken px-2 text-[11.5px] text-ghost">
+                      暂无可用能力
+                    </span>
+                  )}
+                </div>
+                <Button className="h-10 w-full text-sm" onClick={onClose}>
+                  进入工作台
+                </Button>
                 <button
                   type="button"
-                  key={deviceKey(device.reference)}
-                  className="picker-row"
-                  data-selected={current ? 'true' : undefined}
-                  data-device-reference={deviceKey(device.reference)}
-                  aria-pressed={current}
-                  aria-label={`选择设备 ${device.model ?? device.reference.localId}，${device.reference.providerId}，${device.reference.localId}`}
-                  onClick={() => select(device.reference)}
+                  onClick={connect}
+                  className="py-0.5 text-xs text-muted-foreground hover:text-primary"
                 >
-                  <span className="picker-dot" data-state={device.state} aria-hidden="true" />
-                  <span className="picker-name">
-                    <strong>{device.model ?? device.reference.localId}</strong>
-                    <small>
-                      {directory.provider.definition.platform} · {deviceStates[device.state]}
-                    </small>
-                  </span>
-                  <span className="picker-id mono">{device.reference.localId}</span>
-                  <span className="picker-caps mono">{usable} 项</span>
-                  <span className="picker-seen mono">{timeOf(directory.observedAt)}</span>
-                  <span className="picker-go">{current ? '已选' : '选择'}</span>
+                  直接输入连接地址
                 </button>
-              );
-            })}
-            {matching.length === 0 ? (
-              <div className="picker-empty">
-                <strong>{emptyTitle}</strong>
-                <span>{emptyHint}</span>
-                {snapshot.providers.length === 0 ? (
-                  <Button size="sm" asChild>
-                    <a href="#marketplace">去市场页启用</a>
-                  </Button>
-                ) : null}
+              </>
+            ) : (
+              <div className="flex flex-col items-center gap-2.5 py-6 text-[13px] text-ghost">
+                <PlugZap aria-hidden="true" className="size-[18px]" />
+                <span>先选择一台设备</span>
               </div>
-            ) : null}
-          </div>
-          <section className="picker-providers" aria-label="设备提供者">
-            <span className="picker-label">提供者</span>
+            )}
+          </section>
+          <section
+            aria-label="设备提供者"
+            className="flex flex-col gap-0.5 rounded-[14px] border border-hairline bg-card p-[18px] max-[1180px]:p-4 max-[1024px]:hidden max-[900px]:block"
+          >
+            <h2 className="mb-2 text-[11px] font-semibold tracking-[0.06em] text-faint">
+              设备提供者
+            </h2>
             {snapshot.providers.length === 0 ? (
-              <p className="picker-provider-note">还没有加载设备提供者。</p>
+              <p className="text-xs text-ghost">还没有加载设备提供者。</p>
             ) : null}
             {snapshot.providers.map((provider) => {
               const directory = snapshot.directories.find(
                 (item) => providerKey(item.provider) === providerKey(provider),
               );
+              const tone = directory
+                ? directory.devices.length
+                  ? 'online'
+                  : 'unknown'
+                : 'offline';
               return (
-                <div key={providerKey(provider)} className="picker-provider">
-                  <span
-                    className="picker-dot"
-                    data-state={
-                      directory ? (directory.devices.length ? 'online' : 'unknown') : 'offline'
-                    }
-                    aria-hidden="true"
-                  />
-                  <span className="picker-provider-name mono">{provider.id}</span>
-                  <span className="picker-provider-meta">
+                <div
+                  key={providerKey(provider)}
+                  className="grid h-[34px] grid-cols-[6px_minmax(0,1fr)_auto_24px] items-center gap-2.5"
+                >
+                  <span aria-hidden="true" className={cn('size-1.5 rounded-full', stateDot[tone])} />
+                  <span className="truncate font-mono text-[11.5px] text-body">{provider.id}</span>
+                  <span className="whitespace-nowrap text-[11px] text-faint max-[1024px]:hidden">
                     {directory
                       ? `${directory.devices.length} 台 · ${timeOf(directory.observedAt)} 观测`
                       : '尚无观测'}
                   </span>
                   <button
                     type="button"
-                    className="picker-link"
                     disabled={pending}
                     aria-label={`重新发现 ${provider.id}`}
                     title={`重新发现 ${provider.id}`}
                     onClick={() => discover(provider)}
+                    className="grid size-6 place-items-center rounded-md text-ghost hover:bg-surface-hover hover:text-ink disabled:opacity-50"
                   >
-                    <RefreshCw aria-hidden="true" />
-                    重新发现
+                    <RefreshCw aria-hidden="true" className="size-[13px]" />
                   </button>
                 </div>
               );
             })}
           </section>
-        </div>
-        <aside className="picker-detail" aria-label="当前选择">
-          <span className="picker-label">当前选择</span>
-          {selected ? (
-            <>
-              <strong className="picker-detail-name">
-                {selected.model ?? selected.reference.localId}
-              </strong>
-              <span className="picker-detail-state">
-                <span className="picker-dot" data-state={selected.state} aria-hidden="true" />
-                {deviceStates[selected.state]}
-              </span>
-              <dl className="picker-facts">
-                <div>
-                  <dt>平台</dt>
-                  <dd className="mono">{selectedProvider?.definition.platform ?? '未知'}</dd>
-                </div>
-                <div>
-                  <dt>标识</dt>
-                  <dd className="mono">{selected.reference.localId}</dd>
-                </div>
-                <div>
-                  <dt>提供者</dt>
-                  <dd className="mono">{selected.reference.providerId}</dd>
-                </div>
-                <div>
-                  <dt>代次</dt>
-                  <dd className="mono">{selected.reference.generation}</dd>
-                </div>
-                <div>
-                  <dt>观测</dt>
-                  <dd className="mono">
-                    {selectedDirectory ? timeOf(selectedDirectory.observedAt) : '—'}
-                  </dd>
-                </div>
-              </dl>
-              <span className="picker-label">能力</span>
-              <div className="picker-chips" title={availableNames.join('、') || undefined}>
-                {shownNames.length ? (
-                  <>
-                    {shownNames.map((name) => (
-                      <span key={name} className="picker-chip">
-                        {name}
-                      </span>
-                    ))}
-                    {hiddenNames > 0 ? (
-                      <span className="picker-chip is-idle mono">+{hiddenNames}</span>
-                    ) : null}
-                  </>
-                ) : (
-                  <span className="picker-chip is-idle">暂无可用能力</span>
-                )}
-              </div>
-              <Button className="picker-enter" onClick={onClose}>
-                进入工作台
-              </Button>
-            </>
-          ) : (
-            <div className="picker-detail-empty">
-              <PlugZap aria-hidden="true" />
-              <span>先选择一台设备</span>
-            </div>
-          )}
         </aside>
       </div>
     </section>

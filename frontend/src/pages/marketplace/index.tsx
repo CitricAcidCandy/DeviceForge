@@ -17,9 +17,11 @@ import {
   SheetDescription,
   SheetHeader,
   SheetTitle,
+  JsonResult,
 } from '../../components/index.ts';
 import type { ProductServices } from '../../app/product/services.ts';
 import { marketplaceCategories } from '../../features/marketplace/index.ts';
+import { isReleaseEntry } from '../../features/plugin-installations/index.ts';
 import type {
   MarketplaceEntry,
   MarketplaceKind,
@@ -27,7 +29,7 @@ import type {
 } from '../../features/marketplace/index.ts';
 import type { PackageInfo } from '../../services/api/index.ts';
 import { ActionFeedback } from '../../app/product/feedback.tsx';
-import { installedPackage } from './presentation.ts';
+import { installedEntry } from './presentation.ts';
 import { categoryLabels } from './presentation.ts';
 import { useMarketplace } from './use-marketplace.ts';
 import { MarketplaceAdvancedFilters } from './components/MarketplaceFilters/index.tsx';
@@ -36,6 +38,7 @@ import { MarketplaceDetail } from './components/MarketplaceDetail/index.tsx';
 import { MarketplaceConfiguration } from './components/MarketplaceConfiguration/index.tsx';
 import { MarketplaceUploadDialog } from './components/MarketplaceUploadDialog/index.tsx';
 import { LocalImportDialog } from './components/LocalImportDialog/index.tsx';
+import { InstallationProgress } from './components/InstallationProgress/index.tsx';
 import './workspace.css';
 
 const kindNav: readonly { value: MarketplaceKind | undefined; label: string }[] = [
@@ -67,15 +70,19 @@ export function MarketplacePage({
   const market = useMarketplace(services, active, tab === 'installed');
   const [upload, setUpload] = useState(false);
   const [localImport, setLocalImport] = useState(false);
+  const [resources, setResources] = useState(false);
   const [filters, setFilters] = useState(false);
   const [selected, setSelected] = useState<MarketplaceEntry | null>(null);
   const [configuration, setConfiguration] = useState<MarketplaceEntry | null>(null);
-  const [removal, setRemoval] = useState<{ id: string; kind: 'server' | 'browser'; removable: boolean } | null>(null);
+  const [removal, setRemoval] = useState<
+    { id: string; kind: 'server' | 'browser'; removable: boolean } |
+    { id: string; kind: 'release'; revision: string; removable: true } | null>(null);
 
   useEffect(() => {
     if (!active) {
       setUpload(false);
       setLocalImport(false);
+      setResources(false);
       setFilters(false);
       setSelected(null);
       setConfiguration(null);
@@ -88,25 +95,33 @@ export function MarketplacePage({
     installed?: Pick<PackageInfo, 'version'>,
     removable = true,
     removeDisabled = false,
-  ) => (
+  ) => {
+    const installation = market.installations.find((item) => item.id === entry.id && isReleaseEntry(entry));
+    return (
     <MarketplaceCard
       key={`${entry.source}:${entry.id}:${entry.version}`}
       entry={entry}
       installed={installed}
       removable={removable}
       removeDisabled={removeDisabled}
+      installation={installation}
+      clientState={market.installationClients.find((item) => item.id === installation?.id && item.revision === installation.revision)}
+      onSetEnabled={installation ? (enabled) => market.setInstallationEnabled(installation.id, installation.revision, enabled) : undefined}
+      onRetryBrowser={installation ? () => market.retryInstallationBrowser(installation.id, installation.revision) : undefined}
       installedTab={tab === 'installed'}
       busy={market.action.pending}
       onDetail={() => setSelected(entry)}
       onDownload={() => market.download(entry)}
       onInstall={() => setSelected(entry)}
       onRemove={() => {
+        if (installation) { setRemoval({ id: installation.id, kind: 'release', revision: installation.revision, removable: true }); return; }
         const kind = entry.details['plugin_kind'];
         if (installed && (kind === 'server' || kind === 'browser')) setRemoval({ id: entry.id, kind, removable });
       }}
       onConfigure={() => setConfiguration(entry)}
     />
-  );
+    );
+  };
 
   // 筛选只有一份来源：所有入口都从当前 query 派生，改完统一回到第一页。
   const patch = (next: Partial<MarketplaceQuery>) => {
@@ -160,6 +175,7 @@ export function MarketplacePage({
             <FolderInput />
             本地导入
           </Button>
+          {tab === 'installed' && <Button variant="outline" size="sm" disabled={market.action.pending} onClick={() => setResources(true)}>托管资源</Button>}
           <Button size="sm" onClick={() => setUpload(true)}>
             <CloudUpload />
             上传发布
@@ -351,7 +367,7 @@ export function MarketplacePage({
             aria-busy={market.loading}
           >
             {tab === 'discover'
-              ? market.catalog.entries.map((entry) => renderCard(entry, installedPackage(entry, market.packages)))
+              ? market.catalog.entries.map((entry) => renderCard(entry, installedEntry(entry, market.packages, market.installations)))
               : market.installedEntries.map(({ entry, installed, removable, removeDisabled }) =>
                   renderCard(entry, installed, removable, removeDisabled),
                 )}
@@ -371,6 +387,7 @@ export function MarketplacePage({
       </div>
 
       <ActionFeedback {...market.action} />
+      {market.action.pending && <InstallationProgress value={market.installationProgress} />}
 
       <Sheet open={active && filters} onOpenChange={setFilters}>
         <SheetContent side="right" className="w-full gap-0 bg-[color:var(--card)] p-0 sm:max-w-90">
@@ -390,7 +407,8 @@ export function MarketplacePage({
 
       <MarketplaceDetail
         entry={active ? selected : null}
-        installed={selected ? installedPackage(selected, market.packages) : undefined}
+        installed={selected ? installedEntry(selected, market.packages, market.installations) : undefined}
+        recoveryBlocked={selected ? market.installations.some((item) => item.id === selected.id && item.status === 'recovery_blocked') : false}
         busy={market.action.pending}
         onClose={() => setSelected(null)}
         onDownload={() => {
@@ -401,9 +419,12 @@ export function MarketplacePage({
         }}
       />
       <MarketplaceConfiguration
+        key={configuration ? `${configuration.source}:${configuration.id}` : 'closed'}
         entry={active ? configuration : null}
+        installations={market.installations}
         services={services}
         onClose={() => setConfiguration(null)}
+        onApplied={market.refresh}
       />
       <MarketplaceUploadDialog
         open={active && upload}
@@ -411,7 +432,17 @@ export function MarketplacePage({
         marketplace={services.marketplace}
         onPublished={market.refresh}
       />
-      <LocalImportDialog open={active && localImport} onOpenChange={setLocalImport} services={services} />
+      <LocalImportDialog open={active && localImport} onOpenChange={setLocalImport} services={services} onImported={market.refresh} />
+      <DialogShell open={active && resources} onOpenChange={setResources} title="托管资源引用与清理"
+        description="先检查服务器托管的组件、工具和缓存引用，再清理确认没有引用的资源。正在运行和安装恢复仍引用的资源会保留。"
+        footer={<><Button variant="outline" onClick={() => setResources(false)}>关闭</Button>
+          <Button variant="outline" disabled={market.action.pending} onClick={() => market.cleanupResources(true)}>检查资源引用</Button>
+          {market.cleanupResult?.dryRun && <Button disabled={market.action.pending} onClick={() => market.cleanupResources(false)}>清理未引用资源</Button>}</>}>
+        {market.action.pending && <InstallationProgress value={market.installationProgress} />}
+        {market.cleanupResult && <><p role="status">{market.cleanupResult.dryRun ? '检查完成，可查看候选资源。执行清理时服务器会重新核对引用。' : '资源清理任务已完成。'}</p>
+          <JsonResult value={market.cleanupResult.data} />
+          {market.cleanupResult.logId && <p>日志 ID：<code>{market.cleanupResult.logId}</code></p>}</>}
+      </DialogShell>
       <DialogShell
         open={active && !!removal}
         onOpenChange={(open) => {
@@ -427,7 +458,8 @@ export function MarketplacePage({
             <Button
               variant="destructive"
               onClick={() => {
-                if (removal?.removable) market.remove(removal.kind, removal.id);
+                if (removal?.kind === 'release') market.removeInstallation(removal.id, removal.revision);
+                else if (removal?.removable) market.remove(removal.kind, removal.id);
                 else if (removal)
                   void market.action.run((signal) => services.runtime.serverPlugins.unload(removal.id, signal));
                 setRemoval(null);

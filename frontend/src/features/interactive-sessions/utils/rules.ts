@@ -23,6 +23,7 @@ import type {
   SessionInfoView,
   SessionReadOptions,
 } from '../types/index.ts';
+import { TERMINAL_PROTOCOL, terminalSize } from './terminal.ts';
 
 type Identity = Pick<SessionInfo, 'id'> &
   Partial<Pick<SessionInfo, 'operation' | 'plugin_id' | 'generation' | 'created_at'>>;
@@ -105,11 +106,23 @@ export function normalizeOpen(
     );
   if (input.operation === 'plugin.terminal.open') {
     if (
-      !onlyKeys(input.input, ['profile']) ||
+      !onlyKeys(input.input, ['profile', 'terminal']) ||
       typeof input.input.profile !== 'string' ||
       !/^[a-z0-9][a-z0-9._-]{0,63}$/.test(input.input.profile)
     )
       throw invalid('终端只接受部署命名的profile，不接受程序或启动参数');
+    if (input.input.terminal !== undefined) {
+      const terminal = input.input.terminal;
+      if (
+        !isRecord(terminal) ||
+        !onlyKeys(terminal, ['protocol', 'cols', 'rows']) ||
+        terminal.protocol !== TERMINAL_PROTOCOL ||
+        typeof terminal.cols !== 'number' ||
+        typeof terminal.rows !== 'number'
+      )
+        throw invalid('终端交互参数须包含公开协议及字符网格尺寸');
+      terminalSize({ cols: terminal.cols, rows: terminal.rows });
+    }
   }
   return cloneFrozen(input);
 }

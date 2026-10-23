@@ -98,6 +98,17 @@
   width: 15px;
   height: 15px;
 }
+/*
+ * 堆叠布局（右栏落到画面下方）时，工具轨必须离开竖直居中：
+ * 那个位置正好压在右栏顶部的参数网格上，既挡字又挡点击。
+ * 改成贴舞台左上角，读数条在同一个断点里右移让位。
+ */
+@media (max-width: 1024px) {
+  .device-toolrail {
+    top: 10px;
+    transform: none;
+  }
+}
 .device-rail-button:hover {
   background: var(--surface-hover);
   color: var(--text-strong);

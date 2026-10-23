@@ -1,5 +1,7 @@
+mod capabilities;
 mod http;
 mod model;
+mod releases;
 mod store;
 
 pub use http::{AppState, router};

@@ -4,7 +4,7 @@
   "id": "frida",
   "version": "0.1.0",
   "name": "Frida 动态调试",
-  "description": "提供 Frida 服务部署与状态检查、进程枚举、脚本执行和权限分析。ADB、Frida 客户端及服务文件由插件配置固定；使用能力取决于目标设备权限。",
+  "description": "提供 Frida 服务部署与状态检查、进程枚举、脚本执行和权限分析。完整发布包自动准备并绑定 ADB、Frida 和 Frida 进程工具；用户准备匹配的设备端 frida-server 并确认设备权限。",
   "components": [
     {
       "id": "frida",

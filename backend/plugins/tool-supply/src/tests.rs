@@ -39,6 +39,7 @@ impl Fixture {
             download_limit: 1024 * 1024,
             extracted_limit: 1024 * 1024,
             file_limit: 100,
+            repository: None,
         };
         Self {
             _directory: directory,

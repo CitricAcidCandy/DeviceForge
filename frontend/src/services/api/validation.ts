@@ -54,7 +54,16 @@ export function isJobEvent(value: unknown): value is JobEventDto {
     typeof value.job_id === 'string' &&
     finite(value.sequence) &&
     finite(value.timestamp) &&
-    jobStatus(value.status)
+    jobStatus(value.status) &&
+    (value.progress === undefined || value.progress === null || (
+      isRecord(value.progress) &&
+      ['preparing', 'downloading', 'verifying', 'deploying', 'activating', 'complete'].includes(String(value.progress.stage)) &&
+      (value.progress.resource_id == null || (typeof value.progress.resource_id === 'string' &&
+        !value.progress.resource_id.startsWith('-') && /^[A-Za-z0-9._:\[\]-]{1,200}$/.test(value.progress.resource_id))) &&
+      typeof value.progress.completed_bytes === 'number' && Number.isSafeInteger(value.progress.completed_bytes) && value.progress.completed_bytes >= 0 &&
+      (value.progress.total_bytes == null || (typeof value.progress.total_bytes === 'number' &&
+        Number.isSafeInteger(value.progress.total_bytes) && value.progress.total_bytes >= value.progress.completed_bytes))
+    ))
   );
 }
 function isPluginMetadata(value: unknown): boolean {

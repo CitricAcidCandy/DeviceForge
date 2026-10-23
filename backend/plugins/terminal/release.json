@@ -4,7 +4,7 @@
   "id": "terminal",
   "version": "0.1.0",
   "name": "交互终端",
-  "description": "通过服务器预先配置的终端 profile 打开持续工具会话。程序、参数和工作目录在插件配置中定义；当前提供管道会话，不提供 PTY 或窗口尺寸调整。",
+  "description": "通过服务器预先配置的终端 profile 打开持续工具会话。Windows支持ConPTY完整交互、ANSI屏幕、实时按键和窗口尺寸调整，兼容原管道会话。",
   "components": [
     {
       "id": "terminal",

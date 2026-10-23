@@ -75,3 +75,16 @@ export interface MarketplaceDownloadedResource {
 }
 
 export type MarketplaceUploadFile = Blob & { readonly name?: string };
+
+export interface MarketplaceReleasePublicationCapabilities {
+  readonly format_versions: readonly number[];
+  readonly host_api_versions: readonly number[];
+  readonly resource_max_bytes: number;
+  readonly catalog_last: true;
+  readonly immutable_versions: true;
+}
+
+export interface MarketplaceCapabilities {
+  readonly api_version: 1;
+  readonly release_publication: MarketplaceReleasePublicationCapabilities;
+}

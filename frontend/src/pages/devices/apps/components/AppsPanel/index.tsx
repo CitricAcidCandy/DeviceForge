@@ -1,4 +1,5 @@
 import { useEffect, useId, useState } from 'react';
+import { MoreHorizontal, RefreshCw, Search, X } from 'lucide-react';
 import { Button } from '../../../../../components/Button/index.tsx';
 import { Input } from '../../../../../components/Input/index.tsx';
 import { Label } from '../../../../../components/Label/index.tsx';
@@ -10,13 +11,13 @@ import {
   SelectValue,
 } from '../../../../../components/Select/index.tsx';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '../../../../../components/Table/index.tsx';
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '../../../../../components/DropdownMenu/index.tsx';
 import {
   Dialog,
   DialogContent,
@@ -48,6 +49,14 @@ import type {
 } from '../../../../../features/device-apps/index.ts';
 
 type RowAction = 'app.start' | 'app.stop' | 'app.uninstall' | 'app.detail' | 'app.reset';
+/** 行菜单的顺序：能做的在上面，破坏性的沉底并用分隔线隔开。 */
+const rowActions: readonly { id: RowAction; label: string; destructive?: boolean }[] = [
+  { id: 'app.start', label: '启动应用' },
+  { id: 'app.stop', label: '停止应用' },
+  { id: 'app.detail', label: '查看详情' },
+  { id: 'app.reset', label: '清除数据', destructive: true },
+  { id: 'app.uninstall', label: '卸载应用', destructive: true },
+];
 const actionNames: Readonly<Record<RowAction, string>> = {
   'app.start': '启动',
   'app.stop': '停止',
@@ -55,6 +64,9 @@ const actionNames: Readonly<Record<RowAction, string>> = {
   'app.detail': '详情',
   'app.reset': '清除数据',
 };
+/* 一次多渲染 60 行；比 30 条一页的翻页少一次点击，也不用重排滚动位置。 */
+const PAGE_STEP = 60;
+const FIRST_PAGE = 60;
 interface Confirmation {
   readonly reference: DeviceRef;
   readonly identifier: string;
@@ -67,6 +79,11 @@ interface AppReport {
   readonly data: DeviceBusinessResult;
 }
 
+/**
+ * 设备应用：一行一个应用，操作收进行尾菜单。
+ * 早先那版把五个按钮摊在表格单元格里，窄栏里每行被撑到 100px 高、一屏只看得到三四个应用；
+ * 现在标识占满一行、按钮只剩一个，同样的高度能放下七八个。
+ */
 export function AppsPage({
   services,
   compact = false,
@@ -83,13 +100,13 @@ export function AppsPage({
   const [list, setList] = useState<{ key: string; data: AppList } | null>(null);
   const [report, setReport] = useState<AppReport | null>(null);
   const [filter, setFilter] = useState('');
-  const [page, setPage] = useState(0);
+  const [visible, setVisible] = useState(FIRST_PAGE);
   const [ability, setAbility] = useState('');
   const [artifactId, setArtifactId] = useState('');
   const [filename, setFilename] = useState('');
   const [format, setFormat] = useState<'apk' | 'apks' | 'hap'>('apk');
   const [modules, setModules] = useState('');
-  const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
+  const [installOpen, setInstallOpen] = useState(true);  const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
   const reading = useAction();
   const action = useAction();
   const upload = useAction();
@@ -106,9 +123,8 @@ export function AppsPage({
     currentList?.identifiers.filter((identifier) =>
       identifier.toLowerCase().includes(filter.toLowerCase()),
     ) ?? [];
-  const pageCount = Math.max(1, Math.ceil(filtered.length / 30));
-  const shownPage = Math.min(page, pageCount - 1);
-  const rows = filtered.slice(shownPage * 30, shownPage * 30 + 30);
+  const rows = filtered.slice(0, visible);
+  const rest = filtered.length - rows.length;
   useEffect(() => {
     reading.cancel();
     action.cancel();
@@ -116,8 +132,9 @@ export function AppsPage({
     setList(null);
     setReport(null);
     setConfirmation(null);
-    setPage(0);
+    setVisible(FIRST_PAGE);
     setAbility('');
+    setInstallOpen(true);
   }, [key, reading.cancel, action.cancel, upload.cancel]);
   const activeReference = (target: DeviceRef) =>
     sameDevice(services.runtime.devices.snapshot().selection, target);
@@ -135,7 +152,9 @@ export function AppsPage({
       );
       if (!signal.aborted && activeReference(target)) {
         setList({ key: deviceKey(target), data: response.data });
-        setPage(0);
+        setVisible(FIRST_PAGE);
+        /* 列表读出来就把安装区收起来：这时候用户要看的是应用，不是上传表单。 */
+        setInstallOpen(false);
       }
       return response;
     });
@@ -219,218 +238,246 @@ export function AppsPage({
     ? capabilityGate(snapshot, operations, confirmation.capability, null, confirmation.reference)
     : null;
   return (
-    <div className="workspace-section" data-product-section="apps">
-      <div className="section-heading">
-        <div>
-          <h2>设备应用</h2>
-          {compact ? null : (
-            <p className="muted">
-              {snapshot.selected
-                ? `${snapshot.selected.model ?? '设备'} · ${reference?.localId} · ${reference?.providerId} / ${reference?.generation}`
-                : '在设备页选择当前提供者代次的在线设备。'}
-            </p>
+    <div className="app-pane" data-compact={compact ? 'true' : undefined} data-product-section="apps">
+      {/* ── 工具行：搜索框吃满宽度，读取退成一个图标 ── */}
+      <div className="app-toolbar">
+        <div className="app-search">
+          <Search aria-hidden="true" />
+          <input
+            className="app-search-input"
+            value={filter}
+            onChange={(event) => {
+              setFilter(event.target.value);
+              setVisible(FIRST_PAGE);
+            }}
+            placeholder={
+              currentList ? `在 ${currentList.identifiers.length} 个标识里筛选` : '筛选应用标识'
+            }
+            aria-label="筛选应用标识"
+            type="text"
+            spellCheck={false}
+          />
+          {filter && (
+            <button
+              type="button"
+              className="app-search-clear"
+              aria-label="清除筛选"
+              onClick={() => {
+                setFilter('');
+                setVisible(FIRST_PAGE);
+              }}
+            >
+              <X aria-hidden="true" />
+            </button>
           )}
         </div>
-        <Button
-          variant={compact ? 'outline' : 'default'}
+        <button
+          type="button"
+          className="app-icon-button"
           disabled={!listing.capability || busy}
-          title={listing.reason ?? undefined}
+          title={listing.reason ?? (currentList ? '重新读取应用列表' : '读取应用列表')}
+          aria-label={currentList ? '重新读取应用列表' : '读取应用列表'}
           onClick={refresh}
         >
-          读取应用列表
-        </Button>
+          <RefreshCw aria-hidden="true" data-spin={reading.pending ? 'true' : undefined} />
+        </button>
       </div>
-      {listing.reason && <p className="capability-notice">{listing.reason}</p>}
+      {listing.reason && <p className="app-hint">{listing.reason}</p>}
+      {'ability' in (start.fields ?? {}) && (
+        <details className="app-fold">
+          <summary>启动 Ability（可选）</summary>
+          <Field
+            label="Ability"
+            value={ability}
+            onChange={setAbility}
+            hint="留空由提供者按实际应用详情推导。"
+            placeholder="留空自动推导"
+          />
+        </details>
+      )}
       <ActionFeedback {...reading} />
       {currentList ? (
-        <>
-          {currentList.unrecognized.length > 0 ? (
-            <EmptyState
-              title="应用列表文本未识别"
-              description="返回文本包含未知行，尚未生成可操作应用清单。请展开原始输出供排查。"
-            />
-          ) : (
-            <>
-              <Field
-                label="筛选应用标识"
-                value={filter}
-                onChange={(value) => {
-                  setFilter(value);
-                  setPage(0);
-                }}
-                placeholder="输入实际包名或 Bundle 标识"
-              />
-              {'ability' in (start.fields ?? {}) && (
-                <Field
-                  label="启动 Ability（可选）"
-                  value={ability}
-                  onChange={setAbility}
-                  hint="留空由提供者按实际应用详情推导。"
-                />
-              )}
-              {rows.length ? (
-                <div className="table-scroll">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>应用标识</TableHead>
-                        <TableHead>操作</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {rows.map((identifier) => (
-                        <TableRow key={identifier}>
-                          <TableCell className="break-all">{identifier}</TableCell>
-                          <TableCell>
-                            <div className="page-actions">
-                              {(
-                                [
-                                  'app.start',
-                                  'app.stop',
-                                  'app.uninstall',
-                                  'app.detail',
-                                  'app.reset',
-                                ] as const
-                              ).map((id) => {
-                                const supported = gate(id);
-                                if (
-                                  (id === 'app.detail' || id === 'app.reset') &&
-                                  !supported.capability
-                                )
-                                  return null;
-                                return (
-                                  <Button
-                                    key={id}
-                                    size="sm"
-                                    variant={
-                                      id === 'app.uninstall' || id === 'app.reset'
-                                        ? 'ghost'
-                                        : 'outline'
-                                    }
-                                    disabled={!supported.capability || busy}
-                                    title={supported.reason ?? undefined}
-                                    aria-label={`${actionNames[id]} ${identifier}`}
-                                    onClick={() => {
-                                      const target = reference;
-                                      if (!target) return;
-                                      if (id === 'app.uninstall' || id === 'app.reset')
-                                        setConfirmation({
-                                          reference: target,
-                                          identifier,
-                                          capability: id,
-                                        });
-                                      else runRow(id, identifier, target);
-                                    }}
-                                  >
-                                    {actionNames[id]}
-                                  </Button>
-                                );
-                              })}
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              ) : (
-                <EmptyState
-                  title={currentList.identifiers.length ? '没有匹配的应用' : '设备返回空应用列表'}
-                />
-              )}
-              <div className="page-actions">
-                <span className="muted">
-                  {filtered.length} 个标识 · 第 {shownPage + 1} / {pageCount} 页
-                </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={shownPage === 0}
-                  onClick={() => setPage(shownPage - 1)}
+        currentList.unrecognized.length > 0 ? (
+          <EmptyState
+            title="应用列表文本未识别"
+            description="返回文本包含未知行，尚未生成可操作应用清单。请展开原始输出供排查。"
+          />
+        ) : rows.length ? (
+          <>
+            <ul className="app-list" aria-label="设备应用标识">
+              {rows.map((identifier) => (
+                <li className="app-row" key={identifier}>
+                  <span className="app-row-id mono" title={identifier}>
+                    {identifier}
+                  </span>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        type="button"
+                        className="app-row-menu"
+                        aria-label={`${identifier} 的操作`}
+                        aria-disabled={busy ? 'true' : undefined}
+                      >
+                        <MoreHorizontal aria-hidden="true" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="app-menu">
+                      <DropdownMenuLabel className="app-menu-id mono">
+                        {identifier}
+                      </DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      {rowActions.map((item) => {
+                        const supported = gate(item.id);
+                        /* 详情 / 清除数据在提供者不支持时干脆不出现：留着只会是五个灰条。 */
+                        if (
+                          (item.id === 'app.detail' || item.id === 'app.reset') &&
+                          !supported.capability
+                        )
+                          return null;
+                        return (
+                          <DropdownMenuItem
+                            key={item.id}
+                            variant={item.destructive ? 'destructive' : 'default'}
+                            disabled={!supported.capability || busy}
+                            title={supported.reason ?? undefined}
+                            onSelect={() => {
+                              const target = reference;
+                              if (!target) return;
+                              if (item.id === 'app.uninstall' || item.id === 'app.reset') {
+                                setConfirmation({
+                                  reference: target,
+                                  identifier,
+                                  capability: item.id,
+                                });
+                              } else {
+                                runRow(item.id, identifier, target);
+                              }
+                            }}
+                          >
+                            {item.label}
+                          </DropdownMenuItem>
+                        );
+                      })}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </li>
+              ))}
+            </ul>
+            <div className="app-list-foot">
+              <span className="mono app-count">
+                {filtered.length === currentList.identifiers.length
+                  ? `${filtered.length} 个应用`
+                  : `${filtered.length} / ${currentList.identifiers.length} 个应用`}
+              </span>
+              {rest > 0 && (
+                <button
+                  type="button"
+                  className="app-more"
+                  onClick={() => setVisible((value) => value + PAGE_STEP)}
                 >
-                  上一页应用
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={shownPage + 1 >= pageCount}
-                  onClick={() => setPage(shownPage + 1)}
-                >
-                  下一页应用
-                </Button>
-              </div>
-            </>
-          )}
-          <details>
-            <summary>应用列表原始输出</summary>
-            <pre className="code-output">{currentList.output || '（空文本）'}</pre>
-          </details>
-        </>
+                  再显示 {Math.min(PAGE_STEP, rest)} 个
+                </button>
+              )}
+            </div>
+          </>
+        ) : (
+          <p className="app-hint">
+            {currentList.identifiers.length
+              ? `没有匹配「${filter}」的应用。`
+              : '设备返回了空应用列表。'}
+          </p>
+        )
       ) : (
         <EmptyState
           title="尚未读取当前设备的应用"
           description="列表只显示提供者返回的实际应用标识，不补造名称、版本或运行状态。"
         />
       )}
-      <h3>安装到所选设备</h3>
-      <Label htmlFor={uploadId}>上传 APK / APKS / HAP</Label>
-      <Input
-        id={uploadId}
-        type="file"
-        accept=".apk,.apks,.hap"
-        disabled={busy || !reference}
-        onChange={(event) => {
-          const file = event.target.files?.[0];
-          if (file) accept(file);
-        }}
-      />
-      <p className="muted install-hint">先上传为服务器产物，再提交安装。取消等待不会撤销已经执行的设备安装。</p>
-      <ActionFeedback {...upload} />
-      {filename && <p className="file-name">已上传：{filename}</p>}
-      <fieldset disabled={busy} className="form-grid">
-        <Field label="设备安装产物 ID" value={artifactId} onChange={setArtifactId} />
-        <div className="form-field">
-          <Label>安装包格式</Label>
-          <Select
-            value={format}
-            onValueChange={(value) => {
-              if (value === 'apk' || value === 'apks' || value === 'hap') setFormat(value);
-            }}
-          >
-            <SelectTrigger aria-label="安装包格式">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="apk">APK</SelectItem>
-              <SelectItem value="apks">APKS</SelectItem>
-              <SelectItem value="hap">HAP</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+      {currentList && (
+        <details className="app-fold">
+          <summary>原始输出</summary>
+          <pre className="code-output">{currentList.output || '（空文本）'}</pre>
+        </details>
+      )}
+
+      {/* ── 安装：平时收起来，别把列表挤到看不见 ── */}
+      <details
+        className="app-fold app-install"
+        open={installOpen}
+        onToggle={(event) => setInstallOpen(event.currentTarget.open)}
+      >
+        <summary>
+          安装到当前设备
+          {filename && <span className="app-install-file mono">{filename}</span>}
+        </summary>
+        <Label htmlFor={uploadId}>上传 APK / APKS / HAP</Label>
+        <Input
+          id={uploadId}
+          type="file"
+          accept=".apk,.apks,.hap"
+          disabled={busy || !reference}
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            if (file) accept(file);
+          }}
+        />
+        <ActionFeedback {...upload} />
+        <p className="app-hint">先上传为服务器产物，再提交安装。取消等待不会撤销已经执行的设备安装。</p>
+        <fieldset disabled={busy} className="app-install-fields">
+          <Field
+            label="产物 ID"
+            value={artifactId}
+            onChange={setArtifactId}
+            placeholder="上传后自动填入"
+          />
+          <div className="form-field">
+            <Label>格式</Label>
+            <Select
+              value={format}
+              onValueChange={(value) => {
+                if (value === 'apk' || value === 'apks' || value === 'hap') setFormat(value);
+              }}
+            >
+              <SelectTrigger aria-label="安装包格式">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="apk">APK</SelectItem>
+                <SelectItem value="apks">APKS</SelectItem>
+                <SelectItem value="hap">HAP</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </fieldset>
         {format === 'apks' && (
           <Field
             label="安装 APKS 模块（可选）"
             value={modules}
             onChange={setModules}
-            hint="逗号分隔；模块须唯一，ALL 只能单选。留空使用提供者默认模块。"
+            hint="逗号分隔；模块须唯一，ALL 只能单选。"
           />
         )}
-      </fieldset>
-      {install.reason && <p className="capability-notice">{install.reason}</p>}
-      <Button disabled={!artifactId.trim() || !install.capability || busy} onClick={runInstall}>
-        安装到当前设备
-      </Button>
+        {install.reason && <p className="app-hint">{install.reason}</p>}
+        <Button
+          className="app-install-run"
+          disabled={!artifactId.trim() || !install.capability || busy}
+          onClick={runInstall}
+        >
+          安装到当前设备
+        </Button>
+      </details>
+
       <ActionFeedback {...action} />
       {currentReport && (
-        <div className="result-row">
+        <div className="app-report">
           <h3>
             {currentReport.capability === 'app.install' ||
             currentReport.capability === 'app.install_apks'
               ? '安装任务完成'
-              : `${actionNames[currentReport.capability]}任务完成`}{' '}
-            · {currentReport.identifier}
+              : `${actionNames[currentReport.capability]}任务完成`}
           </h3>
-          <p className="muted">服务器任务已成功终结；设备后续状态可重新读取确认。</p>
+          <p className="app-report-target mono">{currentReport.identifier}</p>
+          <p className="app-hint">服务器任务已成功终结；设备后续状态可重新读取确认。</p>
           <JsonResult value={currentReport.data.result} />
         </div>
       )}

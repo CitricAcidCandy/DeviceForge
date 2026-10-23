@@ -17,6 +17,7 @@ export async function inspectLocalRelease(file: File, signal: AbortSignal): Prom
   if (!file.size || file.size > 4 * 1024 * 1024 * 1024) throw new Error('离线插件 ZIP 须为 4 GiB 以内的非空文件');
   const archive = await releaseArchive(file, signal);
   if (!archive) return null;
+  const archiveEntries = archive.entries;
   const value: unknown = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(archive.manifest));
   if (!jsonObject(value) || value.format_version !== 1 || value.host_api_version !== 2 ||
       typeof value.id !== 'string' || !/^[A-Za-z][A-Za-z0-9_.-]{0,127}$/.test(value.id) ||
@@ -35,7 +36,7 @@ export async function inspectLocalRelease(file: File, signal: AbortSignal): Prom
             typeof variant.size !== 'number' || !Number.isSafeInteger(variant.size) || variant.size <= 0)
           throw new Error('离线发布资源声明无效');
         const path = safeRelativePath(variant.path);
-        const resource = archive.entries.get(path.toLowerCase());
+        const resource = archiveEntries.get(path.toLowerCase());
         if (!resource || resource.name !== path || resource.size !== variant.size)
           throw new Error(`离线发布资源缺失或大小不一致：${path}`);
       }

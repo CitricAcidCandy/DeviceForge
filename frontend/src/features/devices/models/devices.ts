@@ -60,14 +60,14 @@ export function createDevices(gateway: DeviceGateway) {
   function stale(message: string, logId: string | null): never {
     throw new HostError('cancelled', 'stale_device_result', message, logId);
   }
-  async function refreshProviders(signal: AbortSignal) {
+  async function refreshProviders(signal: AbortSignal, requestGateway: DeviceGateway = gateway) {
     check(signal);
     providersRequest?.abort();
     const request = new AbortController();
     providersRequest = request;
     const current = combined(signal, request);
     try {
-      const result = await awaitDeviceRequest(gateway.refreshProviders(current), current);
+      const result = await awaitDeviceRequest(requestGateway.refreshProviders(current), current);
       check(current);
       if (providersRequest !== request) stale('旧提供者列表已撤销', result.logId);
       state.updateProviders(result.data);
@@ -76,17 +76,17 @@ export function createDevices(gateway: DeviceGateway) {
       if (providersRequest === request) providersRequest = null;
     }
   }
-  async function refreshDirectories(signal: AbortSignal) {
+  async function refreshDirectories(signal: AbortSignal, requestGateway: DeviceGateway = gateway) {
     check(signal);
     directoriesRequest?.abort();
     const request = new AbortController();
     directoriesRequest = request;
     const current = combined(signal, request);
     try {
-      await refreshProviders(current);
+      await refreshProviders(current, requestGateway);
       const providerRevision = state.providerRevision();
       const observationRevision = state.observationRevision();
-      const result = await awaitDeviceRequest(gateway.refreshDirectories(current), current);
+      const result = await awaitDeviceRequest(requestGateway.refreshDirectories(current), current);
       check(current);
       if (
         directoriesRequest !== request ||
@@ -111,9 +111,10 @@ export function createDevices(gateway: DeviceGateway) {
     id: string,
     generation: string,
     signal: AbortSignal,
+    requestGateway: DeviceGateway = gateway,
   ): Promise<HostResult<DeviceDirectory>> {
     check(signal);
-    if (!state.known()) await refreshProviders(signal);
+    if (!state.known()) await refreshProviders(signal, requestGateway);
     requireProvider(state.snapshot().providers, id, generation);
     refreshes.get(id)?.controller.abort();
     const request = { generation, controller: new AbortController() };
@@ -124,7 +125,7 @@ export function createDevices(gateway: DeviceGateway) {
     const revision = state.directoryRevision(id);
     try {
       const result = await awaitDeviceRequest(
-        gateway.refreshProvider(id, generation, current),
+        requestGateway.refreshProvider(id, generation, current),
         current,
       );
       check(current);
@@ -153,7 +154,7 @@ export function createDevices(gateway: DeviceGateway) {
       if (refreshes.get(id) === request) refreshes.delete(id);
     }
   }
-  async function invoke(action: DeviceAction, signal: AbortSignal): Promise<HostResult<Job>> {
+  async function invoke(action: DeviceAction, signal: AbortSignal, requestGateway: DeviceGateway = gateway): Promise<HostResult<Job>> {
     check(signal);
     validateAction(state.snapshot(), action);
     const request = {
@@ -164,7 +165,7 @@ export function createDevices(gateway: DeviceGateway) {
     actions.add(request);
     const current = combined(signal, request.controller);
     try {
-      const result = await awaitDeviceRequest(gateway.invoke(request.action, current), current);
+      const result = await awaitDeviceRequest(requestGateway.invoke(request.action, current), current);
       check(current);
       validateAction(state.snapshot(), request.action);
       return result;

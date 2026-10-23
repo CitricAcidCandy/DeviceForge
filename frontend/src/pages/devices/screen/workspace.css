@@ -24,34 +24,51 @@
   border-left: 1px solid var(--hairline);
   background: var(--surface-card);
 }
+/*
+ * 右栏两个面：等分两格、各带一个图标。
+ * 早先只有两个纯文字标签，在 384px 的栏里像一段说明文字，不像可以切的东西。
+ */
 .rail-tabs {
-  display: flex;
-  align-items: stretch;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   flex-shrink: 0;
-  height: 38px;
-  padding: 0 8px;
+  height: 44px;
+  gap: 2px;
+  padding: 0 10px;
   border-bottom: 1px solid var(--hairline);
 }
-/* 标签等分栏宽：右端不留一条空缝，下划线也跟着自己的格子走。 */
 .rail-tab {
   position: relative;
-  flex: 1 1 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
   min-width: 0;
-  padding: 0 6px;
+  padding: 0 4px;
   border: 0;
   background: transparent;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 500;
   color: var(--text-faint);
   white-space: nowrap;
-  text-overflow: ellipsis;
   overflow: hidden;
+}
+.rail-tab > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rail-tab > svg {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
 }
 .rail-tab:hover:not(:disabled) {
   color: var(--text-strong);
 }
 .rail-tab[aria-selected='true'] {
   color: var(--primary);
+  font-weight: 600;
 }
 .rail-tab[aria-selected='true']::after {
   content: '';
@@ -71,7 +88,7 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
-  padding: 0 14px 18px;
+  padding: 0 14px 20px;
   overflow-y: auto;
 }
 .rail-group {
@@ -86,43 +103,63 @@
 }
 .rail-group h2 {
   margin: 0;
-  font-size: 0.75rem;
-  font-weight: 500;
+  font-size: 0.8125rem;
+  font-weight: 600;
   letter-spacing: 0.04em;
   color: var(--text-faint);
 }
-.rail-facts {
+/*
+ * 画面四条事实：2×2 的发丝网格，标签在上、数值在下。
+ * 比原来「标签靠左 / 数值靠右」的一行式好扫：分辨率这种最长的值不会再被挤到换行。
+ */
+.rail-metrics {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
+  border-top: 1px solid var(--hairline);
 }
-.rail-facts > div {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 10px;
+.rail-metrics > div {
+  min-width: 0;
+  padding: 9px 0 10px;
+  border-bottom: 1px solid var(--hairline);
 }
-.rail-facts dt {
+.rail-metrics > div:nth-child(even) {
+  padding-left: 12px;
+  border-left: 1px solid var(--hairline);
+}
+.rail-metrics dt {
   font-size: 0.75rem;
   color: var(--text-faint);
 }
-.rail-facts dd {
-  margin: 0;
-  font-size: 0.75rem;
-  color: var(--text-body);
-  text-align: right;
+.rail-metrics dd {
+  margin: 3px 0 0;
+  overflow: hidden;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-strong);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rail-metrics dd.mono {
+  font-size: 0.8125rem;
+}
+/* 只有「可操作」用状态色，其余保持中性，避免四条里三条都是彩色。 */
+.rail-metrics dd[data-tone='on'] {
+  color: var(--success);
+}
+.rail-metrics dd[data-tone='wait'] {
+  color: var(--warning);
 }
 .rail-line {
   display: flex;
   align-items: center;
   gap: 7px;
   margin: 0;
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   color: var(--text-body);
 }
 .rail-line-note {
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   color: var(--text-ghost);
 }
 .rail-dot {
@@ -143,7 +180,7 @@
 }
 .rail-hint {
   margin: 0;
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   line-height: 1.55;
   color: var(--text-faint);
 }
@@ -155,13 +192,13 @@
   margin: 0 -8px;
   padding: 7px 8px;
   border-radius: 6px;
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   color: var(--text-body);
   text-decoration: none;
 }
 .rail-item > svg {
-  width: 12px;
-  height: 12px;
+  width: 13px;
+  height: 13px;
   color: var(--text-ghost);
 }
 .rail-item:hover {
@@ -174,11 +211,18 @@
   border-radius: 6px;
   background: var(--surface-sunken);
   color: var(--text-body);
-  font: 400 0.6875rem/1.6 var(--font-mono);
+  font: 400 0.8125rem/1.6 var(--font-mono);
   resize: none;
 }
 .rail-clipboard::placeholder {
   color: var(--text-ghost);
+}
+/* 剪贴板活在「设备控制」组里：开关一开就地长出内容，不再单开一节。 */
+.rail-clipboard-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 2px;
 }
 /* 插件插槽：右栏尾部留一块，插件可在此渲染自己的工具。 */
 .rail-slot {
@@ -194,7 +238,7 @@
 }
 .rail-slot-name,
 .rail-slot-note {
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   color: var(--text-ghost);
 }
 .rail-slot-name {
@@ -207,14 +251,15 @@
 }
 .rail-foot [data-slot='button'] {
   width: 100%;
-  height: 34px;
+  height: 36px;
+  font-size: 0.875rem;
 }
 
 /* 折起来的次要参数：常驻的只留事实 */
 .rail-fold {
   padding-top: 9px;
   border-top: 1px solid var(--hairline);
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
 }
 .rail-fold:first-of-type {
   padding-top: 0;
@@ -224,6 +269,9 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
+  font-size: 0.8125rem;
+  font-weight: 500;
   color: var(--text-muted);
   list-style: none;
 }
@@ -254,7 +302,7 @@
   height: 22px;
   padding-inline: 6px;
   border-radius: 5px;
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   font-weight: 500;
 }
 /* 表单默认是「标签在左 144px」的横排；右栏只有 356px 内宽，统一改成标签在上。 */
@@ -265,7 +313,7 @@
 }
 .workbench-rail .form-item > label {
   padding-top: 0;
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   color: var(--text-faint);
 }
 .workbench-rail .form-item .form-item-content > [data-slot='input'] {
@@ -285,7 +333,7 @@
 }
 .media-fields > .form-item > label {
   padding-top: 0;
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   color: var(--text-faint);
 }
 .media-fields > .form-item .form-item-content > [data-slot='input'] {
@@ -295,18 +343,18 @@
   min-width: 0;
 }
 .media-fields .form-field input {
-  font: 400 0.6875rem/1 var(--font-mono);
+  font: 400 0.8125rem/1 var(--font-mono);
 }
 .media-switch {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   color: var(--text-body);
 }
 /* Label 组件自带 13px：右栏里要跟着参数文字一起缩小。 */
 .media-switch label {
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   color: var(--text-body);
 }
 /* 开关的拇指默认跟着 dark: 变体走，浅色皮肤上会变成黑点。这里直接钉成白拇指。 */
@@ -335,7 +383,7 @@
 }
 .workbench-rail .media-ownership > p {
   margin: 0 0 8px;
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   line-height: 1.55;
   color: var(--text-faint);
 }
@@ -356,7 +404,7 @@
   object-fit: contain;
 }
 .workbench-rail .result-details {
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
 }
 .share-control-choice {
   display: flex;
@@ -412,6 +460,8 @@
   border: 1px solid var(--hairline-strong);
   border-radius: 26px;
   background: var(--surface-card);
+  /* 画面自己也是一个容器：窗口矮到只剩几十像素宽时，空态文字要能自己收起来。 */
+  container-type: inline-size;
   box-shadow:
     0 0 0 1px rgb(23 27 36 / 6%),
     0 26px 60px -34px rgb(23 27 36 / 38%);
@@ -422,40 +472,6 @@
 /* 横屏铺满整宽时会压到浮在左缘的工具轨：为那条通道让出宽度，画面仍是居中。 */
 .workbench-stage:has(.media-frame[data-orientation='landscape']) {
   padding-left: 68px;
-}
-/* 右下角缩放手柄：拖动改画面大小，双击回到「自适应」。 */
-.media-zoom-grip {
-  position: absolute;
-  right: 10px;
-  bottom: 13px;
-  z-index: 4;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  padding: 0;
-  border: 1px solid var(--hairline-strong);
-  border-radius: 6px;
-  background: var(--surface-card);
-  color: var(--text-faint);
-  cursor: nwse-resize;
-  touch-action: none;
-  box-shadow: 0 10px 22px -18px rgb(23 27 36 / 70%);
-}
-.media-zoom-grip:hover,
-.media-zoom-grip:focus-visible {
-  border-color: var(--text-ghost);
-  color: var(--text-strong);
-}
-.media-zoom-grip[data-dragging='true'] {
-  border-color: var(--primary);
-  background: var(--accent);
-  color: var(--primary);
-}
-.media-zoom-grip > svg {
-  width: 12px;
-  height: 12px;
 }
 .media-frame-screen {
   position: absolute;
@@ -500,9 +516,24 @@
 .media-frame-screen > .empty-state p {
   margin: 0;
   max-width: 18em;
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   line-height: 1.6;
   color: var(--media-muted);
+}
+/* 窗口矮到画面只剩几十像素宽时，说明文字会把空态挤成一条竖排的字：直接收掉。 */
+@container (max-width: 170px) {
+  .media-frame-screen > .empty-state {
+    padding: 6px;
+    gap: 0;
+  }
+  .media-frame-screen > .empty-state h3 {
+    font-size: 0.6875rem;
+    line-height: 1.35;
+    text-align: center;
+  }
+  .media-frame-screen > .empty-state p {
+    display: none;
+  }
 }
 .media-canvas {
   display: block;
@@ -549,7 +580,7 @@ video.media-canvas {
   z-index: 3;
   margin: 0;
   max-width: calc(100% - 40px);
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   letter-spacing: 0.04em;
   color: var(--text-ghost);
   white-space: nowrap;
@@ -577,7 +608,7 @@ video.media-canvas {
   height: 26px;
   padding-inline: 10px;
   border-radius: 999px;
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   font-weight: 400;
   color: var(--text-muted);
 }
@@ -600,7 +631,7 @@ video.media-canvas {
   bottom: 104px;
   z-index: 2;
   margin: 0;
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   color: var(--text-ghost);
   text-align: center;
   pointer-events: none;
@@ -625,7 +656,7 @@ video.media-canvas {
 .media-controlbar [data-slot='button'] {
   height: 24px;
   padding-inline: 8px;
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   font-weight: 400;
   color: var(--media-foreground);
 }
@@ -647,7 +678,7 @@ video.media-canvas {
   border-radius: 6px;
   background: rgb(255 255 255 / 8%);
   color: var(--media-foreground);
-  font: 400 0.6875rem/1 var(--font-mono);
+  font: 400 0.8125rem/1 var(--font-mono);
 }
 .media-controlbar-input::placeholder {
   color: var(--media-muted);
@@ -675,7 +706,8 @@ video.media-canvas {
     padding: 24px 12px 50px;
   }
   .media-stage-readout {
-    left: 12px;
-    max-width: calc(100% - 24px);
+    /* 工具轨在这个断点贴左上角，读数条右移让位。 */
+    left: 62px;
+    max-width: calc(100% - 74px);
   }
 }

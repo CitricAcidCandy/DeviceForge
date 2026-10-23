@@ -1,5 +1,8 @@
 //! 先完整准备全部组件与工具，再把单一发布事务交给应用层提交。
-use super::{FilePluginInstallations, Stage, archive, content, fetch, paths, storage, transaction};
+use super::{
+    FilePluginInstallations, Stage, archive, content, fetch, paths, repository, storage,
+    transaction,
+};
 use apk_domain::{
     Error, Operation, Result, now, plugin_installations::*, plugin_packages::PackageKind,
 };
@@ -21,6 +24,7 @@ pub(super) struct Prepared {
     pub tools: Vec<ToolContent>,
     pub operations: Vec<Operation>,
     pub identities: Vec<ResourceIdentity>,
+    pub manifest: ReleaseManifest,
 }
 
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
@@ -79,7 +83,7 @@ pub(super) fn platform() -> String {
     format!("{os}-{arch}")
 }
 
-fn selected<'a, T>(values: &'a [T], platform_value: impl Fn(&T) -> &str) -> Option<&'a T> {
+fn selected<T>(values: &[T], platform_value: impl Fn(&T) -> &str) -> Option<&T> {
     let platform = platform();
     values
         .iter()
@@ -98,8 +102,11 @@ pub(super) async fn plan(
     let mut download_size = 0u64;
     let mut downloads = std::collections::HashSet::new();
     let version_identities = identities(&input.manifest, &input.revision);
-    if let Err(error) = store
-        .work(move |store| transaction::validate_identities(store, &version_identities))
+    if let Err(error) = input
+        .stage
+        .work(store, move |store| {
+            transaction::validate_identities(store, &version_identities)
+        })
         .await
     {
         if matches!(error, Error::Conflict(_)) {
@@ -114,7 +121,7 @@ pub(super) async fn plan(
     }
     for component in &input.manifest.components {
         if let Some(variant) = selected(&component.variants, |variant| &variant.platform) {
-            let reused = fetch::cached(store, &variant.sha256, variant.size)
+            let reused = fetch::cached(store, &input.stage, &variant.sha256, variant.size)
                 .await?
                 .is_some();
             if !reused && downloads.insert(variant.sha256.clone()) {
@@ -135,6 +142,7 @@ pub(super) async fn plan(
                 .into(),
                 id: component.id.clone(),
                 version: component.version.clone(),
+                platform: platform(),
                 sha256: variant.sha256.clone(),
                 size: variant.size,
                 reused,
@@ -150,19 +158,31 @@ pub(super) async fn plan(
     }
     for tool in &input.manifest.tools {
         if let Some(variant) = selected(&tool.variants, |variant| &variant.platform) {
-            let relative = format!("tools/{}/{}/{}", tool.id, tool.version, variant.sha256);
-            let reused = store
-                .work(move |store| {
+            let relative = format!(
+                "tools/{}/{}/{}/{}",
+                tool.id,
+                tool.version,
+                platform(),
+                variant.sha256
+            );
+            let reused = input
+                .stage
+                .work(store, move |store| {
                     let path = store.root.join(relative);
                     if !path.exists() {
                         return Ok(false);
                     }
-                    content::verify(&path)?;
+                    let repository = repository::open(&store.root)?;
+                    let reader = repository.read().map_err(repository::error)?;
+                    let key = repository
+                        .key_for_entry(&path.join("__entry__"))
+                        .map_err(repository::error)?;
+                    reader.verify(&key, &|| Ok(())).map_err(repository::error)?;
                     Ok(true)
                 })
                 .await?;
             let reused = reused
-                || fetch::cached(store, &variant.sha256, variant.size)
+                || fetch::cached(store, &input.stage, &variant.sha256, variant.size)
                     .await?
                     .is_some();
             actions.push(if reused {
@@ -179,6 +199,7 @@ pub(super) async fn plan(
                 kind: "tool".into(),
                 id: tool.id.clone(),
                 version: tool.version.clone(),
+                platform: platform(),
                 sha256: variant.sha256.clone(),
                 size: variant.size,
                 reused,
@@ -200,8 +221,9 @@ pub(super) async fn plan(
         });
     }
     let id = input.manifest.id.clone();
-    if store
-        .work(move |store| storage::optional(store, &id))
+    if input
+        .stage
+        .work(store, move |store| storage::optional(store, &id))
         .await?
         .is_some()
     {
@@ -222,11 +244,22 @@ pub(super) async fn prepare(
     store: &FilePluginInstallations,
     source: InstallSource,
 ) -> Result<Box<dyn PreparedInstallation>> {
+    prepare_reported(store, source, Arc::new(apk_domain::NoProgress)).await
+}
+
+pub(super) async fn prepare_reported(
+    store: &FilePluginInstallations,
+    source: InstallSource,
+    progress: Arc<dyn apk_domain::ProgressReporter>,
+) -> Result<Box<dyn PreparedInstallation>> {
     let input = fetch::input(store, source).await?;
     let version_identities = identities(&input.manifest, &input.revision);
     let identities_check = version_identities.clone();
-    store
-        .work(move |store| transaction::validate_identities(store, &identities_check))
+    input
+        .stage
+        .work(store, move |store| {
+            transaction::validate_identities(store, &identities_check)
+        })
         .await?;
     let mut components = Vec::new();
     let mut operations = Vec::new();
@@ -250,15 +283,24 @@ pub(super) async fn prepare(
             &variant.path,
             variant.size,
             &variant.sha256,
+            progress.clone(),
         )
         .await?;
+        progress
+            .report(apk_domain::JobProgress {
+                stage: apk_domain::JobStage::Verifying,
+                resource_id: Some(component.id.clone()),
+                completed_bytes: variant.size,
+                total_bytes: Some(variant.size),
+            })
+            .await?;
         let staged = input.stage.path().join(format!("component-{index}"));
         index += 1;
         let target = staged.clone();
         let declaration = component.clone();
         let revision = input.revision.clone();
         let format = variant.format;
-        let (info, contribution) = store.work(move |store| {
+        let (info, contribution) = input.stage.work(store, move |store| {
             fs::create_dir(&target).map_err(|_| Error::Storage("组件暂存创建失败".into()))?;
             archive::extract(&downloaded, &target, format, true)?;
             let parent = match declaration.kind {PackageKind::Server => "plugins", PackageKind::Browser => "browser-plugins"};
@@ -303,13 +345,20 @@ pub(super) async fn prepare(
             .join("tools")
             .join(&tool.id)
             .join(&tool.version)
+            .join(platform())
             .join(&variant.sha256);
         let check = destination.clone();
         let entries = variant.entries.clone();
-        let reused = store
-            .work(move |_| {
+        let reused = input
+            .stage
+            .work(store, move |store| {
                 if check.exists() {
-                    content::verify(&check)?;
+                    let repository = repository::open(&store.root)?;
+                    let reader = repository.read().map_err(repository::error)?;
+                    let key = repository
+                        .key_for_entry(&check.join("__entry__"))
+                        .map_err(repository::error)?;
+                    reader.verify(&key, &|| Ok(())).map_err(repository::error)?;
                     for entry in entries.values() {
                         paths::existing(&check, entry)?;
                     }
@@ -327,14 +376,24 @@ pub(super) async fn prepare(
                 &variant.path,
                 variant.size,
                 &variant.sha256,
+                progress.clone(),
             )
             .await?;
+            progress
+                .report(apk_domain::JobProgress {
+                    stage: apk_domain::JobStage::Verifying,
+                    resource_id: Some(tool.id.clone()),
+                    completed_bytes: variant.size,
+                    total_bytes: Some(variant.size),
+                })
+                .await?;
             let staged = input.stage.path().join(format!("tool-{index}"));
             index += 1;
             let target = staged.clone();
             let variant = variant.clone();
-            store
-                .work(move |_| {
+            input
+                .stage
+                .work(store, move |_| {
                     fs::create_dir(&target)
                         .map_err(|_| Error::Storage("工具暂存创建失败".into()))?;
                     archive::extract(&downloaded, &target, variant.format, false)?;
@@ -353,6 +412,7 @@ pub(super) async fn prepare(
             tool.id.clone(),
             BoundTool {
                 version: tool.version.clone(),
+                platform: platform(),
                 entries: variant
                     .entries
                     .iter()
@@ -376,6 +436,7 @@ pub(super) async fn prepare(
         installed_tools.push(InstalledTool {
             id: tool.id.clone(),
             version: tool.version.clone(),
+            platform: platform(),
             sha256: variant.sha256.clone(),
             entries: variant.entries.keys().cloned().collect(),
         });
@@ -385,10 +446,15 @@ pub(super) async fn prepare(
     for component in &components {
         let directory = component.staged.clone();
         let binding_snapshot = bindings.clone();
+        let client_id = component.info.id.clone();
         let metadata = serde_json::json!({"metadata_version":1,"id":component.info.id,"version":component.info.version,"kind":component.info.kind,"name":input.manifest.name,"title":input.manifest.name,"summary":summary,"description":input.manifest.description});
         let marker = serde_json::json!({"format_version":1,"release_id":input.manifest.id,"revision":revision,"component_id":component.info.id,"kind":component.info.kind});
-        store
-            .work(move |_| {
+        input
+            .stage
+            .work(store, move |store| {
+                let mut binding_snapshot = serde_json::to_value(&binding_snapshot)
+                    .map_err(|_| Error::Storage("资源绑定编码失败".into()))?;
+                binding_snapshot["repository"] = serde_json::json!({"format_version":1,"root":store.root.join("tools"),"client_id":client_id});
                 paths::write(&directory.join("resources.json"), &binding_snapshot)?;
                 paths::write(&directory.join("market.json"), &metadata)?;
                 paths::write(&directory.join("installation.json"), &marker)?;
@@ -404,6 +470,7 @@ pub(super) async fn prepare(
         revision: input.revision.clone(),
         enabled: false,
         status: InstallationStatus::Installed,
+        failure: None,
         installed_at: now(),
         components: components
             .iter()
@@ -423,6 +490,7 @@ pub(super) async fn prepare(
         tools,
         operations,
         identities: version_identities,
+        manifest: input.manifest,
     }))
 }
 

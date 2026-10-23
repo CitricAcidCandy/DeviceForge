@@ -3,6 +3,7 @@ use crate::support::{
 };
 use serde_json::{Value, json};
 use std::{
+    cell::Cell,
     fs,
     io::{Read, Write},
     path::{Path, PathBuf},
@@ -32,6 +33,7 @@ struct Screenshot {
     scratch: PathBuf,
     output: PathBuf,
     request: Value,
+    invocation_deadline: Cell<Option<Instant>>,
 }
 
 impl Screenshot {
@@ -49,6 +51,7 @@ impl Screenshot {
             scratch,
             output,
             request,
+            invocation_deadline: Cell::new(None),
         }
     }
     fn plan(&self, ordinal: usize, stdout: &[u8], stderr: &[u8], code: i32, action: &str) {
@@ -87,6 +90,8 @@ impl Screenshot {
     }
     fn begin(&self, remaining: Duration) -> Invocation {
         let mut running = self.fixture.begin_request(self.request.clone());
+        self.invocation_deadline
+            .set(Some(Instant::now() + remaining));
         running.start(remaining);
         running
     }
@@ -132,7 +137,12 @@ impl Screenshot {
             .join(format!("deviceforge-screenshot-{}", self.token(1)))
     }
     fn hold(&self, ordinal: usize, stage: &str) -> PidProbe {
-        let probe = self.fixture.wait_tool_at(ordinal);
+        let probe = self.fixture.wait_tool_at_with_deadline(
+            ordinal,
+            self.invocation_deadline
+                .get()
+                .expect("截图调用必须先发送Start"),
+        );
         assert_eq!(
             fs::read_to_string(
                 self.fixture

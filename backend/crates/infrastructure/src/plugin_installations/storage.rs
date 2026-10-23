@@ -51,9 +51,28 @@ pub(super) fn validate_record(record: &InstalledRelease) -> Result<()> {
     }
     for tool in &record.tools {
         plugin_id(&tool.id)?;
+        validate_release_path(&tool.version)?;
+        validate_release_path(&tool.platform)?;
+        if tool.version.contains('/') || tool.platform.contains('/') {
+            return Err(Error::Invalid("工具版本或平台标识无效".into()));
+        }
         validate_release_digest(&tool.sha256)?;
     }
     Ok(())
+}
+pub(super) fn block(
+    root: &Path,
+    mut record: InstalledRelease,
+    phase: &str,
+    reason: &str,
+) -> Result<InstalledRelease> {
+    record.status = InstallationStatus::RecoveryBlocked;
+    record.failure = Some(InstallationFailure {
+        phase: phase.chars().take(128).collect(),
+        reason: reason.chars().take(1024).collect(),
+    });
+    paths::write(&record_path(root, &record.id), &record)?;
+    Ok(record)
 }
 pub(super) fn list(store: &FilePluginInstallations) -> Result<Vec<InstalledRelease>> {
     let mut records = Vec::new();
@@ -112,6 +131,13 @@ impl InstallationStore for FilePluginInstallations {
     async fn prepare(&self, source: InstallSource) -> Result<Box<dyn PreparedInstallation>> {
         prepare::prepare(self, source).await
     }
+    async fn prepare_with_progress(
+        &self,
+        source: InstallSource,
+        progress: std::sync::Arc<dyn apk_domain::ProgressReporter>,
+    ) -> Result<Box<dyn PreparedInstallation>> {
+        prepare::prepare_reported(self, source, progress).await
+    }
     async fn list(&self) -> Result<Vec<InstalledRelease>> {
         self.work(list).await
     }
@@ -133,7 +159,11 @@ impl InstallationStore for FilePluginInstallations {
         let expected = expected_revision.to_owned();
         self.work(move |store| {
             let mut record = require_revision(store, &id, &expected)?;
+            if record.status == InstallationStatus::RecoveryBlocked {
+                return Err(Error::Conflict("发布恢复受阻，需先修复或完成恢复".into()));
+            }
             record.enabled = enabled;
+            record.failure = None;
             record.status = if enabled {
                 InstallationStatus::Enabled
             } else {
@@ -149,7 +179,11 @@ impl InstallationStore for FilePluginInstallations {
         let expected = expected_revision.to_owned();
         self.work(move |store| {
             let record = require_revision(store, &id, &expected)?;
-            if record.enabled {
+            // 安装回滚需要删除尚未激活、但保留启用意图的 Installed 记录。
+            // 对外删除仍由应用生命周期门禁要求先停用。
+            if record.status == InstallationStatus::Enabled
+                || record.status == InstallationStatus::RecoveryBlocked
+            {
                 return Err(Error::Conflict("启用中的发布不能删除".into()));
             }
             transaction::delete(store, &record)?;
@@ -166,12 +200,40 @@ impl InstallationStore for FilePluginInstallations {
         let expected = expected_revision.to_owned();
         self.work(move |store| {
             let mut record = require_revision(store, &id, &expected)?;
+            if record.status == InstallationStatus::RecoveryBlocked {
+                return Err(Error::Conflict("恢复受阻的发布不能改为待配置".into()));
+            }
             record.enabled = false;
             record.status = InstallationStatus::ConfigurationRequired;
             paths::write(&record_path(&store.root, &id), &record)?;
             Ok(record)
         })
         .await
+    }
+    async fn recovery_blocked(
+        &self,
+        id: &str,
+        expected_revision: &str,
+        phase: &str,
+        reason: &str,
+    ) -> Result<InstalledRelease> {
+        let id = id.to_owned();
+        let expected = expected_revision.to_owned();
+        let phase = phase.to_owned();
+        let reason = reason.to_owned();
+        self.work(move |store| {
+            let record = require_revision(store, &id, &expected)?;
+            block(&store.root, record, &phase, &reason)
+        })
+        .await
+    }
+    async fn cleanup_resources(
+        &self,
+        dry_run: bool,
+        running_components: Vec<String>,
+    ) -> Result<ResourceCleanupReport> {
+        self.work(move |store| super::cleanup::resources(store, dry_run, &running_components))
+            .await
     }
     async fn restore_previous(
         &self,

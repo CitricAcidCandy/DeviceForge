@@ -40,7 +40,8 @@ struct Gate {
 }
 const BROWSER_ASSET_ROUTE: &str = "/api/v2/browser-plugins/{id}/assets/{*path}";
 const BROWSER_RUN_ASSET_ROUTE: &str = "/api/v2/browser-plugins/{id}/runs/{run_id}/assets/{*path}";
-const INSTALLATION_ASSET_ROUTE: &str = "/api/v2/plugin-installations/browser/{id}/revisions/{revision}/assets/{*path}";
+const INSTALLATION_ASSET_ROUTE: &str =
+    "/api/v2/plugin-installations/browser/{id}/revisions/{revision}/assets/{*path}";
 #[derive(Serialize, schemars::JsonSchema)]
 pub struct Failure {
     code: String,
@@ -250,17 +251,33 @@ pub fn router_with_browser_configurations(
 }
 #[allow(clippy::too_many_arguments)]
 pub fn router_with_installations(
-    app: Arc<Application>, token: String, requests_per_second: u32,
+    app: Arc<Application>,
+    token: String,
+    requests_per_second: u32,
     config: mcp::StreamableHttpServerConfig,
     artifacts: Arc<dyn apk_domain::artifacts::ArtifactStore>,
     runtime: runtime::RuntimeServices,
     packages: Arc<apk_application::plugin_packages::PackageService>,
     configurations: Arc<apk_application::plugin_configurations::PluginConfigurationService>,
-    browser_configurations: Arc<apk_application::browser_configurations::BrowserConfigurationService>,
+    browser_configurations: Arc<
+        apk_application::browser_configurations::BrowserConfigurationService,
+    >,
     installations: Arc<apk_application::plugin_installations::InstallationService>,
     installation_artifacts: Arc<dyn apk_domain::artifacts::ArtifactStore>,
 ) -> apk_domain::Result<Router> {
-    build_router(app, token, requests_per_second, config, Some(artifacts), Some(runtime), Some(packages), Some(configurations), Some(browser_configurations), Some(installations), Some(installation_artifacts))
+    build_router(
+        app,
+        token,
+        requests_per_second,
+        config,
+        Some(artifacts),
+        Some(runtime),
+        Some(packages),
+        Some(configurations),
+        Some(browser_configurations),
+        Some(installations),
+        Some(installation_artifacts),
+    )
 }
 #[allow(clippy::too_many_arguments)]
 fn build_router(
@@ -282,8 +299,13 @@ fn build_router(
         .as_ref()
         .and_then(|services| services.plugins.clone());
     let devices = apk_application::devices::DeviceService::new(app.clone());
-    let mcp_service =
-        mcp::service_with_installations(app.clone(), plugin_service, devices.clone(), installations.clone(), config);
+    let mcp_service = mcp::service_with_installations(
+        app.clone(),
+        plugin_service,
+        devices.clone(),
+        installations.clone(),
+        config,
+    );
     if token.chars().any(char::is_whitespace) || requests_per_second == 0 {
         return Err(Error::Invalid(
             "可选 API 令牌不得含空白，限流值必须大于零".into(),
@@ -331,11 +353,32 @@ fn build_router(
         .route("/api/v2/diagnostics/logging", get(runtime::logging))
         .route("/api/v2/system/shutdown", post(runtime::shutdown))
         .route("/api/v2/plugins", get(plugin_routes::list))
-        .route("/api/v2/plugin-installations", get(plugin_installations::list).post(plugin_installations::install))
-        .route("/api/v2/plugin-installations/plan", post(plugin_installations::plan))
-        .route("/api/v2/plugin-installations/artifacts", post(plugin_installations::upload).layer(DefaultBodyLimit::disable()))
-        .route("/api/v2/plugin-installations/{id}", get(plugin_installations::get).put(plugin_installations::update).delete(plugin_installations::delete))
-        .route("/api/v2/plugin-installations/{id}/enabled", axum::routing::patch(plugin_installations::enabled))
+        .route(
+            "/api/v2/plugin-installations",
+            get(plugin_installations::list).post(plugin_installations::install),
+        )
+        .route(
+            "/api/v2/plugin-installations/plan",
+            post(plugin_installations::plan),
+        )
+        .route(
+            "/api/v2/plugin-installations/cleanup",
+            post(plugin_installations::cleanup),
+        )
+        .route(
+            "/api/v2/plugin-installations/artifacts",
+            post(plugin_installations::upload).layer(DefaultBodyLimit::disable()),
+        )
+        .route(
+            "/api/v2/plugin-installations/{id}",
+            get(plugin_installations::get)
+                .put(plugin_installations::update)
+                .delete(plugin_installations::delete),
+        )
+        .route(
+            "/api/v2/plugin-installations/{id}/enabled",
+            axum::routing::patch(plugin_installations::enabled),
+        )
         .route(INSTALLATION_ASSET_ROUTE, get(plugin_installations::asset))
         .route(
             "/api/v2/browser-plugin-configurations/{id}",
@@ -399,22 +442,6 @@ fn build_router(
         .with_state(state))
 }
 async fn guard(State(state): State<ApiState>, request: Request, next: Next) -> Response {
-    if let Some(header) = request.headers().get("x-deviceforge-plugin-release") {
-        #[derive(Deserialize)]
-        #[serde(deny_unknown_fields)]
-        struct Revision { id: String, revision: String }
-        let parsed = header.to_str().ok().and_then(|value| serde_json::from_str::<Revision>(value).ok());
-        let check = async {
-            let input = parsed.ok_or_else(|| Error::Invalid("浏览器插件发布修订头无效".into()))?;
-            let service = state.installations.as_ref().ok_or_else(|| Error::Conflict("完整发布服务未配置".into()))?;
-            let record = service.get(&input.id).await?;
-            if !record.enabled || record.revision != input.revision {
-                return Err(Error::Conflict("浏览器插件发布已切换，请同步插件后重试".into()));
-            }
-            Ok::<_, Error>(())
-        }.await;
-        if let Err(error) = check { return ApiError::from(error).into_response(); }
-    }
     let supplied = request
         .headers()
         .get("authorization")
@@ -427,7 +454,12 @@ async fn guard(State(state): State<ApiState>, request: Request, next: Next) -> R
             .extensions()
             .get::<MatchedPath>()
             .is_some_and(|path| {
-                [BROWSER_ASSET_ROUTE, BROWSER_RUN_ASSET_ROUTE, INSTALLATION_ASSET_ROUTE].contains(&path.as_str())
+                [
+                    BROWSER_ASSET_ROUTE,
+                    BROWSER_RUN_ASSET_ROUTE,
+                    INSTALLATION_ASSET_ROUTE,
+                ]
+                .contains(&path.as_str())
             });
     if !state.gate.token.is_empty() && !public_asset && supplied != Some(state.gate.token.as_str())
     {
@@ -475,6 +507,36 @@ async fn guard(State(state): State<ApiState>, request: Request, next: Next) -> R
         )
         .into_response();
     };
+    if let Some(header) = request.headers().get("x-deviceforge-plugin-release") {
+        #[derive(Deserialize)]
+        #[serde(deny_unknown_fields)]
+        struct Revision {
+            id: String,
+            revision: String,
+        }
+        let parsed = header
+            .to_str()
+            .ok()
+            .and_then(|value| serde_json::from_str::<Revision>(value).ok());
+        let check = async {
+            let input = parsed.ok_or_else(|| Error::Invalid("浏览器插件发布修订头无效".into()))?;
+            let service = state
+                .installations
+                .as_ref()
+                .ok_or_else(|| Error::Conflict("完整发布服务未配置".into()))?;
+            let record = service.get(&input.id).await?;
+            if !record.enabled || record.revision != input.revision {
+                return Err(Error::Conflict(
+                    "浏览器插件发布已切换，请同步插件后重试".into(),
+                ));
+            }
+            Ok::<_, Error>(())
+        }
+        .await;
+        if let Err(error) = check {
+            return ApiError::from(error).into_response();
+        }
+    }
     let mut response = next.run(request).await;
     response
         .extensions_mut()
@@ -589,10 +651,10 @@ mod mcp_wire;
 mod plugin_configuration_openapi;
 mod plugin_configuration_routes;
 mod plugin_guide;
-mod plugin_package_routes;
-pub mod plugin_installations;
-mod plugin_installation_openapi;
 mod plugin_installation_mcp;
+mod plugin_installation_openapi;
+pub mod plugin_installations;
+mod plugin_package_routes;
 mod plugin_routes;
 mod response_stream;
 mod responses;

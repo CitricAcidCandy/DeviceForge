@@ -28,7 +28,9 @@ export async function loadNativePluginSource(directory) {
     const configuration = manifest.configuration;
     if (
       !configuration ||
-      configuration.version !== 1 ||
+      !Number.isInteger(configuration.version) ||
+      configuration.version < 1 ||
+      configuration.version > 0xffffffff ||
       !configuration.schema ||
       configuration.schema.type !== 'object' ||
       !configuration.defaults ||
@@ -36,7 +38,7 @@ export async function loadNativePluginSource(directory) {
       typeof configuration.defaults !== 'object' ||
       !['next_invocation', 'plugin_reload'].includes(configuration.apply_policy)
     ) {
-      throw new Error('插件配置声明须包含版本1、对象 schema、默认对象和生效策略');
+      throw new Error('插件配置声明须包含正整数版本、对象 schema、默认对象和生效策略');
     }
     if (configuration.legacy_filename !== undefined) {
       const legacy = configuration.legacy_filename;

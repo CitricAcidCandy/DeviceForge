@@ -4,7 +4,7 @@
   "id": "android-packages",
   "version": "0.1.0",
   "name": "Android 安装包工具",
-  "description": "提供清单分析、签名报告、APK 提取、APKS 构建、资源解码、SDK 扫描和拆分包提取。外部工具路径由插件配置指定，操作输入使用已上传的产物。",
+  "description": "提供 Android 包内置解析，以及清单分析、签名报告、APK 提取、APKS 构建、资源解码和 SDK 扫描。Java、apkanalyzer、apksigner、bundletool 和 apktool 为可选工具，已提供时自动绑定，缺失时仅相应扩展能力不可用；用户提供上传产物与按需签名材料。",
   "components": [
     {
       "id": "android-packages",

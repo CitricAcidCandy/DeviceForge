@@ -5,8 +5,10 @@ import { ApiError } from '../src/services/api/index.ts';
 import type { ApiResult, PackageInfo, PackageKind, PluginInfo } from '../src/services/api/index.ts';
 import type { WebPluginRuntimeInfo } from '../src/plugin-sdk/index.ts';
 import { deferred, installedPackage, plugin, signal } from './fixtures.ts';
+import type { PluginDefaultsGateway } from '../src/features/plugin-defaults/index.ts';
+import { release } from './plugin-installations-fixture.ts';
 
-function fixture() {
+function fixture(installations?: PluginDefaultsGateway['installations']) {
   const packages: Record<PackageKind, PackageInfo[]> = { server: [], browser: [] };
   const server = new Map<string, PluginInfo>();
   const browser = new Map<string, WebPluginRuntimeInfo>();
@@ -15,6 +17,7 @@ function fixture() {
   let hold: Promise<ApiResult<PluginInfo | WebPluginRuntimeInfo>> | null = null;
   let directoryFailed = false;
   const feature = createPluginDefaults({
+    ...(installations ? { installations } : {}),
     packages: {
       refresh: async (kind) => {
         requests.push(`list:${kind}`);
@@ -229,4 +232,40 @@ test('销毁取消在途启用与订阅，不通知晚到结果', async () => {
   assert.equal(notifications, count);
   assert.equal(f.feature.snapshot().phase, 'closed');
   await assert.rejects(f.feature.start(signal()), /已关闭/);
+});
+
+test('统一安装的停用意图优先于旧包默认启用，名称相同的不同类型也精确匹配', async () => {
+  let restored = 0;
+  const f = fixture({ restore: async () => { ++restored; }, snapshot: () => ({ pending: false, error: null,
+    result: { data: [release(false)], logId: 'installation-log' } }) });
+  f.packages.server.push(installedPackage('server', { id: 'example-server' }), installedPackage('server', { id: 'example-browser' }));
+  f.packages.browser.push(installedPackage('browser', { id: 'example-browser' }));
+  const result = await f.feature.start(signal());
+  assert.equal(restored, 1);
+  assert.deepEqual(f.requests.filter((value) => value.startsWith('enable:')), ['enable:server:example-browser']);
+  assert.equal(result.results.some((value) => value.id === 'example-server'), false);
+  assert.equal(result.results.some((value) => value.kind === 'browser' && value.id === 'example-browser'), false);
+  f.feature.dispose();
+});
+
+test('部分统一安装浏览器恢复失败后保留目录与日志，继续非所属包且不重放统一服务器启用', async () => {
+  const f = fixture({ restore: async () => { throw new ApiError('http', 'browser_failed', '浏览器恢复失败', 500, 'restore-log'); },
+    snapshot: () => ({ pending: false, error: null, result: { data: [release(true)], logId: 'installation-log' } }) });
+  f.packages.server.push(installedPackage('server', { id: 'example-server' }), installedPackage('server', { id: 'independent' }));
+  f.packages.browser.push(installedPackage('browser', { id: 'example-browser' }));
+  const result = await f.feature.start(signal());
+  assert.equal(result.results.find((value) => value.id === null)?.logId, 'restore-log');
+  assert.deepEqual(f.requests.filter((value) => value.startsWith('enable:')), ['enable:server:independent']);
+  f.feature.dispose();
+});
+
+test('统一安装目录不可读时不绕过意图启动任何底层包', async () => {
+  const f = fixture({ restore: async () => { throw new ApiError('http', 'directory_failed', '统一目录不可读', 503, 'installation-failed-log'); },
+    snapshot: () => ({ pending: false, result: null, error: new Error('统一目录不可读') }) });
+  f.packages.server.push(installedPackage('server', { id: 'unknown-owner' }));
+  const result = await f.feature.start(signal());
+  assert.equal(result.phase, 'completed');
+  assert.equal(result.results[0]?.logId, 'installation-failed-log');
+  assert.deepEqual(f.requests, []);
+  f.feature.dispose();
 });

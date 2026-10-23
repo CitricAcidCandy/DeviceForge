@@ -38,6 +38,7 @@ fn event(connection: &Connection, job: &Job) -> Result<()> {
         job_id: job.id.clone(),
         status: job.status.clone(),
         timestamp: now(),
+        progress: None,
     })
     .map_err(storage)?;
     connection
@@ -49,6 +50,28 @@ fn event(connection: &Connection, job: &Job) -> Result<()> {
     Ok(())
 }
 impl JobStore for SqliteStore {
+    fn progress(&self, id: &str, progress: apk_domain::JobProgress) -> Result<()> {
+        progress.validate()?;
+        let mut connection = self.lock()?;
+        let tx = connection.transaction().map_err(storage)?;
+        let job = read_job(&tx, id)?;
+        if job.status != JobStatus::Running {
+            return Ok(());
+        }
+        let event = JobEvent {
+            sequence: 0,
+            job_id: id.into(),
+            status: job.status,
+            timestamp: now(),
+            progress: Some(progress),
+        };
+        tx.execute(
+            "INSERT INTO events(job_id,body) VALUES(?1,?2)",
+            params![id, serde_json::to_string(&event).map_err(storage)?],
+        )
+        .map_err(storage)?;
+        tx.commit().map_err(storage)
+    }
     fn create(&self, job: &Job) -> Result<()> {
         let mut connection = self.lock()?;
         let tx = connection.transaction().map_err(storage)?;
@@ -187,6 +210,58 @@ mod tests {
         let events = store.events("a", 0).unwrap();
         assert_eq!(events.len(), 2);
         assert_eq!(store.events("a", events[0].sequence).unwrap().len(), 1);
+    }
+    #[test]
+    fn progress_does_not_change_state_and_cannot_arrive_after_terminal() {
+        use apk_domain::{JobProgress, JobStage};
+        let store = SqliteStore::open(":memory:").unwrap();
+        store.create(&job("progress")).unwrap();
+        store
+            .transition("progress", JobStatus::Running, None, None)
+            .unwrap();
+        store
+            .progress(
+                "progress",
+                JobProgress {
+                    stage: JobStage::Downloading,
+                    resource_id: Some("tool".into()),
+                    completed_bytes: 20,
+                    total_bytes: Some(100),
+                },
+            )
+            .unwrap();
+        assert_eq!(store.get("progress").unwrap().status, JobStatus::Running);
+        let events = store.events("progress", 0).unwrap();
+        assert_eq!(
+            events
+                .last()
+                .unwrap()
+                .progress
+                .as_ref()
+                .unwrap()
+                .completed_bytes,
+            20
+        );
+        store
+            .transition("progress", JobStatus::Cancelled, None, None)
+            .unwrap();
+        store
+            .progress("progress", JobProgress::stage(JobStage::Activating))
+            .unwrap();
+        assert_eq!(store.events("progress", 0).unwrap().len(), 4);
+        assert!(
+            store
+                .progress(
+                    "progress",
+                    JobProgress {
+                        stage: JobStage::Downloading,
+                        resource_id: None,
+                        completed_bytes: 101,
+                        total_bytes: Some(100)
+                    }
+                )
+                .is_err()
+        );
     }
     #[test]
     fn reopen_and_recover_more_than_one_page() {

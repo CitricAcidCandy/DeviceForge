@@ -101,8 +101,10 @@ test('配置声明要求可携带的公开模板，拒绝路径穿越和不完�
       (await loadNativePluginSource(directory)).manifest.configuration,
       configuration,
     );
+    await write({ ...configuration, version: 2 });
+    assert.equal((await loadNativePluginSource(directory)).manifest.configuration.version, 2);
     for (const value of [
-      { ...configuration, version: 2 },
+      ...[0, -1, 1.5, 0x100000000, '2'].map((version) => ({ ...configuration, version })),
       { ...configuration, defaults: [] },
       { ...configuration, apply_policy: 'unknown' },
       { ...configuration, legacy_filename: '../settings.config.json' },
@@ -154,7 +156,7 @@ test('18 个工作区插件声明均通过便携清单、模板复制和安装�
       id,
     );
     assert.ok(source.marketMetadata.summary.trim() && source.marketMetadata.description.trim(), id);
-    assert.equal(definition.version, 1, id);
+    assert.ok(Number.isInteger(definition.version) && definition.version > 0 && definition.version <= 0xffffffff, id);
     assert.equal(definition.schema.type, 'object', id);
     assert.equal(definition.schema.additionalProperties, false, id);
     assert.equal(Object.keys(definition.schema.properties).length === 0, empty.has(id), id);

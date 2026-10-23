@@ -49,7 +49,7 @@ export async function verifyLiveInstallation({
   const installed = await runNpx([
     ...prefix,
     'plugin',
-    'install',
+    'install-legacy',
     fixture,
     '--data-dir',
     dataDirectory,

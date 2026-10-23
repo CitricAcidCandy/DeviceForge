@@ -20,6 +20,7 @@ use tokio::{
 };
 use tokio_util::sync::CancellationToken;
 mod context;
+mod ownership;
 
 pub(crate) struct Invocation<'a> {
     pub executable: &'a str,
@@ -36,10 +37,12 @@ pub(crate) struct Invocation<'a> {
 struct CleanupGuard {
     unresolved: Arc<AtomicBool>,
     confirmed: bool,
+    lease: Arc<crate::plugin_resources::ToolLease>,
 }
 impl Drop for CleanupGuard {
     fn drop(&mut self) {
         if !self.confirmed {
+            self.lease.retain();
             self.unresolved.store(true, Ordering::Release);
             tracing::warn!(cleanup = "unresolved", "合作插件资源未确认清理");
         }
@@ -165,6 +168,7 @@ async fn run_version(
     if Instant::now() >= deadline {
         return Err(Error::Timeout);
     }
+    let lease = crate::plugin_resources::acquire(call.resources, &call.cancel, deadline).await?;
     let mut cmd = command(call.executable, call.args, true);
     if let Some(path) = call.configuration {
         cmd.env("DEVICEFORGE_PLUGIN_CONFIG", path);
@@ -180,12 +184,14 @@ async fn run_version(
     }
     // 配置命令后再次复核；到期先诊断 Timeout，不创建未启动进程的资源守卫。
     crate::execution_deadline::check(&call.cancel, Some(deadline))?;
-    let mut child = cmd
+    let child = cmd
         .spawn()
         .map_err(|_| Error::Dependency("合作插件进程启动失败".into()))?;
+    let mut child = ownership::Owner::new(child, lease.clone());
     let mut guard = CleanupGuard {
         unresolved,
         confirmed: false,
+        lease,
     };
     let mut stdin = child.stdin.take().ok_or(Error::CleanupFailed)?;
     let mut stdout = BufReader::new(child.stdout.take().ok_or(Error::CleanupFailed)?);

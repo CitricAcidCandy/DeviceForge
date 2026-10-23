@@ -1,5 +1,5 @@
 //! 异步流式获取；每个准备事务共享一次绝对期限，逐块校验精确大小与摘要。
-use super::{FilePluginInstallations, Stage, archive, content, paths};
+use super::{FilePluginInstallations, Stage, StageLease, archive, content, paths};
 use apk_domain::{Error, Result, artifacts::ArtifactStream, plugin_installations::*};
 use futures_util::StreamExt;
 use sha2::{Digest, Sha256};
@@ -63,6 +63,7 @@ async fn save(
     limit: u64,
     expected: Option<(u64, &str)>,
     deadline: tokio::time::Instant,
+    progress: Option<(&dyn apk_domain::ProgressReporter, &str)>,
 ) -> Result<()> {
     let mut file = tokio::fs::OpenOptions::new()
         .write(true)
@@ -86,6 +87,19 @@ async fn save(
             .await
             .map_err(|_| Error::Timeout)?
             .map_err(|_| Error::Storage("发布下载写入失败".into()))?;
+        if let Some((reporter, id)) = progress {
+            tokio::time::timeout_at(
+                deadline,
+                reporter.report(apk_domain::JobProgress {
+                    stage: apk_domain::JobStage::Downloading,
+                    resource_id: Some(id.into()),
+                    completed_bytes: total,
+                    total_bytes: expected.map(|(size, _)| size),
+                }),
+            )
+            .await
+            .map_err(|_| Error::Timeout)??;
+        }
     }
     file.sync_all()
         .await
@@ -115,10 +129,10 @@ pub(super) async fn input(
                 .map_err(|_| Error::Storage("发布暂存目录创建失败".into()))
         })
         .await?;
-    let stage = Stage {
+    let stage = Stage(std::sync::Arc::new(StageLease {
         directory: Some(directory),
         permit: Some(permit),
-    };
+    }));
     let deadline = tokio::time::Instant::now() + Duration::from_secs(600);
     let manifest_path = stage.path().join("release.json");
     let (origin, identity) = match source {
@@ -131,12 +145,14 @@ pub(super) async fn input(
             apk_domain::plugins::plugin_id(&release_id)?;
             validate_release_digest(&manifest_sha256)?;
             let url = url(&source_url)?;
+            store.validate_market_url(&url)?;
             save(
                 stream(store, url.clone(), RELEASE_MANIFEST_LIMIT as u64, deadline).await?,
                 &manifest_path,
                 RELEASE_MANIFEST_LIMIT as u64,
                 None,
                 deadline,
+                None,
             )
             .await?;
             (
@@ -156,12 +172,13 @@ pub(super) async fn input(
                 RELEASE_OFFLINE_LIMIT,
                 Some((artifact.size, &artifact.sha256)),
                 deadline,
+                None,
             )
             .await?;
             let unpacked = stage.path().join("offline");
             let unpacked_copy = unpacked.clone();
-            store
-                .work(move |_| {
+            stage
+                .work(store, move |_| {
                     std::fs::create_dir(&unpacked_copy)
                         .map_err(|_| Error::Storage("离线发布展开目录创建失败".into()))?;
                     archive::extract(&upload, &unpacked_copy, ResourceFormat::Zip, false)
@@ -174,8 +191,8 @@ pub(super) async fn input(
         Origin::Market(_) => manifest_path,
         Origin::Offline(root) => root.join("release.json"),
     };
-    let (manifest, revision) = store
-        .work(move |_| {
+    let (manifest, revision) = stage
+        .work(store, move |_| {
             let stamp = content::hash(&root_manifest, RELEASE_MANIFEST_LIMIT as u64)?;
             let manifest: ReleaseManifest = paths::read(&root_manifest, RELEASE_MANIFEST_LIMIT)?;
             manifest.validate()?;
@@ -205,8 +222,19 @@ pub(super) async fn resource(
     path: &str,
     size: u64,
     sha256: &str,
+    progress: std::sync::Arc<dyn apk_domain::ProgressReporter>,
 ) -> Result<PathBuf> {
-    let cached = cached(store, sha256, size).await?;
+    // 准备并发最多两项；共用异步锁并在取得锁后复查缓存，不建立无界摘要表。
+    let download = tokio::time::timeout_at(
+        input.deadline,
+        store.resource_downloads.clone().lock_owned(),
+    )
+    .await
+    .map_err(|_| Error::Timeout)?;
+    if tokio::time::Instant::now() >= input.deadline {
+        return Err(Error::Timeout);
+    }
+    let cached = cached(store, &input.stage, sha256, size).await?;
     if let Some(path) = cached {
         return Ok(path);
     }
@@ -219,12 +247,14 @@ pub(super) async fn resource(
             if target.origin() != base.origin() {
                 return Err(Error::Invalid("发布资源必须与清单同源".into()));
             }
+            store.validate_market_url(&target)?;
             save(
                 stream(store, target, size, input.deadline).await?,
                 &destination,
                 size,
                 Some((size, sha256)),
                 input.deadline,
+                Some((progress.as_ref(), sha256)),
             )
             .await?;
         }
@@ -233,8 +263,9 @@ pub(super) async fn resource(
             let relative = path.to_owned();
             let target = destination.clone();
             let expected = sha256.to_owned();
-            store
-                .work(move |_| {
+            input
+                .stage
+                .work(store, move |_| {
                     let source = paths::existing(&offline_root, &relative)?;
                     let stamp = content::hash(&source, size)?;
                     if stamp.size != size || stamp.sha256 != expected {
@@ -248,8 +279,11 @@ pub(super) async fn resource(
         }
     }
     let digest = sha256.to_owned();
-    store
-        .work(move |store| {
+    input
+        .stage
+        .work(store, move |store| {
+            // 发布工作可能在外层等待被取消后继续，锁随实际文件工作结束才释放。
+            let _download = download;
             let cached = store.root.join("installations/resources").join(digest);
             if cached.exists() {
                 let actual = content::hash(&cached, size)?;
@@ -270,12 +304,13 @@ pub(super) async fn resource(
 
 pub(super) async fn cached(
     store: &FilePluginInstallations,
+    stage: &Stage,
     sha256: &str,
     size: u64,
 ) -> Result<Option<PathBuf>> {
     let digest = sha256.to_owned();
-    store
-        .work(move |store| {
+    stage
+        .work(store, move |store| {
             let cached = store.root.join("installations/resources").join(&digest);
             if !cached.exists() {
                 return Ok(None);

@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
@@ -8,9 +9,47 @@ import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { readPluginModule } from '../../frontend/src/plugins/contracts.ts';
 import { createPluginScope } from '../../frontend/src/plugins/scope.ts';
+import { archiveMembers, writeTgz, writeZip } from '../plugin-releases/archive.mjs';
+import { validateRelease } from '../plugin-releases/contract.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const frontendRequire = createRequire(new URL('../../frontend/package.json', import.meta.url));
+const topics = ['overview', 'manifest', 'sdk', 'lifecycle', 'examples', 'packaging', 'validation'];
+
+test('七主题十四篇嵌入文档保持固定来源、读取预算与第二版知识覆盖', async () => {
+  const catalog = await readFile(
+    join(root, 'backend/crates/server/src/plugin_guide/catalog.rs'),
+    'utf8',
+  );
+  const documents = [...catalog.matchAll(/document!\(\s*(Frontend|Backend),\s*(\w+),\s*"([^"]+)"\s*\)/g)];
+  assert.equal(documents.length, 14);
+  const sources = new Set(documents.map(([, , , source]) => source));
+  assert.equal(sources.size, 14, '嵌入来源不得重复');
+  const requiredTerms = {
+    overview: ['release.json', 'DEVICEFORGE_USER_DIR', 'npx'],
+    manifest: ['format_version', 'host_api_version', 'bindings', 'any_of'],
+    sdk: ['DEVICEFORGE_PLUGIN_RESOURCES', 'managed_resources', '原值'],
+    lifecycle: ['expected_revision', 'configuration_required', '旧'],
+    examples: ['release.json', 'blobs/', '结构模板'],
+    packaging: ['/api/v1/capabilities', '/api/v1/catalog', 'catalog_last', 'immutable_versions', '离线'],
+    validation: ['SHA-256', '配置', 'expected_revision'],
+  };
+  for (const target of ['frontend', 'backend']) {
+    for (const topic of topics) {
+      const source = `${target}/docs/guides/plugin-development/${topic}.md`;
+      const entries = documents.filter(([, side, name, path]) =>
+        side.toLowerCase() === target && name.toLowerCase() === topic && path === source,
+      );
+      assert.equal(entries.length, 1, `${target}/${topic} 必须恰有一个固定来源`);
+      const bytes = await readFile(join(root, source));
+      const content = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+      assert.ok(bytes.length >= 100 && bytes.length <= 128 * 1024, `${source} 超出文档预算`);
+      for (const term of requiredTerms[topic]) {
+        assert.ok(content.includes(term), `${source} 缺少 ${term}`);
+      }
+    }
+  }
+});
 
 function block(markdown, name) {
   const lines = markdown.split(/\r?\n/);
@@ -260,4 +299,81 @@ test('后端指南完整文件可独立执行真实协议，输入校验与清�
       assert.equal(unknown.result, undefined);
     },
   );
+});
+
+test('成套结构模板与两端组件身份一致，替换真实归档后形成完整离线闭包', async () => {
+  const serverNames = ['package.json', 'plugin.json', 'entry.mjs'];
+  const browserNames = ['package.json', 'plugin.json', 'src/index.js'];
+  await fixture('backend', serverNames, async (server) => {
+    await fixture('frontend', browserNames, async (browser) => {
+      const examples = async (target) => {
+        const markdown = await readFile(
+          join(root, target, 'docs/guides/plugin-development/examples.md'),
+          'utf8',
+        );
+        return [...markdown.matchAll(/```json\r?\n([\s\S]*?)\r?\n```/g)].map(
+          ([, content]) => JSON.parse(content),
+        );
+      };
+      const releaseTemplates = (await examples('backend')).filter(
+        (value) => value.format_version === 1 && Array.isArray(value.components),
+      );
+      const componentTemplates = (await examples('frontend')).filter(Array.isArray);
+      assert.equal(releaseTemplates.length, 1);
+      assert.equal(componentTemplates.length, 1);
+      const release = releaseTemplates[0];
+      assert.equal(release.host_api_version, 2);
+      assert.equal(release.components.length, 2);
+      assert.deepEqual(release.components, componentTemplates[0], '两端成套模板必须一致');
+      assert.throws(() => validateRelease(release), '未替换的结构模板不得成为可安装成品');
+
+      const members = [];
+      for (const component of release.components) {
+        const { directory, packageJson, manifest } = component.kind === 'server' ? server : browser;
+        const names = component.kind === 'server' ? serverNames : browserNames;
+        assert.equal(component.id, manifest.id);
+        assert.equal(component.version, manifest.version);
+        assert.equal(component.kind, packageJson.deviceforge.kind);
+        const files = new Map();
+        for (const name of names) {
+          files.set(`package/${name}`, await readFile(join(directory, name)));
+        }
+        const archive = join(directory, `${component.id}.tgz`);
+        await writeTgz(archive, files);
+        assert.deepEqual(await archiveMembers(archive, 'tgz'), files);
+        const bytes = await readFile(archive);
+        const sha256 = createHash('sha256').update(bytes).digest('hex');
+        assert.equal(component.variants.length, 1);
+        const variant = component.variants[0];
+        assert.equal(variant.platform, 'any');
+        assert.equal(variant.format, 'tgz');
+        Object.assign(variant, { path: `blobs/${sha256}`, sha256, size: bytes.length });
+        members.push({ name: variant.path, bytes });
+      }
+      validateRelease(release);
+      const manifestBytes = Buffer.from(JSON.stringify(release));
+      members.unshift({ name: 'release.json', bytes: manifestBytes });
+      const offline = join(server.directory, 'guide-suite.zip');
+      await writeZip(offline, members);
+      const closed = await archiveMembers(offline, 'zip');
+      assert.equal(closed.size, 3, '离线根只含发布清单和两个实际组件归档');
+      assert.deepEqual(closed.get('release.json'), manifestBytes);
+      for (const component of release.components) {
+        const variant = component.variants[0];
+        const bytes = closed.get(variant.path);
+        assert.ok(bytes, '离线闭包不得缺少清单引用的资源');
+        assert.equal(bytes.length, variant.size);
+        assert.equal(createHash('sha256').update(bytes).digest('hex'), variant.sha256);
+      }
+
+      // 此处只验证在线清单转换与修订，不发起资源发布或宿主安装。
+      const online = structuredClone(release);
+      for (const component of online.components) {
+        for (const variant of component.variants) variant.path = variant.sha256;
+      }
+      validateRelease(online);
+      const revision = (bytes) => createHash('sha256').update(bytes).digest('hex');
+      assert.notEqual(revision(Buffer.from(JSON.stringify(online))), revision(manifestBytes));
+    });
+  });
 });

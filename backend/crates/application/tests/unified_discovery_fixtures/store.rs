@@ -111,6 +111,7 @@ impl Store {
             job_id: id.into(),
             status,
             timestamp: apk_domain::now(),
+            progress: None,
         });
     }
 }

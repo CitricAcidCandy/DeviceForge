@@ -1,0 +1,9 @@
+{
+  "name": "@deviceforge/plugin-release-scripts",
+  "private": true,
+  "type": "module",
+  "description": "设备工坊开发期插件发布脚本依赖",
+  "dependencies": {
+    "semver": "7.8.5"
+  }
+}

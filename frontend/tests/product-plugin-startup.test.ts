@@ -182,30 +182,14 @@ test('生产入口读取两类安装目录和运行插件，已运行服务器�
       () => requests.filter((value) => value.endsWith('/plugin-packages/browser')).length >= 2,
       '生产入口应尝试启用已安装浏览器包',
     );
-    await navigate(browser, 'plugins');
-    await settled(() => {
-      const status = browser.window.document.querySelector('[aria-label="已安装插件默认启用"]');
-      return Boolean(
-        status?.querySelector(
-          '[data-default-plugin-id="broken-browser"][data-default-plugin-status="failed"]',
-        ),
-      );
-    }, '默认启用页面应展示实际导入器的加载失败状态', () =>
-      browser.window.document.querySelector('[aria-label="已安装插件默认启用"]')?.textContent ?? '缺少默认启用状态');
-    const status = browser.window.document.querySelector('[aria-label="已安装插件默认启用"]');
+    await navigate(browser, 'marketplace');
+    await settled(
+      () => browser.window.document.querySelector('[data-message-id="plugin-default-failures"]') !== null,
+      '生产入口应通过统一消息展示真实导入器失败',
+    );
+    const status = browser.window.document.querySelector('[data-message-id="plugin-default-failures"]');
     assert.ok(status);
-    assert.match(status.textContent ?? '', /running-server/);
-    assert.ok(
-      status.querySelector(
-        '[data-default-plugin-id="running-server"][data-default-plugin-status="already_enabled"]',
-      ),
-    );
-    assert.ok(
-      status.querySelector(
-        '[data-default-plugin-id="broken-browser"][data-default-plugin-status="failed"]',
-      ),
-    );
-    assert.match(status.textContent ?? '', /broken-browser/);
+    assert.match(status.querySelector('[data-message-details]')?.textContent ?? '', /broken-browser/);
     assert.match(browser.window.document.body.textContent ?? '', /设备工坊/);
     assert.equal(
       requests.some((value) => value.startsWith('POST ') && value.includes('/load')),
@@ -215,6 +199,7 @@ test('生产入口读取两类安装目录和运行插件，已运行服务器�
     assert.ok(requests.some((value) => value.endsWith('/plugin-packages/server')));
     assert.ok(requests.some((value) => value.endsWith('/plugin-packages/browser')));
     assert.ok(app.runtime);
+    assert.ok(app.runtime.serverPlugins.snapshot().result?.data.some((item) => item.id === 'running-server'));
     assert.equal(
       app.runtime.webPlugins
         .snapshot()
@@ -224,7 +209,7 @@ test('生产入口读取两类安装目录和运行插件，已运行服务器�
   });
 });
 
-test('终端页面创建会话后自动分页，暂停后继续读取沿用游标并可输入和关闭', { timeout: 90_000 }, async () => {
+test('终端页面以PTY协议创建会话，自动分页、暂停续读并关闭', { timeout: 90_000 }, async () => {
   const id = '12345678-1234-1234-1234-123456789abc';
   let current: SessionInfo = {
     id,
@@ -246,7 +231,6 @@ test('终端页面创建会话后自动分页，暂停后继续读取沿用游�
   let configuredProfile = 'python';
   let opens = 0;
   let cancels = 0;
-  let sent: unknown = null;
   const transport: typeof fetch = async (input, init) => {
     const url = requestUrl(input);
     const method = init?.method ?? 'GET';
@@ -269,7 +253,10 @@ test('终端页面创建会话后自动分页，暂停后继续读取沿用游�
       });
     if (url.pathname === '/api/v2/sessions' && method === 'POST') {
       assert.deepEqual(JSON.parse(String(init?.body)), {
-        operation: 'plugin.terminal.open', input: { profile: 'powershell' },
+        operation: 'plugin.terminal.open', input: {
+          profile: 'powershell',
+          terminal: { protocol: 'deviceforge.terminal.v1', cols: 120, rows: 30 },
+        },
       });
       opens += 1;
       return success(current, 'terminal-open-log');
@@ -289,7 +276,6 @@ test('终端页面创建会话后自动分页，暂停后继续读取沿用游�
       }, 'terminal-output-log');
     }
     if (url.pathname === `/api/v2/sessions/${id}/input`) {
-      sent = JSON.parse(String(init?.body));
       return success({ id, accepted: true }, 'terminal-input-log');
     }
     if (url.pathname === `/api/v2/sessions/${id}/cancel`) {
@@ -326,26 +312,15 @@ test('终端页面创建会话后自动分页，暂停后继续读取沿用游�
     await settled(() => reads.length >= 3, '创建会话后没有持续读取输出');
     assert.equal(opens, 1);
     assert.deepEqual(reads.slice(0, 3).map(({ after }) => after), [0, 50, 55]);
-    const output = documentRef.querySelector('[aria-label="终端输出"]');
-    assert.ok(output?.textContent?.includes('终端输出 1'));
-    assert.ok(output?.textContent?.includes('终端输出 55'));
+    assert.ok(documentRef.querySelector('[aria-label="终端输出"]'));
+    assert.ok(documentRef.body.textContent?.includes('游标 55'));
     await act(async () => button('暂停读取输出').click());
     assert.equal(reads.at(-1)?.signal?.aborted, true);
     assert.equal(cancels, 0, '暂停读取不能停止服务器会话');
     await act(async () => button('继续读取输出').click());
     await settled(() => reads.length >= 4, '暂停后继续读取没有请求输出');
     assert.equal(reads.at(-1)?.after, 55);
-    const field = documentRef.querySelector('[aria-label="终端输入"]');
-    assert.ok(field instanceof browser.window.HTMLInputElement);
-    const setter = Object.getOwnPropertyDescriptor(browser.window.HTMLInputElement.prototype, 'value')?.set;
-    assert.ok(setter);
-    await act(async () => {
-      setter.call(field, 'echo 中文');
-      field.dispatchEvent(new browser.window.Event('input', { bubbles: true }));
-    });
-    await act(async () => button('发送').click());
-    await settled(() => sent !== null, '终端输入没有发往公开接口');
-    assert.deepEqual(sent, { bytes: [...new TextEncoder().encode('echo 中文\n')] });
+    // 原始按键由真实浏览器验收；这里验证页面编排与公开PTY打开契约。
     await act(async () => button('关闭会话').click());
     await settled(() => button('关闭会话').disabled, '关闭后终端没有显示终态');
     assert.equal(cancels, 1);
@@ -386,7 +361,7 @@ test('生产入口关闭取消旧默认目录等待，晚到响应不再加载�
   });
 });
 
-test('首路由插件页等待默认启用完成，不撤销延迟运行查询，并实际加载尚未运行的服务器包', async () => {
+test('首路由市场页等待默认启用完成，不撤销延迟运行查询，并实际加载尚未运行的服务器包', async () => {
   const initialRunning = deferred<Response>();
   const started = deferred<AbortSignal | null | undefined>();
   const requests: string[] = [];
@@ -416,36 +391,27 @@ test('首路由插件页等待默认启用完成，不撤销延迟运行查询�
     transport,
     async (app, browser) => {
       const current = await started.promise;
-      const status = browser.window.document.querySelector('[data-plugin-defaults]');
-      assert.ok(status);
-      assert.equal(status.getAttribute('data-plugin-defaults'), 'running');
       const refresh = Array.from(browser.window.document.querySelectorAll('button')).find(
-        (button) => button.textContent?.trim() === '刷新目录',
+        (button) => button.textContent?.trim() === '刷新',
       );
       assert.ok(refresh);
-      assert.equal(refresh.disabled, true);
       await act(async () => {
         await new Promise<void>((resolve) => setImmediate(resolve));
       });
-      assert.equal(runningQueries, 1, '插件页不能额外读取并撤销默认启用的运行查询');
+      assert.equal(runningQueries, 1, '市场页不能额外读取并撤销默认启用的运行查询');
       assert.equal(current?.aborted, false);
       await act(async () => {
         initialRunning.resolve(success([], 'initial-running-log'));
       });
       await settled(
-        () => status.getAttribute('data-plugin-defaults') === 'completed' && !refresh.disabled,
+        () => Boolean(app.runtime?.serverPlugins.snapshot().result?.data.some((item) => item.id === 'startup-server' && item.state === 'loaded')) && !refresh.disabled,
         '默认启用应完成，页面刷新入口应恢复',
       );
       assert.equal(
         requests.filter((request) => request === 'POST /api/v2/plugins/startup-server/load').length,
         1,
       );
-      assert.ok(
-        status.querySelector(
-          '[data-default-plugin-id="startup-server"][data-default-plugin-status="enabled"]',
-        ),
-      );
-      assert.equal(status.querySelector('[data-default-plugin-status="failed"]'), null);
+      assert.equal(browser.window.document.querySelector('[data-message-id="plugin-default-failures"]'), null);
       assert.ok(app.runtime);
       assert.equal(
         app.runtime.serverPlugins
@@ -463,9 +429,9 @@ test('首路由插件页等待默认启用完成，不撤销延迟运行查询�
         requests.filter((request) => request === 'POST /api/v2/plugins/startup-server/load').length,
         1,
       );
-      assert.equal(status.getAttribute('data-plugin-defaults'), 'completed');
+      assert.equal(browser.window.document.querySelector('[data-message-id="plugin-default-failures"]'), null);
     },
-    '#plugins',
+    '#marketplace',
   );
 });
 

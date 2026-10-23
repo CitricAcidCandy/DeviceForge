@@ -20,7 +20,6 @@ const failures: string[] = [];
 
 // T1：现存 CSS 文件快照。删一个就删一行；新增一律报错。
 const CSS_ALLOWLIST = new Set([
-  'app/product/device-context.css',
   'app/product/layout.css',
   'app/product/workspace-tasks.css',
   'app/styles.css',
@@ -37,7 +36,6 @@ const CSS_ALLOWLIST = new Set([
   'pages/analysis/workspace.css',
   'pages/automation/workspace.css',
   'pages/devices/apps/workspace.css',
-  'pages/devices/components/DeviceDirectory/workspace.css',
   'pages/devices/screen/workspace.css',
   'pages/devices/workspace.css',
   'pages/files/workspace.css',

@@ -21,6 +21,8 @@ const input = (pointer, title, description, required = true, sensitive = false) 
 });
 export const officialDependencies = {
   'ai-assistant': {
+    description:
+      '提供 CLI 单次请求、持续会话、线程查询与关闭及实时输出。完整发布包自动准备并绑定 Codex CLI；用户配置授权项目、认证与运行环境等业务输入。',
     tools: [tool('codex-cli', '/executable', 'codex')],
     requirements: [
       input(
@@ -38,6 +40,8 @@ export const officialDependencies = {
     ],
   },
   'ai-sdk': {
+    description:
+      '提供 SDK 单次请求、线程恢复、实时会话和助手编排。完整发布包随组件提供 worker，并自动准备与绑定 Node、Codex SDK 和 CLI；用户配置授权项目、认证目录和线程存储等业务输入。',
     tools: [
       tool('node', '/node_executable', 'node', true, '24.14.0'),
       tool('codex-sdk', '/sdk_entry', 'sdk', true, '0.162.1'),
@@ -54,6 +58,8 @@ export const officialDependencies = {
     ],
   },
   'android-device': {
+    description:
+      '提供设备发现与连接、应用安装和启停、截图、输入、性能采样及 Root 分析。完整发布包自动准备并绑定 ADB；Java 和 bundletool 为可选工具，缺失时相应扩展能力不可用。用户负责目标设备、权限及设备端业务条件。',
     tools: [
       tool('adb', '/tools/adb', 'adb', true, '36.0.0'),
       tool('java', '/tools/java', 'java', false),
@@ -81,6 +87,8 @@ export const officialDependencies = {
     ],
   },
   'android-packages': {
+    description:
+      '提供 Android 包内置解析，以及清单分析、签名报告、APK 提取、APKS 构建、资源解码和 SDK 扫描。Java、apkanalyzer、apksigner、bundletool 和 apktool 为可选工具，已提供时自动绑定，缺失时仅相应扩展能力不可用；用户提供上传产物与按需签名材料。',
     tools: [
       tool('java', '/tools/java', 'java', false),
       tool('apkanalyzer', '/tools/apkanalyzer/executable', 'apkanalyzer', false),
@@ -106,6 +114,8 @@ export const officialDependencies = {
   },
   'artifact-copy': { tools: [], requirements: [] },
   automation: {
+    description:
+      '提供动作序列、设备重复点击、Windows 鼠标操作及输入轨迹录制和回放。完整发布包自动准备并绑定 ADB；input-trace 为可选工具，缺失时对应轨迹能力不可用。用户配置目标设备、动作范围和桌面自动化授权。',
     tools: [
       tool('adb', '/adb', 'adb', true, '36.0.0'),
       tool('input-trace', '/input_trace', 'input-trace', false, '1.0.0.0'),
@@ -118,6 +128,8 @@ export const officialDependencies = {
   'dex-analysis': { tools: [], requirements: [] },
   echo: { tools: [], requirements: [] },
   frida: {
+    description:
+      '提供 Frida 服务部署与状态检查、进程枚举、脚本执行和权限分析。完整发布包自动准备并绑定 ADB、Frida 和 Frida 进程工具；用户准备匹配的设备端 frida-server 并确认设备权限。',
     tools: [
       tool('adb', '/tools/adb', 'adb', true, '36.0.0'),
       tool('frida', '/tools/frida', 'frida'),
@@ -133,6 +145,8 @@ export const officialDependencies = {
     ],
   },
   'harmony-device': {
+    description:
+      '提供鸿蒙设备发现与连接、应用安装和管理、截图及输入。完整发布包自动准备并绑定 HDC；用户选择目标设备并配置传输限额等业务选项，实际能力取决于设备与授权状态。',
     tools: [tool('hdc', '/tools/hdc', 'hdc', true, '5.0.0.71')],
     requirements: [],
   },
@@ -147,6 +161,8 @@ export const officialDependencies = {
     ],
   },
   mirroring: {
+    description:
+      '提供实时画面、设备控制及录制。完整发布包自动准备并绑定 ADB、scrcpy 和匹配的 scrcpy-server 3.3.4；用户只需选择目标设备并确认连接与控制权限，无需单独填写必需工具路径。',
     tools: [
       tool('adb', '/adb', 'adb', true, '36.0.0'),
       tool('scrcpy', '/scrcpy', 'scrcpy', true, '3.3.4'),
@@ -169,7 +185,7 @@ export const officialDependencies = {
         '/storage_root',
         '设置存储目录',
         '按部署需要选择实际目录；升级不会迁移旧业务数据。',
-        false,
+        true,
       ),
     ],
   },
@@ -187,16 +203,14 @@ export const officialDependencies = {
   'tool-supply': {
     tools: [],
     requirements: [
-      input(
-        '/local_manifest',
-        '工具供应清单',
-        '选择实际存在的供应清单或在配置中提供受信任的在线来源。',
-      ),
-      input(
-        '/install_root',
-        '工具安装目录',
-        '选择实际工具安装根目录；建议使用当前用户的 .deviceforge/tools。',
-      ),
+      {
+        ...input(
+          '/local_manifest',
+          '工具供应清单',
+          '选择实际存在的本地供应清单，或在远端清单地址中提供受信任的在线来源。',
+        ),
+        any_of: ['/manifest_url'],
+      },
     ],
   },
 };
@@ -218,7 +232,7 @@ export async function officialSources(root, { write = false } = {}) {
         id: metadata.id,
         version: metadata.version,
         name: metadata.name,
-        description: metadata.description || metadata.summary,
+        description: dependency.description ?? (metadata.description || metadata.summary),
         components: [{ id: metadata.id, kind: 'server', version: metadata.version, variants: [] }],
         tools: dependency.tools.map((item) => ({
           ...item,

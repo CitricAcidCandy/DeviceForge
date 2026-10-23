@@ -16,6 +16,8 @@ export type SessionAction =
   | 'input'
   | 'eof'
   | 'cancel'
+  | 'release_record'
+  | 'remove_record'
   | 'remove';
 export type SessionInfoView = Readonly<SessionInfo>;
 export type SessionChunkView = Readonly<
@@ -40,5 +42,10 @@ export interface InteractiveSessionSnapshot {
 }
 export interface InteractiveSessionOptions {
   readonly pollIntervalMs?: number;
+}
+/** 终端业务协议中的字符网格尺寸，不是浏览器像素。 */
+export interface TerminalSize {
+  readonly cols: number;
+  readonly rows: number;
 }
 export type SessionReadOptions = Pick<SessionOutputQuery, 'limit'>;

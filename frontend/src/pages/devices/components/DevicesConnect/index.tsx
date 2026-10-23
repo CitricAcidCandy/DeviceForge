@@ -102,8 +102,8 @@ export function DevicesConnect({
           services.messages.warning(
             id === 'connect' ? '连接已完成，设备目录未更新' : '断开已完成，设备目录未更新',
             {
-              description: '设备发现未完成，请重新发现后查看最新状态。',
-              logId: discoveryLogId ?? response.logId,
+              description: `${target.id}：${message}；请重新发现后查看最新状态。`,
+              logId: discoveryLogId,
               details: [
                 { label: '设备发现', message, logId: discoveryLogId },
                 ...(response.logId
@@ -118,7 +118,7 @@ export function DevicesConnect({
               ],
             },
           );
-          return response;
+          return { data: response, logId: discoveryLogId };
         }
         if (!signal.aborted)
           services.messages.success(id === 'connect' ? '设备连接已完成' : '设备断开已完成', {

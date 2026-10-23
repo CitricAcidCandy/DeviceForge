@@ -5,6 +5,8 @@ import {
   createMarketplacePublishEntry,
   initialMarketplaceUploadDraft,
 } from '../src/pages/marketplace/upload.ts';
+import { releaseUploadDraft, releaseUploadMetadata } from '../src/pages/marketplace/components/ReleaseUploadDialog/metadata.ts';
+import type { ReleasePublicationPlan } from '../src/pages/marketplace/release-publication/index.ts';
 
 test('市场上传先提交原始资源，再发布带摘要的 market.json', async () => {
   const calls: { url: string; init: RequestInit }[] = [];
@@ -64,4 +66,36 @@ test('市场上传元数据在发送前校验标识和专属描述', () => {
       ),
     /内部可见性/,
   );
+});
+
+test('完整发布资料保留清单身份和发布标记，只接受独立市场展示字段', () => {
+  const plan: ReleasePublicationPlan = {
+    file: new File(['zip'], 'feature.zip'),
+    manifest: {
+      format_version: 1, host_api_version: 2, id: 'complete-feature', version: '1.0.0',
+      name: '完整设备插件', description: '清单中的原始功能描述',
+      components: [{ id: 'browser-panel', kind: 'browser', version: '1.0.0', variants: [
+        { platform: 'any', path: 'components/panel.zip', format: 'zip', sha256: 'a'.repeat(64), size: 3 },
+      ] }], tools: [], requirements: [],
+    },
+    resources: [], manifestSha256: 'c'.repeat(64), manifestBlob: new Blob(['{}']), totalResourceBytes: 0,
+  };
+  const draft = releaseUploadDraft(plan);
+  const metadata = releaseUploadMetadata(plan, {
+    ...draft, id: 'other-id', name: '篡改名称', version: '9.9.9', description: '篡改描述',
+    kind: 'resource', visibility: 'internal', details: '{"plugin_kind":"server"}',
+    summary: '独立市场简介', author: '作者', license: 'Apache-2.0',
+  });
+  assert.equal(metadata.id, plan.manifest.id);
+  assert.equal(metadata.name, plan.manifest.name);
+  assert.equal(metadata.version, plan.manifest.version);
+  assert.equal(metadata.description, plan.manifest.description);
+  assert.equal(metadata.resource_id, plan.manifestSha256);
+  assert.equal(metadata.kind, 'plugin');
+  assert.equal(metadata.visibility, 'market');
+  assert.deepEqual(metadata.details, { release_format_version: 1, host_api_version: 2 });
+  assert.equal(metadata.summary, '独立市场简介');
+  assert.equal(metadata.author, '作者');
+  assert.equal(metadata.license, 'Apache-2.0');
+  assert.throws(() => releaseUploadMetadata(plan, { ...draft, summary: '' }), /简介/);
 });

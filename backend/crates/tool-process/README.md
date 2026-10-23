@@ -5,7 +5,7 @@
 ## 调用与限额
 
 - `ToolCommand::new(executable, args)` 按独立 argv 执行，不拼接 shell 命令。输入借用调用方准备的字节，发送完即关闭 stdin。
-- 默认继承环境；`Environment::Restricted` 清空环境后仅继承 `PATH/SystemRoot/TEMP/TMP/HOME/USERPROFILE`。`env` 提供显式覆盖，工作目录通过 `directory` 指定。受限环境只减少意外继承，不是系统沙箱。
+- 默认继承环境；`Environment::Restricted` 清空环境后只应用公共 `restricted_environment()` 快照，固定白名单为 `PATH/SystemRoot/TEMP/TMP/HOME/USERPROFILE/APPDATA/LOCALAPPDATA/COMSPEC/PATHEXT/PSModulePath/ProgramFiles/ProgramFiles(x86)/ProgramW6432`。普通工具、PTY和宿主插件启动共用此规则，保留Windows npm shim的扩展名查找、命令解释器、应用数据和PowerShell模块定位；缺失变量不伪造默认值。`env` 提供本次显式覆盖，工作目录通过 `directory` 指定。不会继承宿主令牌，受限环境只减少意外继承，不是系统沙箱。
 - `ExecutionOptions::new(deadline)` 接收 Tokio 绝对截止时间，输入发送、输出读取、退出等待及文件刷新共享同一截止点。已经取消或过期的调用不启动进程。
 - `capture` 并发处理两路输出和输入，每路输出默认 1 MiB，分别计数。返回原字节 `Output`，不裁剪或拼接文本；非零退出返回有界 stderr 和退出码，不直接把诊断写入错误展示。
 - `capture_to_file` 用 64 KiB 缓冲写调用方文件；标准输出由 `file_limit` 限制，stderr 仍独立遵守选项限额。已有文件的位置、覆盖方式和部分写入由调用方管理，失败不删除或截断文件。
@@ -31,6 +31,7 @@
 | 文件 | 职责 |
 | --- | --- |
 | `options.rs` | 公开命令、环境策略及截止时间/限额选项 |
+| `environment.rs` | 受限环境白名单与快照，供宿主插件和工具启动链统一复用 |
 | `error.rs` | 与宿主无关的执行错误及数据流标识 |
 | `command.rs` | argv、环境、目录、管道和进程属性配置 |
 | `streams.rs` | 输入 EOF、有界字节读取与流式文件写入 |

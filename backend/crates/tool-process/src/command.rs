@@ -11,12 +11,7 @@ pub(crate) fn prepare(spec: &ToolCommand<'_>) -> Command {
         .stderr(Stdio::piped())
         .kill_on_drop(true);
     if spec.environment == Environment::Restricted {
-        command.env_clear();
-        for key in ["PATH", "SystemRoot", "TEMP", "TMP", "HOME", "USERPROFILE"] {
-            if let Some(value) = std::env::var_os(key) {
-                command.env(key, value);
-            }
-        }
+        command.env_clear().envs(crate::restricted_environment());
     }
     if let Some(directory) = spec.directory {
         command.current_dir(directory);

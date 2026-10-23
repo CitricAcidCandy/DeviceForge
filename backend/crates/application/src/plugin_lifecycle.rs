@@ -163,17 +163,17 @@ impl PluginService {
     async fn change(self: &Arc<Self>, id: String, loading: bool) -> Result<PluginInfo> {
         plugin_id(&id)?;
         self.serialized(move |service| async move {
-            if let Some(store) = service.installations.get() {
-                if store.list().await?.iter().any(|release| {
+            if let Some(store) = service.installations.get()
+                && store.list().await?.iter().any(|release| {
                     release
                         .components
                         .iter()
                         .any(|component| component.id == id)
-                }) {
-                    return Err(Error::Conflict(
-                        "托管组件请通过统一发布启停，避免组件状态与发布状态分离".into(),
-                    ));
-                }
+                })
+            {
+                return Err(Error::Conflict(
+                    "托管组件请通过统一发布启停，避免组件状态与发布状态分离".into(),
+                ));
             }
             tracing::info!(plugin_id = %id, loading, "插件生命周期变更开始");
             let result = async {

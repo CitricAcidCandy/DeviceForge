@@ -5,6 +5,7 @@ edition = "2024"
 license = "MIT"
 
 [dependencies]
+apk-domain = { path = "../backend/crates/domain" }
 axum = { version = "0.8", features = ["macros"] }
 bytes = "1"
 futures-util = "0.3"

@@ -1,6 +1,8 @@
 # 公开异步插件运行库
 
-deviceforge-plugin-runtime 只依赖公开 SDK、Tokio 与 JSON，不引用宿主领域、用例、存储或 HTTP。适用于每任务一个进程、需要在取消前执行自有资源清理的插件；不实现设备提供者、常驻 RPC 或业务规则。
+deviceforge-plugin-runtime 的核心依赖为公开 SDK、Tokio 与 JSON，不引用宿主领域、用例、存储或 HTTP。适用于每任务一个进程、需要在取消前执行自有资源清理的插件；不实现设备提供者、常驻 RPC 或业务规则。
+
+Windows 标准流入口另依赖 windows-sys 的句柄与控制台接口。`serve_once`、`serve_once_with_context` 和 `serve_session` 在创建标准流传输、调用处理器前撤销三路标准句柄的可继承位，防止业务工具派生的常驻进程持有宿主协议管道并阻止 EOF。此准备不关闭或替换标准句柄，不修改帧、期限或清理声明；有效句柄准备失败则明确返回错误。可注入 I/O 入口不修改进程全局句柄，非 Windows 平台不执行该系统调用。`stdio_inheritance` 以仍存活的自有后代验证响应、管道结束及插件零退出，不代替外部资源清理验收。
 
 协议 5 新增独立 `session` 模块与 `serve_session` / `serve_session_io`，一个插件进程承载一个交互会话，旧协议 3、4 的帧和入口不变。处理器接收 `SessionOpen`、`InvocationContext`、`SessionInput` 与可克隆 `SessionOutput`，返回原 `Execution`。有界二进制输入/输出、EOF、取消、连续序号、固定 C0 和真实清理等待见[会话模块说明](src/session/README.md)；此能力不等于多会话 RPC 或完整终端迁移。
 

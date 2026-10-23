@@ -38,10 +38,25 @@ async fn default_inherit_preserves_parent_environment_names() {
 async fn restricted_environment_has_only_fixed_allowlist_and_explicit_env() {
     let executable = fixture();
     let args = vec!["environment".into()];
-    let allowed: BTreeSet<String> = ["PATH", "SystemRoot", "TEMP", "TMP", "HOME", "USERPROFILE"]
-        .into_iter()
-        .map(normalized)
-        .collect();
+    let allowed: BTreeSet<String> = [
+        "PATH",
+        "SystemRoot",
+        "TEMP",
+        "TMP",
+        "HOME",
+        "USERPROFILE",
+        "APPDATA",
+        "LOCALAPPDATA",
+        "COMSPEC",
+        "PATHEXT",
+        "PSModulePath",
+        "ProgramFiles",
+        "ProgramFiles(x86)",
+        "ProgramW6432",
+    ]
+    .into_iter()
+    .map(normalized)
+    .collect();
     let inherited = parent_names();
     let mut expected: BTreeSet<String> = inherited.intersection(&allowed).cloned().collect();
     expected.insert("TOOL_PROCESS_TEST_EXPLICIT".into());

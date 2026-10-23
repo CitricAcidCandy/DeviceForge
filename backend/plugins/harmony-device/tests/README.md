@@ -53,6 +53,12 @@ cargo test -p deviceforge-harmony-device-plugin --test protocol
 - worker 自身第一次进入后固定六秒退出点；没有触发也由自有看门狗退出并留下 `late-worker.watchdog-expired` 与退出意图124。测试在确认本次插件或客户端已退出后，以原子写入 `late-worker.trigger=1` 释放迟到副作用，并持本次 PID 句柄确认实际退出。Windows通过同一进程句柄查询并保存实际退出码，正常触发要求0、自有看门狗要求124；Unix仅观察退出，不声称采集了非直接子进程的操作系统退出码。退出意图文件不是操作系统退出码或进程退出证明。
 - `screenshot.stage`、`screenshot.token`、`late-worker.pid/ready/mode/started-ns/elapsed-ns/exit-intent`、`late-writer.created` 与 `late-reader.bytes` 分别保留阶段、所有权、真实子进程和副作用原件。任何看门狗、失败兜底或未确认均不计成功清理。
 
+截图调度等待区分本地处理与工具启动：Start后保存本次有限预算；下一call目录尚未出现时只消耗该预算，目录出现后仍要求8秒内ready，并受该预算上限约束。64MiB回传后的Base64诊断、解码、JPEG校验和发布属于本地处理，不能把这段时间误记为下一HDC进程未就绪。此调整不改变传给插件的30秒原调用期限，不修改每阶段取消、原截止点、字节边界或输出/清理断言，也不串行化协议测试。
+
+2026-10-22修复前现场的call04已经完整发送67108864字节图片及89478488字节Base64并正常退出，call05稍后真实ready；夹具在8秒派发间隙先失败并关闭stdin，才导致插件取消。修复后以默认测试并发执行完整protocol，128项通过；本次call04正常退出至call05 ready间隔约8.46秒，成功原帧含`screenshot.jpeg`与`cleanup:complete`，插件实际退出0且没有测试兜底杀进程。结果不替代主代理随后完整workspace门禁。
+
+输入中断的执行计时从Ready返回后、发送Start之前开始，进程创建到Ready的墙钟耗时单独记录。2026-10-22并发现场中第四阶段用例在进程创建前后消耗约0.79秒，但Start到期限响应约2秒；原夹具从创建进程前计时，将这部分误计进2秒预算及2750毫秒断言。修复保持原2秒预算、前序阶段各350毫秒停留、2750毫秒/5秒上限、精确到期/取消错误及无后续派发断言；`interruption-timing.json`记录独立的Ready等待和Start至完成耗时，不把启动排队或原帧落盘耗时解释成重新授予业务预算。
+
 ### 已验证的截图原帧覆盖矩阵
 
 首轮36项29通过、7失败原件继续保留为 `artifacts/harmony-screenshot-targeted-protocol-20261012.txt`；三标准句柄窄修后的两项失败另保留 `artifacts/harmony-screenshot-reviewed-late-reader-writer-20261012.txt`。本轮限定晚worker继承allowlist后的定点结果为unknown三项、watchdog一项分别通过；全截图批次为36/36、exit0，实际56.86秒，原件 `artifacts/harmony-screenshot-handle-list-all-20261012.txt`。这不是整个108项协议或工作区门禁的通过证据。具体错误文案按公开运行库与冻结合同手写，不放宽取消或清理预算：缺终端及未知远端要求 `cleanup:failed`；取消、EOF与原截止点胜出时保留精确控制错误及原 `failed`，其它未知业务路径要求 `插件资源清理未确认`。完整回执后的业务失败仅在真实固定清理成功时要求 `cleanup:complete`。`input:null`对象资格错误与同批 `Start→Cancel` 已按真实协议纠正，不把测试调用包装器丢弃计为内部Future验证。

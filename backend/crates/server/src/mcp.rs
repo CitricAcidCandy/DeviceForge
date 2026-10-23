@@ -72,13 +72,27 @@ impl McpAdapter {
         }
         match name {
             "deviceforge.list_plugin_installations" => {
-                if input != json!({}) { return Err(Error::Invalid("此工具不接收参数".into())); }
-                encode(self.installations.as_ref().ok_or_else(|| Error::Dependency("安装服务未配置".into()))?.list().await?)
-            },
+                if input != json!({}) {
+                    return Err(Error::Invalid("此工具不接收参数".into()));
+                }
+                encode(
+                    self.installations
+                        .as_ref()
+                        .ok_or_else(|| Error::Dependency("安装服务未配置".into()))?
+                        .list()
+                        .await?,
+                )
+            }
             "deviceforge.plan_plugin_installation" => {
                 let source = decode(input)?;
-                encode(self.installations.as_ref().ok_or_else(|| Error::Dependency("安装服务未配置".into()))?.plan(source).await?)
-            },
+                encode(
+                    self.installations
+                        .as_ref()
+                        .ok_or_else(|| Error::Dependency("安装服务未配置".into()))?
+                        .plan(source)
+                        .await?,
+                )
+            }
             crate::plugin_guide::TOOL_NAME => crate::plugin_guide::get(input),
             "deviceforge.list_device_providers"
             | "deviceforge.list_devices"
@@ -151,7 +165,9 @@ impl ServerHandler for McpAdapter {
         _: RequestContext<RoleServer>,
     ) -> std::result::Result<ListToolsResult, ErrorData> {
         let (revision, mut tools) = crate::mcp_tools::catalog(&self.app, self.plugins.is_some());
-        if self.installations.is_some() { tools.extend(crate::plugin_installation_mcp::tools()); }
+        if self.installations.is_some() {
+            tools.extend(crate::plugin_installation_mcp::tools());
+        }
         let start = match request.and_then(|request| request.cursor) {
             None => 0,
             Some(cursor) => {
@@ -199,7 +215,13 @@ impl ServerHandler for McpAdapter {
                     .into_iter()
                     .chain(crate::device_mcp::tools())
                     .chain(crate::interactive_mcp::tools())
-                    .chain(self.installations.is_some().then(crate::plugin_installation_mcp::tools).into_iter().flatten())
+                    .chain(
+                        self.installations
+                            .is_some()
+                            .then(crate::plugin_installation_mcp::tools)
+                            .into_iter()
+                            .flatten(),
+                    )
                     .find(|tool| tool.name == name)
             })
     }
@@ -250,12 +272,7 @@ pub(crate) fn service_with_installations(
     installations: Option<Arc<apk_application::plugin_installations::InstallationService>>,
     config: StreamableHttpServerConfig,
 ) -> StreamableHttpService<impl ServerHandler, LocalSessionManager> {
-    let mut adapter = McpAdapter::new(
-        app,
-        plugins,
-        devices,
-        config.cancellation_token.clone(),
-    );
+    let mut adapter = McpAdapter::new(app, plugins, devices, config.cancellation_token.clone());
     adapter.installations = installations;
     let handler = crate::mcp_observability::Observed(adapter);
     StreamableHttpService::new(

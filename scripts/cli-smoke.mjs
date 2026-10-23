@@ -140,7 +140,7 @@ try {
   evidence.stage = '普通业务公开模板与合成部署配置';
   ordinary = await configureOrdinaryNpx({ root, temporary, pluginDirectory });
   evidence.ordinary_configuration = ordinary.evidence;
-  const listed = await runNpx([...prefix, 'plugin', 'list', '--data-dir', dataDirectory]);
+  const listed = await runNpx([...prefix, 'plugin', 'list-legacy', '--data-dir', dataDirectory]);
   assert.deepEqual(
     JSON.parse(listed.stdout)
       .map((plugin) => plugin.id)

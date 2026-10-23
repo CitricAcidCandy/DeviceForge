@@ -259,7 +259,7 @@ test('中后台分组导航、折叠与专注保留页面草稿，设备上下�
       }),
     );
     assert.match(devicePicker.textContent ?? '', /研发工作站/);
-    assert.match(devicePicker.textContent ?? '', /在线/);
+    assert.equal(devicePicker.querySelector('.device-context-dot')?.getAttribute('data-state'), 'online');
     await act(async () => navigate('性能与调用栈').click());
     assert.equal(
       target.querySelector('button[aria-label="选择当前设备"]'),

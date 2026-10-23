@@ -13,6 +13,7 @@ import { events, exited, fixture } from './device-provider/fixtures.mjs';
 import { verifyDiscovery } from './device-provider/discovery.mjs';
 import { verifyActions } from './device-provider/actions.mjs';
 import { verifyLifecycle } from './device-provider/lifecycle.mjs';
+import { smokeBinary } from '../backend/scripts/smoke-binaries.mjs';
 
 // 只使用集成负责人已构建的当前宿主；此脚本不编译、不分发、不修改部署工作区。
 const root = fileURLToPath(new URL('../', import.meta.url));
@@ -22,13 +23,7 @@ assert.ok(
   '仅支持 --release 参数',
 );
 const profile = args.includes('--release') ? 'release' : 'debug';
-const binary = resolve(
-  root,
-  'backend',
-  'target',
-  profile,
-  `apk-server${process.platform === 'win32' ? '.exe' : ''}`,
-);
+const binary = smokeBinary('apk-server', profile);
 const reportPath = resolve(root, 'artifacts', `device-provider-smoke-${profile}.json`);
 const report = {
   timestamp: new Date().toISOString(),
@@ -103,6 +98,7 @@ try {
     ...environment,
     APK_BIND: `127.0.0.1:${port}`,
     APK_DATA_DIR: temporary,
+    DEVICEFORGE_USER_DIR: join(temporary, 'user'),
     APK_PLUGIN_DIR: plugins,
     APK_BROWSER_PLUGIN_DIR: browserPlugins,
     DEVICEFORGE_NODE: process.execPath,

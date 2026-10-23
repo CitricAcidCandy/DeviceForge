@@ -1,4 +1,6 @@
 // 对齐 backend/domain/plugin_installations；源码模式允许尚未构建的空变体，成品严格拒绝缺项。
+import { fixedVersion, sourceVersion } from './versions.mjs';
+
 const object = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
 const fail = (condition, message) => {
   if (!condition) throw new Error(message);
@@ -7,10 +9,6 @@ const id = (value) =>
   typeof value === 'string' &&
   /^[a-z0-9][a-z0-9._-]{0,98}$/.test(value) &&
   !value.startsWith('builtin.');
-const version = (value) =>
-  typeof value === 'string' &&
-  /^[A-Za-z0-9._+-]{1,100}$/.test(value) &&
-  !['.', '..'].includes(value);
 const pointer = (value) =>
   typeof value === 'string' &&
   value.length <= 512 &&
@@ -18,7 +16,10 @@ const pointer = (value) =>
   !/[\u0000-\u001f\u007f]/.test(value) &&
   !/~(?![01])/u.test(value);
 const bytes = (value) => Buffer.byteLength(value, 'utf8');
-export const RESOURCE_LIMIT = 256 * 1024 * 1024;
+export const RESOURCE_LIMIT = 2 * 1024 * 1024 * 1024;
+export const OFFLINE_LIMIT = 4 * 1024 * 1024 * 1024;
+export const EXPANDED_LIMIT = 8 * 1024 * 1024 * 1024;
+export const MEMBER_LIMIT = 32768;
 
 export function relativePath(value) {
   fail(
@@ -32,7 +33,8 @@ export function relativePath(value) {
   for (const part of value.split('/'))
     fail(
       part &&
-        !part.startsWith('.') &&
+        part !== '.' &&
+        part !== '..' &&
         !/[. ]$/.test(part) &&
         !/[\u0000-\u001f\u007f<>"|?*]/.test(part) &&
         !/^(?:CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\.|$)/i.test(part),
@@ -75,7 +77,7 @@ function variants(values, tool, source) {
     );
     fail(
       Number.isSafeInteger(value.size) && value.size > 0 && value.size <= RESOURCE_LIMIT,
-      '归档大小必须为真实正整数且不超过256MiB',
+      '归档大小必须为真实正整数且不超过2GiB',
     );
     fail(
       (tool ? ['zip', 'tgz', 'file'] : ['zip', 'tgz']).includes(value.format),
@@ -117,7 +119,7 @@ export function validateRelease(value, { source = false } = {}) {
     value.format_version === 1 &&
       value.host_api_version === 2 &&
       id(value.id) &&
-      version(value.version),
+      fixedVersion(value.version),
     '发布身份或格式无效',
   );
   fail(
@@ -148,7 +150,7 @@ export function validateRelease(value, { source = false } = {}) {
     fields(component, ['id', 'kind', 'version', 'variants'], '发布组件');
     fail(
       id(component.id) &&
-        version(component.version) &&
+        (source ? sourceVersion(component.version) : fixedVersion(component.version)) &&
         ['server', 'browser'].includes(component.kind) &&
         !components.has(component.id),
       '发布组件身份或类型无效',
@@ -162,7 +164,7 @@ export function validateRelease(value, { source = false } = {}) {
     fields(tool, ['id', 'version', 'required', 'variants', 'bindings'], '工具');
     fail(
       id(tool.id) &&
-        version(tool.version) &&
+        (source ? sourceVersion(tool.version) : fixedVersion(tool.version)) &&
         !tools.has(tool.id) &&
         (tool.required === undefined || typeof tool.required === 'boolean') &&
         Array.isArray(tool.bindings) &&
@@ -195,7 +197,7 @@ export function validateRelease(value, { source = false } = {}) {
   for (const requirement of value.requirements) {
     fields(
       requirement,
-      ['component_id', 'config_pointer', 'title', 'description', 'sensitive', 'required'],
+      ['component_id', 'config_pointer', 'any_of', 'title', 'description', 'sensitive', 'required'],
       '用户输入',
     );
     fail(
@@ -210,6 +212,16 @@ export function validateRelease(value, { source = false } = {}) {
         (requirement.sensitive === undefined || typeof requirement.sensitive === 'boolean'),
       '用户输入声明无效',
     );
+    if (requirement.any_of !== undefined) {
+      fail(
+        Array.isArray(requirement.any_of) &&
+          requirement.any_of.length <= 16 &&
+          requirement.any_of.every(pointer) &&
+          new Set([requirement.config_pointer, ...requirement.any_of]).size ===
+            requirement.any_of.length + 1,
+        '用户输入替代指针无效、重复或超过16项',
+      );
+    }
   }
   fail(bytes(JSON.stringify(value)) <= 256 * 1024, '发布清单超过256KiB');
   return value;

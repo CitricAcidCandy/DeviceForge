@@ -44,6 +44,7 @@ fn target_and_installed_reject_real_oversized_component_metadata_errors() {
         download_limit: 1024,
         extracted_limit: 1024,
         file_limit: 10,
+        repository: None,
     };
     let raw = fs::symlink_metadata(config.root.join("sdk")).unwrap_err();
     assert_eq!(raw.kind(), ErrorKind::InvalidInput);

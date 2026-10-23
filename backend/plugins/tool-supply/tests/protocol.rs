@@ -49,7 +49,15 @@ impl Deployment {
         input: Value,
         artifacts: Option<Value>,
     ) -> Value {
-        let mut child = Command::new(&self.executable)
+        let mut command = Command::new(&self.executable);
+        command
+            .env_remove("DEVICEFORGE_PLUGIN_CONFIG")
+            .env_remove("DEVICEFORGE_PLUGIN_RESOURCES");
+        let resources = self._directory.path().join("managed-resources.json");
+        if resources.is_file() {
+            command.env("DEVICEFORGE_PLUGIN_RESOURCES", resources);
+        }
+        let mut child = command
             .stdin(std::process::Stdio::piped())
             .stdout(std::process::Stdio::piped())
             .stderr(std::process::Stdio::piped())
@@ -130,6 +138,47 @@ async fn actual_protocol_four_process_plans_from_deployer_sidecar() {
     assert_eq!(response["response"]["result"]["download_bytes"], 0);
     assert_eq!(response["response"]["result"]["modules"], json!([]));
     assert!(deployment.root.is_dir());
+}
+
+#[tokio::test]
+async fn managed_repository_uses_sdk_descriptor_with_null_or_omitted_install_root() {
+    let deployment = Deployment::new();
+    let repository = deviceforge_tool_repository::Repository::open(
+        &deployment._directory.path().join("shared-tools"),
+    )
+    .unwrap();
+    fs::write(
+        deployment._directory.path().join("managed-resources.json"),
+        serde_json::to_vec(&json!({
+            "format_version":1,"release_id":"third-party-tools","revision":"a".repeat(64),
+            "tools":{},"bindings":[],"repository":{
+                "format_version":1,"root":repository.root(),"client_id":"tool-supply"
+            }
+        }))
+        .unwrap(),
+    )
+    .unwrap();
+    let client_root = repository.root().join(".repository/clients/tool-supply");
+    assert!(!client_root.exists());
+    let mut config = json!({
+        "local_manifest":"tool-catalog.json","repository_mode":"managed","install_root":null
+    });
+    for omit_root in [false, true] {
+        if omit_root {
+            config.as_object_mut().unwrap().remove("install_root");
+        }
+        fs::write(
+            deployment._directory.path().join("tool-supply.config.json"),
+            serde_json::to_vec(&config).unwrap(),
+        )
+        .unwrap();
+        let response = deployment.request("plan", json!({})).await;
+        assert!(response["response"]["error"].is_null(), "{response}");
+        assert_eq!(response["response"]["result"]["manifest_version"], "test-1");
+        assert_eq!(response["cleanup"], "complete");
+        assert!(client_root.is_dir());
+        assert!(!deployment.root.exists());
+    }
 }
 #[tokio::test]
 async fn actual_protocol_rejects_request_path_override_before_deployment_io() {

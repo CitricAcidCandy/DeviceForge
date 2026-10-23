@@ -269,13 +269,13 @@ try {
     host.start();
     await host.ready();
     const result = await host.runNpx(
-      [...host.prefix, 'plugin', 'install', pluginArchive, '--data-dir', host.directory],
+      [...host.prefix, 'plugin', 'install-legacy', pluginArchive, '--data-dir', host.directory],
       '截图正式Harmony原TGZ安装',
     );
     deployment = await installed();
     assert.ok(result.stdout.includes(`harmony-device@${deployment.manifest.version} 安装完成`));
     const listing = await host.runNpx(
-      [...host.prefix, 'plugin', 'list', '--data-dir', host.directory],
+      [...host.prefix, 'plugin', 'list-legacy', '--data-dir', host.directory],
       '截图正式包列举',
     );
     assert.deepEqual(JSON.parse(listing.stdout), [

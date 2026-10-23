@@ -6,6 +6,7 @@ import { randomBytes } from 'node:crypto';
 import { createServer } from 'node:net';
 import { setTimeout as delay } from 'node:timers/promises';
 import assert from 'node:assert/strict';
+import { smokeBinary } from './smoke-binaries.mjs';
 
 const temporary = await mkdtemp(join(tmpdir(), 'deviceforge-logging-'));
 const reservation = createServer();
@@ -22,11 +23,11 @@ const directory = join(temporary, 'plugins', 'echo');
 await mkdir(directory, { recursive: true });
 await writeFile(join(directory, 'manifest.json'), JSON.stringify({
   id: 'echo', version: '0.1.0', protocol_version: 1,
-  executable: resolve(`target/${profile}`, `deviceforge-echo-plugin${suffix}`), args: [],
+  executable: smokeBinary('deviceforge-echo-plugin', profile), args: [],
   operations: [{ name: 'echo', title: '回显', input_schema: { type: 'object' } }],
 }));
 const environment = Object.fromEntries(Object.entries(process.env).filter(([key]) => !/^(APK_|DEVICEFORGE_)/.test(key)));
-const child = spawn(resolve(`target/${profile}`, `apk-server${suffix}`), [], {
+const child = spawn(smokeBinary('apk-server', profile), [], {
   env: { ...environment, APK_API_TOKEN: token, APK_BIND: `127.0.0.1:${port}`, APK_DATA_DIR: temporary,
     APK_PLUGIN_DIR: join(temporary, 'plugins'), DEVICEFORGE_USER_DIR: join(temporary, 'user', '.deviceforge'), DEVICEFORGE_HTTP_RATE: '100000', DEVICEFORGE_LOG_QUEUE: '8192' },
   stdio: 'ignore', windowsHide: true,

@@ -2,6 +2,7 @@
 pub mod context;
 mod framing;
 pub mod session;
+mod stdio;
 use apk_plugin_sdk::{ArtifactOutput, Request, Response, cooperative::*};
 pub use context::{
     ContextError, InvocationContext, serve_io_with_context, serve_once_with_context,
@@ -45,6 +46,7 @@ where
     F: FnOnce(Request, CancellationToken) -> Fut,
     Fut: Future<Output = Execution>,
 {
+    stdio::prepare()?;
     serve_io(tokio::io::stdin(), tokio::io::stdout(), handler).await
 }
 

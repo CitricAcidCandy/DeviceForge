@@ -26,16 +26,22 @@
 | `refreshRecords` | 显式读取服务器最多8条保留记录，刷新开始清旧目录 |
 | `open` | 只提交当前目录中已有操作及JSON对象参数，打开响应保留真实Opening记录 |
 | `openTerminal` | 调用`plugin.terminal.open`，只提交部署命名的`profile` |
+| `openPtyTerminal` | 选择部署profile并提交`deviceforge.terminal.v1`及字符网格尺寸，显式打开PTY模式 |
+| `sendTerminalInput`、`resizeTerminal` | 编码终端专用JSON输入消息，尺寸和编码后8192字节上限在本地先检查 |
 | `resume(id, signal, after=0)` | 查询原ID；可恢复已有排他游标，不重新打开会话、不回放输入 |
 | `query` | 读取当前会话状态及原始completion |
 | `readOutput` | 从本地游标读下一页，默认50块，页长1至100 |
 | `pollOutput` | 显式轮询，耗尽Finished的剩余输出后结束；默认间隔100毫秒，可设1至60000毫秒 |
 | `send`、`eof` | 发送不超过8192项的原字节数组或有序EOF，等待真实收据 |
 | `cancel` | 显式请求服务器停止，接收Stopping或Finished，资源终态继续独立查询 |
+| `closeTerminalRecord(id,signal)`、`removeTerminalRecord(id,signal)` | 查询并校验指定记录确属终端，释放其他活动终端或删除已结束记录，再刷新记录；独立通路不改选、不撤销当前输入 |
+| `releaseSelectedTerminal()` | 产品结束时仅为已选且未结束的终端发起独立5秒截止的keepalive释放，返回原响应或错误；本地clear/dispose不撤销该请求 |
 | `remove` | 仅当前已观察为Finished时删除记录；删除不代表清理失败已恢复 |
 | `snapshot`、`subscribe`、`clear`、`dispose` | 消费冻结快照、订阅或撤销本地选择及等待 |
 
 终端profile只允许1至64字节的小写字母、数字、点、短横线或下划线，首项须为字母或数字。普通前端不提交程序、argv、目录或环境变量。其他操作输入仍由服务器公开模式裁定，本模块不复制JSON Schema引擎。
+
+2026-10-22新增PTY业务消息，仅扩展终端贡献的input对象，不改变通用HTTP DTO。旧`openTerminal`和原字节`send`保持兼容。新终端页面使用独立串行有界队列，将按键与resize排在同一收据通路；网络失败后停止后续发送，不自动重试。ANSI与IME、粘贴和显示职责留在页面私有xterm视图中，核心门面不加载DOM或终端模拟器。
 
 ## 字节、身份与终态
 
@@ -53,7 +59,9 @@
 
 新打开记录的inputState为writable；恢复已有记录为unknown，因为公开查询没有EOF字段。成功EOF转为eof。输入或EOF失败、等待取消或停止请求转为uncertain，阻止自动续发；用户可明确恢复原记录后再决定下一项输入，服务器仍裁定是否已EOF。服务器返回Stopping或Finished立即撤销在途输入等待，晚收据不发布。
 
-取消等待、切换会话、clear及dispose只撤销本地请求和订阅，不自动发服务器cancel，也不重开、重试或回放输入。输出轮询错误直接结束，不自动重试。下游忽略信号时仍及时结束等待，晚成功与晚拒绝均被消费。
+取消等待、切换会话、clear及dispose只撤销本地请求和订阅，不自动发服务器cancel，也不重开、重试或回放输入。产品销毁在本地dispose前显式调用releaseSelectedTerminal；路由隐藏继续保留终端。该释放独立于消费生命周期，Stopping只证明请求已受理，不代表Complete；失败保留原错误及日志，不能保证浏览器崩溃、断电或网络中断时已释放。输出轮询错误直接结束，不自动重试。下游忽略信号时仍及时结束等待，晚成功与晚拒绝均被消费。
+
+终端记录管理先get并验证operation、plugin_id及身份，再调用release或delete；当前未结束终端拒绝从历史记录入口管理，继续使用页面当前会话关闭操作。记录控制有独立串行准入，不占用观测、输入或当前选择通路；历史列表只供异常退出后查看与回收，不承诺可写接回。
 
 打开响应失联时客户端可能没有服务器创建的ID；本接口没有客户端关联键，不能自动辨认本次记录。通过显式refreshRecords定位实际记录，再选择resume，禁止根据等待失败重开。服务重启后的旧ID可能不存在，失败保留空选择。清除或切换选择也不释放服务器保留记录；活动会话和记录容量仍由服务器裁定。
 

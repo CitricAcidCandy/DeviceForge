@@ -50,6 +50,7 @@ impl Store {
             job_id: job.id.clone(),
             status: job.status.clone(),
             timestamp: apk_domain::now(),
+            progress: None,
         });
     }
 }

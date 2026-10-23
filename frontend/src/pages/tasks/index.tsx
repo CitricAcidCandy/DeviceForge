@@ -11,6 +11,7 @@ import {
 } from '../../components/Select/index.tsx';
 import type { JobDto, JobEventDto } from '../../services/api/index.ts';
 import type { ProductServices } from '../../app/product/services.ts';
+import { formatJobProgress } from '../../features/tasks/index.ts';
 import { useAction, useSnapshot } from '../../app/product/hooks.ts';
 import { EmptyState, JsonResult } from '../../components/index.ts';
 import { TaskArtifacts } from './components/TaskArtifacts/index.tsx';
@@ -245,6 +246,7 @@ export function TasksPage({ services }: { services: ProductServices }) {
                           {new Date(event.timestamp).toLocaleTimeString('zh-CN', { hour12: false })}
                         </time>
                         <span>{taskStates[event.status]}</span>
+                        {event.progress && <span>{formatJobProgress(event.progress)}</span>}
                       </li>
                     ))}
                   </ol>

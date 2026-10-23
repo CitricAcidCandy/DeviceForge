@@ -13,13 +13,13 @@ pub mod session_access;
 pub use configuration::{ConfigurationApplyPolicy, ConfigurationDefinition, managed_config_path};
 pub use context::{CONTEXT_PROTOCOL_VERSION, ReadyCommand, ReadyFrame, StartCommand, StartFrame};
 pub use execution::ExecutionBudget;
-pub use resources::{ManagedResources, managed_resources};
 pub use performance::{
     BatteryElectricalObservation, BatteryStatus, BatterySupplyState, CurrentPolarity,
     DeviceObservation, DeviceTemperature, MetricMissing, MetricUnavailableReason,
     ObservationAccess, ObservationScope, PerformanceAccess, PerformanceDeviceCapability,
     TemperatureKind, UnavailableMetric,
 };
+pub use resources::{ManagedResources, managed_resources};
 pub use session_access::SessionAccess;
 pub const PROTOCOL_VERSION: u32 = 1;
 pub const ARTIFACT_PROTOCOL_VERSION: u32 = 2;

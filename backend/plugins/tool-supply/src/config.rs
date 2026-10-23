@@ -25,6 +25,7 @@ pub(crate) struct Config {
     pub download_limit: u64,
     pub extracted_limit: u64,
     pub file_limit: usize,
+    pub repository: Option<apk_plugin_sdk::resources::ManagedRepository>,
 }
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -33,7 +34,9 @@ struct Raw {
     local_manifest: Option<PathBuf>,
     #[serde(default = "cache_enabled")]
     manifest_cache_enabled: bool,
-    install_root: PathBuf,
+    install_root: Option<PathBuf>,
+    #[serde(default)]
+    repository_mode: RepositoryMode,
     #[serde(default)]
     allow_http: bool,
     #[serde(default = "download_limit")]
@@ -42,6 +45,13 @@ struct Raw {
     extracted_limit_bytes: u64,
     #[serde(default = "file_limit")]
     file_limit: usize,
+}
+#[derive(Default, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+enum RepositoryMode {
+    #[default]
+    Custom,
+    Managed,
 }
 fn cache_enabled() -> bool {
     true
@@ -107,9 +117,22 @@ impl Config {
         let bytes = read_bounded(path, 64 * 1024, budget)?;
         let raw: Raw =
             serde_json::from_slice(&bytes).map_err(|_| Error::Invalid("部署配置结构错误"))?;
-        if !raw.install_root.is_absolute() {
-            return Err(Error::Invalid("安装根目录必须是部署者指定的绝对路径"));
-        }
+        let custom_root = if raw.repository_mode == RepositoryMode::Custom {
+            let root = raw
+                .install_root
+                .ok_or(Error::Invalid("自定义仓库必须配置安装根目录"))?;
+            if !root.is_absolute()
+                || root.to_str().is_none_or(|value| {
+                    value.chars().any(char::is_control)
+                        || value.split(['/', '\\']).any(|part| part == "..")
+                })
+            {
+                return Err(Error::Invalid("安装根目录必须是无父段的合法绝对路径"));
+            }
+            Some(root)
+        } else {
+            None
+        };
         if !(1..=2 * 1024 * 1024 * 1024).contains(&raw.download_limit_bytes)
             || !(1..=4 * 1024 * 1024 * 1024).contains(&raw.extracted_limit_bytes)
             || !(1..=100_000).contains(&raw.file_limit)
@@ -133,14 +156,33 @@ impl Config {
             }
         };
         budget.check()?;
-        fs::create_dir_all(&raw.install_root).map_err(|_| Error::Io("创建安装根目录失败"))?;
+        let repository = if raw.repository_mode == RepositoryMode::Managed {
+            Some(
+                apk_plugin_sdk::managed_resources()
+                    .map_err(|_| Error::Invalid("宿主管理资源描述无效"))?
+                    .and_then(|resources| resources.repository)
+                    .ok_or(Error::Invalid("宿主未提供共享工具仓库"))?,
+            )
+        } else {
+            None
+        };
+        let install_root = match &repository {
+            Some(descriptor) => {
+                let repository = deviceforge_tool_repository::Repository::open(&descriptor.root)
+                    .map_err(crate::managed::repository_error)?;
+                repository
+                    .client_directory(&descriptor.client_id)
+                    .map_err(crate::managed::repository_error)?
+            }
+            None => custom_root.ok_or(Error::Invalid("自定义仓库必须配置安装根目录"))?,
+        };
+        fs::create_dir_all(&install_root).map_err(|_| Error::Io("创建安装根目录失败"))?;
         let metadata =
-            fs::symlink_metadata(&raw.install_root).map_err(|_| Error::Io("检查安装根目录失败"))?;
+            fs::symlink_metadata(&install_root).map_err(|_| Error::Io("检查安装根目录失败"))?;
         if !metadata.is_dir() || metadata.file_type().is_symlink() {
             return Err(Error::Invalid("安装根目录不能是符号链接"));
         }
-        let root =
-            fs::canonicalize(raw.install_root).map_err(|_| Error::Io("解析安装根目录失败"))?;
+        let root = fs::canonicalize(install_root).map_err(|_| Error::Io("解析安装根目录失败"))?;
         Ok(Self {
             source,
             manifest_cache_enabled: raw.manifest_cache_enabled,
@@ -149,6 +191,7 @@ impl Config {
             download_limit: raw.download_limit_bytes,
             extracted_limit: raw.extracted_limit_bytes,
             file_limit: raw.file_limit,
+            repository,
         })
     }
 }
@@ -204,5 +247,49 @@ mod configuration_tests {
         );
         fs::remove_file(&path).unwrap();
         assert!(Config::read_with_base(&path, root.path(), &budget).is_err());
+    }
+
+    #[test]
+    fn custom_repository_requires_an_absolute_root_and_preserves_legacy_mode() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("tool-supply.config.json");
+        let root = directory.path().join("tools");
+        let budget = Budget {
+            deadline: Instant::now() + Duration::from_secs(5),
+            cancel: CancellationToken::new(),
+        };
+        let mut value = serde_json::json!({
+            "local_manifest":"tool-catalog.json", "repository_mode":"custom"
+        });
+        fs::write(&path, serde_json::to_vec(&value).unwrap()).unwrap();
+        assert!(matches!(
+            Config::read_path(&path, &budget),
+            Err(Error::Invalid(_))
+        ));
+        for invalid in [
+            serde_json::Value::Null,
+            serde_json::json!(""),
+            serde_json::json!("relative/tools"),
+            serde_json::json!(root.join("../escape")),
+            serde_json::json!(format!("{}\n", root.display())),
+        ] {
+            value["install_root"] = invalid;
+            fs::write(&path, serde_json::to_vec(&value).unwrap()).unwrap();
+            assert!(matches!(
+                Config::read_path(&path, &budget),
+                Err(Error::Invalid(_))
+            ));
+            assert!(!root.exists());
+        }
+        value["install_root"] = serde_json::json!(root);
+        for legacy in [false, true] {
+            if legacy {
+                value.as_object_mut().unwrap().remove("repository_mode");
+            }
+            fs::write(&path, serde_json::to_vec(&value).unwrap()).unwrap();
+            let config = Config::read_path(&path, &budget).unwrap();
+            assert_eq!(config.root, fs::canonicalize(&root).unwrap());
+            assert!(config.repository.is_none());
+        }
     }
 }

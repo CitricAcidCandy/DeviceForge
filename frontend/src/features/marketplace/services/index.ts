@@ -9,6 +9,8 @@ import type {
 } from '../types/index.ts';
 import { readVerifiedResource } from './download.ts';
 import { decodeCatalog } from './catalog.ts';
+import { readReleaseCapabilities, probePublicationResource } from './publication.ts';
+import { marketplaceJson, marketplaceRequest, requireMarketplaceOk } from './transport.ts';
 
 export const DEFAULT_MARKETPLACE_URL = 'http://127.0.0.1:7040';
 const STORAGE_KEY = 'deviceforge.marketplace.url';
@@ -46,18 +48,6 @@ function queryString(query: MarketplaceQuery): string {
   return params.toString();
 }
 
-async function requireOk(response: Response, action: string): Promise<void> {
-  if (response.ok) return;
-  let detail = `HTTP ${response.status}`;
-  try {
-    const payload = (await response.json()) as { error?: { message?: unknown } };
-    if (typeof payload.error?.message === 'string') detail = payload.error.message;
-  } catch {
-    // 错误响应不是 JSON 时保留 HTTP 状态，避免遮蔽原始失败。
-  }
-  throw new Error(`${action}失败：${detail}`);
-}
-
 function decodeResource(value: unknown): MarketplaceResourceRecord {
   if (!value || typeof value !== 'object') throw new Error('资源上传响应无效');
   const record = value as Record<string, unknown>;
@@ -92,17 +82,28 @@ export function createMarketplace(fetcher: typeof fetch = fetch) {
       if (typeof window !== 'undefined') window.localStorage.removeItem(STORAGE_KEY);
       return DEFAULT_MARKETPLACE_URL;
     },
+    releaseCapabilities(signal: AbortSignal, source: string = url()) {
+      return readReleaseCapabilities(fetcher, normalizeUrl(source), signal);
+    },
+    probeResource(digest: string, size: number, signal: AbortSignal, source: string = url()) {
+      return probePublicationResource(fetcher, normalizeUrl(source), digest, size, signal);
+    },
     async search(query: MarketplaceQuery, signal: AbortSignal): Promise<MarketplaceSnapshot> {
       const source = url();
-      const response = await fetcher(`${source}/api/v1/catalog?${queryString(query)}`, {
+      const response = await marketplaceRequest(
+        fetcher,
+        `${source}/api/v1/catalog?${queryString(query)}`,
+        {
+          signal,
+          headers: { accept: 'application/json' },
+          credentials: 'omit',
+          cache: 'no-store',
+          redirect: 'error',
+        },
         signal,
-        headers: { accept: 'application/json' },
-        credentials: 'omit',
-        cache: 'no-store',
-        redirect: 'error',
-      });
-      if (!response.ok) throw new Error(`市场目录请求失败：HTTP ${response.status}`);
-      return decodeCatalog(await response.json(), source);
+      );
+      await requireMarketplaceOk(response, signal, '市场目录请求');
+      return decodeCatalog(await marketplaceJson(response, signal), source);
     },
     async upload(
       file: MarketplaceUploadFile,
@@ -110,41 +111,51 @@ export function createMarketplace(fetcher: typeof fetch = fetch) {
       signal: AbortSignal,
       source: string = url(),
     ): Promise<MarketplaceResourceRecord> {
-      const response = await fetcher(`${normalizeUrl(source)}/api/v1/resources`, {
-        method: 'POST',
-        signal,
-        headers: {
-          accept: 'application/json',
-          'content-type': file.type || 'application/octet-stream',
-          'x-resource-filename': encodeURIComponent(file.name || 'resource.bin'),
-          'x-resource-filename-encoding': 'percent',
-          'x-resource-kind': kind,
+      const response = await marketplaceRequest(
+        fetcher,
+        `${normalizeUrl(source)}/api/v1/resources`,
+        {
+          method: 'POST',
+          signal,
+          headers: {
+            accept: 'application/json',
+            'content-type': file.type || 'application/octet-stream',
+            'x-resource-filename': encodeURIComponent(file.name || 'resource.bin'),
+            'x-resource-filename-encoding': 'percent',
+            'x-resource-kind': kind,
+          },
+          body: file,
+          credentials: 'omit',
+          redirect: 'error',
         },
-        body: file,
-        credentials: 'omit',
-        redirect: 'error',
-      });
-      await requireOk(response, '资源上传');
-      return decodeResource(await response.json());
+        signal,
+      );
+      await requireMarketplaceOk(response, signal, '资源上传');
+      return decodeResource(await marketplaceJson(response, signal));
     },
     async publish(
       entry: MarketplacePublishEntry,
       signal: AbortSignal,
       source: string = url(),
     ): Promise<MarketplacePublishEntry> {
-      const response = await fetcher(`${normalizeUrl(source)}/api/v1/catalog`, {
-        method: 'POST',
-        signal,
-        headers: {
-          accept: 'application/json',
-          'content-type': 'application/json',
+      const response = await marketplaceRequest(
+        fetcher,
+        `${normalizeUrl(source)}/api/v1/catalog`,
+        {
+          method: 'POST',
+          signal,
+          headers: {
+            accept: 'application/json',
+            'content-type': 'application/json',
+          },
+          body: JSON.stringify(entry),
+          credentials: 'omit',
+          redirect: 'error',
         },
-        body: JSON.stringify(entry),
-        credentials: 'omit',
-        redirect: 'error',
-      });
-      await requireOk(response, '市场条目发布');
-      const value = await response.json();
+        signal,
+      );
+      await requireMarketplaceOk(response, signal, '市场条目发布');
+      const value = await marketplaceJson(response, signal);
       if (!value || typeof value !== 'object') throw new Error('市场条目发布响应无效');
       return value as MarketplacePublishEntry;
     },
@@ -154,7 +165,8 @@ export function createMarketplace(fetcher: typeof fetch = fetch) {
       source: string = url(),
     ): Promise<MarketplaceDownloadedResource> {
       if (!/^[a-f0-9]{64}$/i.test(resourceId)) throw new Error('资源摘要无效');
-      const response = await fetcher(
+      const response = await marketplaceRequest(
+        fetcher,
         `${normalizeUrl(source)}/api/v1/resources/${encodeURIComponent(resourceId)}`,
         {
           signal,
@@ -163,8 +175,9 @@ export function createMarketplace(fetcher: typeof fetch = fetch) {
           cache: 'no-store',
           redirect: 'error',
         },
+        signal,
       );
-      await requireOk(response, '资源下载');
+      await requireMarketplaceOk(response, signal, '资源下载');
       return readVerifiedResource(response, resourceId, signal);
     },
   };

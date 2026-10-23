@@ -40,6 +40,7 @@ struct Guard {
     channels: ChannelsNotice,
     spawned: bool,
     finished: bool,
+    lease: Option<Arc<crate::plugin_resources::ToolLease>>,
 }
 
 struct ChannelsNotice {
@@ -52,6 +53,9 @@ impl Guard {
     fn finish(&mut self, exit: SessionExit) {
         if self.spawned && exit.cleanup != SessionCleanup::Complete {
             self.unresolved.store(true, Ordering::Release);
+            if let Some(lease) = &self.lease {
+                lease.retain();
+            }
         }
         if self.channels.ready.borrow().is_none() {
             self.channels.ready.send_replace(Some(Err(exit
@@ -85,11 +89,20 @@ fn failed(error: Error, process_exited: bool) -> SessionExit {
     }
 }
 
+fn rejected_before_start(error: Error) -> SessionExit {
+    // 没有启动业务，且不存在仍需等待的直接进程；取消原因继续保留。
+    SessionExit {
+        cleanup: SessionCleanup::Complete,
+        ..failed(error, true)
+    }
+}
+
 pub(super) async fn run(mut call: Call) {
     let mut guard = Guard {
         unresolved: call.unresolved.clone(),
         spawned: false,
         finished: false,
+        lease: None,
         channels: ChannelsNotice {
             ready: call.channels.ready.clone(),
             exit: call.channels.exit.clone(),
@@ -103,7 +116,7 @@ pub(super) async fn run(mut call: Call) {
 async fn execute(call: &mut Call, guard: &mut Guard) -> SessionExit {
     let deadline = Instant::from_std(call.request.deadline);
     if let Err(error) = execution_deadline::check(&call.cancel, Some(deadline)) {
-        return failed(error, false);
+        return rejected_before_start(error);
     }
     let configuration = match &call.configurations {
         Some(store) => match execution_deadline::run(
@@ -114,7 +127,7 @@ async fn execute(call: &mut Call, guard: &mut Guard) -> SessionExit {
         .await
         {
             Ok(path) => path,
-            Err(error) => return failed(error, false),
+            Err(error) => return rejected_before_start(error),
         },
         None => None,
     };
@@ -127,7 +140,7 @@ async fn execute(call: &mut Call, guard: &mut Guard) -> SessionExit {
         .await
         {
             Ok(path) => path,
-            Err(error) => return failed(error, false),
+            Err(error) => return rejected_before_start(error),
         },
         None => None,
     };
@@ -141,11 +154,22 @@ async fn execute(call: &mut Call, guard: &mut Guard) -> SessionExit {
     .await
     {
         Ok(files) => Arc::new(files),
-        Err(error) => return failed(error, false),
+        Err(error) => return rejected_before_start(error),
     };
     if let Err(error) = execution_deadline::check(&call.cancel, Some(deadline)) {
-        return failed(error, false);
+        return rejected_before_start(error);
     }
+    let tool_lease = match crate::plugin_resources::acquire(
+        resources.as_deref(),
+        &call.cancel,
+        deadline,
+    )
+    .await
+    {
+        Ok(lease) => lease,
+        Err(error) => return rejected_before_start(error),
+    };
+    guard.lease = Some(tool_lease.clone());
     let mut execution = ExecutionOptions::new(deadline + transport::CLEANUP + transport::EXIT);
     // JSON 数组有编码膨胀，业务字节/事件上限另在 pump 中精确执行。
     execution.stdout_limit = if call.continuous_output() {
@@ -182,7 +206,7 @@ async fn execute(call: &mut Call, guard: &mut Guard) -> SessionExit {
         command,
         options,
         hard_cancel,
-        files.clone(),
+        Arc::new((files.clone(), tool_lease)),
     )
     .await
     {
@@ -191,17 +215,32 @@ async fn execute(call: &mut Call, guard: &mut Guard) -> SessionExit {
     };
     guard.spawned = true;
     let mut reader = Reader::new();
-    let handshake = handshake(call, &mut process, &mut reader, &files, deadline).await;
+    let mut start_attempted = false;
+    let handshake = handshake(
+        call,
+        &mut process,
+        &mut reader,
+        &files,
+        deadline,
+        &mut start_attempted,
+    )
+    .await;
     if let Err(error) = handshake {
         process.cancel();
         let reaped = process.wait().await;
-        return failed(
-            error,
-            !matches!(
-                reaped,
-                Err(deviceforge_tool_process::Error::CleanupFailed { .. })
-            ),
+        let process_exited = !matches!(
+            reaped,
+            Err(deviceforge_tool_process::Error::CleanupFailed { .. })
         );
+        // Start从未进入写入队列时，合规协议5提供者尚未调用业务；仍须确认直接进程回收。
+        return if !start_attempted
+            && process_exited
+            && matches!(error, Error::Cancelled | Error::Timeout)
+        {
+            rejected_before_start(error)
+        } else {
+            failed(error, process_exited)
+        };
     }
     call.channels.ready.send_replace(Some(Ok(())));
     let (mut exit, outputs) = pump::run(call, &mut process, &mut reader, deadline).await;
@@ -232,6 +271,7 @@ async fn handshake(
     reader: &mut Reader,
     files: &InvocationFiles,
     deadline: Instant,
+    start_attempted: &mut bool,
 ) -> Result<()> {
     let fixed = (Instant::now() + transport::HANDSHAKE).min(deadline);
     let prefix = format!("plugin.{}.", call.manifest.id);
@@ -295,6 +335,10 @@ async fn handshake(
     tokio::select! {
         biased;
         _ = call.cancel.cancelled() => Err(Error::Cancelled),
-        result = transport::send(&input, &bytes, fixed) => result,
+        result = async {
+            // 从尝试写入开始即视为可能已启动，部分写入失败不能降为未启动。
+            *start_attempted = true;
+            transport::send(&input, &bytes, fixed).await
+        } => result,
     }
 }

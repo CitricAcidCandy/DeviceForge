@@ -146,3 +146,38 @@ async fn main() -> Result<(), String> {
 构建使用 `cargo build --manifest-path backend/examples/guide-context/Cargo.toml`。其包清单可复用 Node 示例的操作模式，替换插件 ID，设置 `protocol_version=4`，以 `runtime=native` 指向预编译文件。`Ready/Start` 与取消控制由运行库处理，不能把普通协议 1 的一次性 stdin 命令当成协议 4 集成验证。
 
 需要等待、工具或连接时，使用 `context.deadline()` 和 `context.cancellation()` 传递同一预算及取消信号；取消后先等待实际工作与清理结束，再返回 `Execution`。任何清理失败都返回明确的 `CleanupOutcome::Failed`，不能复用本例的 `complete` 掩盖资源未释放。
+
+## 将示例组成一个完整功能
+
+Node 示例仍是独立 `kind:"server"` 的底层组件。与前端 examples 中 `browser_guide_example@0.1.0` 配套时，外层功能可命名 `guide-suite@1.0.0`，目录如下：
+
+```text
+guide-suite/
+  release.json
+  blobs/
+    <服务器TGZ的SHA-256>
+    <浏览器TGZ的SHA-256>
+```
+
+`release.json` 的结构如下；尖括号必须由发布器以真实摘要和整数大小替换，本段是结构模板，不能直接安装：
+
+```json
+{
+  "format_version": 1, "host_api_version": 2,
+  "id": "guide-suite", "version": "1.0.0",
+  "name": "指南配套功能", "description": "服务器回显与浏览器任务面板",
+  "components": [
+    {"id": "guide_echo", "kind": "server", "version": "1.0.0",
+     "variants": [{"platform": "any", "path": "blobs/<服务器SHA-256>",
+       "sha256": "<服务器SHA-256>", "size": 1, "format": "tgz"}]},
+    {"id": "browser_guide_example", "kind": "browser", "version": "0.1.0",
+     "variants": [{"platform": "any", "path": "blobs/<浏览器SHA-256>",
+       "sha256": "<浏览器SHA-256>", "size": 1, "format": "tgz"}]}
+  ],
+  "tools": [], "requirements": []
+}
+```
+
+本例不执行外部工具，因此 tools 为空；需要工具时按 manifest 主题增加真实归档、entries 和 bindings，不把本机程序塞进组件业务参数。将目录内容打为 ZIP 时，根必须直接包含 release.json 和 blobs/，不要多套 guide-suite 目录；在线发布改为同服务摘要 path 后重算清单 SHA-256，遵守 packaging 中能力探测和 catalog 最后提交。
+
+安装该成套发布后，使用 `deviceforge.list_plugin_installations` 或公开 HTTP 查询真实修订和状态，再核对服务器操作及浏览器实例；不再把两个组件分别安装/加载当成完整功能验收。配置和高级路径覆盖仍保留用户原值，SDK 托管资源入口见 sdk 主题。

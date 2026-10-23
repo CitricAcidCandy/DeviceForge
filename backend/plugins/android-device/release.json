@@ -4,7 +4,7 @@
   "id": "android-device",
   "version": "0.1.0",
   "name": "Android 设备",
-  "description": "通过部署者配置的 ADB 提供设备发现与连接、应用安装和启停、截图、输入、性能采样及 Root 分析。能力可用性依实际设备、权限和工具而定；工具入口在插件配置中管理。",
+  "description": "提供设备发现与连接、应用安装和启停、截图、输入、性能采样及 Root 分析。完整发布包自动准备并绑定 ADB；Java 和 bundletool 为可选工具，缺失时相应扩展能力不可用。用户负责目标设备、权限及设备端业务条件。",
   "components": [
     {
       "id": "android-device",

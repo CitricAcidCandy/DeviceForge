@@ -27,7 +27,9 @@ pub(crate) async fn allow_browser(request: Request, next: Next) -> Response {
     );
     headers.insert(
         header::ACCESS_CONTROL_ALLOW_HEADERS,
-        HeaderValue::from_static("authorization, content-type, accept, range, x-deviceforge-plugin-release"),
+        HeaderValue::from_static(
+            "authorization, content-type, accept, range, x-deviceforge-plugin-release",
+        ),
     );
     headers.insert(
         header::ACCESS_CONTROL_EXPOSE_HEADERS,

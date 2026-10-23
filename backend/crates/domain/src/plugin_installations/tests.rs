@@ -68,3 +68,36 @@ fn rejects_component_format_and_duplicate_binding_targets() {
     release.tools[0].bindings.push(duplicate);
     assert!(release.validate().is_err());
 }
+
+#[test]
+fn requirement_alternatives_keep_legacy_bytes_and_validate_bounded_distinct_pointers() {
+    let mut release = release();
+    let legacy = serde_json::json!({"component_id":"sample","config_pointer":"/local_manifest",
+        "title":"清单来源","description":"选择本地或远端清单","sensitive":false,"required":true});
+    let requirement: ReleaseRequirement = serde_json::from_value(legacy.clone()).unwrap();
+    assert!(requirement.any_of.is_empty());
+    assert_eq!(serde_json::to_value(&requirement).unwrap(), legacy);
+    release.requirements.push(requirement);
+    release.requirements[0].any_of = (0..16).map(|index| format!("/candidate/{index}")).collect();
+    release.validate().unwrap();
+    release.requirements[0].any_of.push("/extra".into());
+    assert!(release.validate().is_err());
+    for candidates in [
+        vec!["/local_manifest"],
+        vec!["/manifest_url", "/manifest_url"],
+        vec![""],
+        vec!["relative"],
+        vec!["/bad~2"],
+        vec!["/bad\n"],
+    ] {
+        release.requirements[0].any_of = candidates.into_iter().map(String::from).collect();
+        assert!(release.validate().is_err());
+    }
+    release.requirements[0].any_of = vec!["/manifest_url".into(), "/a~1b/~0value".into()];
+    release.validate().unwrap();
+    let encoded = serde_json::to_value(&release.requirements[0]).unwrap();
+    assert_eq!(
+        encoded["any_of"],
+        serde_json::json!(["/manifest_url", "/a~1b/~0value"])
+    );
+}

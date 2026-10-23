@@ -35,6 +35,7 @@ Object.assign(environment, {
   APK_DATA_DIR: join(temporary, 'data'),
   APK_PLUGIN_DIR: join(temporary, 'plugins'),
   APK_BROWSER_PLUGIN_DIR: join(temporary, 'browser-plugins'),
+  DEVICEFORGE_USER_DIR: join(temporary, 'user'),
   DEVICEFORGE_HTTP_RATE: '1000',
 });
 const child = spawn(binary, [], { cwd: temporary, env: environment, windowsHide: true, stdio: ['ignore', 'ignore', 'pipe'] });
@@ -106,10 +107,15 @@ try {
       const data = reply.result.structuredContent;
       assert.equal(data.target, target);
       assert.equal(data.topic, topic);
-      assert.equal(data.guide_version, 1);
+      assert.equal(data.guide_version, 2);
       assert.equal(data.frontend_sdk_version, 2);
       assert.deepEqual(data.backend_task_protocol_versions, [1, 2, 3, 4]);
       assert.deepEqual(data.backend_session_protocol_versions, [5]);
+      assert.deepEqual(data.release_format_versions, [1]);
+      assert.deepEqual(data.release_host_api_versions, [2]);
+      for (const term of ['release.json', '/api/v1/capabilities', 'catalog', 'DEVICEFORGE_PLUGIN_RESOURCES', 'configuration_required', '旧单组件']) {
+        assert.ok(data.fullstack_workflow.includes(term), `配套流程缺少 ${term}`);
+      }
       assert.equal(data.documents.length, target === 'fullstack' ? 2 : 1);
       for (const document of data.documents) {
         assert.ok(document.content.length > 100);

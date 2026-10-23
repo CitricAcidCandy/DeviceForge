@@ -100,6 +100,9 @@ pub struct ToolBinding {
 pub struct ReleaseRequirement {
     pub component_id: String,
     pub config_pointer: String,
+    /// 同一输入声明的额外候选路径，主路径或任意候选填写即可满足。
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub any_of: Vec<String>,
     pub title: String,
     pub description: String,
     #[serde(default)]
@@ -128,6 +131,13 @@ pub enum InstallationStatus {
     Installed,
     Enabled,
     ConfigurationRequired,
+    RecoveryBlocked,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+pub struct InstallationFailure {
+    pub phase: String,
+    pub reason: String,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
@@ -144,6 +154,7 @@ pub struct InstalledComponent {
 pub struct InstalledTool {
     pub id: String,
     pub version: String,
+    pub platform: String,
     pub sha256: String,
     /// 只公开稳定资源键，不把本机绝对路径混入安装视图。
     pub entries: Vec<String>,
@@ -159,6 +170,8 @@ pub struct InstalledRelease {
     pub revision: String,
     pub enabled: bool,
     pub status: InstallationStatus,
+    #[serde(default)]
+    pub failure: Option<InstallationFailure>,
     pub installed_at: u64,
     pub components: Vec<InstalledComponent>,
     pub tools: Vec<InstalledTool>,
@@ -194,6 +207,7 @@ pub struct PlanResource {
     pub kind: String,
     pub id: String,
     pub version: String,
+    pub platform: String,
     pub sha256: String,
     pub size: u64,
     pub reused: bool,
@@ -238,7 +252,22 @@ pub struct ResourceBinding {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct BoundTool {
     pub version: String,
+    pub platform: String,
     pub entries: BTreeMap<String, String>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+pub struct ResourceCleanupItem {
+    /// 安装器产生的相对资源标识，不接受客户端指定任意文件路径。
+    pub resource: String,
+    pub bytes: u64,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+pub struct ResourceCleanupReport {
+    pub dry_run: bool,
+    pub items: Vec<ResourceCleanupItem>,
+    pub total_bytes: u64,
 }
 
 #[async_trait]
@@ -254,6 +283,13 @@ pub trait PreparedInstallation: Send {
 pub trait InstallationStore: Send + Sync {
     async fn plan(&self, source: InstallSource) -> Result<InstallationPlan>;
     async fn prepare(&self, source: InstallSource) -> Result<Box<dyn PreparedInstallation>>;
+    async fn prepare_with_progress(
+        &self,
+        source: InstallSource,
+        _progress: std::sync::Arc<dyn crate::ProgressReporter>,
+    ) -> Result<Box<dyn PreparedInstallation>> {
+        self.prepare(source).await
+    }
     async fn list(&self) -> Result<Vec<InstalledRelease>>;
     async fn get(&self, id: &str) -> Result<InstalledRelease>;
     async fn set_enabled(
@@ -267,8 +303,22 @@ pub trait InstallationStore: Send + Sync {
         id: &str,
         expected_revision: &str,
     ) -> Result<InstalledRelease>;
+    async fn recovery_blocked(
+        &self,
+        id: &str,
+        expected_revision: &str,
+        phase: &str,
+        reason: &str,
+    ) -> Result<InstalledRelease>;
+    /// 删除时重新计算引用；运行中的组件与所有准备阶段资源必须受保护。
+    async fn cleanup_resources(
+        &self,
+        dry_run: bool,
+        running_components: Vec<String>,
+    ) -> Result<ResourceCleanupReport>;
     async fn restore_previous(&self, id: &str, expected_revision: &str)
     -> Result<InstalledRelease>;
+    /// 应用门禁要求用户先停用；安装回滚允许删除尚未激活的 Installed 记录。
     async fn delete(&self, id: &str, expected_revision: &str) -> Result<InstalledRelease>;
     async fn asset(&self, component_id: &str, revision: &str, path: &str) -> Result<PackageAsset>;
 }

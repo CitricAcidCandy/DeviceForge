@@ -516,3 +516,109 @@ async fn first_defaults_survive_relocation_and_updated_bundled_defaults() {
             .starts_with(fs::canonicalize(root).unwrap())
     );
 }
+
+#[tokio::test]
+async fn requirement_alternatives_use_unmasked_original_values_and_preserve_compatibility_gate() {
+    let mut fixture = Fixture::new("next_invocation").await;
+    let pointers = vec!["/token".into(), "/environment/REMOTE".into()];
+    fixture.store.get("demo").await.unwrap();
+    let empty = fixture
+        .store
+        .patch("demo", 0, json!({"token":" ","environment":{}}))
+        .await
+        .unwrap();
+    assert!(empty.compatible);
+    assert_eq!(empty.values["token"], "********");
+    assert!(
+        !fixture
+            .store
+            .requirements_configured("demo", &pointers)
+            .await
+            .unwrap()
+    );
+    let remote = fixture
+        .store
+        .patch("demo", 1, json!({"environment":{"REMOTE":"remote-source"}}))
+        .await
+        .unwrap();
+    assert_eq!(remote.values["environment"]["REMOTE"], "********");
+    assert!(
+        fixture
+            .store
+            .requirements_configured("demo", &pointers)
+            .await
+            .unwrap()
+    );
+    fixture
+        .store
+        .patch(
+            "demo",
+            2,
+            json!({"token":"local-source","environment":{ "REMOTE":null}}),
+        )
+        .await
+        .unwrap();
+    assert!(
+        fixture
+            .store
+            .requirements_configured("demo", &pointers)
+            .await
+            .unwrap()
+    );
+    assert!(
+        !fixture
+            .store
+            .requirements_configured("demo", &[])
+            .await
+            .unwrap()
+    );
+    fixture.manifest["configuration"]["version"] = json!(2);
+    fixture.write_manifest();
+    assert!(!fixture.store.get("demo").await.unwrap().compatible);
+    assert!(
+        !fixture
+            .store
+            .requirements_configured("demo", &pointers)
+            .await
+            .unwrap()
+    );
+}
+
+#[test]
+fn tool_supply_schema_accepts_managed_empty_root_and_requires_custom_absolute_root() {
+    let manifest: Value =
+        serde_json::from_str(include_str!("../../../plugins/tool-supply/manifest.json")).unwrap();
+    let schema = &manifest["configuration"]["schema"];
+    let validator = jsonschema::validator_for(schema).unwrap();
+    assert!(validator.is_valid(&manifest["configuration"]["defaults"]));
+    for source in ["local_manifest", "manifest_url"] {
+        let mut config = json!({"repository_mode":"managed","install_root":null});
+        config[source] = json!(if source == "local_manifest" {
+            "tool-catalog.json"
+        } else {
+            "https://example.invalid/tool-catalog.json"
+        });
+        assert!(validator.is_valid(&config));
+        config.as_object_mut().unwrap().remove("install_root");
+        assert!(validator.is_valid(&config));
+        config["repository_mode"] = json!("custom");
+        assert!(!validator.is_valid(&config));
+        for root in [
+            Value::Null,
+            json!(""),
+            json!("relative/tools"),
+            json!("C:/tools/../escape"),
+        ] {
+            config["install_root"] = root;
+            assert!(!validator.is_valid(&config));
+        }
+        config["install_root"] = json!("C:/DeviceForge/tools");
+        assert!(validator.is_valid(&config));
+        config.as_object_mut().unwrap().remove("repository_mode");
+        assert!(validator.is_valid(&config));
+    }
+    assert!(!validator.is_valid(&json!({
+        "repository_mode":"managed","local_manifest":"tool-catalog.json",
+        "manifest_url":"https://example.invalid/tool-catalog.json"
+    })));
+}

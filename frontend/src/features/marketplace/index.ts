@@ -12,4 +12,6 @@ export type {
   MarketplaceResourceRecord,
   MarketplaceUploadFile,
   MarketplaceDownloadedResource,
+  MarketplaceCapabilities,
+  MarketplaceReleasePublicationCapabilities,
 } from './types/index.ts';

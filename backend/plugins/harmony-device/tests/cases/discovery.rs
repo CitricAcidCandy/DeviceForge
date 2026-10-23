@@ -29,11 +29,40 @@ fn discovery_trimmed_ids_keep_order_and_eight_existing_plus_qualified_input_capa
 fn known_empty_marker_and_whitespace_only_produce_explicit_empty_array() {
     for output in [
         b"[Empty]\r\n".as_slice(),
+        b"[Empty]\r\r\n".as_slice(),
         b"\r\n \n".as_slice(),
         b"".as_slice(),
     ] {
         assert_eq!(success(&discover(output)), &json!([]));
     }
+}
+
+#[test]
+fn crcrlf_device_directory_keeps_order_and_qualified_input_capabilities() {
+    assert_eq!(
+        success(&qualified_discovery(
+            b" HDC001 \r\r\n127.0.0.1:5555\r\r\n",
+            &["HDC001", "127.0.0.1:5555"]
+        )),
+        &json!([
+            discovered("HDC001", true, None),
+            discovered("127.0.0.1:5555", true, None)
+        ])
+    );
+}
+
+#[test]
+fn mixed_line_endings_keep_order_and_qualified_input_capabilities() {
+    assert_eq!(
+        success(&qualified_discovery(
+            b"\n\r\n\r\r\n HDC001 \n[Empty]\r\n127.0.0.1:5555\r\r\n",
+            &["HDC001", "127.0.0.1:5555"]
+        )),
+        &json!([
+            discovered("HDC001", true, None),
+            discovered("127.0.0.1:5555", true, None)
+        ])
+    );
 }
 
 #[test]
@@ -55,7 +84,35 @@ fn duplicate_unknown_diagnostic_and_bad_id_reject_entire_directory() {
 
 #[test]
 fn control_character_in_second_line_rejects_first_valid_entry_too() {
-    for output in ["valid\nsecond\t\n", "valid\nsecond\u{7}\n"] {
+    for output in [
+        "valid\nsecond\t\n",
+        "valid\nsecond\u{7}\n",
+        "valid\r\r\nsec\rond\r\r\n",
+        "valid\r\r\nsecond\r",
+        "valid\r\r\nsecond\r\r",
+        "valid\r\r\nsecond\rthird\n",
+        "valid\r\r\nsecond\t\r\r\n",
+        "valid\r\r\nsecond\r\r\r\n",
+        "valid\r\r\n\u{1b}[0msecond\r\r\n",
+    ] {
+        failure(
+            &discover(output.as_bytes()),
+            "工具依赖失败：HDC发现输出含非法控制符",
+        );
+    }
+}
+
+#[test]
+fn control_characters_in_empty_markers_and_blank_lines_reject_entire_directory() {
+    for output in [
+        "valid\r\r\n[Empty]\r",
+        "valid\r\r\n[Empty]\r\r\r\n",
+        "valid\r\r\n\r",
+        "valid\r\r\n\r\r",
+        "valid\r\r\n\r\r\r\n",
+        "valid\r\r\n \r \n",
+        "valid\r\r\n\t\r\r\n",
+    ] {
         failure(
             &discover(output.as_bytes()),
             "工具依赖失败：HDC发现输出含非法控制符",

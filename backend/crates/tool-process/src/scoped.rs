@@ -6,7 +6,7 @@ mod lifecycle;
 mod ownership;
 mod session;
 #[cfg(windows)]
-mod windows;
+pub(crate) mod windows;
 
 pub use session::ScopedStreamingProcess;
 

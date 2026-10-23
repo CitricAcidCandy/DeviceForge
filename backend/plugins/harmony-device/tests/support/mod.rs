@@ -127,8 +127,24 @@ impl Fixture {
         fs::rename(plan.join("release.tmp"), plan.join("release")).unwrap();
     }
     pub fn wait_tool_at(&self, ordinal: usize) -> PidProbe {
+        self.wait_tool_at_with_deadline(ordinal, Instant::now() + Duration::from_secs(8))
+    }
+    pub fn wait_tool_at_with_deadline(
+        &self,
+        ordinal: usize,
+        invocation_deadline: Instant,
+    ) -> PidProbe {
         let call = self.root.join(format!("call-{ordinal:02}"));
-        let deadline = Instant::now() + Duration::from_secs(8);
+        // 上一工具退出后插件仍可能在解码/校验；尚未派发不等于新工具启动失败。
+        while !call.is_dir() {
+            assert!(
+                Instant::now() < invocation_deadline,
+                "原调用预算内未派发HDC，{}",
+                call.display()
+            );
+            thread::sleep(Duration::from_millis(5));
+        }
+        let deadline = invocation_deadline.min(Instant::now() + Duration::from_secs(8));
         while !call.join("ready").exists() {
             assert!(
                 Instant::now() < deadline,

@@ -1,5 +1,54 @@
 # DeviceForge 开发与验收记录
 
+## 2026-10-23 网页完整插件上传、MCP 指南与市场适配（集成验收中）
+
+- [x] 完整 ZIP 发布与旧独立资源入口的 UI 交互已补齐；本轮前端传输统一保留结构化错误、日志 ID、重试信息与取消等待，发布引擎覆盖实际 ZIP 字节、资源去重、来源固定和目录最后提交。
+- [x] 市场完整发布闭包增加真实 SHA-256 流式复核，拒绝同长度损坏；资源 HEAD/条件请求检查实际文件。市场 fmt、Clippy、全量测试和 debug 构建通过，含 11 项 HTTP 集成测试。
+- [x] 第二版 MCP 指南的十四篇知识、三目标七主题、只读标注与用户根隔离已补齐检查；Node 4 项和 Rust 指南定点 4 项通过。
+- [ ] 当前新基线的最终全量门禁、网页真实上传、独立宿主 MCP 和截图审核正在收口，暂不计链路验收完成。证据目录 `artifacts/plugin-publication-completion-20261023/` 保留首轮类型错误、并行 runtime 测试编译失败及修后门禁；用户已授权保留并行改动继续。
+- [ ] 不替换用户预览，不操作设备，不公开发布 npm/官方工具；既有再分发许可边界继续有效。
+
+## 2026-10-23 设备发现故障窄修（当前预览已恢复）
+
+- [x] 日志 `04945e54-4f0e-4bb9-aa6d-b972ba9620df` 已关联到此前Android发现清理未确认后的409准入拒绝；Harmony独立任务确认为HDC特殊行尾解析失败，不以通用502文案判断存储故障。
+- [x] 独占ADB端口先后对照确认标准句柄继承泄漏：原插件退出后管道不结束；撤销三路可继承位后正常响应、EOF和零退出。未操作设备输入、未停止用户5037服务。
+- [x] 公共运行库协议3/4/5标准流入口准备已落盘；不改帧/处理器签名、不清除cleanup_failed。原生后代继承回归先红后绿，Harmony补齐混合行尾及空标记隐藏控制符负例。
+- [x] 两份修复插件已冻结并完成隔离宿主验证；经用户批准，12:20替换当前预览的Android/Harmony插件并恢复7031后端，新PID32032。当前服务连续两轮发现均成功，Android每轮2台、Harmony每轮0台，代际不变且两项cleanup_failed均为false；原前端、ADB和HDC身份保持一致。现场证据位于 `artifacts/device-discovery-fix-20261023/live-20261023-121657/`，详见 `backend/docs/verification/设备发现标准流修复-20261023.md`。
+- [ ] 本轮完整workspace测试仍有缺口：首轮基础设施进程取消测试失败，单项复核通过不替代整轮；第二轮全量重跑已按用户现场恢复优先级停止。未据此宣布全部门禁或真机业务通过。
+
+## 2026-10-23 统一发布与成套安装最终候选（已完成内部审核，未公开发布）
+
+- [x] 第三批 `official-batch-03` 的18个完整功能ZIP、18个原生TGZ、实际EXE和9个批准工具身份已独立流式核验；ZIP合计695110864字节。18项都有中文名称、描述与版本化配置，12项共60个根字段，6项明确无需配置；投屏继续使用scrcpy-server 3.3.4。
+- [x] 完整后端fmt/Clippy/test/build及市场独立门禁通过；Rust workspace 2001通过、0失败、1项按设计忽略。前端426源码check/build通过，108文件899项在有界入口及默认四进程 `npm test` 均通过；根127/127、29模块架构及7规则通过；debug/release各九组功能门禁通过。
+- [x] 统一分发四项真实release验收全部通过：第三方、关键失败路径、18项官方在线与停市场后的18项离线、真实npx双独立缓存。最终证据 `artifacts/unified-release-distribution-final-05/report.json`，输入411文件前后摘要一致；两轮夹具失败原件保留于final-03/final-04。
+- [x] 工具供应远端/本地清单在managed模式且不填写安装根时均实际启用并返回预期目录；共享资源仅下载一次，配置缺失明确显示需要配置。官方18项属于安装覆盖，不外推设备业务或配置表单视觉验收。
+- [x] 最终npx包 `artifacts/plugin-release-candidates-20261022/npx-final-03/deviceforge-cli-0.1.0.tgz`：15501444字节，SHA-256 `89a2943ca641cc167aa20d82204dac3588e6c51c1e29f57eae7ba14780982d92`，`published:false`；两独立npm缓存、不同业务目录复用同一用户根，工具未重复下载。
+- [x] 最终Edge产品浏览器报告 `artifacts/plugin-installations-browser-release-RObvyb/report.json` 通过九项业务检查；本机LAN组件GET200、旧修订409、卸载保留配置。收尾确认宿主exit0、市场由夹具SIGTERM回收、测试端口释放、浏览器profile归属进程为空、28份dist与冻结清单一致；7031/5173 PID80792/107300未被接管。
+- [x] 七张截图由director_visual逐张审核为有保留通过；P2为通知堆叠遮挡标题和旧失败通知同屏造成状态歧义，P3为 `helper`/`setting` 英文标签。结果见同浏览器目录 `visual-review-result.md`；显示问题尚未修复。
+- [x] 集中审核 `artifacts/plugin-release-candidates-20261022/review-final-03/review.json` 已生成；宿主SHA `149d0684…`、市场SHA `5de4d0f3…`、前端入口SHA `4d2f6394…` 与npx绑定一致。下方旧统一发布状态保留为历史。
+- [ ] 公开npm/市场发布仍待许可条件确认：工具库存 `redistribution_ready:false`，HDC来源映射、LGPL条件和Codex voice微软运行库资格未闭合；手机、账号、签名、其他平台、长时媒体与性能验收仍未完成。
+
+## 2026-10-22 统一发布、共享依赖与成套安装（阶段历史）
+
+- [x] `release.json`、安装生命周期、资源绑定、持久根与完整发布HTTP/MCP/CLI已接通；市场配置来源、任务进度与资源清理入口补齐。详见 `backend/docs/implementation/统一发布安装集成验收-20261022.md`。
+- [x] 第三方真实debug市场/宿主smoke通过，包含共享工具仅一次下载、多版本并存、保留启停、旧修订拒绝、离线及配置持久化；报告 `artifacts/plugin-installations-smoke-debug.json`。首轮夹具MCP随机端口来源遗漏已修正后重跑。
+- [x] 本轮application144、infrastructure179（另1忽略）、SDK32、server9库测试与跨SDK绑定1项通过；资源服务7测试、Clippy通过，API类型已生成。
+- [x] 共享仓库/供应和实际进程租约已接通；调用侧工作池2执行/8等待修复通过原四运行/一排队生命周期门禁。清理未确认的四类管理操作已保留旧版并进入恢复受阻，定点及release真实故障验证通过。
+- [x] 当前前端108文件897项完整回归、426源码check、dist构建和release真实产品浏览器通过；根脚本122/122通过。release第三方安装、失败恢复及双独立npm缓存npx通过，候选TGZ在 `artifacts/plugin-release-candidates-20261022/npx-final/`，没有公开发布。
+- [x] 第二批18官方完整ZIP、18原始TGZ及其实际EXE已独立流式核验，ZIP合计695109876字节；批准工具库存快照与9个工具身份一致。可选APK工具的缺失必需const标签由通用有效配置快照补齐，不改用户保存值/修订。实际产物在 `artifacts/plugin-release-candidates-20261022/official-batch-02/`。
+- [x] 市场完整发布下载按钮明确显示“下载发布清单”，卡片与详情及旧独立资源兼容；修订后前端完整108文件897项、426源码check和dist重建通过，报告 `artifacts/plugin-manifest-download-frontend-20261022/summary.json`。
+- [x] 阶段遗留的最终18包在线/断网、release功能门禁和新宿主/新dist的npx已由上节第三批完整补验。两处Harmony全量夹具失败已修复并取得完整workspace通过；`artifacts/unified-release-backend-final-02/`、final-03及更早LNK1104原件保留。公开再分发待确认项仍明确标记 `redistribution_ready:false`。
+
+## 2026-10-22 完整交互终端（已验收并部署）
+
+- [x] Windows ConPTY与xterm、版本化按键/resize协议及旧管道兼容已补齐；默认PowerShell，在网页内直接运行Codex CLI。宿主→插件→PTY统一14项环境白名单，恢复PATHEXT等命令解析所需变量。
+- [x] 启动期间取消及协议5未Start分支已修复有界交接确认；最终所属98/98、协议5 16/16、fmt、全workspace all-targets Clippy、debug build、29模块架构/7规则均通过。最终workspace测试1984通过、0失败、1忽略；五组debug功能冒烟全部退出0，不转计性能测量。
+- [x] 最终冻结输入早期release的plain/resize各4/4、真实HTTP8/8通过，包含TTY/ANSI/中文/resize及三层树Cancel、EOF、卸载和宿主关闭后的回收。旧失败原件保留，成功释放联合核对Complete日志、自动删除、原代次无清理风险与后续准入。
+- [x] 最终生产前端真实Edge **11/11**，内外报告均通过；Codex CLI 0.163.0界面、Ctrl+C回原shell、方向历史、Tab、中文、粘贴、路由保留、resize、关闭再开、刷新及历史释放通过，五图独立审核通过。Edge与独占宿主正常退出、端口释放，归属进程树为空，报告 `artifacts/terminal-pty-20261022/browser-a5076719-1e35-47bf-8e14-044eaff07ba6/`。
+- [x] 当前7031已部署最终冻结宿主和插件，旧PID80072正常退出，新PID80792；13配置、13插件、131普通任务核对保留。实时终端探针通过，5173仍在线；用户终端配置保存在 `C:\Users\柠檬果\.deviceforge\plugin-configurations\server\terminal`。旧内存交互会话按重启语义失效，关闭前完整快照已保留。
+- v2前端生成/check/独立构建退出0，专项5文件34/34；该轮全量108文件105通过，3个失败文件串行24/24不能覆盖原全量失败。并行安装任务后来取得的108文件897项通过仍归其受检输入，终端运行时文件已与v2生产sourcemap逐字节核对一致。
+- 边界：Windows限定，中文与粘贴为CDP组合/合成事件，未验物理IME/原生系统剪贴板、长时、性能或npx新包，未提交模型任务、登录或操作设备。既有投屏03527f2e的Unconfirmed清理证据保留，重启不代表旧资源释放。完整证据见 `backend/docs/verification/完整交互终端验收-20261022.md` 及前端同名验收文档。
+
 ## 2026-10-22 终端默认切换普通命令行
 
 - [x] 原示例唯一档案为 `python -u -i`，导致终端默认进入解释器。最终源码清单和示例切换Windows PowerShell，固定UTF-8输入输出；页面刷新配置时移除已失效的Python选择，回归验证实际提交 `profile:powershell`。其他会话的页面样式改动保留。
@@ -1697,3 +1746,19 @@ Android环境观测已随实际Root读取通道标记权限；普通无Root不�
 - 修复过程中自查出两个自身缺陷：`patch()` 先展开 next 再写 `offset:0` 会让翻页永远回到第一页（已改成先 offset 再 next）；分类 chips 直接渲染原始键名（已改用 `categoryLabels`）。
 - 验证：`check:ui-policy` 通过；`check:architecture` 406 源码通过；`tsc --noEmit` 通过；`vite build` 34.05s 成功（仅既有 chunk/sourcemap 警告）；`tests/marketplace-ui.test.ts` 13/13 通过（含卡片派发、已安装列表、详情抽屉字段与关闭）；`tests/App.test.ts` 静态渲染用例通过、导航用例在运行中被本批编辑打断过一次，重跑受本机 5173 dev server 与测试共用 Vite 依赖缓存影响长时间停在 optimizer，未取得最终结论。
 - 未做：真实浏览器截图与 `check:responsive`（本机未开 9333 调试端口，也未安装 Playwright 浏览器），因此三列/四列的实际断点、抽屉在小窗口的宽度、以及真机上 `.marketplace-card` 与 Tailwind 的最终视觉未取证。`.marketplace-page` 类名保留但已无样式，仅作定位标记。
+# 2026-10-22 完整交互终端阶段历史
+
+本节保留开发初期及中间验收记录；最终结果以本文件顶部“完整交互终端（已验收并部署）”及两端验收文档为准。
+
+- 用户授权补齐网页终端，按 `backend/docs/implementation/完整交互终端实施裁定-20261022.md` 实施 Windows ConPTY、网页终端模拟器、实时按键/粘贴、缩放及会话进程树清理；旧原始管道调用兼容。
+- 后端、前端及独立测试分别持有明确写集；主代理负责共享构建、生成、集成与部署。当前用户7031服务有两个活动终端会话，先以独立服务验证，不直接中断。
+- 开发前架构28模块及6规则通过；基线 `cargo check -p apk-server --all-targets -j 1` 因其他会话统一安装模块的 `apk_domain::Artifact` 类型路径错误失败。终端尚未完成验证，不将既有普通命令行验收当作完整交互验收。
+
+### 2026-10-22 完整交互终端前端验收记录
+
+- 已新增 `frontend/docs/verification/完整交互终端验收-20261022.md`：核对终端专项33/33、完整前端测试107个文件全部通过、426源码check及最终生产构建退出0的交付日志。本次整理只改文档，未重复运行门禁。
+- 旧环境真实Edge已有6项交互检查通过，IME通过CDP组合事件、粘贴通过合成剪贴板事件，未验证系统级输入设备；该轮整体仍因子命令超时失败，不能宣称Codex交互已验收。
+- 新宿主最终浏览器、正常刷新最佳努力释放、部署身份及独立视觉结论由主代理补充。保留既有BFCache恢复边界，不修改共享应用；仅Windows，未重新验证npx分发、未执行模型任务。
+- 最终浏览器回流Stopping后页面停读的阻断：终端页最小修为所有未结束状态继续观察真实终态；新增真实React页面与公开HTTP适配回归，复现修改前停在Stopping失败、修改后1/1通过，并确认Finished后可新建不同ID。此项不计入先前33项及107文件结果，统一门禁和最终浏览器由主代理补充。
+
+- 最终补记：前端专项34/34、最终真实浏览器11/11及五图独审通过，启动取消修复后早期释放plain/resize各4/4、真实HTTP8/8通过。7031宿主已升级至PID80792，当前服务6项终端复验通过，5173 HTTP200；完整门禁、受检输入和剩余边界见本文件顶部与两端最终验收文档。

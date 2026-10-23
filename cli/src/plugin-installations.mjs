@@ -120,7 +120,7 @@ export function createInstallationClient({
 export async function waitInstallationJob(
   submitted,
   request,
-  { signal, pollIntervalMs = 500, onProgress } = {},
+  { signal, pollIntervalMs = 500, onProgress, expectedOperation } = {},
 ) {
   let job = submitted.data;
   fail(
@@ -132,8 +132,9 @@ export async function waitInstallationJob(
     signal?.throwIfAborted();
     fail(
       job.id === id &&
+        (!expectedOperation || job.operation === expectedOperation) &&
         ['queued', 'running', 'succeeded', 'failed', 'cancelled'].includes(job.status),
-      '安装任务身份或状态无效',
+      '安装任务身份、操作或状态无效',
     );
     onProgress?.({ jobId: id, status: job.status, logId: submitted.logId });
     if (job.status === 'succeeded') return { job, logId: submitted.logId };
@@ -203,8 +204,8 @@ export async function installPluginRelease(
     const path = resolve(options.source),
       stat = await lstat(path);
     fail(
-      stat.isFile() && !stat.isSymbolicLink() && stat.size > 0 && stat.size <= 1024 * 1024 * 1024,
-      '离线安装源必须为1GiB以内的普通 ZIP 文件',
+      stat.isFile() && !stat.isSymbolicLink() && stat.size > 0 && stat.size <= 4 * 1024 * 1024 * 1024,
+      '离线安装源必须为4GiB以内的普通 ZIP 文件',
     );
     const upload = await request(
       `/api/v2/plugin-installations/artifacts?filename=${encodeURIComponent(basename(path))}`,
@@ -243,4 +244,45 @@ export async function listPluginInstallations(options, context = {}) {
       '/api/v2/plugin-installations',
     )
   ).data;
+}
+
+export async function cleanupPluginResources(
+  options,
+  {
+    signal,
+    environment = process.env,
+    transport = fetch,
+    onProgress,
+    pollIntervalMs = 500,
+    timeoutMs = 600000,
+  } = {},
+) {
+  fail(options.dryRun === undefined || typeof options.dryRun === 'boolean', '清理预览参数必须为布尔值');
+  fail(Number.isInteger(timeoutMs) && timeoutMs > 0 && timeoutMs <= 3600000, '清理等待期限必须为1至3600000毫秒');
+  const dryRun = options.dryRun ?? true,
+    active = signal
+      ? AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)])
+      : AbortSignal.timeout(timeoutMs),
+    request = createInstallationClient({ apiUrl: options.apiUrl, signal: active, environment, transport });
+  const submitted = await request('/api/v2/plugin-installations/cleanup', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ dry_run: dryRun }),
+  });
+  fail(submitted.status === 202, '清理 API 应返回202任务');
+  const result = await waitInstallationJob(submitted, request, {
+    signal: active, pollIntervalMs, onProgress, expectedOperation: 'installation.cleanup',
+  });
+  const report = result.job.result;
+  fail(
+    report && report.dry_run === dryRun && Array.isArray(report.items) &&
+      report.items.length <= 32768 && Number.isSafeInteger(report.total_bytes) && report.total_bytes >= 0 &&
+      report.items.every((item) =>
+        item && typeof item.resource === 'string' && item.resource.length > 0 && item.resource.length <= 1024 &&
+        !/[\u0000-\u001f\u007f]/.test(item.resource) &&
+        Number.isSafeInteger(item.bytes) && item.bytes >= 0) &&
+      report.items.reduce((sum, item) => sum + item.bytes, 0) === report.total_bytes,
+    '清理任务缺少有效报告或预览模式不一致',
+  );
+  return { ...result, report };
 }

@@ -44,7 +44,7 @@ impl Drop for Handle {
     }
 }
 
-pub(super) struct Scope {
+pub(crate) struct Scope {
     job: Handle,
     port: Handle,
     assigned: bool,
@@ -52,7 +52,7 @@ pub(super) struct Scope {
 }
 
 impl Scope {
-    pub(super) fn new() -> Result<Self> {
+    pub(crate) fn new() -> Result<Self> {
         let job = Handle::new(unsafe { CreateJobObjectW(ptr::null(), ptr::null()) })?;
         let port = Handle::new(unsafe {
             CreateIoCompletionPort(INVALID_HANDLE_VALUE, ptr::null_mut(), 0, 1)
@@ -97,6 +97,10 @@ impl Scope {
         let raw = child
             .raw_handle()
             .ok_or_else(|| Error::ProcessIo(io::Error::other("暂停工具没有实际进程句柄")))?;
+        self.assign_handle(raw)
+    }
+
+    pub(crate) fn assign_handle(&mut self, raw: HANDLE) -> Result<()> {
         if unsafe { AssignProcessToJobObject(self.job.0, raw) } == 0 {
             return Err(Error::ProcessIo(io::Error::last_os_error()));
         }
@@ -128,14 +132,18 @@ impl Scope {
         thread::resume(pid, options, cancel)
     }
 
-    pub(super) fn stop(&self) -> Result<()> {
+    pub(crate) fn stop(&self) -> Result<()> {
         if unsafe { TerminateJobObject(self.job.0, 73) } == 0 {
             return Err(Error::ProcessIo(io::Error::last_os_error()));
         }
         Ok(())
     }
 
-    pub(super) fn empty(&mut self) -> Result<bool> {
+    pub(crate) fn assigned(&self) -> bool {
+        self.assigned
+    }
+
+    pub(crate) fn empty(&mut self) -> Result<bool> {
         for _ in 0..64 {
             let mut message = 0;
             let mut key = 0;

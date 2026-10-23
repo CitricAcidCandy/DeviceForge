@@ -4,7 +4,7 @@
   "id": "automation",
   "version": "0.1.0",
   "name": "自动化操作",
-  "description": "提供动作序列、设备重复点击、Windows 鼠标操作及输入轨迹录制和回放。工具和存储位置由部署者配置，目标设备及动作范围按操作契约校验。",
+  "description": "提供动作序列、设备重复点击、Windows 鼠标操作及输入轨迹录制和回放。完整发布包自动准备并绑定 ADB；input-trace 为可选工具，缺失时对应轨迹能力不可用。用户配置目标设备、动作范围和桌面自动化授权。",
   "components": [
     {
       "id": "automation",

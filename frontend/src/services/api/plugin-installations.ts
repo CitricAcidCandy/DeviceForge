@@ -12,6 +12,7 @@ type InstallationEnabledDto = paths['/api/v2/plugin-installations/{id}/enabled']
 type InstallationRevisionDto = paths['/api/v2/plugin-installations/{id}']['delete']['requestBody']['content']['application/json'];
 type InstallationArtifactDto = ResponseData<paths['/api/v2/plugin-installations/artifacts']['post']['responses'][201]>;
 type InstallationArtifactQuery = paths['/api/v2/plugin-installations/artifacts']['post']['parameters']['query'];
+type InstallationCleanupDto = paths['/api/v2/plugin-installations/cleanup']['post']['requestBody']['content']['application/json'];
 const digest = (value: unknown): value is string => typeof value === 'string' && /^[a-f0-9]{64}$/.test(value);
 const text = (value: unknown): value is string => typeof value === 'string' && value.trim().length > 0;
 function component(value: unknown): boolean {
@@ -23,12 +24,14 @@ function tool(value: unknown): boolean {
 }
 function requirement(value: unknown): boolean {
   return isRecord(value) && text(value.component_id) && text(value.config_pointer) && text(value.title) &&
-    typeof value.description === 'string' && typeof value.required === 'boolean' && typeof value.sensitive === 'boolean';
+    typeof value.description === 'string' && typeof value.required === 'boolean' && typeof value.sensitive === 'boolean' &&
+    (value.any_of === undefined || (Array.isArray(value.any_of) && value.any_of.length <= 16 && value.any_of.every(text) &&
+      new Set([value.config_pointer, ...value.any_of]).size === value.any_of.length + 1));
 }
 export function isInstalledRelease(value: unknown): value is InstalledReleaseDto {
   return isRecord(value) && text(value.id) && text(value.version) && text(value.name) && typeof value.description === 'string' &&
     digest(value.revision) && typeof value.enabled === 'boolean' &&
-    ['installed', 'enabled', 'configuration_required'].includes(String(value.status)) &&
+    ['installed', 'enabled', 'configuration_required', 'recovery_blocked'].includes(String(value.status)) &&
     typeof value.installed_at === 'number' && Number.isSafeInteger(value.installed_at) && value.installed_at >= 0 &&
     Array.isArray(value.components) && value.components.length > 0 && value.components.every(component) &&
     Array.isArray(value.tools) && value.tools.every(tool) && Array.isArray(value.requirements) && value.requirements.every(requirement);
@@ -63,4 +66,7 @@ export const uninstallReleaseEndpoint: Endpoint<{ id: string; body: Installation
 export const uploadInstallationArtifactEndpoint: Endpoint<InstallationArtifactQuery & { content: Blob }, InstallationArtifactDto> = {
   request: ({ filename, content }) => ({ path: `/api/v2/plugin-installations/artifacts?${new URLSearchParams({ filename })}`,
     method: 'POST', body: content, contentType: 'application/octet-stream' }), decode: isArtifact,
+};
+export const cleanupInstallationResourcesEndpoint: Endpoint<InstallationCleanupDto, JobDto> = {
+  request: (body) => ({ path: '/api/v2/plugin-installations/cleanup', method: 'POST', body: JSON.stringify(body), contentType: 'application/json' }), decode: isJob,
 };

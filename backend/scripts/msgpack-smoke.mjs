@@ -2,11 +2,12 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { createHash } from 'node:crypto';
 import assert from 'node:assert/strict';
+import { smokeBinary } from './smoke-binaries.mjs';
 
 // 使用交付清单部署真实插件，避免测试与管理员配置模式各写一套。
 export async function deployMessagePackPlugin(temporary, suffix, profile = 'debug') {
   const manifest = JSON.parse(await readFile(resolve('plugins/msgpack/manifest.example.json'), 'utf8'));
-  manifest.executable = resolve('target', profile, `deviceforge-msgpack-plugin${suffix}`);
+  manifest.executable = smokeBinary('deviceforge-msgpack-plugin', profile);
   const directory = join(temporary, 'plugins', 'msgpack');
   await mkdir(directory, { recursive: true });
   await writeFile(join(directory, 'manifest.json'), JSON.stringify(manifest));

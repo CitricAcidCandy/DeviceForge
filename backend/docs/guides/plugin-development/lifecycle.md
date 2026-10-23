@@ -1,10 +1,12 @@
 # 服务器插件生命周期、期限与清理
 
-安装、加载、执行、卸载、部署删除是不同动作。包安装成功只表示已发布部署文件；运行中需显式加载才贡献操作。服务器启动会扫描部署目录，运行启停状态目前不跨重启持久化。
+安装、加载、执行、卸载、部署删除是不同动作。完整功能以 `release.json` 统一管理，新安装满足必填 requirements 后默认启用，缺输入则 `configuration_required` 并停用；更新保留原启用意图。发布 `enabled` 持久化，宿主重启按该意图恢复，但恢复受阻和清理未确认时不能强行加载。浏览器实例的真实激活状态仍需客户端另行确认。
+
+统一安装写操作进入 `installation.install/update/enabled/uninstall/cleanup` 任务，HTTP/MCP 共用用例；接受返回不等于完成。更新、启停、卸载携带真实 `expected_revision`（原始发布清单 SHA-256），冲突先刷新，不能自动覆盖。关闭面板或取消等待不回滚服务端管理工作。
 
 ## 加载与卸载
 
-部署目录由 `APK_PLUGIN_DIR` 指定，插件 ID 子目录包含 `manifest.json`。加载可用 HTTP `POST /api/v2/plugins/{id}/load` 或 MCP `deviceforge.load_plugin`，只传插件 ID。宿主验证清单和输入模式，再原子发布贡献；前端、HTTP 和 MCP 从当前注册目录发现操作。
+统一发布所属组件由统一启停用例装卸，旧组件级 load/unload/包删除入口不能绕过所属关系。旧独立部署仍兼容 `APK_PLUGIN_DIR` 与插件 ID 子目录的 `manifest.json`；可用 HTTP `POST /api/v2/plugins/{id}/load` 或 MCP `deviceforge.load_plugin`，只传插件 ID。宿主验证清单和输入模式，再原子发布贡献；前端、HTTP 和 MCP 从当前注册目录发现操作。
 
 卸载可用 `POST /api/v2/plugins/{id}/unload` 或 MCP `deviceforge.unload_plugin`。先撤销新调用，再取消并等待排队和执行中的任务/会话收敛。历史任务与产物保留，同 ID 重载获得新代际，旧引用不能静默绑定新实例。受保护插件拒绝卸载。
 

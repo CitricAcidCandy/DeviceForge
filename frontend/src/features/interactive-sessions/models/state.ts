@@ -3,7 +3,7 @@ import type { SessionOutputPage } from '../../../services/api/index.ts';
 import { mergeInfo } from '../utils/rules.ts';
 import type { InteractiveSessionSnapshot, SessionAction, SessionInfoView } from '../types/index.ts';
 
-type Lane = 'definitions' | 'records' | 'observe' | 'input' | 'control';
+type Lane = 'definitions' | 'records' | 'record-control' | 'observe' | 'input' | 'control';
 export interface SessionRequest {
   readonly action: SessionAction;
   readonly lane: Lane;
@@ -27,11 +27,13 @@ const empty = (): InteractiveSessionSnapshot =>
 const laneFor = (action: SessionAction): Lane =>
   action === 'definitions' || action === 'records'
     ? action
-    : action === 'input' || action === 'eof'
-      ? 'input'
-      : action === 'cancel' || action === 'remove'
-        ? 'control'
-        : 'observe';
+    : action === 'release_record' || action === 'remove_record'
+      ? 'record-control'
+      : action === 'input' || action === 'eof'
+        ? 'input'
+        : action === 'cancel' || action === 'remove'
+          ? 'control'
+          : 'observe';
 export function createSessionState() {
   let state = empty();
   let epoch = 0;
@@ -118,7 +120,13 @@ export function createSessionState() {
     const lane = laneFor(action);
     const replacing = action === 'open' || action === 'resume';
     if (replacing) selectionReset();
-    if (lane !== 'definitions' && lane !== 'records' && !replacing && !state.session)
+    if (
+      lane !== 'definitions' &&
+      lane !== 'records' &&
+      lane !== 'record-control' &&
+      !replacing &&
+      !state.session
+    )
       throw new ApiError('protocol', 'session_not_selected', '请先打开或恢复已有会话');
     if (lane === 'input') {
       if (active.has(lane))
@@ -132,6 +140,8 @@ export function createSessionState() {
       )
         throw new ApiError('protocol', 'session_input_closed', '会话已停止输入或前次交付未确认');
     }
+    if (lane === 'record-control' && active.has(lane))
+      throw new ApiError('protocol', 'session_record_busy', '上一项终端记录操作仍在等待响应');
     if (action === 'remove' && state.session?.status !== 'finished')
       throw new ApiError('protocol', 'session_not_finished', '只能删除已观察到Finished的会话记录');
     revoke(lane);
@@ -141,7 +151,8 @@ export function createSessionState() {
     const context = Object.freeze({
       action,
       lane,
-      epoch: lane === 'definitions' || lane === 'records' ? null : epoch,
+      epoch:
+        lane === 'definitions' || lane === 'records' || lane === 'record-control' ? null : epoch,
       identity: state.session,
       controller,
       signal: AbortSignal.any([signal, controller.signal, lifetime.signal]),

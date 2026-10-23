@@ -10,6 +10,7 @@ import {
   SheetTitle,
 } from '../../../../components/index.ts';
 import type { MarketplaceEntry } from '../../../../features/marketplace/index.ts';
+import { isReleaseEntry } from '../../../../features/plugin-installations/index.ts';
 import type { PackageInfo } from '../../../../services/api/index.ts';
 import {
   categoryLabels,
@@ -66,6 +67,7 @@ export function MarketplaceDetail({
   entry,
   installed,
   busy,
+  recoveryBlocked = false,
   onClose,
   onDownload,
   onInstall,
@@ -73,6 +75,7 @@ export function MarketplaceDetail({
   entry: MarketplaceEntry | null;
   installed: Pick<PackageInfo, 'version'> | undefined;
   busy: boolean;
+  recoveryBlocked?: boolean;
   onClose(): void;
   onDownload(): void;
   onInstall(): void;
@@ -171,12 +174,12 @@ export function MarketplaceDetail({
         <SheetFooter className="flex-row items-center gap-2 border-t border-[color:var(--hairline)] p-4">
           <Button variant="outline" disabled={busy || !entry.resource_id} onClick={onDownload}>
             <Download />
-            下载
+            {isReleaseEntry(entry) ? '下载发布清单' : '下载'}
           </Button>
           <div className="flex-1" />
           {entry.kind === 'plugin' && (
             <Button
-              disabled={busy || !!blocked || (!!installed && !update)}
+              disabled={busy || recoveryBlocked || !!blocked || (!!installed && !update)}
               title={blocked ?? undefined}
               onClick={onInstall}
             >

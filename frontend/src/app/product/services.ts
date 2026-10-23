@@ -1,4 +1,3 @@
-import { createApiClient } from '../../services/api/index.ts';
 import { createPackageAnalysis } from '../../features/package-analysis/index.ts';
 import { createFrida } from '../../features/frida/index.ts';
 import { createAutomation } from '../../features/automation/index.ts';
@@ -42,9 +41,10 @@ export function createProductServices(
     packages: runtime.pluginPackages,
     serverPlugins: runtime.serverPlugins,
     browserPlugins: runtime.webPlugins,
+    installations: runtime.pluginInstallations,
     signal: runtime.host.signal,
   });
-  const client = createApiClient(options);
+  const client = runtime.requestClient;
   const webRtcMirroring = createHttpWebRtcMirroring(client);
   const gateway: JobGateway = {
     submit: (operation, input, signal) => runtime.tasks.submit({ operation, input }, signal),
@@ -94,6 +94,8 @@ export function createProductServices(
     profile: (reference: ProfileReference) => createAndroidProfile(runtime.host, reference),
     dispose(): Promise<void> {
       if (closing) return closing;
+      // 在撤销本地消费前发起终端keepalive释放，路由隐藏不会触发产品销毁。
+      const terminalRelease = sessions.releaseSelectedTerminal();
       closing = (async () => {
         pluginDefaults.dispose();
         messages.dispose();
@@ -110,6 +112,7 @@ export function createProductServices(
         mirroring.dispose();
         aiStreaming.dispose();
         const results = await Promise.allSettled([
+          terminalRelease,
           webRtcMirroring.dispose(),
           runtime.dispose(),
           mediaDisplay.dispose(),
