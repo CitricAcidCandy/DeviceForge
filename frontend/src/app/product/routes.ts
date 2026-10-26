@@ -12,10 +12,11 @@ import {
   Store,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
+import { slotKey } from '../../plugin-sdk/slots.ts';
 
 // 画面与录制、应用与包已并入设备工作台，作为该页的两个模式，不再单列路由。
 // 插件装载与工具供应已并入市场：市场同时承担检索、安装、启用与卸载，不再有独立页面。
-export type ProductRoute =
+export type HostRoute =
   | 'devices'
   | 'files'
   | 'performance'
@@ -27,8 +28,16 @@ export type ProductRoute =
   | 'tasks'
   | 'marketplace'
   | 'settings';
+/**
+ * 插件页面路由：内部键 `plugin:<pluginId>:<page>`，地址栏写成 `#/plugin/<pluginId>/<page>`。
+ * 用内部键而不是路径原文，是为了让「当前页面」在状态里仍然是一个可比较的字符串，
+ * 路由、导航、槽位派生三处不用各自再解析一遍路径。
+ */
+export type PluginRoute = `plugin:${string}:${string}`;
+export type ProductRoute = HostRoute | PluginRoute;
+
 export interface ProductRouteInfo {
-  readonly id: ProductRoute;
+  readonly id: HostRoute;
   readonly label: string;
   readonly group: string;
   readonly description: string;
@@ -116,9 +125,33 @@ export const PRODUCT_ROUTES: readonly ProductRouteInfo[] = [
     icon: Settings2,
   },
 ];
+const hostIndex = new Map<string, ProductRouteInfo>(PRODUCT_ROUTES.map((item) => [item.id, item]));
+
+export function pluginRoute(pluginId: string, page: string): PluginRoute {
+  return `plugin:${slotKey(pluginId)}:${slotKey(page)}`;
+}
+export function isPluginRoute(route: string): route is PluginRoute {
+  return /^plugin:[^:]+:/.test(route);
+}
+export function splitPluginRoute(route: PluginRoute): { pluginId: string; page: string } {
+  const [, pluginId = '', ...rest] = route.split(':');
+  return { pluginId, page: rest.join(':') };
+}
+export function hostRouteInfo(route: string): ProductRouteInfo | null {
+  return hostIndex.get(route) ?? null;
+}
+/** 地址栏里的写法：宿主路由保持原样，插件页面写成 plugin/<pluginId>/<page>（不含 `#`）。 */
+export function routeHash(route: ProductRoute): string {
+  if (!isPluginRoute(route)) return route;
+  const { pluginId, page } = splitPluginRoute(route);
+  return `plugin/${pluginId}/${page}`;
+}
 export function parseProductRoute(value: string): ProductRoute {
   const route = value.replace(/^#\/?/, '').split('?', 1)[0];
-  return PRODUCT_ROUTES.find((item) => item.id === route)?.id ?? 'devices';
+  if (!route) return 'devices';
+  const plugin = /^plugin\/([^/]+)\/(.+)$/.exec(route);
+  if (plugin) return pluginRoute(plugin[1] ?? '', plugin[2] ?? '');
+  return hostIndex.has(route) ? (route as HostRoute) : 'devices';
 }
 // 侧栏与状态栏只数可见路由；隐藏路由仍可直达。
 export const VISIBLE_ROUTES = PRODUCT_ROUTES.filter((entry) => !entry.hidden);

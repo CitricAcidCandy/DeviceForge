@@ -5,6 +5,9 @@ import type { TaskHistoryAccess } from './task-history.ts';
 import type { ThemeAccess, ThemeContribution } from './themes.ts';
 import type { ConfigurationAccess, ConfigurationDefinition } from './configuration.ts';
 export * from './models.ts';
+export * from './slots.ts';
+export { hostUi } from './ui.ts';
+export type * from './ui.ts';
 export type * from './devices.ts';
 export type * from './artifacts.ts';
 export type * from './task-history.ts';
@@ -161,12 +164,13 @@ export interface WebPluginRuntimeInfo {
 }
 export type EsmImporter = (url: string, signal: AbortSignal) => Promise<unknown>;
 export type PackageEntryResolver = (descriptor: InstalledWebPackage, runId: string) => string;
+export type SlotMode = 'append' | 'replace';
 export interface SlotRequest {
   readonly slot: string;
   readonly pluginId: string;
   readonly generation: number;
   readonly componentId: string;
-  readonly mode: 'append' | 'replace';
+  readonly mode: SlotMode;
 }
 export interface SlotLease {
   readonly target: HTMLElement;
@@ -178,5 +182,12 @@ export interface SlotAdapter {
 export interface SlotDefinition {
   readonly id: string;
   readonly target: HTMLElement;
-  readonly renderDefault: (target: HTMLElement) => Dispose | Promise<Dispose>;
+  // 省略即「纯挂载点」：宿主自己渲染默认内容，槽位不接管默认根。
+  readonly renderDefault?: (target: HTMLElement) => Dispose | Promise<Dispose>;
+  // 省略等价于两种模式都允许；宿主用它在装配处落实保护名单。
+  readonly modes?: readonly SlotMode[];
+}
+// 宿主侧的晚注册入口；React 只在拿到真实 DOM 后才知道挂载点。
+export interface SlotHost {
+  readonly define: (definition: SlotDefinition) => Promise<Dispose>;
 }

@@ -34,6 +34,42 @@ npm pack --ignore-scripts
 
 也可使用 ZIP 交付相同包内容。推荐将 `package.json`、`plugin.json` 与入口目录放在归档的包根；避免额外套入随意命名的工程目录。不要上传整个 node_modules、Git 历史、凭据、设备数据或本机构建缓存。ZIP/TGZ 均需通过宿主的路径、包身份、清单、入口和大小检查，扩展名本身不保证可以安装。
 
+## 样式与界面依赖
+
+插件可以自带 React、自带 Tailwind、自带任意 CSS，宿主不会替它编译，也不会拦它。包内 CSS 与图片和入口放在同一份归档里，加载器按扩展名发 `text/css`、`image/webp` 等正确 MIME，插件用 `new URL('./index.css', import.meta.url)` 取到自己的样式表再插进文档即可。宿主的 Tailwind 只扫宿主自己的源码，所以**宿主不会替插件生成任何类**；这不是限制，插件自己构建时把用到的 utilities 打进包里就行。
+
+真正需要注意的只有四条：
+
+1. **别把 preflight 带进来**。Tailwind 的 preflight 会重置 `button`、`input`、`h1` 等基础样式，宿主界面会和它打架。插件只编 utilities（`corePlugins: { preflight: false }`），或者用 `@layer` 隔离。
+2. **样式要有独立生命周期**。插入时给样式表打标记，卸载时按标记移除，避免插件卸载后样式继续污染宿主：
+
+   ```js
+   const link = document.createElement('link');
+   link.rel = 'stylesheet';
+   link.dataset.deviceforgePlugin = PLUGIN_ID;
+   link.href = new URL('./index.css', import.meta.url).href;
+   document.head.append(link);
+   return () => link.remove();
+   ```
+
+3. **自定义类名加前缀**。宿主的全局类名（`tool-link`、`rail-pane` 等）随时可能变，插件自己定义的类名一律写成 `df-<插件ID>-*`，避免互相覆盖。
+4. **主题变量白送**。宿主把主题变量挂在 `:root` 上，插件用 `var(--primary)`、`var(--hairline)` 之类可以直接跟着宿主换主题；写死颜色就会在换主题时突兀。
+
+React 二选一，**不要混用**：同一个插件内既自带又引入宿主的，会得到两份实例，渲染同一棵子树直接报错。
+
+**推荐用宿主实例**（不打包 React，包体最小、主题与组件版本自动跟随）：
+
+```js
+import { React, mountReact, Button } from 'deviceforge-host';
+```
+
+宿主的 `index.html` 已登记 importmap，把 `deviceforge-host`、`react`、`react/jsx-runtime`、`react/jsx-dev-runtime`、`react-dom`、`react-dom/client` 全部指向 `/plugin-host.js`。这个垫片只从全局契约 `__DEVICEFORGE_HOST_UI__` 取值，自身不带 React，所以四个说明符指向同一份实例是安全的。用自动 JSX 运行时也不需要额外配置——`react/jsx-runtime` 已指向垫片，导出的 `jsx/jsxs/Fragment` 就是宿主的运行时。
+
+纯 ESM 插件因此可以完全不构建：直接写 `import` 与 `React.createElement`（或 `.jsx` 交给自己的构建），`npm pack` 出包即可。用 TypeScript/TSX 的话照常在开发环境构建，构建时**不要**把 `react` 打进 bundle，也不要在产物里内联 React。
+
+**自带 React** 也可以：构建时把 `react`、`react-dom` 打进去，但那时就不要 import `deviceforge-host`（除了纯类型）。两条路都不要访问宿主的内部模块路径——宿主只承诺槽位与 SDK 契约。
+
+
 ## 旧独立浏览器包安装兼容
 
 1. 在当前宿主的插件管理页选择浏览器包类型并上传 ZIP/TGZ。

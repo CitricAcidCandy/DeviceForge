@@ -4,6 +4,24 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>DeviceForge · 设备工坊</title>
+    <!--
+      插件包自带 React 会得到第二份实例：hooks 与 context 全部失效。
+      这些说明符统一指向宿主垫片，插件构建时照同名 bare import 即可复用宿主的
+      那一份 React 与组件（见 frontend/public/plugin-host.js）。
+      importmap 必须出现在任何 module script 之前。
+    -->
+    <script type="importmap">
+      {
+        "imports": {
+          "deviceforge-host": "/plugin-host.js",
+          "react": "/plugin-host.js",
+          "react/jsx-runtime": "/plugin-host.js",
+          "react/jsx-dev-runtime": "/plugin-host.js",
+          "react-dom": "/plugin-host.js",
+          "react-dom/client": "/plugin-host.js"
+        }
+      }
+    </script>
   </head>
   <body>
     <div id="app"></div>

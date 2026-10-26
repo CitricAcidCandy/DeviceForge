@@ -7,5 +7,10 @@
 /runtime/
 /.runtime-staging/
 /artifacts/
+
+# 第三方插件只在本地开发与联调，打包后经市场分发，不进本仓库。
+/third-party-plugins/
 .tmp/
 tmp/
+
+/tmp-dsh/

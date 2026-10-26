@@ -8,6 +8,8 @@
 cargo run --release --manifest-path resource-server/Cargo.toml -- --bind 127.0.0.1:7040 --data-dir C:\DeviceForge\market-data
 ```
 
+开发和测试构建默认关闭调试信息与增量编译，使用 16 个代码生成单元；正式发布配置保持不变。资源服务是独立 Cargo 工程，配置单独定义，不依赖后端工作区继承。旧缓存不会自动消失；临时调试方式和磁盘处理边界见 [Rust 编译与磁盘占用](../backend/docs/guides/Rust编译与磁盘占用.md)。
+
 `--data-dir` 指定资源服务的父目录。服务启动时会自动创建 `plugin`、`tool`、`config`、`distribution`、`resource` 五个分类目录，以及内容寻址用的 `blobs` 和临时文件用的 `tmp`。上传仍按 SHA-256 保存在 `blobs` 中，分类目录用于后续包、配置和资源的管理扩展，不需要预先手动创建。
 
 Windows 下如果使用已经编译好的程序：

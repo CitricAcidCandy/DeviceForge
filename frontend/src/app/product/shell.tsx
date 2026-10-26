@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { ProductServices } from './services.ts';
 import type { ProductRoute } from './routes.ts';
+import { useReplacedHostRoutes } from './slots.tsx';
+import type { PluginPageInfo } from './slots.tsx';
 import { WorkspaceHeader, WorkspaceSidebar, WorkspaceStatusBar } from './chrome.tsx';
 import { useAction, useSnapshot } from './hooks.ts';
 import { DeviceContext } from './device-context.tsx';
@@ -12,11 +14,13 @@ import { taskBelongsToRoute } from './task-scope.ts';
 export function ProductShell({
   services,
   route,
+  pluginPages,
   onNavigate,
   children,
 }: {
   services: ProductServices;
   route: ProductRoute;
+  pluginPages: readonly PluginPageInfo[];
   onNavigate(route: ProductRoute): void;
   children: ReactNode;
 }) {
@@ -24,6 +28,7 @@ export function ProductShell({
   const [reduced, setReduced] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const replacedRoutes = useReplacedHostRoutes(services);
   const operations = useSnapshot(services.runtime.operations);
   const devices = useSnapshot(services.runtime.devices);
   const connection = useAction();
@@ -87,6 +92,8 @@ export function ProductShell({
       </a>
       <WorkspaceSidebar
         route={route}
+        pluginPages={pluginPages}
+        replacedRoutes={replacedRoutes}
         collapsed={collapsed}
         connectionText={connectionText}
         connectionError={Boolean(operations.error)}
@@ -95,6 +102,8 @@ export function ProductShell({
       <div className="workspace-column">
         <WorkspaceHeader
           route={route}
+          pluginPages={pluginPages}
+          replacedRoutes={replacedRoutes}
           collapsed={collapsed}
           onCollapse={() => setCollapsed((value) => !value)}
           drawerOpen={drawerOpen}
@@ -144,6 +153,7 @@ export function ProductShell({
         />
       </div>
       <WorkspaceStatusBar
+        pluginPages={pluginPages}
         connectionText={connectionText}
         connectionError={Boolean(operations.error)}
         pluginCount={pluginCount}

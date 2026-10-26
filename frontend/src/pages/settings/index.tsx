@@ -50,10 +50,13 @@ import {
 } from '../../components/index.ts';
 import { OperationNotice, useOperationAvailable } from '../../app/product/capabilities.tsx';
 import { ActionFeedback } from '../../app/product/feedback.tsx';
+import { ExtensionSurface, useSlotAppends } from '../../app/product/slots.tsx';
 import { McpConnection } from './components/McpConnection/index.tsx';
 import './workspace.css';
 
 export function SettingsPage({ services }: { services: ProductServices }) {
+  // 插件可以在设置页末尾放自己的分组；没有插件追加时这一张卡整块不出现。
+  const hasPluginSettings = useSlotAppends(services, 'settings.plugin.section');
   const [scope, setScope] = useState<'user' | 'workspace'>('user');
   const [owner, setOwner] = useState('local');
   const [section, setSection] = useState('general');
@@ -339,6 +342,14 @@ export function SettingsPage({ services }: { services: ProductServices }) {
           </Button>
         </FormActions>
       </FormSection>
+      {hasPluginSettings ? (
+        <FormSection title="插件设置">
+          <p className="settings-consequence">
+            下面每一项都由插件自己渲染；卸载插件后分组随之消失。
+          </p>
+          <ExtensionSurface services={services} slot="settings.plugin.section" fallback={null} />
+        </FormSection>
+      ) : null}
       <ActionFeedback {...action} />
       <JsonResult value={action.result} />
       <details className="settings-disclosure">

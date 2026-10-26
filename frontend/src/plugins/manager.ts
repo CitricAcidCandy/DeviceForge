@@ -1,4 +1,4 @@
-import { HostError } from '../plugin-sdk/index.ts';
+import { HostError, pageSlotId } from '../plugin-sdk/index.ts';
 import type {
   HostContext,
   SlotAdapter,
@@ -269,31 +269,35 @@ export function createPluginManager(options: ManagerOptions) {
       throw new Error('扩展运行代次无效');
     active(runtime);
     if (mounts.has(entry)) return;
+    // 模块没有自己的槽位字段：它的页面槽位由 pluginId + route 派生，
+    // 这样插件页和路由级接管走的是同一条挂载通路（同一套代次、租约与回滚）。
+    const isModuleContribution = !('slot' in entry.contribution);
+    const slot = isModuleContribution
+      ? pageSlotId(runtime.id, entry.contribution.route)
+      : entry.contribution.slot;
+    const mode = isModuleContribution ? 'replace' : (entry.contribution.mode ?? 'append');
     let lease: SlotLease | null = null;
     try {
-      if ('slot' in entry.contribution && options.slotAdapter) {
+      if (options.slotAdapter) {
         lease = await options.slotAdapter.acquire(
           {
-            slot: entry.contribution.slot,
+            slot,
             pluginId: runtime.id,
             generation: runtime.generation,
             componentId: id,
-            mode: entry.contribution.mode ?? 'append',
+            mode,
           },
           entry.owner.context.signal,
         );
       }
-      if (
-        'slot' in entry.contribution &&
-        entry.contribution.mode === 'replace' &&
-        !options.slotAdapter
-      )
+      // 组件声明 replace 时必须真的能替换；模块的页面槽位允许退回 moduleTarget，保持旧装配可用。
+      if (!isModuleContribution && mode === 'replace' && !options.slotAdapter)
         throw new Error('替换渲染必须注入公开槽位适配器');
       const target =
         lease?.target ??
-        ('slot' in entry.contribution
-          ? options.componentTarget?.(entry.contribution.slot, runtime.id, id)
-          : options.moduleTarget?.(entry.contribution.route, runtime.id, id));
+        (isModuleContribution
+          ? options.moduleTarget?.(entry.contribution.route, runtime.id, id)
+          : options.componentTarget?.(entry.contribution.slot, runtime.id, id));
       if (!target) throw new Error('宿主未分配组件槽位或模块挂载位置');
       await mounts.mount(
         entry,

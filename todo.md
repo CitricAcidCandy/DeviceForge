@@ -1,5 +1,34 @@
 # DeviceForge 开发与验收记录
 
+## 2026-10-26 Rust 日常编译磁盘占用控制
+
+- [x] 后端工作区和独立资源服务的 `dev`、`test` 配置均改为 `debug=0`、`incremental=false`、`codegen-units=16`；保留默认开发断言、溢出检查、优化级别与原发布配置，不改运行中部署。
+- [x] 两端 README 补充入口，新增 `backend/docs/guides/Rust编译与磁盘占用.md`，说明临时调试命令、配置覆盖来源、首次重编译与旧产物不自动回收的边界。
+- [x] 两处 Cargo 离线锁定元数据解析通过；后端架构检查及 8 项架构测试通过；两处格式检查通过。
+- [x] 将两份现行配置分别复制到无依赖临时样例，真实构建和测试均退出 0；编译器参数均为 16 个代码生成单元、无增量参数、无调试信息。两组各 2 项断言/溢出检查测试通过，临时样例及其构建产物已回收；样例不替代项目全量构建。
+- [ ] 全量门禁未完成：后端严格 Clippy 退出 101，阻塞为 `backend/crates/application/src/registry.rs:445` 的既有 `collapsible_if`，未越界修改业务逻辑。后端全量测试因 Rust 分析器持有共享目录锁而长时间等待，随后进入依赖构建，但本轮主动取消，未取得测试结果；后续工作区构建与资源服务 Clippy/测试/构建未执行。
+- [x] 本轮验证驱动、Cargo 子进程及临时样例均已回收；用户 Rust 分析器与运行服务未终止。
+- 未验证范围：配置不提供 `target` 固定容量上限，也不回收既有数百 GiB 缓存；本轮不删除历史资料、缓存或用户改动，不操作设备，不自动提交。
+
+## 2026-10-26 插件接管态：槽位热拔插 + 共享界面套件 + 第三方插件
+
+- [x] Ardot 页「V5 插件接管态」`40:1` 出六块稿：设备页整页接管 `40:2`、右栏应用面 `40:224`、三种接管状态条 `40:265`、设置插件卡 `40:282`、市场槽位对账 `40:292`、侧栏「插件」分组 `40:328`。修掉三处：白卡中部大片空洞（`40:202` 由 fill 改 hug，并补「采样明细」第二张卡承接剩余高度）、来源条标题与图标语义重复、缺失的 Puzzle/Alert 图标。
+- [x] 稿面与已落码实现的差异逐条对照，落在 `frontend/docs/design_docs/2026-10-26-插件接管态/插件接管态-视觉规格与差异.md`（11 条），同目录 6 张 PNG 预览。`frontend/docs/design/` 保持冻结，未新增。
+- [x] 共享界面套件：契约在 `frontend/src/plugin-sdk/ui.ts`（`HostUi` + `hostUi()`），实现在 `frontend/src/app/public-ui.ts`（`installPublicUi()` 把 React/组件桶摊平挂到 `__DEVICEFORGE_HOST_UI__`），薄垫片 `frontend/public/plugin-host.js`，importmap 写在 `frontend/index.html`，`main.ts` 启动即装、关闭即还原。`tests/public-ui.test.ts` 3/3（未安装报错、用宿主组件渲染并带宿主类名、垫片导出的名字宿主都提供）。
+- [x] 第三方插件 `device-app-catalog`（`third-party-plugins/`，已 gitignore、确认零跟踪）：`devices.apps`(replace)、`settings.plugin.section`(append)、模块 `/catalog` 三处接管；匹配规则「精确包名 → 最长关键字子串 → 未分类」；`test/match.test.mjs` 7/7；`npm pack` 产物 `deviceforge-browser-device-app-catalog-0.1.0.tgz` 归档内容核对通过（package.json / plugin.json / src 三个文件 / README）。纯 ESM 不构建，React 走宿主垫片。
+- [x] 市场页槽位对账 `SlotAudit`：`isKnownSlot` 不认的 slot 摊在「已安装」页签顶部并列出宿主可用槽位，避免「装了却什么都没变」被误判到别处。
+- [x] 门禁：`npm run check` 全绿（ui-policy / architecture 486 文件 / tsc）；`npm run build` 成功，`dist/index.html` 保留 importmap、`dist/plugin-host.js` 已产出。
+- [ ] 差异待收敛：来源条 `pluginId` 稿面 11px、实现 `text-xs`(13px)；已关闭条稿面有 `#FBFCFE` 底、实现透明。
+- [ ] 测试运行器并发问题（本轮发现，非本轮引入）：`scripts/run-tests.ts` 固定 4 路并发，最后剩下的 4 个 JSDOM 文件（`device-discovery-feedback` / `marketplace-ui` / `product-plugin-startup` / `release-publication-ui`）各自起 Vite dev server，互相抢 `node_modules/.vite/deps`，`npm test` 会在这里长时间停滞（本轮 18 分半仍在同一批，上一轮同样卡在这 4 个）。逐个串行跑全部通过：20 / 6 / 4 / 13 项。建议按「会起 Vite server 的文件串行、其余保持并发」分批。
+- 未验证范围：`npm run check:responsive` 需要本机 Chrome 调试端口 `127.0.0.1:9333`，本次未启动故跳过；1024×640 / 940×760 变体与暗色主题未出稿；第三方插件只在 Node 侧做了形状核对与纯逻辑单测，**未在真实宿主里实际点过三个界面**（需要先装 tgz 并选一台在线设备）。
+
+## 2026-10-26 设计稿存放路径约束（用户硬性要求）
+
+- [x] 用户判定 OpenPencil 出的数据分析界面稿质量不合格，已删除仓库根的 `openpencil-design-mvoz8mvl-24eb.op`（未跟踪文件，未改任何源码）。
+- [x] 新增约束：所有新设计稿一律存放 `frontend/docs/design_docs/<日期>-<功能名>/`，含可编辑源文件、PNG 预览与中文说明；禁止落在仓库根或前端工程之外。已写入根 `AGENTS.md`「界面设计先行」与 `frontend/AGENTS.md` 同名章节。
+- [x] 建立目录 `frontend/docs/design_docs/`，并在 `frontend/docs/README.md`「设计稿与图片」补新/旧稿件分区；`frontend/docs/design/` 冻结为历史稿件，不再新增。
+- 未验证范围：新增约束尚未被任何一次真实出稿流程检验（当前 `design_docs/` 为空）。
+
 ## 2026-10-26 性能空态与自动化设计稿（仅设计）
 
 - [x] 原 Ardot 文件 `739451830210924` 补入三张可编辑稿：`17:1` 性能采集前空态、`18:1` 自动化设备步骤、`19:1` 自动化桌面操作。独立文字、容器、按钮和矢量图层已核对，主要区域已命名，原稿保留。
@@ -1939,3 +1968,17 @@ Android环境观测已随实际Root读取通道标记权限；普通无Root不�
 - 最终依赖宿主冻结03为debug，SHA256为0ff827deb0a3bfda9a7b5c25dd450bd279b19bfb8e84692d47fec584f3b3e4de，位于artifacts/plugin-dependencies-integration-20261026/frozen-debug-03。在线安装门禁通过；独立完整门禁目录补原生夹具后生命周期与合作协议通过。早期误用缺少echo的冻结目录导致失败，原件保留，不能把它算产品回归。
 - 真实依赖03主矩阵12检查通过，但额外冷PATH子组遇到Windows长当前目录边界（工具路径272字符）；保留失败并以较短独占证据根完整重跑，不声称已支持任意长Windows目录。02 npx和页面轮因CIM审计/浏览器控制不可用未全过；03双缓存及页面独立复验中，历史01不替代最终字节。
 - 详细证据和边界见backend/docs/verification/市场插件依赖验收-20261026.md；MCP指南v3与两端依赖文档已更新。未公开npm/市场发布、未真机或其他平台验收，不将debug测试包称正式发布包。
+
+### 2026-10-26 15:07 共享依赖最终包与未通过项
+
+- 最终冻结03 npx全轮5/5通过，两个空缓存/不同cwd和业务根复用同一用户目录，B阶段全部请求为零；初始CLI两种发现路径与真实helper复核均过。报告artifacts/npx03-b785550c/report.json，包npm-package/deviceforge-cli-0.1.0.tgz为debug、59成员/21,326,178字节、不含工具归档，SHA256为f3ee7a8f826b7e2c31f18f8a3c9ceac53f3fdcd22ab9704c51a03b3d7ee32a32，未发布npm。
+- npx旧CIM失败保持failed；限定DCOM预检后完整新轮15次归属审计无重试通过。主代理已读报告、重算包摘要并核对最终原生进程清单，不只引用子代理摘要。
+- 最终普通runtime、performance-plugin runtime、logging、online-plugins、plugin-lifecycle、cooperative六门禁通过；CLI以03真实helper跑87/87零跳过，依赖适配器24/24、发布Node62/62。最新主HTTP短根曾13项业务全过但冻结审计捕获并行npx脚本变动，整轮仍failed；随后稳定输入轮有真实子程序执行失败，最后新轮又在发布安装出现“插件资源清理未确认”（artifacts/dep03-1500/report.json，3项/9任务后失败）。不抹原件或拼接各轮通过，HTTP/MCP扩展矩阵仍待定位，整体未验收。
+- 最终注册浏览器恢复仍Transport closed，未启动03页面或给新图审通过。产品页面成功/失败终态及390px仍未验；两端验收文档、交接入口已如实更新。后端全量/Clippy和前端内存失败仍保留，Windows长cwd、可信官方HTTPS、其他平台/物理客户端/真机/正式release不在已通过范围。
+- 本轮自启宿主、市场及npx/脚本/准备链已回收，两个接续代理关闭；最终现场未发现本轮证据根活动Node/宿主/市场进程，清单见artifacts/plugin-dependencies-integration-20261026/final-process-reclamation.json。用户7031/5173/5186未动，未自动提交、未覆盖获准保留的锁文件或其他并行实现。
+
+### 2026-10-26 15:21 MCP 开发知识维护一致性
+
+- 核对实际指南已为 v3、八主题十六篇，支持发布格式 1/2；修正仍写 v2/七主题的维护说明，补齐统一依赖声明、一次安装先发现复用、共享用户根、HTTP/MCP 入口及维护联动要求。
+- 新增维护说明与实际响应版本、格式、主题和依赖入口的一致性检查；`node --test scripts/tests/plugin-guide.test.mjs` 本轮 5/5 通过，目标文件差异空白检查通过。
+- 本轮只修改维护说明与测试，未修改十六篇内嵌正文，未重编或替换运行中的宿主，未启动市场；不将知识维护检查扩大为此前尚未通过的整体集成验收。

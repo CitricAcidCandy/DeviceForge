@@ -16,6 +16,28 @@ const root = fileURLToPath(new URL('../../', import.meta.url));
 const frontendRequire = createRequire(new URL('../../frontend/package.json', import.meta.url));
 const topics = ['overview', 'manifest', 'sdk', 'lifecycle', 'examples', 'packaging', 'dependencies', 'validation'];
 
+test('MCP 维护说明与实际指南版本、支持格式和主题保持同步', async () => {
+  const [query, maintenance] = await Promise.all([
+    readFile(join(root, 'backend/crates/server/src/plugin_guide/query.rs'), 'utf8'),
+    readFile(join(root, 'backend/docs/implementation/MCP插件开发指南.md'), 'utf8'),
+  ]);
+  const version = query.match(/"guide_version":\s*(\d+)/);
+  assert.ok(version, '指南响应必须声明知识版本');
+  assert.ok(maintenance.includes(`guide_version=${version[1]}`), '维护说明中的知识版本已过期');
+  for (const field of ['release_format_versions', 'release_host_api_versions']) {
+    const supported = query.match(new RegExp(`"${field}":\\s*(\\[[\\d,\\s]+\\])`));
+    assert.ok(supported, `指南响应缺少 ${field}`);
+    const expected = `${field}:${JSON.stringify(JSON.parse(supported[1]))}`;
+    assert.ok(maintenance.includes(expected), `维护说明缺少当前声明 ${expected}`);
+  }
+  for (const topic of topics) {
+    assert.ok(maintenance.includes(`\`${topic}\``), `维护说明缺少主题 ${topic}`);
+  }
+  for (const term of ['dependencies.json', 'deviceforge.get_plugin_dependencies', 'dependency.scan', 'dependency.install']) {
+    assert.ok(maintenance.includes(term), `维护说明缺少共享依赖入口 ${term}`);
+  }
+});
+
 test('八主题十六篇嵌入文档保持固定来源、读取预算与第三版知识覆盖', async () => {
   const catalog = await readFile(
     join(root, 'backend/crates/server/src/plugin_guide/catalog.rs'),

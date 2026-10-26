@@ -17,7 +17,13 @@ import {
   createPluginManager,
 } from '../plugins/index.ts';
 import type { ManagerOptions } from '../plugins/index.ts';
-import type { EsmImporter, HostContext, PackageEntryResolver } from '../plugin-sdk/index.ts';
+import type {
+  EsmImporter,
+  HostContext,
+  PackageEntryResolver,
+  SlotAdapter,
+  SlotHost,
+} from '../plugin-sdk/index.ts';
 import { createHostContext } from './host-context.ts';
 import { createReleaseHost } from './release-host.ts';
 import { createReleaseRequestClient } from './release-requests.ts';
@@ -58,6 +64,11 @@ export interface RuntimeOptions extends ClientOptions {
 }
 export function createFrontendRuntime(options: RuntimeOptions) {
   const lifetime = new AbortController();
+  // 晚注册槽位是可选的：只承认同时实现 define 的适配器，其余保持原有 append 通路。
+  const slotHost: SlotHost | undefined =
+    options.slotAdapter && typeof (options.slotAdapter as Partial<SlotHost>).define === 'function'
+      ? (options.slotAdapter as SlotAdapter & SlotHost)
+      : undefined;
   const rawClient = createApiClient(options);
   const client = createReleaseRequestClient(rawClient, {
     installations: async () => pluginInstallations.snapshot().result?.data ?? [],
@@ -276,11 +287,13 @@ export function createFrontendRuntime(options: RuntimeOptions) {
     themes,
     extensions: {
       catalog: extensions.catalog,
+      subscribe: extensions.subscribe,
       executeCommand: extensions.executeCommand,
       callService: extensions.callService,
       mountComponent: webPlugins.mountComponent,
       mountModule: webPlugins.mountModule,
       unmount: webPlugins.unmountExtension,
+      ...(slotHost ? { slots: slotHost } : {}),
     },
     registerInstalledPackage: browserPackages.register,
     artifacts,

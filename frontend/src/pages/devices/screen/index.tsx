@@ -36,6 +36,7 @@ import { RecoveryPanel, usePluginRecovery } from './RecoveryPanel/index.tsx';
 import { createMediaShareUrl, parseMediaShare, resolveMediaShareControl } from './media-share.ts';
 import { useBlobUrl } from '../../../components/BlobDownload/index.tsx';
 import { DeviceApps } from '../apps/index.tsx';
+import { ExtensionSurface } from '../../../app/product/slots.tsx';
 import type { ProductServices } from '../../../app/product/services.ts';
 import type { MirroringControl } from '../../../features/mirroring-streaming/index.ts';
 import type { DeviceRef } from '../../../plugin-sdk/index.ts';
@@ -650,7 +651,12 @@ export function DeviceScreen({
         <div className="rail-pane" id="workbench-pane" role="tabpanel"
           aria-label={pane === 'apps' ? '应用' : '画面参数'}>
           {pane === 'apps' ? (
-            <DeviceApps services={services} embedded compact />
+            /* 「应用」页签整块可被插件接管：宿主列表退成 fallback，插件卸载即自动回来。 */
+            <ExtensionSurface
+              services={services}
+              slot="devices.apps"
+              fallback={<DeviceApps services={services} embedded compact />}
+            />
           ) : (
             <>
               {/* ── 画面：先给四条事实，参数折起来 ── */}

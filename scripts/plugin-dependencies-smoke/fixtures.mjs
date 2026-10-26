@@ -38,8 +38,8 @@ import {spawnSync} from 'node:child_process';
 const request=JSON.parse(readFileSync(0,'utf8'));
 const values=JSON.parse(readFileSync(process.env.DEVICEFORGE_PLUGIN_CONFIG,'utf8'));
 if(!values.helper)throw new Error('依赖路径尚未绑定');
-const child=spawnSync(values.helper,['--version'],{encoding:'utf8',windowsHide:true,timeout:5000});
-if(child.error||child.status!==0)throw new Error('实际工具执行失败');
+const child=spawnSync(values.helper,['--version'],{encoding:'utf8',windowsHide:true,timeout:15000});
+if(child.error||child.status!==0)throw new Error('实际工具执行失败：'+JSON.stringify({code:child.error?.code,status:child.status,signal:child.signal}));
 process.stdout.write(JSON.stringify({protocol_version:1,request_id:request.request_id,
 result:{version:child.stdout.trim().replace(/^v/,''),setting:values.setting,helper:values.helper,
 runtime_executable:process.execPath,runtime_argv:process.argv,runtime_pid:process.pid,runtime_parent_pid:process.ppid}}));\n`;

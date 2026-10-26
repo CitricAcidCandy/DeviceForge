@@ -6,6 +6,10 @@ contracts/contributions 校验 SDK v2、命名空间、冲突和模块路由；s
 
 可注入 slotAdapter 支持受控 replace，createNamedSlotAdapter 登记宿主默认 renderer。直接 componentTarget 只支持 append，replace 未注入适配器会拒绝；卸载恢复默认渲染由适配器完成，不 monkeypatch 宿主节点。
 
+槽位适配器另有晚注册入口 `slots.define({id,target,modes?,renderDefault?})`：`renderDefault` 省略即「纯挂载点」——宿主用 React 自己渲染默认内容，槽位只负责托管插件根与租约，进出 DOM 都不留空节点。`modes` 由宿主装配处传入（`app/product/slots.ts` 是唯一真源），`plugins/**` 不读宿主清单，所以保护名单（市场、设置只允许 append）在装配处生效、不在插件运行时生效。`define` 返回的 `Dispose` 先释放该槽的全部租约再移除登记，重复 id 抛错。
+
+模块也走槽位：`ModuleContribution` 没有 `slot` 字段，`mountExtension` 用 `pageSlotId(pluginId, route)` 派生 `page.<插件ID>.<页面>` 并同样申请租约；`moduleTarget` 退化为没有适配器时的兜底。派生用的归一化函数在 `plugin-sdk/slots.ts`，宿主路由解析与插件运行时共用同一份，否则两边算出的键对不上就会「挂载成功但看不见」。
+
 registerInstalledPackage 通过 app 工厂接入；每次实际 load 创建运行 UUID，依赖资源路径继承此代次。没有内置来源审批或隔离，默认本地可信代码运行；宿主注入 importer/resolver，默认 resolver 使用已安装包运行资源路径。在线包生成契约及 runtime.pluginPackages 上传/目录/启停/删除已实现。永不完成的激活/挂载可能阻塞串行队列，插件必须响应取消。
 
 device-access.ts 为可选 SDK v2 devices 包装所有入口；scope 将插件实例和面板/组件/模块子生命周期信号合并到设备调用，关闭后拒绝 select/snapshot/subscribe，卸载释放订阅并阻止晚通知及旧结果。设备用例和 HTTP 不属于本模块，设备本地准入错误不伪造服务日志 ID。

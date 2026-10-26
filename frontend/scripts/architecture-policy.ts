@@ -70,6 +70,9 @@ const pageSupportFiles = new Set([
   'feedback.tsx',
   'capabilities.tsx',
   'device-target.ts',
+  // 插件槽位挂载点与槽位清单：页面需要放区域槽位、市场页需要做槽位对账。
+  'slots.ts',
+  'slots.tsx',
 ]);
 function pageDependency(origin: readonly string[], target: readonly string[]): boolean {
   const targetRoot = target[0] ?? '';

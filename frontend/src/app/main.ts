@@ -9,11 +9,14 @@ import type { ProductServices } from './product/services.ts';
 import { createNamedSlotAdapter } from '../plugins/index.ts';
 import { productServiceOrigin, probeProductConnection } from './product/connection.ts';
 import { createInstalledPackageImporter } from './installed-package-importer.ts';
+import { installPublicUi } from './public-ui.ts';
 import { ApiError } from '../services/api/index.ts';
 
 export async function startFrontendApp(documentRef: Document, windowRef: Window) {
   const target = documentRef.getElementById('app');
   if (!target) throw new Error('应用挂载节点不存在');
+  // 界面套件必须在任何插件进场前就位：插件挂载时同步读取全局契约。
+  const releasePublicUi = installPublicUi();
   // 主题变量同时覆盖工作区与官方弹层挂载根，释放时由主题适配器恢复。
   const themeRoot = documentRef.documentElement;
   const application = documentRef.createElement('div');
@@ -114,6 +117,7 @@ export async function startFrontendApp(documentRef: Document, windowRef: Window)
       ];
       application.remove();
       extensions.remove();
+      releasePublicUi();
       const failures = results.flatMap((result) =>
         result.status === 'rejected' ? [result.reason] : [],
       );

@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import type { ProductServices } from './services.ts';
-import { PRODUCT_ROUTES, parseProductRoute } from './routes.ts';
+import { PRODUCT_ROUTES, isPluginRoute, parseProductRoute, routeHash } from './routes.ts';
 import type { ProductRoute } from './routes.ts';
 import { ProductShell } from './shell.tsx';
+import { RouteSurface, usePluginPages } from './slots.tsx';
 import { DevicesPage } from '../../pages/devices/index.tsx';
 import { TasksPage } from '../../pages/tasks/index.tsx';
 import { SettingsPage } from '../../pages/settings/index.tsx';
@@ -10,15 +11,25 @@ import { MarketplacePage } from '../../pages/marketplace/index.tsx';
 import { AdvancedPage } from './advanced.tsx';
 import { MessageProvider } from '../../components/Message/index.tsx';
 
+/** 插件页面在模块装载完成前只有这一行；正常路径上它一瞬都看不见。 */
+function PluginPagePending() {
+  return (
+    <div className="flex h-full w-full items-center justify-center text-sm text-muted-foreground">
+      插件页面正在装载…
+    </div>
+  );
+}
+
 export function App({ services }: { services: ProductServices }) {
   const [route, setRoute] = useState<ProductRoute>(() =>
     typeof window === 'undefined' ? 'devices' : parseProductRoute(window.location.hash),
   );
   const [visited, setVisited] = useState<ReadonlySet<ProductRoute>>(() => new Set([route]));
+  const pluginPages = usePluginPages(services);
   function navigate(next: ProductRoute) {
     setRoute(next);
     setVisited((current) => new Set([...current, next]));
-    if (typeof window !== 'undefined') window.location.hash = next;
+    if (typeof window !== 'undefined') window.location.hash = routeHash(next);
   }
   useEffect(() => {
     const changed = () => {
@@ -29,6 +40,13 @@ export function App({ services }: { services: ProductServices }) {
     window.addEventListener('hashchange', changed);
     return () => window.removeEventListener('hashchange', changed);
   }, []);
+  // 插件被卸载或禁用后，停在它页面上的用户必须被送回一个真实存在的地方。
+  const pluginPageMissing = isPluginRoute(route) && !pluginPages.some((page) => page.key === route);
+  useEffect(() => {
+    if (pluginPageMissing) navigate('devices');
+    // navigate 依赖的只有 setState，按缺失状态变化触发即可。
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pluginPageMissing]);
   useEffect(() => {
     let reported = '';
     const report = (snapshot: ReturnType<typeof services.pluginDefaults.snapshot>) => {
@@ -64,7 +82,12 @@ export function App({ services }: { services: ProductServices }) {
   }, [services]);
   return (
     <MessageProvider controller={services.messages}>
-      <ProductShell services={services} route={route} onNavigate={navigate}>
+      <ProductShell
+        services={services}
+        route={route}
+        pluginPages={pluginPages}
+        onNavigate={navigate}
+      >
         {PRODUCT_ROUTES.filter((entry) => visited.has(entry.id)).map((entry) => (
           <div
             key={entry.id}
@@ -72,19 +95,36 @@ export function App({ services }: { services: ProductServices }) {
             data-route={entry.id}
             className={entry.id === 'automation' ? 'flex min-h-full w-full flex-col' : undefined}
           >
-            {entry.id === 'devices' ? (
-              <DevicesPage services={services} active={route === 'devices'} />
-            ) : entry.id === 'tasks' ? (
-              <TasksPage services={services} />
-            ) : entry.id === 'settings' ? (
-              <SettingsPage services={services} />
-            ) : entry.id === 'marketplace' ? (
-              <MarketplacePage services={services} active={route === 'marketplace'} />
-            ) : (
-              <AdvancedPage route={entry.id} services={services} active={entry.id === route} />
-            )}
+            <RouteSurface services={services} route={entry.id}>
+              {entry.id === 'devices' ? (
+                <DevicesPage services={services} active={route === 'devices'} />
+              ) : entry.id === 'tasks' ? (
+                <TasksPage services={services} />
+              ) : entry.id === 'settings' ? (
+                <SettingsPage services={services} />
+              ) : entry.id === 'marketplace' ? (
+                <MarketplacePage services={services} active={route === 'marketplace'} />
+              ) : (
+                <AdvancedPage route={entry.id} services={services} active={entry.id === route} />
+              )}
+            </RouteSurface>
           </div>
         ))}
+        {/* 插件页面不进宿主路由表：它们由插件自己声明，卸载即消失，已访问集里自然被清掉。 */}
+        {pluginPages
+          .filter((page) => visited.has(page.key))
+          .map((page) => (
+            <div
+              key={page.key}
+              hidden={page.key !== route}
+              data-plugin-page={page.key}
+              className="flex min-h-full w-full min-w-0 flex-col"
+            >
+              <RouteSurface services={services} route={page.key}>
+                <PluginPagePending />
+              </RouteSurface>
+            </div>
+          ))}
       </ProductShell>
     </MessageProvider>
   );

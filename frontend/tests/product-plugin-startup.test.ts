@@ -237,6 +237,16 @@ test('终端页面以PTY协议创建会话，自动分页、暂停续读并关�
   const transport: typeof fetch = async (input, init) => {
     const url = requestUrl(input);
     const method = init?.method ?? 'GET';
+    // 设备页空状态会核对镜像恢复现场；不给桩就会拿到空数组，直接顶成契约错误提示。
+    if (url.pathname === '/api/v2/plugins/mirroring/recovery')
+      return success({
+        id: 'mirroring',
+        generation: 'mirroring-generation',
+        supported: false,
+        cleanup_failed: false,
+        recovering: false,
+        last_report: null,
+      });
     if (url.pathname === '/api/v2/session-definitions')
       return success({
         revision: 1,
@@ -328,7 +338,10 @@ test('终端页面以PTY协议创建会话，自动分页、暂停续读并关�
     await settled(() => button('关闭会话').disabled, '关闭后终端没有显示终态');
     assert.equal(cancels, 1);
     assert.ok(documentRef.body.textContent?.includes('清理完成'));
-    assert.equal(documentRef.querySelector('[data-message-kind="error"]'), null);
+    assert.ok(
+      documentRef.querySelector('[data-message-kind="error"]') === null,
+      `出现了错误提示：${documentRef.querySelector('[data-message-kind="error"]')?.textContent ?? ''}`,
+    );
   });
 });
 

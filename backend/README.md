@@ -14,6 +14,11 @@
 
 示例插件：执行 `cargo build -p deviceforge-echo-plugin`，按 plugins/echo/README.md 部署并填写绝对入口路径。服务启动时加载贡献，运行中可通过 HTTP/MCP 按插件 ID 加载、卸载和重载；配置令牌时携带鉴权。无需修改通用路由，契约及边界见 [运行中插件生命周期](docs/运行中插件生命周期.md)。
 
+## 编译与磁盘占用
+开发和测试构建默认关闭调试信息与增量编译，使用 16 个代码生成单元；保留开发断言、溢出检查及原有发布配置。这样减少后续构建占用，但修改后的重编译可能变慢，源码级调试需临时开启调试信息。
+
+配置不会自动删除已有缓存或历史验收资料；适用范围、调试命令与旧产物处理边界见 [Rust 编译与磁盘占用](docs/guides/Rust编译与磁盘占用.md)。
+
 ## API 与验证
 HTTP 推荐 `/api/v2`，业务 JSON 返回日志 ID；v1 保持兼容，MCP 在 `/mcp`。以 openapi.json 的运行时模式和 operations 列表为准。后端类型生成模式，不复制 DTO；导出命令：`cargo run -p apk-server --bin export-openapi`。
 

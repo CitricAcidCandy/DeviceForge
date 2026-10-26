@@ -34,6 +34,7 @@ import { categoryLabels } from './presentation.ts';
 import { useMarketplace } from './use-marketplace.ts';
 import { MarketplaceAdvancedFilters } from './components/MarketplaceFilters/index.tsx';
 import { MarketplaceCard } from './components/MarketplaceCard/index.tsx';
+import { SlotAudit } from './components/SlotAudit/index.tsx';
 import { MarketplaceDetail } from './components/MarketplaceDetail/index.tsx';
 import { MarketplaceConfiguration } from './components/MarketplaceConfiguration/index.tsx';
 import { MarketplaceUploadDialog } from './components/MarketplaceUploadDialog/index.tsx';
@@ -367,6 +368,8 @@ export function MarketplacePage({
               市场描述暂不可用，仍可配置和管理已安装的插件。
             </p>
           )}
+
+          {tab === 'installed' && <SlotAudit services={services} />}
 
           <div
             className="grid min-h-0 flex-1 content-start gap-2.5 overflow-auto pb-1 [grid-template-columns:repeat(auto-fill,minmax(18.75rem,1fr))]"

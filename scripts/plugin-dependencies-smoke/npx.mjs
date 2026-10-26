@@ -113,7 +113,7 @@ export function ownFromSnapshot(all, root, hosts = [], driver = process.pid) {
 }
 
 export async function ownedProcesses(root, hosts = []) {
-  return osQuery('cim-owned-processes', async () => {
+  return osQuery('wmi-dcom-owned-processes', async () => {
     const previous = observedProcesses.get(root) ?? new Map();
     const starts = managedEntries.filter((entry) => inside(root, entry.cwd));
     const seeds = [
@@ -129,9 +129,9 @@ export async function ownedProcesses(root, hosts = []) {
         ].filter((pid) => Number.isSafeInteger(pid) && pid > 0),
       ),
     ];
-    // 单 PID 和单父 PID 等值查询避免 WMI 组合谓词取消；不枚举全系统 Node/CIM。
+    // CIM 传输实测取消，改用 DCOM 单 PID 查询；仍须完整成功且包含存活驱动。
     const script =
-      "$ErrorActionPreference='Stop'; [Console]::OutputEncoding=[Text.UTF8Encoding]::new($false); $queue=[Collections.Generic.Queue[int]]::new(); foreach($id in ($env:DF_NPX_AUDIT_PIDS -split ',')){$queue.Enqueue([int]$id)}; $seen=@{}; $items=@{}; while($queue.Count -gt 0){$id=$queue.Dequeue(); if($seen.ContainsKey($id)){continue}; $seen[$id]=$true; if($seen.Count -gt 256){throw '本轮进程审计超过256个节点'}; $prefix='SELECT ProcessId,ParentProcessId,CreationDate,ExecutablePath,CommandLine FROM Win32_Process WHERE '; $own=@(Get-CimInstance -Query ($prefix+\"ProcessId=$id\") -ErrorAction Stop); $children=@(Get-CimInstance -Query ($prefix+\"ParentProcessId=$id\") -ErrorAction Stop); foreach($item in @($own+$children)){if($item.ProcessId -eq $PID){continue}; $items[[int]$item.ProcessId]=$item; if(!$seen.ContainsKey([int]$item.ProcessId)){$queue.Enqueue([int]$item.ProcessId)}}}; ConvertTo-Json -Compress -Depth 3 -InputObject @($items.Values | Select-Object ProcessId,ParentProcessId,ExecutablePath,CommandLine,@{n='CreatedAt';e={$_.CreationDate.ToUniversalTime().ToString('o')}})";
+      "$ErrorActionPreference='Stop'; [Console]::OutputEncoding=[Text.UTF8Encoding]::new($false); $queue=[Collections.Generic.Queue[int]]::new(); foreach($id in ($env:DF_NPX_AUDIT_PIDS -split ',')){$queue.Enqueue([int]$id)}; $seen=@{}; $items=@{}; while($queue.Count -gt 0){$id=$queue.Dequeue(); if($seen.ContainsKey($id)){continue}; $seen[$id]=$true; if($seen.Count -gt 256){throw '本轮进程审计超过256个节点'}; $prefix='SELECT ProcessId,ParentProcessId,CreationDate,ExecutablePath,CommandLine FROM Win32_Process WHERE '; $own=@(Get-WmiObject -Query ($prefix+\"ProcessId=$id\") -ErrorAction Stop); $children=@(Get-WmiObject -Query ($prefix+\"ParentProcessId=$id\") -ErrorAction Stop); foreach($item in @($own+$children)){if($item.ProcessId -eq $PID){continue}; $items[[int]$item.ProcessId]=$item; if(!$seen.ContainsKey([int]$item.ProcessId)){$queue.Enqueue([int]$item.ProcessId)}}}; ConvertTo-Json -Compress -Depth 3 -InputObject @($items.Values | Select-Object ProcessId,ParentProcessId,ExecutablePath,CommandLine,@{n='CreatedAt';e={[Management.ManagementDateTimeConverter]::ToDateTime($_.CreationDate).ToUniversalTime().ToString('o')}})";
     const { stdout } = await executeFile(
       join(process.env.SystemRoot, 'System32/WindowsPowerShell/v1.0/powershell.exe'),
       ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command', script],
@@ -160,6 +160,7 @@ export async function ownedProcesses(root, hosts = []) {
     observedProcesses.set(root, remembered);
     osAuditSnapshots.push({
       at: new Date().toISOString(),
+      backend: 'wmi-dcom',
       root,
       seed_pids: seeds,
       driver_pid: process.pid,

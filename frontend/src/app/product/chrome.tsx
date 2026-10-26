@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import type { ProductRoute } from './routes.ts';
-import { PRODUCT_ROUTES, VISIBLE_ROUTES } from './routes.ts';
+import { VISIBLE_ROUTES, hostRouteInfo, isPluginRoute, splitPluginRoute } from './routes.ts';
 import { ProductNavigation } from './navigation.tsx';
+import type { PluginPageInfo } from './slots.tsx';
 import { Button } from '../../components/Button/index.tsx';
 import {
   DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent,
@@ -14,9 +15,11 @@ import { ChevronRight, Ellipsis, Menu, PanelLeftClose, PanelLeftOpen, RefreshCw,
 
 // 侧栏由品牌、服务状态、分组导航与底部小工具组成；不持有业务状态。
 export function WorkspaceSidebar({
-  route, collapsed, connectionText, connectionError, onNavigate,
+  route, pluginPages, replacedRoutes, collapsed, connectionText, connectionError, onNavigate,
 }: {
   route: ProductRoute;
+  pluginPages: readonly PluginPageInfo[];
+  replacedRoutes: ReadonlySet<string>;
   collapsed: boolean;
   connectionText: string;
   connectionError: boolean;
@@ -35,7 +38,13 @@ export function WorkspaceSidebar({
         <span data-service-state={connectionError ? 'error' : 'ok'}>{connectionText}</span>
       </div>
     </div>
-    <ProductNavigation route={route} collapsed={collapsed} onNavigate={onNavigate} />
+    <ProductNavigation
+      route={route}
+      pluginPages={pluginPages}
+      replacedRoutes={replacedRoutes}
+      collapsed={collapsed}
+      onNavigate={onNavigate}
+    />
     <div className="sidebar-foot">
       <Button variant="ghost" className="sidebar-foot-button" aria-label="设置" title="设置"
         onClick={() => onNavigate('settings')}><Settings2 aria-hidden="true" /></Button>
@@ -52,11 +61,13 @@ export interface WorkspaceIdentity {
 }
 
 export function WorkspaceHeader({
-  route, collapsed, onCollapse, drawerOpen, onDrawerChange, reduced, onReducedChange,
-  focused, onFocusedChange, connectionText, connectionError,
+  route, pluginPages, replacedRoutes, collapsed, onCollapse, drawerOpen, onDrawerChange, reduced,
+  onReducedChange, focused, onFocusedChange, connectionText, connectionError,
   onRefreshConnection, onNavigate, activeTasks, deviceSlot,
 }: {
   route: ProductRoute;
+  pluginPages: readonly PluginPageInfo[];
+  replacedRoutes: ReadonlySet<string>;
   collapsed: boolean;
   onCollapse(): void;
   drawerOpen: boolean;
@@ -73,7 +84,16 @@ export function WorkspaceHeader({
   /** 当前工作设备的选择器：挂在顶栏，不占页面正文，跨页面都在。 */
   deviceSlot?: React.ReactNode;
 }) {
-  const currentRoute = PRODUCT_ROUTES.find((entry) => entry.id === route);
+  // 插件页不在宿主路由表里，面包屑从插件自己声明的标题取，不让顶栏空着。
+  const currentRoute = hostRouteInfo(route);
+  const currentPlugin = isPluginRoute(route)
+    ? pluginPages.find((page) => page.key === route)
+    : undefined;
+  const locationGroup = currentRoute?.group ?? '插件';
+  const locationLabel =
+    currentRoute?.label ??
+    currentPlugin?.title ??
+    (isPluginRoute(route) ? splitPluginRoute(route).page : '未知页面');
   return <header className="workspace-topbar global-bar">
     <div className="topbar-location">
       <Button variant="ghost" size="icon" className="navigation-desktop-trigger"
@@ -87,12 +107,17 @@ export function WorkspaceHeader({
         </SheetTrigger>
         <SheetContent side="left" className={'navigation-drawer' + (reduced ? ' reduce-motion' : '')}>
           <SheetHeader><SheetTitle>工坊导航</SheetTitle><SheetDescription>选择工具，继续当前设备工作</SheetDescription></SheetHeader>
-          <ProductNavigation route={route} onNavigate={onNavigate} />
+          <ProductNavigation
+            route={route}
+            pluginPages={pluginPages}
+            replacedRoutes={replacedRoutes}
+            onNavigate={onNavigate}
+          />
         </SheetContent>
       </Sheet>
       <nav className="workspace-breadcrumb" aria-label="面包屑"><ol>
-        <li className="breadcrumb-group">{currentRoute?.group}</li>
-        <li aria-current="page"><ChevronRight aria-hidden="true" /><span>{currentRoute?.label}</span></li>
+        <li className="breadcrumb-group">{locationGroup}</li>
+        <li aria-current="page"><ChevronRight aria-hidden="true" /><span>{locationLabel}</span></li>
       </ol></nav>
       {deviceSlot}
     </div>
@@ -129,8 +154,9 @@ export function WorkspaceHeader({
 
 // 状态栏只报运行事实：连接、插件装载与可排查的日志标识。
 export function WorkspaceStatusBar({
-  connectionText, connectionError, pluginCount, logId, endpoint,
+  pluginPages, connectionText, connectionError, pluginCount, logId, endpoint,
 }: {
+  pluginPages: readonly PluginPageInfo[];
   connectionText: string;
   connectionError: boolean;
   pluginCount: number;
@@ -152,7 +178,9 @@ export function WorkspaceStatusBar({
       <span className="statusbar-divider" aria-hidden="true" />
       <span>插件 {pluginCount} 已加载</span>
       <span className="statusbar-divider" aria-hidden="true" />
-      <span>路由 {VISIBLE_ROUTES.length} 项</span>
+      <span>
+        路由 宿主 {VISIBLE_ROUTES.length} + 插件 {pluginPages.length}
+      </span>
     </div>
     <div className="statusbar-group">
       {logId && <><span className="statusbar-log">日志 {logId}</span><span className="statusbar-divider" aria-hidden="true" /></>}

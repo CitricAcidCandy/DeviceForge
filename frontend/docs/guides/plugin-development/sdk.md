@@ -42,13 +42,30 @@ interface HostContext {
 | 字段 | 结构或签名 |
 | --- | --- |
 | `components` | `{id,title,slot,mode?: 'append'或'replace',mount}` |
-| `modules` | `{id,title,route,mount}` |
+| `modules` | `{id,title,route,mount}`，`route` 为宿主路径（`/catalog`），派生出插件页面与侧栏「插件」分组条目 |
 | `commands` | `{id,title,execute(input,context,signal): Promise<HostResult<JsonValue>>}` |
 | `services` | `{id,version,invoke(input,context,signal): Promise<HostResult<JsonValue>>}` |
 | `beforeTaskSubmit` | `{id,priority?,transform({operation,input},context,signal): Promise<{operation,input}>}` |
 | `themes` | `{id,title,variables?: Record<string,string>,css?: string,colorScheme?: 'light'或'dark'或'normal'}` |
 
-组件只在已开放的具名槽位生效；当前产品提供 `workshop.extensions`，`replace` 由槽位适配器管理默认内容的释放与恢复。模块声明不会自动进入导航。钩子按 priority 升序、再按 ID 排序；抛错则中止后续钩子和本次提交。不要在 `transform` 中递归调用 `submit`，避免重复进入钩子链。
+组件只在已开放的具名槽位生效。宿主把槽位的可用模式在装配处写死，插件无法自我授权：`replace` 由槽位适配器管理默认内容的释放与恢复，`append` 只往后追加。当前产品开放的槽位：
+
+| 槽位 | 形态 | 允许模式 |
+| --- | --- | --- |
+| `route.<路由>` | 整页替换宿主页面，如 `route.performance` | `replace` + `append` |
+| `route.marketplace`、`route.settings` | 卸载与自救入口，受保护 | 仅 `append` |
+| `page.<插件ID>.<页面>` | 插件模块自己的页面，由 `modules[].route` 派生 | `replace` |
+| `devices.apps` | 设备工作台右栏「应用」页签的内部区域 | `replace` + `append` |
+| `settings.plugin.section` | 设置页末尾的插件分组 | 仅 `append` |
+| `workshop.extensions` | 旧版工作区插槽，保持兼容 | `replace` + `append` |
+
+槽位标识只接受小写字母、数字与 `.` `_` `-`，最长 64 字符；大小写或中文都会先归一成这两条规矩下的字符串（`My Page` → `my-page`），所以插件模块的 `route` 应写成宿主路径（`/catalog`），页面槽位即 `page.<插件ID>.catalog`，地址栏是 `#/plugin/<插件ID>/catalog`。
+
+接管是**热拔插**的：插件装载即接管、卸载即回落，页面代码不需要知道插件存在。接管期间槽位顶部有一条 28px 来源条（插件标题 + 等宽插件 ID +「恢复默认」）；「恢复默认」只写本地忽略表并回落到宿主内容，不卸载插件、不改配置。挂载失败时换成琥珀降级条，宿主内容照常显示。
+
+写错槽位名不会静默成功：宿主未登记的槽位在挂载时抛 `宿主未登记此具名槽位`，市场页的插件详情也会把不在清单内的 `slot` 标出来。
+
+钩子按 priority 升序、再按 ID 排序；抛错则中止后续钩子和本次提交。不要在 `transform` 中递归调用 `submit`，避免重复进入钩子链。
 
 `context.extensions` 提供：
 
@@ -107,7 +124,44 @@ const action = {
 
 服务版本是契约选择，不能把版本 `"1"` 改成 `"^1"`。服务不存在或提供者卸载后应显示不可用，不能偷偷绕过宿主直接抓私有状态。
 
+## 界面套件（hostUi）
+
+宿主自带一份 React 与一套组件。插件不打包 React，改用宿主的实例，这样只有一份协调器、hooks 与 context 全部正常，样式和主题也自动跟随。
+
+入口在 `plugin-sdk/ui.ts` 的 `hostUi()`；在浏览器里更常用的是宿主垫片：
+
+```js
+import { React, mountReact, Button, EmptyState } from 'deviceforge-host';
+```
+
+`deviceforge-host` 由宿主的 importmap 指到 `/plugin-host.js`，它只从全局契约 `__DEVICEFORGE_HOST_UI__` 取值，自身不带 React。`react`、`react/jsx-runtime`、`react-dom/client` 三个说明符同样指向它，所以插件用自动 JSX 运行时也不需要打包 React。
+
+| 成员 | 说明 |
+| --- | --- |
+| `apiVersion` | 当前为 `1`；宿主没有这个契约时取不到，说明宿主太旧或页面不是宿主加载的 |
+| `React` / `ReactDOMClient` / `jsx` / `jsxs` / `Fragment` | 宿主的真实实例，用于写组件与创建元素 |
+| `mountReact(root, element)` | 用 `createRoot` + `flushSync` 挂载，返回释放函数；**直接把它作为 `mount` 的返回值** |
+| `cn(...)` | 宿主同一套类名合并 |
+
+组件（与 `components/index.ts` 的公开桶同名）：`Button`、`Input`、`Textarea`、`Label`、`Switch`、`Checkbox`、`Badge`、`Progress`、`Alert`＋`AlertTitle`＋`AlertDescription`、`Card` 系列、`Field`、`FormSection`、`FormRow`、`FormGrid`、`FormActions`、`PageTitle`、`EmptyState`、`ErrorNotice`、`JsonResult`、`FileDropzone`、`Stepper`、`MultiTrackChart`、`BlobDownload`、`Select` 系列、`Tabs` 系列、`Table` 系列。
+
+三条边界：
+
+1. **属性不做逐条校验**。契约刻意写宽（`HostComponent`），宿主的组件库升级不强制所有插件重编；写错属性不会在编译期报错，运行期由宿主组件自己决定怎么处理。
+2. **`ErrorNotice` 是弹 toast，不是行内提示**。行内错误用 `Alert`。
+3. **自己写的类名要带 `df-<插件ID>-*` 前缀**。宿主的 Tailwind 只扫宿主源码，不会替你生成类。
+
+挂载示例：
+
+```js
+async mount(target, context) {
+  return mountReact(target, React.createElement(MyPanel, { context }));
+}
+```
+
 ## 完整发布与配置边界
+
+
 
 `release.json` 管理外层组件和工具闭包，不改变 `HostContext`。安装管理属于宿主管理界面及公开 HTTP/MCP 用例，SDK 不因此获得任意包安装、文件系统或令牌字段。安装任务必须查询终态；`enabled` 表示服务器持久启用意图，当前浏览器模块是否成功激活仍需单独确认。
 

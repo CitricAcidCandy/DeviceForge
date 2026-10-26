@@ -46,31 +46,59 @@ export function createExtensionRegistry(themeAdapter?: ThemeAdapter) {
     generation: owner.generation,
   });
   const alive = <T>(entry: Owned<T>) => !entry.owner.context.signal.aborted;
+  const listeners = new Set<() => void>();
+  // 目录快照必须引用稳定：React 侧用 useSyncExternalStore 逐帧读取，现算会导致无限重渲染。
+  let cached: ExtensionCatalog | null = null;
+  function invalidate() {
+    cached = null;
+    for (const listener of [...listeners]) {
+      try {
+        listener();
+      } catch {
+        // 订阅方的失败不能影响注册表本身的一致性与其余订阅者。
+      }
+    }
+  }
+  function build(): ExtensionCatalog {
+    return Object.freeze({
+      components: Object.freeze(
+        [...components.values()]
+          .filter(alive)
+          .map(({ owner, contribution: c }) => ({
+            ...metadata(owner, c.id),
+            title: c.title,
+            slot: c.slot,
+            mode: c.mode ?? 'append',
+          })),
+      ),
+      modules: Object.freeze(
+        [...modules.values()]
+          .filter(alive)
+          .map(({ owner, contribution: c }) => ({
+            ...metadata(owner, c.id),
+            title: c.title,
+            route: c.route,
+          })),
+      ),
+      commands: Object.freeze(
+        [...commands.values()]
+          .filter(alive)
+          .map(({ owner, contribution: c }) => ({ ...metadata(owner, c.id), title: c.title })),
+      ),
+      services: Object.freeze(
+        [...services.values()]
+          .filter(alive)
+          .map(({ owner, contribution: c }) => ({
+            ...metadata(owner, c.id),
+            version: c.version,
+          })),
+      ),
+    });
+  }
   function catalog(): ExtensionCatalog {
     check();
-    return {
-      components: [...components.values()]
-        .filter(alive)
-        .map(({ owner, contribution: c }) => ({
-          ...metadata(owner, c.id),
-          title: c.title,
-          slot: c.slot,
-          mode: c.mode ?? 'append',
-        })),
-      modules: [...modules.values()]
-        .filter(alive)
-        .map(({ owner, contribution: c }) => ({
-          ...metadata(owner, c.id),
-          title: c.title,
-          route: c.route,
-        })),
-      commands: [...commands.values()]
-        .filter(alive)
-        .map(({ owner, contribution: c }) => ({ ...metadata(owner, c.id), title: c.title })),
-      services: [...services.values()]
-        .filter(alive)
-        .map(({ owner, contribution: c }) => ({ ...metadata(owner, c.id), version: c.version })),
-    };
+    cached ??= build();
+    return cached;
   }
   function register(owner: ExtensionOwner, value: PluginContributions): Dispose {
     check();
@@ -101,6 +129,7 @@ export function createExtensionRegistry(themeAdapter?: ThemeAdapter) {
       services.set(c.id, { owner: registeredOwner, contribution: c });
     for (const c of value.beforeTaskSubmit ?? [])
       hooks.set(c.id, { owner: registeredOwner, contribution: c });
+    invalidate();
     let released = false;
     const stop = () => {
       if (released) return;
@@ -117,6 +146,7 @@ export function createExtensionRegistry(themeAdapter?: ThemeAdapter) {
       }
       for (const route of newRoutes) routes.delete(route);
       releaseThemes?.();
+      invalidate();
     };
     owner.context.signal.addEventListener('abort', stop, { once: true });
     if (owner.context.signal.aborted) stop();
@@ -279,6 +309,13 @@ export function createExtensionRegistry(themeAdapter?: ThemeAdapter) {
   }
   return {
     catalog,
+    subscribe(listener: () => void) {
+      check();
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
     register,
     attach,
     executeCommand,
@@ -327,6 +364,8 @@ export function createExtensionRegistry(themeAdapter?: ThemeAdapter) {
       routes.clear();
       bus.clear();
       themes.dispose();
+      listeners.clear();
+      cached = null;
     },
   };
 }

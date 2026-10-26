@@ -38,3 +38,14 @@ apk-application = { path = "crates/application" }
 
 
 deviceforge-data-codec = { path = "crates/data-codec" }
+
+# 日常开发与测试优先节省磁盘，不保留完整调试信息或增量编译缓存。
+[profile.dev]
+debug = 0
+incremental = false
+codegen-units = 16
+
+[profile.test]
+debug = 0
+incremental = false
+codegen-units = 16
