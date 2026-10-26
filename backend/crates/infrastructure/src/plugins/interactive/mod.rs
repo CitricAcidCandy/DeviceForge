@@ -46,7 +46,12 @@ impl SessionProvider for Provider {
     fn open(&self, request: SessionRequest, cancel: CancellationToken) -> Result<SessionLaunch> {
         definition::request(&self.validators, &request)?;
         if self.has_unresolved_resources() {
-            return Err(apk_domain::Error::CleanupFailed);
+            tracing::warn!(
+                plugin_id = %self.manifest.id,
+                session_id = %request.session_id,
+                cleanup = "historical_unresolved",
+                "插件存在历史清理告警，独立新会话仍交由监督确认本次资源结果"
+            );
         }
         let cancel = cancel.child_token();
         let (handle, channels) = handles::channel(request.deadline, cancel.clone());

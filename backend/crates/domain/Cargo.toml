@@ -12,5 +12,6 @@ tokio-util.workspace = true
 schemars = "1"
 futures-util.workspace = true
 bytes = "1"
+deviceforge-plugin-dependencies.workspace = true
 
 uuid.workspace = true

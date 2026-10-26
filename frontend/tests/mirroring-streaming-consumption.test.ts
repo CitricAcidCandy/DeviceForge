@@ -5,7 +5,7 @@ import {
   createMirroringStreaming,
 } from '../src/features/mirroring-streaming/index.ts';
 import type { MirroringPacket } from '../src/features/mirroring-streaming/index.ts';
-import { ApiError, createApiClient } from '../src/services/api/index.ts';
+import { ApiError, createApiClient, createHttpSessionGateway } from '../src/services/api/index.ts';
 import type { SessionGateway, SessionInfo, SessionOutputPage } from '../src/services/api/index.ts';
 import { decodeStreamPage } from '../src/features/mirroring-streaming/utils/rules.ts';
 import { deferred, requestUrl, signal, success } from './fixtures.ts';
@@ -479,21 +479,26 @@ test('输入收据失败保留不确定状态，EOF只收敛控制而视频继�
   failed.dispose();
 });
 
-test('释放投屏请求等待服务端清理并撤销本地会话', async () => {
+test('释放收到停止中立即撤销本地会话，不轮询服务端终态', async () => {
   let releases = 0;
+  let queries = 0;
   const mirror = await opened({
     release: async () => {
       releases++;
       return { data: info('stopping'), logId: 'release-log' };
     },
     get: async () => {
+      ++queries;
       throw new ApiError('http', 'not_found', '会话记录不存在', 404, 'query-log');
     },
   });
   const result = await mirror.release(signal());
   assert.equal(releases, 1);
   assert.equal(result.logId, 'release-log');
+  assert.equal(result.data.status, 'stopping');
+  assert.equal(queries, 0);
   assert.equal(mirror.snapshot().session, null);
+  assert.deepEqual(mirror.snapshot().pending, []);
   mirror.dispose();
 });
 
@@ -574,23 +579,102 @@ test('取消释放等待不撤销清理请求，重复释放共用一次提交',
   mirror.dispose();
 });
 
-test('投屏清理失败保留会话记录和错误日志', async () => {
+test('用户释放已结束投屏不被历史清理失败卡住，仍保留原结论和日志', async () => {
   const mirror = await opened({
-    release: async () => ({ data: info('stopping'), logId: 'release-log' }),
-    get: async () => ({
+    release: async () => ({
       data: info('finished', 0, {
         completion: { cleanup: 'unconfirmed', process_exited: false },
       }),
       logId: 'failed-cleanup-log',
     }),
   });
-  await assert.rejects(
-    mirror.release(signal()),
-    (error: unknown) =>
-      error instanceof ApiError &&
-      error.code === 'mirroring_cleanup_failed' &&
-      error.logId === 'failed-cleanup-log',
-  );
+  const released = await mirror.release(signal());
+  assert.equal(released.data.completion?.cleanup, 'unconfirmed');
+  assert.equal(mirror.snapshot().session, null);
+  assert.equal(mirror.snapshot().errors.release?.code, 'mirroring_cleanup_failed');
+  assert.equal(mirror.snapshot().errors.release?.logId, 'failed-cleanup-log');
+  await mirror.open(input, signal());
   assert.equal(mirror.snapshot().session?.id, id);
   mirror.dispose();
+});
+
+for (const releaseStatus of ['running', 'stopping'] as const) {
+  test(`兼容投屏释放 HTTP 202 返回 ${releaseStatus} 停止画面输入，旧轮询不能回写新会话`, { timeout: 3000 }, async (t) => {
+    const delayed = deferred<{ data: SessionOutputPage; logId: string }>();
+    const entered = deferred<void>();
+    let resets = 0;
+    let queries = 0;
+    const http = createHttpSessionGateway(createApiClient({ baseUrl: 'http://localhost',
+      transport: async (request, init) => {
+        assert.equal(requestUrl(request).pathname, `/api/v2/sessions/${id}/release`);
+        assert.equal(init?.method, 'POST');
+        return success(info(releaseStatus), 'accepted-release-log', 202);
+      },
+    }));
+    const mirror = createMirroringStreaming(gateway({
+      output: () => { entered.resolve(); return delayed.promise; },
+      release: http.release,
+      get: async () => { ++queries; throw new Error('不应查询旧会话终态'); },
+    }), { sink: { packet: () => { throw new Error('旧画面不得交付'); }, reset: () => { ++resets; } } });
+    t.after(() => mirror.dispose());
+    await mirror.refreshDefinitions(signal());
+    await mirror.open(input, signal());
+    const polling = assert.rejects(mirror.pollOutput({}, signal()), ApiError);
+    await entered.promise;
+    const before = resets;
+    const result = await mirror.release(signal());
+    await polling;
+    assert.equal(result.data.status, releaseStatus);
+    assert.equal(queries, 0);
+    assert.equal(resets, before + 1);
+    assert.equal(mirror.snapshot().session, null);
+    assert.equal(mirror.snapshot().status, null);
+    assert.deepEqual(mirror.snapshot().pending, []);
+    assert.throws(() => mirror.sendControl({ type: 'rotate' }, signal()), ApiError);
+    await mirror.open(input, signal());
+    const current = mirror.snapshot();
+    delayed.resolve({ data: page([status(), config(), sps()]), logId: 'old-poll-log' });
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    assert.equal(mirror.snapshot(), current);
+  });
+}
+
+for (const fails of [false, true]) {
+  test(`兼容投屏旧释放晚到${fails ? '失败' : '成功'}不覆盖新会话或清除新释放任务`, async (t) => {
+    const old = deferred<{ data: SessionInfo; logId: string }>();
+    const current = deferred<{ data: SessionInfo; logId: string }>();
+    let releases = 0;
+    let oldReleaseSignal: AbortSignal | undefined;
+    const mirror = await opened({ release: (_, active) => {
+      if (++releases === 1) { oldReleaseSignal = active; return old.promise; }
+      return current.promise;
+    } });
+    t.after(() => mirror.dispose());
+    const oldWaiting = assert.rejects(mirror.release(signal()), ApiError);
+    await mirror.open(input, signal());
+    await oldWaiting;
+    assert.equal(oldReleaseSignal?.aborted, false);
+    const releasing = mirror.release(signal());
+    if (fails) old.reject(new ApiError('http', 'old_release_failed', '旧释放失败', 500, 'old-error-log'));
+    else old.resolve({ data: info('finished'), logId: 'old-release-log' });
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    const duplicate = mirror.release(signal());
+    assert.equal(releases, 2);
+    current.resolve({ data: info('stopping'), logId: 'new-release-log' });
+    await Promise.all([releasing, duplicate]);
+    assert.equal(mirror.snapshot().logs.release, 'new-release-log');
+    assert.equal(mirror.snapshot().errors.release, undefined);
+    assert.equal(mirror.snapshot().session, null);
+  });
+}
+
+test('兼容投屏释放失败保留原始错误与日志，不伪造清理成功', async (t) => {
+  const original = new ApiError('http', 'release_failed', '原始释放失败', 503, 'original-release-log');
+  const mirror = await opened({ release: async () => { throw original; } });
+  t.after(() => mirror.dispose());
+  await assert.rejects(mirror.release(signal()), (error: unknown) => error === original);
+  assert.equal(mirror.snapshot().errors.release, original);
+  assert.equal(mirror.snapshot().logs.release, 'original-release-log');
+  assert.equal(mirror.snapshot().session?.id, id);
+  assert.deepEqual(mirror.snapshot().pending, []);
 });

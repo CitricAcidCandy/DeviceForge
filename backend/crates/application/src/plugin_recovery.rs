@@ -1,4 +1,4 @@
-//! 通用恢复准入与监督；不执行平台命令，不改历史会话终态。
+//! 通用后台恢复的有界监督；不冻结普通调用，不改历史会话终态。
 use crate::{Application, registry::Owner};
 use apk_domain::{Error, ExecutionContext, Result, plugin_recovery::*};
 use deviceforge_observability::LogContext;
@@ -50,7 +50,12 @@ async fn perform(
     tokio::select! {
         result = &mut work => match result {
             Ok(Ok(report)) if report.validate() => report,
-            _ => RecoveryReport::blocked("资源核对未完成，保留保护状态；请检查设备连接后重试"),
+            _ => RecoveryReport::blocked("后台回收未完成，已保留诊断；不影响新调用"),
+        },
+        _ = owner.cancel.cancelled() => {
+            token.cancel();
+            let _ = tokio::time::timeout(Duration::from_secs(5), &mut work).await;
+            RecoveryReport::blocked("插件正在退出，旧资源回收尚未确认")
         },
         _ = token.cancelled() => {
             let _ = tokio::time::timeout(Duration::from_secs(5), &mut work).await;
@@ -66,32 +71,6 @@ async fn perform(
 }
 
 impl Application {
-    pub(crate) async fn auto_recover_finished_session(
-        self: &Arc<Self>,
-        owner: Arc<Owner>,
-        input: serde_json::Value,
-    ) {
-        let info = owner.info();
-        if info.cleanup_failed
-            && owner.executor.recovery_timeout().is_some()
-            && owner.tracker.is_empty()
-        {
-            // 恢复仍走统一代际/排空门禁，停止服务或其他活动会话不会被强制打断。
-            if let Err(error) = self
-                .recover_plugin(
-                    info.id,
-                    RecoveryInput {
-                        generation: info.generation,
-                        input,
-                    },
-                )
-                .await
-            {
-                tracing::warn!(code = error.code(), "会话结束后的资源自动核对未启动");
-            }
-        }
-    }
-
     pub fn plugin_recovery_view(&self, id: &str) -> Result<RecoveryView> {
         apk_domain::plugins::plugin_id(id)?;
         let registry = self
@@ -126,7 +105,7 @@ impl Application {
             return Err(Error::TooLarge);
         }
         let task = {
-            // 与普通创建共用准入锁；冻结发布前必须确认全部任务/会话凭据已释放。
+            // 只与宿主停止、插件换代串行登记；回收旧资源不要求新调用排空。
             let active = self
                 .active
                 .lock()
@@ -137,7 +116,7 @@ impl Application {
             let registry = self
                 .registry
                 .0
-                .write()
+                .read()
                 .map_err(|_| Error::Storage("恢复目录读取异常".into()))?;
             let owner = registry
                 .owners
@@ -146,6 +125,9 @@ impl Application {
                 .ok_or_else(|| Error::NotFound("插件未加载".into()))?;
             if owner.info().generation != request.generation {
                 return Err(Error::Conflict("插件代际已变化，请重新获取恢复状态".into()));
+            }
+            if owner.cancel.is_cancelled() {
+                return Err(Error::Conflict("插件正在退出".into()));
             }
             let timeout = owner
                 .executor
@@ -158,11 +140,10 @@ impl Application {
                 .recovery_admission
                 .lock()
                 .map_err(|_| Error::Storage("插件资源准入异常".into()))?;
-            if owner.recovering.load(Ordering::Acquire) || !owner.tracker.is_empty() {
+            if owner.recovering.load(Ordering::Acquire) {
                 let mut result = view(&owner);
-                result.last_report = Some(RecoveryReport::busy(
-                    "投屏仍在运行或释放中，结束后可重新核对",
-                ));
+                result.last_report =
+                    Some(RecoveryReport::busy("旧资源已在后台回收，新调用可以继续"));
                 return Ok(result);
             }
             let permit = self
@@ -171,21 +152,29 @@ impl Application {
                 .try_acquire_owned()
                 .map_err(|_| Error::Conflict("资源核对工作已达到并发上限".into()))?;
             owner.recovering.store(true, Ordering::Release);
+            let owner_token = owner.tracker.token();
             drop(recovery_gate);
             let reservation = Reservation(owner.clone());
             let token = self.recovery_cancel.child_token();
             let deadline = tokio::time::Instant::now() + timeout;
             let risk_revision = owner.risk_revision.load(Ordering::Acquire);
             // 保留字段由宿主覆盖，客户端不能把旧资源缺失登记伪装成无风险空台账。
-            request.input.as_object_mut().expect("已验证恢复对象").insert(
-                "_host_cleanup_unconfirmed".into(), owner.info().cleanup_failed.into(),
-            );
+            request
+                .input
+                .as_object_mut()
+                .expect("已验证恢复对象")
+                .insert(
+                    "_host_cleanup_unconfirmed".into(),
+                    owner.info().cleanup_failed.into(),
+                );
             self.tracker.spawn(LogContext::propagate(async move {
                 let _permit = permit;
+                let _owner_token = owner_token;
                 let reservation = reservation;
                 tracing::info!(plugin_id = %id, "插件资源核对开始");
                 let mut report = perform(&owner, request.input, &token, deadline).await;
                 let confirmed = report.status == RecoveryStatus::Recovered && !token.is_cancelled()
+                    && !owner.cancel.is_cancelled()
                     && risk_revision == owner.risk_revision.load(Ordering::Acquire)
                     && tokio::time::Instant::now() < deadline
                     && !owner.executor.has_unresolved_resources()
@@ -194,7 +183,7 @@ impl Application {
                 if !confirmed && report.status != RecoveryStatus::Busy {
                     owner.mark_unresolved();
                     if report.status == RecoveryStatus::Recovered {
-                        report = RecoveryReport::blocked("执行器仍有未确认资源，尚不能恢复使用");
+                        report = RecoveryReport::blocked("仍有旧资源待后台回收，不影响新调用");
                     }
                 }
                 *owner.recovery_report.lock().unwrap_or_else(std::sync::PoisonError::into_inner) = Some(report);
@@ -208,7 +197,7 @@ impl Application {
             .map_err(|_| Error::Dependency("资源核对监督异常".into()))?
     }
 
-    /// 只恢复尚未启动的创建请求，一次失败不自动循环或重放业务。
+    /// 历史清理告警不再让新会话等待恢复；显式核对仍由独立恢复入口负责。
     pub async fn open_session_recovering_with_client(
         self: &Arc<Self>,
         operation: &str,
@@ -220,21 +209,6 @@ impl Application {
             .validator
             .validate(&input)
             .map_err(|_| Error::Invalid("会话打开参数不符合模式".into()))?;
-        let info = registered.owner.info();
-        if info.cleanup_failed && registered.owner.executor.recovery_timeout().is_some() {
-            let result = self
-                .recover_plugin(
-                    info.id,
-                    RecoveryInput {
-                        generation: info.generation,
-                        input: input.clone(),
-                    },
-                )
-                .await?;
-            if result.cleanup_failed {
-                return Err(Error::CleanupFailed);
-            }
-        }
         if !self.registry.current_session(&registered)? {
             return Err(Error::Conflict("核对期间插件代际已变化，请重新打开".into()));
         }
@@ -242,5 +216,6 @@ impl Application {
     }
 }
 
+mod background;
 #[cfg(test)]
 mod tests;

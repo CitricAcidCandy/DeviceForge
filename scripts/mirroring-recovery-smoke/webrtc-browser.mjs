@@ -30,8 +30,8 @@ export async function runRecoveredWebrtc(context, directory) {
       report.source_inputs.push(...await driverIdentities(entry));
     report.vite_input = await fileIdentity(vitePath);
     const { createServer } = await import(pathToFileURL(vitePath).href);
-    server = await createServer({ root: frontend, configFile: false, appType: 'custom', logLevel: 'error',
-      optimizeDeps: { noDiscovery: true },
+    server = await createServer({ root: frontend, cacheDir: join(directory, 'vite-cache'), configFile: false, appType: 'custom', logLevel: 'error',
+      optimizeDeps: { include: ['ajv', 'ajv-formats'] },
       server: { host: '127.0.0.1', port: 0, hmr: false, proxy: { '/api': {
         target: host.client.base, changeOrigin: false,
         configure(proxy) {

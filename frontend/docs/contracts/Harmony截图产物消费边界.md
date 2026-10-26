@@ -64,7 +64,7 @@ SDK 不创建 Blob URL。后续面板如创建 URL，应在替换内容时释放
 
 截图后端使用 32 位小写十六进制 token 及本次独占的 `/data/local/tmp/deviceforge-screenshot-<token>`，管理 `owner` 与 `screenshot.jpeg`。`DF_CAPTURED` 确认前台 snapshot 返回，`DF_READ_DONE` 确认 Base64 reader 返回；缺回执、未知 cat/wc/writer/reader、回执丢失或删除未确认均保持 `CleanupOutcome::Failed`。本地 HDC PID 退出、一次删除调用或目录暂时不存在，不能替代本次所有权与远端写入/读取返回确认。
 
-当前公开 `Job`、`JobEvent`、`Artifact` 和下载 Blob 没有远端进程退出或目录清理字段。`cleanup_failed` 是既有插件清理失败，不是新增 `Job.status`：Job 按现有宿主优先级保存 `succeeded/failed/cancelled`，清理独立记录 `Complete/Failed`；卸载未确认时保持 `draining` 并拒绝同 ID 重载。晚到清理不能改写历史终态或未确认事实，本文不新增 DTO、路由或私自约定的清理字段。
+当前公开 `Job`、`JobEvent`、`Artifact` 和下载 Blob 没有远端进程退出或目录清理字段。`cleanup_failed` 是既有插件清理失败，不是新增 `Job.status`：Job 按现有宿主优先级保存 `succeeded/failed/cancelled`，清理独立记录 `Complete/Failed`。2026-10-26 同步现行规则：draining 只反映真实在途排空，历史未确认诊断不得阻止独立新截图或真实排空后的同 ID 重载；本次失败仍如实记录，未知提交停止自动重放但保留显式重试。晚到清理不能改写历史终态或新代状态，完整准入规则见[插件清理告警与重试约束](插件清理告警与重试约束.md)。本文不新增 DTO、路由或私自约定的清理字段。
 
 | 前端能够观察的事实 | 能得出的结论 | 尚不能推出的结论 |
 | --- | --- | --- |

@@ -159,11 +159,13 @@ impl InstallationStore for FilePluginInstallations {
         let expected = expected_revision.to_owned();
         self.work(move |store| {
             let mut record = require_revision(store, &id, &expected)?;
-            if record.status == InstallationStatus::RecoveryBlocked {
+            if record.requires_recovery() {
                 return Err(Error::Conflict("发布恢复受阻，需先修复或完成恢复".into()));
             }
             record.enabled = enabled;
-            record.failure = None;
+            if !record.has_retryable_component_warning() {
+                record.failure = None;
+            }
             record.status = if enabled {
                 InstallationStatus::Enabled
             } else {
@@ -181,9 +183,7 @@ impl InstallationStore for FilePluginInstallations {
             let record = require_revision(store, &id, &expected)?;
             // 安装回滚需要删除尚未激活、但保留启用意图的 Installed 记录。
             // 对外删除仍由应用生命周期门禁要求先停用。
-            if record.status == InstallationStatus::Enabled
-                || record.status == InstallationStatus::RecoveryBlocked
-            {
+            if record.status == InstallationStatus::Enabled || record.requires_recovery() {
                 return Err(Error::Conflict("启用中的发布不能删除".into()));
             }
             transaction::delete(store, &record)?;
@@ -200,7 +200,7 @@ impl InstallationStore for FilePluginInstallations {
         let expected = expected_revision.to_owned();
         self.work(move |store| {
             let mut record = require_revision(store, &id, &expected)?;
-            if record.status == InstallationStatus::RecoveryBlocked {
+            if record.requires_recovery() {
                 return Err(Error::Conflict("恢复受阻的发布不能改为待配置".into()));
             }
             record.enabled = false;

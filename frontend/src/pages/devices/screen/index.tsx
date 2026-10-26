@@ -20,12 +20,14 @@ import { errorLogId, useAction, useSnapshot } from '../../../app/product/hooks.t
 import { withSelectedDevice } from '../../../app/product/device-target.ts';
 import { capabilityGate } from '../../../features/device-apps/index.ts';
 import { createMediaControlQueue } from './media-controls.ts';
-import { devicePoint } from './pointer-map.ts';
+import { devicePoint, paintedFrameSize } from './pointer-map.ts';
 import {
   FPS_STORAGE_KEY,
   SIZE_STORAGE_KEY,
   readStoredNumber,
+  readStoredZoom,
   storeNumber,
+  storeZoom,
 } from './preferences.ts';
 import { useMediaKeyboard } from './use-media-keyboard.ts';
 import { useMediaClipboard } from './use-media-clipboard.ts';
@@ -46,7 +48,6 @@ export type WorkbenchPane = 'params' | 'apps';
 const ZOOM_MIN = 0.6;
 const ZOOM_MAX = 3;
 const ZOOM_STEP = 0.05;
-const ZOOM_STORAGE_KEY = 'deviceforge.device-screen.zoom';
 /* 四个角各自往外拖才是放大：左下角往左、往下拖就是放大。 */
 const CORNERS = {
   nw: [-1, -1],
@@ -66,11 +67,6 @@ const CORNER_STYLE: Record<Corner, string> = {
   se: '-right-2 -bottom-2 rotate-180 cursor-nwse-resize',
   sw: '-left-2 -bottom-2 rotate-[270deg] cursor-nesw-resize',
 };
-function readStoredZoom(): number {
-  if (typeof window === 'undefined') return 1;
-  const stored = Number(window.localStorage.getItem(ZOOM_STORAGE_KEY));
-  return Number.isFinite(stored) && stored >= ZOOM_MIN && stored <= ZOOM_MAX ? stored : 1;
-}
 
 export function DeviceScreen({
   services,
@@ -113,7 +109,14 @@ export function DeviceScreen({
    * 画面缩放：1 = 自适应（等比铺满舞台可用区域），拖画面四角的弧线可以继续放大，
    * 超出舞台的部分在画面区内部滚动，不会把整页撑开。
    */
-  const [zoom, setZoom] = useState(readStoredZoom);
+  const [zoom, setZoom] = useState(() => readStoredZoom(ZOOM_MIN, ZOOM_MAX));
+  // 点击回显：落点按画面容器算，用来一眼看出「点到的位置」和「设备反应的位置」是否一致。
+  const [tap, setTap] = useState<{ left: number; top: number; key: number } | null>(null);
+  useEffect(() => {
+    if (!tap) return;
+    const timer = window.setTimeout(() => setTap(null), 520);
+    return () => window.clearTimeout(timer);
+  }, [tap]);
   useEffect(() => {
     storeNumber(SIZE_STORAGE_KEY, size);
   }, [size]);
@@ -128,7 +131,7 @@ export function DeviceScreen({
     const next = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round(value * 100) / 100));
     setZoom(next);
     try {
-      window.localStorage.setItem(ZOOM_STORAGE_KEY, String(next));
+      storeZoom(next);
     } catch {
       /* 隐私模式下写不进去，只影响下次进入的默认值 */
     }
@@ -379,16 +382,31 @@ export function DeviceScreen({
   function pointer(event: PointerEvent<HTMLCanvasElement | HTMLVideoElement>, type: 'down' | 'move' | 'up') {
     if (type === 'down' && controlReady) event.currentTarget.focus({ preventScroll: true });
     if (!controlReady || !videoSize || (type === 'move' && !event.buttons)) return;
-    const rect = event.currentTarget.getBoundingClientRect();
-    if (type === 'down') event.currentTarget.setPointerCapture(event.pointerId);
-    // 画面在容器里等比居中，元素矩形含留白带；换算必须走「真正被画面占满」的那块。
-    const point = devicePoint(rect, videoSize, event.clientX, event.clientY);
+    const target = event.currentTarget;
+    const rect = target.getBoundingClientRect();
+    if (type === 'down') target.setPointerCapture(event.pointerId);
+    /*
+     * 尺寸取元素自身的真实画面尺寸（canvas 解码帧 / video 流），不信外部读数；
+     * 再按「等比居中后真正被画面占满」的那块矩形换算。缩放只改元素矩形，两条都跟着走。
+     */
+    const size = paintedFrameSize(target, videoSize);
+    const point = devicePoint(rect, size, event.clientX, event.clientY);
+    if (type === 'down') {
+      const screen = target.parentElement?.getBoundingClientRect();
+      if (screen) {
+        setTap({
+          left: Math.round(event.clientX - screen.left),
+          top: Math.round(event.clientY - screen.top),
+          key: Date.now(),
+        });
+      }
+    }
     void send({
       type: 'touch',
       action: type,
       pointer_id: event.pointerId,
-      width: videoSize.width,
-      height: videoSize.height,
+      width: size.width,
+      height: size.height,
       x: point.x,
       y: point.y,
       pressure: type === 'up' ? 0 : 1,
@@ -891,8 +909,7 @@ export function DeviceScreen({
         {pane === 'params' && (
           <div className="rail-foot">
             <Button
-              disabled={!androidTarget || !liveAvailable || Boolean(activeSession) || reader.pending ||
-                recovery.state.phase === 'recovering' || recovery.state.result?.data.recovering}
+              disabled={!androidTarget || !liveAvailable || Boolean(activeSession) || reader.pending}
               onClick={startLive}
             >
               <Play aria-hidden="true" />
@@ -958,6 +975,14 @@ export function DeviceScreen({
                 onPointerUp={(event) => pointer(event, 'up')}
                 onPointerCancel={(event) => pointer(event, 'up')}
               />
+              {tap ? (
+                <span
+                  key={tap.key}
+                  aria-hidden="true"
+                  className="pointer-events-none absolute size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white/85 bg-primary/35"
+                  style={{ left: tap.left, top: tap.top }}
+                />
+              ) : null}
               {!device.selection && (
                 <EmptyState title="选择一台设备开始" description="在顶栏设备身份里选择工作设备。" />
               )}

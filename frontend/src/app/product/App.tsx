@@ -66,7 +66,12 @@ export function App({ services }: { services: ProductServices }) {
     <MessageProvider controller={services.messages}>
       <ProductShell services={services} route={route} onNavigate={navigate}>
         {PRODUCT_ROUTES.filter((entry) => visited.has(entry.id)).map((entry) => (
-          <div key={entry.id} hidden={entry.id !== route} data-route={entry.id}>
+          <div
+            key={entry.id}
+            hidden={entry.id !== route}
+            data-route={entry.id}
+            className={entry.id === 'automation' ? 'flex min-h-full w-full flex-col' : undefined}
+          >
             {entry.id === 'devices' ? (
               <DevicesPage services={services} active={route === 'devices'} />
             ) : entry.id === 'tasks' ? (

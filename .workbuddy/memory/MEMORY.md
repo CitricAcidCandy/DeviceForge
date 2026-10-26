@@ -77,3 +77,9 @@
 - 设备：整片深色舞台 + 浮层胶囊（仅此一页，深色属于投屏内容）。
 
 
+
+## 满幅页面的隐形陷阱（2026-10-23 两次踩到）
+
+- `layout.css` 的 `workplane > [data-route]` 带 `max-width:1600px; margin-inline:auto`。在弹性容器里 `margin-inline:auto` 会让**子项宽度收缩成内容宽度**，页面看着像「右边没占满」而不是报错。
+- 仪器型页面（performance / ai / terminal / marketplace）与任务页都已在 layout.css 里显式写 `width:100%; margin-inline:0; max-width:none`。**新增满幅页面必须补这三条**，光在 TSX 里写 `w-full` 覆盖不了——未分层 CSS 优先于 Tailwind utilities。
+- 同理，`.workplane` 默认有 `padding: 22px 24px 28px` 与 `scrollbar-gutter: stable`；舞台型页面要自己管边距时，也是在 layout.css 里按 `data-route` 关掉，不在页面里写负边距。

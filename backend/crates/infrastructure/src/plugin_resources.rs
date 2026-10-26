@@ -1,4 +1,4 @@
-//! 受限阻塞校验与真实进程工具租约；未确认资源进入可显式恢复的有界债务台账。
+//! 受限校验与真实进程租约；活动资源和已退出调用的外部债务分别有界。
 use apk_domain::{Error, Result};
 use apk_plugin_sdk::resources::ManagedResources;
 use deviceforge_tool_repository::{ReadLease, Repository};
@@ -92,6 +92,7 @@ impl ToolLease {
         self.recovery.retain();
     }
 
+    /// 记录真实退出；资源持有者结束后释放仓库锁，不宣告外部债务已清理。
     pub(crate) fn process_exited(&self) {
         self.recovery.process_exited();
     }

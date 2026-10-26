@@ -94,7 +94,7 @@ impl InstallationStore for Store {
         if value.revision != expected {
             return Err(Error::Conflict("修订不符".into()));
         }
-        if value.status == InstallationStatus::RecoveryBlocked {
+        if value.requires_recovery() {
             return Err(Error::Conflict("恢复受阻".into()));
         }
         value.enabled = enabled;
@@ -478,7 +478,7 @@ async fn startup_skips_blocked_release_and_keeps_enabled_intent() {
     blocked.enabled = true;
     blocked.status = InstallationStatus::RecoveryBlocked;
     blocked.failure = Some(InstallationFailure {
-        phase: "activation_cleanup".into(),
+        phase: "transaction_rollback_cleanup".into(),
         reason: "测试恢复受阻".into(),
     });
     let (service, store, _) = setup(release("feature", 'b'), Some(blocked.clone()));
@@ -616,13 +616,20 @@ impl apk_domain::Executor for UnconfirmedExecutor {
 }
 
 #[tokio::test]
-async fn unconfirmed_component_blocks_all_release_mutations_and_persists_recovery_state() {
-    for action in ["update", "enable", "disable", "delete"] {
+async fn historical_component_cleanup_warning_does_not_block_release_admission_or_idle_unload() {
+    for historical_block in [false, true] {
         let mut old = release("feature", 'a');
         old.enabled = true;
         old.status = InstallationStatus::Enabled;
         old.components[0].kind = PackageKind::Server;
         old.components[0].id = "server".into();
+        if historical_block {
+            old.status = InstallationStatus::RecoveryBlocked;
+            old.failure = Some(InstallationFailure {
+                phase: "component_cleanup".into(),
+                reason: "旧版历史清理告警".into(),
+            });
+        }
         let mut next = old.clone();
         next.version = "b".into();
         next.revision = "b".repeat(64);
@@ -636,36 +643,18 @@ async fn unconfirmed_component_blocks_all_release_mutations_and_persists_recover
             })
             .await
             .unwrap();
-        let result = match action {
-            "update" => service.install(source(), Some(old.revision.clone())).await,
-            "enable" => {
-                service
-                    .set_enabled(old.id.clone(), old.revision.clone(), true)
-                    .await
-            }
-            "disable" => {
-                service
-                    .set_enabled(old.id.clone(), old.revision.clone(), false)
-                    .await
-            }
-            _ => service.delete(old.id.clone(), old.revision.clone()).await,
-        };
-        assert!(result.is_err(), "{action}");
+        service.require_recoverable(&old).unwrap();
+        service.require_clean_components(&old).await.unwrap();
+        assert!(service.plugins.list()[0].cleanup_failed);
+        service
+            .plugins
+            .unload_idle_serialized("server")
+            .await
+            .unwrap();
+        assert!(service.plugins.list().is_empty());
         let retained = store.get(&old.id).await.unwrap();
-        assert_eq!(
-            retained.status,
-            InstallationStatus::RecoveryBlocked,
-            "{action}"
-        );
+        assert_eq!(retained.status, old.status);
         assert_eq!(retained.revision, old.revision);
         assert_eq!(retained.version, old.version);
-        assert_eq!(retained.failure.unwrap().phase, "component_cleanup");
-        assert!(
-            service
-                .set_enabled(old.id.clone(), old.revision, true)
-                .await
-                .is_err()
-        );
-        assert!(service.plugins.list()[0].cleanup_failed);
     }
 }

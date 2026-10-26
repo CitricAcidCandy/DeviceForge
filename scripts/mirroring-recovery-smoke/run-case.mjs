@@ -14,13 +14,16 @@ import { runRecoveryPanelBrowser } from './browser-case.mjs';
 import { ledgerSnapshot } from './ledger.mjs';
 import { prepareMedia } from './media.mjs';
 import { runRecoveredWebrtc } from './webrtc-browser.mjs';
+import { isolationPolicy } from './recovery-contract.mjs';
+import { assertRecoveryBudget } from './completion.mjs';
 
-export async function runCase({ snapshot, directory, definition, manifest, version, runId, browserDist }) {
+export async function runCase({ snapshot, directory, definition, manifest, version, runId, browserDist, completionRecovery }) {
   const name = definition.name, caseDirectory = join(directory, name);
   const report = { scenario: name, status: 'running', passed: false,
+    resource_isolation_policy: isolationPolicy,
     timestamp: new Date().toISOString(), checks: [], requests: [], sessions: [],
     tools: [], recovery_views: [], cleanup_errors: [] };
-  const context = { name, report, stage: '准备独占资源' };
+  const context = { name, report, completionRecovery, stage: '准备独占资源' };
   let host, fixture, observer, providerObserver;
   await mkdir(caseDirectory, { recursive: true });
   const cleanupError = (error, phase) => report.cleanup_errors.push(failureSummary(error, phase));
@@ -67,6 +70,10 @@ export async function runCase({ snapshot, directory, definition, manifest, versi
         await setMode(fixture, fixture.device, 'list-always');
         await makeRisk(context);
         await setMode(fixture, fixture.device, 'success');
+        if (target === 'all') {
+          // 撤销本轮合成提供者，避免服务端缓存目录被新页面自动选中，严格验证无设备入口。
+          await host.client.post('/api/v2/plugins/mirroring-recovery-device/unload');
+        }
         const browserDirectory = join(caseDirectory, 'browser-' + target);
         await mkdir(browserDirectory);
         context.stage = '真实冻结生产页面恢复面板：' + target;
@@ -80,6 +87,7 @@ export async function runCase({ snapshot, directory, definition, manifest, versi
           await archiveCleanSession(fixture, fixture.device);
           const webrtcDirectory = join(caseDirectory, 'recovered-webrtc'); await mkdir(webrtcDirectory);
           report.media = await prepareMedia(webrtcDirectory, fixture, fixture.device, report);
+          await writeFile(join(fixture.plan(fixture.device), 'transport'), 'webrtc', 'utf8');
           report.webrtc = await runRecoveredWebrtc(context, webrtcDirectory);
         }
       }
@@ -92,6 +100,7 @@ export async function runCase({ snapshot, directory, definition, manifest, versi
     observer = undefined;
     if (providerObserver) { await providerObserver.finish(); providerObserver = undefined; }
     await verifyLogs(host, report);
+    assertRecoveryBudget(report);
     await host.verifyIdentity();
     assert.deepEqual(await fileIdentity(executable), report.deployment.binary, '插件字节不能被夹具修改');
     report.checks.push('本例宿主、工具、插件与探针退出；响应日志关联原件');

@@ -141,14 +141,12 @@ export function createPluginDefaults(gateway: PluginDefaultsGateway) {
                   !targets.some((item) => item.id === null || item.id === plugin.id)
                 )
                   continue;
-                if (plugin.cleanup_failed || plugin.state === 'draining') {
+                if (plugin.state === 'draining') {
                   accept({
                     kind,
                     id: plugin.id,
                     status: 'failed',
-                    message: plugin.cleanup_failed
-                      ? '插件资源清理未确认，当前运行代次不可继续使用'
-                      : '插件正在排空，尚未进入可用状态',
+                    message: '插件正在排空，尚未进入可用状态',
                     logId: running.logId,
                   });
                 } else if (plugin.state === 'loaded') {
@@ -156,7 +154,7 @@ export function createPluginDefaults(gateway: PluginDefaultsGateway) {
                     kind,
                     id: plugin.id,
                     status: 'already_enabled',
-                    message: null,
+                    message: plugin.cleanup_failed ? '上次组件操作告警，可重试' : null,
                     logId: running.logId,
                   });
                 }
@@ -193,17 +191,19 @@ export function createPluginDefaults(gateway: PluginDefaultsGateway) {
             try {
               let already = false;
               let currentLog = directory.logId;
+              let warning: string | null = null;
               if (kind === 'server') {
                 // 每包提交前重新核对当前代，避免重复加载正在运行或排空的插件。
                 const running = await awaitActive(gateway.serverPlugins.refresh(signal), signal);
                 check();
                 currentLog = running.logId;
                 const present = running.data.find((item) => item.id === pkg.id);
-                if (present?.cleanup_failed || present?.state === 'draining')
+                warning = present?.cleanup_failed ? '上次组件操作告警，可重试' : null;
+                if (present?.state === 'draining')
                   throw new ApiError(
                     'protocol',
                     'plugin_draining',
-                    '插件正在排空或上次清理未完成',
+                    '插件正在排空，尚未进入可用状态',
                     null,
                     currentLog,
                   );
@@ -227,7 +227,7 @@ export function createPluginDefaults(gateway: PluginDefaultsGateway) {
                   kind,
                   id: pkg.id,
                   status: 'already_enabled',
-                  message: null,
+                  message: warning,
                   logId: currentLog,
                 });
               else {
@@ -244,7 +244,9 @@ export function createPluginDefaults(gateway: PluginDefaultsGateway) {
                     null,
                     result.logId,
                   );
-                accept({ kind, id: pkg.id, status: 'enabled', message: null, logId: result.logId });
+                accept({ kind, id: pkg.id, status: 'enabled',
+                  message: warning || ('cleanup_failed' in result.data && result.data.cleanup_failed
+                    ? '上次组件操作告警，可重试' : null), logId: result.logId });
               }
             } catch (error) {
               check();

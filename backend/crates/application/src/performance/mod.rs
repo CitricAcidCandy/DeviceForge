@@ -42,13 +42,6 @@ impl Runtime {
             .as_ref()
             .is_some_and(|binding| binding.owner.cancel.is_cancelled())
     }
-    fn cleanup_failed(&self) -> bool {
-        self.unresolved.load(Ordering::Acquire)
-            || self
-                .binding
-                .as_ref()
-                .is_some_and(|binding| binding.owner.info().cleanup_failed)
-    }
     fn cancel_sample(&self) {
         if let Some(cancel) = self
             .sample_cancel

@@ -332,14 +332,17 @@ async fn recovery_block_preserves_enabled_intent_and_rejects_lifecycle_changes()
         .recovery_blocked(
             &installed.id,
             &installed.revision,
-            "activation_cleanup",
+            "transaction_rollback_cleanup",
             "测试清理失败",
         )
         .await
         .unwrap();
     assert!(blocked.enabled);
     assert_eq!(blocked.status, InstallationStatus::RecoveryBlocked);
-    assert_eq!(blocked.failure.unwrap().phase, "activation_cleanup");
+    assert_eq!(
+        blocked.failure.unwrap().phase,
+        "transaction_rollback_cleanup"
+    );
     assert!(
         store
             .set_enabled(&installed.id, &installed.revision, false)
@@ -352,6 +355,54 @@ async fn recovery_block_preserves_enabled_intent_and_rejects_lifecycle_changes()
             .await
             .is_err()
     );
+}
+
+#[tokio::test]
+async fn old_component_cleanup_warning_allows_retry_delete_and_update_without_erasing_diagnosis() {
+    for update in [false, true] {
+        let (_directory, artifacts, store) = setup().await;
+        let source = upload(&artifacts, release_bytes("1.0.0", b"shared-tool", false)).await;
+        let installed = store
+            .prepare(source)
+            .await
+            .unwrap()
+            .commit(None)
+            .await
+            .unwrap();
+        let blocked = store
+            .recovery_blocked(
+                &installed.id,
+                &installed.revision,
+                "component_cleanup",
+                "历史组件清理告警",
+            )
+            .await
+            .unwrap();
+        assert!(!blocked.requires_recovery());
+        if update {
+            let next = upload(&artifacts, release_bytes("2.0.0", b"shared-tool", false)).await;
+            let upgraded = store
+                .prepare(next)
+                .await
+                .unwrap()
+                .commit(Some(installed.revision))
+                .await
+                .unwrap();
+            assert_eq!(upgraded.version, "2.0.0");
+        } else {
+            let disabled = store
+                .set_enabled(&installed.id, &installed.revision, false)
+                .await
+                .unwrap();
+            assert_eq!(disabled.status, InstallationStatus::Installed);
+            assert!(!disabled.enabled);
+            assert_eq!(disabled.failure.unwrap().phase, "component_cleanup");
+            store
+                .delete(&installed.id, &installed.revision)
+                .await
+                .unwrap();
+        }
+    }
 }
 
 #[tokio::test]

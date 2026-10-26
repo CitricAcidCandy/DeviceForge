@@ -3,6 +3,7 @@ import { ApiError } from '../../services/api/errors.ts';
 import { abortable } from '../../services/api/abort.ts';
 import { isRecord } from '../../services/api/validation.ts';
 import { invalidBusinessResult, naturalNumber, nonemptyText, onlyKeys } from './values.ts';
+import { sha256 } from '@noble/hashes/sha2.js';
 
 export interface ArtifactEnvelope {
   readonly result: unknown;
@@ -92,9 +93,12 @@ export async function downloadPublishedArtifact<T>(
         downloaded.logId,
       );
     const bytes = await abortable(downloaded.data.arrayBuffer(), signal);
-    const hash = await abortable(crypto.subtle.digest('SHA-256', bytes), signal);
+    // 普通局域网 HTTP 没有 Web Crypto，仍用同一 SHA-256 校验原字节，不能跳过完整性检查。
+    const hash = globalThis.crypto?.subtle
+      ? new Uint8Array(await abortable(globalThis.crypto.subtle.digest('SHA-256', bytes), signal))
+      : sha256(new Uint8Array(bytes));
     if (signal.aborted) throw new ApiError('cancelled', 'cancelled', '产物下载等待已取消');
-    const digest = Array.from(new Uint8Array(hash), (byte) =>
+    const digest = Array.from(hash, (byte) =>
       byte.toString(16).padStart(2, '0'),
     ).join('');
     if (digest !== artifact.sha256.toLowerCase())

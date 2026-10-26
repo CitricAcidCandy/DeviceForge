@@ -20,6 +20,25 @@ export type TrustedRegistration = { readonly id: string; readonly trusted: true 
   | { readonly loader: (signal: AbortSignal) => Promise<unknown> }
 );
 export type PluginSnapshot = WebPluginRuntimeInfo;
+interface CleanupDiagnostic {
+  readonly id: string;
+  readonly generation: number;
+  readonly error: unknown;
+}
+
+// 仅约束宿主等待，不强制终止同页面可信回调；晚到拒绝仍由竞速消费。
+async function awaitCleanup(callback: () => void | Promise<void>, stage: string): Promise<void> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    await Promise.race([
+      Promise.resolve().then(callback),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new HostError('protocol', 'plugin_cleanup_timeout',
+          `${stage}等待超过 5 秒，清理结果未确认；上次组件操作告警，可重试`)), 5000);
+      }),
+    ]);
+  } finally { clearTimeout(timer); }
+}
 interface MountedPanel {
   readonly scope: PluginScope;
   readonly root: HTMLElement;
@@ -58,7 +77,7 @@ export function createPluginManager(options: ManagerOptions) {
   const mounts = createExtensionMounts();
   const sources = new Map<string, TrustedRegistration>();
   const running = new Map<string, Runtime>();
-  const cleanupFailed = new Set<string>();
+  const cleanupFailures = new Map<string, CleanupDiagnostic>();
   const epochs = new Map<string, number>();
   const panelEpochs = new Map<string, number>();
   const extensionEpochs = new Map<string, number>();
@@ -75,25 +94,17 @@ export function createPluginManager(options: ManagerOptions) {
       throw new HostError('cancelled', 'plugin_unloaded', '插件代际已撤销');
     }
   }
-  function assertClean(id: string) {
-    if (cleanupFailed.has(id))
-      throw new HostError(
-        'protocol',
-        'plugin_cleanup_failed',
-        '插件资源清理未确认，当前运行实例禁止重新启用、重载或删除',
-      );
-  }
   async function cleanup(runtime: Runtime) {
     runtime.scope.close();
     const failures: unknown[] = [];
     try {
-      await runtime.scope.dispose();
+      await awaitCleanup(() => runtime.scope.dispose(), '插件资源回收');
     } catch (error) {
       failures.push(error);
     }
     if (runtime.activationStarted) {
       try {
-        await runtime.plugin?.deactivate?.();
+        await awaitCleanup(() => runtime.plugin?.deactivate?.(), '插件停用回调');
       } catch (error) {
         failures.push(error);
       }
@@ -101,14 +112,14 @@ export function createPluginManager(options: ManagerOptions) {
     }
     if (running.get(runtime.id) === runtime) running.delete(runtime.id);
     if (failures.length) {
-      cleanupFailed.add(runtime.id);
-      throw new AggregateError(failures, '插件卸载未完整释放资源');
+      const error = new AggregateError(failures, '插件卸载未完整释放资源');
+      cleanupFailures.set(runtime.id, Object.freeze({ id: runtime.id, generation: runtime.generation, error }));
+      throw error;
     }
   }
   async function loadNow(id: string, epoch: number): Promise<PluginSnapshot> {
     if (closed || (epochs.get(id) ?? 0) !== epoch)
       throw new HostError('cancelled', 'plugin_unloaded', '加载请求已撤销');
-    assertClean(id);
     const existing = running.get(id);
     if (existing) {
       active(existing);
@@ -225,7 +236,7 @@ export function createPluginManager(options: ManagerOptions) {
     } catch (error) {
       if (scope.context.signal.aborted && !runtime.scope.context.signal.aborted) {
         try {
-          await scope.dispose();
+          await awaitCleanup(() => scope.dispose(), '撤销面板资源回收');
         } finally {
           runtime.panels.delete(panelId);
         }
@@ -244,7 +255,6 @@ export function createPluginManager(options: ManagerOptions) {
     epochs.set(id, (epochs.get(id) ?? 0) + 1);
     running.get(id)?.scope.close();
     return serial(async () => {
-      assertClean(id);
       const runtime = running.get(id);
       if (runtime) await cleanup(runtime);
     });
@@ -295,7 +305,7 @@ export function createPluginManager(options: ManagerOptions) {
     } catch (error) {
       const failures: unknown[] = [error];
       try {
-        await lease?.dispose();
+        await awaitCleanup(() => lease?.dispose(), '扩展槽位回收');
       } catch (cleanupError) {
         failures.push(cleanupError);
       }
@@ -351,12 +361,14 @@ export function createPluginManager(options: ManagerOptions) {
       panelEpochs.set(panelId, (panelEpochs.get(panelId) ?? 0) + 1);
       running.get(id)?.panels.get(panelId)?.scope.close();
       return serial(async () => {
-        assertClean(id);
         const runtime = running.get(id);
         const panel = runtime?.panels.get(panelId);
         if (!runtime || !panel) return;
         try {
-          await panel.scope.dispose();
+          await awaitCleanup(() => panel.scope.dispose(), '面板资源回收');
+        } catch (error) {
+          cleanupFailures.set(id, Object.freeze({ id, generation: runtime.generation, error }));
+          throw error;
         } finally {
           runtime.panels.delete(panelId);
         }
@@ -367,7 +379,6 @@ export function createPluginManager(options: ManagerOptions) {
       epochs.set(id, (epochs.get(id) ?? 0) + 1);
       running.get(id)?.scope.close();
       return serial(async () => {
-        assertClean(id);
         const runtime = running.get(id);
         if (runtime) await cleanup(runtime);
         sources.delete(id);
@@ -385,10 +396,12 @@ export function createPluginManager(options: ManagerOptions) {
     unmountExtension: (id: string) => {
       extensionEpochs.set(id, (extensionEpochs.get(id) ?? 0) + 1);
       mounts.close(id);
-      return serial(() => mounts.unmount(id));
+      return serial(() => awaitCleanup(() => mounts.unmount(id), '扩展资源回收'));
     },
     snapshot: (): readonly PluginSnapshot[] =>
       [...running.values()].map(({ id, generation, state }) => ({ id, generation, state })),
+    // 每个插件仅保留最近一条清理诊断；成功新代不会抹掉旧故障，也不受其封锁。
+    cleanupSnapshot: (): readonly CleanupDiagnostic[] => [...cleanupFailures.values()],
     dispose() {
       closed = true;
       for (const runtime of running.values()) runtime.scope.close();

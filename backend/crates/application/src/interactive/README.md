@@ -10,6 +10,6 @@
 
 `open_session`是同步、无进程或文件副作用的准入，返回Opening记录；真实打开在后台进行。`session`查询状态，`session_output`读取输出；`session_send/session_eof`等待真实准备及受限输入准入，成功不证明工具已消费。`session_cancel`请求停止，`session_remove`删除已结束的内存记录。会话不持久化、不自动重连或回放，服务重启后旧ID不存在。
 
-`session_release`供 HTTP `POST /api/v2/sessions/{id}/release` 与 MCP `deviceforge.release_session` 共用：已结束且清理完成的会话立即删除；活动会话立即撤销输入并返回 Stopping，宿主在资源监督发布清理完成后自动删除记录。清理失败或未确认的记录保留，并继续阻止插件同代重载；调用方须查询终态，不把 202 当成资源释放确认。
+`session_release`供 HTTP `POST /api/v2/sessions/{id}/release` 与 MCP `deviceforge.release_session` 共用：用户明确结束会话后，所有已结束记录均可立即移除，不因历史清理失败返回409；返回值仍保留原清理结论，不伪造Complete。活动会话立即撤销输入并返回Stopping，真实监督结束后无论清理结果如何都回收工作台记录，避免失败历史永久占用界面和容量。资源风险及恢复报告继续由插件owner独立保存，移除内存记录不是外部资源已释放的证明；202也不是清理完成回执。
 
 所属方案及证据边界见 `backend/docs/implementation/宿主交互会话实施.md`。独立内存端口回归与真实插件、HTTP/MCP、浏览器、派生进程树或远端清理分别验收。

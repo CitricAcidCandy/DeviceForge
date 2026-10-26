@@ -325,9 +325,6 @@ impl PerformanceService {
                 return Err(Error::Conflict("性能来源代际已撤销".into()));
             }
             if state == PerformanceState::Running && current.state == PerformanceState::Paused {
-                if runtime.cleanup_failed() {
-                    return Err(Error::CleanupFailed);
-                }
                 if runtime.sample_in_flight.load(Ordering::Acquire) {
                     return Err(Error::Conflict("性能样本仍在收口".into()));
                 }

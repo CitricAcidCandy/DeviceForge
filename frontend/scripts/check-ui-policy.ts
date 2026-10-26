@@ -33,7 +33,6 @@ const CSS_ALLOWLIST = new Set([
   'components/SelectField/styles.css',
   'components/Stepper/styles.css',
   'pages/analysis/workspace.css',
-  'pages/automation/workspace.css',
   'pages/devices/apps/workspace.css',
   'pages/devices/screen/workspace.css',
   'pages/devices/workspace.css',
@@ -43,7 +42,6 @@ const CSS_ALLOWLIST = new Set([
   'pages/marketplace/components/MarketplaceUploadContent/styles.css',
   'pages/marketplace/workspace.css',
   'pages/settings/workspace.css',
-  'pages/tasks/workspace.css',
 ]);
 
 // T2：行内样式只放图表几何（数据驱动的坐标、比例），其余交给 Tailwind。
@@ -154,9 +152,6 @@ const BASELINE: Readonly<Record<string, readonly string[]>> = {
     "pages/analysis/index.tsx": [
       "responsive"
     ],
-    "pages/automation/index.tsx": [
-      "responsive"
-    ],
     "pages/devices/index.tsx": [
       "responsive"
     ],
@@ -195,9 +190,6 @@ const BASELINE: Readonly<Record<string, readonly string[]>> = {
       "fixed:160px"
     ],
     "pages/settings/index.tsx": [
-      "responsive"
-    ],
-    "pages/tasks/index.tsx": [
       "responsive"
     ],
     "components/Progress/index.tsx": [

@@ -3,9 +3,10 @@ import test from 'node:test';
 import { createWebRtcMirroring } from '../src/features/mirroring-streaming/index.ts';
 import type { MirroringStreamInput } from '../src/features/mirroring-streaming/index.ts';
 import { createWebRtcSignalDecoder, encodeWebRtcAnswer, encodeWebRtcControl } from '../src/features/mirroring-streaming/services/webrtc-signaling.ts';
-import { ApiError } from '../src/services/api/index.ts';
+import { ApiError, createApiClient, createHttpSessionGateway } from '../src/services/api/index.ts';
 import type { SessionGateway, SessionInfo, SessionOutputPage } from '../src/services/api/index.ts';
 import { FakeControlChannel, FakeMediaStream, FakeMediaTrack, FakeWebRtcConnection } from './webrtc-fixtures.ts';
+import { deferred, requestUrl, success } from './fixtures.ts';
 
 const sessionId = '12345678-1234-1234-1234-123456789abc';
 const operation = 'plugin.mirroring.open_webrtc';
@@ -56,7 +57,8 @@ function ownership(revision: number, hasControl: boolean, controlRevision = revi
     can_control: true, has_control: hasControl, transitioning: false, blocked: false, requests: [] });
 }
 
-async function openedMirror(input: Partial<MirroringStreamInput> = {}, automaticReceipt = true) {
+async function openedMirror(input: Partial<MirroringStreamInput> = {}, automaticReceipt = true,
+  changes: Partial<SessionGateway> = {}) {
   const channels: FakeControlChannel[] = [];
   const messages = [
     { version: 1, epoch: 1, type: 'offer', sdp: 'offer' },
@@ -68,6 +70,7 @@ async function openedMirror(input: Partial<MirroringStreamInput> = {}, automatic
       data: query.after === 0 ? page([offer]) : { ...page([], 1), session: info('running', 1) },
       logId: 'output-log',
     }),
+    ...changes,
   }), {
     connectionFactory: () => {
       const connection = new FakeWebRtcConnection();
@@ -363,6 +366,188 @@ test('WebRTC 完整 answer 按 8192 字节拆片，释放去重并确认清理',
   await mirror.dispose();
 });
 
+for (const releaseStatus of ['running', 'stopping'] as const) {
+  test(`WebRTC 释放 HTTP 202 返回 ${releaseStatus} 即停止画面输入并可重开，旧输出不能复活`, { timeout: 3000 }, async (t) => {
+    const delayed = deferred<{ data: SessionOutputPage; logId: string }>();
+    const entered = deferred<void>();
+    const offer = [...encoder.encode(`${JSON.stringify({ version: 1, epoch: 1, type: 'offer', sdp: 'offer' })}\n`)];
+    let queries = 0;
+    let waiting = false;
+    const http = createHttpSessionGateway(createApiClient({ baseUrl: 'http://localhost',
+      transport: async (request, init) => {
+        assert.equal(requestUrl(request).pathname, `/api/v2/sessions/${sessionId}/release`);
+        assert.equal(init?.method, 'POST');
+        return success(info(releaseStatus), 'accepted-release-log', 202);
+      },
+    }));
+    const { mirror, channel } = await openedMirror({}, true, {
+      output: async (_id, query) => {
+        if (query.after === 0) return { data: page([offer]), logId: 'offer-log' };
+        if (waiting) return { data: page([], 1), logId: 'new-output-log' };
+        waiting = true;
+        entered.resolve();
+        return delayed.promise;
+      },
+      release: http.release,
+      get: async () => { ++queries; throw new Error('不应等待服务端终态'); },
+    });
+    t.after(() => mirror.dispose());
+    await entered.promise;
+    const track = mirror.snapshot().stream?.getVideoTracks()[0];
+    const result = await mirror.release(signal());
+    assert.equal(result.data.status, releaseStatus);
+    assert.equal(queries, 0);
+    assert.equal(track?.readyState, 'ended');
+    assert.equal(channel.closed, 1);
+    assert.equal(mirror.snapshot().session, null);
+    assert.equal(mirror.snapshot().stream, null);
+    assert.equal(mirror.snapshot().opening, false);
+    assert.equal(mirror.snapshot().releasing, false);
+    await assert.rejects(mirror.sendControl({ type: 'rotate' }, signal()), ApiError);
+    await mirror.open({ device_id: 'emulator-5554' }, signal());
+    const current = mirror.snapshot();
+    if (releaseStatus === 'running')
+      delayed.reject(new ApiError('http', 'old_output_failed', '旧轮询失败', 500, 'old-output-log'));
+    else delayed.resolve({ data: { ...page([], 1), session: info('finished', 1) }, logId: 'old-output-log' });
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    assert.equal(mirror.snapshot(), current);
+  });
+}
+
+test('WebRTC 接受释放后在订阅内重开，旧释放收尾不覆盖新状态', async (t) => {
+  const { mirror } = await openedMirror({}, true, {
+    release: async () => ({ data: info('stopping'), logId: 'accepted-release-log' }),
+    get: async () => { throw new Error('不应查询旧会话'); },
+  });
+  t.after(() => mirror.dispose());
+  const next: { task?: ReturnType<typeof mirror.open> } = {};
+  const unsubscribe = mirror.subscribe((view) => {
+    if (!view.session && !view.opening && view.logs.release === 'accepted-release-log' && !next.task)
+      next.task = mirror.open({ device_id: 'emulator-5554' }, signal());
+  });
+  t.after(unsubscribe);
+  await mirror.release(signal());
+  assert.ok(next.task);
+  await next.task;
+  assert.equal(mirror.snapshot().session?.id, sessionId);
+  assert.equal(mirror.snapshot().opening, false);
+  assert.equal(mirror.snapshot().releasing, false);
+  assert.equal(mirror.snapshot().logs.release, 'accepted-release-log');
+});
+
+test('WebRTC 自然终态订阅内重开，旧轮询诊断不回写新会话', { timeout: 3000 }, async (t) => {
+  const reopened = deferred<void>();
+  const offer = [...encoder.encode(`${JSON.stringify({ version: 1, epoch: 1, type: 'offer', sdp: 'offer' })}\n`)];
+  let finish = false;
+  const { mirror } = await openedMirror({}, true, {
+    output: async (_id, query) => ({
+      data: query.after === 0 ? page([offer]) : finish ? {
+        ...page([], 1), session: { ...info('finished', 1), completion: {
+          cleanup: 'complete', process_exited: true, failure: { code: 'old_failed', message: '旧会话失败' },
+        } },
+      } : page([], 1),
+      logId: finish ? 'old-terminal-log' : 'output-log',
+    }),
+  });
+  t.after(() => mirror.dispose());
+  const unsubscribe = mirror.subscribe((view) => {
+    if (view.session || view.opening || !finish) return;
+    finish = false;
+    void mirror.open({ device_id: 'emulator-5554' }, signal()).then(() => reopened.resolve(), reopened.reject);
+  });
+  t.after(unsubscribe);
+  finish = true;
+  await reopened.promise;
+  assert.equal(mirror.snapshot().session?.id, sessionId);
+  assert.equal(mirror.snapshot().errors.output, undefined);
+});
+
+test('WebRTC 释放失败保留原始错误和日志，不伪造清理结果', async (t) => {
+  const original = new ApiError('http', 'release_failed', '原始释放失败', 503, 'original-release-log');
+  let failed = false;
+  const { mirror } = await openedMirror({}, true, {
+    release: async () => {
+      if (!failed) { failed = true; throw original; }
+      return { data: info('stopping'), logId: 'retry-release-log' };
+    },
+  });
+  t.after(() => mirror.dispose());
+  await assert.rejects(mirror.release(signal()), (error: unknown) => error === original);
+  assert.equal(mirror.snapshot().errors.release, original);
+  assert.equal(mirror.snapshot().logs.release, 'original-release-log');
+  assert.equal(mirror.snapshot().session?.id, sessionId);
+  assert.equal(mirror.snapshot().opening, false);
+  assert.equal(mirror.snapshot().releasing, false);
+});
+
+for (const fails of [false, true]) {
+  test(`WebRTC 释放传输忽略信号仍有界退出，旧请求晚到${fails ? '失败' : '成功'}不回写新会话`, { timeout: 3000 }, async (t) => {
+    const delayed = deferred<{ data: SessionInfo; logId: string }>();
+    let releases = 0;
+    const { mirror } = await openedMirror({}, true, {
+      release: async () => {
+        if (++releases === 1) return delayed.promise;
+        return { data: info('stopping'), logId: 'accepted-release-log' };
+      },
+    });
+    t.after(() => mirror.dispose());
+    const timeout = new AbortController();
+    const originalTimeout = AbortSignal.timeout.bind(AbortSignal);
+    const mocked = t.mock.method(AbortSignal, 'timeout', (milliseconds: number) =>
+      milliseconds === 15000 ? timeout.signal : originalTimeout(milliseconds));
+    const rejected = assert.rejects(mirror.release(signal()), { code: 'mirroring_webrtc_release_pending' });
+    timeout.abort();
+    await rejected;
+    mocked.mock.restore();
+    assert.equal(mirror.snapshot().releasing, false);
+    await mirror.release(signal());
+    await mirror.open({ device_id: 'emulator-5554' }, signal());
+    const current = mirror.snapshot();
+    if (fails) delayed.reject(new ApiError('http', 'old_release_failed', '旧释放失败', 500, 'old-release-log'));
+    else delayed.resolve({ data: info('finished'), logId: 'old-release-log' });
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    assert.equal(mirror.snapshot(), current);
+    assert.equal(releases, 2);
+  });
+}
+
+test('WebRTC 媒体尚未就绪时接受释放清空 opening，旧打开等待不覆盖重开', { timeout: 3000 }, async (t) => {
+  const answered = deferred<void>();
+  const offer = [...encoder.encode(`${JSON.stringify({ version: 1, epoch: 1, type: 'offer', sdp: 'offer' })}\n`)];
+  let connections = 0;
+  const mirror = createWebRtcMirroring(gateway({
+    output: async (_id, query) => ({ data: query.after === 0 ? page([offer]) : page([], 1), logId: 'output-log' }),
+    send: async () => { answered.resolve(); return { data: { id: sessionId, accepted: true }, logId: 'answer-log' }; },
+    release: async () => ({ data: info('stopping'), logId: 'accepted-release-log' }),
+    get: async () => { throw new Error('不应等待旧会话终态'); },
+  }), {
+    connectionFactory: () => {
+      const connection = new FakeWebRtcConnection();
+      if (++connections > 1) connection.setLocalDescription = async () => {
+        queueMicrotask(() => {
+          connection.emitTrack(new FakeMediaTrack());
+          connection.setState('connected');
+        });
+      };
+      return connection;
+    },
+    mediaStreamFactory: () => new FakeMediaStream(),
+  });
+  t.after(() => mirror.dispose());
+  await mirror.refreshDefinitions(signal());
+  const oldOpening = assert.rejects(mirror.open({ device_id: 'emulator-5554', control: false }, signal()), ApiError);
+  await answered.promise;
+  assert.equal(mirror.snapshot().opening, true);
+  await mirror.release(signal());
+  assert.equal(mirror.snapshot().session, null);
+  assert.equal(mirror.snapshot().opening, false);
+  assert.equal(mirror.snapshot().releasing, false);
+  await mirror.open({ device_id: 'emulator-5554', control: false }, signal());
+  await oldOpening;
+  assert.equal(mirror.snapshot().session?.id, sessionId);
+  assert.equal(mirror.snapshot().errors.open, undefined);
+});
+
 test('取消打开后晚到已接受会话触发独立释放，不复活本地快照', async () => {
   const late: { resolve?: (value: { data: SessionInfo; logId: string }) => void } = {};
   let releases = 0;
@@ -413,7 +598,7 @@ test('自然完成且清理成功后可重开，清理失败则保留会话身�
     },
     release: async () => {
       if (opens === 1) throw new ApiError('http', 'not_found', '会话已移除', 404);
-      return { data: info('finished'), logId: 'release-log' };
+      return { data: { ...info('finished'), completion: { cleanup: 'failed', process_exited: true } }, logId: 'release-log' };
     },
   }), {
     connectionFactory: () => {
@@ -456,6 +641,14 @@ test('自然完成且清理成功后可重开，清理失败则保留会话身�
   await failed;
   assert.equal(mirror.snapshot().session?.status, 'finished');
   assert.equal(mirror.snapshot().errors.output?.code, 'mirroring_webrtc_cleanup_failed');
+  const released = await mirror.release(signal());
+  assert.equal(released.data.completion?.cleanup, 'failed');
+  assert.equal(mirror.snapshot().session, null);
+  assert.equal(mirror.snapshot().releasing, false);
+  assert.equal(mirror.snapshot().errors.release?.logId, 'release-log');
+  assert.equal(mirror.snapshot().errors.release?.code, 'mirroring_webrtc_cleanup_failed');
+  await mirror.open({ device_id: 'emulator-5554', control: false }, signal());
+  assert.equal(opens, 3);
   await mirror.dispose();
 });
 

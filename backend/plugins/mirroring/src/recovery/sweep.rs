@@ -1,6 +1,6 @@
 //! 全台账扫描和恢复编排；设备标识只补足旧版协调状态的定位。
 use super::{
-    check,
+    check, identity,
     ledger::{self, Record},
     process, report,
     runner::{self, RecoveryRunner},
@@ -14,12 +14,6 @@ use std::{
     path::Path,
     sync::Arc,
 };
-
-struct Entry {
-    record: Record,
-    _lease: Arc<File>,
-    clean: bool,
-}
 
 async fn pin(root: &Path, record: &Record) -> Result<Option<Arc<File>>, String> {
     let path = root.join(format!("{}.lease", record.token));
@@ -64,6 +58,10 @@ async fn all_inner(
     let records = ledger::read_all(root).await?;
     let keys = control::list(root).await?;
     let empty_without_target = records.is_empty() && target.is_none();
+    let known_devices: BTreeSet<_> = records
+        .iter()
+        .map(|record| record.device_id.clone())
+        .collect();
     let mut inspected = (records.len() + keys.len()) as u32;
     let mut identities: BTreeMap<_, _> = records
         .iter()
@@ -75,27 +73,40 @@ async fn all_inner(
     let mut checks = vec![check(
         "插件进程",
         CheckStatus::Confirmed,
-        "已取得排他恢复租约，没有普通插件调用持有共享租约",
+        "恢复使用共享进程租约，仅尝试取得各条旧资源的独占租约",
     )];
-    let mut entries = Vec::new();
-    let mut pending = 0;
     let mut busy = false;
+    let mut pending = 0;
     let mut failed_devices = BTreeSet::new();
-    for mut record in records {
+    for record in records {
+        runner.check()?;
         let Some(lease) = pin(root, &record).await? else {
-            pending += 1;
+            let owner = record.owner.clone();
+            if store::io(move || process::alive(&owner)).await? {
+                checks.push(check(
+                    "活跃投屏资源",
+                    CheckStatus::Confirmed,
+                    "已跳过仍由活跃调用持有的独立资源，不计入旧清理债务",
+                ));
+                continue;
+            }
             busy = true;
+            pending += 1;
             failed_devices.insert(control::key(&record.device_id));
             checks.push(check(
                 "投屏资源",
                 CheckStatus::Busy,
-                "仍有存活资源持有人，未发送设备命令",
+                "旧调用已退出但工具资源租约仍被持有，未发送设备命令",
             ));
             continue;
         };
+        // 枚举之后旧持有人可能已正常退出；固定租约后重读阶段，不重放旧快照。
+        let Some(mut record) = ledger::reload(root, &record).await? else {
+            continue;
+        };
         if !local_gone(&record).await? {
-            pending += 1;
             busy = true;
+            pending += 1;
             failed_devices.insert(control::key(&record.device_id));
             checks.push(check(
                 "投屏资源",
@@ -107,35 +118,37 @@ async fn all_inner(
         runner.pin(Some(lease.clone()));
         let result = runner::recover(runner, root, &mut record).await;
         runner.pin(None);
-        let clean = result.is_ok();
-        if !clean {
+        if result.is_err() {
+            pending += 1;
             failed_devices.insert(control::key(&record.device_id));
         }
         checks.push(match result {
-            Ok(()) => check(
-                "投屏资源",
-                CheckStatus::Confirmed,
-                "远端进程、独占目录和精确转发均已核对释放",
-            ),
+            Ok(()) => {
+                // 控制债务另有持久状态；不能因新会话活跃而扣住已释放的旧资源记录。
+                remove(root, &record).await?;
+                check(
+                    "投屏资源",
+                    CheckStatus::Confirmed,
+                    "远端进程、独占目录和精确转发均已核对释放",
+                )
+            }
             Err(error) => check("投屏资源", CheckStatus::Blocked, error),
-        });
-        entries.push(Entry {
-            record,
-            _lease: lease,
-            clean,
         });
     }
     let mut control_remaining = 0;
+    let mut control_failed = false;
+    let mut active_controls = 0;
     let mut control_message = "全部控制协调状态均已核对".to_owned();
     let mut legacy_remaining = 0;
     let mut no_devices = false;
+    let mut online = None;
     if empty_without_target {
         // 宿主重启会丢失旧风险布尔；空登记本身不能证明旧版 DFML 无资源。
         let devices = runner.devices().await?;
         inspected += devices.len() as u32;
         no_devices = devices.is_empty();
         let mut message = if no_devices {
-            "当前无已登记资源或在线设备；新设备打开前仍须严格核对".to_owned()
+            "当前无已登记资源或在线设备；新调用可分配独立资源".to_owned()
         } else {
             "全部在线设备的旧版目录、进程、套接字和转发均已只读核对".to_owned()
         };
@@ -143,15 +156,16 @@ async fn all_inner(
             legacy_remaining = 1;
             message = "宿主仍有未确认清理风险，但无设备可审计，请连接并选择故障设备后重试".into();
         }
-        for device in devices {
+        for device in &devices {
             runner.check()?;
-            identities.insert(control::key(&device), device.clone());
-            if let Err(error) = runner::legacy_audit(runner, &device).await {
+            identities.insert(control::key(device), device.clone());
+            if let Err(error) = runner::legacy_audit(runner, device).await {
                 legacy_remaining += 1;
-                failed_devices.insert(control::key(&device));
+                failed_devices.insert(control::key(device));
                 message = error;
             }
         }
+        online = Some(devices);
         checks.push(check(
             "旧版设备资源",
             if legacy_remaining == 0 {
@@ -162,7 +176,37 @@ async fn all_inner(
             message,
         ));
     }
+    let mut missing = BTreeSet::new();
     for key in &keys {
+        runner.check()?;
+        if !identities.contains_key(key)
+            && control::inspect(root, key, false).await? == Inspection::NeedsProof
+        {
+            missing.insert(key.clone());
+        }
+    }
+    if !missing.is_empty() {
+        let devices = match online {
+            Some(devices) => devices,
+            None => runner.devices().await?,
+        };
+        identity::resolve(&missing, &devices, &mut identities, runner).await?;
+    }
+    for key in &keys {
+        runner.check()?;
+        match control::inspect(root, key, false).await? {
+            Inspection::Active => {
+                active_controls += 1;
+                continue;
+            }
+            Inspection::Busy => {
+                busy = true;
+                control_remaining += 1;
+                control_message = "部分控制状态仍被持有，后台继续保留待办".into();
+                continue;
+            }
+            _ => {}
+        }
         let result = if failed_devices.contains(key) {
             Err("关联设备资源尚未释放，控制状态继续阻断".into())
         } else {
@@ -170,6 +214,7 @@ async fn all_inner(
         };
         if let Err(error) = result {
             control_remaining += 1;
+            control_failed = true;
             failed_devices.insert(key.clone());
             control_message = error;
         }
@@ -177,29 +222,79 @@ async fn all_inner(
     // 空台账也不跳过明确指定旧设备的审计。
     if let Some(target) = target
         && !keys.contains(&control::key(target))
-        && !entries.iter().any(|entry| entry.record.device_id == target)
+        && !known_devices.contains(target)
         && let Err(error) = runner::legacy_audit(runner, target).await
     {
         control_remaining += 1;
+        control_failed = true;
         control_message = error;
+    }
+    if active_controls > 0 && control_remaining == 0 {
+        control_message = format!(
+            "已跳过{active_controls}条活跃控制会话，其余旧状态均已核对；未重置活跃状态或重放输入"
+        );
     }
     checks.push(check(
         "控制协调状态",
-        if control_remaining == 0 {
+        if control_failed {
+            CheckStatus::Blocked
+        } else if control_remaining == 0 {
             CheckStatus::Confirmed
         } else {
-            CheckStatus::Blocked
+            CheckStatus::Busy
         },
         control_message,
     ));
-    for entry in &entries {
-        if entry.clean && !failed_devices.contains(&control::key(&entry.record.device_id)) {
-            remove(root, &entry.record).await?;
+    let left = ledger::read_all(root).await?;
+    let mut resource_remaining = 0;
+    for record in left {
+        runner.check()?;
+        let lease = pin(root, &record).await?;
+        if lease.is_none() {
+            let owner = record.owner.clone();
+            if store::io(move || process::alive(&owner)).await? {
+                continue;
+            }
+        } else if ledger::reload(root, &record).await?.is_none() {
+            continue;
+        }
+        resource_remaining += 1;
+    }
+    let latest_controls = control::list(root).await?;
+    let mut latest_remaining = 0;
+    let mut latest_blocked = false;
+    for key in &latest_controls {
+        runner.check()?;
+        if !keys.contains(key) {
+            inspected += 1;
+        }
+        match control::inspect(root, key, false).await? {
+            Inspection::Clean | Inspection::Active => {}
+            Inspection::Busy => {
+                busy = true;
+                latest_remaining += 1;
+            }
+            Inspection::NeedsProof => {
+                latest_remaining += 1;
+                latest_blocked = true;
+            }
         }
     }
-    let left = ledger::read_all(root).await?;
-    // 复扫成功且为空才能报告全插件覆盖；不能把部分检查或截断报告当成通过。
-    let remaining = (left.len() as u32).max(pending) + control_remaining + legacy_remaining;
+    checks.push(check(
+        "控制状态复核",
+        if latest_blocked {
+            CheckStatus::Blocked
+        } else if latest_remaining > 0 {
+            CheckStatus::Busy
+        } else {
+            CheckStatus::Confirmed
+        },
+        "已复核恢复期间的控制变化；活跃状态跳过，新旧未确认状态均保留待办",
+    ));
+    // 复扫包含恢复期间新登记的记录；本轮失败不能被另一恢复调用的删除冲销。
+    let remaining = resource_remaining.max(pending)
+        + control_remaining.max(latest_remaining)
+        + legacy_remaining;
     checks.push(check(
         "全插件台账复核",
         if remaining == 0 {
@@ -208,7 +303,7 @@ async fn all_inner(
             CheckStatus::Blocked
         },
         if remaining == 0 {
-            "全量扫描完成，无未确认资源记录"
+            "全量扫描完成，无待回收旧债务；活跃独立资源保持不动"
         } else {
             "仍有未确认资源，已保留台账和阻断"
         },
@@ -227,11 +322,11 @@ async fn all_inner(
     };
     let message = match status {
         RecoveryStatus::Recovered if no_devices => {
-            "当前无已登记资源或在线设备；新连接设备打开前仍须严格核对"
+            "当前无已登记资源或在线设备；新调用可分配独立资源"
         }
-        RecoveryStatus::Recovered => "全部已登记投屏资源已核对，可重新打开投屏",
-        RecoveryStatus::Busy => "旧会话或工具仍在使用资源，请结束后重试",
-        RecoveryStatus::Blocked => "部分资源未确认释放，请按检查提示处理后重试",
+        RecoveryStatus::Recovered => "已完成旧资源核对；活跃会话及新调用可继续使用独立资源",
+        RecoveryStatus::Busy => "旧资源租约仍被持有，后台保留待办；独立新调用不受阻断",
+        RecoveryStatus::Blocked => "部分旧资源尚未确认释放，保留后台债务；独立新调用不受阻断",
     };
     Ok(report(status, message, checks, inspected, remaining))
 }
@@ -242,7 +337,8 @@ async fn reconcile_control(
     device: Option<&str>,
     runner: &mut impl RecoveryRunner,
 ) -> Result<(), String> {
-    match control::inspect(root, key, false).await? {
+    let snapshot = control::snapshot(root, key).await?;
+    match snapshot.inspection {
         Inspection::Active | Inspection::Busy => {
             return Err("控制会话仍存活，未重置控制状态".into());
         }
@@ -250,63 +346,10 @@ async fn reconcile_control(
             let device = device.ok_or("旧控制状态缺少资源台账，请指定对应设备后执行严格核对")?;
             runner::legacy_audit(runner, device).await?;
         }
-        Inspection::Clean => {}
+        Inspection::Clean => return Ok(()),
     }
-    match control::inspect(root, key, true).await? {
+    match control::confirm(root, key, snapshot).await? {
         Inspection::Clean => Ok(()),
         _ => Err("控制状态在核对期间发生变化，保留原有阻断".into()),
     }
-}
-
-pub(super) async fn device(
-    root: &Path,
-    device: &str,
-    runner: &mut impl RecoveryRunner,
-) -> Result<(), String> {
-    let records = ledger::read_all(root).await?;
-    let known_device = records.iter().any(|record| record.device_id == device);
-    let mut entries = Vec::new();
-    for mut record in records
-        .into_iter()
-        .filter(|record| record.device_id == device)
-    {
-        let Some(lease) = pin(root, &record).await? else {
-            let owner = record.owner.clone();
-            if !store::io(move || process::alive(&owner)).await? {
-                return Err("旧设备工具租约尚未释放，不能继续创建会话".into());
-            }
-            continue;
-        };
-        if !local_gone(&record).await? {
-            return Err("目标设备旧直接进程仍存活，请结束后重新核对".into());
-        }
-        runner.pin(Some(lease.clone()));
-        let result = runner::recover(runner, root, &mut record).await;
-        runner.pin(None);
-        result?;
-        entries.push(Entry {
-            record,
-            _lease: lease,
-            clean: true,
-        });
-    }
-    let key = control::key(device);
-    match control::inspect(root, &key, false).await? {
-        Inspection::Busy => return Err("旧控制会话未释放，不能自动恢复".into()),
-        Inspection::Active => {}
-        Inspection::NeedsProof => {
-            reconcile_control(root, &key, Some(device), runner).await?;
-        }
-        Inspection::Clean => {
-            if !known_device {
-                // 无可信台账的首次打开必须覆盖旧 DFML 无控制状态的迁移路径。
-                runner::legacy_audit(runner, device).await?;
-            }
-            control::inspect(root, &key, true).await?;
-        }
-    }
-    for entry in entries {
-        remove(root, &entry.record).await?;
-    }
-    Ok(())
 }

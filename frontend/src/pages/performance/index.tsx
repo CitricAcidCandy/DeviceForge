@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ListTree } from 'lucide-react';
+import { Activity, Cpu, History, Image, ListTree, MemoryStick, Play, Smartphone } from 'lucide-react';
 import { Button } from '../../components/Button/index.tsx';
 import { Checkbox } from '../../components/Checkbox/index.tsx';
 import { Label } from '../../components/Label/index.tsx';
@@ -50,6 +50,9 @@ import { BlobDownload } from '../../components/BlobDownload/index.tsx';
 import { PerformanceReadings, ProfileArchiveView, SampleBoard } from './components/index.ts';
 import type { BoardSample } from './components/index.ts';
 import { usePerformancePolling } from './hooks/usePerformancePolling.ts';
+import { useLiveFrames } from './hooks/useLiveFrames.ts';
+import { associateLiveFrames } from './models/live-frames.ts';
+import { LiveFramePreview } from './components/LiveFramePreview/index.tsx';
 
 const stateLabel: Record<PerformanceSession['state'], string> = {
   running: '运行中',
@@ -121,36 +124,52 @@ function archiveSamples(
   return { samples, span };
 }
 
-function readingSamples(readings: readonly PerformanceReading[]): {
+function readingSamples(
+  readings: readonly PerformanceReading[],
+  frames: ReadonlyMap<number, { readonly url: string; readonly note: string }>,
+): {
   samples: readonly BoardSample[];
   span: number;
 } {
   const origin = readings[0]?.captured_at ?? 0;
-  const samples = readings.map((reading) => ({
+  const samples = readings.map((reading) => {
+    const frame = frames.get(reading.sequence);
+    return {
     id: `reading-${reading.sequence}`,
     t: (reading.captured_at - origin) / 1000,
     fps: reading.fps ?? null,
     cpu: reading.cpu_share_percent ?? null,
     pssKib: reading.pss_kib ?? null,
     rssKib: reading.rss_kib ?? null,
-    frameUrl: null,
+    frameUrl: frame?.url ?? null,
+    ...(frame ? { frameNote: frame.note } : {}),
     stacks: [],
     note: null,
-  }));
+    };
+  });
   const last = readings.at(-1);
   return { samples, span: last ? (last.captured_at - origin) / 1000 : 0 };
 }
 
-function useSelectedSample(count: number): [number, (index: number) => void] {
+function useSelectedSample(count: number): [number, (index: number) => void, () => void, boolean] {
   const [selected, setSelected] = useState(0);
+  const [following, setFollowing] = useState(true);
+  const follows = useRef(true);
   const previous = useRef(count);
   useEffect(() => {
     if (previous.current !== count) {
+      const reset = count < previous.current;
       previous.current = count;
-      setSelected(count > 0 ? count - 1 : 0);
+      if (reset) { follows.current = true; setFollowing(true); }
+      if (reset || follows.current) setSelected(count > 0 ? count - 1 : 0);
     }
   }, [count]);
-  return [Math.min(selected, Math.max(count - 1, 0)), setSelected];
+  return [
+    Math.min(selected, Math.max(count - 1, 0)),
+    (index) => { follows.current = false; setFollowing(false); setSelected(index); },
+    () => { follows.current = true; setFollowing(true); setSelected(Math.max(count - 1, 0)); },
+    following,
+  ];
 }
 
 function deviceOptions(devices: DeviceSnapshot) {
@@ -317,7 +336,9 @@ function CollectDialog({
   const [interval, setInterval] = useState('1000');
   const [launchApp, setLaunchApp] = useState(true);
   const reference = devices.selection;
-  const ready = !!reference && packageId.trim().length > 0;
+  const ready = !!reference && packageId.trim().length > 0 &&
+    Number.isInteger(Number(interval)) && Number(interval) >= 50 && Number(interval) <= 60000 &&
+    Number.isInteger(Number(duration)) && Number(duration) >= 1 && Number(duration) <= 3600;
   const launchGate =
     reference === null
       ? null
@@ -379,7 +400,7 @@ function CollectDialog({
               placeholder="com.forge.arena"
             />
             <Field label="时长（秒）" type="number" min={1} max={3600} value={duration} onChange={setDuration} />
-            <Field label="间隔（毫秒）" type="number" min={1000} max={60000} value={interval} onChange={setInterval} />
+            <Field label="间隔（毫秒）" type="number" min={50} max={60000} value={interval} onChange={setInterval} />
           </div>
           <div className="flex items-center gap-2">
             <Checkbox
@@ -394,6 +415,9 @@ function CollectDialog({
               </span>
             )}
           </div>
+          <p className="text-[12px] text-[color:var(--text-faint)]">
+            最低 50 ms；串行采样，实际点间距还包含设备读取耗时，不保证 20 Hz。画面另按低频采集。
+          </p>
           <ActionFeedback {...launcher} />
         </div>
         <DialogFooter>
@@ -409,6 +433,52 @@ function CollectDialog({
         <ActionFeedback {...action} />
       </DialogContent>
     </Dialog>
+  );
+}
+
+function CaptureEmptyState({
+  deviceName,
+  disabled,
+  onStart,
+  onHistory,
+}: {
+  deviceName: string;
+  disabled: boolean;
+  onStart: () => void;
+  onHistory: () => void;
+}) {
+  return (
+    <div className="flex flex-1 items-center justify-center py-2">
+      <section aria-label="采集准备" className="flex w-full max-w-[600px] flex-col rounded-xl border border-[color:var(--hairline)] bg-[color:var(--card)] px-5 sm:px-8">
+        <div className="flex items-center justify-center py-9">
+          <div className="flex w-full flex-col items-center gap-7 sm:flex-row sm:gap-8">
+          <div aria-hidden="true" className="relative flex h-40 w-32 shrink-0 items-center justify-center rounded-2xl border border-[color:var(--hairline)] bg-[color:var(--surface-sunken)]">
+            <div className="flex h-30 w-23 items-center justify-center rounded-lg border border-[color:var(--hairline)] bg-[color:var(--card)]">
+              <Activity className="size-12 text-[color:var(--primary)]" strokeWidth={1.4} />
+            </div>
+            <span className="absolute right-[-10px] bottom-4 flex size-9 items-center justify-center rounded-full border-4 border-[color:var(--card)] bg-[color:var(--accent)] text-[color:var(--primary)]">
+              <Smartphone className="size-4" />
+            </span>
+          </div>
+          <div className="flex min-w-0 flex-col items-center text-center sm:items-start sm:text-left">
+            <h2 className="text-[22px] font-semibold text-[color:var(--text-strong)]">开始性能采集</h2>
+            <p className="mt-3 max-w-full truncate text-[14px] text-[color:var(--text-muted)]" title={deviceName}>{deviceName}</p>
+            <div className="mt-8 flex flex-wrap justify-center gap-2 sm:justify-start">
+              <Button disabled={disabled} onClick={onStart}><Play className="size-4" aria-hidden />开始采集</Button>
+              <Button variant="ghost" onClick={onHistory}><History className="size-4" aria-hidden />查看已有会话</Button>
+            </div>
+          </div>
+        </div>
+        </div>
+        <div className="flex shrink-0 flex-wrap items-center gap-x-6 gap-y-3 border-t border-[color:var(--hairline)] py-4 text-[12px] text-[color:var(--text-faint)]">
+          <span className="mr-auto">采集指标</span>
+          <span className="flex items-center gap-2"><Activity className="size-4 text-[color:var(--primary)]" aria-hidden />帧率</span>
+          <span className="flex items-center gap-2"><Cpu className="size-4 text-[color:var(--info)]" aria-hidden />CPU</span>
+          <span className="flex items-center gap-2"><MemoryStick className="size-4 text-[color:var(--primary)]" aria-hidden />PSS / RSS</span>
+          <span className="flex items-center gap-2"><Image className="size-4" aria-hidden />采样画面 · 可选</span>
+        </div>
+      </section>
+    </div>
   );
 }
 
@@ -428,9 +498,11 @@ function PerformanceSessionPanel({
   const action = useAction();
   const history = useAction();
   const [open, setOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [loadId, setLoadId] = useState('');
   const [sessions, setSessions] = useState<readonly PerformanceSession[]>([]);
   const [historyCursor, setHistoryCursor] = useState<string | null>(null);
+  const [captureFrames, setCaptureFrames] = useState(false);
   const startAvailable = useOperationAvailable(services, 'android.performance.start');
   const inspectAvailable = useOperationAvailable(services, 'android.performance.inspect');
   const samplesAvailable = useOperationAvailable(services, 'android.performance.samples');
@@ -439,6 +511,9 @@ function PerformanceSessionPanel({
   const stopAvailable = useOperationAvailable(services, 'android.performance.stop');
   usePerformancePolling(performance, snapshot.selection, samplesAvailable);
   const session = snapshot.session;
+  const liveFrames = useLiveFrames(
+    services, session, captureFrames, snapshot.liveAvailable, snapshot.needsReconcile,
+  );
   const sourceDevice = session?.source?.device;
   const sameSource =
     !!sourceDevice &&
@@ -459,8 +534,9 @@ function PerformanceSessionPanel({
       ? action.error.job.id
       : null;
   const readings = snapshot.readings;
-  const tracks = readingSamples(readings);
-  const [selected, onSelect] = useSelectedSample(tracks.samples.length);
+  const frameLinks = associateLiveFrames(readings, liveFrames.frames);
+  const tracks = readingSamples(readings, frameLinks);
+  const [selected, onSelect, followLatest, following] = useSelectedSample(tracks.samples.length);
   const latest = readings.at(-1);
   const fpsPoints = readings.flatMap((reading) => (reading.fps == null ? [] : [reading.fps]));
   const fpsPeak = peak(fpsPoints);
@@ -546,7 +622,30 @@ function PerformanceSessionPanel({
           )}
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
-          <Sheet>
+          {session && (
+            <>
+              <div className="mr-2 flex items-center gap-2 text-[12px] text-[color:var(--text-muted)]">
+                <Checkbox
+                  id="performance-live-frames"
+                  checked={captureFrames}
+                  disabled={!liveFrames.available || !(running || paused)}
+                  onCheckedChange={(value) => setCaptureFrames(value === true)}
+                />
+                <Label htmlFor="performance-live-frames">采样画面</Label>
+                <span className="font-mono tabular-nums" aria-label="画面数量">
+                  {liveFrames.frames.length}/20
+                </span>
+              </div>
+              <Button size="sm" variant="ghost" aria-pressed={following} onClick={followLatest}>
+                跟随最新
+              </Button>
+              <LiveFramePreview
+                url={tracks.samples[selected]?.frameUrl ?? null}
+                note={tracks.samples[selected]?.frameNote ?? null}
+              />
+            </>
+          )}
+          <Sheet open={historyOpen} onOpenChange={setHistoryOpen}>
             <SheetTrigger asChild>
               <Button
                 size="sm"
@@ -578,8 +677,9 @@ function PerformanceSessionPanel({
                   onRefresh={() => void history.run((signal) => readHistory(false, signal))}
                   onNextPage={() => void history.run((signal) => readHistory(true, signal))}
                   hasNext={!!historyCursor}
-                  pending={action.pending}
+                  pending={action.pending || history.pending}
                 />
+                <div className="px-4"><ActionFeedback {...history} /></div>
               </div>
             </SheetContent>
           </Sheet>
@@ -619,17 +719,33 @@ function PerformanceSessionPanel({
               </Button>
             </>
           )}
-          <span className="mx-1 h-5 w-px shrink-0 bg-[color:var(--hairline-strong)]" aria-hidden />
-          <Button
-            size="sm"
-            variant={session ? 'outline' : 'default'}
-            disabled={!startAvailable || action.pending}
-            onClick={() => setOpen(true)}
-          >
-            {session ? '重新采集' : '开始采集'}
-          </Button>
+          {session && (
+            <>
+              <span className="mx-1 h-5 w-px shrink-0 bg-[color:var(--hairline-strong)]" aria-hidden />
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={!startAvailable || action.pending}
+                onClick={() => setOpen(true)}
+              >
+                重新采集
+              </Button>
+            </>
+          )}
         </div>
       </div>
+      {captureFrames && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-1 text-[12px] text-[color:var(--text-muted)]">
+          <span>设备截图每次完成后间隔 3 秒，最多 20 张或 32 MiB；会增加采集开销。</span>
+          <span>按服务端产物时间近邻关联，非精确逐帧；画面只保留在本页，原产物留在任务记录。</span>
+          {liveFrames.pending && <span role="status">正在读取画面</span>}
+          {liveFrames.limit && <span role="status">{liveFrames.limit}</span>}
+          {!liveFrames.available && <span>{liveFrames.unavailableReason}</span>}
+          {liveFrames.error !== null && running && liveFrames.available && !liveFrames.limit && (
+            <Button size="sm" variant="ghost" onClick={liveFrames.retry}>重试画面读取</Button>
+          )}
+        </div>
+      )}
       <CollectDialog
         devices={devices}
         services={services}
@@ -638,18 +754,31 @@ function PerformanceSessionPanel({
         open={open}
         onOpenChange={setOpen}
         onStarted={(id) => {
+          setCaptureFrames(false);
           setLoadId(id);
           void action.run((signal) => readSession(id, signal), { success: null });
         }}
       />
-      <SampleBoard
-        samples={tracks.samples}
-        span={tracks.span}
-        selected={selected}
-        onSelect={onSelect}
-        frameNote="无画面"
-        stackNote="无栈样本"
-      />
+      {!session && tracks.samples.length === 0 ? (
+        <CaptureEmptyState
+          deviceName={devices.selected?.model ?? devices.selection?.localId ?? '选择设备后开始'}
+          disabled={!startAvailable || action.pending}
+          onStart={() => setOpen(true)}
+          onHistory={() => {
+            setHistoryOpen(true);
+            void history.run((signal) => readHistory(false, signal));
+          }}
+        />
+      ) : (
+        <SampleBoard
+          samples={tracks.samples}
+          span={tracks.span}
+          selected={selected}
+          onSelect={onSelect}
+          frameNote={captureFrames ? '等待设备截图与指标近邻关联' : '未开启采样画面'}
+          stackNote="无栈样本"
+        />
+      )}
       {readings.length > 0 && (
         <>
           <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-1 px-1 text-[13px] text-[color:var(--text-muted)]">
@@ -700,6 +829,7 @@ function PerformanceSessionPanel({
         <p className="px-1 text-[12px] text-[color:var(--warning)]">上次控制未确认，先重查状态。</p>
       )}
       <ActionFeedback {...action} />
+      <ErrorNotice error={liveFrames.error} />
       {waitJob && (
         <p className="px-1 font-mono text-[12px] text-[color:var(--text-ghost)]">任务 {waitJob}</p>
       )}

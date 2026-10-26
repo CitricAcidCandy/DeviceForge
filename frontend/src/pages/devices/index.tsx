@@ -22,6 +22,7 @@ import type { DeviceProviderInfo } from '../../plugin-sdk/index.ts';
 import { DevicesConnect } from './components/DevicesConnect/index.tsx';
 import { DeviceDirectory } from './components/DeviceDirectory/index.tsx';
 import { DeviceCapabilities } from './components/DeviceCapabilities/index.tsx';
+import { NoDeviceRecovery } from './components/NoDeviceRecovery/index.tsx';
 import { DeviceScreen } from './screen/index.tsx';
 import type { WorkbenchPane } from './screen/index.tsx';
 import { deviceKey, discoverProviders, providerKey } from './workspace.ts';
@@ -257,6 +258,7 @@ export function DevicesPage({ services, active }: { services: ProductServices; a
                   连接设备
                 </Button>
               </div>
+              <NoDeviceRecovery services={services} active={active} />
             </div>
           )}
         </div>

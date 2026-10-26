@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createPluginInstallations, ownedInstallationComponents, installationForComponent } from '../src/features/plugin-installations/index.ts';
+import { createPluginInstallations, ownedInstallationComponents, installationForComponent, installationRequiresRecovery, isLegacyCleanupWarning } from '../src/features/plugin-installations/index.ts';
 import { ApiError } from '../src/services/api/index.ts';
 import { deferred, signal } from './fixtures.ts';
 import { installationFixture, release, releaseSource, result } from './plugin-installations-fixture.ts';
@@ -322,4 +322,43 @@ test('恢复受阻时拒绝更新和启用，保留浏览器与服务器当前�
     assert.equal(fixture.records()[0]?.enabled, true);
     assert.deepEqual(model.clientSnapshot(), []);
   } finally { model.dispose(); }
+});
+
+test('八项纯组件阶段是历史告警，文件事务和未知故障仍要求恢复', () => {
+  const allowed = ['component_cleanup', 'activation_cleanup', 'enable_cleanup', 'activation_reload',
+    'startup_activation', 'unload_rollback', 'configuration_rollback', 'disable_rollback'];
+  for (const phase of [...allowed, 'activation_rollback', 'commit_rollback', 'transaction_commit', 'transaction_cleanup', 'unknown']) {
+    const value = { ...release(true), status: 'recovery_blocked' as const, failure: { phase, reason: '原始失败记录' } };
+    assert.equal(isLegacyCleanupWarning(value), allowed.includes(phase));
+    assert.equal(installationRequiresRecovery(value), !allowed.includes(phase));
+  }
+  assert.equal(installationRequiresRecovery({ ...release(), status: 'recovery_blocked' }), true);
+});
+
+test('历史组件清理失败保留原状态和原因，但不阻断恢复、启停、更新、卸载和显式安装', async () => {
+  for (const phase of ['component_cleanup', 'activation_cleanup']) {
+    const warning = { ...release(true), status: 'recovery_blocked' as const,
+      failure: { phase, reason: '上次组件操作失败' } };
+    for (const action of ['restore', 'retry', 'enable', 'disable', 'update', 'uninstall', 'install']) {
+    const fixture = installationFixture([warning]);
+    const gateway = action === 'install' ? { ...fixture.gateway, list: async () => result([warning]) }
+      : action === 'update' ? { ...fixture.gateway, plan: async () => result({ ...release(false, '2.0.0', 'b'.repeat(64)), issues: [] }) }
+      : fixture.gateway;
+    const model = createPluginInstallations(gateway, fixture.browser);
+    try {
+      if (action === 'restore') await model.restore(signal());
+      else if (action === 'retry') await model.retryBrowser(warning.id, warning.revision, signal());
+      else if (action === 'enable' || action === 'disable') await model.setEnabled(warning.id, warning.revision, action === 'enable', signal());
+      else if (action === 'update') await model.update(warning.id, warning.revision, releaseSource, signal());
+      else if (action === 'uninstall') await model.uninstall(warning.id, warning.revision, signal());
+      else await model.install(releaseSource, signal());
+      if (['restore', 'retry', 'install'].includes(action)) {
+        assert.equal(model.clientSnapshot()[0]?.phase, 'enabled');
+        assert.equal(model.snapshot().result?.data[0]?.status, 'recovery_blocked');
+        assert.deepEqual(model.snapshot().result?.data[0]?.failure, warning.failure);
+      }
+      assert.equal(fixture.events.filter((event) => event === 'install').length, action === 'install' ? 1 : 0);
+    } finally { model.dispose(); }
+    }
+  }
 });

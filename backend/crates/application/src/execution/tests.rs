@@ -157,7 +157,7 @@ async fn cooperative_deadline_requests_cancel_and_confirms_cleanup_without_risk(
 }
 
 #[tokio::test(start_paused = true)]
-async fn cleanup_window_exhaustion_is_sticky_after_future_drop_and_blocks_same_owner() {
+async fn cleanup_window_exhaustion_keeps_warning_but_allows_next_independent_execution() {
     let executor = Arc::new(Echo::default());
     let (registry, entry) = registered(executor.clone());
     let owner = entry.owner.as_ref().unwrap();
@@ -186,14 +186,11 @@ async fn cleanup_window_exhaustion_is_sticky_after_future_drop_and_blocks_same_o
             None
         )
         .await,
-        Err(Error::Conflict(_))
+        Ok(_)
     ));
-    assert_eq!(executor.calls.load(Ordering::SeqCst), 0);
+    assert_eq!(executor.calls.load(Ordering::SeqCst), 1);
     let detached = registry.detach("test").unwrap();
-    assert!(matches!(
-        registry.finish(&detached),
-        Err(Error::CleanupFailed)
-    ));
+    assert!(registry.finish(&detached).unwrap().cleanup_failed);
     assert!(owner.info().cleanup_failed);
 }
 
@@ -246,6 +243,7 @@ async fn dropping_a_polled_settle_future_marks_owner_before_releasing_work() {
     assert!(dropped.load(Ordering::SeqCst));
     assert!(saw_risk.load(Ordering::SeqCst));
     assert!(owner.info().cleanup_failed);
+    cancel.cancel();
     let polls = AtomicUsize::new(0);
     let future = poll_fn(|_| {
         polls.fetch_add(1, Ordering::SeqCst);
@@ -253,7 +251,7 @@ async fn dropping_a_polled_settle_future_marks_owner_before_releasing_work() {
     });
     assert!(matches!(
         settle(future, &cancel, Some(owner), None).await,
-        Err(Error::CleanupFailed)
+        Err(Error::Cancelled)
     ));
     assert_eq!(polls.load(Ordering::SeqCst), 0);
 }
@@ -286,8 +284,8 @@ async fn cancellation_between_admission_and_first_poll_never_starts_work_for_cle
     });
     let (_, entry) = registered(probe.clone());
     let owner = entry.owner.as_ref().unwrap();
-    // 在首轮budget核对之后，通过真实owner风险查询的接缝触发并发取消。
-    probe.enabled.store(true, Ordering::SeqCst);
+    // 取消独立于历史诊断查询；执行前撤销仍不能首次轮询业务。
+    cancel.cancel();
     let polls = AtomicUsize::new(0);
     let future = poll_fn(|_| {
         polls.fetch_add(1, Ordering::SeqCst);
@@ -394,9 +392,8 @@ async fn queued_ordinary_runner_rechecks_owner_after_worker_wait_before_running(
     assert_eq!(app.get(&job.id).unwrap().status, JobStatus::Queued);
     owner.mark_unresolved();
     drop(permit);
-    assert!(
-        matches!(work.await, Err(Error::Conflict(message)) if message.contains("排队任务被拒绝"))
-    );
-    assert_eq!(executor.calls.load(Ordering::SeqCst), 0);
-    assert_eq!(app.get(&job.id).unwrap().status, JobStatus::Queued);
+    work.await.unwrap();
+    assert_eq!(executor.calls.load(Ordering::SeqCst), 1);
+    assert_eq!(app.get(&job.id).unwrap().status, JobStatus::Succeeded);
+    assert!(owner.info().cleanup_failed);
 }

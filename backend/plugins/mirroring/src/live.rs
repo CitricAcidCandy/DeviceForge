@@ -39,9 +39,7 @@ pub async fn execute(
         if config.live.is_none() {
             return Err("部署者未配置直播服务".into());
         }
-        if let Err(error) =
-            crate::recovery::before_session(&parameters.device_id, &config, &context).await
-        {
+        if let Err(error) = crate::recovery::before_session(&parameters.device_id, &context).await {
             match error {
                 crate::recovery::AdmissionError::Busy(message) => return Err(message),
                 crate::recovery::AdmissionError::Unconfirmed(message) => {

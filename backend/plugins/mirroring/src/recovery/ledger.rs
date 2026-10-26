@@ -123,17 +123,24 @@ impl Ledger {
         record.validate()?;
         let process = store::process_lease(true)
             .await?
-            .ok_or("插件正在排他恢复")?;
+            .ok_or("本次资源进程租约暂不可用")?;
+        let root = store::root()?;
+        Self::create_at(root, record, process).await
+    }
+
+    pub(super) async fn create_at(
+        root: PathBuf,
+        record: Record,
+        process: Arc<File>,
+    ) -> Result<Self, String> {
+        record.validate()?;
         store::io(move || {
-            let root = store::root()?;
             store::prepare(&root)?;
             let lease = store::lock(&root.join(format!("{}.lease", record.token)), false)?
                 .ok_or("资源台账身份已经使用")?;
             let _catalog =
                 store::lock(&root.join("catalog.lock"), false)?.ok_or("资源台账正在登记")?;
-            if store::paths(&root)?.len() >= store::RECORD_LIMIT {
-                return Err("投屏资源台账已达上限".into());
-            }
+            store::registration_capacity(&root)?;
             let path = record.path(&root);
             if path.exists() {
                 return Err("资源台账身份冲突".into());
@@ -193,6 +200,28 @@ pub(super) async fn read_all(root: &std::path::Path) -> Result<Vec<Record>, Stri
                 Ok(record)
             })
             .collect()
+    })
+    .await
+}
+
+pub(super) async fn reload(
+    root: &std::path::Path,
+    record: &Record,
+) -> Result<Option<Record>, String> {
+    let path = record.path(root);
+    store::io(move || {
+        match std::fs::symlink_metadata(&path) {
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+            Err(_) => return Err("无法重新检查资源台账".into()),
+            Ok(_) => {}
+        }
+        let record: Record =
+            serde_json::from_slice(&store::read(&path)?).map_err(|_| "资源台账无法解析")?;
+        record.validate()?;
+        if record.path(path.parent().ok_or("资源台账目录缺失")?) != path {
+            return Err("资源台账文件归属不符".into());
+        }
+        Ok(Some(record))
     })
     .await
 }

@@ -344,24 +344,24 @@ test('中后台分组导航、折叠与专注保留页面草稿，设备上下�
     assert.equal(target.querySelector('#settings-content'), configuration);
     assert.equal(configuration.value, '{"草稿":"保留"}');
     await act(async () => navigate('自动化').click());
-    assert.equal(findButton('读取服务器鼠标位置').disabled, false);
-    for (const label of ['执行桌面点击', '执行桌面连续点击', '开始录制轨迹', '回放输入轨迹'])
+    assert.equal(findButton('读取位置').disabled, false);
+    for (const label of ['执行一次点击', '执行连续点击', '开始录制轨迹', '回放输入轨迹'])
       assert.equal(findButton(label).disabled, true, `不能借用鼠标位置能力开放 ${label}`);
-    await act(async () => findButton('添加步骤').click());
+    await act(async () => findButton('添加到流程').click());
     assert.match(
-      target.querySelector('.workflow-steps')?.textContent ?? '',
-      /点击坐标 \(100, 100\)/,
+      target.querySelector('ol[aria-label="设备流程步骤"]')?.textContent ?? '',
+      /X 100 · Y 100/,
     );
     const remove = target.querySelector('button[aria-label="移除步骤 1"]');
     assert.ok(remove instanceof windowRef.HTMLButtonElement);
     await act(async () => remove.click());
-    assert.equal(target.querySelector('.workflow-steps'), null);
+    assert.equal(target.querySelector('ol[aria-label="设备流程步骤"]'), null);
     desktopClickAvailable = true;
     await act(async () => {
       await services.runtime.operations.refresh(new AbortController().signal);
     });
-    assert.equal(findButton('执行桌面点击').disabled, false);
-    await act(async () => findButton('执行桌面点击').click());
+    assert.equal(findButton('执行一次点击').disabled, false);
+    await act(async () => findButton('执行一次点击').click());
     const dialog = windowRef.document.querySelector('[role="dialog"]');
     assert.ok(dialog);
     assert.match(dialog.textContent ?? '', /执行时鼠标当前位置/);

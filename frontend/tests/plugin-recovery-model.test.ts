@@ -107,7 +107,7 @@ test('辅助恢复 GET 网络失败不额外封锁正常打开，失败状态仍
   assert.equal(error.kind, 'network');
 });
 
-test('已有状态 GET 时打开准备不叠加查询、不取消正常打开，切目标后取消旧结果', async (t) => {
+test('已有状态 GET 时打开准备撤销旧等待、不叠加查询，切目标后旧结果不回写', async (t) => {
   const entered = deferred<void>();
   const delayed = deferred<Response>();
   let reads = 0;
@@ -122,6 +122,8 @@ test('已有状态 GET 时打开准备不叠加查询、不取消正常打开，
   const rejected = assert.rejects(waiting, (error: unknown) => error instanceof ApiError && error.kind === 'cancelled');
   await entered.promise;
   await model.prepareOpen(signal());
+  await rejected;
+  assert.equal(model.snapshot().phase, 'idle');
   assert.equal(reads, 1);
   model.setTarget(null);
   delayed.resolve(success(view()));
@@ -129,7 +131,7 @@ test('已有状态 GET 时打开准备不叠加查询、不取消正常打开，
   assert.equal(model.snapshot().target, null);
 });
 
-test('恢复正在执行时不重复 POST，打开准备返回 busy 并保留日志', async (t) => {
+test('恢复快照为 recovering 不阻断打开，只读一次且不重复 POST', async (t) => {
   let reads = 0;
   const model = fixture(async (_, init) => {
     assert.equal(init?.method, 'GET');
@@ -139,10 +141,35 @@ test('恢复正在执行时不重复 POST，打开准备返回 busy 并保留日
   t.after(() => model.dispose());
   await model.recover(signal());
   assert.equal(model.snapshot().result?.data.recovering, true);
-  await assert.rejects(model.prepareOpen(signal()),
-    (error: unknown) => error instanceof ApiError && error.code === 'busy' && error.logId === 'busy-log');
-  assert.equal(reads, 1);
+  await model.prepareOpen(signal());
+  assert.equal(model.snapshot().result?.logId, 'busy-log');
+  assert.equal(reads, 2);
 });
+
+for (const posting of [false, true]) {
+  test(`打开准备撤销旧恢复${posting ? 'POST' : 'GET'}本地等待，晚到结果不回写、不追加全局核对`, async (t) => {
+    const entered = deferred<void>();
+    const delayed = deferred<Response>();
+    const methods: (string | undefined)[] = [];
+    const model = fixture(async (_, init) => {
+      methods.push(init?.method);
+      if (!posting || init?.method === 'POST') { entered.resolve(); return delayed.promise; }
+      return success(view(), 'before-open-log');
+    });
+    t.after(() => model.dispose());
+    const waiting = model.recover(signal());
+    const rejected = assert.rejects(waiting, (error: unknown) => error instanceof ApiError && error.kind === 'cancelled');
+    await entered.promise;
+    await model.prepareOpen(signal());
+    await rejected;
+    assert.equal(model.snapshot().phase, 'idle');
+    const current = model.snapshot();
+    delayed.resolve(success(view({ recovering: true, last_report: recovered }), 'old-recovery-log'));
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    assert.equal(model.snapshot(), current);
+    assert.deepEqual(methods, posting ? ['GET', 'POST'] : ['GET']);
+  });
+}
 
 test('POST busy 视图与未确认数保留，只有用户再次点击才发起下一次恢复', async (t) => {
   let posts = 0;

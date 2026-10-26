@@ -11,8 +11,8 @@ export async function prepareRecoveryFixture(directory, binary, name, version, r
   const device = 'cleanup-' + name, nextDevice = 'retry-after-' + name;
   const fixture = await prepareFixture(directory, binary, { [device]: {}, [nextDevice]: {} });
   await writeFile(join(fixture.root, 'fixture-owner'), runId, { flag: 'wx' });
-  const failed = !['contract-view', 'stale-generation', 'active-session-busy'].includes(name);
-  for (const [id, mode] of [[device, failed ? 'list-always' : 'success'], [nextDevice, 'success']]) {
+  // 故障只在媒体就绪后注入；首次打开的旧资源审计不能被清理故障提前污染。
+  for (const [id, mode] of [[device, 'success'], [nextDevice, 'success']]) {
     await writeFile(join(fixture.plan(id), 'mode'), mode, { flag: 'wx' });
     await writeFile(join(fixture.plan(id), 'server-version'), version, { flag: 'wx' });
   }
@@ -20,7 +20,7 @@ export async function prepareRecoveryFixture(directory, binary, name, version, r
 }
 
 export async function setMode(fixture, device, mode) {
-  assert.ok(['success', 'list-always', 'foreign-forward', 'pid-mismatch'].includes(mode));
+  assert.ok(['success', 'list-always', 'foreign-forward', 'pid-mismatch', 'list-pair'].includes(mode));
   assert.ok([fixture.device, fixture.nextDevice].includes(device));
   await writeFile(join(fixture.plan(device), 'mode'), mode, 'utf8');
 }

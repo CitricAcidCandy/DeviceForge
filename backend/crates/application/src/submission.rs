@@ -109,20 +109,6 @@ impl Application {
         if !self.registry.current(operation, &registered)? {
             return Err(Error::Conflict("插件贡献已撤销或重载，请重新提交".into()));
         }
-        if registered
-            .owner
-            .as_ref()
-            .is_some_and(|owner| owner.info().cleanup_failed)
-        {
-            return Err(Error::Conflict("插件资源清理未确认，拒绝新任务".into()));
-        }
-        if registered
-            .owner
-            .as_ref()
-            .is_some_and(|owner| owner.recovering.load(std::sync::atomic::Ordering::Acquire))
-        {
-            return Err(Error::Conflict("插件正在核对资源，请稍后重试".into()));
-        }
         crate::operation_budget::check(deadline, external.as_ref())?;
         let admission = self.registry.device_admission(&plan.target, &plan.input)?;
         let selection = admission
@@ -203,13 +189,6 @@ impl Application {
                 .is_some_and(CancellationToken::is_cancelled)
             {
                 return Err(Error::Cancelled);
-            }
-            if registered
-                .owner
-                .as_ref()
-                .is_some_and(|owner| owner.info().cleanup_failed)
-            {
-                return Err(Error::CleanupFailed);
             }
             self.registry.device_admission(&plan.target, &plan.input)?;
             Ok(())

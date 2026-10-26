@@ -9,6 +9,7 @@ import { bounded } from '../unified-discovery-browser/lifecycle.mjs';
 import { readIfExists, toolCount } from './fixtures.mjs';
 import { ledgerSnapshot } from './ledger.mjs';
 import { assertRecoveryView, recoverySummary } from './http.mjs';
+import { independentSession } from './isolation.mjs';
 
 // 独立原生进程真实持有插件同一 OS 租约；不声称诱发了生产 ADB 回收失败。
 export async function testLeaseDebt(context) {
@@ -54,9 +55,8 @@ export async function testLeaseDebt(context) {
     assert.equal(await toolCount(fixture), count, '租约仍存活时不能启动清理工具');
     assert.equal(child.exitCode, null, '恢复不得终止原生租约持有者');
     report.recovery_views.push(recoverySummary(result));
-    report.denied_open = await context.sessions.openDenied();
-    assert.equal(await toolCount(fixture), count, '新会话准入不得绕过存活债务');
-    assert.equal(child.exitCode, null);
+    await independentSession(context);
+    assert.equal(child.exitCode, null, '跨设备新调用成功也不能终止旧资源的真实租约持有者');
     evidence.risk_preserved_while_alive = true;
     await writeFile(join(root, 'release'), '1', { flag: 'wx' });
     assert.deepEqual(await bounded(closed, 3000, '原生租约持有者正常退出超时'), { code: 0, signal: null });

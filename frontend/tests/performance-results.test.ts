@@ -117,12 +117,22 @@ test('创建参数遵守旧 ASCII 设备标识与 Android 包名，不扩张输�
     }),
   );
   for (const request of [
-    { ...session().request, interval_ms: 999 },
+    { ...session().request, interval_ms: 49 },
     { ...session().request, duration_secs: 3601 },
     { ...session().request, target: { device_id: '-device', package: 'com.app' } },
     { ...session().request, target: { device_id: 'device', package: 'com.1app' } },
   ])
     assert.equal(isPerformanceStart(request), false);
+});
+
+test('持续采样接受50毫秒下限与历史间隔，拒绝越界和非整数', () => {
+  for (const interval_ms of [50, 51, 999, 1000, 60000]) {
+    const request = { ...session().request, interval_ms };
+    assert.equal(isPerformanceStart(request), true);
+    assert.equal(isPerformanceSession({ ...session(), request }), true);
+  }
+  for (const interval_ms of [0, 49, 50.5, 60001, NaN])
+    assert.equal(isPerformanceStart({ ...session().request, interval_ms }), false);
 });
 
 test('样本页保留 CPU/FPS/RSS 缺测与零，拒绝倒序、重复和超出会话计数', () => {

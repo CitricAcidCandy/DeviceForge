@@ -1,22 +1,45 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import * as echarts from 'echarts/core';
 import { LineChart } from 'echarts/charts';
-import { AxisPointerComponent, GridComponent } from 'echarts/components';
+import type { LineSeriesOption } from 'echarts/charts';
+import {
+  AxisPointerComponent,
+  GridComponent,
+  MarkLineComponent,
+  TooltipComponent,
+} from 'echarts/components';
+import type {
+  AxisPointerComponentOption,
+  GridComponentOption,
+  MarkLineComponentOption,
+  TooltipComponentOption,
+} from 'echarts/components';
+import type { XAXisComponentOption, YAXisComponentOption } from 'echarts';
 import { CanvasRenderer } from 'echarts/renderers';
 
-echarts.use([LineChart, GridComponent, AxisPointerComponent, CanvasRenderer]);
+echarts.use([
+  LineChart, GridComponent, AxisPointerComponent, TooltipComponent, MarkLineComponent, CanvasRenderer,
+]);
+
+type ChartOption = echarts.ComposeOption<
+  LineSeriesOption | GridComponentOption | AxisPointerComponentOption |
+  TooltipComponentOption | MarkLineComponentOption
+>;
 
 /** 画布解析不了 CSS 变量，这里的取值与 styles.css 的令牌保持一致。 */
 const COLOR = {
   primary: '#6c4cf5',
+  info: '#2f7fe0',
+  violetSoft: '#8c7bf7',
   warning: '#d98a00',
   hairline: '#e6eaf3',
   textFaint: '#a3acbc',
-} as const;
+};
 
 export interface ChartPoint {
   readonly x: number;
-  readonly y: number;
+  /** 缺测点保留横坐标，并用 null 断开曲线。 */
+  readonly y: number | null;
 }
 
 export interface ChartSeries {
@@ -26,6 +49,10 @@ export interface ChartSeries {
   readonly warnBelow?: number;
   readonly opacity?: number;
   readonly width?: number;
+  /** 同一轨内多条线需要区分时显式给色，不给则用主色。 */
+  readonly color?: string;
+  /** 虚线用于辅助线（例如同一轨里的第二条指标）。 */
+  readonly dashed?: boolean;
 }
 
 export interface ChartTrack {
@@ -76,17 +103,30 @@ export function MultiTrackChart({
   useEffect(() => {
     const element = host.current;
     if (!element) return;
+    const updateBox = (width: number, height: number) => {
+      const next = { width: Math.round(width), height: Math.round(height) };
+      setBox((previous) =>
+        previous.width === next.width && previous.height === next.height ? previous : next,
+      );
+    };
+    const measure = () => updateBox(element.clientWidth, element.clientHeight);
+    // 先主动测量，避免首次绘制依赖异步观察回调；隐藏后恢复仍由观察器重新测量。
+    measure();
     const observer = new ResizeObserver((entries) => {
       const entry = entries[0];
       if (!entry) return;
       const { width, height } = entry.contentRect;
-      setBox({ width: Math.round(width), height: Math.round(height) });
+      updateBox(width, height);
     });
     observer.observe(element);
-    return () => observer.disconnect();
+    document.addEventListener('visibilitychange', measure);
+    return () => {
+      observer.disconnect();
+      document.removeEventListener('visibilitychange', measure);
+    };
   }, []);
 
-  const option = useMemo(() => {
+  const option = useMemo<ChartOption>(() => {
     const totalWeight = tracks.reduce((sum, track) => sum + (track.weight ?? 1), 0) || 1;
     const gaps = Math.max(0, tracks.length - 1) * gap;
     const usable = Math.max(0, box.height - gaps);
@@ -108,12 +148,12 @@ export function MultiTrackChart({
         label: { show: false },
       },
       grid: grids,
-      xAxis: tracks.map((_, index) => ({
+      xAxis: tracks.map((_, index): XAXisComponentOption => ({
         type: 'value',
         gridIndex: index,
         min: xDomain[0],
         max: xDomain[1],
-        boundaryGap: false,
+        boundaryGap: [0, 0],
         axisLine: { show: index === tracks.length - 1 && showXAxis, lineStyle: { color: COLOR.hairline } },
         axisTick: { show: false },
         axisLabel: {
@@ -126,11 +166,10 @@ export function MultiTrackChart({
         splitLine: { show: false },
         axisPointer: { show: true },
       })),
-      yAxis: tracks.map((track, index) => ({
+      yAxis: tracks.map((track, index): YAXisComponentOption => ({
         type: 'value',
         gridIndex: index,
-        min: track.domain?.[0],
-        max: track.domain?.[1],
+        ...(track.domain ? { min: track.domain[0], max: track.domain[1] } : {}),
         boundaryGap: track.domain ? [0, 0] : [0.15, 0.15],
         axisLine: { show: false },
         axisTick: { show: false },
@@ -141,8 +180,8 @@ export function MultiTrackChart({
         },
       })),
       series: tracks.flatMap((track, index) =>
-        track.series.map((series, seriesIndex) => ({
-          type: 'line' as const,
+        track.series.map((series, seriesIndex): LineSeriesOption => ({
+          type: 'line',
           id: series.id,
           name: series.id,
           xAxisIndex: index,
@@ -150,18 +189,20 @@ export function MultiTrackChart({
           showSymbol: series.points.length <= 120,
           symbol: 'circle',
           symbolSize: track.series.length > 1 ? 4 : 5,
-          sampling: 'lttb' as const,
+          connectNulls: false,
           lineStyle: {
-            color: COLOR.primary,
+            color: series.color ?? COLOR.primary,
             width: series.width ?? 1.5,
             opacity: series.opacity ?? 1,
+            type: series.dashed ? 'dashed' : 'solid',
           },
-          itemStyle: { color: COLOR.primary, opacity: series.opacity ?? 1 },
+          itemStyle: { color: series.color ?? COLOR.primary, opacity: series.opacity ?? 1 },
           emphasis: { disabled: true },
           data: series.points.map((point) =>
+            point.y !== null && Number.isFinite(point.y) &&
             series.warnBelow != null && point.y < series.warnBelow
               ? { value: [point.x, point.y], itemStyle: { color: COLOR.warning } }
-              : [point.x, point.y],
+              : [point.x, point.y !== null && Number.isFinite(point.y) ? point.y : null],
           ),
           ...(cursorX != null && seriesIndex === 0
             ? {
@@ -170,7 +211,7 @@ export function MultiTrackChart({
                   symbol: 'none',
                   animation: false,
                   label: { show: false },
-                  lineStyle: { color: COLOR.primary, width: 1, type: 'dashed' as const },
+                  lineStyle: { color: COLOR.primary, width: 1, type: 'dashed' },
                   data: [{ xAxis: cursorX }],
                 },
               }
@@ -181,41 +222,43 @@ export function MultiTrackChart({
   }, [tracks, xDomain, insets, gap, cursorX, box.height, showXAxis]);
 
   useEffect(() => {
-    const element = host.current;
-    if (!element) return;
-    const instance = echarts.init(element, undefined, { renderer: 'canvas' });
-    chart.current = instance;
     return () => {
-      instance.dispose();
+      chart.current?.dispose();
       chart.current = null;
     };
   }, []);
 
   useEffect(() => {
-    chart.current?.setOption(option, { notMerge: true, lazyUpdate: true });
-  }, [option]);
-
-  useEffect(() => {
-    if (box.width > 0 && box.height > 0) chart.current?.resize();
-  }, [box.width, box.height]);
-
-  useEffect(() => {
-    const instance = chart.current;
-    if (!instance || !onPickX) return;
+    const element = host.current;
+    if (!element || box.width <= 0 || box.height <= 0) return;
+    // 正尺寸才初始化，并按「尺寸 -> 数据 -> 同步绘制」提交，避免零尺寸和延迟更新互相覆盖。
+    const instance = chart.current ?? echarts.init(element, undefined, {
+      renderer: 'canvas', width: box.width, height: box.height,
+    });
+    chart.current = instance;
+    if (instance.getWidth() !== box.width || instance.getHeight() !== box.height) {
+      instance.resize({ width: box.width, height: box.height });
+    }
+    instance.setOption(option, { notMerge: true, lazyUpdate: false });
+    if (!onPickX) return;
     const handler = (event: { offsetX: number; offsetY: number }) => {
-      const value = instance.convertFromPixel({ xAxisIndex: 0 }, [event.offsetX, event.offsetY]);
+      const inside = tracks.some((_, index) =>
+        instance.containPixel({ gridIndex: index }, [event.offsetX, event.offsetY]),
+      );
+      if (!inside) return;
+      const value = instance.convertFromPixel({ xAxisIndex: 0 }, event.offsetX);
       const x = Array.isArray(value) ? value[0] : value;
       if (typeof x === 'number' && Number.isFinite(x)) onPickX(x);
     };
     const zr = instance.getZr();
     zr.on('click', handler);
     return () => zr.off('click', handler);
-  }, [onPickX]);
+  }, [option, box.width, box.height, onPickX, tracks]);
 
   return (
     <div
       ref={host}
-      className={'h-full w-full ' + (className ?? '')}
+      className={'h-full min-h-0 w-full min-w-0 ' + (className ?? '')}
       role="group"
       aria-label={ariaLabel}
     />

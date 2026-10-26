@@ -121,9 +121,6 @@ impl Attempt {
         if tokio::time::Instant::now() >= self.deadline {
             return Err(Error::Timeout);
         }
-        if self.owner.info().cleanup_failed {
-            return Err(Error::CleanupFailed);
-        }
         Ok(())
     }
     pub fn finish(&self) {

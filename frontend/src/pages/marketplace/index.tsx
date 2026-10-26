@@ -21,7 +21,7 @@ import {
 } from '../../components/index.ts';
 import type { ProductServices } from '../../app/product/services.ts';
 import { marketplaceCategories } from '../../features/marketplace/index.ts';
-import { isReleaseEntry } from '../../features/plugin-installations/index.ts';
+import { isReleaseEntry, installationRequiresRecovery } from '../../features/plugin-installations/index.ts';
 import type {
   MarketplaceEntry,
   MarketplaceKind,
@@ -104,6 +104,7 @@ export function MarketplacePage({
       installed={installed}
       removable={removable}
       removeDisabled={removeDisabled}
+      cleanupWarning={entry.details['plugin_kind'] === 'server' && market.cleanupWarnings.includes(entry.id)}
       installation={installation}
       clientState={market.installationClients.find((item) => item.id === installation?.id && item.revision === installation.revision)}
       onSetEnabled={installation ? (enabled) => market.setInstallationEnabled(installation.id, installation.revision, enabled) : undefined}
@@ -408,7 +409,7 @@ export function MarketplacePage({
       <MarketplaceDetail
         entry={active ? selected : null}
         installed={selected ? installedEntry(selected, market.packages, market.installations) : undefined}
-        recoveryBlocked={selected ? market.installations.some((item) => item.id === selected.id && item.status === 'recovery_blocked') : false}
+        recoveryBlocked={selected ? market.installations.some((item) => item.id === selected.id && installationRequiresRecovery(item)) : false}
         busy={market.action.pending}
         onClose={() => setSelected(null)}
         onDownload={() => {

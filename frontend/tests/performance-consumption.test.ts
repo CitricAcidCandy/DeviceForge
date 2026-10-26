@@ -91,6 +91,22 @@ test('八会话操作构造原 wire 并分别消费直接业务结果', async ()
   consumer.dispose();
 });
 
+test('50毫秒请求原样提交并消费返回会话，不钳回1000毫秒', async () => {
+  const wanted = { ...request, interval_ms: 50 };
+  const calls: JsonValue[] = [];
+  const consumer = createPerformance(immediate((_operation, input) => {
+    calls.push(input);
+    return { ...session(), request: wanted };
+  }));
+  try {
+    const result = await consumer.start(wanted, signal());
+    assert.equal(result.data.request.interval_ms, 50);
+    assert.deepEqual(calls, [wanted]);
+    await consumer.select(result.data.id, signal());
+    assert.equal(consumer.snapshot().session?.request.interval_ms, 50);
+  } finally { consumer.dispose(); }
+});
+
 test('创建返回来源为权威，输入不包含客户端代次且旧缺省不反填', async () => {
   let inputSeen: JsonValue = null;
   const returned = {

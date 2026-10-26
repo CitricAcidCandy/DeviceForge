@@ -304,7 +304,7 @@ async fn reads_share_device_write_but_wait_provider_write_and_recheck_directory_
 }
 
 #[tokio::test(start_paused = true)]
-async fn dropping_a_polled_sample_marks_risk_before_provider_barrier_wakes_and_blocks_owner() {
+async fn dropping_a_polled_sample_keeps_warning_but_next_sample_can_execute() {
     let application = app();
     let dropped = Arc::new(AtomicBool::new(false));
     let executor = Arc::new(PendingDeviceSource {
@@ -357,29 +357,17 @@ async fn dropping_a_polled_sample_marks_risk_before_provider_barrier_wakes_and_b
     assert!(dropped.load(Ordering::SeqCst));
     assert!(release.wakes.load(Ordering::SeqCst) > 0);
     assert!(release.saw_risk.load(Ordering::SeqCst));
-    let _physical_guard = tokio::time::timeout(Duration::from_secs(1), write)
+    let physical_guard = tokio::time::timeout(Duration::from_secs(1), write)
         .await
         .unwrap()
         .unwrap();
     assert!(binding.owner.info().cleanup_failed);
-    // 执行器本身没有风险位，必须依靠应用 owner 的粘性门禁。
+    // 历史风险不占有设备锁；本次仍取得真实互斥后独立执行。
     assert!(!executor.has_unresolved_resources());
-    assert!(matches!(
-        binding.sample(&access, cancel.clone(), deadline).await,
-        Err(Error::CleanupFailed)
-    ));
-    assert!(matches!(
-        crate::execution::execute(
-            executor.as_ref(),
-            &binding.reference.operation,
-            json!({}),
-            cancel,
-            Some(binding.owner.as_ref()),
-            Some(deadline)
-        )
-        .await,
-        Err(Error::Conflict(_))
-    ));
-    assert_eq!(executor.calls.load(Ordering::SeqCst), 1);
+    drop(physical_guard);
+    let mut next = Box::pin(binding.sample(&access, cancel, deadline));
+    assert!(poll!(next.as_mut()).is_pending());
+    assert_eq!(executor.calls.load(Ordering::SeqCst), 2);
+    drop(next);
     assert!(binding.owner.info().cleanup_failed);
 }

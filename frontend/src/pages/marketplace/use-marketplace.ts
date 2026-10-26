@@ -237,7 +237,7 @@ export function useMarketplace(services: ProductServices, active: boolean, insta
     installed: { version: plugin.version },
     entry: localServerEntry(plugin),
     removable: false,
-    removeDisabled: plugin.protected || plugin.state !== 'loaded' || plugin.cleanup_failed,
+    removeDisabled: plugin.protected || plugin.state !== 'loaded',
   }));
   const releaseEntries = installations.map((installation) => {
     const remote = [...metadata.entries, ...catalog.entries].filter((item) => item.id === installation.id && isReleaseEntry(item))
@@ -257,6 +257,7 @@ export function useMarketplace(services: ProductServices, active: boolean, insta
     installations,
     installationClients,
     installationProgress,
+    cleanupWarnings: (serverRuntime.result?.data ?? []).filter((plugin) => plugin.cleanup_failed).map((plugin) => plugin.id),
     installedEntries: [...releaseEntries, ...installedEntries, ...builtinEntries],
     action,
     download,

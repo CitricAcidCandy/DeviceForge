@@ -67,15 +67,19 @@ test('性能页创建后选择返回ID，空首屏继续增量读取、补齐终
   const observedErrors: unknown[] = [];
   const submissions: unknown[] = [];
   const pending = deferred<Response>();
+  const deviceDirectory = directory('android-device', 'g1', [request.target.device_id]);
+  const deviceName = '性能测试设备';
   const services = createProductServices({
     baseUrl: 'http://localhost:7031', panelTarget: () => null,
     transport: async (input, init) => {
       const path = requestUrl(input).pathname;
-      if (path.endsWith('/operations')) return success(['start', 'inspect', 'samples', 'pause', 'resume', 'stop'].map((action) => ({
+      if (path.endsWith('/operations')) return success(['start', 'inspect', 'samples', 'list', 'pause', 'resume', 'stop'].map((action) => ({
         id: 'android.performance.' + action, title: action, input_schema: { type: 'object' },
       })));
-      if (path.endsWith('/devices')) return success([directory('android-device', 'g1', [request.target.device_id])]);
-      if (path.endsWith('/device-providers')) return success([directory('android-device', 'g1', [request.target.device_id]).provider]);
+      if (path.endsWith('/devices')) return success([{
+        ...deviceDirectory, devices: deviceDirectory.devices.map((device) => ({ ...device, model: deviceName })),
+      }]);
+      if (path.endsWith('/device-providers')) return success([deviceDirectory.provider]);
       if (path.endsWith('/jobs')) {
         assert.equal(typeof init?.body, 'string');
         const body: unknown = JSON.parse(String(init?.body));
@@ -89,6 +93,9 @@ test('性能页创建后选择返回ID，空首屏继续增量读取、补齐终
           assert.deepEqual(value, request);
           starts++;
           result = session(starts === 1 ? firstId : secondId);
+        } else if (operation.endsWith('.list')) {
+          assert.deepEqual(value, { after_id: null, limit: 25 });
+          result = { sessions: [], next_after_id: null };
         }
         else if (operation.endsWith('.inspect')) {
           assert.ok('session_id' in value && typeof value.session_id === 'string');
@@ -149,10 +156,32 @@ test('性能页创建后选择返回ID，空首屏继续增量读取、补齐终
     await services.runtime.devices.refreshDirectories(new AbortController().signal);
     await services.runtime.devices.select({ providerId: 'android-device', generation: 'g1', localId: request.target.device_id });
     await act(async () => root.render(createElement(loaded.PerformancePage, { services })));
+    const preparation = target.querySelector('[aria-label="采集准备"]');
+    assert.ok(preparation, '尚未创建会话时应显示采集引导');
+    assert.equal(preparation.querySelector('h2')?.textContent, '开始性能采集');
+    assert.ok(preparation.textContent?.includes(deviceName), '引导应显示所选设备的真实名称');
+    assert.equal(target.querySelector('[aria-label="采样数据面板"], [aria-label="等待采样数据"]'), null,
+      '采集前不应展示会话内等待态或六条空轨');
+    assert.doesNotMatch(target.textContent ?? '', /6 条轨道|图表区可滚动|无 CPU 观测|无内存观测/);
+    assert.equal(submissions.length, 0, '渲染引导不能启动采集或读取会话');
+    await act(async () => button('查看已有会话', preparation).click());
+    const initialHistory = windowRef.document.querySelector('[role="dialog"]');
+    assert.ok(initialHistory, '历史入口应打开真实会话 Sheet');
+    assert.ok(initialHistory.textContent?.includes('会话历史'));
+    assert.deepEqual(submissions, [{ operation: 'android.performance.list', input: { after_id: null, limit: 25 } }],
+      '历史入口只读取第一页历史，不得启动采集或选择会话');
+    assert.equal(starts, 0);
+    assert.equal(services.runtime.performance.snapshot().selection, null);
+    assert.equal(calls.length, 0, '只打开历史不应启动样本轮询');
+    await act(async () => button('关闭', initialHistory).click());
+    assert.equal(windowRef.document.querySelector('[role="dialog"]'), null);
     assert.equal(button('开始采集').disabled, false);
     await act(async () => button('开始采集').click());
     const dialog = windowRef.document.querySelector('[role="dialog"]');
     assert.ok(dialog);
+    assert.match(dialog.textContent ?? '', /应用包名.*时长（秒）.*间隔（毫秒）.*先启动应用/,
+      '引导按钮应打开原有真实采集配置');
+    assert.equal(starts, 0, '打开配置不能直接启动采集');
     const field = dialog.querySelector('input[placeholder="com.forge.arena"]');
     assert.ok(field instanceof windowRef.HTMLInputElement);
     const setter = Object.getOwnPropertyDescriptor(windowRef.HTMLInputElement.prototype, 'value')?.set;

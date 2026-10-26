@@ -150,7 +150,7 @@ test('性能服务拒绝未知字段、越界输入、非有限JSON与未知版�
     { action: 'capabilities', input: {} },
     { action: 'capabilities', extra: true },
     { action: 'start', input: { ...startInput, source: 'not-a-server-binding' } },
-    { action: 'start', input: { ...startInput, interval_ms: 999 } },
+    { action: 'start', input: { ...startInput, interval_ms: 49 } },
     { action: 'pause', input: { session_id: sessionId, revision: 1 } },
     { action: 'inspect', input: { session_id: 'job-id' } },
     { action: 'samples', input: { session_id: sessionId, after: -1, limit: 2 } },

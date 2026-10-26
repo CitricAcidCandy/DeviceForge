@@ -2,7 +2,7 @@
 use crate::fixtures::executor::{Invocation, Provider, observed};
 use crate::fixtures::store::Phase;
 use crate::fixtures::{ALIAS, Fixture, code, guarded, same_json, success, turns, until};
-use apk_domain::{JobStatus, JobStore, devices::DeviceActionRequest, plugins::PluginState};
+use apk_domain::{JobStore, devices::DeviceActionRequest, plugins::PluginState};
 use serde_json::json;
 use std::sync::atomic::Ordering;
 
@@ -97,12 +97,13 @@ async fn unload_reload_rejects_old_generation_and_never_rewrites_raw_history() {
 }
 
 #[tokio::test(start_paused = true)]
-async fn unresolved_cleanup_blocks_new_and_serial_waiting_discovery_then_reload() {
+async fn unresolved_cleanup_warns_but_allows_serial_waiting_discovery_and_reload() {
     let provider = Provider::new("unresolved", 3, false);
     let fixture = Fixture::new(vec![provider.clone()], 2, true).await;
     let first = Invocation::blocked(observed(Some("recovery")));
     first.fail_cleanup.store(true, Ordering::SeqCst);
     provider.push(first.clone());
+    provider.push(Invocation::ready(observed(Some("next"))));
     let a = fixture.submit(&provider, false, json!({})).await;
     until("A 已开始执行", || {
         (provider.discovery_calls() == 1).then_some(())
@@ -118,13 +119,12 @@ async fn unresolved_cleanup_blocks_new_and_serial_waiting_discovery_then_reload(
     .await;
     assert_eq!(provider.discovery_calls(), 1);
     first.finish_cleanup();
-    let failed = fixture.wait_terminal(&b.id).await;
-    assert_eq!(failed.status, JobStatus::Failed);
-    assert!(failed.error.unwrap().contains("清理未确认"));
+    let finished = fixture.wait_terminal(&b.id).await;
+    success(&finished);
     assert_eq!(
         provider.discovery_calls(),
-        1,
-        "排队目标不可越过 cleanup_failed"
+        2,
+        "旧清理告警不应拒绝已经排队的独立发现"
     );
     until("owner 资源标记可见", || {
         fixture
@@ -135,44 +135,22 @@ async fn unresolved_cleanup_blocks_new_and_serial_waiting_discovery_then_reload(
             .then_some(())
     })
     .await;
-    assert_eq!(
-        code(
-            guarded(
-                "未确认 owner 拒绝新别名",
-                fixture.app.submit_async(ALIAS.into(), json!({}))
-            )
-            .await
-        ),
-        "conflict"
-    );
-    assert_eq!(
-        code(
-            guarded(
-                "资源未确认的卸载",
-                fixture.plugins.unload(provider.id.clone())
-            )
-            .await
-        ),
-        "cleanup_failed"
-    );
-    let owner = fixture
-        .plugins
-        .list()
-        .into_iter()
-        .find(|plugin| plugin.id == provider.id)
+    let next = fixture
+        .app
+        .submit_async(ALIAS.into(), json!({}))
+        .await
         .unwrap();
-    assert_eq!(owner.state, PluginState::Draining);
-    assert!(owner.cleanup_failed);
-    assert_eq!(
-        code(
-            guarded(
-                "未确认 owner 拒绝重载",
-                fixture.plugins.load(provider.id.clone())
-            )
+    success(&fixture.wait_terminal(&next.id).await);
+    assert!(
+        fixture
+            .plugins
+            .unload(provider.id.clone())
             .await
-        ),
-        "conflict"
+            .unwrap()
+            .cleanup_failed
     );
+    assert!(fixture.plugins.list().is_empty());
+    fixture.plugins.load(provider.id.clone()).await.unwrap();
     assert!(fixture.devices.directories().is_empty());
     fixture.shutdown().await;
 }

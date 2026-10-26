@@ -389,7 +389,7 @@ impl InstallationService {
         self.plugins
             .serialized(move |plugins| async move {
                 for release in service.store.list().await? {
-                    if !release.enabled || release.status == InstallationStatus::RecoveryBlocked {
+                    if !release.enabled || release.requires_recovery() {
                         continue;
                     }
                     if service.requires_configuration(&release).await? {
@@ -463,7 +463,7 @@ impl InstallationService {
         Ok(release)
     }
     fn require_recoverable(&self, release: &InstalledRelease) -> Result<()> {
-        if release.status == InstallationStatus::RecoveryBlocked {
+        if release.requires_recovery() {
             Err(Error::Conflict("发布恢复受阻，请先修复记录中的错误".into()))
         } else {
             Ok(())
@@ -477,13 +477,7 @@ impl InstallationService {
                     .iter()
                     .any(|plugin| plugin.id == component.id && plugin.cleanup_failed)
         }) {
-            return Err(self
-                .blocked(
-                    release,
-                    "component_cleanup",
-                    "组件资源清理未确认，禁止切换或重新启用",
-                )
-                .await);
+            tracing::warn!(release_id = %release.id, "组件有历史清理警告，继续独立安装操作");
         }
         Ok(())
     }

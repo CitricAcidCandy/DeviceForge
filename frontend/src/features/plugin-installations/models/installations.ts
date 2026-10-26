@@ -8,6 +8,7 @@ import type {
   InstallationBrowserLifecycle, InstallationClientState, InstallationComponent, InstallationGateway,
   InstallationPlan, InstallationProgress, InstallationSource, PluginInstallation,
 } from '../types/index.ts';
+import { installationCanRun, installationRequiresRecovery } from '../utils/recovery.ts';
 
 export function createPluginInstallations(gateway: InstallationGateway, browser: InstallationBrowserLifecycle, options: JobOptions = {}) {
   const resource = createLatestResource<readonly PluginInstallation[]>();
@@ -94,7 +95,7 @@ export function createPluginInstallations(gateway: InstallationGateway, browser:
     publishClient({ id: value.id, revision: value.revision, phase: 'activating', message: null, logId: null });
     const started: InstallationComponent[] = [];
     try {
-      if (!value.enabled || value.status !== 'enabled') throw new Error('功能插件仍未启用或需要配置，请完成配置后重试');
+      if (!installationCanRun(value)) throw new Error('功能插件仍未启用或需要配置，请完成配置后重试');
       for (const component of value.components) {
         signal.throwIfAborted();
         if (component.kind === 'browser') {
@@ -127,12 +128,12 @@ export function createPluginInstallations(gateway: InstallationGateway, browser:
   }
   async function enableInstalled(value: PluginInstallation, signal: AbortSignal): Promise<PluginInstallation> {
     const revision = value.revision;
-    if (value.status === 'recovery_blocked') throw new Error('功能插件安装恢复受阻，请先检查服务器恢复日志');
+    if (installationRequiresRecovery(value)) throw new Error('功能插件安装恢复受阻，请先检查服务器恢复日志');
     if (value.status === 'configuration_required') {
       publishClient({ id: value.id, revision, phase: 'disabled', message: '功能插件已安装，请完成配置后启用', logId: null });
       return value;
     }
-    if (!value.enabled || value.status !== 'enabled') {
+    if (!installationCanRun(value)) {
       await wait(await gateway.setEnabled(value.id, value.revision, true, signal), signal);
       await refresh(signal);
       value = installed(value.id);
@@ -196,7 +197,7 @@ export function createPluginInstallations(gateway: InstallationGateway, browser:
         const failures: unknown[] = [];
         for (const value of result.data) {
           active.throwIfAborted();
-          if (!value.enabled || value.status !== 'enabled') continue;
+          if (!installationCanRun(value)) continue;
           try { await activate(value, active); }
           catch (reason) { active.throwIfAborted(); failures.push(reason); }
         }
@@ -228,7 +229,7 @@ export function createPluginInstallations(gateway: InstallationGateway, browser:
         await refresh(active);
         const previous = installed(id);
         if (previous.revision !== revision) throw new Error('功能插件已更新，请刷新后重试');
-        if (previous.status === 'recovery_blocked') throw new Error('功能插件安装恢复受阻，请先检查服务器恢复日志');
+        if (installationRequiresRecovery(previous)) throw new Error('功能插件安装恢复受阻，请先检查服务器恢复日志');
         const planned = await plan(source, active);
         active.throwIfAborted();
         if (planned.data.id !== id) throw new Error('更新包功能标识与当前插件不一致');
@@ -238,7 +239,7 @@ export function createPluginInstallations(gateway: InstallationGateway, browser:
         await refresh(active);
         const value = installed(id);
         if (!matches(value, planned.data)) throw new Error('更新后版本或修订与计划不一致，请刷新目录');
-        if (previous.enabled && value.enabled && value.status === 'enabled') await activate(value, active);
+        if (previous.enabled && installationCanRun(value)) await activate(value, active);
         else publishClient({ id: value.id, revision: value.revision, phase: 'disabled',
           message: value.status === 'configuration_required' ? '功能插件已更新，请完成配置后启用' : null, logId: null });
         return value;
@@ -249,7 +250,7 @@ export function createPluginInstallations(gateway: InstallationGateway, browser:
         await refresh(active);
         const previous = installed(id);
         if (previous.revision !== revision) throw new Error('功能插件已更新，请刷新后重试');
-        if (enabled && previous.status === 'recovery_blocked') throw new Error('功能插件安装恢复受阻，请先检查服务器恢复日志');
+        if (enabled && installationRequiresRecovery(previous)) throw new Error('功能插件安装恢复受阻，请先检查服务器恢复日志');
         if (!enabled) await deactivate(previous, active);
         await wait(await gateway.setEnabled(id, revision, enabled, active), active);
         await refresh(active);

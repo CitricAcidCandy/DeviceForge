@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import { writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { poll } from '../device-provider/client.mjs';
 import { fixtureState, waitActualMedia } from './fixtures.mjs';
 import { sessionSummary } from './evidence.mjs';
@@ -9,6 +11,7 @@ export function sessionDriver(context) {
   return {
     async open(device = fixture.device) {
       context.stage = '打开并读取本次合成媒体';
+      await writeFile(join(fixture.plan(device), 'transport'), 'legacy', 'utf8');
       const priorServers = report.tools.filter((entry) => entry.category === 'server' && entry.argv[1] === device).length;
       const opened = await host.client.post('/api/v2/sessions', {
         operation: 'plugin.mirroring.open', input: {
@@ -42,16 +45,6 @@ export function sessionDriver(context) {
       entry.server_exit = await observer.verifyServerExit(entry.device, entry.prior_servers);
       await ledgerSnapshot(context);
       return entry;
-    },
-    async openDenied(device = fixture.nextDevice) {
-      const result = await host.client.call('/api/v2/sessions', {
-        method: 'POST', input: { operation: 'plugin.mirroring.open', input: {
-          device_id: device, audio: false, control: false, reconnect_attempts: 0,
-        } },
-      });
-      assert.equal(result.status, 409, '未恢复风险时新会话必须被拦截');
-      assert.ok(result.body.error && typeof result.body.error.code === 'string');
-      return { status: result.status, code: result.body.error.code, log_id: result.logId };
     },
   };
 }

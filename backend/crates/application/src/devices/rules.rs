@@ -104,9 +104,6 @@ impl crate::registry::Registry {
         let Some(owner) = &registered.owner else {
             return Ok(None);
         };
-        if owner.info().cleanup_failed {
-            return Err(Error::Conflict("插件资源清理未确认".into()));
-        }
         let Some(provider) = provider(owner) else {
             return Ok(None);
         };

@@ -72,6 +72,7 @@ async function receive(value) {
       forwarded.stdout.pipe(process.stdout); forwarded.stderr.pipe(process.stderr);
       forwarded.once('error', () => process.exit(91));
       forwarded.once('close', (code, signal) => {
+        writeFileSync(call + '.forwarded-exit.json', JSON.stringify({ pid: forwarded.pid, code, signal }), { flag: 'wx' });
         clearInterval(watchdog); clearTimeout(orphan);
         process.exit(code === 0 && signal === null ? 0 : 90);
       });
@@ -119,4 +120,5 @@ lines.on('line', (line) => {
   handling.catch(() => process.exit(92));
 });
 process.stdin.on('error', () => process.exit(93));
+process.stdin.on('end', () => forwarded?.stdin.end());
 process.stdout.on('error', () => process.exit(94));

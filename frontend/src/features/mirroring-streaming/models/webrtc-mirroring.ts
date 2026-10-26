@@ -118,6 +118,7 @@ export function createWebRtcMirroring(gateway: SessionGateway, options: WebRtcMi
     const task = inputTail.catch(() => {}).then(async () => {
       let lastLogId: string | null = null;
       for (let offset = 0; offset < bytes.length; offset += 8192) {
+        if (signal.aborted) throw new ApiError('cancelled', 'cancelled', 'WebRTC 输入已撤销');
         const result = await abortable(gateway.send(identity.id, bytes.slice(offset, offset + 8192), signal), signal);
         decodeStreamReceipt(result.data, identity.id, result.logId);
         lastLogId = result.logId;
@@ -191,16 +192,21 @@ export function createWebRtcMirroring(gateway: SessionGateway, options: WebRtcMi
         if (admitted !== generation) break;
         const page = decodeWebRtcPage(result.data, identity, cursor, 100, result.logId);
         log('output', result.logId);
+        if (admitted !== generation || signal.aborted) return;
         for (const chunk of page.chunks) {
           for (const message of decoder.push(chunk.bytes)) {
+            if (admitted !== generation || signal.aborted) return;
             if (message.type === 'offer') {
               await negotiate(identity, message.sdp, signal, admitted);
+              if (admitted !== generation || signal.aborted) return;
               ready.resolve();
             } else publish({ status: message.state });
           }
         }
+        if (admitted !== generation || signal.aborted) return;
         cursor = page.next_sequence;
         publish({ session: page.session, cursor });
+        if (admitted !== generation || signal.aborted) return;
         if (page.session.status === 'stopping') {
           ready.reject(new ApiError('protocol', 'mirroring_webrtc_stopping', 'WebRTC 会话已停止'));
           void release(new AbortController().signal).catch(() => {});
@@ -210,21 +216,21 @@ export function createWebRtcMirroring(gateway: SessionGateway, options: WebRtcMi
           decoder.finish();
           if (!negotiated) throw new ApiError('protocol', 'mirroring_webrtc_no_offer', '会话结束前未收到 WebRTC offer');
           terminalEvidence = page.session;
+          const stopped = generation + 1;
           stopLocal();
-          if (page.session.completion?.cleanup === 'complete') {
-            publish({ session: null });
-            const reasons = [
-              page.session.completion.failure?.message,
-              page.session.completion.outcome?.error,
-            ].filter((reason): reason is string => typeof reason === 'string' && reason.length > 0);
-            if (reasons.length)
-              report('output', new ApiError('protocol', 'mirroring_webrtc_session_failed',
-                reasons.join('；'), null, result.logId));
-          } else {
-            publish({ session: page.session });
-            report('output', new ApiError('protocol', 'mirroring_webrtc_cleanup_failed',
-              'WebRTC 会话清理未确认', null, result.logId));
-          }
+          if (stopped !== generation) return;
+          const complete = page.session.completion?.cleanup === 'complete';
+          const reasons = [
+            page.session.completion?.failure?.message,
+            page.session.completion?.outcome?.error,
+          ].filter((reason): reason is string => typeof reason === 'string' && reason.length > 0);
+          const error = !complete
+            ? new ApiError('protocol', 'mirroring_webrtc_cleanup_failed', 'WebRTC 会话清理未确认', null, result.logId)
+            : reasons.length ? new ApiError('protocol', 'mirroring_webrtc_session_failed', reasons.join('；'), null, result.logId) : null;
+          // 终态与诊断一次发布，订阅中重开后不再回写旧轮询错误。
+          publish({ session: complete ? null : page.session,
+            ...(error ? { errors: Object.freeze({ ...view.errors, output: error }) } : {}),
+          });
           return;
         }
         if (!page.chunks.length) await pause(signal, negotiated ? Math.max(interval, 500) : interval);
@@ -249,50 +255,53 @@ export function createWebRtcMirroring(gateway: SessionGateway, options: WebRtcMi
     });
     releaseTask = pending;
     const worker = (async () => {
+      const admitted = generation + 1;
       stopLocal();
       publish({ releasing: true, opening: false });
       const timeout = AbortSignal.timeout(15000);
+      const acceptRelease = (result: ApiResult<SessionInfo>, error?: ApiError) => {
+        if (admitted !== generation) return result;
+        terminalEvidence = null;
+        if (releaseTask === pending) releaseTask = null;
+        // 先撤销本地释放锁，再发布退出状态，订阅中的新打开不等待后台终态。
+        publish({ session: null, releasing: false, opening: false,
+          logs: Object.freeze({ ...view.logs, release: result.logId }),
+          ...(error ? { errors: Object.freeze({ ...view.errors, release: error }) } : {}),
+        });
+        return result;
+      };
       try {
         let result: ApiResult<unknown>;
-        try { result = await gateway.release(identity.id, timeout); }
+        try { result = await abortable(gateway.release(identity.id, timeout), timeout); }
         catch (error) {
           if (!(error instanceof ApiError) || error.status !== 404) throw error;
-          publish({ session: null, releasing: false });
-          return { data: terminalEvidence ?? identity, logId: error.logId };
+          return acceptRelease({ data: identity, logId: error.logId });
         }
-        let observed = decodeWebRtcSession(result.data, result.logId, identity);
-        log('release', result.logId);
-        while (observed.status !== 'finished') {
-          await pause(timeout, Math.max(interval, 100));
-          try {
-            const current = await gateway.get(identity.id, timeout);
-            observed = decodeWebRtcSession(current.data, current.logId, identity);
-            log('release', current.logId);
-          } catch (error) {
-            if (!(error instanceof ApiError) || error.status !== 404) throw error;
-            publish({ session: null, releasing: false });
-            return { data: terminalEvidence ?? identity, logId: result.logId };
-          }
-          publish({ session: observed });
-        }
-        if (observed.completion?.cleanup !== 'complete')
-          throw new ApiError('protocol', 'mirroring_webrtc_cleanup_failed', 'WebRTC 会话清理未确认', null, view.logs.release ?? null);
-        publish({ session: null, releasing: false });
-        return { data: observed, logId: result.logId };
+        const data = decodeWebRtcSession(result.data, result.logId, identity);
+        const cleanupError = data.status === 'finished' && data.completion?.cleanup !== 'complete'
+          ? new ApiError('protocol', 'mirroring_webrtc_cleanup_failed',
+            '会话已结束并释放，历史资源核对尚未完成', null, result.logId)
+          : undefined;
+        return acceptRelease({ data, logId: result.logId }, cleanupError);
       } catch (error) {
-        publish({ releasing: false });
-        throw report('release', timeout.aborted
-          ? new ApiError('network', 'mirroring_webrtc_release_pending', 'WebRTC 释放等待超时，请查询服务端会话', null, view.logs.release ?? null)
-          : error);
+        if (admitted !== generation) throw failure(error);
+        const converted = failure(timeout.aborted
+          ? new ApiError('network', 'mirroring_webrtc_release_pending', 'WebRTC 释放请求超时，请查询服务端会话', null, view.logs.release ?? null)
+          : error, view.logs.release ?? null);
+        publish({ releasing: false,
+          logs: Object.freeze({ ...view.logs, release: converted.logId }),
+          errors: Object.freeze({ ...view.errors, release: converted }),
+        });
+        throw converted;
       }
     })();
     void worker.then(
       (result) => {
-        releaseTask = null;
+        if (releaseTask === pending) releaseTask = null;
         resolveTask(result);
       },
       (error: unknown) => {
-        releaseTask = null;
+        if (releaseTask === pending) releaseTask = null;
         rejectTask(error);
       },
     );
@@ -303,6 +312,7 @@ export function createWebRtcMirroring(gateway: SessionGateway, options: WebRtcMi
     if (!identity || !controlEnabled || !negotiated || !view.controlReady || view.status !== 'streaming' ||
       view.inputState !== 'writable' || identity.status !== 'running')
       throw new ApiError('protocol', 'mirroring_webrtc_control_unavailable', 'WebRTC 设备控制尚未就绪');
+    const admitted = generation;
     try {
       if (signal.aborted) throw new ApiError('cancelled', 'cancelled', 'WebRTC 控制申请已取消');
       if (!peer) throw new ApiError('protocol', 'mirroring_webrtc_peer_missing', 'WebRTC 控制连接已关闭');
@@ -340,6 +350,7 @@ export function createWebRtcMirroring(gateway: SessionGateway, options: WebRtcMi
       await result;
       return { data: { id: identity.id, accepted: true }, logId: null };
     } catch (error) {
+      if (admitted !== generation) throw failure(error);
       throw report('ownership', error);
     }
   }
@@ -390,8 +401,9 @@ export function createWebRtcMirroring(gateway: SessionGateway, options: WebRtcMi
         const result = await abortable(opening, signal);
         const identity = decodeWebRtcSession(result.data, result.logId);
         if (admitted !== generation) throw new ApiError('cancelled', 'mirroring_webrtc_stale', '投屏打开已撤销');
-        publish({ session: identity, inputState: 'writable' });
-        log('open', result.logId);
+        publish({ session: identity, inputState: 'writable', logs: Object.freeze({ ...view.logs, open: result.logId }) });
+        if (admitted !== generation || lifetime.signal.aborted)
+          throw new ApiError('cancelled', 'mirroring_webrtc_stale', '投屏打开已撤销');
         let resolveReady = () => {};
         let rejectReady = (_error: unknown) => {};
         const ready = new Promise<void>((resolve, reject) => {
@@ -411,6 +423,8 @@ export function createWebRtcMirroring(gateway: SessionGateway, options: WebRtcMi
               'WebRTC 协商等待超时', null, view.logs.output ?? null);
           throw error;
         }
+        if (admitted !== generation || lifetime.signal.aborted)
+          throw new ApiError('cancelled', 'mirroring_webrtc_stale', '投屏打开已撤销');
         publish({ opening: false });
         return { data: identity, logId: result.logId };
       } catch (error) {

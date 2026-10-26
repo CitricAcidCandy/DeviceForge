@@ -53,11 +53,8 @@ impl Application {
             },
             permit = self.workers.acquire() => permit.map_err(|e| Error::Dependency(e.to_string()))?,
         };
-        // 排队期间另一任务可能留下未确认资源；不能在取得共享锁后继续执行。
+        // 历史清理诊断不阻止新调用；实际设备互斥与本次取消仍独立生效。
         let owner = plan.target.owner.as_ref();
-        if owner.is_some_and(|owner| owner.info().cleanup_failed) {
-            return Err(Error::Conflict("插件资源清理未确认，排队任务被拒绝".into()));
-        }
         let running = self
             .transition_async(job.id.clone(), JobStatus::Running, None, None)
             .await?;
@@ -99,15 +96,6 @@ impl Application {
                 Ok((projected, directory))
             };
             execution::settle(execution, &token, owner.map(AsRef::as_ref), deadline).await
-        };
-        // 有限清理到期的Drop守卫可能刚留下未确认风险；首次终态await前重新观测。
-        // 已取得提交资格的终态仍由Completion保护，不能被晚到清理诊断改写。
-        let result = if owner.is_some_and(|owner| owner.info().cleanup_failed)
-            || plan.target.executor.has_unresolved_resources()
-        {
-            Err(Error::CleanupFailed)
-        } else {
-            result
         };
         let (status, output, error, directory) = match result {
             Ok((value, directory)) => (JobStatus::Succeeded, Some(value), None, directory),

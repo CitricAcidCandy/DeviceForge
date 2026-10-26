@@ -2,20 +2,13 @@ import { useEffect, useRef, useState } from 'react';
 import { Copy, RefreshCw, Square } from 'lucide-react';
 import { Button } from '../../components/Button/index.tsx';
 import { Input } from '../../components/Input/index.tsx';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '../../components/Select/index.tsx';
 import type { JobDto, JobEventDto } from '../../services/api/index.ts';
 import type { ProductServices } from '../../app/product/services.ts';
 import { formatJobProgress } from '../../features/tasks/index.ts';
 import { useAction, useSnapshot } from '../../app/product/hooks.ts';
 import { EmptyState, JsonResult } from '../../components/index.ts';
 import { TaskArtifacts } from './components/TaskArtifacts/index.tsx';
-import './workspace.css';
+import { cn } from '../../utils/classnames.ts';
 
 const taskStates = {
   queued: '排队中',
@@ -24,7 +17,80 @@ const taskStates = {
   failed: '失败',
   cancelled: '已取消',
 };
+
+type JobState = keyof typeof taskStates;
+
+// 状态只用「色点 + 文字」表达；tag 底只出现在明细头的当前状态上。
+const stateDot: Record<JobState, string> = {
+  queued: 'bg-[color:var(--warning)]',
+  running: 'bg-[color:var(--info)]',
+  succeeded: 'bg-[color:var(--success)]',
+  failed: 'bg-[color:var(--destructive)]',
+  cancelled: 'bg-[color:var(--text-ghost)]',
+};
+
+const stateText: Record<JobState, string> = {
+  queued: 'text-[color:var(--warning)]',
+  running: 'text-[color:var(--info)]',
+  succeeded: 'text-[color:var(--success)]',
+  failed: 'text-[color:var(--destructive)]',
+  cancelled: 'text-[color:var(--text-muted)]',
+};
+
+const stateChip: Record<JobState, string> = {
+  queued: 'bg-[color:var(--warning)]/10 text-[color:var(--warning)]',
+  running: 'bg-[color:var(--info)]/10 text-[color:var(--info)]',
+  succeeded: 'bg-[color:var(--success)]/10 text-[color:var(--success)]',
+  failed: 'bg-[color:var(--destructive)]/10 text-[color:var(--destructive)]',
+  cancelled: 'bg-[color:var(--surface-sunken)] text-[color:var(--text-muted)]',
+};
+
+const filters: readonly { readonly id: string; readonly label: string }[] = [
+  { id: 'all', label: '全部' },
+  { id: 'active', label: '运行与排队' },
+  { id: 'succeeded', label: '成功' },
+  { id: 'failed', label: '失败' },
+  { id: 'cancelled', label: '取消' },
+];
+
 const running = (job: JobDto) => job.status === 'queued' || job.status === 'running';
+
+function StateChip({ status }: { status: JobState }) {
+  return (
+    <span
+      className={cn(
+        'shrink-0 rounded-[6px] px-2 py-0.5 text-[12px] font-medium',
+        stateChip[status],
+      )}
+    >
+      {taskStates[status]}
+    </span>
+  );
+}
+
+/** 浅色代码块：日志与提交内容都装在它里面，不再用深色块做区分。 */
+function PaperBlock({
+  title,
+  aside,
+  children,
+}: {
+  title: string;
+  aside?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <section>
+      <div className="flex items-baseline justify-between gap-3">
+        <h3 className="text-[13px] font-semibold text-[color:var(--text-muted)]">{title}</h3>
+        {aside}
+      </div>
+      <div className="mt-2 rounded-[8px] bg-[color:var(--surface-hover)] px-3.5 py-2.5">
+        {children}
+      </div>
+    </section>
+  );
+}
+
 export function TasksPage({ services }: { services: ProductServices }) {
   const [jobs, setJobs] = useState<readonly JobDto[]>([]);
   const [events, setEvents] = useState<readonly JobEventDto[]>([]);
@@ -97,183 +163,324 @@ export function TasksPage({ services }: { services: ProductServices }) {
       services.messages.warning('复制失败，请手动选择任务 ID');
     }
   }
+  const counts: Readonly<Record<string, number>> = {
+    all: jobs.length,
+    active: jobs.filter(running).length,
+    succeeded: jobs.filter((job) => job.status === 'succeeded').length,
+    failed: jobs.filter((job) => job.status === 'failed').length,
+    cancelled: jobs.filter((job) => job.status === 'cancelled').length,
+  };
   const selectedJob = selected;
+  const latestProgress = [...events].reverse().find((event) => event.progress)?.progress;
+  const progressPercent =
+    latestProgress?.total_bytes != null && latestProgress.total_bytes > 0
+      ? Math.min(100, Math.round((latestProgress.completed_bytes / latestProgress.total_bytes) * 100))
+      : null;
+  const elapsedSeconds = selectedJob ? Math.max(0, Date.now() / 1000 - selectedJob.created_at) : 0;
   return (
-    <div className="tasks-page" ref={root}>
-      <header className="tasks-topline">
-        <div className="tasks-topline-main">
-          <h1>任务与日志</h1>
-          <span className="tasks-topline-meta mono">
-            {loaded ? `${visibleJobs.length} / ${jobs.length} 项` : '读取中'} · 10 秒自动刷新
-          </span>
+    <div className="flex min-h-0 w-full flex-1 flex-col" ref={root}>
+      <header className="flex shrink-0 items-start justify-between gap-4 px-4 pt-5 lg:px-6">
+        <div className="min-w-0">
+          <h1 className="text-[24px] font-semibold leading-8 tracking-tight text-[color:var(--text-strong)]">
+            任务与日志
+          </h1>
+          <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] text-[color:var(--text-ghost)]">
+            <span className="font-mono text-[color:var(--text-muted)]">
+              {loaded ? `${visibleJobs.length} / ${jobs.length}` : '读取中'}
+            </span>
+            <span>项</span>
+            <span aria-hidden="true" className="h-3 w-px bg-[color:var(--hairline)]" />
+            <span>10 秒自动刷新</span>
+          </p>
         </div>
-        <div className="tasks-topline-actions">
-          <Button
-            variant="ghost"
-            size="sm"
-            disabled={action.pending}
-            onClick={() => {
-              void action.run(refresh, { success: '任务列表已更新', pending: '正在刷新任务…' });
-            }}
-          >
-            <RefreshCw aria-hidden="true" />
-            刷新
-          </Button>
-        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled={action.pending}
+          onClick={() => {
+            void action.run(refresh, { success: '任务列表已更新', pending: '正在刷新任务…' });
+          }}
+        >
+          <RefreshCw aria-hidden="true" />
+          刷新
+        </Button>
       </header>
-      <div className="tasks-filters">
-        <Input
-          id="task-query"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="按操作名或任务 ID 过滤"
-          aria-label="过滤任务"
-        />
-        <Select value={filter} onValueChange={setFilter}>
-          <SelectTrigger id="task-filter" aria-label="状态筛选">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">全部任务</SelectItem>
-            <SelectItem value="active">运行与排队</SelectItem>
-            <SelectItem value="succeeded">成功</SelectItem>
-            <SelectItem value="failed">失败</SelectItem>
-            <SelectItem value="cancelled">取消</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-      <div className="tasks-body">
-        <div className="task-list">
-          {loaded && visibleJobs.length === 0 && (
-            <EmptyState
-              title={jobs.length === 0 ? '还没有任务记录' : '没有匹配的任务'}
-              description={
-                jobs.length === 0 ? '发起操作后在这里查看进度与结果。' : '调整状态或过滤条件。'
-              }
-            />
-          )}
-          {visibleJobs.map((job) => (
+
+      <div className="flex shrink-0 flex-wrap items-center gap-2 px-4 py-3 lg:px-6">
+        <div className="w-full max-w-[22rem] [&_input]:h-8 [&_input]:text-[13px]">
+          <Input
+            id="task-query"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="按操作名或任务 ID 过滤"
+            aria-label="过滤任务"
+          />
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5 lg:ml-auto" role="group" aria-label="状态筛选">
+          {filters.map((entry) => (
             <button
-              key={job.id}
+              key={entry.id}
               type="button"
-              className="task-row"
-              data-state={job.status}
-              data-selected={selectedJob?.id === job.id ? 'true' : undefined}
-              aria-expanded={selectedJob?.id === job.id}
-              onClick={() => select(job.id)}
+              aria-pressed={filter === entry.id}
+              onClick={() => setFilter(entry.id)}
+              className={cn(
+                'flex items-center gap-1.5 rounded-[6px] px-2.5 py-1 text-[12px] transition-colors',
+                filter === entry.id
+                  ? 'bg-[color:var(--accent)] font-medium text-[color:var(--primary)]'
+                  : 'text-[color:var(--text-muted)] hover:bg-[color:var(--surface-hover)]',
+              )}
             >
-              <span className="task-dot" aria-hidden="true" />
-              <span className="task-op mono">{job.operation}</span>
-              <span className="task-id mono">{job.id}</span>
-              <span className={`text-state task-state state-${job.status}`}>
-                {taskStates[job.status]}
+              {entry.label}
+              <span
+                className={cn(
+                  'font-mono text-[12px]',
+                  filter === entry.id
+                    ? 'text-[color:var(--primary)]'
+                    : 'text-[color:var(--text-ghost)]',
+                )}
+              >
+                {counts[entry.id] ?? 0}
               </span>
-              <time className="task-time mono" dateTime={new Date(job.created_at).toISOString()}>
-                {new Date(job.created_at).toLocaleTimeString('zh-CN', { hour12: false })}
-              </time>
             </button>
           ))}
-          {jobs.length >= limit.current && limit.current < 500 && (
-            <div className="task-more">
-              <Button
-                variant="ghost"
-                size="sm"
-                disabled={action.pending}
-                onClick={() => {
-                  void action.run((signal) => refresh(signal, Math.min(500, limit.current + 50)), {
-                    success: '历史任务已更新',
-                    pending: '正在读取历史任务…',
-                  });
-                }}
-              >
-                显示更多历史
-              </Button>
-            </div>
-          )}
         </div>
-        <aside className="task-panel" aria-label="任务明细">
+      </div>
+
+      <div className="flex min-h-0 flex-1 flex-col gap-2 px-4 pb-4 lg:flex-row lg:px-6">
+        <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-[10px] bg-[color:var(--surface-sunken)] lg:w-[25rem] lg:flex-none lg:shrink-0">
+          <div className="flex shrink-0 items-center justify-between gap-2 px-4 py-2.5">
+            <span className="text-[12px] font-medium text-[color:var(--text-muted)]">
+              任务 · 按时间
+            </span>
+            <span className="font-mono text-[12px] text-[color:var(--text-ghost)]">
+              {visibleJobs.length}
+            </span>
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-2">
+            {loaded && visibleJobs.length === 0 && (
+              <EmptyState
+                title={jobs.length === 0 ? '还没有任务记录' : '没有匹配的任务'}
+                description={
+                  jobs.length === 0 ? '发起操作后在这里查看进度与结果。' : '调整状态或过滤条件。'
+                }
+              />
+            )}
+            {visibleJobs.map((job) => {
+              const current = selectedJob?.id === job.id;
+              return (
+                <button
+                  key={job.id}
+                  type="button"
+                  title={job.id}
+                  className={cn(
+                    'flex w-full items-center gap-2.5 rounded-[6px] px-2.5 py-2 text-left transition-colors',
+                    current
+                      ? 'bg-[color:var(--card)] shadow-[0_1px_2px_rgb(23_27_36/6%)]'
+                      : 'hover:bg-[color:var(--surface-hover)]',
+                  )}
+                  aria-expanded={current}
+                  onClick={() => select(job.id)}
+                >
+                  <span
+                    aria-hidden="true"
+                    className={cn(
+                      'size-1.5 shrink-0 rounded-full',
+                      stateDot[job.status as JobState],
+                    )}
+                  />
+                  <span className="min-w-0 flex-1 truncate text-[13px] text-[color:var(--text-strong)]">
+                    {job.operation}
+                  </span>
+                  <time
+                    className="shrink-0 font-mono text-[12px] text-[color:var(--text-ghost)]"
+                    dateTime={new Date(job.created_at).toISOString()}
+                  >
+                    {new Date(job.created_at).toLocaleTimeString('zh-CN', { hour12: false })}
+                  </time>
+                  <span
+                    className={cn('w-[3.5rem] shrink-0 text-[12px]', stateText[job.status as JobState])}
+                  >
+                    {taskStates[job.status as JobState]}
+                  </span>
+                </button>
+              );
+            })}
+            {jobs.length >= limit.current && limit.current < 500 && (
+              <div className="flex justify-center px-2 py-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={action.pending}
+                  onClick={() => {
+                    void action.run((signal) => refresh(signal, Math.min(500, limit.current + 50)), {
+                      success: '历史任务已更新',
+                      pending: '正在读取历史任务…',
+                    });
+                  }}
+                >
+                  显示更多历史
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <section
+          aria-label="任务明细"
+          className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[10px] border border-[color:var(--hairline)] bg-[color:var(--card)]"
+        >
           {selectedJob ? (
             <>
-              <div className="task-panel-head">
-                <div>
-                  <h2 className="mono">{selectedJob.operation}</h2>
-                  <p className="mono">{selectedJob.id}</p>
+              <div className="shrink-0 px-5 pb-3 pt-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <h2 className="truncate text-[18px] font-semibold leading-6 text-[color:var(--text-strong)]">
+                      {selectedJob.operation}
+                    </h2>
+                    <div className="mt-1 flex min-w-0 items-center gap-2">
+                      <span className="truncate font-mono text-[12px] text-[color:var(--text-ghost)]">
+                        {selectedJob.id}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => void copyTaskId(selectedJob.id)}
+                        className="flex shrink-0 items-center gap-1 text-[12px] text-[color:var(--primary)] hover:underline"
+                      >
+                        <Copy aria-hidden="true" className="size-3" />
+                        复制
+                      </button>
+                    </div>
+                  </div>
+                  <StateChip status={selectedJob.status as JobState} />
                 </div>
-                <span className={`text-state state-${selectedJob.status}`}>
-                  {taskStates[selectedJob.status]}
-                </span>
-              </div>
-              <div className="task-panel-actions">
-                <Button variant="ghost" size="sm" onClick={() => void copyTaskId(selectedJob.id)}>
-                  <Copy aria-hidden="true" />
-                  复制 ID
-                </Button>
+
+                <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-[color:var(--text-muted)]">
+                  <span className="font-mono">
+                    {new Date(selectedJob.created_at).toLocaleString('zh-CN')}
+                  </span>
+                  {running(selectedJob) && (
+                    <span className="font-mono">
+                      已运行 {Math.floor(elapsedSeconds)} s
+                    </span>
+                  )}
+                </div>
+
+                {selectedJob.error && (
+                  <p className="mt-2 text-[12px] leading-[1.6] text-[color:var(--destructive)]">
+                    {selectedJob.error}
+                  </p>
+                )}
+
+                {progressPercent !== null && latestProgress && (
+                  <div className="mt-3">
+                    <div className="flex items-baseline justify-between gap-3 text-[12px]">
+                      <span className="truncate text-[color:var(--text-muted)]">
+                        {formatJobProgress(latestProgress)}
+                      </span>
+                      <span className="shrink-0 font-mono text-[color:var(--primary)]">
+                        {progressPercent}%
+                      </span>
+                    </div>
+                    <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-[color:var(--surface-sunken)]">
+                      <div
+                        className="h-full rounded-full bg-[color:var(--primary)]"
+                        style={{ width: `${progressPercent}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+
                 {running(selectedJob) && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={details.pending}
-                    onClick={() => {
-                      void details.run(
-                        async (signal) => {
-                          const response = await services.runtime.tasks.cancel(selectedJob.id, signal);
-                          await refresh(signal);
-                          await services.runtime.tasks.select(selectedJob.id, signal);
-                          return response;
-                        },
-                        { success: '已发送任务取消请求', pending: '正在取消任务…' },
-                      );
-                    }}
-                  >
-                    <Square aria-hidden="true" />
-                    取消任务
-                  </Button>
+                  <div className="mt-3 flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={details.pending}
+                      onClick={() => {
+                        void details.run(
+                          async (signal) => {
+                            const response = await services.runtime.tasks.cancel(
+                              selectedJob.id,
+                              signal,
+                            );
+                            await refresh(signal);
+                            await services.runtime.tasks.select(selectedJob.id, signal);
+                            return response;
+                          },
+                          { success: '已发送任务取消请求', pending: '正在取消任务…' },
+                        );
+                      }}
+                    >
+                      <Square aria-hidden="true" />
+                      取消任务
+                    </Button>
+                  </div>
                 )}
               </div>
-              <p className="task-panel-time mono">
-                {new Date(selectedJob.created_at).toLocaleString('zh-CN')}
-              </p>
-              {selectedJob.error && <p className="text-danger task-panel-error">{selectedJob.error}</p>}
-              <details className="task-fold" open>
-                <summary>任务事件</summary>
-                {events.length === 0 ? (
-                  <p className="task-hint">没有返回任务事件。</p>
-                ) : (
-                  <ol className="task-events">
-                    {events.map((event) => (
-                      <li key={event.sequence}>
-                        <time className="mono">
-                          {new Date(event.timestamp).toLocaleTimeString('zh-CN', { hour12: false })}
-                        </time>
-                        <span>{taskStates[event.status]}</span>
-                        {event.progress && <span>{formatJobProgress(event.progress)}</span>}
-                      </li>
-                    ))}
-                  </ol>
-                )}
-              </details>
-              <details className="task-fold">
-                <summary>提交内容</summary>
-                <pre>{JSON.stringify(selectedJob.input, null, 2)}</pre>
-              </details>
-              <TaskArtifacts
-                key={selectedJob.id}
-                services={services}
-                value={selectedJob.result}
-                logId={selection.result?.logId ?? null}
-              />
-              <JsonResult value={selectedJob.result} />
-              <details className="task-fold">
-                <summary>任务与日志说明</summary>
-                <p className="task-hint">
+
+              <div className="min-h-0 flex-1 space-y-4 overflow-y-auto border-t border-[color:var(--hairline)] px-5 pb-5 pt-4">
+                <PaperBlock
+                  title="任务日志"
+                  aside={
+                    <span className="font-mono text-[12px] text-[color:var(--text-ghost)]">
+                      {events.length} 条
+                    </span>
+                  }
+                >
+                  {events.length === 0 ? (
+                    <p className="text-[12px] text-[color:var(--text-faint)]">没有返回任务事件。</p>
+                  ) : (
+                    <ol className="space-y-1">
+                      {events.map((event) => (
+                        <li
+                          key={event.sequence}
+                          className="flex items-baseline gap-2 text-[12px] text-[color:var(--text-body)]"
+                        >
+                          <time className="shrink-0 font-mono text-[color:var(--text-ghost)]">
+                            {new Date(event.timestamp).toLocaleTimeString('zh-CN', {
+                              hour12: false,
+                            })}
+                          </time>
+                          <span className={cn('shrink-0', stateText[event.status as JobState])}>
+                            {taskStates[event.status as JobState]}
+                          </span>
+                          {event.progress && (
+                            <span className="min-w-0 truncate text-[color:var(--text-muted)]">
+                              {formatJobProgress(event.progress)}
+                            </span>
+                          )}
+                        </li>
+                      ))}
+                    </ol>
+                  )}
+                </PaperBlock>
+
+                <PaperBlock title="提交内容">
+                  <pre className="max-h-[220px] overflow-auto whitespace-pre-wrap break-words font-mono text-[12px] leading-[1.6] text-[color:var(--text-body)]">
+                    {JSON.stringify(selectedJob.input, null, 2)}
+                  </pre>
+                </PaperBlock>
+
+                <TaskArtifacts
+                  key={selectedJob.id}
+                  services={services}
+                  value={selectedJob.result}
+                  logId={selection.result?.logId ?? null}
+                />
+                <JsonResult value={selectedJob.result} />
+                <p className="text-[12px] leading-[1.6] text-[color:var(--text-faint)]">
                   任务 ID 用于回查任务，日志 ID 用于排查接口请求。取消等待不会撤回已提交的操作。
                 </p>
-              </details>
+              </div>
             </>
           ) : (
-            <p className="task-hint task-panel-idle">选一条任务，看事件、提交内容与产物。</p>
+            <div className="flex flex-1 items-center justify-center px-6">
+              <p className="text-[13px] text-[color:var(--text-faint)]">
+                选一条任务，看事件、提交内容与产物。
+              </p>
+            </div>
           )}
-        </aside>
+        </section>
       </div>
     </div>
   );

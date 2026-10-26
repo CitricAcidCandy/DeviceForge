@@ -142,13 +142,6 @@ impl Application {
             }
             let claim = app.registry.with_current(&target, || {
                 crate::operation_budget::check(deadline, Some(&cancel))?;
-                if target
-                    .owner
-                    .as_ref()
-                    .is_some_and(|owner| owner.info().cleanup_failed)
-                {
-                    return Err(Error::Conflict("成功提交前插件资源清理未确认".into()));
-                }
                 completion.claim(deadline, &cancel)
             })?;
             drop(active);

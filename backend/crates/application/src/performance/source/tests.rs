@@ -198,7 +198,7 @@ async fn internal_sampling_uses_original_deadline_without_jobs_and_prechecks_zer
 }
 
 #[tokio::test]
-async fn source_binding_does_not_retain_application_and_shared_risk_blocks_claims() {
+async fn source_binding_does_not_retain_application_and_old_cleanup_warning_allows_claims() {
     let application = app();
     install(&application, Arc::new(Source::default()));
     let access = access(&application);
@@ -206,15 +206,14 @@ async fn source_binding_does_not_retain_application_and_shared_risk_blocks_claim
         .admit(&target(), &CancellationToken::new(), None)
         .unwrap();
     binding.owner.mark_unresolved();
-    assert!(matches!(
-        binding.check_current(&access),
-        Err(Error::CleanupFailed)
-    ));
-    assert!(matches!(
-        binding.claim(&access, &CancellationToken::new(), None),
-        Err(Error::CleanupFailed)
-    ));
-    assert!(matches!(access.capabilities(), Err(Error::CleanupFailed)));
+    binding.check_current(&access).unwrap();
+    drop(
+        binding
+            .claim(&access, &CancellationToken::new(), None)
+            .unwrap(),
+    );
+    access.capabilities().unwrap();
+    assert!(binding.owner.info().cleanup_failed);
     let control = binding
         .control_claim(&access, &CancellationToken::new(), None)
         .unwrap();
@@ -230,10 +229,10 @@ async fn source_binding_does_not_retain_application_and_shared_risk_blocks_claim
         Err(Error::Timeout)
     ));
     application.registry.detach("source").unwrap();
-    assert!(matches!(access.capabilities(), Err(Error::CleanupFailed)));
+    assert!(access.capabilities().is_err());
     assert!(matches!(
         access.admit(&target(), &CancellationToken::new(), None),
-        Err(Error::CleanupFailed)
+        Err(_)
     ));
     let weak = Arc::downgrade(&application);
     drop(application);

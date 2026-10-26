@@ -192,6 +192,7 @@ test('面板挂载失败回滚整代，已挂载面板与部分失败资源均�
 test('激活失败及释放失败汇总，其他资源和另一个插件仍正常收敛', async () => {
   const manager = createPluginManager({ host: host().context, panelTarget: () => null });
   let released = 0;
+  let attempts = 0;
   manager.register({ id: 'healthy', trusted: true, plugin: plugin({ id: 'healthy', panels: [] }) });
   manager.register({
     id: 'example',
@@ -201,10 +202,10 @@ test('激活失败及释放失败汇总，其他资源和另一个插件仍正�
         context.onDispose(() => {
           ++released;
         });
-        context.onDispose(() => {
-          throw new Error('资源释放失败');
-        });
-        throw new Error('激活失败');
+        if (++attempts === 1) {
+          context.onDispose(() => { throw new Error('资源释放失败'); });
+          throw new Error('激活失败');
+        }
       },
     }),
   });
@@ -215,10 +216,102 @@ test('激活失败及释放失败汇总，其他资源和另一个插件仍正�
   );
   assert.equal(released, 1);
   assert.equal(manager.snapshot()[0]?.id, 'healthy');
-  await assert.rejects(manager.load('example'), { code: 'plugin_cleanup_failed' });
-  await assert.rejects(manager.unload('example'), { code: 'plugin_cleanup_failed' });
-  await assert.rejects(manager.unregister('example'), { code: 'plugin_cleanup_failed' });
+  const diagnostic = manager.cleanupSnapshot()[0];
+  assert.ok(diagnostic);
+  assert.equal(diagnostic.id, 'example');
+  assert.ok(diagnostic.error instanceof AggregateError);
+  const next = await manager.load('example');
+  assert.notEqual(next.generation, diagnostic.generation);
+  assert.equal(attempts, 2);
+  assert.equal(manager.cleanupSnapshot()[0], diagnostic, '新操作不能掩盖历史失败');
+  await manager.unload('example');
+  await manager.unregister('example');
+  await assert.rejects(manager.load('example'), /预注册/);
+  assert.equal(released, 2);
   await manager.dispose();
+});
+
+test('在途清理仍串行等待，有界超时保留旧代诊断，晚到拒绝不影响新代', async (t) => {
+  for (const mode of ['scope', 'deactivate', 'confirmed'] as const) await t.test(mode, async (t) => {
+    t.mock.timers.enable({ apis: ['setTimeout'] });
+    const pending = deferred<void>();
+    const began = deferred<void>();
+    const contexts: HostContext[] = [];
+    let activations = 0;
+    let deactivations = 0;
+    const manager = createPluginManager({ host: host().context, panelTarget: () => null });
+    manager.register({ id: 'example', trusted: true, plugin: plugin({
+      activate: async (context) => {
+        contexts.push(context);
+        if (++activations === 1 && mode !== 'deactivate') context.onDispose(() => {
+          began.resolve();
+          return pending.promise;
+        });
+      },
+      deactivate: async () => {
+        if (++deactivations === 1 && mode === 'deactivate') {
+          began.resolve();
+          return pending.promise;
+        }
+      },
+    }) });
+    try {
+      const first = await manager.load('example');
+      const unloading = manager.unload('example');
+      const outcome = mode === 'confirmed' ? unloading : assert.rejects(unloading, (error: unknown) =>
+        error instanceof AggregateError && error.errors.some((failure: unknown) =>
+          failure instanceof HostError && failure.code === 'plugin_cleanup_timeout'));
+      const loading = manager.load('example');
+      await began.promise;
+      const oldContext = contexts[0];
+      assert.ok(oldContext);
+      assert.equal(oldContext.signal.aborted, true);
+      t.mock.timers.tick(4999);
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      assert.equal(activations, 1, '正在清理时不能开始新一代');
+      if (mode === 'confirmed') pending.resolve();
+      else t.mock.timers.tick(1);
+      await outcome;
+      const next = await loading;
+      assert.notEqual(next.generation, first.generation);
+      assert.equal(activations, 2);
+      const diagnostic = manager.cleanupSnapshot()[0];
+      if (mode === 'confirmed') assert.equal(diagnostic, undefined);
+      else {
+        assert.equal(diagnostic?.generation, first.generation);
+        assert.ok(diagnostic?.error instanceof AggregateError);
+        pending.reject(new Error('旧清理晚到失败'));
+      }
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      assert.equal(manager.snapshot()[0]?.generation, next.generation);
+      assert.equal(manager.cleanupSnapshot()[0], diagnostic);
+      await assert.rejects(oldContext.listOperations(oldContext.signal), /代际/);
+      let lateReleased = 0;
+      oldContext.onDispose(() => { lateReleased++; });
+      assert.equal(lateReleased, 1, '旧代晚登记资源立即释放，不能注册到新代');
+      await manager.unregister('example');
+      assert.deepEqual(manager.snapshot(), []);
+    } finally {
+      pending.resolve();
+      await manager.dispose();
+    }
+  });
+});
+
+test('撤销源的本次清理失败仍抛错，用户再次撤销不被历史诊断封锁', async () => {
+  const manager = createPluginManager({ host: host().context, panelTarget: () => null });
+  manager.register({ id: 'example', trusted: true, plugin: plugin({ activate: async (context) => {
+    context.onDispose(() => { throw new Error('原始释放失败'); });
+  } }) });
+  try {
+    await manager.load('example');
+    await assert.rejects(manager.unregister('example'), AggregateError);
+    const diagnostic = manager.cleanupSnapshot()[0];
+    assert.ok(diagnostic?.error instanceof AggregateError);
+    await manager.unregister('example');
+    await assert.rejects(manager.load('example'), /预注册/);
+    assert.equal(manager.cleanupSnapshot()[0], diagnostic);
+  } finally { await manager.dispose(); }
 });
 
 test('loader 晚到模块不激活，卸载撤销当前代，重载获得新代际', async () => {

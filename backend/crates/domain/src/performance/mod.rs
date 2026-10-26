@@ -49,7 +49,7 @@ impl PerformanceTarget {
 #[serde(deny_unknown_fields)]
 pub struct PerformanceStart {
     pub target: PerformanceTarget,
-    #[schemars(range(min = 1000, max = 60000))]
+    #[schemars(range(min = 50, max = 60000))]
     pub interval_ms: u32,
     #[schemars(range(min = 1, max = 3600))]
     pub duration_secs: u32,
@@ -57,10 +57,9 @@ pub struct PerformanceStart {
 impl PerformanceStart {
     pub fn validate(&self) -> Result<()> {
         self.target.validate()?;
-        if !(1000..=60000).contains(&self.interval_ms) || !(1..=3600).contains(&self.duration_secs)
-        {
+        if !(50..=60000).contains(&self.interval_ms) || !(1..=3600).contains(&self.duration_secs) {
             return Err(Error::Invalid(
-                "性能间隔应为 1000–60000 毫秒，时长应为 1–3600 秒".into(),
+                "性能间隔应为 50–60000 毫秒，时长应为 1–3600 秒".into(),
             ));
         }
         Ok(())
@@ -323,3 +322,6 @@ pub trait PerformanceStore: Send + Sync {
     fn list(&self, after_id: Option<&str>, limit: u32) -> Result<PerformanceSessions>;
     fn recover(&self) -> Result<u64>;
 }
+
+#[cfg(test)]
+mod tests;

@@ -48,7 +48,7 @@ pub(crate) fn contribute(document: &mut Value) {
     document["paths"]["/api/v2/sessions/{id}/eof"] = json!({"parameters":[id.clone()],
         "post":v2_endpoint(endpoint("有序关闭输入并保留取消通路", "200", schema::<SessionReceipt>()))});
     document["paths"]["/api/v2/sessions/{id}/release"] = json!({"parameters":[id.clone()],
-        "post":v2_endpoint(endpoint("请求释放会话；清理确认后自动删除记录，失败记录保留", "202", schema::<SessionInfo>()))});
+        "post":v2_endpoint(endpoint("结束会话并回收工作台记录；历史清理失败不阻断释放，原结论不改写", "202", schema::<SessionInfo>()))});
     document["paths"]["/api/v2/sessions/{id}/cancel"] = json!({"parameters":[id],
         "post":v2_endpoint(endpoint("请求停止会话，资源终态另行查询", "200", schema::<SessionInfo>()))});
     for (name, value) in [

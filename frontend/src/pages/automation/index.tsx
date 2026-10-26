@@ -5,30 +5,25 @@ import type { ProductServices } from '../../app/product/services.ts';
 import { DeviceAutomation } from './components/DeviceAutomation/index.tsx';
 import { DesktopAutomation } from './components/DesktopAutomation/index.tsx';
 import { InputTraceAutomation } from './components/InputTraceAutomation/index.tsx';
-import './workspace.css';
 
 export function AutomationPage({ services }: { services: ProductServices }) {
   const [workspace, setWorkspace] = useState('device');
   return (
-    <section className="product-page automation-page">
-      <PageTitle
-        eyebrow="深度调试"
-        title="自动化"
-        description="以可读步骤编排设备输入；桌面操作明确作用于运行服务器的电脑。"
-      />
-      <Tabs value={workspace} onValueChange={setWorkspace}>
-        <TabsList aria-label="自动化工作区">
+    <section className="flex min-w-0 flex-1 flex-col text-sm">
+      <PageTitle title="自动化" />
+      <Tabs className="mt-4 min-w-0 flex-1 gap-0" value={workspace} onValueChange={setWorkspace}>
+        <TabsList className="max-w-full overflow-x-auto" aria-label="自动化工作区">
           <TabsTrigger value="device">设备步骤</TabsTrigger>
           <TabsTrigger value="desktop">桌面操作</TabsTrigger>
           <TabsTrigger value="trace">输入录制与回放</TabsTrigger>
         </TabsList>
-        <TabsContent value="device" forceMount hidden={workspace !== 'device'}>
+        <TabsContent className="min-w-0 data-[state=inactive]:hidden" value="device" forceMount hidden={workspace !== 'device'}>
           <DeviceAutomation services={services} />
         </TabsContent>
-        <TabsContent value="desktop" forceMount hidden={workspace !== 'desktop'}>
+        <TabsContent className="min-w-0 data-[state=inactive]:hidden" value="desktop" forceMount hidden={workspace !== 'desktop'}>
           <DesktopAutomation services={services} />
         </TabsContent>
-        <TabsContent value="trace" forceMount hidden={workspace !== 'trace'}>
+        <TabsContent className="min-w-0 data-[state=inactive]:hidden" value="trace" forceMount hidden={workspace !== 'trace'}>
           <InputTraceAutomation services={services} />
         </TabsContent>
       </Tabs>

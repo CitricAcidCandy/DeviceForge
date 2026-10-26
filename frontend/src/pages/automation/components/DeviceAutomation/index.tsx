@@ -1,13 +1,8 @@
 import { useState } from 'react';
+import { ArrowRight, Keyboard, MousePointer2, Play, Plus, Repeat2, Smartphone, Type, X } from 'lucide-react';
 import { Button } from '../../../../components/Button/index.tsx';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '../../../../components/Select/index.tsx';
-import { EmptyState, Field, JsonResult } from '../../../../components/index.ts';
+import { JsonResult } from '../../../../components/index.ts';
+import { AutomationField as Field } from '../../field.tsx';
 import { useOperationAvailable } from '../../../../app/product/capabilities.tsx';
 import { ActionFeedback, ErrorNotice } from '../../../../app/product/feedback.tsx';
 import { useAction, useSnapshot } from '../../../../app/product/hooks.ts';
@@ -21,12 +16,19 @@ import type {
 import type { JobOutcome } from '../../../../shared/jobs/index.ts';
 import type { DeviceRef } from '../../../../plugin-sdk/index.ts';
 
+const actionTypes = [
+  { kind: 'tap', label: '点击', icon: MousePointer2 },
+  { kind: 'swipe', label: '滑动', icon: ArrowRight },
+  { kind: 'key', label: '按键', icon: Keyboard },
+  { kind: 'text', label: '文本', icon: Type },
+] as const;
+
 function stepDescription(action: AutomationAction): string {
-  if (action.kind === 'tap') return `点击坐标 (${action.x}, ${action.y})`;
+  if (action.kind === 'tap') return `X ${action.x} · Y ${action.y}`;
   if (action.kind === 'swipe')
-    return `从 (${action.x1}, ${action.y1}) 滑动到 (${action.x2}, ${action.y2})，持续 ${action.duration_ms} 毫秒`;
-  if (action.kind === 'key') return `派发按键码 ${action.code}`;
-  return `输入文本：${action.text}`;
+    return `${action.x1}, ${action.y1} → ${action.x2}, ${action.y2} · ${action.duration_ms} ms`;
+  if (action.kind === 'key') return `按键码 ${action.code}`;
+  return action.text;
 }
 
 export function DeviceAutomation({ services }: { services: ProductServices }) {
@@ -122,194 +124,149 @@ export function DeviceAutomation({ services }: { services: ProductServices }) {
     }
   }
   return (
-    <section className="workspace-section">
-      <h2>设备流程</h2>
-      {!ready && (
-        <EmptyState
-          title="等待支持设备输入的在线设备"
-          description="选择声明 Android 设备操作的提供者；不同输入操作分别核对服务器目录。"
-        />
-      )}
-      <div className="form-row">
-        <Select
-          value={kind}
-          onValueChange={(value) => {
-            if (value === 'tap' || value === 'swipe' || value === 'key' || value === 'text')
-              setKind(value);
-          }}
-        >
-          <SelectTrigger aria-label="步骤类型">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="tap">点击</SelectItem>
-            <SelectItem value="swipe">滑动</SelectItem>
-            <SelectItem value="key">按键</SelectItem>
-            <SelectItem value="text">文本</SelectItem>
-          </SelectContent>
-        </Select>
-        <Field
-          label="执行时间（毫秒）"
-          value={at}
-          onChange={setAt}
-          type="number"
-          min={0}
-          max={3600000}
-          hint="相对流程开始，时间需按非递减顺序添加"
-        />
-        {kind === 'text' ? (
-          <Field
-            label="设备输入文本"
-            value={text}
-            onChange={setText}
-            hint="只支持 ASCII 字母、数字、空格和 . , _ @ -"
-          />
-        ) : kind === 'key' ? (
-          <Field label="按键码" value={key} onChange={setKey} type="number" min={0} max={288} />
-        ) : (
-          <>
-            <Field
-              label="设备 X 坐标"
-              value={x}
-              onChange={setX}
-              type="number"
-              min={0}
-              max={65535}
-            />
-            <Field
-              label="设备 Y 坐标"
-              value={y}
-              onChange={setY}
-              type="number"
-              min={0}
-              max={65535}
-            />
-          </>
-        )}
-        {kind === 'swipe' && (
-          <>
-            <Field
-              label="滑动终点 X"
-              value={x2}
-              onChange={setX2}
-              type="number"
-              min={0}
-              max={65535}
-            />
-            <Field
-              label="滑动终点 Y"
-              value={y2}
-              onChange={setY2}
-              type="number"
-              min={0}
-              max={65535}
-            />
-            <Field
-              label="滑动持续（毫秒）"
-              value={duration}
-              onChange={setDuration}
-              type="number"
-              min={1}
-              max={10000}
-            />
-          </>
-        )}
-        <Button variant="outline" onClick={addStep} disabled={action.pending}>
-          添加步骤
-        </Button>
+    <section className="flex min-w-0 flex-col gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground">
+        <span className="inline-flex min-w-0 items-center gap-2">
+          <Smartphone className="size-4" aria-hidden="true" />
+          <span className="truncate">{snapshot.selection?.localId ?? '未选择设备'}</span>
+          <span className={ready ? 'text-success' : 'text-muted-foreground'}>
+            {ready ? '设备就绪' : '等待支持输入的在线设备'}
+          </span>
+        </span>
+        <span>设备像素坐标 · 按时间顺序执行</span>
       </div>
-      <ErrorNotice error={stepError} />
-      {steps.length === 0 ? (
-        <p className="muted">添加点击、滑动、按键或文本步骤后运行。</p>
-      ) : (
-        <ol className="workflow-steps">
-          {steps.map((step, index) => (
-            <li key={index}>
-              <span>
-                {index + 1}. {step.at_ms} 毫秒 · {stepDescription(step.action)}
-              </span>
+      <div className="grid min-w-0 overflow-hidden rounded-lg border border-border bg-card lg:grid-cols-[minmax(0,1fr)_19.75rem]">
+        <div className="flex min-w-0 flex-col">
+          <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-4 sm:px-6">
+            <div className="flex items-center gap-3">
+              <h2 className="text-base font-semibold">设备流程</h2>
+              <span className="rounded bg-muted px-2 py-1 text-xs text-muted-foreground">{steps.length} 步</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="hidden text-xs text-faint sm:inline">当前草稿</span>
               <Button
-                variant="ghost"
                 size="sm"
-                aria-label={`移除步骤 ${index + 1}`}
-                disabled={action.pending}
+                disabled={!ready || !sequenceAvailable || steps.length === 0 || action.pending}
                 onClick={() =>
-                  setSteps((previous) => previous.filter((_, position) => position !== index))
+                  void run((device, signal) =>
+                    services.automation.runSequence({ device_id: device, steps }, signal),
+                  )
                 }
               >
-                移除
+                <Play aria-hidden="true" />运行流程
               </Button>
-            </li>
-          ))}
-        </ol>
-      )}
-      <div className="action-row">
-        <Button
-          disabled={!ready || !sequenceAvailable || steps.length === 0 || action.pending}
-          onClick={() =>
-            void run((device, signal) =>
-              services.automation.runSequence({ device_id: device, steps }, signal),
-            )
-          }
-        >
-          运行设备流程
-        </Button>
-      </div>
-      <h3>设备重复点击</h3>
-      <div className="form-row">
-        <Field label="重复点击 X" value={x} onChange={setX} type="number" min={0} max={65535} />
-        <Field label="重复点击 Y" value={y} onChange={setY} type="number" min={0} max={65535} />
-        <Field
-          label="设备点击次数"
-          value={count}
-          onChange={setCount}
-          type="number"
-          min={1}
-          max={10000}
-        />
-        <Field
-          label="设备点击间隔（毫秒）"
-          value={interval}
-          onChange={setInterval}
-          type="number"
-          min={10}
-          max={60000}
-        />
-        <Button
-          variant="outline"
-          disabled={!ready || !repeatAvailable || action.pending}
-          onClick={() =>
-            void run((device, signal) =>
-              services.automation.repeatClick(
-                {
-                  device_id: device,
-                  x: Number(x),
-                  y: Number(y),
-                  count: Number(count),
-                  interval_ms: Number(interval),
-                },
-                signal,
-              ),
-            )
-          }
-        >
-          重复点击设备
-        </Button>
+              {action.pending && <Button size="sm" variant="outline" onClick={action.cancel}>取消等待</Button>}
+            </div>
+          </header>
+          <div className="min-w-0 flex-1 px-5 py-4 sm:px-6">
+            <div aria-hidden="true" className="grid grid-cols-[2rem_4.5rem_minmax(0,1fr)] gap-2 pb-2 text-[11px] text-faint sm:grid-cols-[2rem_5.5rem_minmax(0,1fr)]">
+              <span>序号</span><span>执行时间</span><span>动作</span>
+            </div>
+            {steps.length === 0 ? (
+              <div className="flex min-h-56 flex-col items-center justify-center gap-3 py-10 text-center">
+                <div className="flex size-10 items-center justify-center rounded-lg bg-accent text-primary"><Plus className="size-5" aria-hidden="true" /></div>
+                <p className="text-sm text-muted-foreground">添加第一个步骤</p>
+                <p className="text-xs text-faint">点击、滑动、按键或输入文本</p>
+              </div>
+            ) : (
+              <ol aria-label="设备流程步骤" className="m-0 list-none p-0">
+                {steps.map((step, index) => {
+                  const type = actionTypes.find((entry) => entry.kind === step.action.kind);
+                  const Icon = type?.icon ?? MousePointer2;
+                  return (
+                    <li className="grid grid-cols-[2rem_4.5rem_minmax(0,1fr)_2rem] items-center gap-2 border-b border-border py-4 last:border-b-0 sm:grid-cols-[2rem_5.5rem_minmax(0,1fr)_2rem]" key={index}>
+                      <span className="font-mono text-xs text-faint">{String(index + 1).padStart(2, '0')}</span>
+                      <span className="font-mono text-xs text-muted-foreground">{step.at_ms} ms</span>
+                      <div className="flex min-w-0 items-center gap-3">
+                        <span className="hidden size-8 shrink-0 items-center justify-center rounded-lg bg-accent text-primary sm:flex"><Icon className="size-4" aria-hidden="true" /></span>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium">{type?.label}</p>
+                          <p className="mt-1 break-words font-mono text-xs text-muted-foreground">{stepDescription(step.action)}</p>
+                        </div>
+                      </div>
+                      <Button variant="ghost" size="icon-sm" aria-label={`移除步骤 ${index + 1}`} disabled={action.pending}
+                        onClick={() => setSteps((previous) => previous.filter((_, position) => position !== index))}>
+                        <X className="size-4 text-faint" aria-hidden="true" />
+                      </Button>
+                    </li>
+                  );
+                })}
+              </ol>
+            )}
+          </div>
+          <div className="border-t border-border bg-surface-elevated px-5 py-5 sm:px-6">
+            <div className="mb-4 flex items-center justify-between gap-2">
+              <h3 className="flex items-center gap-2 text-sm font-medium"><Repeat2 className="size-4 text-muted-foreground" aria-hidden="true" />重复点击</h3>
+              <span className="text-xs text-faint">独立运行</span>
+            </div>
+            <div className="grid grid-cols-2 items-end gap-3 xl:grid-cols-[repeat(4,minmax(0,1fr))_auto]">
+              <Field label="重复点击 X" value={x} onChange={setX} type="number" min={0} max={65535} />
+              <Field label="重复点击 Y" value={y} onChange={setY} type="number" min={0} max={65535} />
+              <Field label="点击次数" value={count} onChange={setCount} type="number" min={1} max={10000} />
+              <Field label="间隔（ms）" value={interval} onChange={setInterval} type="number" min={10} max={60000} />
+              <Button className="col-span-2 justify-self-start xl:col-span-1" variant="outline" disabled={!ready || !repeatAvailable || action.pending}
+                onClick={() => void run((device, signal) => services.automation.repeatClick({ device_id: device, x: Number(x), y: Number(y), count: Number(count), interval_ms: Number(interval) }, signal))}>
+                重复点击
+              </Button>
+            </div>
+          </div>
+        </div>
+        <aside className="flex min-w-0 flex-col border-t border-border bg-surface-elevated px-5 py-5 lg:border-t-0 lg:border-l">
+          <div className="flex items-center justify-between gap-3">
+            <h3 className="text-base font-semibold">添加步骤</h3>
+            <span className="font-mono text-xs text-faint">{String(steps.length + 1).padStart(2, '0')}</span>
+          </div>
+          <div className="mt-5 mb-6 grid grid-cols-2 gap-2" role="group" aria-label="步骤类型">
+            {actionTypes.map((entry) => (
+              <Button key={entry.kind} variant="outline" aria-pressed={kind === entry.kind} disabled={action.pending}
+                className={`justify-start ${kind === entry.kind ? 'border-primary bg-accent text-primary hover:bg-accent hover:text-primary' : 'text-muted-foreground'}`}
+                onClick={() => setKind(entry.kind)}>
+                <entry.icon className="size-4" aria-hidden="true" />{entry.label}
+              </Button>
+            ))}
+          </div>
+          <div className="grid gap-4">
+            <Field label="执行时间（ms）" value={at} onChange={setAt} type="number" min={0} max={3600000} hint="相对流程开始，按非递减顺序添加" />
+            {kind === 'text' ? (
+              <Field label="设备输入文本" value={text} onChange={setText} hint="仅 ASCII 字母、数字、空格和 . , _ @ -" />
+            ) : kind === 'key' ? (
+              <Field label="按键码" value={key} onChange={setKey} type="number" min={0} max={288} />
+            ) : (
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="X 坐标" value={x} onChange={setX} type="number" min={0} max={65535} />
+                <Field label="Y 坐标" value={y} onChange={setY} type="number" min={0} max={65535} />
+              </div>
+            )}
+            {kind === 'swipe' && (
+              <>
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="终点 X" value={x2} onChange={setX2} type="number" min={0} max={65535} />
+                  <Field label="终点 Y" value={y2} onChange={setY2} type="number" min={0} max={65535} />
+                </div>
+                <Field label="滑动持续（ms）" value={duration} onChange={setDuration} type="number" min={1} max={10000} />
+              </>
+            )}
+            {(kind === 'tap' || kind === 'swipe') && <p className="text-xs text-faint">坐标使用设备像素。</p>}
+          </div>
+          <div className="mt-auto pt-7">
+            <Button className="w-full" variant="outline" onClick={addStep} disabled={action.pending}><Plus aria-hidden="true" />添加到流程</Button>
+          </div>
+          <ErrorNotice error={stepError} />
+        </aside>
+        <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-5 py-3 text-xs text-faint lg:col-span-2 sm:px-6">
+          <span>回执确认输入派发，界面效果需另行观察。</span>
+          <span>{action.pending ? '正在执行' : output ? '已有执行回执' : '尚无本次执行回执'}</span>
+        </footer>
       </div>
       <ActionFeedback {...action} />
       {output && (
-        <>
-          <h3>设备执行回执</h3>
-          {JSON.stringify(output.reference) !== JSON.stringify(snapshot.selection) && (
-            <p className="capability-notice">以下属于先前设备的历史结果。</p>
-          )}
-          <p>
-            设备 {output.outcome.data.device_id} · 已派发 {output.outcome.data.dispatched} 次输入 ·
-            派发流程已结束
-          </p>
-          <p className="muted">界面效果尚未确认。任务 ID：{output.outcome.job.id}</p>
+        <section className="min-w-0 rounded-lg border border-border bg-card p-5">
+          <h3 className="mb-3 text-sm font-semibold">设备执行回执</h3>
+          {JSON.stringify(output.reference) !== JSON.stringify(snapshot.selection) && <p className="mb-2 text-xs text-warning">以下属于先前设备的历史结果。</p>}
+          <p className="text-sm">设备 {output.outcome.data.device_id} · 已派发 {output.outcome.data.dispatched} 次输入 · 派发流程已结束</p>
+          <p className="mt-2 break-all text-xs text-muted-foreground">界面效果尚未确认。任务 ID：{output.outcome.job.id}</p>
           <JsonResult value={output.outcome} />
-        </>
+        </section>
       )}
     </section>
   );

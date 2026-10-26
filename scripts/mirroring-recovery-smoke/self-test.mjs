@@ -8,12 +8,14 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import { assertRecoveryView, createHttp, recoverySummary } from './http.mjs';
-import { caseDefinitions, parseOptions } from './options.mjs';
+import { caseDefinitions, legacyCaseNames, parseOptions } from './options.mjs';
 import { driverIdentities } from './freeze.mjs';
-import { pendingContract } from './recovery-contract.mjs';
+import { isolationPolicy, pendingContract } from './recovery-contract.mjs';
 import { bounded } from '../unified-discovery-browser/lifecycle.mjs';
 import { isFaultCallName } from './fault-processes.mjs';
 import { failureSummary } from './evidence.mjs';
+import { ownedResourceState } from './isolation.mjs';
+import { assertRecoveryBudget } from './completion.mjs';
 
 const generation = randomUUID();
 const reportValue = () => ({ status: 'recovered', coverage: 'plugin', inspected: 1, remaining: 0,
@@ -31,6 +33,47 @@ test('参数严格校验且默认选择所有冻结案例', () => {
   assert.throws(() => parseOptions(required.slice(1)));
   assert.throws(() => parseOptions([...required, '--browser-dist=dist']));
   assert.ok(parseOptions([...required, '--case=explicit-recovery', '--browser-dist=dist']).browserDist);
+});
+
+test('新策略案例与旧命令别名分开留证，不再执行旧全局拒绝期望', () => {
+  for (const [oldName, newName] of Object.entries(legacyCaseNames)) {
+    const options = parseOptions([...required, '--case=' + oldName]);
+    assert.equal(options.requestedCase, oldName);
+    assert.deepEqual(options.selected.map(({ name }) => name), [newName]);
+    assert.equal(caseDefinitions.some(({ name }) => name === oldName), false);
+  }
+  assert.ok(caseDefinitions.some(({ name }) => name === 'recovering-allows-open'));
+  assert.ok(caseDefinitions.some(({ name }) => name === 'independent-reopen'));
+});
+
+test('默认有界后台续办与冻结六隔离策略显式记录', () => {
+  assert.equal(parseOptions(required).completionRecovery, true);
+  assert.equal(parseOptions([...required, '--completion-recovery=false']).completionRecovery, false);
+  assert.equal(isolationPolicy.expected_host_freeze, 'frozen-06');
+  assert.deepEqual(isolationPolicy.automatic_recovery_delays_ms, [0, 250, 1000]);
+  assert.equal(isolationPolicy.automatic_recovery_max_attempts, 3);
+  assert.equal(isolationPolicy.historical_cleanup_failed_blocks_new_calls, false);
+  assert.equal(isolationPolicy.recovery_freezes_ordinary_calls, false);
+});
+
+test('隔离核对保留旧资源身份，不将只读查询次数变化误判为资源覆盖', () => {
+  const state = { 'remote-dir': '/owned/old', 'remote-pid': '7001', 'remote-owner': 'old-token',
+    'forward-owned': '31000', 'forward-device': 'old-device', 'forward-scid': '01020304',
+    list_attempts: 1, cleanup_attempts: 2 };
+  assert.deepEqual(ownedResourceState(state), ownedResourceState({ ...state, list_attempts: 9 }));
+  for (const key of ['remote-dir', 'remote-pid', 'remote-owner', 'forward-owned', 'forward-device', 'forward-scid'])
+    assert.notDeepEqual(ownedResourceState(state), ownedResourceState({ ...state, [key]: null }));
+});
+
+test('后台次数从真实日志计数判定，第四次或未结束核对均失败', () => {
+  const report = () => ({ scenario: 'completion-recovery', requests: [], sessions: [{}, {}],
+    resource_isolation_policy: isolationPolicy, logging: { recovery_runs: { started: 3, finished: 3 } } });
+  const legal = report(); assertRecoveryBudget(legal);
+  assert.equal(legal.background_recovery_budget.allowed_total, 3);
+  for (const runs of [{ started: 4, finished: 4 }, { started: 1, finished: 0 }, { started: 0, finished: 0 }]) {
+    const invalid = report(); invalid.logging.recovery_runs = runs;
+    assert.throws(() => assertRecoveryBudget(invalid));
+  }
 });
 
 test('合法恢复视图与插件级覆盖合同', () => {

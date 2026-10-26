@@ -38,7 +38,7 @@ export function isPerformanceStart(value: unknown): value is PerformanceStart {
     typeof value.target.package === 'string' &&
     value.target.package.length <= 200 &&
     /^[a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)+$/.test(value.target.package) &&
-    integer(value.interval_ms, 1000, 60000) &&
+    integer(value.interval_ms, 50, 60000) &&
     integer(value.duration_secs, 1, 3600)
   );
 }

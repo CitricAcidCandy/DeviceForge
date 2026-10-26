@@ -294,7 +294,7 @@ async fn blocked_commit_rechecks_the_original_sample_deadline_and_never_appends_
 }
 
 #[tokio::test]
-async fn sticky_cleanup_risk_allows_pause_and_stop_but_rejects_resume() {
+async fn historical_cleanup_warning_allows_pause_resume_stop_and_reload() {
     let fixture = Fixture::new(Arc::new(SqlitePerformance::open(":memory:").unwrap()), 1);
     fixture.source.mode.store(2, Ordering::Release);
     fixture.plugins.load(SOURCE_ID.into()).await.unwrap();
@@ -323,20 +323,19 @@ async fn sticky_cleanup_risk_allows_pause_and_stop_but_rejects_resume() {
         .unwrap();
     assert_eq!(same.revision, paused.revision);
     assert_eq!(same.error, paused.error);
-    assert!(matches!(
-        fixture
-            .service
-            .change(session.id.clone(), PerformanceState::Running)
-            .await,
-        Err(Error::CleanupFailed)
-    ));
+    fixture.source.mode.store(0, Ordering::Release);
+    let resumed = fixture
+        .service
+        .change(session.id.clone(), PerformanceState::Running)
+        .await
+        .unwrap();
+    assert_eq!(resumed.state, PerformanceState::Running);
     let stopped = fixture
         .service
         .change(session.id.clone(), PerformanceState::Stopped)
         .await
         .unwrap();
     assert_eq!(stopped.state, PerformanceState::Stopped);
-    assert_eq!(stopped.samples, 0);
     assert_eq!(stopped.source, session.source);
     assert_eq!(
         fixture
@@ -350,12 +349,17 @@ async fn sticky_cleanup_risk_allows_pause_and_stop_but_rejects_resume() {
     fixture.service.shutdown().await.unwrap();
     let history = fixture.service.get(session.id).await.unwrap();
     assert_eq!(history.state, PerformanceState::Stopped);
-    assert_eq!(history.samples, 0);
+    assert_eq!(history.samples, stopped.samples);
     assert!(fixture.plugins.list()[0].cleanup_failed);
-    assert!(matches!(
-        fixture.plugins.unload(SOURCE_ID.into()).await,
-        Err(Error::CleanupFailed)
-    ));
+    assert!(
+        fixture
+            .plugins
+            .unload(SOURCE_ID.into())
+            .await
+            .unwrap()
+            .cleanup_failed
+    );
+    fixture.plugins.load(SOURCE_ID.into()).await.unwrap();
     fixture.close().await;
 }
 

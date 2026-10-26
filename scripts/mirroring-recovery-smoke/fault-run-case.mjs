@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { copyFile, mkdir, readdir, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { poll } from '../device-provider/client.mjs';
@@ -18,7 +18,7 @@ const invalidModes = [
 ];
 
 // 使用真实宿主与独立协议故障进程验证宿主边界，不计为生产插件台账验收。
-export async function runFaultCase({ snapshot, directory, definition, manifest, runId }) {
+export async function runFaultCase({ snapshot, directory, definition, manifest, runId, completionRecovery }) {
   const name = definition.name, caseDirectory = join(directory, name), faultRoot = join(caseDirectory, 'fault');
   const report = { scenario: name, status: 'running', passed: false, scope: '真实宿主及受控协议故障进程；不是生产投屏插件',
     timestamp: new Date().toISOString(), checks: [], requests: [], sessions: [], tools: [],
@@ -28,6 +28,7 @@ export async function runFaultCase({ snapshot, directory, definition, manifest, 
   const cleanupError = (error, phase) => report.cleanup_errors.push(failureSummary(error, phase));
   await mkdir(faultRoot, { recursive: true });
   await writeFile(join(faultRoot, 'fault-fixture-owner'), runId, { flag: 'wx' });
+  await writeFile(join(faultRoot, 'mode'), 'coverage-omitted', { flag: 'wx' });
   try {
     host = await prepareHost({ binary: join(snapshot, 'apk-server.exe'),
       directory: join(caseDirectory, 'data'), report, port: await reservePort() });
@@ -70,7 +71,7 @@ export async function runFaultCase({ snapshot, directory, definition, manifest, 
     observer = observeFaultWorkers(faultRoot, join(snapshot, 'process-probe.exe'), join(snapshot, 'apk-server.exe'), report);
     stage = '通过真实协议 5 进程制造清理风险';
     const active = await host.client.post('/api/v2/sessions', { operation: 'plugin.mirroring.open',
-      input: { device_id: 'synthetic-recovery-fault' } }, { status: 202 });
+      input: { device_id: fixture?.device ?? 'synthetic-recovery-fault' } }, { status: 202 });
     report.sessions.push({ ...sessionSummary(active), log_id: report.requests.at(-1).log_id });
     await poll(() => host.client.json(`/api/v2/sessions/${active.id}/output?after=0&limit=100`),
       (page) => page.chunks.some((chunk) => chunk.stream === 'stdout' && Buffer.from(chunk.bytes).equals(Buffer.from([82]))),
@@ -84,11 +85,23 @@ export async function runFaultCase({ snapshot, directory, definition, manifest, 
     await observer.verifyLatestExit('open');
     const view = async () => assertRecoveryView(await host.client.recovery(), { generation: loaded.generation, supported: true });
     assert.equal((await view()).cleanup_failed, true);
+    if (completionRecovery) await poll(view, (value) => !value.recovering && value.last_report?.status === 'blocked',
+      '故障协议会话结束后的一次自动恢复已结束', 38000);
     report.fault_modes = [];
     if (name === 'legacy-empty-global') {
       stage = '有真实宿主风险但无生产台账/控制状态，POST 空对象不能假全局成功';
-      assert.deepEqual(await readdir(join(deployment, 'bin')), ['deviceforge-mirroring-plugin.exe']);
+      for (const path of [report.legacy_without_ledger.resource_root, report.legacy_without_ledger.control_root]) {
+        let names;
+        try { names = await readdir(path); } catch (error) { if (error.code !== 'ENOENT') throw error; names = []; }
+        assert.equal(names.some((item) => item.endsWith('.json')), false, '不得借用台账或控制状态代替未知旧资源');
+      }
       const reply = await host.client.call(recoveryPath, { method: 'POST', input: { generation: loaded.generation, input: {} } });
+      const call = report.fault_workers.filter((item) => item.operation === 'runtime.recover').at(-1);
+      assert.ok(call, '必须实际启动生产恢复插件');
+      const forwardedExit = JSON.parse(await readFile(call.base + '.forwarded-exit.json', 'utf8'));
+      assert.equal(forwardedExit.code, 0, '必须核对生产插件正常返回，不能以传输超时冒充旧资源被拒绝');
+      assert.equal(forwardedExit.signal, null);
+      report.forwarded_plugin_exit = forwardedExit;
       report.empty_input_result = { status: reply.status, log_id: reply.logId,
         report_status: reply.body.data?.last_report?.status, cleanup_failed: reply.body.data?.cleanup_failed };
       if (reply.status === 200) {
@@ -97,7 +110,12 @@ export async function runFaultCase({ snapshot, directory, definition, manifest, 
         assert.equal(value.cleanup_failed, true);
       } else assert.ok(reply.status >= 400 && reply.status < 600);
       assert.equal((await view()).cleanup_failed, true);
-      assert.deepEqual(await fixtureState(fixture, fixture.device), report.legacy_without_ledger.before);
+      const after = report.legacy_after = await fixtureState(fixture, fixture.device);
+      for (const [key, before] of Object.entries(report.legacy_without_ledger.before)) {
+        // 审计应增加只读查询次数；任何资源或清理、删除次数变化仍须失败。
+        if (key === 'list_attempts') assert.ok(after[key] > before, '必须实际查询旧资源');
+        else assert.deepEqual(after[key], before, '未知旧资源不得被修改：' + key);
+      }
       report.checks.push('真实风险及无台账旧资源在空输入时保持阻断，未假装全插件恢复');
     }
     for (const mode of name === 'legacy-empty-global' ? [] : name === 'invalid-coverage' ? invalidModes : ['hanging-after-report']) {

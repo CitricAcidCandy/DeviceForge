@@ -8,7 +8,7 @@
 
 等待取消不自动撤销服务器任务，也不自动重放请求；失败后以独立生命周期重新读取实际目录。无令牌参数的服务器选择继承 runtime 原有 ApiClient。不可变修订属于浏览器资源地址和请求头，不混入业务 input schema。
 
-`restore` 只恢复目录中 `enabled` 为真且状态为 `enabled` 的浏览器组件，不修改服务器启用意图。`recovery_blocked` 安装不能启用、更新或恢复；未知状态在 HTTP 边界拒绝。浏览器失败后 `retryBrowser` 只重试当前客户端，不重复安装或服务器启用任务。目录快照与客户端运行快照分别订阅，快照引用在通知之间保持稳定。启动默认恢复先读取统一安装目录，旧包默认流程排除已归属组件，目录不可读时不会绕过安装意图启动底层包。
+`restore` 只恢复目录中已有启用意图且可运行的浏览器组件，不修改服务器启用意图。`recovery_blocked` 的纯组件历史告警由公开 `isLegacyCleanupWarning` 判定，页面展示“上次组件操作告警，可重试”，不宣称清理已完成，不阻断显式新操作或已有启用意图的浏览器恢复。允许阶段为 `component_cleanup`、`activation_cleanup`、`enable_cleanup`、`activation_reload`、`startup_activation`、`unload_rollback`、`configuration_rollback`、`disable_rollback`；`activation_rollback`、`commit_rollback`、`transaction_*` 等文件事务故障、未知或缺失原因仍不能启用、更新或恢复，原状态与原因不改写。未知状态在 HTTP 边界拒绝。浏览器失败后 `retryBrowser` 只重试当前客户端，不重复安装或服务器启用任务。目录快照与客户端运行快照分别订阅，快照引用在通知之间保持稳定。启动默认恢复先读取统一安装目录，旧包默认流程排除已归属组件，目录不可读时不会绕过安装意图启动底层包。
 
 安装等待按事件序号增量读取阶段、资源和字节进度，进度独立订阅并保留任务及日志标识；取消等待后忽略晚到事件。资源总量可以未知，非法阶段或字节在 API 边界拒绝。进度读取失败只结束本地等待，随后重读目录，不重放服务器安装。
 

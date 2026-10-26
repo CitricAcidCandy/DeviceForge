@@ -14,7 +14,7 @@ function sourceDto(source: InstallationSource): InstallationSourceDto {
 function installation(value: InstalledReleaseDto): PluginInstallation {
   return { id: value.id, name: value.name, summary: value.description.split(/\r?\n/, 1)[0] ?? '',
     description: value.description, version: value.version, revision: value.revision,
-    enabled: value.enabled, status: value.status,
+    enabled: value.enabled, status: value.status, failure: value.failure ?? null,
     components: value.components.map((component) => ({ id: component.id, kind: component.kind,
       version: component.version, revision: component.revision, entryPath: component.entry_path,
       entryUrl: component.entry_url ?? null })) };

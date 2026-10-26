@@ -17,6 +17,11 @@ pub(crate) enum Inspection {
     Busy,
 }
 
+pub(crate) struct Snapshot {
+    pub inspection: Inspection,
+    state: State,
+}
+
 fn root(resources: &Path) -> Result<PathBuf, String> {
     Ok(resources
         .parent()
@@ -100,10 +105,50 @@ pub(crate) async fn inspect(
     storage::blocking(move || inspect_at(Paths { root, device: key }, confirmed)).await
 }
 
+pub(crate) async fn snapshot(resources: &Path, key: &str) -> Result<Snapshot, String> {
+    let paths = Paths {
+        root: root(resources)?,
+        device: key.into(),
+    };
+    storage::blocking(move || {
+        let _lock = paths.acquire()?;
+        let state = paths.read()?;
+        Ok(Snapshot {
+            inspection: inspect_locked(&paths, &state, false)?,
+            state,
+        })
+    })
+    .await
+}
+
+pub(crate) async fn confirm(
+    resources: &Path,
+    key: &str,
+    snapshot: Snapshot,
+) -> Result<Inspection, String> {
+    let paths = Paths {
+        root: root(resources)?,
+        device: key.into(),
+    };
+    storage::blocking(move || {
+        let _lock = paths.acquire()?;
+        let state = paths.read()?;
+        if state != snapshot.state {
+            return Err("控制状态已换代，旧资源核对结果不能清除新会话状态".into());
+        }
+        inspect_locked(&paths, &state, true)
+    })
+    .await
+}
+
 fn inspect_at(paths: Paths, confirmed: bool) -> Result<Inspection, String> {
     let _lock = paths.acquire()?;
     let state = paths.read()?;
-    let Some(_pins) = pins(&paths, &state)? else {
+    inspect_locked(&paths, &state, confirmed)
+}
+
+fn inspect_locked(paths: &Paths, state: &State, confirmed: bool) -> Result<Inspection, String> {
+    let Some(_pins) = pins(paths, state)? else {
         let owner_alive = match &state.owner_id {
             Some(owner) => paths.alive(owner)?,
             None => true,
@@ -128,8 +173,8 @@ fn inspect_at(paths: Paths, confirmed: bool) -> Result<Inspection, String> {
     next.transitioning = false;
     next.participants.clear();
     next.requests.clear();
-    if next != state {
-        next.changed_from(&state)?;
+    if next != *state {
+        next.changed_from(state)?;
         paths.save(&next)?;
     }
     Ok(Inspection::Clean)

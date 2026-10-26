@@ -232,29 +232,30 @@ async fn unconfirmed_cleanup_stays_sticky_after_another_session_succeeds() {
     finished(&harness.app, &second.id).await;
     assert!(provider.unresolved.load(Ordering::SeqCst));
     assert!(!harness.executor.has_unresolved_resources());
-    assert!(matches!(
-        harness
-            .app
-            .open_session(OPERATION, json!({"label":"不得再打开"})),
-        Err(Error::CleanupFailed)
-    ));
-    assert_eq!(provider.opens.load(Ordering::SeqCst), 2);
-    assert!(matches!(
-        harness.service.unload("test".into()).await,
-        Err(Error::CleanupFailed)
-    ));
-    let info = harness.service.list().pop().unwrap();
-    assert_eq!(info.state, PluginState::Draining);
+    let independent = harness.open("历史告警后独立新会话");
+    status(&harness.app, &independent.id, SessionStatus::Running).await;
+    assert_eq!(provider.opens.load(Ordering::SeqCst), 3);
+    provider.control(2).finish(completed(1));
+    let successful = finished(&harness.app, &independent.id).await;
+    assert_eq!(
+        successful.completion.unwrap().cleanup,
+        SessionCleanup::Complete
+    );
+    assert!(harness.service.list()[0].cleanup_failed);
+    let info = harness.service.unload("test".into()).await.unwrap();
+    assert_eq!(info.state, PluginState::Unloaded);
     assert!(info.cleanup_failed);
+    assert!(harness.service.list().is_empty());
     assert!(harness.app.session_definitions().1.is_empty());
-    assert!(matches!(
-        harness.service.load("test".into()).await,
-        Err(Error::Conflict(_))
-    ));
-    assert!(matches!(
-        harness.service.unload("test".into()).await,
-        Err(Error::CleanupFailed)
-    ));
+    let reloaded = harness.service.load("test".into()).await.unwrap();
+    assert_ne!(reloaded.generation, info.generation);
+    let next = harness.open("新代际不受旧告警封锁");
+    provider.control(3).finish(completed(1));
+    assert_eq!(
+        finished(&harness.app, &next.id).await.generation,
+        reloaded.generation
+    );
+    assert!(provider.unresolved.load(Ordering::SeqCst));
     assert_eq!(
         serde_json::to_value(harness.app.session(&first.id).unwrap()).unwrap(),
         serde_json::to_value(failed).unwrap()

@@ -1,4 +1,4 @@
-import type { ApiResult, EventQuery, JobEventDto } from '../../../services/api/index.ts';
+import type { ApiResult, EventQuery, JobEventDto, InstalledReleaseDto } from '../../../services/api/index.ts';
 import type { TaskRecord } from '../../../shared/jobs/index.ts';
 
 // 页面与生命周期的领域模型，由 HTTP 适配器从生成契约显式映射。
@@ -16,6 +16,7 @@ export interface PluginInstallation {
   readonly revision: string;
   readonly enabled: boolean;
   readonly status: 'installed' | 'enabled' | 'configuration_required' | 'recovery_blocked';
+  readonly failure?: InstalledReleaseDto['failure'];
   readonly name: string;
   readonly summary: string;
   readonly description: string;

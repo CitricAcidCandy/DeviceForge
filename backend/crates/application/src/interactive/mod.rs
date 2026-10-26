@@ -107,16 +107,6 @@ impl Application {
         if !self.registry.current_session(&registered)? {
             return Err(Error::Conflict("会话贡献已撤销或重载".into()));
         }
-        if registered.owner.info().cleanup_failed {
-            return Err(Error::CleanupFailed);
-        }
-        if registered
-            .owner
-            .recovering
-            .load(std::sync::atomic::Ordering::Acquire)
-        {
-            return Err(Error::Conflict("插件正在核对资源，请稍后重试".into()));
-        }
         if tokio::time::Instant::now() >= deadline {
             return Err(Error::Timeout);
         }
@@ -231,21 +221,14 @@ impl Application {
         let entry = self.sessions.find(id)?;
         let info = entry.snapshot();
         if info.status == SessionStatus::Finished {
-            if info
-                .completion
-                .as_ref()
-                .is_some_and(|completion| completion.cleanup == SessionCleanup::Complete)
-            {
-                self.session_remove(id)?;
-                return Ok(info);
-            }
-            return Err(Error::CleanupFailed);
+            // 释放工作台记录不等于宣称外部资源已清理；历史失败留在返回值和日志中。
+            self.session_remove(id)?;
+            return Ok(info);
         }
         entry.cancel();
         if entry.request_release() {
             let app = self.clone();
             let session_id = id.to_owned();
-            let released = entry.clone();
             let mut finished = entry.finished.subscribe();
             self.tracker.spawn(LogContext::propagate(async move {
                 while !*finished.borrow_and_update() {
@@ -253,14 +236,8 @@ impl Application {
                         return;
                     }
                 }
-                if released
-                    .snapshot()
-                    .completion
-                    .as_ref()
-                    .is_some_and(|completion| completion.cleanup == SessionCleanup::Complete)
-                {
-                    let _ = app.session_remove(&session_id);
-                }
+                // 用户已明确结束本次会话，不能因历史清理失败永久占住工作台名额。
+                let _ = app.session_remove(&session_id);
             }));
         }
         Ok(entry.snapshot())

@@ -205,7 +205,7 @@ async function scenario(mode, manifest) {
     const before = performance.now();
     let detached;
     try {
-      detached = await manage('unload', mode === 'complete' ? {} : { status: 409, errorCode: 'cleanup_failed' });
+      detached = await manage('unload');
     } finally {
       // 失败响应也保留耗时，不能把资源确认失败当作普通请求超时。
       result.unload_ms = performance.now() - before;
@@ -218,6 +218,9 @@ async function scenario(mode, manifest) {
     result.cancel_notification_received = cancellation !== undefined;
     result.process_exited_at_unload_return = true;
     result.cleaned_marker_at_unload_return = cleaned !== undefined;
+    assert.equal(detached.state, 'unloaded');
+    assert.equal(detached.cleanup_failed, mode !== 'complete');
+    assert.equal(detached.generation, loaded.generation);
     if (mode === 'complete') {
       assert.equal(detached.state, 'unloaded');
       assert.equal(detached.cleanup_failed, false);
@@ -239,17 +242,9 @@ async function scenario(mode, manifest) {
     const listed = await call('/api/v2/plugins');
     assert.equal(listed.response.status, 200);
     assert.deepEqual((await tool('deviceforge.list_plugins')).data, listed.body.data);
-    if (mode === 'complete') {
-      assert.deepEqual(listed.body.data, []);
-    } else {
-      assert.equal(listed.body.data.length, 1);
-      const owner = listed.body.data[0];
-      assert.equal(owner.id, pluginId);
-      assert.equal(owner.state, 'draining');
-      assert.equal(owner.cleanup_failed, true);
-      assert.equal(owner.generation, loaded.generation);
-      result.retained_state = { state: owner.state, cleanup_failed: owner.cleanup_failed, generation: owner.generation };
-    }
+    assert.deepEqual(listed.body.data, [], '真实调用已排空后，旧告警不能永久占住插件注册');
+    result.detached_state = { state: detached.state, cleanup_failed: detached.cleanup_failed,
+      generation: detached.generation };
     const operations = await call('/api/v2/operations');
     assert.equal(operations.response.status, 200);
     assert.ok(!operations.body.data.some((item) => item.id === operation));
@@ -261,23 +256,21 @@ async function scenario(mode, manifest) {
     result.http_mcp_operation_revoked = true;
     result.http_mcp_plugin_list_equal = true;
 
-    if (mode === 'complete') {
-      const reloaded = await manage('load', { transport: 'mcp' });
-      assert.notEqual(reloaded.generation, loaded.generation);
-      assert.equal(reloaded.cleanup_failed, false);
-      const unloaded = await manage('unload', { transport: 'mcp' });
-      assert.equal(unloaded.state, 'unloaded');
-      result.successful_reload_new_generation = true;
-    } else {
-      await manage('unload', { status: 409, errorCode: 'cleanup_failed' });
-      await manage('load', { status: 409, errorCode: 'conflict' });
-      await manage('unload', { transport: 'mcp', errorCode: 'cleanup_failed' });
-      await manage('load', { transport: 'mcp', errorCode: 'conflict' });
-      const retained = (await call('/api/v2/plugins')).body.data;
-      assert.deepEqual(retained, listed.body.data, '重复管理失败不能删除或替换排空 owner');
-      assert.deepEqual((await tool('deviceforge.list_plugins')).data, retained);
-      result.repeated_unload_and_reload_rejected = true;
-    }
+    // 切换到正常夹具后必须实际跑通下一笔，不能只证明删除了旧拒绝断言。
+    await writeFile(join(directory, 'manifest.json'), `${JSON.stringify({ ...manifest,
+      executable: binary('deviceforge-cooperative-demo-plugin'), args: [markers] }, null, 2)}\n`, 'utf8');
+    const reloaded = await manage('load', { transport: 'mcp' });
+    assert.notEqual(reloaded.generation, loaded.generation);
+    assert.equal(reloaded.cleanup_failed, false);
+    const next = await tool(operation, { duration_ms: 1 });
+    const succeeded = await poll(() => job(next.data.id),
+      (value) => ['succeeded', 'failed', 'cancelled'].includes(value.status), '新代际独立调用完成');
+    assert.equal(succeeded.status, 'succeeded');
+    assert.notEqual(succeeded.id, task.id);
+    result.independent_success = { job_id: succeeded.id, log_id: next.logId };
+    const unloaded = await manage('unload', { transport: 'mcp' });
+    assert.equal(unloaded.state, 'unloaded');
+    result.successful_reload_new_generation = true;
     await delay(100);
     assert.deepEqual(await job(task.id), terminal, '晚到结果不得覆盖历史终态及原因');
     result.history_status = expectedStatus;

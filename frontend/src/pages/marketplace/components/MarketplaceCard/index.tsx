@@ -11,7 +11,7 @@ import {
 import { Button, Badge } from '../../../../components/index.ts';
 import type { MarketplaceEntry, MarketplaceKind } from '../../../../features/marketplace/index.ts';
 import type { PackageInfo } from '../../../../services/api/index.ts';
-import { isReleaseEntry, type InstallationClientState, type PluginInstallation } from '../../../../features/plugin-installations/index.ts';
+import { isReleaseEntry, isLegacyCleanupWarning, installationRequiresRecovery, type InstallationClientState, type PluginInstallation } from '../../../../features/plugin-installations/index.ts';
 import {
   categoryLabels,
   kindLabels,
@@ -33,6 +33,7 @@ export interface MarketplaceCardProps {
   installed?: Pick<PackageInfo, 'version'> | undefined;
   removable?: boolean;
   removeDisabled?: boolean;
+  cleanupWarning?: boolean;
   installedTab?: boolean;
   installation?: PluginInstallation | undefined;
   clientState?: InstallationClientState | undefined;
@@ -54,6 +55,7 @@ export function MarketplaceCard({
   installedTab = false,
   removable = true,
   removeDisabled = false,
+  cleanupWarning: serverCleanupWarning = false,
   installation,
   clientState,
   onSetEnabled,
@@ -68,7 +70,8 @@ export function MarketplaceCard({
   const Icon = kindIcons[entry.kind];
   const update = installed ? newerVersion(entry.version, installed.version) : false;
   const blocked = installBlock(entry);
-  const recoveryBlocked = installation?.status === 'recovery_blocked';
+  const recoveryBlocked = installationRequiresRecovery(installation);
+  const cleanupWarning = serverCleanupWarning || isLegacyCleanupWarning(installation);
   return (
     <article className="marketplace-card flex min-h-44 flex-col gap-2 rounded-xl border border-[color:var(--hairline)] bg-[color:var(--card)] p-3.5">
       <div className="flex items-start gap-2.5">
@@ -111,6 +114,7 @@ export function MarketplaceCard({
       </div>
 
       {recoveryBlocked && <p role="alert">安装恢复受阻，请查看服务器恢复日志，完成恢复后刷新目录。</p>}
+      {cleanupWarning && <p role="status">上次组件操作告警，可重试：{installation?.failure?.reason || '资源回收未确认'}。</p>}
       {clientState?.phase === 'failed' && <p role="alert">本客户端：{clientState.message || '浏览器组件启动失败'}
         {clientState.logId && <> · 日志 ID：<code>{clientState.logId}</code></>}
       </p>}
@@ -129,7 +133,7 @@ export function MarketplaceCard({
               disabled={busy || (recoveryBlocked && !installation.enabled)} onClick={() => onSetEnabled(!installation.enabled)}>
               {installation.enabled ? '停用' : '启用'}
             </Button>}
-            {installation?.enabled && installation.status === 'enabled' && clientState?.phase === 'failed' && onRetryBrowser &&
+            {installation?.enabled && (installation.status === 'enabled' || (installation.status === 'recovery_blocked' && !recoveryBlocked)) && clientState?.phase === 'failed' && onRetryBrowser &&
               <Button variant="outline" size="sm" disabled={busy} onClick={onRetryBrowser}>重试本客户端</Button>}
             <Button
               variant="outline"

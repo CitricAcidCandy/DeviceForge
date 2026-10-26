@@ -98,20 +98,93 @@ async fn later_success_on_same_provider_cannot_clear_prior_unconfirmed_risk() {
         provider.has_unresolved_resources(),
         "公开提供者保持同一粘性风险"
     );
-    let blocked = provider.open(
-        SessionRequest {
-            session_id: "sticky-blocked".into(),
-            client: None,
-            operation: "plugin.independent-session.terminal".into(),
-            input: json!({"mode":"hold"}),
-            deadline: (Instant::now() + BUDGET).into_std(),
-        },
-        CancellationToken::new(),
-    );
-    assert!(
-        matches!(blocked, Err(Error::CleanupFailed)),
-        "已有未确认风险必须拒绝第三次准入"
-    );
+}
+
+#[tokio::test(start_paused = true)]
+async fn prior_cleanup_failure_allows_new_independent_process_without_losing_warning() {
+    for mode in ["failed", "wrong-id"] {
+        let fixture = Fixture::new();
+        let provider = fixture.plugin.session_provider().unwrap();
+        let mut failed = fixture.launch(
+            "serial-first",
+            json!({"mode":mode,"normal_gate":true}),
+            Instant::now() + BUDGET,
+            CancellationToken::new(),
+        );
+        let failed_pid = fixture.ready(&mut failed).await;
+        fixture.release("release-normal").await;
+        let failed_exit = failed.wait().await;
+        assert_eq!(
+            failed_exit.cleanup,
+            if mode == "failed" {
+                SessionCleanup::Failed
+            } else {
+                SessionCleanup::Unconfirmed
+            }
+        );
+        match mode {
+            "failed" => assert!(matches!(
+                failed_exit.failure.as_deref(),
+                Some(Error::CleanupFailed)
+            )),
+            _ => assert!(matches!(
+                failed_exit.failure.as_deref(),
+                Some(Error::Dependency(_))
+            )),
+        }
+        assert!(failed_exit.process_exited);
+        fixture.assert_exited(failed_pid).await;
+        assert!(fixture.plugin.has_unresolved_resources());
+        assert!(provider.has_unresolved_resources());
+
+        // 必须等第一笔失败终态后才准入，不能用预先启动的并发会话掩盖旧门禁。
+        let launch = provider
+            .open(
+                SessionRequest {
+                    session_id: "serial-next".into(),
+                    client: None,
+                    operation: "plugin.independent-session.terminal".into(),
+                    input: json!({"mode":"echo-eof"}),
+                    deadline: (Instant::now() + BUDGET).into_std(),
+                },
+                CancellationToken::new(),
+            )
+            .expect("历史告警不能拒绝独立新会话");
+        assert!(
+            !fixture.scoped_marker("start", "serial-next").exists(),
+            "纯构造仍不得启动进程"
+        );
+        let mut succeeding = support::Running {
+            id: "serial-next".into(),
+            handle: Some(launch.handle),
+            supervisor: tokio::spawn(launch.supervisor),
+        };
+        let success_pid = fixture.ready(&mut succeeding).await;
+        assert_ne!(failed_pid, success_pid);
+        let input = succeeding.handle().input();
+        let bytes = vec![0, 255, 13, 10];
+        observe(input.send(&bytes), "新进程真实输入").await.unwrap();
+        for stream in [SessionStream::Stdout, SessionStream::Stderr] {
+            let chunk = observe(succeeding.handle().recv(), "新进程真实回显")
+                .await
+                .expect("独立新进程返回输出");
+            assert_eq!(chunk.stream, stream);
+            assert_eq!(chunk.bytes, bytes);
+        }
+        observe(input.eof(), "新进程正常结束输入").await.unwrap();
+        let exit = succeeding.wait().await;
+        assert_eq!(exit.cleanup, SessionCleanup::Complete);
+        assert!(exit.process_exited);
+        assert!(exit.failure.is_none(), "旧失败不能污染本次真实成功");
+        let outcome = exit.outcome.as_ref().expect("新会话真实业务结果");
+        assert!(outcome.error.is_none());
+        assert_eq!(outcome.result, Some(json!({"inputs":1})));
+        fixture.assert_exited(success_pid).await;
+        assert!(fixture.plugin.has_unresolved_resources());
+        assert!(provider.has_unresolved_resources());
+        let cached = observe(failed.handle().wait(), "旧失败仍可查询").await;
+        assert!(Arc::ptr_eq(&failed_exit, &cached));
+    }
 }
 
 #[tokio::test(start_paused = true)]

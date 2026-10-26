@@ -144,21 +144,24 @@ async fn unsupported_and_stale_generation_never_execute_or_clear_failure() {
 }
 
 #[tokio::test]
-async fn active_credentials_return_busy_without_interruption() {
+async fn active_credentials_do_not_block_recovery_of_inactive_resources() {
     let (app, executor, owner) = setup(true);
     let active = owner.claim().unwrap();
     let result = app
         .recover_plugin("recover-test".into(), input(&owner))
         .await
         .unwrap();
-    assert_eq!(result.last_report.unwrap().status, RecoveryStatus::Busy);
-    assert_eq!(executor.calls.load(Ordering::Acquire), 0);
-    assert!(owner.info().cleanup_failed);
+    assert_eq!(
+        result.last_report.unwrap().status,
+        RecoveryStatus::Recovered
+    );
+    assert_eq!(executor.calls.load(Ordering::Acquire), 1);
+    assert!(!owner.tracker.is_empty());
     drop(active);
 }
 
 #[tokio::test]
-async fn dropped_http_waiter_keeps_admission_frozen_and_prevents_unload() {
+async fn dropped_http_waiter_keeps_recovery_owned_without_freezing_new_calls() {
     let (app, executor, owner) = setup(true);
     executor.waiting.store(true, Ordering::Release);
     let application = app.clone();
@@ -171,8 +174,25 @@ async fn dropped_http_waiter_keeps_admission_frozen_and_prevents_unload() {
     executor.entered.notified().await;
     waiting.abort();
     assert!(owner.recovering.load(Ordering::Acquire));
-    assert!(owner.claim().is_err());
-    assert!(app.registry.detach("recover-test").is_err());
+    let active = owner.claim().expect("后台核对不应冻结新调用");
+    let job = app
+        .submit_async("plugin.recover-test.echo".into(), json!({}))
+        .await
+        .expect("独立任务不应因后台恢复被拒绝");
+    assert_eq!(job.operation, "plugin.recover-test.echo");
+    tokio::time::timeout(Duration::from_secs(2), async {
+        loop {
+            let current = app.get_async(job.id.clone()).await.unwrap();
+            if current.status.is_terminal() {
+                assert_eq!(current.status, apk_domain::JobStatus::Succeeded);
+                break;
+            }
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .unwrap();
+    assert!(owner.recovering.load(Ordering::Acquire));
     let duplicate = app
         .recover_plugin("recover-test".into(), input(&owner))
         .await
@@ -187,6 +207,32 @@ async fn dropped_http_waiter_keeps_admission_frozen_and_prevents_unload() {
     .await
     .unwrap();
     assert!(!owner.info().cleanup_failed);
+    drop(active);
+    app.shutdown().await.unwrap();
+}
+
+#[tokio::test]
+async fn unloading_cancels_and_drains_the_owned_background_recovery() {
+    let (app, executor, owner) = setup(true);
+    executor.waiting.store(true, Ordering::Release);
+    let application = app.clone();
+    let request = input(&owner);
+    let waiting = tokio::spawn(async move {
+        application
+            .recover_plugin("recover-test".into(), request)
+            .await
+    });
+    executor.entered.notified().await;
+    let detached = app.registry.detach("recover-test").unwrap();
+    assert!(!detached.tracker.is_empty());
+    assert!(app.registry.finish(&detached).is_err());
+    executor.release.notify_one();
+    waiting.await.unwrap().unwrap();
+    tokio::time::timeout(Duration::from_secs(2), detached.tracker.wait())
+        .await
+        .unwrap();
+    app.registry.finish(&detached).unwrap();
+    assert!(app.registry.plugins().is_empty());
 }
 
 #[tokio::test]
@@ -243,7 +289,7 @@ async fn finished_session_performs_one_automatic_audit_without_replaying_busines
     owner.mark_unresolved();
     app.auto_recover_finished_session(owner.clone(), json!({}))
         .await;
-    assert_eq!(executor.calls.load(Ordering::Acquire), 2);
+    assert_eq!(executor.calls.load(Ordering::Acquire), 4);
     assert!(owner.info().cleanup_failed);
 }
 
@@ -252,6 +298,44 @@ async fn client_cannot_hide_cleanup_risk_from_plugin_global_audit() {
     let (app, executor, owner) = setup(true);
     let mut request = input(&owner);
     request.input = json!({"_host_cleanup_unconfirmed":false});
-    app.recover_plugin("recover-test".into(), request).await.unwrap();
-    assert_eq!(executor.seen.lock().unwrap().as_ref().unwrap()["_host_cleanup_unconfirmed"], true);
+    app.recover_plugin("recover-test".into(), request)
+        .await
+        .unwrap();
+    assert_eq!(
+        executor.seen.lock().unwrap().as_ref().unwrap()["_host_cleanup_unconfirmed"],
+        true
+    );
+}
+
+#[tokio::test]
+async fn a_new_cleanup_debt_during_recovery_is_serviced_after_the_old_attempt() {
+    let (app, executor, owner) = setup(true);
+    executor.waiting.store(true, Ordering::Release);
+    let application = app.clone();
+    let request = input(&owner);
+    let first = tokio::spawn(async move {
+        application
+            .recover_plugin("recover-test".into(), request)
+            .await
+            .unwrap()
+    });
+    executor.entered.notified().await;
+    owner.mark_unresolved();
+    let application = app.clone();
+    let pending_owner = owner.clone();
+    let pending = tokio::spawn(async move {
+        application
+            .auto_recover_finished_session(pending_owner, json!({}))
+            .await;
+    });
+    executor.waiting.store(false, Ordering::Release);
+    executor.release.notify_one();
+    assert!(first.await.unwrap().cleanup_failed);
+    tokio::time::timeout(Duration::from_secs(2), pending)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(executor.calls.load(Ordering::Acquire), 2);
+    assert!(!owner.info().cleanup_failed);
+    assert!(!owner.recovering.load(Ordering::Acquire));
 }

@@ -306,6 +306,6 @@ async fn first_poll_cancel_deadline_and_unresolved_owner_never_start_executor() 
         None,
     );
     worker.unresolved.store(true, Ordering::SeqCst);
-    assert!(matches!(future.await, Err(Error::Conflict(_))));
-    assert_eq!(worker.calls.load(Ordering::SeqCst), 0);
+    assert!(future.await.is_ok());
+    assert_eq!(worker.calls.load(Ordering::SeqCst), 1);
 }

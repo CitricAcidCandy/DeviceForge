@@ -34,9 +34,6 @@ where
     F: Future<Output = Result<T>>,
 {
     crate::operation_budget::check(deadline, Some(cancel))?;
-    if owner.is_some_and(|owner| owner.info().cleanup_failed) {
-        return Err(Error::CleanupFailed);
-    }
     let execution = AssertUnwindSafe(async {
         // 准入后其他线程仍可能取消；清理轮询不能因此首次启动业务Future。
         crate::operation_budget::check(deadline, Some(cancel))?;
@@ -76,7 +73,8 @@ where
     {
         owner.mark_unresolved();
     }
-    if owner.is_some_and(|owner| owner.info().cleanup_failed) {
+    // 只裁定本次执行；旧调用的清理警告不能污染当前独立任务。
+    if !risk.confirmed && owner.is_some() {
         Err(Error::CleanupFailed)
     } else {
         result
@@ -128,9 +126,6 @@ pub(crate) async fn execute_reported(
 ) -> Result<Value> {
     // 到调用执行器之间没有 await，避免异步状态更新后使用旧准入结论。
     crate::operation_budget::check(deadline, Some(&cancel))?;
-    if owner.is_some_and(|owner| owner.info().cleanup_failed) {
-        return Err(Error::Conflict("插件资源清理未确认，拒绝启动执行器".into()));
-    }
     let result = executor
         .execute_with_progress(
             operation,

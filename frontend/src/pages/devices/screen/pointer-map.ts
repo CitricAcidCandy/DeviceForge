@@ -5,6 +5,25 @@
  */
 export type FrameSize = { readonly width: number; readonly height: number };
 
+/*
+ * 画面真实尺寸取自元素自身而不是外部读数：canvas 的 width/height 属性就是解码帧尺寸，
+ * video 的 videoWidth/videoHeight 就是流的尺寸。外部（服务器/会话）读数可能是旧值或被缩放过的请求值，
+ * 一旦和真正画出来的像素对不上，点击就会整体偏——放大后偏移按像素放大，看起来就像「一放大就不准」。
+ */
+export function paintedFrameSize(
+  element: {
+    readonly videoWidth?: number;
+    readonly videoHeight?: number;
+    readonly width?: number;
+    readonly height?: number;
+  },
+  fallback: FrameSize,
+): FrameSize {
+  const width = element.videoWidth ?? element.width ?? 0;
+  const height = element.videoHeight ?? element.height ?? 0;
+  return width > 0 && height > 0 ? { width, height } : fallback;
+}
+
 const clamp = (value: number, min: number, max: number) =>
   value < min ? min : value > max ? max : value;
 

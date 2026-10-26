@@ -4,3 +4,4 @@ export type * from './types/index.ts';
 export { installationComponentKey, ownedInstallationComponents, installationForComponent } from './utils/ownership.ts';
 export { isReleaseEntry, marketInstallationSource } from './utils/source.ts';
 export { createInstallationGateway } from './services/http.ts';
+export { isLegacyCleanupWarning, installationRequiresRecovery } from './utils/recovery.ts';

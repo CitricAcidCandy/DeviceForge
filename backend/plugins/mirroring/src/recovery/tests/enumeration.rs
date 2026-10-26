@@ -124,7 +124,7 @@ async fn empty_catalog_without_risk_or_devices_only_confirms_registered_resource
     assert_eq!(report.status, RecoveryStatus::Recovered);
     assert_eq!(report.inspected, 0);
     assert!(report.message.contains("无已登记资源"));
-    assert!(report.message.contains("新连接设备打开前仍须严格核对"));
+    assert!(report.message.contains("独立资源"));
     assert!(report.validate());
     fake.consumed();
 }
@@ -187,28 +187,26 @@ async fn failed_legacy_audit_does_not_hide_other_online_devices() {
 }
 
 #[tokio::test]
-async fn first_open_without_trusted_history_strictly_audits_legacy_dfml() {
+async fn first_open_does_not_require_a_legacy_device_audit() {
     let root = root();
-    let mut blocked = Fake::new(vec![("list", Ok(b"")), ("shell", Err("发现无台账旧目录"))]);
-    assert!(sweep::device(&root, "demo", &mut blocked).await.is_err());
-    blocked.consumed();
-    assert_read_only(&blocked);
-    let mut clean = Fake::new(vec![("list", Ok(b"")), ("shell", Ok(b"DFML_AUDITED\n"))]);
-    sweep::device(&root, "demo", &mut clean).await.unwrap();
-    clean.consumed();
-    assert_read_only(&clean);
+    admission::check(&root, "demo").await.unwrap();
+    assert!(ledger::read_all(&root).await.unwrap().is_empty());
 }
 
 #[tokio::test]
 async fn first_open_never_removes_an_unowned_external_scrcpy_forward() {
     let root = root();
+    admission::check(&root, "demo").await.unwrap();
+    // 只有显式后台核对才读取转发；发现外来资源保留债务而不影响下一次准入。
     let mut fake = Fake::new(vec![(
         "list",
         Ok(b"demo tcp:42 localabstract:scrcpy_external\n"),
     )]);
-    assert!(sweep::device(&root, "demo", &mut fake).await.is_err());
+    let report = sweep::all(&root, Some("demo"), false, &mut fake).await;
+    assert_eq!(report.status, RecoveryStatus::Blocked);
     fake.consumed();
     assert_read_only(&fake);
+    admission::check(&root, "demo").await.unwrap();
 }
 
 #[cfg(any(windows, target_os = "linux"))]
@@ -221,9 +219,7 @@ async fn trusted_live_record_keeps_additional_viewers_out_of_legacy_audit() {
     let _lease = store::lock(&root.join(format!("{}.lease", value.token)), false)
         .unwrap()
         .unwrap();
-    let mut fake = Fake::new(vec![]);
-    sweep::device(&root, "demo", &mut fake).await.unwrap();
-    assert!(fake.calls.is_empty());
+    admission::check(&root, "demo").await.unwrap();
     assert!(value.path(&root).exists());
 }
 

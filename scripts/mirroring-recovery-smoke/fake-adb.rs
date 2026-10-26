@@ -38,6 +38,7 @@ fn field(script: &str, prefix: &str) -> String {
 }
 
 fn classify(args: &[String]) -> &'static str {
+    if args == ["devices"] { return "devices"; }
     assert!(args.len() >= 3 && args[0] == "-s", "拒绝未指定设备及全局命令");
     assert!(args[1].bytes().all(|byte| byte.is_ascii_alphanumeric() || byte == b'-'));
     let next = args.get(3).map(String::as_str).unwrap_or("");
@@ -80,6 +81,19 @@ fn delay_injection(root: &Path, millis: u64) -> io::Result<()> {
 }
 
 fn execute(root: &Path, call: &Path, args: &[String], category: &str) -> io::Result<i32> {
+    if category == "devices" {
+        assert_eq!(args, ["devices"]);
+        println!("List of devices attached");
+        let mut devices = fs::read_dir(root.join("plans"))?.map(|entry| entry.unwrap().file_name()).collect::<Vec<_>>();
+        devices.sort();
+        for device in devices {
+            let device = device.to_str().unwrap();
+            assert!(device.starts_with("cleanup-") || device.starts_with("retry-after-"));
+            println!("{device}\tdevice");
+        }
+        println!();
+        return Ok(0);
+    }
     let device = &args[1];
     let plan = root.join("plans").join(device);
     assert!(device.starts_with("cleanup-") || device.starts_with("retry-after-"));
@@ -88,7 +102,7 @@ fn execute(root: &Path, call: &Path, args: &[String], category: &str) -> io::Res
     assert!(matches!(version.as_str(), "3.3.1" | "3.3.4"));
     let mode = read(&plan, "mode")?;
     assert!(matches!(mode.as_str(), "success" | "list-once" | "remove-reply-lost" |
-        "cleanup-once" | "list-always" | "foreign-forward" | "shared-budget" | "pid-mismatch"));
+        "cleanup-once" | "list-always" | "foreign-forward" | "shared-budget" | "pid-mismatch" | "list-pair"));
     match category {
         "mkdir" => {
             assert_eq!(args.len(), 4);
@@ -131,14 +145,17 @@ fn execute(root: &Path, call: &Path, args: &[String], category: &str) -> io::Res
             let remote = read(&plan, "expected-dir")?;
             let scid = read(&plan, "scid")?;
             let prefix = contract::launch(&remote, &read(&plan, "token")?);
-            let expected = format!("{prefix}CLASSPATH={remote}/server.jar exec app_process / com.genymobile.scrcpy.Server {version} scid={scid} tunnel_forward=true video=true video_bit_rate=4000000 audio=false max_size=1024 max_fps=30 control=false clipboard_autosync=false send_device_meta=false send_dummy_byte=false cleanup=false");
+            let transport = fs::read_to_string(plan.join("transport")).unwrap_or_else(|_| "legacy".into());
+            assert!(matches!(transport.as_str(), "legacy" | "webrtc"));
+            let control = transport == "webrtc";
+            let expected = format!("{prefix}CLASSPATH={remote}/server.jar exec app_process / com.genymobile.scrcpy.Server {version} scid={scid} tunnel_forward=true video=true video_bit_rate=4000000 audio=false max_size=1024 max_fps=30 control={control} clipboard_autosync=false send_device_meta=false send_dummy_byte=false cleanup=false");
             assert_eq!(args[3], expected, "启动合同变更须显式审核夹具，不能宽松放行");
             assert_eq!(field(&args[3], "scid="), scid);
             fs::write(plan.join("remote-pid"), "7001")?;
             fs::write(plan.join("remote-owner"), scid)?;
             fs::write(plan.join("remote-start"), "9001")?;
             fs::write(plan.join("remote-boot"), "11111111-2222-4333-8444-555555555555")?;
-            socket_server::run(&plan, call, false, false)?;
+            socket_server::run(&plan, call, false, control)?;
         }
         "ready" => {
             assert_eq!(args.len(), 4);
@@ -156,6 +173,7 @@ fn execute(root: &Path, call: &Path, args: &[String], category: &str) -> io::Res
         "receipt" => {
             assert_eq!(args.len(), 4);
             assert_eq!(args[3], contract::receipt(&read(&plan, "expected-dir")?));
+            fs::write(plan.join("receipt-reported"), "1")?;
             println!("DFML_ID 7001 9001 11111111-2222-4333-8444-555555555555");
         }
         "cleanup" | "recover" => {
@@ -163,7 +181,8 @@ fn execute(root: &Path, call: &Path, args: &[String], category: &str) -> io::Res
             let remote = read(&plan, "expected-dir")?;
             let scid = read(&plan, "scid")?;
             let recovered = category == "recover";
-            let expected = contract::cleanup(&remote, &read(&plan, "token")?, &scid, &version, true, recovered);
+            let expected = contract::cleanup(&remote, &read(&plan, "token")?, &scid, &version,
+                plan.join("receipt-reported").exists(), recovered);
             assert_eq!(args[3], expected, "清理合同变更须显式审核夹具，禁止省略版本及所有权");
             let (_, attempt) = allocate(&plan, "cleanup-attempt")?;
             if mode == "pid-mismatch" {
@@ -176,9 +195,9 @@ fn execute(root: &Path, call: &Path, args: &[String], category: &str) -> io::Res
                 return Ok(73);
             }
             if plan.join("remote-dir").exists() {
-                assert_eq!(read(&plan, "remote-owner")?, scid);
+                if plan.join("remote-owner").exists() { assert_eq!(read(&plan, "remote-owner")?, scid); }
                 for name in ["remote-dir", "remote-pid", "remote-owner", "remote-start", "remote-boot", "directory-owner"] {
-                    fs::remove_file(plan.join(name))?;
+                    if plan.join(name).exists() { fs::remove_file(plan.join(name))?; }
                 }
             }
             assert!(!plan.join("remote-pid").exists() && !plan.join("remote-owner").exists());
@@ -188,6 +207,13 @@ fn execute(root: &Path, call: &Path, args: &[String], category: &str) -> io::Res
         "list-forward" => {
             assert_eq!(args.len(), 4);
             let (_, attempt) = allocate(&plan, "list-attempt")?;
+            if mode == "list-pair" {
+                let (_, injected) = allocate(&plan, "injected-list-failure")?;
+                if injected <= 2 {
+                    fs::write(call.join("injection"), "原会话两轮转发查询失败；随后恢复可重新核对")?;
+                    return Ok(1);
+                }
+            }
             if plan.join("hold-recovery").exists() && !plan.join("release-recovery").exists() {
                 fs::write(call.join("recovery-waiting"), "1")?;
                 while !plan.join("release-recovery").exists() { delay_injection(root, 5)?; }
@@ -201,7 +227,7 @@ fn execute(root: &Path, call: &Path, args: &[String], category: &str) -> io::Res
                 fs::write(call.join("injection"), "转发查询的非零退出")?;
                 return Ok(1);
             }
-            if mode == "foreign-forward" && attempt == 1 {
+            if mode == "foreign-forward" && !plan.join("foreign-original").exists() {
                 fs::write(plan.join("forward-device"), "foreign-device")?;
                 fs::write(plan.join("forward-scid"), "ffffffff")?;
                 let row = format!("foreign-device tcp:{} localabstract:scrcpy_ffffffff\n", read(&plan, "port")?);

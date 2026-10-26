@@ -18,7 +18,7 @@ pub async fn execute(request: Request, context: InvocationContext) -> Execution 
     }
     let lease = match recovery::process_lease(true).await {
         Ok(Some(lease)) => lease,
-        _ => return Execution::complete(Err("插件正在恢复或无法取得进程租约".into())),
+        _ => return Execution::complete(Err("本次调用无法取得进程租约".into())),
     };
     let mut cleanup = CleanupOutcome::Complete;
     let mut failed_output = None;

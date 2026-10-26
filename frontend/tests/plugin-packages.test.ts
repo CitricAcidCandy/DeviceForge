@@ -246,7 +246,7 @@ test('缺少 crypto.randomUUID 时在线包仍可启停重载，不复用运行�
   assert.deepEqual(Object.getOwnPropertyDescriptor(globalThis, 'crypto'), originalCrypto);
 });
 
-test('浏览器资源释放失败阻止部署删除和重新启用，保留部署供核对', async () => {
+test('浏览器本次释放失败仍报告并停止删除，历史诊断不封锁显式重新启用和移除', async () => {
   let releases = 0;
   let deletions = 0;
   let imports = 0;
@@ -272,7 +272,7 @@ test('浏览器资源释放失败阻止部署删除和重新启用，保留部�
       };
     },
     transport: async (_url, init) => {
-      if (init?.method === 'DELETE') ++deletions;
+      if (init?.method === 'DELETE') { ++deletions; return success(installedPackage()); }
       return success([installedPackage()]);
     },
   });
@@ -285,13 +285,22 @@ test('浏览器资源释放失败阻止部署删除和重新启用，保留部�
   assert.equal(deletions, 0);
   assert.deepEqual(runtime.webPlugins.snapshot(), []);
   assert.equal(runtime.pluginPackages.snapshot('browser').result?.data[0]?.id, 'example');
-  await assert.rejects(runtime.pluginPackages.enable('browser', 'example', signal()), { code: 'plugin_cleanup_failed' });
-  await assert.rejects(runtime.pluginPackages.remove('browser', 'example', signal()), { code: 'plugin_cleanup_failed' });
-  assert.equal(imports, 1);
-  assert.equal(contexts.length, 1);
-  assert.equal(deletions, 0);
+  const diagnostic = runtime.webPlugins.cleanupSnapshot()[0];
+  assert.ok(diagnostic?.error instanceof AggregateError);
+  const enabled = await runtime.pluginPackages.enable('browser', 'example', signal());
+  assert.notEqual(enabled.data.generation, diagnostic.generation);
+  assert.equal(imports, 2);
+  assert.equal(contexts.length, 2);
+  assert.equal(contexts[1]?.signal.aborted, false);
+  const oldContext = contexts[0];
+  assert.ok(oldContext);
+  await assert.rejects(oldContext.listOperations(signal()), /代际/);
+  await runtime.pluginPackages.remove('browser', 'example', signal());
+  assert.equal(deletions, 1);
+  assert.equal(contexts[1]?.signal.aborted, true);
+  assert.equal(runtime.webPlugins.cleanupSnapshot()[0], diagnostic);
   await runtime.dispose();
-  assert.equal(releases, 1);
+  assert.equal(releases, 2);
 });
 
 test('浏览器删除等待取消仍重查服务端已删除目录，本实例保持停用且不重复 DELETE', async () => {

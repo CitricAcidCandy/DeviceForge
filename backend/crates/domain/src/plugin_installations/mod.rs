@@ -178,6 +178,30 @@ pub struct InstalledRelease {
     pub requirements: Vec<ReleaseRequirement>,
 }
 
+impl InstalledRelease {
+    /// 组件操作失败不代表文件事务损坏，用户可以正常重试启停与更新。
+    pub fn has_retryable_component_warning(&self) -> bool {
+        self.failure.as_ref().is_some_and(|failure| {
+            matches!(
+                failure.phase.as_str(),
+                "component_cleanup"
+                    | "activation_cleanup"
+                    | "enable_cleanup"
+                    | "activation_reload"
+                    | "startup_activation"
+                    | "unload_rollback"
+                    | "configuration_rollback"
+                    | "disable_rollback"
+            )
+        })
+    }
+
+    pub fn requires_recovery(&self) -> bool {
+        self.status == InstallationStatus::RecoveryBlocked
+            && !self.has_retryable_component_warning()
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct InstallationRevision {

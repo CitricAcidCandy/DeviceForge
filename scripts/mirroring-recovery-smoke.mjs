@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { help, parseOptions } from './mirroring-recovery-smoke/options.mjs';
 import { driverIdentities, freezeInputs, verifyFrozenInputs } from './mirroring-recovery-smoke/freeze.mjs';
 import { failureSummary } from './mirroring-recovery-smoke/evidence.mjs';
-import { pendingContract, recoveryFixtureContract } from './mirroring-recovery-smoke/recovery-contract.mjs';
+import { isolationPolicy, pendingContract, recoveryFixtureContract } from './mirroring-recovery-smoke/recovery-contract.mjs';
 import { runCase } from './mirroring-recovery-smoke/run-case.mjs';
 import { runFaultCase } from './mirroring-recovery-smoke/fault-run-case.mjs';
 
@@ -20,12 +20,13 @@ async function run(selected) {
   const report = {
     timestamp: new Date().toISOString(), run_id: runId, passed: false, status: 'running',
     selected_cases: selected.selected.map(({ name }) => name), server_version: selected.version,
+    requested_case: selected.requestedCase, resource_isolation_policy: isolationPolicy,
     recovery_fixture_contract: recoveryFixtureContract, cases: [],
-    scope: '独占真实宿主、真实插件进程、原生模拟设备与 HTTP 恢复/保护行为',
+    scope: '独占真实宿主、真实插件进程、原生模拟设备与逐旧资源后台恢复及新调用隔离',
     limitations: [
       '不操作用户预览服务、真实设备或系统 ADB/HDC；不执行 Cargo 构建',
-      '模拟资源与合成媒体不证明真机、WebRTC 解码播放、输入、音频、长时或正式分发',
-      '恢复精确命令与台账未交接的案例明确待接入，不计为通过',
+      '合成资源不证明真机、输入、音频、长时或正式分发；浏览器解码只在显式启用的独立场景留证',
+      '缺少必需原生工具的案例明确待接入，不计为通过',
       'OS 句柄证据限本轮直接工具、插件及探针，不推断任意未知派生树',
     ],
   };
@@ -38,11 +39,12 @@ async function run(selected) {
     for (const definition of selected.selected) {
       stage = '案例：' + definition.name;
       const current = definition.recoveryFixture && (!recoveryFixtureContract.ready || recoveryFixtureContract.pending_cases.includes(definition.name)) ||
-        definition.name === 'tool-lease-debt' && !selected.leaseTool
+        definition.name === 'tool-lease-debt' && !selected.leaseTool || definition.completionOnly && !selected.completionRecovery
         ? pendingContract(definition.name)
-        : definition.hostFault ? await runFaultCase({ snapshot, directory, definition, manifest, runId })
+        : definition.hostFault ? await runFaultCase({ snapshot, directory, definition, manifest, runId,
+          completionRecovery: selected.completionRecovery })
         : await runCase({ snapshot, directory, definition, manifest, version: selected.version, runId,
-          browserDist: selected.browserDist });
+          browserDist: selected.browserDist, completionRecovery: selected.completionRecovery });
       if (current.status === 'pending_contract') {
         await mkdir(join(directory, definition.name));
         await writeFile(join(directory, definition.name, 'report.json'), JSON.stringify(current, null, 2) + '\n', 'utf8');

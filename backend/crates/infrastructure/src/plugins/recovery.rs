@@ -2,7 +2,7 @@
 use super::ProcessPlugin;
 use apk_domain::{Error, ExecutionContext, Result, plugin_recovery::RecoveryReport};
 use apk_plugin_sdk::{Manifest, Request, recovery::RecoveryStatus};
-use std::{sync::atomic::Ordering, time::Duration};
+use std::time::Duration;
 use tokio_util::sync::CancellationToken;
 
 pub(super) fn validate(manifest: &Manifest) -> Result<()> {
@@ -34,11 +34,8 @@ pub(super) async fn run(
         .recovery
         .as_ref()
         .ok_or_else(|| Error::Conflict("插件未声明资源恢复能力".into()))?;
-    if !crate::plugin_resources::recovery_ready(&plugin.unresolved) {
-        return Ok(RecoveryReport::busy(
-            "上次插件进程仍在收尾，退出确认后可再次核对",
-        ));
-    }
+    // 新活动调用不阻止独立插件逐旧资源核对；旧报告只能确认此刻已有的历史债务。
+    let recovery = crate::plugin_resources::ToolLease::recovery_snapshot(&plugin.unresolved);
     let deadline = context
         .deadline
         .ok_or_else(|| Error::Invalid("资源恢复缺少固定截止点".into()))?;
@@ -101,9 +98,16 @@ pub(super) async fn run(
     let result = serde_json::from_value(value)
         .map_err(|_| Error::Dependency("资源核对报告映射失败".into()))?;
     if report.status == RecoveryStatus::Recovered {
-        crate::plugin_resources::confirm_recovery(&plugin.unresolved)?;
-        // 调用者已冻结owner准入并排空，协议层确认直接进程退出和Complete后才能解除。
-        plugin.unresolved.store(false, Ordering::Release);
+        if let Err(error) = crate::plugin_resources::confirm_recovery(&recovery) {
+            return match error {
+                Error::Conflict(message) => Ok(RecoveryReport::busy(message)),
+                error => Err(error),
+            };
+        }
+        tracing::info!(
+            local_idle = crate::plugin_resources::recovery_ready(&plugin.unresolved),
+            "旧资源核对已确认，新调用租约与晚到债务保持独立"
+        );
     }
     Ok(result)
 }
@@ -112,6 +116,7 @@ pub(super) async fn run(
 mod tests {
     use super::*;
     use serde_json::json;
+    use std::sync::atomic::Ordering;
 
     fn manifest() -> Manifest {
         serde_json::from_value(
@@ -142,5 +147,66 @@ mod tests {
         let mut value = original;
         value.recovery = None;
         assert!(validate(&value).is_ok());
+    }
+
+    #[tokio::test]
+    async fn recovery_process_runs_with_new_active_lease_and_keeps_unreaped_debt_busy() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut definition = manifest();
+        definition.executable = "node".into();
+        definition.args = vec![
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("tests/fixtures/cleanup_isolation.mjs")
+                .to_str()
+                .unwrap()
+                .into(),
+            directory.path().to_str().unwrap().into(),
+        ];
+        let plugin = ProcessPlugin::new(definition).unwrap();
+        plugin.unresolved.store(true, Ordering::Release);
+        let active = crate::plugin_resources::acquire(
+            None,
+            &CancellationToken::new(),
+            tokio::time::Instant::now() + Duration::from_secs(5),
+            &plugin.unresolved,
+        )
+        .await
+        .unwrap();
+        for (name, pending) in [("active", false), ("pending", true)] {
+            if pending {
+                active.retain();
+            }
+            let report = run(
+                &plugin,
+                json!({"name":name}),
+                CancellationToken::new(),
+                ExecutionContext {
+                    deadline: Some(std::time::Instant::now() + Duration::from_secs(10)),
+                },
+            )
+            .await
+            .unwrap();
+            assert_eq!(
+                report.status,
+                if pending {
+                    apk_domain::plugin_recovery::RecoveryStatus::Busy
+                } else {
+                    apk_domain::plugin_recovery::RecoveryStatus::Recovered
+                }
+            );
+            assert!(
+                directory.path().join(format!("{name}.json")).exists(),
+                "活动调用不能阻止实际核对运行"
+            );
+            assert!(!crate::plugin_resources::recovery_ready(&plugin.unresolved));
+            assert!(plugin.unresolved.load(Ordering::Acquire));
+        }
+        active.process_exited();
+        drop(active);
+        crate::plugin_resources::confirm_recovery(
+            &crate::plugin_resources::ToolLease::recovery_snapshot(&plugin.unresolved),
+        )
+        .unwrap();
+        assert!(!plugin.unresolved.load(Ordering::Acquire));
     }
 }

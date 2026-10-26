@@ -423,6 +423,20 @@
   padding: 0;
 }
 /*
+ * 任务页同样是两栏常驻工作台：主区吃满剩余高度。
+ * 注意不能沿用上面的 max-width + auto 外边距——弹性容器里 auto 外边距会把
+ * 子项横向收缩成内容宽度，整页看着像没铺满。
+ */
+.product-shell[data-route='tasks'] .workplane > [data-route] {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  margin-inline: 0;
+  max-width: none;
+}
+/*
  * 设备页是满幅舞台：不留滚动条槽位，否则整页右缘会多出一条 15px 的空白带，
  * 看起来像「宽度没占够」。舞台内部自己滚，工作区不需要滚动。
  */

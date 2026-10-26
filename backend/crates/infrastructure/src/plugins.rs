@@ -251,6 +251,12 @@ impl Executor for ProcessPlugin {
         async {
             let started = std::time::Instant::now();
             tracing::info!("插件调用开始");
+            if self.has_unresolved_resources() {
+                tracing::warn!(
+                    cleanup = "historical_unresolved",
+                    "插件存在历史清理告警，本次独立调用仍按实际进程结果判断"
+                );
+            }
             let result = self.invoke(operation, input, cancel, id, context).await;
             let code = result.as_ref().err().map(Error::code).unwrap_or("ok");
             tracing::info!(

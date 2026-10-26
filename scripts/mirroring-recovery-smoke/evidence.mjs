@@ -35,7 +35,7 @@ export async function verifyLogs(host, report) {
   const names = (await readdir(directory)).filter((name) => name.endsWith('.jsonl'));
   assert.ok(names.length > 0 && names.length <= 32);
   const wanted = host.client.logIds, found = new Set(), files = [], rows = [];
-  let bytes = 0, stopped = false;
+  let bytes = 0, stopped = false, recoveryStarted = 0, recoveryFinished = 0;
   for (const name of names) {
     const path = join(directory, name), size = (await stat(path)).size;
     bytes += size;
@@ -56,11 +56,14 @@ export async function verifyLogs(host, report) {
       for (const id of matched) found.add(id);
       if (matched.length) rows.push({ path, line: index + 1, log_ids: matched });
       if (record.fields?.message === '宿主运行已结束') stopped = true;
+      if (record.fields?.message === '插件资源核对开始') recoveryStarted++;
+      if (record.fields?.message === '插件资源核对结束') recoveryFinished++;
     }
   }
   report.logging = { files, response_log_ids: [...wanted].sort(),
     observed_log_ids: [...found].sort(), missing_log_ids: [...wanted].filter((id) => !found.has(id)),
-    locations: rows, normal_stop_observed: stopped };
+    locations: rows, normal_stop_observed: stopped,
+    recovery_runs: { started: recoveryStarted, finished: recoveryFinished } };
   assert.deepEqual([...found].sort(), [...wanted].sort(), '每个响应日志 ID 须能关联本轮宿主原件');
   assert.equal(stopped, true, '独占宿主必须有正常停止日志');
 }

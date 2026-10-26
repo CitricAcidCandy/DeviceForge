@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { assertRecoveryView, recoveryPath, recoverySummary } from './http.mjs';
-import { assertNoOwnedResources, fixtureState, toolCount } from './fixtures.mjs';
+import { assertNoOwnedResources, fixtureState, setMode, toolCount } from './fixtures.mjs';
 import { runRecoveryCase } from './recovery-cases.mjs';
+import { settleFailedCompletion } from './completion.mjs';
+import { independentSession, ownedResourceState } from './isolation.mjs';
 
 export async function readView(context, supported = true) {
   const view = assertRecoveryView(await context.host.client.recovery(), {
@@ -20,9 +22,12 @@ async function plugin(context) {
 }
 
 export async function makeRisk(context, device = context.fixture.device) {
+  await setMode(context.fixture, device, 'success');
   const opened = await context.sessions.open(device);
+  await setMode(context.fixture, device, 'list-always');
   await context.sessions.cancel(opened, 'failed');
   assert.equal((await plugin(context)).cleanup_failed, true);
+  await settleFailedCompletion(context);
   return opened;
 }
 
@@ -78,30 +83,31 @@ export async function runScenario(context) {
     assert.equal(after.cleanup_failed, true);
     assert.equal(after.recovering, false);
     assert.deepEqual(await fixtureState(fixture, fixture.device), state);
-    report.denied_open = await sessions.openDenied();
+    await independentSession(context);
     assert.equal((await plugin(context)).cleanup_failed, true);
-    report.checks.push('不支持恢复时接口与新会话都拒绝，保留风险与未确认资源');
+    report.checks.push('不支持恢复时仅恢复接口拒绝，独立新会话成功且保留旧资源诊断');
     return;
   }
-  if (name === 'active-session-busy') {
+  if (name === 'active-session-recovery') {
     context.stage = '活跃媒体会话中的恢复请求';
     const active = await sessions.open();
     const before = await fixtureState(fixture, fixture.device);
-    const count = await toolCount(fixture);
     const view = assertRecoveryView(await host.client.recover(context.generation, fixture.device), {
       generation: context.generation, supported: true, freshReport: true,
     });
-    assert.equal(view.last_report?.status, 'busy');
+    assert.equal(view.last_report?.status, 'recovered');
+    assert.ok(view.last_report.inspected >= 1 && view.last_report.checks.length > 0,
+      '恢复必须实际扫描并报告活跃资源，不能在宿主准入处全局返回 busy');
     assert.equal(view.recovering, false);
     assert.equal(view.cleanup_failed, false);
     assert.equal((await host.client.json(`/api/v2/sessions/${active.id}`)).status, 'running');
-    assert.equal(await toolCount(fixture), count, '忙碌响应不得清理活跃资源');
-    assert.deepEqual(await fixtureState(fixture, fixture.device), before);
+    assert.deepEqual(ownedResourceState(await fixtureState(fixture, fixture.device)), ownedResourceState(before),
+      '恢复扫描不得释放、覆盖活跃新会话资源');
     report.recovery_views.push(recoverySummary(view));
     await sessions.cancel(active, 'complete');
     await assertNoOwnedResources(fixture, fixture.device);
     assert.equal((await plugin(context)).cleanup_failed, false);
-    report.checks.push('活跃会话返回 busy，不终止媒体且用户取消后正常清理');
+    report.checks.push('活跃新会话期间实际扫描旧资源，跳过新资源且用户取消后正常清理');
     return;
   }
   await runRecoveryCase(context);

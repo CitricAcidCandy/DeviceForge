@@ -67,9 +67,6 @@ impl SourceAccess {
                 .performance
                 .as_ref()
                 .ok_or_else(|| Error::NotFound("性能采样源不可用".into()))?;
-            if owner.info().cleanup_failed {
-                return Err(Error::CleanupFailed);
-            }
             if owner.cancel.is_cancelled() {
                 return Err(Error::Conflict("性能来源代际已撤销".into()));
             }
@@ -92,9 +89,6 @@ impl SourceAccess {
         let (application, registered) = self.current()?;
         application.registry.with_current(&registered, || {
             let owner = registered.owner.as_ref().expect("来源必须归属于插件");
-            if owner.info().cleanup_failed {
-                return Err(Error::CleanupFailed);
-            }
             if owner.cancel.is_cancelled() {
                 return Err(Error::Conflict("性能来源代际已撤销".into()));
             }
@@ -175,9 +169,6 @@ impl SourceBinding {
     pub fn check_current(&self, access: &SourceAccess) -> Result<()> {
         let application = access.application()?;
         application.registry.with_current(&self.registered, || {
-            if self.owner.info().cleanup_failed {
-                return Err(Error::CleanupFailed);
-            }
             if self.owner.cancel.is_cancelled() {
                 return Err(Error::Conflict("性能来源代际已撤销".into()));
             }
@@ -201,16 +192,6 @@ impl SourceBinding {
         let application = access.application()?;
         application.registry.with_current(&self.registered, || {
             crate::operation_budget::check(deadline, Some(cancel))?;
-            if self
-                .owner
-                .recovering
-                .load(std::sync::atomic::Ordering::Acquire)
-            {
-                return Err(Error::Conflict("性能来源正在核对资源".into()));
-            }
-            if self.owner.info().cleanup_failed {
-                return Err(Error::CleanupFailed);
-            }
             if self.owner.cancel.is_cancelled() {
                 return Err(Error::Conflict("性能来源代际已撤销".into()));
             }
@@ -228,13 +209,6 @@ impl SourceBinding {
         let application = access.application()?;
         application.registry.with_current(&self.registered, || {
             crate::operation_budget::check(deadline, Some(cancel))?;
-            if self
-                .owner
-                .recovering
-                .load(std::sync::atomic::Ordering::Acquire)
-            {
-                return Err(Error::Conflict("性能来源正在核对资源".into()));
-            }
             if self.owner.cancel.is_cancelled() {
                 return Err(Error::Conflict("性能来源代际已撤销".into()));
             }

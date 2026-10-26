@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/domain", "crates/plugin-sdk", "crates/infrastructure", "crates/application", "crates/server", "plugins/echo", "plugins/artifact-copy", "plugins/performance-demo", "crates/data-codec", "plugins/msgpack", "crates/observability", "crates/plugin-runtime", "plugins/cooperative-demo", "crates/tool-process", "crates/tool-repository", "crates/android-package-core", "plugins/android-packages", "plugins/android-device", "plugins/harmony-device", "plugins/settings", "plugins/automation", "plugins/ai-assistant", "plugins/mirroring", "plugins/frida", "plugins/tool-supply", "plugins/terminal", "plugins/dex-analysis", "plugins/ai-sdk", "plugins/marketplace"]
+members = ["crates/domain", "crates/plugin-sdk", "crates/plugin-dependencies", "crates/infrastructure", "crates/application", "crates/server", "plugins/echo", "plugins/artifact-copy", "plugins/performance-demo", "crates/data-codec", "plugins/msgpack", "crates/observability", "crates/plugin-runtime", "plugins/cooperative-demo", "crates/tool-process", "crates/tool-repository", "crates/android-package-core", "plugins/android-packages", "plugins/android-device", "plugins/harmony-device", "plugins/settings", "plugins/automation", "plugins/ai-assistant", "plugins/mirroring", "plugins/frida", "plugins/tool-supply", "plugins/terminal", "plugins/dex-analysis", "plugins/ai-sdk", "plugins/marketplace"]
 resolver = "2"
 
 [workspace.package]
@@ -29,6 +29,7 @@ apk-plugin-sdk = { path = "crates/plugin-sdk" }
 deviceforge-plugin-runtime = { path = "crates/plugin-runtime" }
 deviceforge-tool-process = { path = "crates/tool-process" }
 deviceforge-tool-repository = { path = "crates/tool-repository" }
+deviceforge-plugin-dependencies = { path = "crates/plugin-dependencies" }
 deviceforge-android-package-core = { path = "crates/android-package-core" }
 apk-infrastructure = { path = "crates/infrastructure" }
 apk-application = { path = "crates/application" }

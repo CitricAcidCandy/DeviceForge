@@ -1,6 +1,8 @@
 //! 不连接设备：使用真实文件锁与注入命令验证恢复边界。
 mod catalog;
 mod enumeration;
+mod identities;
+mod isolation;
 mod stages;
 
 use super::*;
@@ -468,20 +470,18 @@ async fn target_a_does_not_hide_failed_device_b_and_records_are_not_dropped() {
 
 #[cfg(windows)]
 #[tokio::test]
-async fn next_open_reconciles_nonempty_stale_ledger_and_removes_it_only_after_confirmation() {
+async fn next_open_preserves_nonempty_stale_ledger_for_background_recovery() {
     let root = root();
     let value = record("demo", 1);
     write(&root, &value);
-    let mut failed = Fake::new(vec![("list", Err("设备暂时离线"))]);
-    assert!(sweep::device(&root, "demo", &mut failed).await.is_err());
+    admission::check(&root, "demo").await.unwrap();
     assert!(value.path(&root).exists());
     let mut ready = Fake::new(vec![("list", Ok(b"")), ("shell", Ok(b"DFML_RECOVERED\n"))]);
-    sweep::device(&root, "demo", &mut ready).await.unwrap();
+    let report = sweep::all(&root, None, false, &mut ready).await;
+    assert_eq!(report.status, RecoveryStatus::Recovered);
     ready.consumed();
     assert!(!value.path(&root).exists());
-    let mut reopen = Fake::new(vec![("list", Ok(b"")), ("shell", Ok(b"DFML_AUDITED\n"))]);
-    sweep::device(&root, "demo", &mut reopen).await.unwrap();
-    reopen.consumed();
+    admission::check(&root, "demo").await.unwrap();
 }
 
 #[tokio::test]

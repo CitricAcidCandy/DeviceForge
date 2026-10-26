@@ -8,7 +8,7 @@ PerformanceService 注册 android.performance.start / inspect / pause / resume /
 
 每会话有独立提交序列，样本 append 与 pause/resume/stop/完成/中断共享该顺序，并继续使用存储 Running/revision CAS。成功样本提交前复核当前源/设备并在短注册锁内登记资格；锁内不做 I/O。数据库使用独立 4 槽工作池；许可、服务与来源 tracker token、序列守卫及样本槽随真实 `spawn_blocking` 闭包存活，外层取消、超时或丢弃 await 不提前释放实际资源。阻塞线程首次 I/O 前重检原期限，已开始的 I/O 可在外层超时后继续收敛；panic 在闭包内登记来源粘性风险。
 
-pause 先提交 Paused/revision，再取消在途样本、通知 worker 并由存储清除 CPU 基线；控制返回表示状态确认，不表示资源已排空。resume 要求原来源/设备仍当前、期限未过、样本已真正排空；仍在收口返回 conflict，已知风险返回 cleanup_failed。Paused/Stopped 等已提交状态不被清理错误覆盖，同态 transition 不补写 error；Paused 风险通过 PluginInfo.cleanup_failed 与 resume 的 CleanupFailed 观察，Running 采样失败可写 Failed/error。恢复首样本无旧 CPU 差分，stop 保留旧终态幂等，取消清理后返回的晚样本不落库。
+pause 先提交 Paused/revision，再取消在途样本、通知 worker 并由存储清除 CPU 基线；控制返回表示状态确认，不表示资源已排空。resume 要求原来源/设备仍当前、期限未过、样本已真正排空；仍在收口返回 conflict，历史风险不再阻止恢复。Paused/Stopped 等已提交状态不被清理错误覆盖，同态 transition 不补写 error；Paused 历史风险通过 PluginInfo.cleanup_failed 观察，不使独立 resume 失败，Running 采样失败可写 Failed/error。恢复首样本无旧 CPU 差分，stop 保留旧终态幂等，取消清理后返回的晚样本不落库。
 
 启动、worker、控制与实际数据库闭包均受 tracker 排空；来源 owner 取消会使 Running、Paused 或启动中的会话收敛 Interrupted，旧终态和 source 不改，新代仅供新会话。会话正常到期 Completed，关闭服务取消并等待 worker、启动/控制任务和仍在执行的阻塞闭包。生产样本复用原执行内核的唯一两秒清理窗口，不另开窗口、不忽略清理结果；风险保持在 owner，不以慢数据库或仅仍在排空直接推断外部清理失败。
 

@@ -15,7 +15,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '../../../../components/Dialog/index.tsx';
-import { Field, JsonResult } from '../../../../components/index.ts';
+import { JsonResult } from '../../../../components/index.ts';
+import { AutomationField as Field } from '../../field.tsx';
 import { useOperationAvailable } from '../../../../app/product/capabilities.tsx';
 import { ActionFeedback } from '../../../../app/product/feedback.tsx';
 import { useAction } from '../../../../app/product/hooks.ts';
@@ -68,13 +69,13 @@ export function InputTraceAutomation({ services }: { services: ProductServices }
       return result;
     });
   return (
-    <section className="workspace-section">
+    <section className="min-w-0 space-y-4">
       <h2>服务器输入轨迹</h2>
       <p className="muted">
         录制服务器电脑的输入事件，或以公开产物 ID 回放。回放会向服务器电脑派发真实输入，格式为
         input_trace.msgpack.v1。
       </p>
-      <div className="form-row">
+      <div className="grid grid-cols-1 items-start gap-x-6 gap-y-4 sm:grid-cols-2 xl:grid-cols-4 [&>[data-slot=select-trigger]]:w-full sm:[&>[data-slot=select-trigger]]:mt-7 [&>[data-slot=button]]:justify-self-start sm:[&>[data-slot=button]]:mt-7">
         <Select
           value={String(events)}
           onValueChange={(value) => {
@@ -124,7 +125,7 @@ export function InputTraceAutomation({ services }: { services: ProductServices }
           开始录制轨迹
         </Button>
       </div>
-      <div className="form-row">
+      <div className="grid grid-cols-1 items-start gap-x-6 gap-y-4 sm:grid-cols-[minmax(0,1fr)_auto] [&>[data-slot=button]]:justify-self-start sm:[&>[data-slot=button]]:mt-7">
         <Field
           label="回放轨迹产物 ID"
           value={artifact}

@@ -77,6 +77,7 @@ export function createMirroringStreaming(
     return identity;
   }
   function reset(): void {
+    releaseTask = null;
     ++streamGeneration;
     state.reset();
     stream.reset();
@@ -399,69 +400,70 @@ export function createMirroringStreaming(
       if (signal.aborted)
         return Promise.reject(new ApiError('cancelled', 'cancelled', '投屏释放等待已取消'));
       if (releaseTask) return abortable(releaseTask, signal);
-      const timeout = AbortSignal.timeout(15000);
-      const context = state.begin('release', timeout);
       const identity = selected();
-      const clearSession = (logId: string | null) => {
-        state.update(
-          context,
-          {
+      let resolveTask!: (result: ApiResult<SessionInfo>) => void;
+      let rejectTask!: (error: unknown) => void;
+      const pending = new Promise<ApiResult<SessionInfo>>((resolve, reject) => {
+        resolveTask = resolve;
+        rejectTask = reject;
+      });
+      // 先登记任务，再发布释放状态，订阅重入也只会提交一次。
+      releaseTask = pending;
+      const worker = (async () => {
+        const timeout = AbortSignal.timeout(15000);
+        const context = state.begin('release', timeout);
+        const clearSession = (logId: string | null, error?: ApiError) => {
+          state.assertCurrent(context, logId);
+          ++streamGeneration;
+          controlReady = false;
+          stream.reset();
+          options.sink?.reset?.();
+          state.update(context, {
             session: null, inputState: 'unknown', status: null, video: null, audio: null, clipboard: null,
             cursor: 0, epoch: 0, packets: 0, pendingBytes: 0,
-          },
-          logId,
-        );
-        ++streamGeneration;
-        controlReady = false;
-        stream.reset();
-        options.sink?.reset?.();
-      };
-      releaseTask = run(context, async () => {
-        try {
-          let result: ApiResult<unknown>;
+            ...(error ? { errors: Object.freeze({ ...state.snapshot().errors, release: error }) } : {}),
+          }, logId);
+        };
+        return run(context, async () => {
           try {
-            result = await read(context, (active) => gateway.release(identity.id, active));
-          } catch (error) {
-            if (!(error instanceof ApiError) || error.status !== 404) throw error;
-            clearSession(error.logId);
-            return { data: identity, logId: error.logId };
-          }
-          const data = decodeStreamInfo(result.data, result.logId, identity);
-          let observed = data;
-          let observedLogId = result.logId;
-          state.update(context, { session: data, inputState: 'uncertain' }, result.logId);
-          while (observed.status !== 'finished') {
-            await pause(context.signal, Math.max(interval, 100));
-            let current: ApiResult<unknown>;
+            let result: ApiResult<unknown>;
             try {
-              current = await read(context, (active) => gateway.get(identity.id, active));
+              // 换代仅撤销本地等待，已提交的旧会话释放继续使用独立请求期限。
+              result = await read(context, () => gateway.release(identity.id, timeout));
             } catch (error) {
               if (!(error instanceof ApiError) || error.status !== 404) throw error;
-              clearSession(result.logId);
-              return { data, logId: result.logId };
+              clearSession(error.logId);
+              return { data: identity, logId: error.logId };
             }
-            observed = decodeStreamInfo(current.data, current.logId, identity);
-            observedLogId = current.logId;
-            state.update(context, { session: merge(observed) }, current.logId);
+            const data = decodeStreamInfo(result.data, result.logId, identity);
+            const cleanupError = data.status === 'finished' && data.completion?.cleanup !== 'complete'
+              ? new ApiError('protocol', 'mirroring_cleanup_failed',
+                '会话已结束并释放，历史资源核对尚未完成', null, result.logId)
+              : undefined;
+            // 已接受释放即可退出本地消费，后台清理不再作为重开的锁。
+            clearSession(result.logId, cleanupError);
+            return { data, logId: result.logId };
+          } catch (error) {
+            if (timeout.aborted)
+              throw new ApiError(
+                'network', 'mirroring_release_pending', '释放请求超时，请查询服务端会话状态',
+                null, state.snapshot().logs.release ?? null,
+              );
+            throw error;
           }
-          if (observed.completion?.cleanup !== 'complete')
-            throw new ApiError(
-              'protocol', 'mirroring_cleanup_failed', '投屏会话清理未确认', null, observedLogId,
-            );
-          clearSession(result.logId);
-          return { data, logId: result.logId };
-        } catch (error) {
-          if (timeout.aborted)
-            throw new ApiError(
-              'network', 'mirroring_release_pending', '释放等待超时，请查询服务端会话状态',
-              null, state.snapshot().logs.release ?? null,
-            );
-          throw error;
-        }
-      }).finally(() => {
-        releaseTask = null;
-      });
-      return abortable(releaseTask, signal);
+        });
+      })();
+      void worker.then(
+        (result) => {
+          if (releaseTask === pending) releaseTask = null;
+          resolveTask(result);
+        },
+        (error: unknown) => {
+          if (releaseTask === pending) releaseTask = null;
+          rejectTask(error);
+        },
+      );
+      return abortable(pending, signal);
     },
     snapshot: state.snapshot,
     subscribe: state.subscribe,

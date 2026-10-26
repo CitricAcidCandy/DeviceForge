@@ -12,7 +12,7 @@ export async function archiveCleanSession(fixture, device, { requireClean = true
   const archive = resolve(root, 'history-' + randomUUID());
   assert.ok(root.startsWith(resolve(fixture.root) + sep) && archive.startsWith(root + sep));
   await mkdir(archive);
-  for (const name of ['epoch-1', 'remote-cleaned', 'forward-removed']) {
+  for (const name of ['epoch-1', 'remote-cleaned', 'forward-removed', 'receipt-reported']) {
     const source = join(root, name), target = join(archive, name);
     assert.ok(resolve(source).startsWith(root + sep) && resolve(target).startsWith(archive + sep));
     if (name === 'epoch-1' || await readIfExists(source)) {

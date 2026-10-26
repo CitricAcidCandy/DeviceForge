@@ -1,5 +1,7 @@
-//! 投屏私有恢复边界；全插件核对不能退化为单设备清标记。
+//! 投屏私有恢复边界；新调用准入与旧资源债务分离。
+mod admission;
 pub(crate) mod atomic;
+mod identity;
 pub(crate) mod ledger;
 mod process;
 pub(crate) mod remote;
@@ -59,7 +61,7 @@ fn check(resource: &str, status: CheckStatus, message: impl Into<String>) -> Rec
 }
 
 pub(crate) async fn execute(request: Request, context: InvocationContext) -> Execution {
-    let lease = match process_lease(false).await {
+    let lease = match process_lease(true).await {
         Ok(lease) => lease,
         Err(error) => return blocked(error),
     };
@@ -78,11 +80,11 @@ pub(crate) async fn execute_with_lease(
             return Ok((
                 report(
                     RecoveryStatus::Busy,
-                    "仍有插件进程或工具租约在使用，请结束现有会话后重试",
+                    "恢复进程租约暂不可用，未修改任何资源",
                     vec![check(
                         "插件进程",
                         CheckStatus::Busy,
-                        "排他恢复租约未取得，未修改任何设备资源",
+                        "共享进程租约未取得，未修改任何设备资源",
                     )],
                     0,
                     1,
@@ -135,30 +137,19 @@ pub(crate) enum AdmissionError {
 
 pub(crate) async fn before_session(
     device: &str,
-    config: &crate::config::Config,
     context: &InvocationContext,
 ) -> Result<(), AdmissionError> {
-    let lease = process_lease(true)
+    context
+        .check()
+        .map_err(|error| AdmissionError::Busy(error.to_string()))?;
+    let _lease = process_lease(true)
         .await
         .map_err(AdmissionError::Unconfirmed)?
-        .ok_or_else(|| AdmissionError::Busy("插件正在排他恢复，请稍后打开".into()))?;
+        .ok_or_else(|| AdmissionError::Busy("本次进程租约暂不可用".into()))?;
     let root = store::root().map_err(AdmissionError::Unconfirmed)?;
-    let gate = store::device_gate(&root, device).await.map_err(|error| {
-        if error == "目标设备正在核对或登记资源" {
-            AdmissionError::Busy(error)
-        } else {
-            AdmissionError::Unconfirmed(error)
-        }
-    })?;
-    let mut runner = runner::Runner::new(config, context, lease);
-    runner.device_gate = Some(gate);
-    let result = sweep::device(&root, device, &mut runner).await;
-    if runner.unconfirmed {
-        return Err(AdmissionError::Unconfirmed(
-            "ADB直播直接进程清理未确认".into(),
-        ));
-    }
-    result.map_err(AdmissionError::Unconfirmed)
+    admission::check(&root, device)
+        .await
+        .map_err(AdmissionError::Unconfirmed)
 }
 
 pub(crate) async fn new_record(

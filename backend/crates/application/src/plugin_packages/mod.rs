@@ -170,13 +170,10 @@ fn require_unloaded(plugins: &PluginService, kind: PackageKind, id: &str) -> Res
     if kind == PackageKind::Server
         && let Some(owner) = plugins.list().iter().find(|owner| owner.id == id)
     {
-        return if owner.cleanup_failed {
-            Err(Error::CleanupFailed)
-        } else {
-            Err(Error::Conflict(
-                "服务器插件仍已加载或正在排空，请先完成卸载".into(),
-            ))
-        };
+        return Err(Error::Conflict(format!(
+            "服务器插件 {} 仍已加载或正在排空，请先完成卸载",
+            owner.id
+        )));
     }
     Ok(())
 }

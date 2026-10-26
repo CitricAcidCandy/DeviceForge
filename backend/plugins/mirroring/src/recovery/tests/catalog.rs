@@ -67,6 +67,22 @@ async fn malformed_or_oversized_active_json_is_still_rejected() {
 }
 
 #[test]
+fn new_registration_counts_old_pending_debt_without_requiring_its_audit() {
+    let root = root();
+    for ordinal in 1..store::RECORD_LIMIT {
+        std::fs::write(root.join(format!("{ordinal:032x}.json")), b"{broken").unwrap();
+        std::fs::write(root.join(format!("{ordinal:032x}.pending")), b"unconfirmed").unwrap();
+    }
+    store::registration_capacity(&root).unwrap();
+    std::fs::write(root.join("unknown.txt"), b"unconfirmed").unwrap();
+    assert!(store::registration_capacity(&root).is_err());
+    assert!(
+        store::paths(&root).is_err(),
+        "恢复不能把损坏登记当作已经清理"
+    );
+}
+
+#[test]
 fn historical_scan_obeys_a_fixed_budget_at_batch_boundaries() {
     let root = root();
     for ordinal in 0..129 {

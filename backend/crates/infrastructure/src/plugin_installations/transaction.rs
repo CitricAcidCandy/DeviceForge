@@ -281,7 +281,7 @@ pub(super) fn commit(
     let current = storage::optional(store, &prepared.info.id)?;
     if current
         .as_ref()
-        .is_some_and(|record| record.status == InstallationStatus::RecoveryBlocked)
+        .is_some_and(InstalledRelease::requires_recovery)
     {
         return Err(Error::Conflict("恢复受阻的发布不能更新".into()));
     }

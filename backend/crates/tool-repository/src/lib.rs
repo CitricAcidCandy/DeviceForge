@@ -1,11 +1,13 @@
 //! 宿主和插件共用的不可变工具仓库，不包含网络、宿主状态或具体插件规则。
 mod content;
+mod index;
 mod paths;
 mod references;
 #[cfg(test)]
 mod tests;
 
 use serde::{Deserialize, Serialize};
+pub use index::{ToolIndex, ToolIndexEntry};
 use std::{
     fs,
     path::{Path, PathBuf},

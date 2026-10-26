@@ -17,7 +17,6 @@ pub(super) struct Runner<'a> {
     pub deadline: Instant,
     pub lease: Arc<File>,
     pub resource_lease: Option<Arc<File>>,
-    pub device_gate: Option<Arc<File>>,
     pub unconfirmed: bool,
 }
 
@@ -36,7 +35,6 @@ impl<'a> Runner<'a> {
             context,
             lease,
             resource_lease: None,
-            device_gate: None,
             deadline: Instant::from_std(context.deadline())
                 .min(Instant::now() + std::time::Duration::from_secs(30)),
             unconfirmed: false,
@@ -53,11 +51,7 @@ impl<'a> Runner<'a> {
         let mut options = ExecutionOptions::new(self.deadline);
         options.stdout_limit = 8192;
         options.stderr_limit = 8192;
-        let lease = Arc::new((
-            self.lease.clone(),
-            self.resource_lease.clone(),
-            self.device_gate.clone(),
-        ));
+        let lease = Arc::new((self.lease.clone(), self.resource_lease.clone()));
         match capture_with_lease(command, options, self.context.cancellation(), lease).await {
             Ok(output) => Ok(output.stdout),
             Err(error) => {

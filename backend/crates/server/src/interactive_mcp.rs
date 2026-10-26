@@ -60,7 +60,7 @@ pub(crate) fn tools() -> Vec<Tool> {
         ),
         (
             "deviceforge.release_session",
-            "请求释放会话，清理确认后自动删除记录；失败记录保留",
+            "结束会话并回收工作台记录，历史清理失败不阻断释放；原结论不改写",
             schema::<SessionIdInput>(),
         ),
         (

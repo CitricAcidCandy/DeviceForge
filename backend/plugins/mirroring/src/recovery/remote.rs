@@ -17,6 +17,39 @@ fn absence(record: &Record) -> String {
     )
 }
 
+fn stop_server(record: &Record) -> String {
+    // 读取失败不是退出证明；每次等待均有上限，PID 换代后不再发送信号。
+    let wait = concat!(
+        "dfml_wait() { i=0; while [ -e /proc/$p ]; do ",
+        "c=$(cat /proc/$p/stat) || { [ ! -e /proc/$p ] && return 0; return 2; }; ",
+        r#"c=${c##*) }; c=$(printf '%s\n' "$c" | awk '{print $20}') || return 2; "#,
+        r#"case $c in ''|*[!0-9]*) return 2;; esac; [ "$c" = "$s" ] || return 0; "#,
+        "i=$((i+1)); [ $i -le 10 ] || return 1; sleep 0.05 || return 2; done; return 0; }; ",
+    );
+    let verify = format!(
+        concat!(
+            "dfml_identity() {{ ",
+            r#"[ ! -L {dir} ] && [ ! -L {dir}/owner ] && [ "$(cat {dir}/owner)" = {token} ] && "#,
+            r#"[ "$(cat /proc/sys/kernel/random/boot_id)" = "$b" ] && {identity} && "#,
+            "c=$(cat /proc/$p/stat) && c=${{c##*) }} && ",
+            r#"[ "$(printf '%s\n' "$c" | awk '{{print $20}}')" = "$s" ]; }}; "#,
+        ),
+        dir = record.directory,
+        token = record.token,
+        identity = identity(record),
+    );
+    format!(
+        concat!(
+            "{wait}{verify}dfml_identity || exit 81; kill -TERM $p || exit 84; ",
+            "if dfml_wait; then :; else r=$?; ",
+            r#"[ "$r" = 1 ] || exit 84; dfml_identity || exit 81; "#,
+            "kill -KILL $p || exit 84; dfml_wait || exit 84; fi; ",
+        ),
+        wait = wait,
+        verify = verify,
+    )
+}
+
 pub(crate) fn cleanup(record: &Record) -> String {
     let pinned = record
         .remote
@@ -31,10 +64,10 @@ pub(crate) fn cleanup(record: &Record) -> String {
         })
         .unwrap_or_default();
     format!(
-        "if [ -e {dir} ] || [ -L {dir} ]; then [ -d {dir} ] && [ ! -L {dir} ] && [ ! -L {dir}/owner ] && [ \"$(cat {dir}/owner)\" = {token} ] || exit 81; if [ -f {dir}/pid ]; then [ ! -L {dir}/pid ] && [ ! -L {dir}/start ] && [ ! -L {dir}/boot ] || exit 81; p=$(cat {dir}/pid); case $p in ''|*[!0-9]*) exit 81;; esac; [ \"$p\" -ge 2 ] || exit 81; if [ -e /proc/$p ]; then s=$(cat {dir}/start) && b=$(cat {dir}/boot) || exit 81; case $s in ''|*[!0-9]*) exit 81;; esac; {pinned}c=$(cat /proc/$p/stat) && c=${{c##*) }} && c=$(printf '%s\\n' \"$c\" | awk '{{print $20}}') && [ \"$c\" = \"$s\" ] && [ \"$(cat /proc/sys/kernel/random/boot_id)\" = \"$b\" ] || exit 81; {identity} || exit 81; c=$(cat /proc/$p/stat) && c=${{c##*) }} && [ \"$(printf '%s\\n' \"$c\" | awk '{{print $20}}')\" = \"$s\" ] || exit 81; kill -TERM $p || exit 84; i=0; while [ -e /proc/$p ]; do c=$(cat /proc/$p/stat) || continue; c=${{c##*) }}; [ \"$(printf '%s\\n' \"$c\" | awk '{{print $20}}')\" = \"$s\" ] || break; i=$((i+1)); [ $i -le 30 ] || exit 84; sleep 0.05; done; fi; fi; {absence}rm -rf {dir} || exit 85; [ ! -e {dir} ] && [ ! -L {dir} ] || exit 85; else {absence}fi; echo DFML_RECOVERED",
+        "if [ -e {dir} ] || [ -L {dir} ]; then [ -d {dir} ] && [ ! -L {dir} ] && [ ! -L {dir}/owner ] && [ \"$(cat {dir}/owner)\" = {token} ] || exit 81; if [ -f {dir}/pid ]; then [ ! -L {dir}/pid ] && [ ! -L {dir}/start ] && [ ! -L {dir}/boot ] || exit 81; p=$(cat {dir}/pid); case $p in ''|*[!0-9]*) exit 81;; esac; [ \"$p\" -ge 2 ] || exit 81; if [ -e /proc/$p ]; then s=$(cat {dir}/start) && b=$(cat {dir}/boot) || exit 81; case $s in ''|*[!0-9]*) exit 81;; esac; {pinned}c=$(cat /proc/$p/stat) && c=${{c##*) }} && c=$(printf '%s\\n' \"$c\" | awk '{{print $20}}') && [ \"$c\" = \"$s\" ] && [ \"$(cat /proc/sys/kernel/random/boot_id)\" = \"$b\" ] || exit 81; {stop} fi; fi; {absence}rm -rf {dir} || exit 85; [ ! -e {dir} ] && [ ! -L {dir} ] || exit 85; else {absence}fi; echo DFML_RECOVERED",
         dir = record.directory,
         token = record.token,
-        identity = identity(record),
+        stop = stop_server(record),
         absence = absence(record)
     )
 }

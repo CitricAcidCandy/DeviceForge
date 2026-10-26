@@ -101,6 +101,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "bytes",
+ "deviceforge-plugin-dependencies",
  "futures-util",
  "schemars",
  "serde",
@@ -120,6 +121,7 @@ dependencies = [
  "deviceforge-android-package-core",
  "deviceforge-data-codec",
  "deviceforge-observability",
+ "deviceforge-plugin-dependencies",
  "deviceforge-tool-process",
  "deviceforge-tool-repository",
  "flate2",
@@ -144,6 +146,7 @@ dependencies = [
 name = "apk-plugin-sdk"
 version = "0.1.0"
 dependencies = [
+ "deviceforge-plugin-dependencies",
  "serde",
  "serde_json",
 ]
@@ -1003,6 +1006,17 @@ dependencies = [
  "tempfile",
  "tokio",
  "tokio-util",
+]
+
+[[package]]
+name = "deviceforge-plugin-dependencies"
+version = "0.1.0"
+dependencies = [
+ "regex",
+ "schemars",
+ "semver",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

@@ -95,21 +95,20 @@ export function createPluginRecovery(client: ApiClient, id: string) {
     recover: (signal: AbortSignal) => run('recovering', signal),
     async prepareOpen(signal: AbortSignal): Promise<void> {
       if (closed || signal.aborted) throw cancelled();
-      const targetKey = state.target?.key;
-      if (!targetKey) throw new ApiError('http', 'target_required', '投屏恢复入口暂不可用，请重新进入页面');
-      if (request?.kind === 'recovering' || state.result?.data.recovering)
-        throw new ApiError('http', 'busy', '服务器正在核对投屏资源，请稍后读取状态再打开', 409, state.result?.logId ?? null);
-      // 已有页面状态查询时不叠加请求；恢复接口不是正常投屏的额外准入依赖。
-      if (request?.kind === 'reading') return;
-      let result: ApiResult<PluginRecoveryView> | null;
-      try { result = await refresh(signal); }
-      catch {
-        if (signal.aborted || closed || state.target?.key !== targetKey) throw cancelled();
+      const target = state.target;
+      if (!target) throw new ApiError('http', 'target_required', '投屏恢复入口暂不可用，请重新进入页面');
+      if (request) {
+        // 新打开撤销旧核对的本地等待，不补读或重发；服务器恢复不保证回滚。
+        stop();
+        publish({ ...state, phase: 'idle', reportTarget: null });
         return;
       }
-      // 这里只读准备；资源核对由宿主的新会话准入执行一次，避免双重自动恢复。
-      if (result?.data.recovering)
-        throw new ApiError('http', 'busy', '服务器正在核对投屏资源，请稍后读取状态再打开', 409, result.logId);
+      try { await refresh(signal); }
+      catch {
+        if (signal.aborted || closed || state.target !== target) throw cancelled();
+        return;
+      }
+      // recovering 和历史报告仅供排查，新会话准入由宿主独立裁定。
     },
     cancel() {
       const posted = request?.posted && !request.rechecked;

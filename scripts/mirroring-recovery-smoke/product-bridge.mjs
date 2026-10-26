@@ -51,7 +51,7 @@ export async function launchRecoveryBridge({ dist, host, profile, directory, rep
       }
       if (url.pathname === '/__recovery/capture') {
         const name = url.searchParams.get('name');
-        assert.ok(['01-recovery-risk', '02-recovery-confirmed', '03-recovery-failure'].includes(name));
+        assert.ok(['01-recovery-risk', '02-recovery-confirmed', '03-recovery-details', '03-recovery-failure'].includes(name));
         const value = await images.screenshot(name);
         outgoing.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' });
         outgoing.end(JSON.stringify(value)); return;

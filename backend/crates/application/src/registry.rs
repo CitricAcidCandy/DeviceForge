@@ -68,13 +68,7 @@ impl Owner {
         true
     }
     pub(crate) fn claim(&self) -> Result<tokio_util::task::task_tracker::TaskTrackerToken> {
-        let _gate = self
-            .recovery_admission
-            .lock()
-            .map_err(|_| Error::Storage("插件资源准入异常".into()))?;
-        if self.recovering.load(Ordering::Acquire) {
-            return Err(Error::Conflict("插件正在核对资源".into()));
-        }
+        // 后台核对只处理失活资源，不冻结新调用；代际撤销由注册快照负责。
         Ok(self.tracker.token())
     }
 }
@@ -348,9 +342,6 @@ impl Registry {
             .owners
             .get(id)
             .ok_or_else(|| Error::NotFound("插件未加载".into()))?;
-        if owner.recovering.load(Ordering::Acquire) {
-            return Err(Error::Conflict("插件正在核对资源，暂不能卸载或替换".into()));
-        }
         if prepared.owner.info.id != id {
             return Err(Error::Invalid("重载插件身份不一致".into()));
         }
@@ -451,13 +442,7 @@ impl Registry {
             .get(id)
             .cloned()
             .ok_or_else(|| Error::NotFound("插件未加载".into()))?;
-        if owner.recovering.load(Ordering::Acquire) {
-            return Err(Error::Conflict("插件正在核对资源，暂不能卸载或替换".into()));
-        }
         if require_idle {
-            if owner.info().cleanup_failed {
-                return Err(Error::CleanupFailed);
-            }
             if !owner.tracker.is_empty() || owner.draining.load(Ordering::Acquire) {
                 return Err(Error::Conflict(
                     "插件仍有活动任务或会话，不能应用需要重载的配置".into(),
@@ -507,18 +492,14 @@ impl Registry {
         Ok(owner)
     }
     pub fn finish(&self, owner: &Arc<Owner>) -> Result<PluginInfo> {
-        if owner.info().cleanup_failed {
-            return Err(Error::CleanupFailed);
+        // 历史诊断保留在返回值；只有真实未排空的调用阻止替换。
+        if !owner.tracker.is_empty() {
+            return Err(Error::Conflict("插件仍有活动任务或会话".into()));
         }
         let mut snapshot = self
             .0
             .write()
             .map_err(|_| Error::Storage("注册表排空异常".into()))?;
-        if owner.recovering.load(Ordering::Acquire) {
-            return Err(Error::Conflict(
-                "插件正在核对资源，排空完成需等待恢复结束".into(),
-            ));
-        }
         if snapshot
             .owners
             .get(&owner.info.id)
@@ -749,7 +730,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn application_cleanup_risk_stays_visible_and_blocks_execution_finish_and_reload() {
+    async fn application_cleanup_warning_stays_visible_without_blocking_new_execution_or_reload() {
         let registry = Registry::new(vec![]).unwrap();
         registry.publish(performance(false).unwrap()).unwrap();
         let registered = registry.find("plugin.test.echo").unwrap();
@@ -766,18 +747,12 @@ mod tests {
                 None
             )
             .await,
-            Err(Error::Conflict(_))
+            Ok(_)
         ));
         let detached = registry.detach("test").unwrap();
-        assert!(matches!(
-            registry.finish(&detached),
-            Err(Error::CleanupFailed)
-        ));
-        assert!(matches!(
-            registry.publish(performance(false).unwrap()),
-            Err(Error::Conflict(_))
-        ));
-        assert_eq!(registry.plugins()[0].state, PluginState::Draining);
-        assert!(registry.plugins()[0].cleanup_failed);
+        assert!(registry.finish(&detached).unwrap().cleanup_failed);
+        registry.publish(performance(false).unwrap()).unwrap();
+        assert_eq!(registry.plugins()[0].state, PluginState::Loaded);
+        assert!(owner.info().cleanup_failed);
     }
 }

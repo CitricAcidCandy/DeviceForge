@@ -42,14 +42,10 @@ where
         .ok_or("投屏首帧缺少协议版本")?;
     let recovering =
         version == 4 && frame.get("operation").and_then(Value::as_str) == Some("runtime.recover");
-    // 恢复处理器随后尝试排他租约；其他协议从首帧前到真实处理终态始终持共享租约。
-    let (shared, recovery_lease) = if recovering {
-        drop(lease);
-        (None, crate::recovery::process_lease(false).await?)
-    } else {
-        (Some(lease.ok_or("插件正在排他恢复，暂不接受新调用")?), None)
-    };
-    let _leases = (shared, recovery_lease.clone());
+    // 恢复也持共享进程租约，逐资源尝试排他租约，不冻结其他会话或新调用。
+    let shared = lease.ok_or("本次进程租约暂不可用")?;
+    let recovery_lease = recovering.then(|| shared.clone());
+    let _lease = shared;
     drop(frame);
     let reader = Cursor::new(bytes).chain(reader);
     match version {

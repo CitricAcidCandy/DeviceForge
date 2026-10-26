@@ -3,7 +3,7 @@ use apk_domain::{Error, Executor, Result, performance::*};
 use apk_infrastructure::performance::store::SqlitePerformance;
 use async_trait::async_trait;
 use std::sync::{
-    Arc,
+    Arc, Mutex,
     atomic::{AtomicU64, Ordering},
 };
 use tokio_util::sync::CancellationToken;
@@ -173,6 +173,22 @@ async fn failed_probe_releases_capacity_and_public_schema_rejects_invalid_target
         .input_schema;
     let validator = jsonschema::validator_for(schema).unwrap();
     assert!(validator.is_valid(&serde_json::to_value(request(10)).unwrap()));
+    assert_eq!(schema["properties"]["interval_ms"]["minimum"], 50);
+    for (interval_ms, accepted) in [
+        (50, true),
+        (49, false),
+        (0, false),
+        (60000, true),
+        (60001, false),
+    ] {
+        let mut input = request(10);
+        input.interval_ms = interval_ms;
+        assert_eq!(
+            validator.is_valid(&serde_json::to_value(&input).unwrap()),
+            accepted,
+            "公开模式的采样间隔：{interval_ms}"
+        );
+    }
     let mut invalid = request(10);
     invalid.target.package = "com.app;reboot".into();
     assert!(!validator.is_valid(&serde_json::to_value(&invalid).unwrap()));
@@ -210,6 +226,88 @@ async fn failed_probe_releases_capacity_and_public_schema_rejects_invalid_target
         .unwrap();
     assert_eq!(capabilities["fps"], false);
     service.shutdown().await.unwrap();
+}
+
+struct TimedProbe {
+    probe: Probe,
+    delay_ms: u64,
+    active: AtomicU64,
+    max_active: AtomicU64,
+    timings: Mutex<Vec<(tokio::time::Instant, tokio::time::Instant)>>,
+}
+#[async_trait]
+impl PerformanceProbe for TimedProbe {
+    async fn sample(
+        &self,
+        target: &PerformanceTarget,
+        cancel: CancellationToken,
+    ) -> Result<RawPerformance> {
+        let active = self.active.fetch_add(1, Ordering::SeqCst) + 1;
+        self.max_active.fetch_max(active, Ordering::SeqCst);
+        let started = tokio::time::Instant::now();
+        let result = async {
+            tokio::select! {
+                _ = cancel.cancelled() => return Err(Error::Cancelled),
+                _ = tokio::time::sleep(std::time::Duration::from_millis(self.delay_ms)) => {},
+            }
+            self.probe.sample(target, cancel).await
+        }
+        .await;
+        let finished = tokio::time::Instant::now();
+        self.timings.lock().unwrap().push((started, finished));
+        self.active.fetch_sub(1, Ordering::SeqCst);
+        result
+    }
+}
+
+#[tokio::test]
+async fn fifty_millisecond_sessions_schedule_fast_and_slow_probes_serially() {
+    // 使用真实时钟、既有 worker 和 SQLite，分别覆盖小于与超过 50 毫秒的采样。
+    for delay_ms in [0, 150] {
+        let directory = tempfile::tempdir().unwrap();
+        let probe = Arc::new(TimedProbe {
+            probe: Probe {
+                calls: AtomicU64::new(0),
+                fail: false,
+            },
+            delay_ms,
+            active: AtomicU64::new(0),
+            max_active: AtomicU64::new(0),
+            timings: Mutex::new(Vec::new()),
+        });
+        let service = PerformanceService::new(
+            probe.clone(),
+            Arc::new(SqlitePerformance::open(directory.path().join("performance.db")).unwrap()),
+            2,
+        )
+        .unwrap();
+        let mut input = request(1);
+        input.interval_ms = 50;
+        let session = service
+            .start(input, CancellationToken::new())
+            .await
+            .unwrap();
+        let completed = wait(&service, &session.id, |session| {
+            session.state == PerformanceState::Completed
+        })
+        .await;
+        service.shutdown().await.unwrap();
+
+        assert_eq!(completed.request.interval_ms, 50);
+        // 一秒内多次落库，既不能被钳回 1000 毫秒，也不能丢失周期等待。
+        assert!(
+            (3..=20).contains(&completed.samples),
+            "额外采样耗时 {delay_ms} 毫秒，落库样本数 {}",
+            completed.samples
+        );
+        assert_eq!(probe.max_active.load(Ordering::SeqCst), 1);
+        assert_eq!(probe.active.load(Ordering::SeqCst), 0);
+        let timings = probe.timings.lock().unwrap();
+        assert!(timings.len() >= 3);
+        for pair in timings.windows(2) {
+            assert!(pair[1].0 >= pair[0].1, "上一采样结束前启动了下一采样");
+        }
+    }
 }
 
 struct LateProbe {

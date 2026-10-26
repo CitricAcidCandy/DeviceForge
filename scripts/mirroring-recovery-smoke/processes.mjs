@@ -89,7 +89,8 @@ export function observeTools(fixture, probeBinary, pluginBinary, report) {
           assert.equal(await readIfExists(join(entry.directory, 'fixture-stop')), null, '兜底自退不属于正常回收通过');
           if (entry.intended_exit_code !== null)
             assert.equal(entry.process.exit.target.exit_code, entry.intended_exit_code, '工具实际退出码应与本次故障注入一致');
-          assert.deepEqual(entry.argv.slice(0, 1), ['-s']);
+          if (entry.category === 'devices') assert.deepEqual(entry.argv, ['devices']);
+          else assert.deepEqual(entry.argv.slice(0, 1), ['-s']);
           assert.ok(!entry.argv.some((item) => /kill-server|--remove-all|pkill|killall/.test(item)), '禁止全局命令');
         } catch (error) { errors.push(error); }
       }));

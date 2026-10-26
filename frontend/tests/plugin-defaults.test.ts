@@ -164,7 +164,7 @@ test('失败目录重试保留此前已运行后主动停用的包', async () =>
   f.feature.dispose();
 });
 
-test('排空和未确认清理保留失败，已加载浏览器不重复激活', async () => {
+test('真实排空仍拒绝，历史清理只保留告警，已加载插件不重复激活', async () => {
   const f = fixture();
   f.packages.server.push(
     installedPackage('server', { id: 'draining' }),
@@ -175,13 +175,42 @@ test('排空和未确认清理保留失败，已加载浏览器不重复激活',
   f.server.set('unclean', plugin({ id: 'unclean', cleanup_failed: true }));
   f.browser.set('existing-browser', { id: 'existing-browser', generation: 7, state: 'loaded' });
   const result = await f.feature.start(signal());
-  assert.equal(result.results.filter((item) => item.status === 'failed').length, 2);
+  assert.equal(result.results.filter((item) => item.status === 'failed').length, 1);
+  assert.equal(result.results.find((item) => item.id === 'draining')?.status, 'failed');
+  assert.equal(result.results.find((item) => item.id === 'unclean')?.status, 'already_enabled');
+  assert.match(result.results.find((item) => item.id === 'unclean')?.message ?? '', /上次组件操作告警，可重试/);
+  assert.equal(result.results.find((item) => item.id === 'unclean')?.logId, 'running-log');
   assert.equal(
     f.requests.some((item) => item.startsWith('enable:')),
     false,
   );
   assert.equal(f.browser.get('existing-browser')?.generation, 7);
+  f.server.set('draining', plugin({ id: 'draining', cleanup_failed: true }));
+  const retry = await f.feature.retryFailures(signal());
+  assert.equal(retry.results.find((item) => item.id === 'draining')?.status, 'already_enabled');
+  assert.match(retry.results.find((item) => item.id === 'draining')?.message ?? '', /上次组件操作告警，可重试/);
+  assert.equal(f.requests.some((item) => item.startsWith('enable:')), false);
   f.feature.dispose();
+});
+
+test('历史清理失败不阻断未运行包的新调用，真实启用失败仍可见且仅显式重试', async () => {
+  const f = fixture();
+  f.packages.server.push(installedPackage('server', { id: 'unclean' }));
+  f.server.set('unclean', plugin({ id: 'unclean', state: 'unloaded', cleanup_failed: true }));
+  f.failures.add('unclean');
+  try {
+    const first = await f.feature.start(signal());
+    assert.equal(first.results[0]?.status, 'failed');
+    assert.equal(first.results[0]?.logId, 'unclean-failed-log');
+    assert.deepEqual(f.requests.filter((item) => item.startsWith('enable:')), ['enable:server:unclean']);
+    await f.feature.start(signal());
+    assert.equal(f.requests.filter((item) => item.startsWith('enable:')).length, 1);
+    f.failures.delete('unclean');
+    const retry = await f.feature.retryFailures(signal());
+    assert.equal(retry.results[0]?.status, 'enabled');
+    assert.match(retry.results[0]?.message ?? '', /上次组件操作告警，可重试/);
+    assert.equal(f.requests.filter((item) => item.startsWith('enable:')).length, 2);
+  } finally { f.feature.dispose(); }
 });
 
 test('取消结束忽略信号的等待，晚到结果不发布，同轮不自动重试副作用', async () => {

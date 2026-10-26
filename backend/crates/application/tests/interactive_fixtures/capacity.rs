@@ -96,7 +96,7 @@ async fn release_cancels_active_session_and_reclaims_record_after_confirmed_clea
 }
 
 #[tokio::test]
-async fn release_removes_finished_record_but_preserves_failed_cleanup() {
+async fn release_removes_failed_record_without_rewriting_cleanup_history() {
     let (harness, _) = Harness::loaded(Provider::standard()).await;
     let complete = harness.open("已结束记录");
     harness.provider.control(0).finish(completed(1));
@@ -119,11 +119,42 @@ async fn release_removes_finished_record_but_preserves_failed_cleanup() {
             ..completed(1)
         });
     finished(&harness.app, &failed.id).await;
+    let released = harness.app.session_release(&failed.id).unwrap();
+    let completion = released.completion.unwrap();
+    assert_eq!(completion.cleanup, SessionCleanup::Unconfirmed);
+    assert!(!completion.process_exited);
     assert!(matches!(
-        harness.app.session_release(&failed.id),
-        Err(Error::CleanupFailed)
+        harness.app.session(&failed.id),
+        Err(Error::NotFound(_))
     ));
-    assert!(harness.app.session(&failed.id).is_ok());
+    harness.stop().await;
+}
+
+#[tokio::test]
+async fn requested_release_does_not_keep_a_record_when_cleanup_finishes_with_failure() {
+    let provider = Provider::standard();
+    provider.hold_cleanup.store(true, Ordering::SeqCst);
+    let (harness, _) = Harness::loaded(provider.clone()).await;
+    let opened = harness.open("清理失败仍释放工作台");
+    let control = provider.control(0);
+    harness.app.session_release(&opened.id).unwrap();
+    control.wait_cancelled().await;
+    control.finish(apk_domain::interactive::SessionExit {
+        cleanup: SessionCleanup::Failed,
+        process_exited: true,
+        ..completed(1)
+    });
+    tokio::time::timeout(Duration::from_secs(3), async {
+        while harness.app.session(&opened.id).is_ok() {
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .unwrap();
+    assert!(matches!(
+        harness.app.session(&opened.id),
+        Err(Error::NotFound(_))
+    ));
     harness.stop().await;
 }
 

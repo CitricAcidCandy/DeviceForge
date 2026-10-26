@@ -81,6 +81,20 @@ test('安装目录损坏字段在 API 边界拒绝并保留日志，不运行浏
   } finally { await runtime.dispose(); }
 });
 
+test('安装 HTTP 适配保留组件清理及文件事务失败阶段和原始原因', async () => {
+  for (const phase of ['component_cleanup', 'activation_cleanup', 'commit_rollback']) {
+    const failure = { phase, reason: '原始清理或事务错误' };
+    const runtime = createFrontendRuntime({ baseUrl: 'http://localhost:7031', panelTarget: () => null,
+      transport: async () => success([{ ...installedDto(true), status: 'recovery_blocked', failure }], 'failure-log') });
+    try {
+      const result = await runtime.pluginInstallations.refresh(signal());
+      assert.equal(result.data[0]?.status, 'recovery_blocked');
+      assert.deepEqual(result.data[0]?.failure, failure);
+      assert.equal(result.logId, 'failure-log');
+    } finally { await runtime.dispose(); }
+  }
+});
+
 test('HTTP 配置需求兼容旧发布无候选路径，也接受空候选、转义指针和16项上限', async () => {
   const requirement = { component_id: 'example-server', config_pointer: '/token', title: '凭据',
     description: '填写令牌或配置凭据来源', required: true, sensitive: true };

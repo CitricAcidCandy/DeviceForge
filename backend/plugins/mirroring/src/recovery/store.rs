@@ -140,6 +140,39 @@ pub(super) fn paths(root: &Path) -> Result<Vec<PathBuf>, String> {
     })
 }
 
+pub(super) fn registration_capacity(root: &Path) -> Result<(), String> {
+    let deadline = Instant::now() + SCAN_BUDGET;
+    let entries = std::fs::read_dir(root).map_err(|_| "无法枚举本地资源登记容量")?;
+    let mut obligations = std::collections::BTreeSet::new();
+    for (index, entry) in entries.enumerate() {
+        if index.is_multiple_of(SCAN_BATCH) {
+            std::thread::yield_now();
+            if Instant::now() >= deadline {
+                return Err("本地资源登记容量检查到期".into());
+            }
+        }
+        let entry = entry.map_err(|_| "本地资源登记容量读取失败")?;
+        let name = entry.file_name().to_string_lossy().into_owned();
+        let meta =
+            std::fs::symlink_metadata(entry.path()).map_err(|_| "本地资源登记条目检查失败")?;
+        if historical_lock(&name) && meta.is_file() && meta.len() == 0 {
+            continue;
+        }
+        // 损坏旧记录、暂存和未知文件保留为容量债务，但不审计内容或全局拒绝新资源。
+        let obligation = name
+            .strip_suffix(".json")
+            .or_else(|| name.strip_suffix(".pending"));
+        obligations.insert(obligation.unwrap_or(&name).to_owned());
+        if obligations.len() >= RECORD_LIMIT {
+            return Err("投屏资源登记及待回收债务已达容量上限".into());
+        }
+    }
+    if Instant::now() >= deadline {
+        return Err("本地资源登记容量检查到期".into());
+    }
+    Ok(())
+}
+
 fn historical_lock(name: &str) -> bool {
     if matches!(name, "process.lock" | "catalog.lock") {
         return true;
