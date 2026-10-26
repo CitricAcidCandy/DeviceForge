@@ -175,6 +175,9 @@ test('生产入口读取两类安装目录和运行插件，已运行服务器�
         [installedPackage('browser', { id: 'broken-browser', api_version: 2 })],
         'browser-directory-log',
       );
+    if (path === '/api/v2/plugin-dependencies/browser/broken-browser')
+      return success({ target: { kind: 'browser', id: 'broken-browser' },
+        revision: 'a'.repeat(64), ready: true, dependencies: [] }, 'dependency-log');
     return success([]);
   };
   await withMain(transport, async (app, browser) => {

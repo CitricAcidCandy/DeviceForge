@@ -22,6 +22,16 @@ pub struct PackageDescriptor {
 pub struct PackageEntrypoint {
     pub runtime: String,
     pub path: String,
+    /// 脚本入口通过统一依赖快照选择运行时，不在包中保存机器程序路径。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub dependency: Option<RuntimeDependency>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RuntimeDependency {
+    pub id: String,
+    pub entry: String,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

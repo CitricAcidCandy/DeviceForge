@@ -21,16 +21,18 @@ pub(super) enum Topic {
     Lifecycle,
     Examples,
     Packaging,
+    Dependencies,
     Validation,
 }
 
-pub(super) const TOPICS: [Topic; 7] = [
+pub(super) const TOPICS: [Topic; 8] = [
     Topic::Overview,
     Topic::Manifest,
     Topic::Sdk,
     Topic::Lifecycle,
     Topic::Examples,
     Topic::Packaging,
+    Topic::Dependencies,
     Topic::Validation,
 ];
 
@@ -49,7 +51,7 @@ pub(crate) fn tool() -> Tool {
             "target": {"type": "string", "enum": ["frontend", "backend", "fullstack"],
                 "description": "开发浏览器插件、服务器插件或前后端配套插件"},
             "topic": {"type": "string", "enum": TOPICS, "default": "overview",
-                "description": "按需读取概览、清单、SDK、生命周期、完整示例、打包或验证"}
+                "description": "按需读取概览、清单、SDK、生命周期、完整示例、打包、共享依赖或验证"}
         },
         "required": ["target"],
         "additionalProperties": false

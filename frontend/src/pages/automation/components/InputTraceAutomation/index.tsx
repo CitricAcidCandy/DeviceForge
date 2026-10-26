@@ -1,5 +1,7 @@
 import { useState } from 'react';
+import { Mic, Monitor, Play } from 'lucide-react';
 import { Button } from '../../../../components/Button/index.tsx';
+import { Label } from '../../../../components/Label/index.tsx';
 import {
   Select,
   SelectContent,
@@ -69,87 +71,153 @@ export function InputTraceAutomation({ services }: { services: ProductServices }
       return result;
     });
   return (
-    <section className="min-w-0 space-y-4">
-      <h2>服务器输入轨迹</h2>
-      <p className="muted">
-        录制服务器电脑的输入事件，或以公开产物 ID 回放。回放会向服务器电脑派发真实输入，格式为
-        input_trace.msgpack.v1。
-      </p>
-      <div className="grid grid-cols-1 items-start gap-x-6 gap-y-4 sm:grid-cols-2 xl:grid-cols-4 [&>[data-slot=select-trigger]]:w-full sm:[&>[data-slot=select-trigger]]:mt-7 [&>[data-slot=button]]:justify-self-start sm:[&>[data-slot=button]]:mt-7">
-        <Select
-          value={String(events)}
-          onValueChange={(value) => {
-            if (value === '0' || value === '1' || value === '2')
-              setEvents(Number(value) === 0 ? 0 : Number(value) === 1 ? 1 : 2);
-          }}
-        >
-          <SelectTrigger aria-label="轨迹事件类型">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="0">全部输入</SelectItem>
-            <SelectItem value="1">键盘输入</SelectItem>
-            <SelectItem value="2">鼠标输入</SelectItem>
-          </SelectContent>
-        </Select>
-        <Field
-          label="轨迹采样间隔（毫秒）"
-          value={interval}
-          onChange={setInterval}
-          type="number"
-          min={2}
-          max={1000}
-        />
-        <Field
-          label="轨迹录制时长（毫秒）"
-          value={duration}
-          onChange={setDuration}
-          type="number"
-          min={100}
-          max={600000}
-        />
-        <Button
-          variant="outline"
-          disabled={!canRecord || action.pending}
-          onClick={() =>
-            setCommand({
-              kind: 'record',
-              input: {
-                event_type: events,
-                interval_ms: Number(interval),
-                duration_ms: Number(duration),
-              },
-            })
-          }
-        >
-          开始录制轨迹
-        </Button>
+    <section className="flex min-h-0 min-w-0 flex-1 flex-col gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground">
+        <span className="inline-flex items-center gap-2">
+          <Monitor className="size-4" aria-hidden="true" />
+          作用于运行服务器的电脑
+        </span>
+        <span className="font-mono">input_trace.msgpack.v1</span>
       </div>
-      <div className="grid grid-cols-1 items-start gap-x-6 gap-y-4 sm:grid-cols-[minmax(0,1fr)_auto] [&>[data-slot=button]]:justify-self-start sm:[&>[data-slot=button]]:mt-7">
-        <Field
-          label="回放轨迹产物 ID"
-          value={artifact}
-          onChange={setArtifact}
-          hint="录制成功后自动填入 recording.msgpack 的公开产物 ID"
-        />
-        <Button
-          variant="outline"
-          disabled={!canPlayback || !artifact.trim() || action.pending}
-          onClick={() =>
-            setCommand({
-              kind: 'playback',
-              input: { artifact_id: artifact.trim(), event_type: events },
-            })
-          }
-        >
-          回放输入轨迹
-        </Button>
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-border bg-card">
+        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-4 sm:px-6">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="hidden size-10 shrink-0 items-center justify-center rounded-lg bg-accent text-primary sm:flex">
+              <Mic className="size-5" aria-hidden="true" />
+            </span>
+            <div className="min-w-0">
+              <h2 className="text-base font-semibold">输入录制与回放</h2>
+              <p className="mt-1 text-xs text-muted-foreground">
+                录制服务器输入事件，或以公开产物 ID 回放
+              </p>
+            </div>
+          </div>
+          {action.pending && (
+            <Button size="sm" variant="outline" onClick={action.cancel}>
+              取消等待
+            </Button>
+          )}
+        </header>
+        <div className="grid min-h-0 min-w-0 flex-1 auto-rows-min xl:grid-cols-[minmax(16rem,0.9fr)_minmax(0,1.6fr)]">
+          <div className="min-w-0 border-b border-border bg-surface-elevated p-5 sm:p-7 xl:border-r xl:border-b-0">
+            <h3 className="flex items-center gap-3 text-base font-semibold">
+              <span className="flex size-10 items-center justify-center rounded-lg bg-accent text-primary">
+                <Mic className="size-5" aria-hidden="true" />
+              </span>
+              录制
+            </h3>
+            <div className="mt-6 grid gap-4">
+              <div className="grid min-w-0 gap-2">
+                <Label htmlFor="trace-events" className="text-xs text-muted-foreground">
+                  事件范围
+                </Label>
+                <Select
+                  value={String(events)}
+                  onValueChange={(value) => {
+                    if (value === '0' || value === '1' || value === '2')
+                      setEvents(Number(value) === 0 ? 0 : Number(value) === 1 ? 1 : 2);
+                  }}
+                >
+                  <SelectTrigger id="trace-events" className="w-full" aria-label="轨迹事件类型">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="0">全部输入</SelectItem>
+                    <SelectItem value="1">键盘输入</SelectItem>
+                    <SelectItem value="2">鼠标输入</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <Field
+                  label="采样间隔（ms）"
+                  value={interval}
+                  onChange={setInterval}
+                  type="number"
+                  min={2}
+                  max={1000}
+                />
+                <Field
+                  label="录制时长（ms）"
+                  value={duration}
+                  onChange={setDuration}
+                  type="number"
+                  min={100}
+                  max={600000}
+                />
+              </div>
+            </div>
+            <Button
+              className="mt-6 w-full"
+              variant="outline"
+              disabled={!canRecord || action.pending}
+              onClick={() =>
+                setCommand({
+                  kind: 'record',
+                  input: {
+                    event_type: events,
+                    interval_ms: Number(interval),
+                    duration_ms: Number(duration),
+                  },
+                })
+              }
+            >
+              <Mic aria-hidden="true" />开始录制轨迹
+            </Button>
+            <p className="mt-3 text-xs leading-relaxed text-faint">
+              录制在服务器电脑执行，需手动完成要记录的操作。
+            </p>
+          </div>
+          <div className="flex min-w-0 flex-col p-5 sm:px-8 sm:py-7">
+            <h3 className="flex items-center gap-3 text-base font-semibold">
+              <span className="flex size-10 items-center justify-center rounded-lg bg-accent text-primary">
+                <Play className="size-5" aria-hidden="true" />
+              </span>
+              回放
+            </h3>
+            <div className="mt-6 grid gap-4">
+              <Field
+                label="回放轨迹产物 ID"
+                value={artifact}
+                onChange={setArtifact}
+                hint="录制成功后自动填入 recording.msgpack 的公开产物 ID"
+              />
+              <p className="text-xs text-muted-foreground">
+                事件范围沿用左侧：{eventLabels[events]}
+              </p>
+            </div>
+            <Button
+              className="mt-6 self-start"
+              variant="outline"
+              disabled={!canPlayback || !artifact.trim() || action.pending}
+              onClick={() =>
+                setCommand({
+                  kind: 'playback',
+                  input: { artifact_id: artifact.trim(), event_type: events },
+                })
+              }
+            >
+              <Play aria-hidden="true" />回放输入轨迹
+            </Button>
+            <p className="mt-3 text-xs leading-relaxed text-faint">
+              回放会向服务器电脑派发真实输入，执行前确认目标窗口。
+            </p>
+            <div className="mt-auto pt-6">
+              <ActionFeedback {...action} />
+            </div>
+          </div>
+        </div>
+        <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-5 py-3 text-xs text-faint sm:px-6">
+          <span>回执确认输入派发，界面效果需另行观察。</span>
+          <span>{action.pending ? '正在执行' : output ? '已有执行回执' : '尚无本次执行回执'}</span>
+        </footer>
       </div>
-      <ActionFeedback {...action} />
       {output && (
-        <>
-          <h3>{'recorded' in output.data.result ? '录制回执' : '回放回执'}</h3>
-          <dl className="metadata-grid">
+        <section className="min-w-0 rounded-lg border border-border bg-card p-5">
+          <h3 className="mb-3 text-sm font-semibold">
+            {'recorded' in output.data.result ? '录制回执' : '回放回执'}
+          </h3>
+          <dl className="my-3 grid gap-x-5 gap-y-2 text-sm sm:grid-cols-[auto_minmax(0,1fr)] [&>dt]:text-muted-foreground [&>dd]:min-w-0 [&>dd]:break-words">
             <dt>事件范围</dt>
             <dd>{eventLabels[output.data.result.event_type]}</dd>
             <dt>事件数量</dt>
@@ -163,10 +231,10 @@ export function InputTraceAutomation({ services }: { services: ProductServices }
               </>
             )}
             <dt>轨迹格式</dt>
-            <dd>{output.data.result.format}</dd>
+            <dd className="font-mono text-xs">{output.data.result.format}</dd>
           </dl>
-          <p className="capability-notice">界面效果尚未确认。任务 ID：{output.job.id}</p>
-          <div className="action-row">
+          <p className="break-all text-xs text-muted-foreground">任务 ID：{output.job.id}</p>
+          <div className="mt-4 flex flex-wrap gap-2">
             {artifactNames
               .filter((filename) =>
                 output.data.artifacts.some((item) => item.filename === filename),
@@ -174,6 +242,7 @@ export function InputTraceAutomation({ services }: { services: ProductServices }
               .map((filename) => (
                 <Button
                   key={filename}
+                  size="sm"
                   variant="outline"
                   disabled={download.pending}
                   onClick={() => {
@@ -192,6 +261,7 @@ export function InputTraceAutomation({ services }: { services: ProductServices }
                 </Button>
               ))}
             <Button
+              size="sm"
               variant="ghost"
               disabled={download.pending}
               onClick={() => {
@@ -213,13 +283,13 @@ export function InputTraceAutomation({ services }: { services: ProductServices }
           <ActionFeedback {...download} />
           {downloaded && <BlobDownload {...downloaded} label={`保存 ${downloaded.filename}`} />}
           {log !== null && (
-            <pre className="terminal-output">
+            <pre className="mt-4 max-h-64 overflow-auto rounded-lg border border-border bg-surface-elevated p-4 font-mono text-xs leading-relaxed whitespace-pre-wrap text-muted-foreground">
               {log || '轨迹日志为空'}
               {log.length === 512 * 1024 ? '\n预览最多显示 512 KiB；完整内容请下载。' : ''}
             </pre>
           )}
           <JsonResult value={output} />
-        </>
+        </section>
       )}
       <Dialog
         open={command !== null}

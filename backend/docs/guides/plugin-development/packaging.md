@@ -47,6 +47,8 @@ HTTP 管理使用 `GET /api/v2/plugins`、`POST /api/v2/plugins/{id}/load`、`PO
 
 ## 完整发布、市场和离线
 
+新发布优先使用 v2 和统一 `dependencies`（见[共享依赖](dependencies.md)）。以下固定 `tools[]` 的闭包和 `release_format_version:1` 为旧 v1 兼容流程；v2 市场能力必须包含 2，catalog 的 `release_format_version` 也用 2。v2 的市场来源必须已上传相应归档，官方 HTTPS 来源则保留独立固定摘要。用户一次插件安装先自动发现环境及共享工具，只下载缺失必需项，不要求把工具装进主 npm 包或全部内嵌到插件 ZIP。
+
 用项目发布器将组件 ZIP/TGZ 和实际工具字节编排成 `release.json`：源码版本范围仅用于选择输入，成品必须固定版本、大小、SHA-256、平台与稳定工具 entries。离线 ZIP 根直接包含 `release.json`，所有 path 引用的资源在包内（例如 `blobs/<sha256>`），完整闭包不能遗漏，不下载缺失依赖。在线清单 path 改为同资源服务器的相对摘要，并重新计算原始清单修订，不能复用离线清单摘要。
 
 网页发布前 GET `/api/v1/capabilities`，要求 `api_version:1`、`release_publication.format_versions` 含 1、`host_api_versions` 含 2、`catalog_last:true`、`immutable_versions:true`，并遵守 `resource_max_bytes`（当前 2147483648）。缺接口或能力不兼容时提示升级，停止写入资源；不能试探性向旧服务器上传。HEAD `/api/v1/resources/{sha256}` 核对现有摘要和长度，缺失才 POST `/api/v1/resources`，组件/工具全部完成后上传在线清单，最后 POST `/api/v1/catalog`。只产生一个可见 plugin 条目，`resource_id` 引用清单摘要，details 固定 `release_format_version:1,host_api_version:2`。

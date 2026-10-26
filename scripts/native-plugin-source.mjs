@@ -1,8 +1,10 @@
-import { copyFile, readdir } from 'node:fs/promises';
+import { copyFile, readdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { readJson, regularFile } from '../cli/src/paths.mjs';
 import { loadNativePluginAssets } from './native-plugin-assets.mjs';
 import { readMarketMetadata } from '../cli/src/plugin-package.mjs';
+import { validateDependencies } from './plugin-releases/dependencies.mjs';
+import { readJson as readDependencyJson } from './plugin-releases/io.mjs';
 
 // 正式清单优先；只在文件不存在时兼容旧示例，损坏的正式清单不能被掩盖。
 export async function loadNativePluginSource(directory) {
@@ -51,7 +53,29 @@ export async function loadNativePluginSource(directory) {
   }
   const assets = await loadNativePluginAssets(directory);
   const marketMetadata = await readMarketMetadata(directory, manifest);
-  return { manifest, configurationTemplates, assets, marketMetadata };
+  let dependencies;
+  try {
+    const path = await regularFile(directory, 'dependencies.json');
+    dependencies = validateDependencies(await readDependencyJson(path), {
+      owner: manifest.id,
+      components: new Set([manifest.id]),
+    });
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error;
+  }
+  return { manifest, configurationTemplates, assets, marketMetadata, dependencies };
+}
+
+// 独立依赖文件位于包根，不向 SDK 的便携结构塞入额外字段。
+export async function copyNativePluginDependencies(plan, directory) {
+  if (plan.dependencies === undefined) return;
+  const owner = plan.id ?? plan.manifest?.id;
+  validateDependencies(plan.dependencies, { owner, components: new Set([owner]) });
+  await writeFile(
+    join(directory, 'dependencies.json'),
+    JSON.stringify(plan.dependencies, null, 2) + '\n',
+    { flag: 'wx' },
+  );
 }
 
 // 打包器与验证共用模板复制入口，实际配置与凭据始终留在部署目录。

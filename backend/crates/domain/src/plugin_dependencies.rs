@@ -9,7 +9,11 @@ pub use deviceforge_plugin_dependencies::*;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
-pub enum DependencyTargetKind { Release, Server, Browser }
+pub enum DependencyTargetKind {
+    Release,
+    Server,
+    Browser,
+}
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -20,11 +24,20 @@ pub struct DependencyTarget {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
-pub enum DependencyStatus { Ready, Missing, Incompatible, Failed }
+pub enum DependencyStatus {
+    Ready,
+    Missing,
+    Incompatible,
+    Failed,
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
-pub enum DependencyOrigin { Environment, Shared, Local }
+pub enum DependencyOrigin {
+    Environment,
+    Shared,
+    Local,
+}
 
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct DependencyView {
@@ -67,8 +80,20 @@ pub struct DependencyRequest {
 #[async_trait]
 pub trait DependencyStore: Send + Sync {
     async fn get(&self, target: DependencyTarget) -> Result<PluginDependencies>;
-    async fn scan(&self, request: DependencyRequest, cancel: CancellationToken,
-        context: ExecutionContext, progress: Arc<dyn ProgressReporter>) -> Result<PluginDependencies>;
-    async fn install(&self, request: DependencyRequest, cancel: CancellationToken,
-        context: ExecutionContext, progress: Arc<dyn ProgressReporter>) -> Result<PluginDependencies>;
+    async fn scan(
+        &self,
+        request: DependencyRequest,
+        cancel: CancellationToken,
+        context: ExecutionContext,
+        progress: Arc<dyn ProgressReporter>,
+    ) -> Result<PluginDependencies>;
+    async fn install(
+        &self,
+        request: DependencyRequest,
+        cancel: CancellationToken,
+        context: ExecutionContext,
+        progress: Arc<dyn ProgressReporter>,
+    ) -> Result<PluginDependencies>;
+    /// 部署删除成功后仅释放自身引用与绑定，不删除共享内容或外部工具。
+    async fn forget(&self, target: DependencyTarget) -> Result<()>;
 }

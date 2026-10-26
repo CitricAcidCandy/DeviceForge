@@ -150,7 +150,7 @@ pub(crate) async fn configured_plugin(call: PluginInvocation<'_>) -> Result<Vec<
     let lease =
         crate::plugin_resources::acquire(call.resources, &call.cancel, call.deadline, &unresolved)
             .await?;
-    let mut command = ToolCommand::new(call.executable, call.args);
+    let mut command = ToolCommand::new(lease.executable(call.executable), call.args);
     command.input = Some(&call.input);
     command.directory = call.directory;
     command.environment = Environment::Restricted;

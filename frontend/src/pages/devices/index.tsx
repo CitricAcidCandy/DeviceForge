@@ -238,27 +238,66 @@ export function DevicesPage({ services, active }: { services: ProductServices; a
               />
             </div>
           ) : (
-            <div className="device-stage-empty">
-              <p>
-                {snapshot.providers.length
-                  ? `目录 ${deviceTotal} 台设备，选择一台进入工作台`
-                  : '还没有可用的设备提供者'}
-              </p>
-              <div className="device-stage-empty-actions">
-                {snapshot.providers.length > 0 ? (
-                  <Button variant="outline" size="sm" onClick={() => setDirectoryOpen(true)}>
-                    打开设备目录
+            /* 未点亮的屏体：左右对称留白，左侧 64px 同时给工具轨让位。 */
+            <div className="relative mx-16 my-3.5 flex min-w-0 flex-1 items-center justify-center overflow-hidden rounded-2xl border border-hairline bg-card">
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute top-1/2 left-1/2 size-[360px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,color-mix(in_srgb,var(--primary)_11%,transparent)_0%,transparent_70%)]"
+              />
+              <div className="relative flex max-h-full w-full max-w-[460px] flex-col items-center gap-5 overflow-y-auto px-4 py-1 text-center">
+                {/* 投屏位：与真实设备框同构，设备一连上就在同一位置被填满。 */}
+                <div className="flex h-[min(320px,45vh)] aspect-[150/320] shrink-0 flex-col rounded-[26px] border-[1.5px] border-dashed border-hairline-strong bg-card p-1.5">
+                  <div className="relative flex flex-1 items-center justify-center rounded-[21px] bg-surface-sunken">
+                    <Smartphone
+                      className="size-[34px] text-ghost"
+                      strokeWidth={1.3}
+                      aria-hidden="true"
+                    />
+                    <span
+                      aria-hidden="true"
+                      className="absolute bottom-[9px] left-1/2 h-[3px] w-[52px] -translate-x-1/2 rounded-full bg-hairline-strong"
+                    />
+                  </div>
+                </div>
+                <div className="flex flex-col items-center gap-1.5">
+                  <p className="text-[18px] font-semibold text-ink">
+                    {snapshot.providers.length === 0
+                      ? '还没有可用的设备提供者'
+                      : deviceTotal === 0
+                        ? '还没有发现设备'
+                        : '还没有设备进入工作台'}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {snapshot.providers.length === 0
+                      ? '在市场页「已安装」里启用设备提供者，再回到这里发现设备'
+                      : deviceTotal === 0
+                        ? '连接一台设备，或在设备目录里重新发现'
+                        : `目录里已有 ${deviceTotal} 台设备，选一台开始投屏`}
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center justify-center gap-2">
+                  {snapshot.providers.length > 0 ? (
+                    <Button
+                      className="h-9 rounded-lg px-4"
+                      onClick={() => setDirectoryOpen(true)}
+                    >
+                      打开设备目录
+                    </Button>
+                  ) : (
+                    <Button className="h-9 rounded-lg px-4" asChild>
+                      <a href="#marketplace">去市场页启用</a>
+                    </Button>
+                  )}
+                  <Button
+                    variant="outline"
+                    className="h-9 rounded-lg border-hairline bg-card px-3.5"
+                    onClick={() => setConnectionOpen(true)}
+                  >
+                    连接设备
                   </Button>
-                ) : (
-                  <Button variant="outline" size="sm" asChild>
-                    <a href="#marketplace">去市场页启用</a>
-                  </Button>
-                )}
-                <Button variant="ghost" size="sm" onClick={() => setConnectionOpen(true)}>
-                  连接设备
-                </Button>
+                </div>
+                <NoDeviceRecovery services={services} active={active} />
               </div>
-              <NoDeviceRecovery services={services} active={active} />
             </div>
           )}
         </div>

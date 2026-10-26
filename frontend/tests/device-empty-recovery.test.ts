@@ -126,9 +126,9 @@ test('真实设备页父级在空态保留全插件恢复入口（无服务、�
         await context.render();
         assert.match(target.textContent ?? '', /还没有可用的设备提供者/);
         assert.ok(target.querySelector('section[aria-label="投屏恢复"]'));
-        await settled(() => !button('核对全部投屏资源').disabled, '空态没有读取真实恢复视图');
+        await settled(() => !button('重试').disabled, '空态没有读取真实恢复视图');
         assert.deepEqual(context.requests.map((item) => item.path), ['/api/v2/plugins/mirroring/recovery']);
-        await act(async () => { button('核对全部投屏资源').click(); });
+        await act(async () => { button('重试').click(); });
         await settled(() => context.requests.some((item) => item.path === '/api/v2/devices'), '恢复后没有刷新目录');
         assert.deepEqual(context.requests.filter((item) => item.method === 'POST').map(({ path, body }) => ({ path, body })), [{
           path: '/api/v2/plugins/mirroring/recovery', body: { generation: 'recovery-g1', input: {} },
@@ -146,8 +146,8 @@ test('真实设备页父级在空态保留全插件恢复入口（无服务、�
       try {
         await context.services.runtime.devices.refreshProviders(signal());
         await context.render();
-        await settled(() => !button('核对全部投屏资源').disabled, '未选设备时恢复入口不可用');
-        assert.match(target.textContent ?? '', /目录 0 台设备，选择一台进入工作台/);
+        await settled(() => !button('重试').disabled, '未选设备时恢复入口不可用');
+        assert.match(target.textContent ?? '', /还没有发现设备/);
         assert.ok(button('打开设备目录'));
         assert.equal(context.requests.some((item) => item.path === '/api/v2/session-definitions'), false);
         assert.equal(context.requests.some((item) => item.method === 'POST'), false);
@@ -166,10 +166,10 @@ test('真实设备页父级在空态保留全插件恢复入口（无服务、�
         assert.equal(button('核对并恢复').disabled, false);
         assert.equal(target.querySelectorAll('section[aria-label="投屏恢复"]').length, 1);
         await act(async () => { context.services.runtime.devices.select(null); });
-        await settled(() => !button('核对全部投屏资源').disabled, '主动取消选择后缺少全插件入口');
-        assert.match(target.textContent ?? '', /目录 1 台设备，选择一台进入工作台/);
+        await settled(() => !button('重试').disabled, '主动取消选择后缺少全插件入口');
+        assert.match(target.textContent ?? '', /目录里已有 1 台设备，选一台开始投屏/);
         assert.equal(context.services.runtime.devices.snapshot().selection, null);
-        await act(async () => { button('核对全部投屏资源').click(); });
+        await act(async () => { button('重试').click(); });
         await settled(() => target.textContent?.includes('连接排查') ?? false, '全插件恢复没有完成');
         assert.equal(context.services.runtime.devices.snapshot().selection, null, '恢复不能抢回用户已取消的选择');
         assert.deepEqual(context.requests.filter((item) => item.method === 'POST').map(({ path, body }) => ({ path, body })), [{
@@ -200,7 +200,7 @@ test('真实设备页父级在空态保留全插件恢复入口（无服务、�
         assert.equal(context.requests.length, 1);
         assert.doesNotMatch(target.textContent ?? '', /资源核对已通过/);
         await context.render(true);
-        await settled(() => !button('核对全部投屏资源').disabled, '重入没有重新读取当前恢复状态');
+        await settled(() => !button('重试').disabled, '重入没有重新读取当前恢复状态');
         assert.equal(context.requests.length, 2);
         assert.equal(context.requests.every((item) => item.method === 'GET'), true);
       } finally { await context.close(); }
@@ -211,8 +211,8 @@ test('真实设备页父级在空态保留全插件恢复入口（无服务、�
         const context = page({ holdPost: true });
         try {
           await context.render();
-          await settled(() => !button('核对全部投屏资源').disabled, '恢复视图未就绪');
-          await act(async () => { button('核对全部投屏资源').click(); });
+          await settled(() => !button('重试').disabled, '恢复视图未就绪');
+          await act(async () => { button('重试').click(); });
           const post = context.requests.find((item) => item.method === 'POST');
           assert.ok(post?.signal);
           assert.equal(post.signal.aborted, false);
@@ -233,8 +233,8 @@ test('真实设备页父级在空态保留全插件恢复入口（无服务、�
       const context = page({ providers: [provider()], holdDirectories: true });
       try {
         await context.render();
-        await settled(() => !button('核对全部投屏资源').disabled, '恢复视图未就绪');
-        await act(async () => { button('核对全部投屏资源').click(); });
+        await settled(() => !button('重试').disabled, '恢复视图未就绪');
+        await act(async () => { button('重试').click(); });
         await settled(() => context.requests.some((item) => item.path === '/api/v2/devices'), '未读取恢复后的目录');
         const read = context.requests.find((item) => item.path === '/api/v2/devices');
         assert.ok(read?.signal);
@@ -254,8 +254,8 @@ test('真实设备页父级在空态保留全插件恢复入口（无服务、�
       const context = page();
       try {
         await context.render(true, true);
-        await settled(() => !button('核对全部投屏资源').disabled, '严格模式重复挂载没有读到恢复状态');
-        await act(async () => { button('核对全部投屏资源').click(); });
+        await settled(() => !button('重试').disabled, '严格模式重复挂载没有读到恢复状态');
+        await act(async () => { button('重试').click(); });
         await settled(() => context.requests.some((item) => item.path === '/api/v2/devices'), '严格模式恢复后没有读取目录');
         const read = context.requests.find((item) => item.path === '/api/v2/devices');
         assert.ok(read?.signal);

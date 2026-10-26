@@ -45,3 +45,7 @@ export * from './plugin-installations.ts';
 export { createMcpTransport, MCP_PROTOCOL_VERSION } from './mcp.ts';
 export type { McpHttpResponse, McpTransport } from './mcp.ts';
 export * from './plugin-recovery.ts';
+export { pluginDependenciesEndpoint, scanPluginDependenciesEndpoint, installPluginDependenciesEndpoint, isDependencyIdentifier } from './plugin-dependencies.ts';
+export type {
+  PluginDependenciesDto, DependencyTargetDto, DependencyChangeDto, DependencyTaskDto, DependencyCommandDto,
+} from './plugin-dependencies.ts';

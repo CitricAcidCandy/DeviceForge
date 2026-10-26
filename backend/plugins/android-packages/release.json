@@ -1,5 +1,5 @@
 {
-  "format_version": 1,
+  "format_version": 2,
   "host_api_version": 2,
   "id": "android-packages",
   "version": "0.1.0",
@@ -13,73 +13,239 @@
       "variants": []
     }
   ],
-  "tools": [
-    {
-      "id": "java",
-      "version": "unresolved",
-      "required": false,
-      "variants": [],
-      "bindings": [
-        {
-          "component_id": "android-packages",
-          "config_pointer": "/tools/java",
-          "entry": "java"
-        }
-      ]
-    },
-    {
-      "id": "apkanalyzer",
-      "version": "unresolved",
-      "required": false,
-      "variants": [],
-      "bindings": [
-        {
-          "component_id": "android-packages",
-          "config_pointer": "/tools/apkanalyzer/executable",
-          "entry": "apkanalyzer"
-        }
-      ]
-    },
-    {
-      "id": "apksigner",
-      "version": "unresolved",
-      "required": false,
-      "variants": [],
-      "bindings": [
-        {
-          "component_id": "android-packages",
-          "config_pointer": "/tools/apksigner/jar",
-          "entry": "jar"
-        }
-      ]
-    },
-    {
-      "id": "bundletool",
-      "version": "1.3.0",
-      "required": false,
-      "variants": [],
-      "bindings": [
-        {
-          "component_id": "android-packages",
-          "config_pointer": "/tools/bundletool/jar",
-          "entry": "jar"
-        }
-      ]
-    },
-    {
-      "id": "apktool",
-      "version": "2.9.0",
-      "required": false,
-      "variants": [],
-      "bindings": [
-        {
-          "component_id": "android-packages",
-          "config_pointer": "/tools/apktool/jar",
-          "entry": "jar"
-        }
-      ]
-    }
-  ],
+  "tools": [],
+  "dependencies": {
+    "format_version": 1,
+    "dependencies": [
+      {
+        "id": "java",
+        "entries": [
+          "java"
+        ],
+        "discovery": [
+          {
+            "kind": "environment",
+            "value": "JAVA_PATH",
+            "entries": {
+              "java": "."
+            }
+          },
+          {
+            "kind": "environment",
+            "value": "JAVA_HOME",
+            "entries": {
+              "java": "bin/java.exe"
+            }
+          },
+          {
+            "kind": "path",
+            "value": "java.exe",
+            "entries": {
+              "java": "."
+            }
+          },
+          {
+            "kind": "path",
+            "value": "java",
+            "entries": {
+              "java": "."
+            }
+          },
+          {
+            "kind": "user_directory",
+            "value": "tools/java",
+            "entries": {
+              "java": "java.exe"
+            }
+          }
+        ],
+        "name": "Java 运行环境",
+        "probe": {
+          "entry": "java",
+          "args": [
+            "-version"
+          ],
+          "pattern": "version \"([0-9]+\\.[0-9]+\\.[0-9]+)",
+          "timeout_ms": 3000
+        },
+        "version_requirement": "*",
+        "required": false,
+        "requires": [],
+        "sources": [],
+        "bindings": [
+          {
+            "component_id": "android-packages",
+            "config_pointer": "/tools/java",
+            "entry": "java"
+          }
+        ]
+      },
+      {
+        "id": "apkanalyzer",
+        "entries": [
+          "apkanalyzer"
+        ],
+        "discovery": [
+          {
+            "kind": "environment",
+            "value": "APKANALYZER_PATH",
+            "entries": {
+              "apkanalyzer": "."
+            }
+          },
+          {
+            "kind": "path",
+            "value": "apkanalyzer.exe",
+            "entries": {
+              "apkanalyzer": "."
+            }
+          },
+          {
+            "kind": "path",
+            "value": "apkanalyzer",
+            "entries": {
+              "apkanalyzer": "."
+            }
+          },
+          {
+            "kind": "user_directory",
+            "value": "tools/apkanalyzer",
+            "entries": {
+              "apkanalyzer": "apkanalyzer.exe"
+            }
+          }
+        ],
+        "name": "Android APK 分析器",
+        "probe": {
+          "entry": "apkanalyzer",
+          "args": [
+            "--version"
+          ],
+          "pattern": "([0-9]+\\.[0-9]+\\.[0-9]+(?:\\.[0-9]+)?)",
+          "timeout_ms": 3000
+        },
+        "version_requirement": "*",
+        "required": false,
+        "requires": [],
+        "sources": [],
+        "bindings": [
+          {
+            "component_id": "android-packages",
+            "config_pointer": "/tools/apkanalyzer/executable",
+            "entry": "apkanalyzer"
+          }
+        ]
+      },
+      {
+        "id": "apksigner",
+        "entries": [
+          "jar"
+        ],
+        "discovery": [
+          {
+            "kind": "environment",
+            "value": "APKSIGNER_JAR",
+            "entries": {
+              "jar": "."
+            }
+          },
+          {
+            "kind": "user_directory",
+            "value": "tools/apksigner",
+            "entries": {
+              "jar": "apksigner.jar"
+            }
+          }
+        ],
+        "name": "Android APK 签名器",
+        "requires": [
+          "java"
+        ],
+        "version_requirement": "*",
+        "required": false,
+        "sources": [],
+        "bindings": [
+          {
+            "component_id": "android-packages",
+            "config_pointer": "/tools/apksigner/jar",
+            "entry": "jar"
+          }
+        ]
+      },
+      {
+        "id": "bundletool",
+        "entries": [
+          "jar"
+        ],
+        "discovery": [
+          {
+            "kind": "environment",
+            "value": "BUNDLETOOL_JAR",
+            "entries": {
+              "jar": "."
+            }
+          },
+          {
+            "kind": "user_directory",
+            "value": "tools/bundletool",
+            "entries": {
+              "jar": "bundletool.jar"
+            }
+          }
+        ],
+        "name": "Android Bundle 工具",
+        "requires": [
+          "java"
+        ],
+        "version_requirement": "=1.3.0",
+        "required": false,
+        "sources": [],
+        "bindings": [
+          {
+            "component_id": "android-packages",
+            "config_pointer": "/tools/bundletool/jar",
+            "entry": "jar"
+          }
+        ]
+      },
+      {
+        "id": "apktool",
+        "entries": [
+          "jar"
+        ],
+        "discovery": [
+          {
+            "kind": "environment",
+            "value": "APKTOOL_JAR",
+            "entries": {
+              "jar": "."
+            }
+          },
+          {
+            "kind": "user_directory",
+            "value": "tools/apktool",
+            "entries": {
+              "jar": "apktool.jar"
+            }
+          }
+        ],
+        "name": "Android 资源解码器",
+        "requires": [
+          "java"
+        ],
+        "version_requirement": "=2.9.0",
+        "required": false,
+        "sources": [],
+        "bindings": [
+          {
+            "component_id": "android-packages",
+            "config_pointer": "/tools/apktool/jar",
+            "entry": "jar"
+          }
+        ]
+      }
+    ]
+  },
   "requirements": [
     {
       "component_id": "android-packages",

@@ -4,6 +4,7 @@ pub mod configuration;
 pub mod context;
 pub mod cooperative;
 pub mod devices;
+pub use deviceforge_plugin_dependencies as dependencies;
 pub mod execution;
 pub mod packages;
 pub mod performance;

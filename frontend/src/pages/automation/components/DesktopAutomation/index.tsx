@@ -86,12 +86,12 @@ export function DesktopAutomation({ services }: { services: ProductServices }) {
       return result;
     });
   return (
-    <section className="flex min-w-0 flex-col gap-4">
+    <section className="flex min-h-0 min-w-0 flex-1 flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground">
         <span className="inline-flex items-center gap-2"><Monitor className="size-4" aria-hidden="true" />作用于运行服务器的电脑</span>
         <span>执行前确认目标电脑与前台窗口</span>
       </div>
-      <div className="overflow-hidden rounded-lg border border-border bg-card">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-border bg-card">
         <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-4 sm:px-6">
           <h2 className="text-base font-semibold">服务器桌面输入</h2>
           <div className="flex items-center gap-2">
@@ -102,7 +102,7 @@ export function DesktopAutomation({ services }: { services: ProductServices }) {
             </Button>
           </div>
         </header>
-        <div className="grid min-w-0 lg:grid-cols-[minmax(16rem,0.9fr)_minmax(0,1.6fr)]">
+        <div className="grid min-h-0 min-w-0 flex-1 lg:grid-cols-[minmax(16rem,0.9fr)_minmax(0,1.6fr)]">
           <div className="min-w-0 border-b border-border bg-surface-elevated p-5 sm:p-7 lg:border-r lg:border-b-0">
             <h3 className="flex items-center gap-3 text-base font-semibold">
               <span className="flex size-10 items-center justify-center rounded-lg bg-accent text-primary"><MousePointer2 className="size-5" aria-hidden="true" /></span>
@@ -114,7 +114,6 @@ export function DesktopAutomation({ services }: { services: ProductServices }) {
                 <span className="text-xs font-normal text-faint">X</span><span>{position?.x ?? '—'}</span>
                 <span className="ml-2 text-xs font-normal text-faint">Y</span><span>{position?.y ?? '—'}</span>
               </div>
-              <p className="text-xs text-faint">读取服务器当前鼠标位置</p>
               <Button className="mt-5" variant="outline" disabled={!canPosition || action.pending}
                 onClick={() => void run((signal) => services.automation.mousePosition(signal))}>
                 <Crosshair aria-hidden="true" />读取位置

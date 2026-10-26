@@ -143,7 +143,7 @@ impl Executor for InstallationOperations {
         {
             return Err(Error::Timeout);
         }
-        let execution = self.run(operation, input, cancel.clone(), progress);
+        let execution = self.run(operation, input, cancel.clone(), progress, context);
         tokio::pin!(execution);
         if let Some(deadline) = context.deadline {
             tokio::select! {
@@ -169,6 +169,7 @@ impl InstallationOperations {
         input: Value,
         cancel: CancellationToken,
         progress: Arc<dyn apk_domain::ProgressReporter>,
+        context: apk_domain::ExecutionContext,
     ) -> Result<Value> {
         if cancel.is_cancelled() {
             return Err(Error::Cancelled);
@@ -182,7 +183,13 @@ impl InstallationOperations {
             "installation.install" => {
                 let input: InstallationRequest = serde_json::from_value(input).map_err(decode)?;
                 service
-                    .install_with_progress(input.source, input.expected_revision, cancel, progress)
+                    .install_with_execution(
+                        input.source,
+                        input.expected_revision,
+                        cancel,
+                        progress,
+                        context,
+                    )
                     .await?
             }
             "installation.update" => {
@@ -192,11 +199,12 @@ impl InstallationOperations {
                     return Err(Error::Conflict("安装修订已变化".into()));
                 }
                 service
-                    .install_with_progress(
+                    .install_with_execution(
                         input.source,
                         Some(input.expected_revision),
                         cancel,
                         progress,
+                        context,
                     )
                     .await?
             }

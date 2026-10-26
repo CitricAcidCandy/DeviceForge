@@ -347,7 +347,15 @@ test('中后台分组导航、折叠与专注保留页面草稿，设备上下�
     assert.equal(findButton('读取位置').disabled, false);
     for (const label of ['执行一次点击', '执行连续点击', '开始录制轨迹', '回放输入轨迹'])
       assert.equal(findButton(label).disabled, true, `不能借用鼠标位置能力开放 ${label}`);
+    const addTrigger = target.querySelector('button[aria-label="添加第一个步骤"]');
+    assert.ok(addTrigger instanceof windowRef.HTMLButtonElement, '空态应有加号入口');
+    await act(async () => addTrigger.click());
+    assert.ok(
+      target.querySelector('[aria-label="添加步骤表单"]'),
+      '点击加号应在列表区内展开添加步骤表单',
+    );
     await act(async () => findButton('添加到流程').click());
+    assert.equal(target.querySelector('[aria-label="添加步骤表单"]'), null, '添加后应自动收起表单');
     assert.match(
       target.querySelector('ol[aria-label="设备流程步骤"]')?.textContent ?? '',
       /X 100 · Y 100/,

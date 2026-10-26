@@ -9,7 +9,7 @@ function record(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
-function versionList(value: unknown, required: number): value is number[] {
+function versionList(value: unknown, supported: readonly number[]): value is number[] {
   return (
     Array.isArray(value) &&
     value.length > 0 &&
@@ -17,7 +17,7 @@ function versionList(value: unknown, required: number): value is number[] {
       (item: unknown) => typeof item === 'number' && Number.isSafeInteger(item) && item > 0,
     ) &&
     new Set(value).size === value.length &&
-    value.includes(required)
+    value.some((version: number) => supported.includes(version))
   );
 }
 
@@ -72,8 +72,8 @@ export async function readReleaseCapabilities(
     throw protocol(response, upgradeMessage, 'marketplace_upgrade_required');
   const publication = value['release_publication'];
   if (
-    !versionList(publication['format_versions'], 1) ||
-    !versionList(publication['host_api_versions'], 2) ||
+    !versionList(publication['format_versions'], [1, 2]) ||
+    !versionList(publication['host_api_versions'], [2]) ||
     typeof publication['resource_max_bytes'] !== 'number' ||
     !Number.isSafeInteger(publication['resource_max_bytes']) ||
     publication['resource_max_bytes'] < 1 ||

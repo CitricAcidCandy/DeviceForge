@@ -14,6 +14,8 @@ import { readJson, measureFile, verifyFile, assertWithin } from './io.mjs';
 import { verifyEntries, writeZip, writeTgz } from './archive.mjs';
 import { portableOfficialMembers } from './templates.mjs';
 import { fixedVersion, versionSatisfied } from './versions.mjs';
+import { validateDependencies } from './dependencies.mjs';
+import { prepareDependencies } from './pack-dependencies.mjs';
 
 const fail = (condition, message) => {
   if (!condition) throw new Error(message);
@@ -63,6 +65,14 @@ function portableComponent(members, component, platform, inputVersion) {
     manifest.id === component.id && manifest.version === descriptor.version,
     '组件清单身份与发布声明不匹配',
   );
+  const dependencyBytes = members.get(prefix + 'dependencies.json');
+  if (dependencyBytes) {
+    fail(dependencyBytes.length <= 256 * 1024, '组件依赖清单超过256KiB');
+    validateDependencies(JSON.parse(dependencyBytes), {
+      owner: component.id,
+      components: new Set([component.id]),
+    });
+  }
   if (component.kind === 'server') {
     const executable = entry.entrypoints?.[platform] ?? entry.entrypoints?.any;
     fail(
@@ -84,12 +94,19 @@ export async function prepareRelease(sourcePath, inputPath, platform, { staging 
     inputs &&
       typeof inputs === 'object' &&
       !Array.isArray(inputs) &&
-      Object.keys(inputs).every((key) => ['components', 'tools'].includes(key)),
+      Object.keys(inputs).every((key) =>
+        ['components', 'tools', ...(source.format_version === 2 ? ['dependencies'] : [])].includes(
+          key,
+        ),
+      ),
     '发布输入必须为组件和工具对象',
   );
   for (const [kind, values] of [
     ['components', source.components],
-    ['tools', source.tools],
+    ['tools', source.tools ?? []],
+    ...(source.format_version === 2
+      ? [['dependencies', source.dependencies?.dependencies ?? []]]
+      : []),
   ]) {
     fail(
       !inputs[kind] ||
@@ -117,7 +134,7 @@ export async function prepareRelease(sourcePath, inputPath, platform, { staging 
     components.push({ ...locked, variants: [variant] });
   }
   const tools = [];
-  for (const tool of source.tools) {
+  for (const tool of source.tools ?? []) {
     const input = inputs.tools?.[tool.id];
     if (!input) {
       fail(tool.required === false, `必需工具缺实际归档：${tool.id}`);
@@ -133,12 +150,23 @@ export async function prepareRelease(sourcePath, inputPath, platform, { staging 
     files.set(variant.sha256, file);
     tools.push({ ...tool, version, variants: [variant] });
   }
-  const manifest = selectRelease(validateRelease({ ...source, components, tools }), platform);
+  const dependencies =
+    source.format_version === 2
+      ? await prepareDependencies(source.dependencies, inputs.dependencies, base, files)
+      : undefined;
+  const manifest = selectRelease(
+    validateRelease({ ...source, components, tools, ...(dependencies ? { dependencies } : {}) }),
+    platform,
+  );
   return { manifest, files, platform };
 }
 
 export async function verifyReleaseDirectory(directory) {
   const manifest = validateRelease(await readJson(join(directory, 'release.json')));
+  for (const dependency of manifest.dependencies?.dependencies ?? [])
+    for (const source of dependency.sources ?? [])
+      fail(source.kind !== 'market' || source.url === `blobs/${source.sha256}`,
+        '离线市场依赖必须引用同摘要的本地 blobs 资源');
   const files = new Map();
   for (const variant of releaseResources(manifest)) {
     const file = resolve(directory, variant.path);
@@ -147,9 +175,13 @@ export async function verifyReleaseDirectory(directory) {
     files.set(variant.sha256, file);
   }
   // 同一摘要可以被不同资源键引用，每份入口声明仍独立验证。
-  for (const tool of manifest.tools)
+  for (const tool of manifest.tools ?? [])
     for (const variant of tool.variants)
       await verifyEntries(files.get(variant.sha256), variant, { collect: false });
+  for (const dependency of manifest.dependencies?.dependencies ?? [])
+    for (const source of dependency.sources ?? [])
+      if (source.kind === 'market')
+        await verifyEntries(files.get(source.sha256), source, { collect: false });
   for (const component of manifest.components)
     for (const variant of component.variants)
       portableComponent(
@@ -170,7 +202,7 @@ export async function packRelease({
   try {
     const prepared = await prepareRelease(resolve(source), resolve(inputs), platform, { staging });
     const directory = resolve(destination);
-    // 整个闭包验证成功后才创建输出；现有目录永不覆盖。
+    // 所有随包资源及依赖声明验证成功后才创建输出；现有目录永不覆盖。
     await mkdir(directory);
     await mkdir(join(directory, 'blobs'));
     const members = [],

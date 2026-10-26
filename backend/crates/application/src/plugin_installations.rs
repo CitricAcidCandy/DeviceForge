@@ -5,7 +5,7 @@ use apk_domain::{
     plugin_configurations::PluginConfigurationStore, plugin_installations::*,
     plugin_packages::PackageKind, plugins::plugin_id,
 };
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 use tokio_util::sync::CancellationToken;
 #[cfg(test)]
 #[path = "plugin_installations_tests.rs"]
@@ -16,6 +16,7 @@ pub struct InstallationService {
     plugins: Arc<PluginService>,
     server_configurations: Arc<dyn PluginConfigurationStore>,
     browser_configurations: Arc<dyn BrowserConfigurationStore>,
+    dependencies: OnceLock<Arc<crate::plugin_dependencies::DependencyService>>,
 }
 
 impl InstallationService {
@@ -30,7 +31,58 @@ impl InstallationService {
             plugins,
             server_configurations,
             browser_configurations,
+            dependencies: OnceLock::new(),
         })
+    }
+    pub fn bind_dependencies(
+        &self,
+        service: Arc<crate::plugin_dependencies::DependencyService>,
+    ) -> Result<()> {
+        self.dependencies
+            .set(service)
+            .map_err(|_| Error::Conflict("依赖服务已绑定".into()))
+    }
+
+    async fn prepare_dependencies(
+        &self,
+        release: &InstalledRelease,
+        download_missing: bool,
+        cancel: CancellationToken,
+        mut context: apk_domain::ExecutionContext,
+        progress: Arc<dyn apk_domain::ProgressReporter>,
+    ) -> Result<bool> {
+        let Some(service) = self.dependencies.get() else {
+            return Ok(true);
+        };
+        use apk_domain::plugin_dependencies::*;
+        let target = DependencyTarget {
+            kind: DependencyTargetKind::Release,
+            id: release.id.clone(),
+        };
+        if context.deadline.is_none() {
+            context.deadline = Some(
+                std::time::Instant::now()
+                    + std::time::Duration::from_secs(if download_missing { 3_600 } else { 120 }),
+            );
+        }
+        let result = if download_missing {
+            service.ensure(target, cancel, context, progress).await?
+        } else {
+            let current = service.get(target.clone()).await?;
+            service
+                .scan(
+                    DependencyRequest {
+                        target,
+                        expected_revision: current.revision,
+                        dependency_ids: Vec::new(),
+                    },
+                    cancel,
+                    context,
+                    progress,
+                )
+                .await?
+        };
+        Ok(result.ready)
     }
     pub async fn list(&self) -> Result<Vec<InstalledRelease>> {
         self.store.list().await
@@ -72,6 +124,23 @@ impl InstallationService {
         cancel: CancellationToken,
         progress: Arc<dyn apk_domain::ProgressReporter>,
     ) -> Result<InstalledRelease> {
+        self.install_with_execution(
+            source,
+            expected_revision,
+            cancel,
+            progress,
+            Default::default(),
+        )
+        .await
+    }
+    pub async fn install_with_execution(
+        self: &Arc<Self>,
+        source: InstallSource,
+        expected_revision: Option<String>,
+        cancel: CancellationToken,
+        progress: Arc<dyn apk_domain::ProgressReporter>,
+        context: apk_domain::ExecutionContext,
+    ) -> Result<InstalledRelease> {
         if let Some(expected) = &expected_revision {
             validate_release_digest(expected)?;
         }
@@ -86,12 +155,15 @@ impl InstallationService {
             prepared = self.store.prepare_with_progress(source, progress.clone()) => prepared?,
         };
         let service = self.clone();
-        self.plugins
+        let commit_cancel = cancel.clone();
+        let commit_progress = progress.clone();
+        let (installed, old, old_loaded) = self
+            .plugins
             .serialized(move |plugins| async move {
-                if cancel.is_cancelled() {
+                if commit_cancel.is_cancelled() {
                     return Err(Error::Cancelled);
                 }
-                progress
+                commit_progress
                     .report(apk_domain::JobProgress::stage(
                         apk_domain::JobStage::Deploying,
                     ))
@@ -116,7 +188,7 @@ impl InstallationService {
                     service.require_recoverable(old)?;
                     service.require_clean_components(old).await?;
                 }
-                if cancel.is_cancelled() {
+                if commit_cancel.is_cancelled() {
                     return Err(Error::Cancelled);
                 }
                 let old_loaded = service.loaded_components(old.as_ref());
@@ -154,6 +226,33 @@ impl InstallationService {
                         return Err(error);
                     }
                 };
+                Ok((installed, old, old_loaded))
+            })
+            .await?;
+        // 工具下载不占全局生命周期锁，其他插件的启停和管理仍可继续。
+        match self
+            .prepare_dependencies(&installed, true, cancel.clone(), context, progress.clone())
+            .await
+        {
+            Ok(true) => {}
+            Ok(false) => {
+                return self
+                    .store
+                    .dependencies_required(&installed.id, &installed.revision)
+                    .await;
+            }
+            Err(error) => {
+                self.store
+                    .dependencies_required(&installed.id, &installed.revision)
+                    .await?;
+                return Err(error);
+            }
+        }
+        let service = self.clone();
+        self.plugins
+            .serialized(move |plugins| async move {
+                let current = service.current(&installed.id, &installed.revision).await?;
+                service.require_recoverable(&current)?;
                 let activation = async {
                     // 文件已提交，进度存储失败不能触发业务回退。
                     let _ = progress
@@ -167,10 +266,10 @@ impl InstallationService {
                             .configuration_required(&installed.id, &installed.revision)
                             .await;
                     }
-                    if old.as_ref().is_none_or(|old| old.enabled) {
+                    if current.enabled {
                         service.enable(&plugins, &installed).await
                     } else {
-                        Ok(installed.clone())
+                        Ok(current.clone())
                     }
                 }
                 .await;
@@ -184,9 +283,11 @@ impl InstallationService {
                         Ok(value)
                     }
                     Err(error) => {
-                        if service.store.get(&installed.id).await?.status
-                            == InstallationStatus::RecoveryBlocked
-                        {
+                        if matches!(
+                            service.store.get(&installed.id).await?.status,
+                            InstallationStatus::RecoveryBlocked
+                                | InstallationStatus::DependenciesRequired
+                        ) {
                             return Err(error);
                         }
                         if service.unload(&plugins, &installed).await.is_err() {
@@ -275,6 +376,21 @@ impl InstallationService {
                 service.require_recoverable(&release)?;
                 service.require_clean_components(&release).await?;
                 if enabled {
+                    if !service
+                        .prepare_dependencies(
+                            &release,
+                            false,
+                            cancel.clone(),
+                            Default::default(),
+                            Arc::new(apk_domain::NoProgress),
+                        )
+                        .await?
+                    {
+                        return service
+                            .store
+                            .dependencies_required(&id, &expected_revision)
+                            .await;
+                    }
                     if service.requires_configuration(&release).await? {
                         let previous = service.loaded_components(Some(&release));
                         if let Err(error) = service.unload(&plugins, &release).await {
@@ -378,7 +494,16 @@ impl InstallationService {
                     return Err(Error::Conflict("启用中的发布不能删除，请先停用".into()));
                 }
                 service.unload(&plugins, &release).await?;
-                service.store.delete(&id, &expected_revision).await
+                let record = service.store.delete(&id, &expected_revision).await?;
+                if let Some(dependencies) = service.dependencies.get() {
+                    dependencies
+                        .forget(apk_domain::plugin_dependencies::DependencyTarget {
+                            kind: apk_domain::plugin_dependencies::DependencyTargetKind::Release,
+                            id,
+                        })
+                        .await?;
+                }
+                Ok(record)
             })
             .await
     }
@@ -390,6 +515,14 @@ impl InstallationService {
             .serialized(move |plugins| async move {
                 for release in service.store.list().await? {
                     if !release.enabled || release.requires_recovery() {
+                        continue;
+                    }
+                    let ready = service.prepare_dependencies(&release, false, CancellationToken::new(), Default::default(), Arc::new(apk_domain::NoProgress)).await;
+                    if !ready.as_ref().is_ok_and(|ready| *ready) {
+                        if let Err(error) = ready {
+                            tracing::warn!(release_id = %release.id, error = %error, "单个发布依赖恢复失败，继续恢复其他发布");
+                        }
+                        service.store.dependencies_required(&release.id, &release.revision).await?;
                         continue;
                     }
                     if service.requires_configuration(&release).await? {

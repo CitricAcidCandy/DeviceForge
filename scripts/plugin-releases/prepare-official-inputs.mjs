@@ -8,11 +8,30 @@ import { archiveMembers } from './archive.mjs';
 import { validateRelease, relativePath } from './contract.mjs';
 import { jsonBytes } from './pack.mjs';
 import { fixedVersion, versionSatisfied } from './versions.mjs';
+import { compatibleDependencyVersion } from './dependencies.mjs';
 
 const fail = (condition, message) => {
   if (!condition) throw new Error(message);
 };
 const inputPath = (directory, path) => relative(directory, path).replaceAll('\\', '/');
+
+// 旧库存只有主程序键；仅按现行声明和真实归档补齐同目录成员，不替换显式错误入口。
+function dependencyEntries(declaration, supplied, members) {
+  fail(supplied && typeof supplied === 'object' && !Array.isArray(supplied), '工具绑定入口无效');
+  if (declaration.entries.every((key) => Object.hasOwn(supplied, key))) return supplied;
+  for (const rule of declaration.discovery ?? []) {
+    const pivot = Object.entries(rule.entries).find(([key, path]) =>
+      path !== '.' && typeof supplied[key] === 'string' &&
+      (supplied[key] === path || supplied[key].endsWith('/' + path)));
+    if (!pivot || Object.values(rule.entries).includes('.')) continue;
+    const prefix = supplied[pivot[0]].slice(0, -pivot[1].length);
+    const inferred = Object.fromEntries(Object.entries(rule.entries)
+      .map(([key, path]) => [key, prefix + path]));
+    const result = { ...inferred, ...supplied };
+    if (declaration.entries.every((key) => members.has(result[key]))) return result;
+  }
+  throw new Error(`工具绑定缺少声明的配套入口：${declaration.id}`);
+}
 
 export async function prepareOfficialInputs({
   components,
@@ -94,17 +113,29 @@ export async function prepareOfficialInputs({
     );
     const values = {},
       omitted = [];
-    for (const declaration of source.tools) {
+    const secondVersion = source.format_version === 2;
+    const toolDeclarations = secondVersion
+      ? (source.dependencies?.dependencies ?? [])
+      : source.tools;
+    for (const declaration of toolDeclarations) {
       const input = tools[declaration.id];
       if (!input) {
-        fail(!declaration.required, `必需工具缺实际库存：${id}/${declaration.id}`);
+        fail(secondVersion || !declaration.required, `必需工具缺实际库存：${id}/${declaration.id}`);
+        omitted.push(declaration.id);
+        continue;
+      }
+      if (secondVersion && declaration.required === false &&
+          (!compatibleDependencyVersion(declaration.version_requirement, input.version) ||
+            ![platform, 'any'].includes(input.platform))) {
         omitted.push(declaration.id);
         continue;
       }
       fail(
         typeof input.file === 'string' &&
           fixedVersion(input.version) &&
-          versionSatisfied(declaration.version, input.version) &&
+          (secondVersion
+            ? compatibleDependencyVersion(declaration.version_requirement, input.version)
+            : versionSatisfied(declaration.version, input.version)) &&
           [platform, 'any'].includes(input.platform),
         `工具版本或平台不符：${declaration.id}`,
       );
@@ -116,12 +147,18 @@ export async function prepareOfficialInputs({
         entries = await archiveMembers(file, input.format, { collect: false });
         checked.set(cacheKey, entries);
       }
+      const resourceEntries = secondVersion
+        ? dependencyEntries(declaration, input.entries, entries)
+        : input.entries;
       fail(
-        input.entries &&
-          declaration.bindings.every((binding) => entries.has(input.entries[binding.entry])),
+        resourceEntries &&
+          (secondVersion
+            ? declaration.entries
+            : declaration.bindings.map((binding) => binding.entry)
+          ).every((entry) => entries.has(resourceEntries[entry])),
         `工具绑定入口不存在：${declaration.id}`,
       );
-      values[declaration.id] = { ...input, file: inputPath(output, file) };
+      values[declaration.id] = { ...input, entries: resourceEntries, file: inputPath(output, file) };
     }
     prepared.push({
       id,
@@ -136,7 +173,7 @@ export async function prepareOfficialInputs({
             ...measured,
           },
         },
-        tools: values,
+        [secondVersion ? 'dependencies' : 'tools']: values,
       },
     });
   }
@@ -147,7 +184,8 @@ export async function prepareOfficialInputs({
   const report = {
     platform,
     components: prepared.length,
-    required_tools_verified: true,
+    required_tools_verified: declarations.every(({ source }) => source.format_version === 1),
+    dependency_metadata_valid: true,
     reports: prepared.map((item) => ({
       id: item.id,
       input: `${item.id}.json`,

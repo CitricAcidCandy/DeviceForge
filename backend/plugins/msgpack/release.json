@@ -1,5 +1,5 @@
 {
-  "format_version": 1,
+  "format_version": 2,
   "host_api_version": 2,
   "id": "msgpack",
   "version": "0.1.0",
@@ -14,5 +14,9 @@
     }
   ],
   "tools": [],
+  "dependencies": {
+    "format_version": 1,
+    "dependencies": []
+  },
   "requirements": []
 }

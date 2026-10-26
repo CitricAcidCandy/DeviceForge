@@ -29,13 +29,14 @@ export function NoDeviceRecovery({ services, active }: {
     },
   });
   return (
-    <div className="w-full max-w-lg px-4 text-left">
+    <div className="w-full text-left">
       <RecoveryPanel
         state={recovery.state}
         activeSession={false}
         recover={recovery.recover}
         refresh={recovery.refresh}
         cancel={recovery.cancel}
+        variant="bar"
       />
     </div>
   );

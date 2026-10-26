@@ -31,7 +31,7 @@ function requirement(value: unknown): boolean {
 export function isInstalledRelease(value: unknown): value is InstalledReleaseDto {
   return isRecord(value) && text(value.id) && text(value.version) && text(value.name) && typeof value.description === 'string' &&
     digest(value.revision) && typeof value.enabled === 'boolean' &&
-    ['installed', 'enabled', 'configuration_required', 'recovery_blocked'].includes(String(value.status)) &&
+    ['installed', 'enabled', 'configuration_required', 'dependencies_required', 'recovery_blocked'].includes(String(value.status)) &&
     typeof value.installed_at === 'number' && Number.isSafeInteger(value.installed_at) && value.installed_at >= 0 &&
     Array.isArray(value.components) && value.components.length > 0 && value.components.every(component) &&
     Array.isArray(value.tools) && value.tools.every(tool) && Array.isArray(value.requirements) && value.requirements.every(requirement);

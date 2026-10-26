@@ -225,25 +225,6 @@
   opacity: 1;
   text-decoration: underline;
 }
-.device-stage-empty {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 14px;
-  text-align: center;
-}
-.device-stage-empty p {
-  margin: 0;
-  font-size: 0.8125rem;
-  color: var(--text-faint);
-  letter-spacing: 0.02em;
-}
-.device-stage-empty-actions {
-  display: flex;
-  gap: 6px;
-}
 
 /* ── 目录：浮在舞台上 ─────────────────────────────── */
 .device-directory-card {

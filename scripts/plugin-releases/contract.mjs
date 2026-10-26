@@ -1,5 +1,6 @@
 // 对齐 backend/domain/plugin_installations；源码模式允许尚未构建的空变体，成品严格拒绝缺项。
 import { fixedVersion, sourceVersion } from './versions.mjs';
+import { validateDependencies, marketDependencyResources } from './dependencies.mjs';
 
 const object = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
 const fail = (condition, message) => {
@@ -112,11 +113,12 @@ export function validateRelease(value, { source = false } = {}) {
       'components',
       'tools',
       'requirements',
+      'dependencies',
     ],
     '发布清单',
   );
   fail(
-    value.format_version === 1 &&
+    [1, 2].includes(value.format_version) &&
       value.host_api_version === 2 &&
       id(value.id) &&
       fixedVersion(value.version),
@@ -139,10 +141,9 @@ export function validateRelease(value, { source = false } = {}) {
     Array.isArray(value.components) &&
       value.components.length > 0 &&
       value.components.length <= 32 &&
-      Array.isArray(value.tools) &&
-      value.tools.length <= 128 &&
-      Array.isArray(value.requirements) &&
-      value.requirements.length <= 128,
+      (value.tools === undefined || (Array.isArray(value.tools) && value.tools.length <= 128)) &&
+      (value.requirements === undefined ||
+        (Array.isArray(value.requirements) && value.requirements.length <= 128)),
     '发布组件、工具或用户输入声明无效',
   );
   const components = new Set();
@@ -160,7 +161,15 @@ export function validateRelease(value, { source = false } = {}) {
   }
   const tools = new Set(),
     bindings = new Set();
-  for (const tool of value.tools) {
+  fail(
+    value.format_version !== 1 || value.dependencies === undefined,
+    '第一版发布不接受第二版依赖声明',
+  );
+  if (value.format_version === 2)
+    validateDependencies(value.dependencies ?? { format_version: 1, dependencies: [] }, {
+      components,
+    });
+  for (const tool of value.tools ?? []) {
     fields(tool, ['id', 'version', 'required', 'variants', 'bindings'], '工具');
     fail(
       id(tool.id) &&
@@ -194,7 +203,7 @@ export function validateRelease(value, { source = false } = {}) {
       bindings.add(target);
     }
   }
-  for (const requirement of value.requirements) {
+  for (const requirement of value.requirements ?? []) {
     fields(
       requirement,
       ['component_id', 'config_pointer', 'any_of', 'title', 'description', 'sensitive', 'required'],
@@ -237,7 +246,7 @@ export function selectRelease(value, platform) {
     fail(selected, `插件组件缺目标平台归档：${component.id}/${platform}`);
     return { ...component, variants: [selected] };
   });
-  const tools = value.tools.flatMap((tool) => {
+  const tools = (value.tools ?? []).flatMap((tool) => {
     const selected = choose(tool.variants);
     fail(selected || tool.required === false, `必需工具缺目标平台归档：${tool.id}/${platform}`);
     return selected ? [{ ...tool, variants: [selected] }] : [];
@@ -249,7 +258,8 @@ export function releaseResources(value) {
   const resources = new Map();
   for (const variant of [
     ...value.components.flatMap((item) => item.variants),
-    ...value.tools.flatMap((item) => item.variants),
+    ...(value.tools ?? []).flatMap((item) => item.variants),
+    ...marketDependencyResources(value),
   ]) {
     const previous = resources.get(variant.sha256);
     fail(!previous || previous.size === variant.size, '相同摘要声明了不同字节大小');

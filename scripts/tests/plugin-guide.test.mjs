@@ -14,17 +14,17 @@ import { validateRelease } from '../plugin-releases/contract.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const frontendRequire = createRequire(new URL('../../frontend/package.json', import.meta.url));
-const topics = ['overview', 'manifest', 'sdk', 'lifecycle', 'examples', 'packaging', 'validation'];
+const topics = ['overview', 'manifest', 'sdk', 'lifecycle', 'examples', 'packaging', 'dependencies', 'validation'];
 
-test('七主题十四篇嵌入文档保持固定来源、读取预算与第二版知识覆盖', async () => {
+test('八主题十六篇嵌入文档保持固定来源、读取预算与第三版知识覆盖', async () => {
   const catalog = await readFile(
     join(root, 'backend/crates/server/src/plugin_guide/catalog.rs'),
     'utf8',
   );
   const documents = [...catalog.matchAll(/document!\(\s*(Frontend|Backend),\s*(\w+),\s*"([^"]+)"\s*\)/g)];
-  assert.equal(documents.length, 14);
+  assert.equal(documents.length, 16);
   const sources = new Set(documents.map(([, , , source]) => source));
-  assert.equal(sources.size, 14, '嵌入来源不得重复');
+  assert.equal(sources.size, 16, '嵌入来源不得重复');
   const requiredTerms = {
     overview: ['release.json', 'DEVICEFORGE_USER_DIR', 'npx'],
     manifest: ['format_version', 'host_api_version', 'bindings', 'any_of'],
@@ -33,6 +33,7 @@ test('七主题十四篇嵌入文档保持固定来源、读取预算与第二�
     examples: ['release.json', 'blobs/', '结构模板'],
     packaging: ['/api/v1/capabilities', '/api/v1/catalog', 'catalog_last', 'immutable_versions', '离线'],
     validation: ['SHA-256', '配置', 'expected_revision'],
+    dependencies: ['dependencies.json', '一次', '.deviceforge', 'expected_revision', 'target_kind'],
   };
   for (const target of ['frontend', 'backend']) {
     for (const topic of topics) {

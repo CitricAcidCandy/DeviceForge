@@ -100,7 +100,11 @@ function catalogEntry(metadata, manifest, sha256) {
     description: manifest.description,
     categories,
     resource_id: sha256,
-    details: { ...(metadata.details ?? {}), release_format_version: 1, host_api_version: 2 },
+    details: {
+      ...(metadata.details ?? {}),
+      release_format_version: manifest.format_version,
+      host_api_version: manifest.host_api_version,
+    },
   };
 }
 export async function planPublication({ directory, market, server }) {
@@ -108,8 +112,12 @@ export async function planPublication({ directory, market, server }) {
     { manifest, files } = await verifyReleaseDirectory(directory);
   const resources = releaseResources(manifest);
   const online = structuredClone(manifest);
-  for (const owner of [...online.components, ...online.tools])
+  for (const owner of [...online.components, ...(online.tools ?? [])])
     for (const variant of owner.variants) variant.path = variant.sha256;
+  for (const dependency of online.dependencies?.dependencies ?? [])
+    for (const source of dependency.sources ?? [])
+      if (source.kind === 'market')
+        source.url = new URL(`/api/v1/resources/${source.sha256}`, base).href;
   const bytes = jsonBytes(online),
     sha256 = digestBytes(bytes),
     metadata = await readJson(market);

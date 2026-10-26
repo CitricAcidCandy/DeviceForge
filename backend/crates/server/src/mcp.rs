@@ -24,6 +24,7 @@ struct McpAdapter {
     plugins: Option<Arc<PluginService>>,
     devices: Arc<apk_application::devices::DeviceService>,
     installations: Option<Arc<apk_application::plugin_installations::InstallationService>>,
+    dependencies: Option<Arc<apk_application::plugin_dependencies::DependencyService>>,
     notifications: Arc<crate::mcp_notifications::CatalogNotifications>,
 }
 #[derive(Deserialize)]
@@ -56,6 +57,7 @@ impl McpAdapter {
             plugins,
             devices,
             installations: None,
+            dependencies: None,
             notifications: Arc::new(crate::mcp_notifications::CatalogNotifications::new(
                 shutdown,
             )),
@@ -71,6 +73,16 @@ impl McpAdapter {
             return crate::interactive_mcp::invoke(&self.app, name, input).await;
         }
         match name {
+            "deviceforge.get_plugin_dependencies" => {
+                let input: crate::plugin_dependencies::DependencyQuery = decode(input)?;
+                encode(
+                    self.dependencies
+                        .as_ref()
+                        .ok_or_else(|| Error::Dependency("插件依赖服务未配置".into()))?
+                        .get(input.target)
+                        .await?,
+                )
+            }
             "deviceforge.list_plugin_installations" => {
                 if input != json!({}) {
                     return Err(Error::Invalid("此工具不接收参数".into()));
@@ -193,6 +205,9 @@ impl ServerHandler for McpAdapter {
         if self.installations.is_some() {
             tools.extend(crate::plugin_installation_mcp::tools());
         }
+        if self.dependencies.is_some() {
+            tools.extend(crate::mcp_tools::dependency_tools());
+        }
         let start = match request.and_then(|request| request.cursor) {
             None => 0,
             Some(cursor) => {
@@ -240,6 +255,13 @@ impl ServerHandler for McpAdapter {
                     .into_iter()
                     .chain(crate::device_mcp::tools())
                     .chain(crate::interactive_mcp::tools())
+                    .chain(
+                        self.dependencies
+                            .is_some()
+                            .then(crate::mcp_tools::dependency_tools)
+                            .into_iter()
+                            .flatten(),
+                    )
                     .chain(
                         self.installations
                             .is_some()
@@ -297,8 +319,20 @@ pub(crate) fn service_with_installations(
     installations: Option<Arc<apk_application::plugin_installations::InstallationService>>,
     config: StreamableHttpServerConfig,
 ) -> StreamableHttpService<impl ServerHandler, LocalSessionManager> {
+    service_with_dependencies(app, plugins, devices, installations, None, config)
+}
+
+pub(crate) fn service_with_dependencies(
+    app: Arc<Application>,
+    plugins: Option<Arc<PluginService>>,
+    devices: Arc<apk_application::devices::DeviceService>,
+    installations: Option<Arc<apk_application::plugin_installations::InstallationService>>,
+    dependencies: Option<Arc<apk_application::plugin_dependencies::DependencyService>>,
+    config: StreamableHttpServerConfig,
+) -> StreamableHttpService<impl ServerHandler, LocalSessionManager> {
     let mut adapter = McpAdapter::new(app, plugins, devices, config.cancellation_token.clone());
     adapter.installations = installations;
+    adapter.dependencies = dependencies;
     let handler = crate::mcp_observability::Observed(adapter);
     StreamableHttpService::new(
         move || Ok(handler.clone()),

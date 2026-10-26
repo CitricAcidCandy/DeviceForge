@@ -29,6 +29,10 @@ pub fn node_binary(configured: Option<PathBuf>) -> Result<Option<PathBuf>> {
         .and_then(|path| fs::canonicalize(path).ok()))
 }
 
+#[cfg(test)]
+#[path = "manifest_tests.rs"]
+mod tests;
+
 fn platform() -> String {
     let os = match std::env::consts::OS {
         "windows" => "win32",
@@ -64,6 +68,25 @@ pub fn validate(
     kind: PackageKind,
     node: Option<&Path>,
 ) -> Result<(PackageInfo, Vec<Operation>)> {
+    validate_with_dependencies(root, destination_root, kind, node, None)
+}
+
+pub(crate) fn validate_with_dependencies(
+    root: &Path,
+    destination_root: &Path,
+    kind: PackageKind,
+    node: Option<&Path>,
+    release_dependencies: Option<&deviceforge_plugin_dependencies::DependencyManifest>,
+) -> Result<(PackageInfo, Vec<Operation>)> {
+    let dependencies = root.join("dependencies.json");
+    let dependency_manifest = if dependencies.exists() {
+        let manifest: deviceforge_plugin_dependencies::DependencyManifest =
+            paths::json(root, "dependencies.json")?;
+        manifest.validate().map_err(Error::Invalid)?;
+        Some(manifest)
+    } else {
+        None
+    };
     let package: PortablePackage = paths::json(root, "package.json")?;
     if package.version.trim().is_empty() || package.version.len() > 100 {
         return Err(Error::Invalid("包版本无效".into()));
@@ -94,6 +117,7 @@ pub fn validate(
             }
             if manifest.api_version != 2
                 || entry.runtime != "browser"
+                || entry.dependency.is_some()
                 || !(entry.path.ends_with(".js") || entry.path.ends_with(".mjs"))
                 || !manifest
                     .id
@@ -129,17 +153,40 @@ pub fn validate(
             {
                 return Err(Error::TooLarge);
             }
-            if !["native", "node"].contains(&entry.runtime.as_str()) {
-                return Err(Error::Invalid("服务器入口只接受 native/node".into()));
+            if !["native", "node", "script"].contains(&entry.runtime.as_str()) {
+                return Err(Error::Invalid("服务器入口只接受 native/node/script".into()));
             }
-            let executable = if entry.runtime == "node" {
+            if let Some(reference) = &entry.dependency {
+                plugin_id(&reference.id)?;
+                plugin_id(&reference.entry)?;
+                if entry.runtime == "native" {
+                    return Err(Error::Invalid("原生入口不得声明脚本运行时依赖".into()));
+                }
+                let dependency = release_dependencies
+                    .into_iter()
+                    .chain(dependency_manifest.as_ref())
+                    .flat_map(|manifest| &manifest.dependencies)
+                    .find(|dependency| dependency.id == reference.id)
+                    .ok_or_else(|| Error::Invalid("脚本运行时未在统一依赖中声明".into()))?;
+                if !dependency.required || !dependency.entries.contains(&reference.entry) {
+                    return Err(Error::Invalid(
+                        "脚本运行时必须引用必需依赖及其公开入口".into(),
+                    ));
+                }
+            } else if entry.runtime == "script" {
+                return Err(Error::Invalid("脚本入口必须声明运行时工具及入口键".into()));
+            }
+            let executable = if entry.dependency.is_some() {
+                // 这里只验证静态贡献；实际可执行入口在依赖就绪后由目录适配器解析。
+                entry_file.clone()
+            } else if entry.runtime == "node" {
                 node.ok_or_else(|| Error::Dependency("宿主未配置可用 Node 程序".into()))?
                     .to_path_buf()
             } else {
                 entry_file.clone()
             };
             let mut args = portable.args.clone();
-            if entry.runtime == "node" {
+            if entry.runtime != "native" {
                 args.insert(0, node_script_path(&entry_file));
             }
             let mut manifest = Manifest {
@@ -166,10 +213,19 @@ pub fn validate(
             let final_entry = destination_root
                 .join(&portable.id)
                 .join(paths::relative(&entry.path)?);
-            if entry.runtime == "native" {
+            if entry.runtime == "native" || entry.dependency.is_some() {
                 manifest.executable = final_entry.to_string_lossy().into_owned();
-            } else {
+            }
+            if entry.runtime != "native" {
                 manifest.args[0] = node_script_path(&final_entry);
+            }
+            if let Some(reference) = &entry.dependency {
+                crate::plugin_runtime_dependencies::write(root, reference)?;
+            } else if root
+                .join(crate::plugin_runtime_dependencies::MARKER)
+                .exists()
+            {
+                return Err(Error::Invalid("包不得自带宿主生成的运行时描述".into()));
             }
             let bytes = serde_json::to_vec(&manifest)
                 .map_err(|_| Error::Invalid("清单无法序列化".into()))?;

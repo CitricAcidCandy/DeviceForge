@@ -69,6 +69,7 @@ try {
         format_version: 1,
         version: pkg.version,
         profile,
+        capabilities: ['plugin_dependencies_v1'],
         web: 'web',
         platforms: [
           {

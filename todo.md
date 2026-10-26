@@ -1858,3 +1858,84 @@ Android环境观测已随实际Root读取通道标记权限；普通无Root不�
 - 最终浏览器回流Stopping后页面停读的阻断：终端页最小修为所有未结束状态继续观察真实终态；新增真实React页面与公开HTTP适配回归，复现修改前停在Stopping失败、修改后1/1通过，并确认Finished后可新建不同ID。此项不计入先前33项及107文件结果，统一门禁和最终浏览器由主代理补充。
 
 - 最终补记：前端专项34/34、最终真实浏览器11/11及五图独审通过，启动取消修复后早期释放plain/resize各4/4、真实HTTP8/8通过。7031宿主已升级至PID80792，当前服务6项终端复验通过，5173 HTTP200；完整门禁、受检输入和剩余边界见本文件顶部与两端最终验收文档。
+
+### 2026-10-26 11:52 性能采集前空态与自动化两页签落地
+
+- 设计稿（Ardot 739451830210924 的 17:1 / 18:1 / 19:1 可编辑图层）在用户精简性能引导文案后落地前端：性能页区分「尚未开始采集」（紧凑引导卡 600×自适应、居中）与「已有会话但无样本」（`尚无采样数据` 单行态）；自动化设备步骤、桌面操作两页签改为 Tailwind 布局，`pages/automation/workspace.css` 删除并同步从 check-ui-policy 白名单与 responsive 基线移除。
+- 交互接线保持真实：`开始采集` 打开既有 CollectDialog（打开不提交）；`查看已有会话` 打开真实 Sheet 并只调用 `android.performance.list`；桌面点击/连续点击仍走原确认 Dialog，未确认不派发；设备流程新增 `取消等待`，步骤列表改为 `ol[aria-label="设备流程步骤"]`。
+- 文案收尾：设备空态改「添加第一个步骤」并删掉能力说明行；桌面左栏删掉与按钮重复的「读取服务器当前鼠标位置」。
+- 门禁实测：`generate:api` 退出 0（公开接口类型已生成）；`npm run check` 退出 0（UI 政策通过、476 源码架构通过、tsc 无输出）；`npm run build` 退出 0（14.48s，仅既有 chunk 体积警告）。`npm test` 未取得全绿：本轮多文件并行时 `device-discovery-feedback` 两例、以及 `performance-board` / `performance-page-lifecycle` 全部在 Vite 初始化阶段被安全机制拦截 `node_modules/.vite/deps` 批量清理（`SAFE_DELETE_BULK_CONFIRM_REQUIRED`，50 文件阈值），失败发生在 before 钩子、非断言失败；已停止重试，不绕过该保护。
+- 浏览器实测（Edge headless，独立 5186，真实 7031 后端）：1424×805 / 1024×640 / 940×760 两页均无横向溢出；性能引导显示设备名回退「选择设备后开始」；配置 Dialog 与历史 Sheet 均正常打开，历史读到真实会话（com.ChillyRoom.DungeonShooter 等）；桌面操作指定坐标开关解除禁用、执行一次点击仅弹确认框、返回修改后关闭。截图与 `verify.json` / `interaction.json` 在 `artifacts/design-implementation-20261026/`。
+- 缺口：本轮未派发真实设备输入、未启动真实采集，真机效果未验收；专属视觉审核子代理运行中因模型协议错误失败，上述截图为交付侧自查，未计入子代理独审。
+
+### 2026-10-26 12:03 自动化页签适配修正与输入录制页设计
+
+- 用户指出两个问题：标签栏出现横向滚动条、设备步骤内容只占上半屏、输入录制与回放页签仍是旧样式（未做设计）。逐项修正。
+- 标签栏：`TabsList` 的 `overflow-x-auto` 改为 `flex-wrap`（`overflow` 在固定 36px 高的 inline-flex 上必然压出滚动条，也压掉选中下划线）；三个页签在 940/1024/1424 实测 `scrollWidth - clientWidth = 0`。
+- 高度：`Tabs`/`TabsContent` 改为 `flex min-h-0 flex-col`，三个工作区 `flex-1 min-h-0`，设备步骤主卡改 `lg:grid-rows-[minmax(0,1fr)_auto]`，步骤列表内部滚动、重复点击与回执行固定在底部；桌面操作主卡改 flex 列并让两栏 grid `flex-1`。
+- 输入录制与回放按同语言重做：卡片头（图标块＋标题＋副标题＋`input_trace.msgpack.v1` 等宽标签）、左侧「录制」（事件范围、采样间隔、录制时长、开始录制轨迹）、右侧「回放」（产物 ID、事件范围沿用提示、回放输入轨迹）、底部回执状态行；回执区改独立卡（dl 网格、下载按钮组、浅色日志块、JsonResult），删掉 `muted`/`metadata-grid`/`capability-notice`/`action-row`/`terminal-output` 旧类。断点用 `xl` 分两栏，1024 竖排（初版用 `lg` 导致 1024 双栏被压窄、标签折行，已改）。
+- 校验：`npm run build` 退出 0；`check:ui-policy` 与 `check:architecture`（479 源码）通过。`tsc` 仍红，但报错只在并行中的 `src/features/plugin-dependencies/services/http.ts`、`src/services/api/plugin-dependencies.ts`（后端 `plugin_dependencies/download.rs:53` E0716 未编译通过，`generate:api` 因此失败），本轮页面文件无报错。
+- 尺寸实测：1424×805 / 1024×640 / 940×760 × 三个页签，标签栏无滚动、无横向溢出；截图见 `artifacts/design-implementation-20261026/tab-*.png` 与 `layout-tabs.json`。
+
+### 2026-10-26 12:12 设备步骤：添加步骤改为加号气泡
+
+- 用户否定常驻右侧「添加步骤」侧栏：不直观、且把流程列表挤窄。改为点击加号弹出气泡。
+- 实现：新增公共 `components/Popover`（Radix Popover 封装，白卡＋发丝线＋圆角 12＋阴影，`max-h` 内滚）。设备步骤移除 `aside`，卡片改单栏；空态加号改为虚线可点按钮（`aria-label="添加第一个步骤"`），列表末尾新增整行虚点「添加步骤」，两处共用同一份表单（四种动作、执行时间、坐标/文本/按键/滑动参数、添加到流程），添加成功自动关闭气泡。
+- 定位两处坑：气泡的裁剪祖先与可用空间。①卡片 `overflow-hidden` 会让气泡被判定为放不下；②空态加号在工作区正中，左右各不足 352px，碰撞检测会把气泡翻到左侧导航上。最终：卡片去掉 `overflow-hidden`，空态气泡 `side="right" align="center" avoidCollisions={false} w-[20rem]`，列表末尾气泡 `side="top"`。三尺寸实测气泡 320×387，x=857/657/615 全部落在窗口内。
+- `App.test.ts` 同步：先点 `button[aria-label="添加第一个步骤"]`，再从 `[data-slot="popover-content"]` 里点「添加到流程」（气泡在 portal 内，不在页面容器里）。
+- 校验：`npm run build` 退出 0；UI 政策与架构门禁（480 源码）通过；`tsc` 剩余报错仍只在并行中的 `plugin-dependencies`（`http.ts`、`DependencyList.tsx`、`services/api/plugin-dependencies.ts`）与 market 依赖列表，本轮文件无报错。完整测试仍受 `.vite/deps` 安全清理限制未跑。
+
+### 2026-10-26 12:20 添加步骤气泡改为三行横排、底部展开
+
+- 用户反馈：气泡应是三行高度、在底部出现，之前 320×387 太窄不利于扩展、定位也不对。
+- 表单重排为三行横排：①四种动作按钮一排（`grid-cols-2 sm:grid-cols-4`）＋序号；②参数行（执行时间／X／Y，滑动时并列终点X、终点Y、持续；文本时占两格宽）；③左侧参数提示＋右侧「添加到流程」。气泡宽度 `w-[40rem]`（640），并加 `max-w-[calc(100vw-3rem)]` 保底。实测 640×220。
+- 定位：空态气泡改 `side="bottom" align="center"`，从加号下方展开；空态容器加 `pb-28` 把加号略上移，保证 1424/940 下气泡完整落在卡内。窗口过矮（1024×640）时 Radix 自动翻到上方（实测 y=168），不再裁掉底部。列表末尾的入口仍朝上展开（`side="top" align="center"`），同样 640 宽。
+- 校验：`npm run build` 退出 0（5.05s）；UI 政策与架构门禁（480 源码）通过；`tsc` 剩余报错仍只在并行中的 `plugin-dependencies` 与 market 依赖列表三处文件。
+
+### 2026-10-26 12:25 添加步骤改为列表内联展开（弃用气泡）
+
+- 用户指出气泡两个弊端：点其他位置会关闭（丢失正在填的参数）、浮层遮挡已有步骤/重复点击。因此改为在列表流内展开，不再使用浮层。
+- 实现：删除本轮新增的 `components/Popover`（无其他使用方）与气泡逻辑；`addOpen` 改为控制内联面板。空态：点加号后在原位展开表单（`max-w-[46rem]` 居中）；列表态：末尾虚线行被表单替换，表单在流内把下方内容往下推，列表区自己滚动。展开时 `scrollIntoView({block:"nearest"})` 保证长列表也能看到。表单仍三行横排（类型 / 参数 / 提示+取消+添加到流程），宽 736（空态）/ 撑满列表（674–1075 随窗口）。
+- 行为实测：三尺寸均 `overlayCount = 0`（无浮层）；点击页面其他位置后表单仍可见（`still-open = true`）；点「添加到流程」后自动收起且步骤 +1。
+- `App.test.ts` 再同步：点 `button[aria-label="添加第一个步骤"]` → 断言 `[aria-label="添加步骤表单"]` 出现 → 点「添加到流程」→ 断言表单收起。
+- 校验：`npm run check` 退出 0（UI 政策、480 源码架构、`tsc` 全绿——并行的 plugin-dependencies 报错已被对方修掉）；`npm run build` 退出 0（5.09s）。
+
+### 2026-10-26 12:32 统一市场插件依赖前端收口
+
+- 保留 resource-server/Cargo.lock 及其他并行实现；本轮不生成 API、不改生成文件，不接管 app/root/types/plugin-installations。主代理生成完成后，依赖 API 从生成 paths 索引，公开 barrel 精确导出；发布第二版依赖直接索引生成清单，不保留手写协议副本或 any/断言绕过。
+- 独立 browser 在 runtime 的 PackageActions.enableBrowser 先 GET 公开依赖，支持 canonical release；未就绪、接口失败、串目标或取消不得导入插件，空声明及仅可选缺失通行。产品 defaults 新启用复用此入口；完整发布仍使用安装状态门禁。依赖补救成功后只恢复安装目录与浏览器状态，不重复提交启用写操作。
+- 新增 host.plugin-dependencies 版本1公开 extensions 查询服务，仅接受 get 与严格目标，由 publicCall 保留 HostError、状态、日志及重试信息；调用方卸载撤销等待，检测仍由后端执行，不新增 HostContext 必填方法或下载能力。
+- 面板保留无依赖无需安装、缺失必需批量补救、逐项可选安装、canonical 归属、有界任务查询、真实阶段/字节进度和可复制日志；总量未知不伪造百分比，事件读取失败独立诊断，后续成功不抹旧错误。样式仅 Tailwind。依赖标识对齐后端99字符、小写字母或数字开头、拒绝 builtin.。
+- 先红后绿修复第二版 blobs/摘要内嵌资源误判远端：ZIP 有成员先核真实字节及摘要，损坏不降级为远端复用；无内嵌摘要在固定市场 HEAD 校验，官方地址零浏览器下载，旧 tools 闭包保持兼容。
+- 实测：16个定点文件136/136通过，另 runtime/extensions/performance-runtime 三文件24/24通过，合计19文件160项；最终 npm run check 退出0，UI政策/480源码架构/严格TypeScript通过；定点差异空白检查通过。Vite测试有既有24678 websocket端口占用告警，但测试正常退出，未接管占用进程。
+- 未执行完整 npm test、build、Cargo、generate、真实服务下载/安装、浏览器或图审；本机环境/.deviceforge零下载复用及缺必需自动下载属于主代理后端/集成验收，不由DOM与假传输测试替代。未自动提交或回退他人文件。
+
+## 2026-10-26 全市场插件统一依赖集成（进行中）
+
+- 用户已明确允许保留 resource-server/Cargo.lock 的并行修改；未回退、提交或接管投屏内部。
+- 按最新纠正保留一次正常安装：先检测环境与整个 .deviceforge 共享内容，兼容零下载，仅自动下载缺失必需项。启动和重新检测不下载；手动路径只是高级覆盖。
+- 已落盘统一公开契约、完整发布 v2/独立 sidecar、仓库索引与本地登记、HTTP/MCP/CLI、依赖面板、脚本运行时引用、市场/打包及指南 v3。宿主解释器与资源租约使用同一不可变快照。
+- 本次实际通过：初轮宿主 all-targets check，application 160项、资源租约28项、依赖模块首轮21项，CLI最新85项；前端 generate/check/build通过。以上不替代新增本地索引/来源接线后的最终编译和真实服务验收。
+- 全量前端132文件执行131通过、1失败：product-plugin-startup 进程134，日志为内存分配失败；初轮宿主LLVM同样内存耗尽，正在分离负载重跑。App与ownership先前失败已分别独立通过，但不外推全量通过。
+- 审计日志在 artifacts/plugin-dependencies-integration-20261026；最终验证、独立新宿主/双缓存npx、页面与图审仍进行，未替换用户7031/5173/5186服务、未公开发布。
+
+### 2026-10-26 14:00 设备工作台空状态落地（按 Ardot V4-04/V4-05 稿）
+
+- 设计稿（`739451830210924`）：`25:1` V4-04 有提供者、`25:243` V4-05 无提供者；按用户要求删除两稿的「目录读数」行并把内容块重心上移（y 107→125 / 77→95）。
+- `pages/devices/index.tsx` 空状态重写为「未点亮的屏体」：`mx-16 my-3.5` 白屏（`rounded-2xl` 16px、`border-hairline`）+ 360px 径向紫辉光（`bg-[radial-gradient(...)]`，`--primary` 11%→透明）+ 460px 竖列（投屏位 150×320 比例机身、`h-[min(320px,45vh)]`、`aspect-[150/320]`、内屏 `bg-surface-sunken`、底部听筒、`Smartphone` 34px 水印）+ 18/600 标题 + 13 说明 + 主/次按钮（`h-9 rounded-lg`）+ 恢复提示条。三分支文案：无提供者 / 有提供者但 0 台 / 有设备未选。
+- `RecoveryPanel` 新增 `variant="bar"`：异常时是琥珀单行条（`border-warning/30 bg-warning/[0.07]`、`AlertTriangle`、右侧「重试」），健康时退成一条「连接排查」文字入口；`panel` 形态（投屏工作台内）逐字不变。详情折叠区两种形态共用。`NoDeviceRecovery` 传 `variant="bar"`，去掉 `max-w-lg px-4`。
+- `workspace.css` 删除 `.device-stage-empty` / `-actions` 三条规则（只减不增，未新增 CSS）。
+- 测试：`device-empty-recovery.test.ts` 空态按钮文案 核对全部投屏资源→重试（行为断言不变：只发一次 POST、不重放设备动作、不抢回选择），两处文案断言改为「还没有发现设备」「目录里已有 1 台设备，选一台开始投屏」。该文件 9/9、`plugin-recovery-ui.test.ts` 14/14、`App.test.ts` 2/2 通过。
+- 门禁：`npm run check` 退出 0（UI 政策、480 源码架构、tsc）；`npm run build` 退出 0（6.50s）。
+- 浏览器实测（`artifacts/design-20261026/`）：1424×805 / 1024×640 / 940×760 三档无横向溢出，内容块与屏体中心线一致（1424 下 830/830），屏体左右留白 64/64，工具轨 12–50 且与屏体不重叠。**发现并修掉**：640 高时内容 512 > 屏体 501 上下溢出（机身压到屏体外），改用 `h-[min(320px,45vh)]` + 内容 `max-h-full overflow-y-auto` 后 488 < 501。
+- 未验证/差异：真实设备连接后的空状态无差异；`DeviceDirectory`「选择设备」整页视图有自己的空态（「尚未发现设备」）本次未重做，待单独出稿；未接真实后端，桩响应下「有提供者」分支文案与居中已核对。
+
+### 2026-10-26 14:31 市场插件统一依赖集成收口（验收未全绿）
+
+- 正常插件安装保留一次完成：先发现环境、声明 SDK 位置、用户根共享仓库及已登记本地工具，兼容项零下载，只准备缺失必需项。HTTP/MCP/CLI/初始 npx、完整发布和独立组件共用用例；自动绑定不改成用户显式值。浏览器只经宿主状态和服务消费，不在访问者电脑执行工具。
+- 补本地工具公共登记、脚本运行时真实进程/资源快照租约、市场基址和离线缓存、失败诊断保旧、安装补救按原意图恢复；新增两个文件工作池有界排队回归，依赖适配器24项、脚本契约定点2项、发布Node62项通过，最新前端check通过。官方补SDK根规则，未编造无可信来源工具的摘要。
+- 后端fmt、30模块架构与8项架构测试、workspace build通过；workspace test在旧设备清理断言超时停止，基础设施全量251通过/1失败/1忽略（旧恢复夹具相对node路径），严格Clippy停在未改registry.rs折叠条件。继续其他crate时合作清理旧预期亦失败，不改非本轮清理所有权逻辑凑全绿。前端全量仍有product-plugin-startup内存失败原件。
+- 市场release已重建，6,294,016字节，SHA256为2fe72a54b7d38c0a80eba4b3bbac027457ba1d467b57bf9b131778b90dbdeb7b；help与真实GET/HEAD能力通过，v1/v2同时支持。独占市场PID31152已核身份回收，未替换用户市场或7031/5173/5186服务。
+- 最终依赖宿主冻结03为debug，SHA256为0ff827deb0a3bfda9a7b5c25dd450bd279b19bfb8e84692d47fec584f3b3e4de，位于artifacts/plugin-dependencies-integration-20261026/frozen-debug-03。在线安装门禁通过；独立完整门禁目录补原生夹具后生命周期与合作协议通过。早期误用缺少echo的冻结目录导致失败，原件保留，不能把它算产品回归。
+- 真实依赖03主矩阵12检查通过，但额外冷PATH子组遇到Windows长当前目录边界（工具路径272字符）；保留失败并以较短独占证据根完整重跑，不声称已支持任意长Windows目录。02 npx和页面轮因CIM审计/浏览器控制不可用未全过；03双缓存及页面独立复验中，历史01不替代最终字节。
+- 详细证据和边界见backend/docs/verification/市场插件依赖验收-20261026.md；MCP指南v3与两端依赖文档已更新。未公开npm/市场发布、未真机或其他平台验收，不将debug测试包称正式发布包。

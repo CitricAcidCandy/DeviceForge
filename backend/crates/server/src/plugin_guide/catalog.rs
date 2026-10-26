@@ -21,7 +21,17 @@ macro_rules! document {
     };
 }
 
-static DOCUMENTS: [Document; 14] = [
+static DOCUMENTS: [Document; 16] = [
+    document!(
+        Frontend,
+        Dependencies,
+        "frontend/docs/guides/plugin-development/dependencies.md"
+    ),
+    document!(
+        Backend,
+        Dependencies,
+        "backend/docs/guides/plugin-development/dependencies.md"
+    ),
     document!(
         Frontend,
         Overview,

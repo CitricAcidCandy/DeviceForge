@@ -27,9 +27,13 @@ Windows 下如果使用已经编译好的程序：
 - `GET|HEAD /api/v1/resources/{sha256}`：支持 ETag、Range、Content-Length 和 Content-Range。
 - `GET /api/v1/resources/{sha256}/meta`：读取资源 MIME、大小、文件名和摘要。
 
-完整功能发布沿用这组接口：先上传组件与工具，再上传固定摘要的 `release.json`，最后提交一个市场条目。条目使用 `resource_id` 引用清单，`details.release_format_version=1`、`details.host_api_version=2` 标记完整发布；内部组件和工具不另外生成可见功能卡片。提交前服务核对清单身份、组件/工具资源是否齐全及各自大小；同一 ID/版本发布后禁止替换内容，删除目录条目也不清除原身份绑定。统一打包与发布命令见 [发布工具说明](../scripts/plugin-releases/README.md)。
+完整功能发布沿用这组接口：先上传随包资源，再上传固定摘要的 `release.json`，最后提交一个市场条目。条目使用 `resource_id` 引用清单，`details.release_format_version=1/2`、`details.host_api_version=2` 标记完整发布，两项必须与清单一致；内部资源不另外生成可见功能卡片。同一 ID/版本发布后禁止替换内容，删除目录条目也不清除原身份绑定。统一打包与发布命令见 [发布工具说明](../scripts/plugin-releases/README.md)。
 
-能力响应固定为 `{"api_version":1,"release_publication":{"format_versions":[1],"host_api_versions":[2],"resource_max_bytes":2147483648,"catalog_last":true,"immutable_versions":true}}`，资源限额与上传处理共用常量。`capabilities.rs` 只生成该声明，`http.rs` 负责路由和传输，`releases.rs` 核对完整发布闭包，`store.rs` 保存资源、目录和永久版本身份。没有服务器接收 ZIP 后解包发布的额外接口；离线 ZIP 的解析和资源编排由调用方完成。
+第二版 `dependencies` 使用纯公开 `DependencyManifest` 对象（`format_version:1` 与 `dependencies` 数组），服务器不内置工具或插件白名单。市场来源须引用摘要资源并通过真实大小/SHA-256 校验；官方来源只校验完整固定元数据和无凭据 HTTPS URL，无需上传原包，发布时也不从上游下载。同工具同版本的不同归档摘要保持不同内容身份。安装器负责在一个安装动作内自动发现本机及 `.deviceforge` 共享依赖，只下载缺失必需项；不是市场服务执行工具，也不是要求用户再点依赖安装。缺少可用来源或本机兼容项时保留真实缺项，不伪装成功。
+
+在线 `source.kind=market` 只接受本市场摘要或同市场 `/api/v1/resources/<sha256>` 完整 URL，完整 URL 的主机及有效端口须匹配请求 authority/Host；不以浏览器 Origin、转发来源头或本地恰有同摘要资源代替来源校验。反向代理须保留公开 Host。直接调用无请求上下文的 Store 接口时请使用仅摘要引用。离线 ZIP 的 `blobs/<sha256>` 须由发布器转换，不能直接落线上目录；官方来源不做该转换，也不借用市场重包的 SHA/大小。依赖面板用于失败重试、失效修复及可选补装，不作为正常安装的第二步。详细职责和验证缺口见 [统一依赖发布校验](docs/统一依赖发布校验.md)。
+
+能力响应固定为 `{"api_version":1,"release_publication":{"format_versions":[1,2],"host_api_versions":[2],"resource_max_bytes":2147483648,"catalog_last":true,"immutable_versions":true}}`，资源限额与上传处理共用常量。`capabilities.rs` 只生成该声明，`http.rs` 负责路由和传输，`releases.rs` 核对完整发布闭包，`store.rs` 保存资源、目录和永久版本身份。没有服务器接收 ZIP 后解包发布的额外接口；离线 ZIP 的解析和资源编排由调用方完成。
 
 任一完整发布 marker 出现时，两项 marker 都必须为受支持的整数，且条目类型为 `plugin`。所有组件与工具变体必须已上传，清单路径须直接引用同服务摘要，元数据大小和真实文件长度均须匹配。落目录前还会以有界缓冲流式重算每份组件和工具的 SHA-256，拒绝同长度字节损坏；单次提交中相同摘要与长度的资源只读取一次，所有平台和已声明的可选工具变体同样需要通过。缺资源或校验失败不创建目录条目，也不预占永久版本身份；失败前已上传的内容寻址资源可保留，不承诺事务回滚。已绑定的完整发布 ID/版本在删除和重启后仍拒绝另一清单或无 marker 的降级条目；相同原清单允许重新上架，其他尚未绑定的旧条目接口继续兼容。
 

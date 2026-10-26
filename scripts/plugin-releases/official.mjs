@@ -4,6 +4,8 @@ import { join } from 'node:path';
 import { readJson } from './io.mjs';
 import { validateRelease } from './contract.mjs';
 import { jsonBytes } from './pack.mjs';
+import { officialDependencyManifest } from './official-dependencies.mjs';
+import { validateDependencies } from './dependencies.mjs';
 
 const tool = (id, pointer, entry = id, required = true, version = 'unresolved') => ({
   id,
@@ -215,7 +217,7 @@ export const officialDependencies = {
   },
 };
 
-export async function officialSources(root, { write = false } = {}) {
+export async function officialSources(root, { write = false, update = false } = {}) {
   const directory = join(root, 'backend', 'plugins'),
     reports = [];
   const names = (await readdir(directory, { withFileTypes: true }))
@@ -227,17 +229,25 @@ export async function officialSources(root, { write = false } = {}) {
       dependency = officialDependencies[name];
     const value = validateRelease(
       {
-        format_version: 1,
+        format_version: 2,
         host_api_version: 2,
         id: metadata.id,
         version: metadata.version,
         name: metadata.name,
-        description: dependency.description ?? (metadata.description || metadata.summary),
+        description: dependency.description
+          ? dependency.description
+              .replace(
+                /完整发布包自动准备并绑定/g,
+                '通过本机发现、共享复用或声明的官方来源自动准备和绑定',
+              )
+              .replace(
+                /完整发布包随组件提供 worker，并自动准备与绑定/g,
+                '组件提供 worker，通过本机发现、共享复用或声明的官方来源自动准备与绑定',
+              )
+          : metadata.description || metadata.summary,
         components: [{ id: metadata.id, kind: 'server', version: metadata.version, variants: [] }],
-        tools: dependency.tools.map((item) => ({
-          ...item,
-          bindings: item.bindings.map((binding) => ({ component_id: metadata.id, ...binding })),
-        })),
+        tools: [],
+        dependencies: officialDependencyManifest(dependency.tools, metadata.id, name),
         requirements: dependency.requirements.map((item) => ({
           component_id: metadata.id,
           ...item,
@@ -246,13 +256,29 @@ export async function officialSources(root, { write = false } = {}) {
       { source: true },
     );
     const file = join(directory, name, 'release.json');
-    if (write) await writeFile(file, jsonBytes(value), { flag: 'wx' });
-    else validateRelease(await readJson(file), { source: true });
+    const dependenciesFile = join(directory, name, 'dependencies.json');
+    if (write) {
+      await writeFile(file, jsonBytes(value), { flag: update ? 'w' : 'wx' });
+      await writeFile(dependenciesFile, jsonBytes(value.dependencies), {
+        flag: update ? 'w' : 'wx',
+      });
+    } else {
+      const actual = validateRelease(await readJson(file), { source: true });
+      const dependencies = validateDependencies(await readJson(dependenciesFile), {
+        owner: metadata.id,
+      });
+      if (JSON.stringify(actual.dependencies) !== JSON.stringify(dependencies))
+        throw new Error(`官方独立声明与发布声明不一致：${name}`);
+    }
     reports.push({
       directory: name,
       id: value.id,
-      required_tools: value.tools.filter((item) => item.required).map((item) => item.id),
-      optional_tools: value.tools.filter((item) => !item.required).map((item) => item.id),
+      required_tools: value.dependencies.dependencies
+        .filter((item) => item.required !== false)
+        .map((item) => item.id),
+      optional_tools: value.dependencies.dependencies
+        .filter((item) => item.required === false)
+        .map((item) => item.id),
       user_inputs: value.requirements.length,
       component_artifacts: 0,
       complete: false,

@@ -1,5 +1,6 @@
 import type { ReleaseManifest, ReleaseVariant, ReleaseToolVariant } from './types.ts';
 import { byteLength, fields, flag, identifier, list, pointer, relative, text, unique, version } from './manifest-fields.ts';
+import { parseDependencyManifest } from './dependency-manifest.ts';
 
 function variant(value: unknown, tool: boolean): ReleaseVariant {
   const item = fields(value, ['platform', 'path', 'sha256', 'size', 'format', ...(tool ? ['entries'] : [])], '资源变体');
@@ -68,8 +69,9 @@ function requirement(value: unknown): ReleaseManifest['requirements'][number] {
 export function parseReleaseManifest(bytes: Uint8Array): ReleaseManifest {
   if (bytes.byteLength > 256 * 1024) throw new Error('release.json 超过 256 KiB');
   const value: unknown = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes));
-  const item = fields(value, ['format_version', 'host_api_version', 'id', 'version', 'name', 'description', 'components', 'tools', 'requirements'], '发布清单');
-  if (item.format_version !== 1 || item.host_api_version !== 2) throw new Error('发布格式或宿主 API 版本不受支持');
+  const item = fields(value, ['format_version', 'host_api_version', 'id', 'version', 'name', 'description', 'components', 'tools', 'requirements', 'dependencies'], '发布清单');
+  if ((item.format_version !== 1 && item.format_version !== 2) || item.host_api_version !== 2) throw new Error('发布格式或宿主 API 版本不受支持');
+  if (item.format_version === 1 && item.dependencies != null) throw new Error('统一依赖声明需要发布格式第二版');
   const components = list(item.components, 32, '发布组件', 1).map(component);
   const tools = list(item.tools ?? [], 128, '发布工具').map(tool);
   const requirements = list(item.requirements ?? [], 128, '用户输入').map(requirement);
@@ -87,8 +89,9 @@ export function parseReleaseManifest(bytes: Uint8Array): ReleaseManifest {
   const name = text(item.name, 200, '发布名称');
   if (/[\u0000-\u001f\u007f]/.test(name)) throw new Error('发布名称包含控制字符');
   const manifest: ReleaseManifest = {
-    format_version: 1, host_api_version: 2, id: identifier(item.id), version: version(item.version),
+    format_version: item.format_version, host_api_version: 2, id: identifier(item.id), version: version(item.version),
     name, description: text(item.description, 16384, '发布描述'), components, tools, requirements,
+    ...(item.dependencies == null ? {} : { dependencies: parseDependencyManifest(item.dependencies, componentIds) }),
   };
   if (byteLength(JSON.stringify(manifest)) > 256 * 1024) throw new Error('规范化发布清单超过 256 KiB');
   return manifest;
@@ -99,5 +102,8 @@ export function onlineManifest(manifest: ReleaseManifest): ReleaseManifest {
     ...manifest,
     components: manifest.components.map((entry) => ({ ...entry, variants: entry.variants.map((variant) => ({ ...variant, path: variant.sha256 })) })),
     tools: manifest.tools.map((entry) => ({ ...entry, variants: entry.variants.map((variant) => ({ ...variant, path: variant.sha256 })) })),
+    ...(manifest.dependencies ? { dependencies: { ...manifest.dependencies, dependencies: manifest.dependencies.dependencies.map((entry) => ({
+      ...entry, sources: entry.sources.map((source) => source.kind === 'market' ? { ...source, url: source.sha256 } : source),
+    })) } } : {}),
   };
 }

@@ -1,13 +1,15 @@
 //! 宿主和插件共用的不可变工具仓库，不包含网络、宿主状态或具体插件规则。
 mod content;
 mod index;
+#[cfg(test)]
+mod index_tests;
 mod paths;
 mod references;
 #[cfg(test)]
 mod tests;
 
-use serde::{Deserialize, Serialize};
 pub use index::{ToolIndex, ToolIndexEntry};
+use serde::{Deserialize, Serialize};
 use std::{
     fs,
     path::{Path, PathBuf},
@@ -199,6 +201,17 @@ impl Repository {
 }
 
 impl ReadLease {
+    /// 读租约内先登记调用独有的准备引用，再释放租约；避免发现到提交间被清理。
+    /// owner 必须由调用方独占，不能与其他准备操作或正式绑定共用。
+    pub fn set_references(&self, owner: &str, keys: &[ToolKey]) -> Result<()> {
+        references::replace(&self.repository.root, owner, keys)
+    }
+
+    /// 仅用于调用方独占的临时所有者；释放后删除记录，避免准备任务累计空文件。
+    pub fn clear_temporary_references(&self, owner: &str) -> Result<()> {
+        references::clear_temporary(&self.repository.root, owner)
+    }
+
     pub fn verify(&self, key: &ToolKey, check: &dyn Fn() -> Result<()>) -> Result<PathBuf> {
         let path = self.repository.path(key)?;
         paths::existing_directory(&self.repository.root, &key.relative()?)?;

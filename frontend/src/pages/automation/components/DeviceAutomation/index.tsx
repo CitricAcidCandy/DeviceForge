@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { ArrowRight, Keyboard, MousePointer2, Play, Plus, Repeat2, Smartphone, Type, X } from 'lucide-react';
 import { Button } from '../../../../components/Button/index.tsx';
 import { JsonResult } from '../../../../components/index.ts';
@@ -47,6 +47,13 @@ export function DeviceAutomation({ services }: { services: ProductServices }) {
   const [count, setCount] = useState('5');
   const [interval, setInterval] = useState('500');
   const [stepError, setStepError] = useState<Error | null>(null);
+  const [addOpen, setAddOpen] = useState(false);
+  const formRef = useRef<HTMLDivElement>(null);
+  // 列表很长时表单在末尾，展开后把它滚进视野，否则用户看不到刚展开的内容。
+  function openAddStep() {
+    setAddOpen(true);
+    requestAnimationFrame(() => formRef.current?.scrollIntoView({ block: 'nearest' }));
+  }
   const [output, setOutput] = useState<{
     reference: DeviceRef;
     outcome: JobOutcome<AutomationResult>;
@@ -119,12 +126,122 @@ export function DeviceAutomation({ services }: { services: ProductServices }) {
               : { kind, x: integer(x, 0, 65535), y: integer(y, 0, 65535) };
       setSteps((previous) => [...previous, { at_ms: time, action: next }]);
       setStepError(null);
+      return true;
     } catch (error) {
       setStepError(error instanceof Error ? error : new Error('步骤内容无效'));
+      return false;
     }
   }
+  // 步骤表单就地展开：不用气泡，避免点别处误关、也避免浮层压住已有步骤。
+  // 横排三行（类型 / 参数 / 动作），宽度优先给后续动作类型留位置。
+  const stepForm = (
+    <div
+      ref={formRef}
+      className="rounded-xl border border-border bg-surface-elevated p-4"
+      aria-label="添加步骤表单"
+    >
+      <div className="grid gap-3">
+        <div className="flex items-center gap-3">
+          <div className="grid flex-1 grid-cols-2 gap-2 sm:grid-cols-4" role="group" aria-label="步骤类型">
+            {actionTypes.map((entry) => (
+              <Button
+                key={entry.kind}
+                variant="outline"
+                aria-pressed={kind === entry.kind}
+                disabled={action.pending}
+                className={`justify-start ${kind === entry.kind ? 'border-primary bg-accent text-primary hover:bg-accent hover:text-primary' : 'text-muted-foreground'}`}
+                onClick={() => setKind(entry.kind)}
+              >
+                <entry.icon className="size-4" aria-hidden="true" />
+                {entry.label}
+              </Button>
+            ))}
+          </div>
+          <span className="font-mono text-xs text-faint">
+            {String(steps.length + 1).padStart(2, '0')}
+          </span>
+        </div>
+        <div className="flex flex-wrap items-start gap-3">
+          <div className="min-w-[8rem] flex-1">
+            <Field
+              label="执行时间（ms）"
+              value={at}
+              onChange={setAt}
+              type="number"
+              min={0}
+              max={3600000}
+              hint="按非递减顺序"
+            />
+          </div>
+          {kind === 'text' ? (
+            <div className="min-w-[12rem] flex-[2]">
+              <Field
+                label="设备输入文本"
+                value={text}
+                onChange={setText}
+                hint="仅 ASCII 字母、数字、空格和 . , _ @ -"
+              />
+            </div>
+          ) : kind === 'key' ? (
+            <div className="min-w-[8rem] flex-1">
+              <Field label="按键码" value={key} onChange={setKey} type="number" min={0} max={288} />
+            </div>
+          ) : (
+            <>
+              <div className="min-w-[7rem] flex-1">
+                <Field label="X 坐标" value={x} onChange={setX} type="number" min={0} max={65535} />
+              </div>
+              <div className="min-w-[7rem] flex-1">
+                <Field label="Y 坐标" value={y} onChange={setY} type="number" min={0} max={65535} />
+              </div>
+              {kind === 'swipe' && (
+                <>
+                  <div className="min-w-[7rem] flex-1">
+                    <Field label="终点 X" value={x2} onChange={setX2} type="number" min={0} max={65535} />
+                  </div>
+                  <div className="min-w-[7rem] flex-1">
+                    <Field label="终点 Y" value={y2} onChange={setY2} type="number" min={0} max={65535} />
+                  </div>
+                  <div className="min-w-[8rem] flex-1">
+                    <Field
+                      label="滑动持续（ms）"
+                      value={duration}
+                      onChange={setDuration}
+                      type="number"
+                      min={1}
+                      max={10000}
+                    />
+                  </div>
+                </>
+              )}
+            </>
+          )}
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className="text-xs text-faint">
+            {kind === 'tap' || kind === 'swipe' ? '坐标使用设备像素' : kind === 'key' ? '按键码 0–288' : '不支持中文输入'}
+          </span>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" onClick={() => setAddOpen(false)}>
+              取消
+            </Button>
+            <Button
+              variant="outline"
+              disabled={action.pending}
+              onClick={() => {
+                if (addStep()) setAddOpen(false);
+              }}
+            >
+              <Plus aria-hidden="true" />添加到流程
+            </Button>
+          </div>
+        </div>
+        <ErrorNotice error={stepError} />
+      </div>
+    </div>
+  );
   return (
-    <section className="flex min-w-0 flex-col gap-4">
+    <section className="flex min-h-0 min-w-0 flex-1 flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground">
         <span className="inline-flex min-w-0 items-center gap-2">
           <Smartphone className="size-4" aria-hidden="true" />
@@ -135,8 +252,8 @@ export function DeviceAutomation({ services }: { services: ProductServices }) {
         </span>
         <span>设备像素坐标 · 按时间顺序执行</span>
       </div>
-      <div className="grid min-w-0 overflow-hidden rounded-lg border border-border bg-card lg:grid-cols-[minmax(0,1fr)_19.75rem]">
-        <div className="flex min-w-0 flex-col">
+      {/* 不加 overflow-hidden：它会成为气泡的裁剪祖先，让气泡被挤到侧栏上。 */}
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col rounded-lg border border-border bg-card">
           <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-4 sm:px-6">
             <div className="flex items-center gap-3">
               <h2 className="text-base font-semibold">设备流程</h2>
@@ -158,18 +275,29 @@ export function DeviceAutomation({ services }: { services: ProductServices }) {
               {action.pending && <Button size="sm" variant="outline" onClick={action.cancel}>取消等待</Button>}
             </div>
           </header>
-          <div className="min-w-0 flex-1 px-5 py-4 sm:px-6">
-            <div aria-hidden="true" className="grid grid-cols-[2rem_4.5rem_minmax(0,1fr)] gap-2 pb-2 text-[11px] text-faint sm:grid-cols-[2rem_5.5rem_minmax(0,1fr)]">
-              <span>序号</span><span>执行时间</span><span>动作</span>
-            </div>
+          <div className="min-h-0 min-w-0 flex-1 overflow-y-auto px-5 py-4 sm:px-6">
             {steps.length === 0 ? (
-              <div className="flex min-h-56 flex-col items-center justify-center gap-3 py-10 text-center">
-                <div className="flex size-10 items-center justify-center rounded-lg bg-accent text-primary"><Plus className="size-5" aria-hidden="true" /></div>
-                <p className="text-sm text-muted-foreground">添加第一个步骤</p>
-                <p className="text-xs text-faint">点击、滑动、按键或输入文本</p>
-              </div>
+              addOpen ? (
+                <div className="mx-auto w-full max-w-[46rem] py-2">{stepForm}</div>
+              ) : (
+                <div className="flex min-h-64 flex-col items-center justify-center gap-3 py-10 text-center">
+                  <button
+                    type="button"
+                    aria-label="添加第一个步骤"
+                    onClick={openAddStep}
+                    className="flex size-11 items-center justify-center rounded-xl border border-dashed border-border bg-surface-elevated text-primary transition-colors hover:border-primary hover:bg-accent focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
+                  >
+                    <Plus className="size-5" aria-hidden="true" />
+                  </button>
+                  <p className="text-sm text-muted-foreground">添加第一个步骤</p>
+                </div>
+              )
             ) : (
-              <ol aria-label="设备流程步骤" className="m-0 list-none p-0">
+              <>
+                <div aria-hidden="true" className="grid grid-cols-[2rem_4.5rem_minmax(0,1fr)] gap-2 pb-2 text-[11px] text-faint sm:grid-cols-[2rem_5.5rem_minmax(0,1fr)_2rem]">
+                  <span>序号</span><span>执行时间</span><span>动作</span>
+                </div>
+                <ol aria-label="设备流程步骤" className="m-0 list-none p-0">
                 {steps.map((step, index) => {
                   const type = actionTypes.find((entry) => entry.kind === step.action.kind);
                   const Icon = type?.icon ?? MousePointer2;
@@ -191,7 +319,22 @@ export function DeviceAutomation({ services }: { services: ProductServices }) {
                     </li>
                   );
                 })}
-              </ol>
+                </ol>
+                <div className="pt-3">
+                  {addOpen ? (
+                    stepForm
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={openAddStep}
+                      className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-border py-3 text-xs text-muted-foreground transition-colors hover:border-primary hover:text-primary focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
+                    >
+                      <Plus className="size-4" aria-hidden="true" />
+                      添加步骤
+                    </button>
+                  )}
+                </div>
+              </>
             )}
           </div>
           <div className="border-t border-border bg-surface-elevated px-5 py-5 sm:px-6">
@@ -210,50 +353,7 @@ export function DeviceAutomation({ services }: { services: ProductServices }) {
               </Button>
             </div>
           </div>
-        </div>
-        <aside className="flex min-w-0 flex-col border-t border-border bg-surface-elevated px-5 py-5 lg:border-t-0 lg:border-l">
-          <div className="flex items-center justify-between gap-3">
-            <h3 className="text-base font-semibold">添加步骤</h3>
-            <span className="font-mono text-xs text-faint">{String(steps.length + 1).padStart(2, '0')}</span>
-          </div>
-          <div className="mt-5 mb-6 grid grid-cols-2 gap-2" role="group" aria-label="步骤类型">
-            {actionTypes.map((entry) => (
-              <Button key={entry.kind} variant="outline" aria-pressed={kind === entry.kind} disabled={action.pending}
-                className={`justify-start ${kind === entry.kind ? 'border-primary bg-accent text-primary hover:bg-accent hover:text-primary' : 'text-muted-foreground'}`}
-                onClick={() => setKind(entry.kind)}>
-                <entry.icon className="size-4" aria-hidden="true" />{entry.label}
-              </Button>
-            ))}
-          </div>
-          <div className="grid gap-4">
-            <Field label="执行时间（ms）" value={at} onChange={setAt} type="number" min={0} max={3600000} hint="相对流程开始，按非递减顺序添加" />
-            {kind === 'text' ? (
-              <Field label="设备输入文本" value={text} onChange={setText} hint="仅 ASCII 字母、数字、空格和 . , _ @ -" />
-            ) : kind === 'key' ? (
-              <Field label="按键码" value={key} onChange={setKey} type="number" min={0} max={288} />
-            ) : (
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="X 坐标" value={x} onChange={setX} type="number" min={0} max={65535} />
-                <Field label="Y 坐标" value={y} onChange={setY} type="number" min={0} max={65535} />
-              </div>
-            )}
-            {kind === 'swipe' && (
-              <>
-                <div className="grid grid-cols-2 gap-3">
-                  <Field label="终点 X" value={x2} onChange={setX2} type="number" min={0} max={65535} />
-                  <Field label="终点 Y" value={y2} onChange={setY2} type="number" min={0} max={65535} />
-                </div>
-                <Field label="滑动持续（ms）" value={duration} onChange={setDuration} type="number" min={1} max={10000} />
-              </>
-            )}
-            {(kind === 'tap' || kind === 'swipe') && <p className="text-xs text-faint">坐标使用设备像素。</p>}
-          </div>
-          <div className="mt-auto pt-7">
-            <Button className="w-full" variant="outline" onClick={addStep} disabled={action.pending}><Plus aria-hidden="true" />添加到流程</Button>
-          </div>
-          <ErrorNotice error={stepError} />
-        </aside>
-        <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-5 py-3 text-xs text-faint lg:col-span-2 sm:px-6">
+        <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-5 py-3 text-xs text-faint sm:px-6">
           <span>回执确认输入派发，界面效果需另行观察。</span>
           <span>{action.pending ? '正在执行' : output ? '已有执行回执' : '尚无本次执行回执'}</span>
         </footer>

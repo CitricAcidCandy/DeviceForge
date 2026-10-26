@@ -148,8 +148,16 @@ impl Store {
     }
 
     pub fn insert_market_entry(&self, entry: &MarketEntry) -> Result<(), StoreError> {
+        self.insert_market_entry_at(entry, None)
+    }
+
+    pub(crate) fn insert_market_entry_at(
+        &self,
+        entry: &MarketEntry,
+        market_authority: Option<&str>,
+    ) -> Result<(), StoreError> {
         validate_market_entry(entry).map_err(|error| StoreError::Metadata(error.to_string()))?;
-        crate::releases::validate(self, entry)?;
+        crate::releases::validate(self, entry, market_authority)?;
         let payload = serde_json::to_string(entry).map_err(|_| StoreError::Conflict)?;
         let visibility = match entry.visibility {
             Visibility::Market => "market",

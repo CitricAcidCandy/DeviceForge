@@ -39,6 +39,8 @@ import { MarketplaceConfiguration } from './components/MarketplaceConfiguration/
 import { MarketplaceUploadDialog } from './components/MarketplaceUploadDialog/index.tsx';
 import { LocalImportDialog } from './components/LocalImportDialog/index.tsx';
 import { InstallationProgress } from './components/InstallationProgress/index.tsx';
+import { PluginDependencies } from './components/PluginDependencies/index.tsx';
+import { dependencyTarget } from './components/PluginDependencies/target.ts';
 import './workspace.css';
 
 const kindNav: readonly { value: MarketplaceKind | undefined; label: string }[] = [
@@ -74,6 +76,7 @@ export function MarketplacePage({
   const [filters, setFilters] = useState(false);
   const [selected, setSelected] = useState<MarketplaceEntry | null>(null);
   const [configuration, setConfiguration] = useState<MarketplaceEntry | null>(null);
+  const [dependencies, setDependencies] = useState<MarketplaceEntry | null>(null);
   const [removal, setRemoval] = useState<
     { id: string; kind: 'server' | 'browser'; removable: boolean } |
     { id: string; kind: 'release'; revision: string; removable: true } | null>(null);
@@ -86,6 +89,7 @@ export function MarketplacePage({
       setFilters(false);
       setSelected(null);
       setConfiguration(null);
+      setDependencies(null);
       setRemoval(null);
     }
   }, [active]);
@@ -102,6 +106,7 @@ export function MarketplacePage({
       key={`${entry.source}:${entry.id}:${entry.version}`}
       entry={entry}
       installed={installed}
+      onDependencies={installed && dependencyTarget(entry) ? () => setDependencies(entry) : undefined}
       removable={removable}
       removeDisabled={removeDisabled}
       cleanupWarning={entry.details['plugin_kind'] === 'server' && market.cleanupWarnings.includes(entry.id)}
@@ -411,6 +416,8 @@ export function MarketplacePage({
         installed={selected ? installedEntry(selected, market.packages, market.installations) : undefined}
         recoveryBlocked={selected ? market.installations.some((item) => item.id === selected.id && installationRequiresRecovery(item)) : false}
         busy={market.action.pending}
+        onDependencies={selected && installedEntry(selected, market.packages, market.installations) && dependencyTarget(selected)
+          ? () => { setDependencies(selected); setSelected(null); } : undefined}
         onClose={() => setSelected(null)}
         onDownload={() => {
           if (selected) market.download(selected);
@@ -419,6 +426,9 @@ export function MarketplacePage({
           if (selected) market.install(selected);
         }}
       />
+      <PluginDependencies client={services.client} target={active && dependencies ? dependencyTarget(dependencies) : null}
+        onUpdated={async (signal) => { await services.runtime.pluginInstallations.restore(signal); market.refresh(); }}
+        name={dependencies?.name ?? ''} onClose={() => setDependencies(null)} />
       <MarketplaceConfiguration
         key={configuration ? `${configuration.source}:${configuration.id}` : 'closed'}
         entry={active ? configuration : null}

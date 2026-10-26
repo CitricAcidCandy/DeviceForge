@@ -242,11 +242,18 @@ async fn catalog(
 
 async fn publish_catalog_entry(
     State(state): State<AppState>,
+    uri: axum::http::Uri,
+    headers: HeaderMap,
     Json(entry): Json<MarketEntry>,
 ) -> Result<(StatusCode, Json<MarketEntry>), ApiError> {
     let store = state.store;
     let copy = entry.clone();
-    tokio::task::spawn_blocking(move || store.insert_market_entry(&copy)).await??;
+    let authority = uri
+        .authority()
+        .map(ToString::to_string)
+        .or_else(|| header_text(&headers, header::HOST.as_str()));
+    tokio::task::spawn_blocking(move || store.insert_market_entry_at(&copy, authority.as_deref()))
+        .await??;
     Ok((StatusCode::CREATED, Json(entry)))
 }
 

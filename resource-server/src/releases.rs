@@ -1,20 +1,25 @@
 //! 发布清单最后落目录前，核对身份与所有不可变资源；不执行插件。
 use crate::{MarketEntry, Store, store::StoreError};
 use apk_domain::plugin_installations::{RELEASE_MANIFEST_LIMIT, ReleaseManifest};
+use deviceforge_plugin_dependencies::SourceKind;
 use sha2::{Digest, Sha256};
 use std::{collections::HashSet, fs, io::Read};
 
-pub(crate) fn validate(store: &Store, entry: &MarketEntry) -> Result<(), StoreError> {
+pub(crate) fn validate(
+    store: &Store,
+    entry: &MarketEntry,
+    market_authority: Option<&str>,
+) -> Result<(), StoreError> {
     if entry.details.get("release_format_version").is_none()
         && entry.details.get("host_api_version").is_none()
     {
         return Ok(());
     }
-    if entry
+    let format_version = entry
         .details
         .get("release_format_version")
-        .and_then(serde_json::Value::as_u64)
-        != Some(1)
+        .and_then(serde_json::Value::as_u64);
+    if !matches!(format_version, Some(1 | 2))
         || entry
             .details
             .get("host_api_version")
@@ -49,7 +54,12 @@ pub(crate) fn validate(store: &Store, entry: &MarketEntry) -> Result<(), StoreEr
     manifest
         .validate()
         .map_err(|_| invalid("发布清单规则校验失败"))?;
-    if manifest.id != entry.id || manifest.version != entry.version || manifest.name != entry.name {
+    if Some(u64::from(manifest.format_version)) != format_version
+        || manifest.host_api_version != 2
+        || manifest.id != entry.id
+        || manifest.version != entry.version
+        || manifest.name != entry.name
+    {
         return Err(invalid("发布清单与市场条目身份不一致"));
     }
     let mut verified = HashSet::new();
@@ -72,37 +82,62 @@ pub(crate) fn validate(store: &Store, entry: &MarketEntry) -> Result<(), StoreEr
         if path != digest {
             return Err(invalid("在线发布资源路径必须为资源服务摘要"));
         }
-        // 多个组件或平台可以复用同一内容；每组摘要和长度只读取一次。
-        if !verified.insert((digest, size)) {
-            continue;
-        }
-        let resource = store.resource(digest)?;
-        let file = fs::File::open(store.resource_path(&resource)?)
-            .map_err(|_| invalid("完整发布缺少组件或工具资源文件"))?;
-        let metadata = file.metadata()?;
-        if resource.sha256 != *digest
-            || resource.size != size
-            || !metadata.is_file()
-            || metadata.len() != size
+        verify_resource(store, digest, size, &mut verified)?;
+    }
+    if let Some(dependencies) = &manifest.dependencies {
+        for source in dependencies
+            .dependencies
+            .iter()
+            .flat_map(|item| &item.sources)
         {
-            return Err(invalid("完整发布缺少匹配的组件或工具资源"));
-        }
-        // 有界流式复核真实字节，避免同长度损坏绕过闭包检查或整包进入内存。
-        let mut reader = file.take(size + 1);
-        let mut hasher = Sha256::new();
-        let mut buffer = [0_u8; 64 * 1024];
-        let mut actual_size = 0_u64;
-        loop {
-            let count = reader.read(&mut buffer)?;
-            if count == 0 {
-                break;
+            crate::dependency_sources::validate(source, market_authority)?;
+            if source.kind == SourceKind::Official {
+                // 官方来源只核完整固定元数据，不要求上传第三方原包，也不远端抓取。
+                continue;
             }
-            actual_size += count as u64;
-            hasher.update(&buffer[..count]);
+            let digest = source.sha256.as_str();
+            verify_resource(store, digest, source.size, &mut verified)?;
         }
-        if actual_size != size || format!("{:x}", hasher.finalize()) != *digest {
-            return Err(invalid("完整发布组件或工具资源摘要或长度不符"));
+    }
+    Ok(())
+}
+
+fn verify_resource<'a>(
+    store: &Store,
+    digest: &'a str,
+    size: u64,
+    verified: &mut HashSet<(&'a str, u64)>,
+) -> Result<(), StoreError> {
+    // 多个组件、工具与依赖复用同一内容，每组摘要和长度只读取一次。
+    if !verified.insert((digest, size)) {
+        return Ok(());
+    }
+    let resource = store.resource(digest)?;
+    let file = fs::File::open(store.resource_path(&resource)?)
+        .map_err(|_| invalid("完整发布缺少组件或工具资源文件"))?;
+    let metadata = file.metadata()?;
+    if resource.sha256 != digest
+        || resource.size != size
+        || !metadata.is_file()
+        || metadata.len() != size
+    {
+        return Err(invalid("完整发布缺少匹配的组件或工具资源"));
+    }
+    // 有界流式复核真实字节，避免同长度损坏绕过闭包检查或整包进入内存。
+    let mut reader = file.take(size + 1);
+    let mut hasher = Sha256::new();
+    let mut buffer = [0_u8; 64 * 1024];
+    let mut actual_size = 0_u64;
+    loop {
+        let count = reader.read(&mut buffer)?;
+        if count == 0 {
+            break;
         }
+        actual_size += count as u64;
+        hasher.update(&buffer[..count]);
+    }
+    if actual_size != size || format!("{:x}", hasher.finalize()) != digest {
+        return Err(invalid("完整发布组件或工具资源摘要或长度不符"));
     }
     Ok(())
 }

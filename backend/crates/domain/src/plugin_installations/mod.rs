@@ -35,6 +35,8 @@ pub struct ReleaseManifest {
     pub components: Vec<ReleaseComponent>,
     #[serde(default)]
     pub tools: Vec<ReleaseTool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub dependencies: Option<deviceforge_plugin_dependencies::DependencyManifest>,
     #[serde(default)]
     pub requirements: Vec<ReleaseRequirement>,
 }
@@ -131,6 +133,7 @@ pub enum InstallationStatus {
     Installed,
     Enabled,
     ConfigurationRequired,
+    DependenciesRequired,
     RecoveryBlocked,
 }
 
@@ -327,6 +330,13 @@ pub trait InstallationStore: Send + Sync {
         id: &str,
         expected_revision: &str,
     ) -> Result<InstalledRelease>;
+    async fn dependencies_required(
+        &self,
+        id: &str,
+        expected_revision: &str,
+    ) -> Result<InstalledRelease> {
+        self.configuration_required(id, expected_revision).await
+    }
     async fn recovery_blocked(
         &self,
         id: &str,

@@ -4,11 +4,13 @@ import {
   createMcpTransport,
   uploadEndpoint,
   uploadInstallationArtifactEndpoint,
+  ApiError,
 } from '../services/api/index.ts';
 import type { ClientOptions } from '../services/api/index.ts';
 import { createOperations } from '../features/operations/index.ts';
 import { createTasks } from '../features/tasks/index.ts';
 import { createServerPlugins } from '../features/server-plugins/index.ts';
+import { createPluginDependenciesHttp } from '../features/plugin-dependencies/index.ts';
 import {
   createExtensionRegistry,
   createInstalledPackageController,
@@ -33,6 +35,7 @@ import { registerAiSdkService } from './ai-sdk-service.ts';
 import { createMcpClient } from '../features/mcp/index.ts';
 import { createHttpPerformance } from '../features/performance/index.ts';
 import { registerPerformanceService } from './performance-service.ts';
+import { registerPluginDependenciesService } from './plugin-dependencies-service.ts';
 import { createHttpMirroringStreaming } from '../features/mirroring-streaming/index.ts';
 import type { MirroringStreamSink } from '../features/mirroring-streaming/index.ts';
 import { registerMirroringStreamingService } from './mirroring-streaming-service.ts';
@@ -88,6 +91,7 @@ export function createFrontendRuntime(options: RuntimeOptions) {
   host.context.onDispose(registerAiSdkService(extensions, host.context, aiSdk));
   host.context.onDispose(registerAiSdkStreamingService(extensions, host.context, aiSdkStreaming));
   host.context.onDispose(registerPerformanceService(extensions, host.context, performance));
+  host.context.onDispose(registerPluginDependenciesService(extensions, host.context, client));
   host.context.onDispose(
     registerMirroringStreamingService(extensions, host.context, mirroringStreaming),
   );
@@ -152,11 +156,16 @@ export function createFrontendRuntime(options: RuntimeOptions) {
       const running = await serverPlugins.refresh(signal);
       if (running.data.some((plugin) => plugin.id === id)) await serverPlugins.unload(id, signal);
     },
-    enableBrowser: (pkg, signal) =>
-      browserPackages.enable(
+    async enableBrowser(pkg, signal) {
+      const dependencies = await createPluginDependenciesHttp(client).get({ kind: 'browser', id: pkg.id }, signal);
+      signal.throwIfAborted();
+      if (!dependencies.data.ready)
+        throw new ApiError('protocol', 'dependencies_required', '浏览器插件必需依赖未就绪，请在依赖面板补装或重新检测', null, dependencies.logId);
+      return browserPackages.enable(
         { id: pkg.id, version: pkg.version, entryPath: pkg.entry_path },
         signal,
-      ),
+      );
+    },
     disableBrowser: browserPackages.disable,
     forgetBrowser: browserPackages.forget,
   });

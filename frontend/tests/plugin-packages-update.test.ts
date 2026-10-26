@@ -3,6 +3,7 @@ import test from 'node:test';
 import { createFrontendRuntime } from '../src/app/index.ts';
 import type { HostContext } from '../src/plugin-sdk/index.ts';
 import { ApiError } from '../src/services/api/index.ts';
+import { noBrowserDependencies } from './plugin-dependencies-fixtures.ts';
 import { deferred, failure, installedPackage, requestUrl, signal, success } from './fixtures.ts';
 
 test('浏览器更新先清理本实例，再以 PUT 原字节替换，核对期望版本且不删除旧部署', async () => {
@@ -23,6 +24,7 @@ test('浏览器更新先清理本实例，再以 PUT 原字节替换，核对期
     transport: async (input, init) => {
       const url = requestUrl(input);
       requests.push(`${init?.method} ${url.pathname}`);
+      if (url.pathname === '/api/v2/plugin-dependencies/browser/example') return success(noBrowserDependencies());
       if (init?.method === 'PUT') {
         assert.equal(stopped, 1);
         assert.deepEqual(runtime.webPlugins.snapshot(), []);
@@ -59,7 +61,8 @@ test('新包校验失败后重查原部署，旧版本仍可重新启用', async
   const runtime = createFrontendRuntime({
     baseUrl: 'http://localhost:7031', panelTarget: () => null,
     esmImporter: async () => ({ default: { id: 'example', version: '1.0', apiVersion: 2, panels: [] } }),
-    transport: async (_input, init) => {
+    transport: async (input, init) => {
+      if (requestUrl(input).pathname === '/api/v2/plugin-dependencies/browser/example') return success(noBrowserDependencies());
       if (init?.method === 'PUT') { ++puts; return failure('invalid_input', 400); }
       assert.equal(init?.method, 'GET');
       return success([installedPackage()], 'old-deployment');

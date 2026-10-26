@@ -1,0 +1,368 @@
+{
+  "format_version": 1,
+  "dependencies": [
+    {
+      "id": "adb",
+      "entries": [
+        "adb",
+        "adb_win_api",
+        "adb_win_usb_api"
+      ],
+      "discovery": [
+        {
+          "kind": "environment",
+          "value": "ADB_PATH",
+          "entries": {
+            "adb": ".",
+            "adb_win_api": "AdbWinApi.dll",
+            "adb_win_usb_api": "AdbWinUsbApi.dll"
+          }
+        },
+        {
+          "kind": "environment",
+          "value": "APK_ADB",
+          "entries": {
+            "adb": ".",
+            "adb_win_api": "AdbWinApi.dll",
+            "adb_win_usb_api": "AdbWinUsbApi.dll"
+          }
+        },
+        {
+          "kind": "environment",
+          "value": "ANDROID_SDK_ROOT",
+          "entries": {
+            "adb": "platform-tools/adb.exe",
+            "adb_win_api": "platform-tools/AdbWinApi.dll",
+            "adb_win_usb_api": "platform-tools/AdbWinUsbApi.dll"
+          }
+        },
+        {
+          "kind": "environment",
+          "value": "ANDROID_HOME",
+          "entries": {
+            "adb": "platform-tools/adb.exe",
+            "adb_win_api": "platform-tools/AdbWinApi.dll",
+            "adb_win_usb_api": "platform-tools/AdbWinUsbApi.dll"
+          }
+        },
+        {
+          "kind": "path",
+          "value": "adb.exe",
+          "entries": {
+            "adb": ".",
+            "adb_win_api": "AdbWinApi.dll",
+            "adb_win_usb_api": "AdbWinUsbApi.dll"
+          }
+        },
+        {
+          "kind": "user_directory",
+          "value": "tools/adb",
+          "entries": {
+            "adb": "adb.exe",
+            "adb_win_api": "AdbWinApi.dll",
+            "adb_win_usb_api": "AdbWinUsbApi.dll"
+          }
+        }
+      ],
+      "name": "Android 调试桥",
+      "probe": {
+        "entry": "adb",
+        "args": [
+          "version"
+        ],
+        "pattern": "Version ([0-9]+\\.[0-9]+\\.[0-9]+)",
+        "timeout_ms": 3000
+      },
+      "version_requirement": ">=36.0.0, <37.0.0",
+      "required": true,
+      "requires": [],
+      "sources": [],
+      "bindings": [
+        {
+          "component_id": "android-device",
+          "config_pointer": "/tools/adb",
+          "entry": "adb"
+        }
+      ]
+    },
+    {
+      "id": "java",
+      "entries": [
+        "java"
+      ],
+      "discovery": [
+        {
+          "kind": "environment",
+          "value": "JAVA_PATH",
+          "entries": {
+            "java": "."
+          }
+        },
+        {
+          "kind": "environment",
+          "value": "JAVA_HOME",
+          "entries": {
+            "java": "bin/java.exe"
+          }
+        },
+        {
+          "kind": "path",
+          "value": "java.exe",
+          "entries": {
+            "java": "."
+          }
+        },
+        {
+          "kind": "path",
+          "value": "java",
+          "entries": {
+            "java": "."
+          }
+        },
+        {
+          "kind": "user_directory",
+          "value": "tools/java",
+          "entries": {
+            "java": "java.exe"
+          }
+        }
+      ],
+      "name": "Java 运行环境",
+      "probe": {
+        "entry": "java",
+        "args": [
+          "-version"
+        ],
+        "pattern": "version \"([0-9]+\\.[0-9]+\\.[0-9]+)",
+        "timeout_ms": 3000
+      },
+      "version_requirement": "*",
+      "required": false,
+      "requires": [],
+      "sources": [],
+      "bindings": [
+        {
+          "component_id": "android-device",
+          "config_pointer": "/tools/java",
+          "entry": "java"
+        }
+      ]
+    },
+    {
+      "id": "bundletool",
+      "entries": [
+        "jar"
+      ],
+      "discovery": [
+        {
+          "kind": "environment",
+          "value": "BUNDLETOOL_JAR",
+          "entries": {
+            "jar": "."
+          }
+        },
+        {
+          "kind": "user_directory",
+          "value": "tools/bundletool",
+          "entries": {
+            "jar": "bundletool.jar"
+          }
+        }
+      ],
+      "name": "Android Bundle 工具",
+      "requires": [
+        "java"
+      ],
+      "version_requirement": "=1.3.0",
+      "required": false,
+      "sources": [],
+      "bindings": [
+        {
+          "component_id": "android-device",
+          "config_pointer": "/tools/bundletool/jar",
+          "entry": "jar"
+        }
+      ]
+    },
+    {
+      "id": "scrcpy-server",
+      "entries": [
+        "server"
+      ],
+      "discovery": [
+        {
+          "kind": "environment",
+          "value": "SCRCPY_SERVER_PATH",
+          "entries": {
+            "server": "."
+          }
+        },
+        {
+          "kind": "user_directory",
+          "value": "tools/scrcpy-server",
+          "entries": {
+            "server": "scrcpy-server"
+          }
+        }
+      ],
+      "name": "scrcpy 设备服务",
+      "version_requirement": "=3.3.1",
+      "required": false,
+      "requires": [],
+      "sources": [],
+      "bindings": [
+        {
+          "component_id": "android-device",
+          "config_pointer": "/profile/scrcpy_server",
+          "entry": "server"
+        }
+      ]
+    },
+    {
+      "id": "ffmpeg",
+      "entries": [
+        "ffmpeg"
+      ],
+      "discovery": [
+        {
+          "kind": "environment",
+          "value": "FFMPEG_PATH",
+          "entries": {
+            "ffmpeg": "."
+          }
+        },
+        {
+          "kind": "path",
+          "value": "ffmpeg.exe",
+          "entries": {
+            "ffmpeg": "."
+          }
+        },
+        {
+          "kind": "path",
+          "value": "ffmpeg",
+          "entries": {
+            "ffmpeg": "."
+          }
+        },
+        {
+          "kind": "user_directory",
+          "value": "tools/ffmpeg",
+          "entries": {
+            "ffmpeg": "ffmpeg.exe"
+          }
+        }
+      ],
+      "name": "FFmpeg 视频解码器",
+      "probe": {
+        "entry": "ffmpeg",
+        "args": [
+          "-version"
+        ],
+        "pattern": "([0-9]+\\.[0-9]+\\.[0-9]+(?:\\.[0-9]+)?)",
+        "timeout_ms": 3000
+      },
+      "version_requirement": "*",
+      "required": false,
+      "requires": [],
+      "sources": [],
+      "bindings": [
+        {
+          "component_id": "android-device",
+          "config_pointer": "/profile/ffmpeg",
+          "entry": "ffmpeg"
+        }
+      ]
+    },
+    {
+      "id": "ffprobe",
+      "entries": [
+        "ffprobe"
+      ],
+      "discovery": [
+        {
+          "kind": "environment",
+          "value": "FFPROBE_PATH",
+          "entries": {
+            "ffprobe": "."
+          }
+        },
+        {
+          "kind": "path",
+          "value": "ffprobe.exe",
+          "entries": {
+            "ffprobe": "."
+          }
+        },
+        {
+          "kind": "path",
+          "value": "ffprobe",
+          "entries": {
+            "ffprobe": "."
+          }
+        },
+        {
+          "kind": "user_directory",
+          "value": "tools/ffprobe",
+          "entries": {
+            "ffprobe": "ffprobe.exe"
+          }
+        }
+      ],
+      "name": "FFprobe 媒体探测器",
+      "probe": {
+        "entry": "ffprobe",
+        "args": [
+          "-version"
+        ],
+        "pattern": "([0-9]+\\.[0-9]+\\.[0-9]+(?:\\.[0-9]+)?)",
+        "timeout_ms": 3000
+      },
+      "version_requirement": "*",
+      "required": false,
+      "requires": [],
+      "sources": [],
+      "bindings": [
+        {
+          "component_id": "android-device",
+          "config_pointer": "/profile/ffprobe",
+          "entry": "ffprobe"
+        }
+      ]
+    },
+    {
+      "id": "clock-helper",
+      "entries": [
+        "jar"
+      ],
+      "discovery": [
+        {
+          "kind": "environment",
+          "value": "DEVICEFORGE_CLOCK_HELPER",
+          "entries": {
+            "jar": "."
+          }
+        },
+        {
+          "kind": "user_directory",
+          "value": "tools/clock-helper",
+          "entries": {
+            "jar": "clock-helper.jar"
+          }
+        }
+      ],
+      "name": "设备时钟辅助程序",
+      "version_requirement": "*",
+      "required": false,
+      "requires": [],
+      "sources": [],
+      "bindings": [
+        {
+          "component_id": "android-device",
+          "config_pointer": "/profile/clock_helper",
+          "entry": "jar"
+        }
+      ]
+    }
+  ]
+}

@@ -19,6 +19,8 @@ export const help = `DeviceForge · 设备工坊
       deviceforge plugin update <发布ID> <release.json完整URL|离线ZIP> --expected-revision 旧修订 [--api-url 服务地址]
       deviceforge plugin list [--api-url 服务地址]
       deviceforge plugin cleanup [--dry-run true|false] [--api-url 服务地址]
+      deviceforge plugin dependencies [get] <release|server|browser> <ID> [--api-url 服务地址]
+      deviceforge plugin dependencies <scan|install> <release|server|browser> <ID> --expected-revision 修订 [--dependency-ids ID,ID] [--api-url 服务地址]
       deviceforge plugin install-legacy <本地目录|npm包名|本地tgz> [--data-dir 目录]
       deviceforge plugin list-legacy [--data-dir 目录]
       deviceforge config show [--data-dir 目录]
@@ -38,6 +40,8 @@ config import 校验后原子替换根配置；不会导入令牌或业务/插�
 --api-url 默认 http://127.0.0.1:7030，或 DEVICEFORGE_API_URL；不会启动另一个后端。
 Ctrl+C 结束客户端等待，已提交的服务器任务可在任务页面继续查看。
 cleanup 默认只预览；--dry-run false 才由服务器清理未被引用的资源。
+dependencies 查询依赖修订；scan/install 需传该修订，不传 --dependency-ids 时由服务器选择全部依赖。
+dependencies 不安装本地工具、不启动后端；Ctrl+C 仅停止客户端等待，不自动取消已提交任务。
 install-legacy/list-legacy 保留旧离线部署兼容入口，不处理依赖工具或统一安装记录。
 `;
 
@@ -55,7 +59,15 @@ export function parseOptions(args, environment = process.env) {
     args[0] === 'start'
       ? 'start'
       : args[0] === 'plugin' &&
-          ['install', 'list', 'update', 'cleanup', 'install-legacy', 'list-legacy'].includes(args[1])
+          [
+            'install',
+            'list',
+            'update',
+            'cleanup',
+            'dependencies',
+            'install-legacy',
+            'list-legacy',
+          ].includes(args[1])
         ? `plugin.${args[1]}`
         : args[0] === 'config' && ['show', 'path', 'import'].includes(args[1])
           ? `config.${args[1]}`
@@ -70,10 +82,26 @@ export function parseOptions(args, environment = process.env) {
     marketplaceConfigPath: null,
     marketplaceSources: [{ name: '本地默认市场', url: DEFAULT_MARKETPLACE_URL }],
   };
-  const unified = ['plugin.install', 'plugin.update', 'plugin.list', 'plugin.cleanup'].includes(command);
+  const dependencies = command === 'plugin.dependencies';
+  const unified =
+    dependencies ||
+    ['plugin.install', 'plugin.update', 'plugin.list', 'plugin.cleanup'].includes(command);
   if (unified) options.apiUrl = environment.DEVICEFORGE_API_URL || 'http://127.0.0.1:7030';
   if (command === 'plugin.cleanup') options.dryRun = true;
   const rest = args.slice(command === 'start' ? 1 : 2);
+  if (dependencies) {
+    options.dependencyAction = ['get', 'scan', 'install'].includes(rest[0]) ? rest.shift() : 'get';
+    const kind = rest.shift(),
+      id = rest.shift();
+    if (
+      !['release', 'server', 'browser'].includes(kind) ||
+      !/^[a-z0-9][a-z0-9._-]{0,98}$/.test(id ?? '') ||
+      id.startsWith('builtin.')
+    )
+      throw new Error('依赖命令要求 release、server 或 browser 及有效插件 ID');
+    options.dependencyTarget = { kind, id };
+    options.dependencyIds = [];
+  }
   if (command === 'plugin.update') {
     if (!rest[0] || !/^[a-z0-9][a-z0-9._-]{0,98}$/.test(rest[0]) || rest[0].startsWith('builtin.'))
       throw new Error('更新要求有效发布 ID');
@@ -122,6 +150,7 @@ export function parseOptions(args, environment = process.env) {
         '--manifest-sha256',
         '--expected-revision',
         '--dry-run',
+        '--dependency-ids',
       ].includes(key) ||
       seen.has(key) ||
       !value ||
@@ -137,14 +166,26 @@ export function parseOptions(args, environment = process.env) {
       if (command !== 'start') throw new Error('--ip 只用于启动命令');
       options.ip = value;
     } else if (key === '--data-dir') {
-      if (command === 'plugin.cleanup') throw new Error('清理位置由服务器用户目录决定，不接受 --data-dir');
+      if (dependencies) throw new Error('依赖位置由服务器决定，不接受 --data-dir');
+      if (command === 'plugin.cleanup')
+        throw new Error('清理位置由服务器用户目录决定，不接受 --data-dir');
       options.dataDirectory = resolve(value);
     } else if (key === '--dry-run') {
       if (command !== 'plugin.cleanup' || !['true', 'false'].includes(value))
         throw new Error('--dry-run 只用于资源清理，值必须为 true 或 false');
       options.dryRun = value === 'true';
-    }
-    else if (
+    } else if (key === '--dependency-ids') {
+      if (!dependencies || options.dependencyAction === 'get')
+        throw new Error('--dependency-ids 只用于依赖 scan/install');
+      const ids = value.split(',');
+      if (
+        ids.length > 128 ||
+        new Set(ids).size !== ids.length ||
+        ids.some((id) => !/^[a-z0-9][a-z0-9._-]{0,98}$/.test(id) || id.startsWith('builtin.'))
+      )
+        throw new Error('依赖 ID 须为最多128个不重复的有效标识，以逗号分隔');
+      options.dependencyIds = ids;
+    } else if (
       [
         '--api-url',
         '--release-id',
@@ -155,6 +196,12 @@ export function parseOptions(args, environment = process.env) {
     ) {
       if (!unified || (['plugin.list', 'plugin.cleanup'].includes(command) && key !== '--api-url'))
         throw new Error(`${key} 只用于统一安装命令`);
+      if (
+        dependencies &&
+        key !== '--api-url' &&
+        (key !== '--expected-revision' || options.dependencyAction === 'get')
+      )
+        throw new Error(`${key} 不适用于此依赖命令`);
       const field = {
         '--api-url': 'apiUrl',
         '--release-id': 'releaseId',
@@ -201,6 +248,8 @@ export function parseOptions(args, environment = process.env) {
       throw new Error('旧修订必须为小写 SHA-256');
     if (command === 'plugin.update' && !options.expectedRevision)
       throw new Error('更新要求 --expected-revision，避免覆盖其他修改');
+    if (dependencies && options.dependencyAction !== 'get' && !options.expectedRevision)
+      throw new Error('依赖 scan/install 要求 --expected-revision，避免使用过期依赖清单');
     if (options.updateId && options.releaseId && options.updateId !== options.releaseId)
       throw new Error('更新目标与发布 ID 不一致');
   }

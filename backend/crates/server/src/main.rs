@@ -7,12 +7,22 @@ use apk_server::client_connection::ClientConnection;
 use std::{path::PathBuf, sync::Arc};
 mod artifact_config;
 mod configuration_home;
+mod dependency_preparation;
 mod limits;
 mod market_sources;
 mod operation_bindings;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let arguments: Vec<_> = std::env::args().skip(1).collect();
+    if arguments
+        .first()
+        .is_some_and(|argument| argument == "--prepare-plugin-dependencies")
+    {
+        return dependency_preparation::run(&arguments[1..])
+            .await
+            .map_err(Into::into);
+    }
     let data = PathBuf::from(std::env::var("APK_DATA_DIR").unwrap_or_else(|_| "data".into()));
     let logging = deviceforge_observability::install(
         deviceforge_observability::LogConfig::from_environment(&data)?,
@@ -72,6 +82,16 @@ async fn run(
         )
         .await?;
     let managed_plugins = user_home.join("plugins");
+    let browser_directory = std::env::var_os("APK_BROWSER_PLUGIN_DIR")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| data.join("browser-plugins"));
+    tokio::fs::create_dir_all(&browser_directory).await?;
+    let dependency_store = apk_infrastructure::plugin_dependencies::FilePluginDependencies::open(
+        &user_home,
+        vec![managed_plugins.clone(), plugin_directory.clone()],
+        vec![user_home.join("browser-plugins"), browser_directory.clone()],
+    )
+    .await?;
     let configuration_root = user_home.join("plugin-configurations");
     let configuration_store =
         apk_infrastructure::plugin_configurations::FilePluginConfigurations::open_with_deployments(
@@ -86,13 +106,22 @@ async fn run(
     // 初次启动即保值物化默认与历史配置，不依赖用户先打开配置弹窗。
     apk_domain::plugin_configurations::PluginConfigurationStore::list(configuration_store.as_ref())
         .await?;
+    if let Err(error) = dependency_store.bootstrap_scan(shutdown.clone()).await {
+        tracing::warn!(
+            code = error.code(),
+            "部分插件依赖检测失败，请在插件管理页重试"
+        );
+    }
+    let dependencies =
+        apk_application::plugin_dependencies::DependencyService::new(dependency_store);
     let catalog = Arc::new(
         FilePluginCatalog::open_roots(
             vec![managed_plugins, plugin_directory.clone()],
             artifacts.clone(),
         )
         .await?
-        .with_configurations(configuration_store.clone()),
+        .with_configurations(configuration_store.clone())
+        .with_dependency_root(user_home.clone()),
     );
     let loaded = catalog.initial().await?;
     {
@@ -121,11 +150,32 @@ async fn run(
     let installation_operations =
         Arc::new(apk_application::installation_operations::InstallationOperations::default());
     executors.push(installation_operations.clone());
+    executors.push(Arc::new(
+        apk_application::plugin_dependencies::DependencyOperations(dependencies.clone()),
+    ));
     let app = Application::new_with_bindings(store, executors, 4, 128, bindings)?;
     performance.bind(&app)?;
     let plugin_service = PluginService::new(app.clone(), catalog, Default::default());
     plugin_service.bind_installations(installation_store.clone())?;
+    plugin_service.bind_dependencies(&dependencies)?;
     for plugin in loaded {
+        let readiness = dependencies
+            .get(apk_domain::plugin_dependencies::DependencyTarget {
+                kind: apk_domain::plugin_dependencies::DependencyTargetKind::Server,
+                id: plugin.manifest().id.clone(),
+            })
+            .await;
+        let readiness = match readiness {
+            Ok(readiness) => readiness,
+            Err(error) => {
+                tracing::warn!(plugin_id = %plugin.manifest().id, code = error.code(), "单个插件依赖声明读取失败，继续启动其他插件");
+                continue;
+            }
+        };
+        if !readiness.ready {
+            tracing::warn!(plugin_id = %plugin.manifest().id, "初始插件缺少工具依赖，保留部署并等待一键安装");
+            continue;
+        }
         plugin_service
             .seed(PluginContribution {
                 id: plugin.manifest().id.clone(),
@@ -152,9 +202,6 @@ async fn run(
             .collect();
     }
     let mcp_shutdown = mcp_config.cancellation_token.clone();
-    let browser_directory = std::env::var_os("APK_BROWSER_PLUGIN_DIR")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| data.join("browser-plugins"));
     let packages = apk_application::plugin_packages::PackageService::new(
         Arc::new(
             apk_infrastructure::plugin_packages::FilePluginPackages::open(
@@ -167,6 +214,7 @@ async fn run(
         plugin_service.clone(),
     );
     packages.bind_installations(installation_store.clone())?;
+    packages.bind_dependencies(dependencies.clone())?;
     let configurations = apk_application::plugin_configurations::PluginConfigurationService::new(
         configuration_store.clone(),
         plugin_service.clone(),
@@ -187,8 +235,10 @@ async fn run(
         browser_configuration_store,
     );
     installation_operations.bind(installations.clone())?;
+    installations.bind_dependencies(dependencies.clone())?;
+    dependencies.bind_installations(&installations)?;
     installations.restore().await?;
-    let router = apk_server::router_with_installations(
+    let router = apk_server::router_with_dependencies(
         app.clone(),
         token,
         rate,
@@ -204,6 +254,7 @@ async fn run(
         browser_configurations,
         installations,
         installation_artifacts,
+        dependencies,
     )?;
     let bind = std::env::var("APK_BIND").unwrap_or_else(|_| "127.0.0.1:7031".into());
     let listener = tokio::net::TcpListener::bind(&bind).await?;

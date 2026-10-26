@@ -10,6 +10,32 @@ use std::path::PathBuf;
 
 pub(super) fn path(store: &FilePluginConfigurations, id: &str) -> Result<Option<PathBuf>> {
     let directory = store.deployment_directory(id)?;
+    if let Some(user_root) = store
+        .root
+        .parent()
+        .filter(|root| {
+            root.file_name()
+                .is_some_and(|name| name == "plugin-configurations")
+        })
+        .and_then(|root| root.parent())
+        && let Some(dependency_snapshot) = crate::plugin_dependencies::snapshot_for(
+            user_root,
+            apk_domain::plugin_dependencies::DependencyTargetKind::Server,
+            id,
+            &directory,
+        )?
+    {
+        let resources = ManagedResources::read(&dependency_snapshot)
+            .map_err(|_| Error::Invalid("自动依赖绑定快照无效".into()))?;
+        let bytes = serde_json::to_vec(&resources)
+            .map_err(|_| Error::Storage("自动依赖绑定编码失败".into()))?;
+        let directory = storage::checked_directory(&store.root, id, true)?;
+        let immutable = directory.join(format!("resources-{:x}.json", Sha256::digest(bytes)));
+        if !immutable.exists() {
+            storage::write(&immutable, &resources)?;
+        }
+        return Ok(Some(immutable));
+    }
     let active = directory.join("resources.json");
     if !active.exists() {
         // 用户根遵循明确的 plugin-configurations/server 布局；自定义旧根不推断仓库。
@@ -80,6 +106,10 @@ pub(super) fn effective(
         if current
             .and_then(Value::as_str)
             .is_some_and(|value| std::path::Path::new(value).is_absolute())
+            && definition
+                .as_ref()
+                .and_then(|value| value.defaults.pointer(&binding.config_pointer))
+                != current
         {
             continue;
         }

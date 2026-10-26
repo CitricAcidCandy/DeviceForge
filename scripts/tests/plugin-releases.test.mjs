@@ -136,12 +136,13 @@ test('统一发布文案来源明确工具自动绑定和可选缺项，生成�
       const checked = JSON.parse(
         await readFile(join(repository, 'backend/plugins', directory, 'release.json')),
       );
-      assert.equal(generated.description, dependency.description);
-      assert.equal(checked.description, dependency.description);
+      assert.equal(generated.description, checked.description);
       assert.match(generated.description, /自动.*绑定/);
       assert.doesNotMatch(generated.description, /工具文件需要单独准备|指定 Node、CLI、worker/);
       if (dependency.tools.some((tool) => !tool.required))
         assert.match(generated.description, /可选工具.*缺失/);
+      assert.equal(generated.format_version, 2);
+      assert.match(generated.description, /本机发现|可选工具/);
     }
     assert.match(JSON.parse(originals.get('mirroring')).description, /工具文件需要单独准备/);
     assert.match(JSON.parse(originals.get('ai-sdk')).description, /指定 Node、CLI、worker/);
@@ -637,9 +638,32 @@ async function officialInputFixture(root) {
     };
   const components = join(root, 'components.json'),
     inventory = join(root, 'inventory.json');
+  // 保留第一版库存闭包的独立回归，不把历史断言删掉冒充第二版覆盖。
+  const legacyRoot = join(root, 'legacy');
+  for (const { directory, id } of declarations) {
+    const source = JSON.parse(
+      await readFile(join(repository, 'backend/plugins', directory, 'release.json')),
+    );
+    source.format_version = 1;
+    delete source.dependencies;
+    source.tools = officialDependencies[directory].tools.map((tool) => ({
+      ...tool,
+      bindings: tool.bindings.map((binding) => ({ component_id: id, ...binding })),
+    }));
+    const output = join(legacyRoot, 'backend/plugins', directory);
+    await mkdir(output, { recursive: true });
+    await writeFile(join(output, 'release.json'), jsonBytes(source));
+  }
   await writeFile(components, jsonBytes(native));
   await writeFile(inventory, jsonBytes({ format_version: 1, platform: 'win32-x64', tools }));
-  return { components, inventory, destination: join(root, 'inputs'), native, tools };
+  return {
+    components,
+    inventory,
+    destination: join(root, 'inputs'),
+    native,
+    tools,
+    root: legacyRoot,
+  };
 }
 
 test('十八份输入绑定冻结组件摘要并明确可选缺项，不执行组件', async () =>
@@ -667,7 +691,7 @@ test('官方冻结输入接受源码范围并锁定归档版本，拒绝工具�
     const developmentRoot = join(root, 'development');
     for (const { directory } of declarations) {
       const source = JSON.parse(
-        await readFile(join(repository, 'backend/plugins', directory, 'release.json')),
+        await readFile(join(options.root, 'backend/plugins', directory, 'release.json')),
       );
       source.components[0].version = '^0.1.0';
       for (const tool of source.tools)

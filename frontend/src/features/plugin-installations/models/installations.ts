@@ -129,8 +129,8 @@ export function createPluginInstallations(gateway: InstallationGateway, browser:
   async function enableInstalled(value: PluginInstallation, signal: AbortSignal): Promise<PluginInstallation> {
     const revision = value.revision;
     if (installationRequiresRecovery(value)) throw new Error('功能插件安装恢复受阻，请先检查服务器恢复日志');
-    if (value.status === 'configuration_required') {
-      publishClient({ id: value.id, revision, phase: 'disabled', message: '功能插件已安装，请完成配置后启用', logId: null });
+    if (value.status === 'configuration_required' || value.status === 'dependencies_required') {
+      publishClient({ id: value.id, revision, phase: 'disabled', message: value.status === 'dependencies_required' ? '功能插件已安装，缺失依赖未准备完成，请在依赖面板重试' : '功能插件已安装，请完成配置后启用', logId: null });
       return value;
     }
     if (!installationCanRun(value)) {
@@ -139,8 +139,8 @@ export function createPluginInstallations(gateway: InstallationGateway, browser:
       value = installed(value.id);
     }
     if (value.revision !== revision) throw new Error('启用期间功能插件已更新，请刷新后重试');
-    if (value.status === 'configuration_required') {
-      publishClient({ id: value.id, revision, phase: 'disabled', message: '功能插件已安装，请完成配置后启用', logId: null });
+    if (value.status === 'configuration_required' || value.status === 'dependencies_required') {
+      publishClient({ id: value.id, revision, phase: 'disabled', message: value.status === 'dependencies_required' ? '功能插件已安装，缺失依赖未准备完成，请在依赖面板重试' : '功能插件已安装，请完成配置后启用', logId: null });
       return value;
     }
     await activate(value, signal);
@@ -241,7 +241,7 @@ export function createPluginInstallations(gateway: InstallationGateway, browser:
         if (!matches(value, planned.data)) throw new Error('更新后版本或修订与计划不一致，请刷新目录');
         if (previous.enabled && installationCanRun(value)) await activate(value, active);
         else publishClient({ id: value.id, revision: value.revision, phase: 'disabled',
-          message: value.status === 'configuration_required' ? '功能插件已更新，请完成配置后启用' : null, logId: null });
+          message: value.status === 'dependencies_required' ? '功能插件已更新，缺失依赖未准备完成，请在依赖面板重试' : value.status === 'configuration_required' ? '功能插件已更新，请完成配置后启用' : null, logId: null });
         return value;
       });
     },
@@ -255,9 +255,9 @@ export function createPluginInstallations(gateway: InstallationGateway, browser:
         await wait(await gateway.setEnabled(id, revision, enabled, active), active);
         await refresh(active);
         const value = installed(id);
-        if (enabled && value.status === 'configuration_required') {
-          publishClient({ id: value.id, revision: value.revision, phase: 'disabled', message: '功能插件已安装，请完成配置后启用', logId: null });
-          throw new Error('功能插件已安装，请完成配置后启用');
+        if (enabled && (value.status === 'configuration_required' || value.status === 'dependencies_required')) {
+          publishClient({ id: value.id, revision: value.revision, phase: 'disabled', message: value.status === 'dependencies_required' ? '功能插件已安装，缺失依赖未准备完成，请在依赖面板重试' : '功能插件已安装，请完成配置后启用', logId: null });
+          throw new Error(value.status === 'dependencies_required' ? '插件依赖尚未就绪，请在依赖面板重试' : '功能插件已安装，请完成配置后启用');
         }
         if (value.enabled !== enabled || value.revision !== revision) throw new Error('服务器启停状态或修订与请求不一致，请刷新目录');
         if (enabled) await activate(value, active);

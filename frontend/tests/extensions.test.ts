@@ -274,6 +274,7 @@ test('具名槽位和模块有真实挂载/释放行为，发现入口与命令�
       { id: 'host.ai-sdk', pluginId: 'host', generation: 0, version: '1' },
       { id: 'host.ai-sdk.stream', pluginId: 'host', generation: 0, version: '1' },
       { id: 'host.performance', pluginId: 'host', generation: 0, version: '1' },
+      { id: 'host.plugin-dependencies', pluginId: 'host', generation: 0, version: '1' },
       { id: 'host.mirroring.stream', pluginId: 'host', generation: 0, version: '1' },
     ],
   });

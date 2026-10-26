@@ -2,7 +2,12 @@
 import { parseOptions, help } from '../src/options.mjs';
 import { start } from '../src/start.mjs';
 import { installPlugin, listPlugins } from '../src/install.mjs';
-import { installPluginRelease, listPluginInstallations, cleanupPluginResources } from '../src/plugin-installations.mjs';
+import {
+  installPluginRelease,
+  listPluginInstallations,
+  cleanupPluginResources,
+} from '../src/plugin-installations.mjs';
+import { getPluginDependencies, changePluginDependencies } from '../src/plugin-dependencies.mjs';
 import {
   readRootConfiguration,
   rootConfigurationPath,
@@ -39,7 +44,23 @@ try {
     );
   } else if (options.command === 'plugin.cleanup') {
     const result = await cleanupPluginResources(options, { signal: controller.signal });
-    console.log(JSON.stringify({ job_id: result.job.id, log_id: result.logId, ...result.report }, null, 2));
+    console.log(
+      JSON.stringify({ job_id: result.job.id, log_id: result.logId, ...result.report }, null, 2),
+    );
+  } else if (options.command === 'plugin.dependencies') {
+    if (options.dependencyAction === 'get') {
+      const result = await getPluginDependencies(options, { signal: controller.signal });
+      console.log(JSON.stringify({ log_id: result.logId, data: result.data }, null, 2));
+    } else {
+      const result = await changePluginDependencies(options, { signal: controller.signal });
+      console.log(
+        JSON.stringify(
+          { job_id: result.job.id, log_id: result.logId, data: result.dependencies },
+          null,
+          2,
+        ),
+      );
+    }
   } else if (options.command === 'plugin.install-legacy') {
     const installed = await installPlugin(options, { signal: controller.signal });
     console.log(

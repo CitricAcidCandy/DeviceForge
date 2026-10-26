@@ -79,13 +79,18 @@ fn validation_pool() -> &'static ValidationPool {
 pub(crate) struct ToolLease {
     reader: Option<ReadLease>,
     recovery: recovery::Call,
+    runtime: Option<String>,
 }
 impl ToolLease {
     fn new(reader: Option<ReadLease>, unresolved: &Arc<AtomicBool>) -> Result<Arc<Self>> {
         Ok(Arc::new(Self {
             reader,
             recovery: recovery::Call::register(unresolved)?,
+            runtime: None,
         }))
+    }
+    pub(crate) fn executable<'a>(&'a self, fallback: &'a str) -> &'a str {
+        self.runtime.as_deref().unwrap_or(fallback)
     }
 
     pub(crate) fn retain(&self) {
@@ -136,12 +141,49 @@ pub(crate) async fn acquire(
             check()?;
             let resources = ManagedResources::read(&path)
                 .map_err(|_| Error::Invalid("托管资源描述无效".into()))?;
+            let runtime = resources
+                .runtime
+                .as_ref()
+                .map(|runtime| {
+                    resources
+                        .entry(&runtime.id, &runtime.entry)
+                        .map(|path| path.to_string_lossy().into_owned())
+                        .map_err(|_| Error::Dependency("脚本运行时入口尚未就绪".into()))
+                })
+                .transpose()?;
+            for (id, tool) in &resources.tools {
+                if resources
+                    .managed_tools
+                    .as_ref()
+                    .is_some_and(|managed| !managed.contains_key(id))
+                {
+                    for entry in tool.entries.values() {
+                        check()?;
+                        if !entry.is_file() {
+                            return Err(Error::Dependency(
+                                "外部依赖工具入口已失效，请重新检测".into(),
+                            ));
+                        }
+                    }
+                }
+            }
+            let has_managed = resources
+                .managed_tools
+                .as_ref()
+                .map_or(!resources.tools.is_empty(), |managed| !managed.is_empty());
             // 供应插件本身没有工具绑定，不得先占读锁再请求仓库写锁。
-            let reader = match (resources.repository, resources.tools.is_empty()) {
-                (Some(descriptor), false) => {
+            let reader = match (resources.repository, has_managed) {
+                (Some(descriptor), true) => {
                     let repository = Repository::open(&descriptor.root).map_err(shared_error)?;
                     let reader = repository.read().map_err(shared_error)?;
                     for (id, tool) in resources.tools {
+                        let package_version = match &resources.managed_tools {
+                            Some(managed) => match managed.get(&id) {
+                                Some(version) => version,
+                                None => continue,
+                            },
+                            None => &tool.version,
+                        };
                         if tool.entries.is_empty() {
                             return Err(Error::Invalid("资源工具缺少仓库入口".into()));
                         }
@@ -157,7 +199,7 @@ pub(crate) async fn acquire(
                                 })
                                 .map_err(shared_error)?;
                             if key.id != id
-                                || key.version != tool.version
+                                || key.version != *package_version
                                 || key.platform != tool.platform
                             {
                                 return Err(Error::Invalid("资源工具身份与仓库入口不符".into()));
@@ -169,7 +211,11 @@ pub(crate) async fn acquire(
                 _ => None,
             };
             check()?;
-            ToolLease::new(reader, &unresolved)
+            Ok(Arc::new(ToolLease {
+                reader,
+                recovery: recovery::Call::register(&unresolved)?,
+                runtime,
+            }))
         })
         .await
 }

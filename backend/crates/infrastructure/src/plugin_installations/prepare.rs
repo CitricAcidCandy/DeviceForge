@@ -25,6 +25,7 @@ pub(super) struct Prepared {
     pub operations: Vec<Operation>,
     pub identities: Vec<ResourceIdentity>,
     pub manifest: ReleaseManifest,
+    pub dependency_base: Option<String>,
 }
 
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
@@ -57,15 +58,23 @@ pub(super) fn identities(manifest: &ReleaseManifest, revision: &str) -> Vec<Reso
             sha256: variant.sha256.clone(),
         })
     }));
-    values.extend(manifest.tools.iter().filter_map(|tool| {
-        selected(&tool.variants, |variant| &variant.platform).map(|variant| ResourceIdentity {
-            kind: "tool".into(),
-            id: tool.id.clone(),
-            version: tool.version.clone(),
-            platform: platform(),
-            sha256: variant.sha256.clone(),
-        })
-    }));
+    values.extend(
+        manifest
+            .tools
+            .iter()
+            .filter(|_| manifest.format_version == 1)
+            .filter_map(|tool| {
+                selected(&tool.variants, |variant| &variant.platform).map(|variant| {
+                    ResourceIdentity {
+                        kind: "tool".into(),
+                        id: tool.id.clone(),
+                        version: tool.version.clone(),
+                        platform: platform(),
+                        sha256: variant.sha256.clone(),
+                    }
+                })
+            }),
+    );
     values
 }
 
@@ -156,7 +165,12 @@ pub(super) async fn plan(
             });
         }
     }
-    for tool in &input.manifest.tools {
+    for tool in input
+        .manifest
+        .tools
+        .iter()
+        .filter(|_| input.manifest.format_version == 1)
+    {
         if let Some(variant) = selected(&tool.variants, |variant| &variant.platform) {
             let relative = format!(
                 "tools/{}/{}/{}/{}",
@@ -262,6 +276,36 @@ pub(super) async fn prepare_reported(
         })
         .await?;
     let mut components = Vec::new();
+    if let fetch::Origin::Offline(root) = &input.origin
+        && let Some(dependencies) = &input.manifest.dependencies
+    {
+        let mut cached = std::collections::BTreeSet::new();
+        for source in dependencies
+            .dependencies
+            .iter()
+            .flat_map(|dependency| &dependency.sources)
+        {
+            if source.kind != deviceforge_plugin_dependencies::SourceKind::Market
+                || reqwest::Url::parse(&source.url).is_ok()
+                || !cached.insert(source.sha256.clone())
+            {
+                continue;
+            }
+            let path = root.join(&source.url);
+            if path.is_file() {
+                fetch::resource(
+                    store,
+                    &input,
+                    10_000 + cached.len(),
+                    &source.url,
+                    source.size,
+                    &source.sha256,
+                    progress.clone(),
+                )
+                .await?;
+            }
+        }
+    }
     let mut operations = Vec::new();
     let mut tools = Vec::new();
     let mut installed_tools = Vec::new();
@@ -299,6 +343,7 @@ pub(super) async fn prepare_reported(
         let target = staged.clone();
         let declaration = component.clone();
         let revision = input.revision.clone();
+        let dependencies = input.manifest.dependencies.clone();
         let format = variant.format;
         let (info, contribution) = input.stage.work(store, move |store| {
             fs::create_dir(&target).map_err(|_| Error::Storage("组件暂存创建失败".into()))?;
@@ -306,14 +351,14 @@ pub(super) async fn prepare_reported(
             let parent = match declaration.kind {PackageKind::Server => "plugins", PackageKind::Browser => "browser-plugins"};
             let final_directory = store.root.join(parent).join(&declaration.id).join("revisions").join(&revision);
             // 既有便携映射函数会追加 ID，这里使用临时目录映射后替换绝对程序前缀。
-            let (package, operations) = crate::plugin_packages::manifest::validate(&target, &target, declaration.kind, store.node.as_deref())?;
+            let (package, operations) = crate::plugin_packages::manifest::validate_with_dependencies(&target, &target, declaration.kind, store.node.as_deref(), dependencies.as_ref())?;
             if package.id != declaration.id || package.version != declaration.version { return Err(Error::Invalid("组件便携清单身份或版本与发布不符".into())); }
             if declaration.kind == PackageKind::Server {
                 let mut manifest: apk_plugin_sdk::Manifest = paths::read(&target.join("manifest.json"), 65_536)?;
                 let temporary_prefix = target.join(&declaration.id).to_string_lossy().into_owned();
                 let final_prefix = final_directory.to_string_lossy().into_owned();
                 manifest.executable = manifest.executable.replacen(&temporary_prefix, &final_prefix, 1);
-                if package.runtime == "node" && let Some(script) = manifest.args.first_mut() {
+                if ["node", "script"].contains(&package.runtime.as_str()) && let Some(script) = manifest.args.first_mut() {
                     // Windows 的 Node 参数使用普通绝对路径，而不是扩展长度路径。
                     let mapped = final_directory.join(&package.entry_path).to_string_lossy().into_owned();
                     *script = mapped.strip_prefix(r"\\?\").unwrap_or(&mapped).to_owned();
@@ -330,7 +375,12 @@ pub(super) async fn prepare_reported(
         operations.extend(contribution);
         components.push(ComponentContent { info, staged });
     }
-    for tool in &input.manifest.tools {
+    for tool in input
+        .manifest
+        .tools
+        .iter()
+        .filter(|_| input.manifest.format_version == 1)
+    {
         let Some(variant) = selected(&tool.variants, |variant| &variant.platform) else {
             if tool.required {
                 return Err(Error::Invalid(format!(
@@ -479,6 +529,10 @@ pub(super) async fn prepare_reported(
         tools: installed_tools,
         requirements: input.manifest.requirements.clone(),
     };
+    let dependency_base = match &input.origin {
+        fetch::Origin::Market(base) => Some(base.to_string()),
+        fetch::Origin::Offline(_) => None,
+    };
     Ok(Box::new(Prepared {
         store: store
             .handle
@@ -491,6 +545,7 @@ pub(super) async fn prepare_reported(
         operations,
         identities: version_identities,
         manifest: input.manifest,
+        dependency_base,
     }))
 }
 

@@ -1,36 +1,17 @@
-import type { ApiResult } from '../../../services/api/index.ts';
+import type { ApiResult, DependencyChangeDto, DependencyTargetDto, JobEventDto, PluginDependenciesDto } from '../../../services/api/index.ts';
 import type { JobOptions, JobTicket, TaskRecord } from '../../../shared/jobs/index.ts';
 
-export interface DependencyTarget {
-  readonly kind: 'release' | 'server' | 'browser';
-  readonly id: string;
-}
-
-// 生成契约接入前的消费模型；后续由适配器索引 DTO，页面不依赖生成文件。
-export interface PluginDependency {
-  readonly id: string;
-  readonly name: string;
-  readonly version_requirement: string;
-  readonly required: boolean;
-  readonly status: 'ready' | 'missing' | 'incompatible' | 'failed';
-  readonly source: 'environment' | 'shared' | 'local' | null;
-  readonly version: string | null;
-  readonly installable: boolean;
-  readonly message: string | null;
-}
-
-export interface PluginDependenciesView {
+export type DependencyTarget = Readonly<DependencyTargetDto>;
+export type PluginDependency = Readonly<PluginDependenciesDto['dependencies'][number]>;
+export type PluginDependenciesView = Readonly<Omit<PluginDependenciesDto, 'dependencies' | 'target'>> & {
   readonly target: DependencyTarget;
-  readonly revision: string;
   readonly dependencies: readonly PluginDependency[];
-  readonly ready: boolean;
-}
+};
 
-export interface DependencyCommand {
+export type DependencyCommand = Readonly<Omit<DependencyChangeDto, 'dependency_ids'>> & {
   readonly target: DependencyTarget;
-  readonly expected_revision: string;
-  readonly dependency_ids?: readonly string[];
-}
+  readonly dependency_ids?: Readonly<NonNullable<DependencyChangeDto['dependency_ids']>>;
+};
 
 export interface DependencyIssue {
   readonly message: string;
@@ -42,6 +23,8 @@ export interface PluginDependenciesState {
   readonly result: ApiResult<PluginDependenciesView> | null;
   readonly stale: boolean;
   readonly job: TaskRecord | null;
+  readonly progress: NonNullable<JobEventDto['progress']> | null;
+  readonly logId: string | null;
   readonly ticket: JobTicket | null;
   readonly notice: string | null;
   readonly issues: readonly DependencyIssue[];

@@ -1,5 +1,5 @@
 import { useEffect, useId, useState } from 'react';
-import { ChevronDown, LoaderCircle } from 'lucide-react';
+import { AlertTriangle, ChevronDown, LoaderCircle } from 'lucide-react';
 import { Button } from '../../../../components/Button/index.tsx';
 import { ErrorNotice } from '../../../../app/product/feedback.tsx';
 import { errorLogId } from '../../../../app/product/hooks.ts';
@@ -24,12 +24,18 @@ export function RecoveryPanel({
   recover,
   refresh,
   cancel,
+  variant = 'panel',
 }: {
   readonly state: PluginRecoverySnapshot;
   readonly activeSession: boolean;
   readonly recover: (signal: AbortSignal) => Promise<unknown>;
   readonly refresh: (signal: AbortSignal) => Promise<unknown>;
   readonly cancel: () => void;
+  /*
+   * panel：投屏工作台里的常驻小节，带完整标题与两个动作。
+   * bar：空状态里的单行提示条，只在真的需要处理时出现，健康时退成一条文字入口。
+   */
+  readonly variant?: 'panel' | 'bar';
 }) {
   const [expanded, setExpanded] = useState(false);
   const detailId = useId();
@@ -74,66 +80,141 @@ export function RecoveryPanel({
   const invoke = (command: (signal: AbortSignal) => Promise<unknown>) => {
     void command(new AbortController().signal).catch(() => undefined);
   };
+  const recoverDisabled =
+    !state.target ||
+    pending ||
+    busy ||
+    activeSession ||
+    state.unavailable ||
+    view?.supported === false;
+  const alarm = attention || pending || busy;
+  const toggle = (
+    <Button
+      size="sm"
+      variant="ghost"
+      className={cn(
+        'gap-1 px-1.5 text-xs text-muted-foreground',
+        variant === 'bar' ? 'h-7 shrink-0' : 'h-8',
+      )}
+      aria-expanded={expanded}
+      aria-controls={detailId}
+      onClick={() => setExpanded(!expanded)}
+    >
+      {expanded
+        ? '收起详情'
+        : variant === 'bar'
+          ? alarm
+            ? '详情'
+            : '连接排查'
+          : alarm
+            ? '查看详情'
+            : '连接排查'}
+      <ChevronDown
+        className={cn('size-3.5 transition-transform', expanded && 'rotate-180')}
+        aria-hidden="true"
+      />
+    </Button>
+  );
   return (
     <section
-      className="min-w-0 border-t border-border/60 pt-2 text-xs"
+      className={
+        variant === 'bar'
+          ? 'min-w-0 text-xs'
+          : 'min-w-0 border-t border-border/60 pt-2 text-xs'
+      }
       aria-label="投屏恢复"
       aria-busy={pending || busy}
     >
-      <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-        {(attention || pending || busy) && (
-          <span
-            role="status"
-            aria-live="polite"
+      {variant === 'bar' ? (
+        alarm ? (
+          <div
             className={cn(
-              'mr-auto inline-flex min-w-0 items-center gap-1.5',
-              attention ? 'text-warning' : 'text-muted-foreground',
+              'flex min-w-0 items-center gap-2 rounded-lg border px-3 py-2',
+              attention
+                ? 'border-warning/30 bg-warning/[0.07]'
+                : 'border-hairline bg-surface-elevated',
             )}
           >
-            {(pending || busy) && (
-              <LoaderCircle className="size-3.5 animate-spin" aria-hidden="true" />
+            {pending || busy ? (
+              <LoaderCircle
+                className="size-3.5 shrink-0 animate-spin text-muted-foreground"
+                aria-hidden="true"
+              />
+            ) : (
+              <AlertTriangle className="size-3.5 shrink-0 text-warning" aria-hidden="true" />
             )}
-            {title}
-          </span>
-        )}
-        {attention && (
-          <Button
-            size="sm"
-            variant="outline"
-            className="h-8 px-2 text-xs"
-            disabled={
-              !state.target ||
-              pending ||
-              busy ||
-              activeSession ||
-              state.unavailable ||
-              view?.supported === false
-            }
-            onClick={() => invoke(recover)}
-          >
-            {state.target?.deviceId ? '核对并恢复' : '核对全部投屏资源'}
-          </Button>
-        )}
-        {pending && (
-          <Button size="sm" variant="ghost" className="h-8 px-2 text-xs" onClick={cancel}>
-            取消等待
-          </Button>
-        )}
-        <Button
-          size="sm"
-          variant="ghost"
-          className="h-8 gap-1 px-1.5 text-xs text-muted-foreground"
-          aria-expanded={expanded}
-          aria-controls={detailId}
-          onClick={() => setExpanded(!expanded)}
-        >
-          {expanded ? '收起详情' : attention || pending || busy ? '查看详情' : '连接排查'}
-          <ChevronDown
-            className={cn('size-3.5 transition-transform', expanded && 'rotate-180')}
-            aria-hidden="true"
-          />
-        </Button>
-      </div>
+            <span
+              role="status"
+              aria-live="polite"
+              className={cn(
+                'min-w-0 flex-1 truncate text-xs',
+                attention ? 'text-warning' : 'text-muted-foreground',
+              )}
+            >
+              {title}
+            </span>
+            {attention && (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 shrink-0 px-2 text-xs text-primary hover:text-primary"
+                disabled={recoverDisabled}
+                onClick={() => invoke(recover)}
+              >
+                重试
+              </Button>
+            )}
+            {pending && (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 shrink-0 px-2 text-xs"
+                onClick={cancel}
+              >
+                取消等待
+              </Button>
+            )}
+            {toggle}
+          </div>
+        ) : (
+          <div className="flex min-w-0 items-center justify-center">{toggle}</div>
+        )
+      ) : (
+        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+          {alarm && (
+            <span
+              role="status"
+              aria-live="polite"
+              className={cn(
+                'mr-auto inline-flex min-w-0 items-center gap-1.5',
+                attention ? 'text-warning' : 'text-muted-foreground',
+              )}
+            >
+              {(pending || busy) && (
+                <LoaderCircle className="size-3.5 animate-spin" aria-hidden="true" />
+              )}
+              {title}
+            </span>
+          )}
+          {attention && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 px-2 text-xs"
+              disabled={recoverDisabled}
+              onClick={() => invoke(recover)}
+            >
+              {state.target?.deviceId ? '核对并恢复' : '核对全部投屏资源'}
+            </Button>
+          )}
+          {pending && (
+            <Button size="sm" variant="ghost" className="h-8 px-2 text-xs" onClick={cancel}>
+              取消等待
+            </Button>
+          )}
+          {toggle}
+        </div>
+      )}
       {expanded && (
         <div
           id={detailId}

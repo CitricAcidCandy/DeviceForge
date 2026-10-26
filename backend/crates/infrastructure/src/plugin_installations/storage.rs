@@ -210,6 +210,24 @@ impl InstallationStore for FilePluginInstallations {
         })
         .await
     }
+    async fn dependencies_required(
+        &self,
+        id: &str,
+        expected_revision: &str,
+    ) -> Result<InstalledRelease> {
+        let id = id.to_owned();
+        let expected = expected_revision.to_owned();
+        self.work(move |store| {
+            let mut record = require_revision(store, &id, &expected)?;
+            if record.requires_recovery() {
+                return Err(Error::Conflict("恢复受阻的发布不能改为待安装依赖".into()));
+            }
+            record.status = InstallationStatus::DependenciesRequired;
+            paths::write(&record_path(&store.root, &id), &record)?;
+            Ok(record)
+        })
+        .await
+    }
     async fn recovery_blocked(
         &self,
         id: &str,

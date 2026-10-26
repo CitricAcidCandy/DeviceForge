@@ -109,9 +109,9 @@ plugin.json 使用公开 SDK 清单字段 id/version/protocol_version/args/opera
 
 `plugin list-legacy` 返回旧本地部署清单概要。兼容安装可在服务运行中执行，原子发布后通过 POST /api/v2/plugins/{id}/load 或 MCP deviceforge.load_plugin 显式加载；配置令牌时请求须携带鉴权。/unload 或 deviceforge.unload_plugin 撤销贡献、取消并等待任务。部署文件保留，历史任务保留，重新加载生成新代际；受保护性能探针拒绝卸载。CLI 尚无专门的 load/unload/remove 子命令；兼容安装不支持同 ID 原地更新，统一发布使用前述 `plugin update`。
 
-在线 HTTP 另提供服务器/浏览器包上传、目录及部署删除，浏览器生产宿主支持动态模块加载和热装卸，见 [在线插件接口](../backend/docs/contracts/在线插件接口.md)。在线目录只列在线安装元数据，不等同于 plugin list 或运行中插件目录；CLI 安装的旧部署不自动进入在线目录。删除已加载服务器包须先卸载；删除浏览器包只移除服务器文件，其他浏览器已执行的代码由各实例自行停用。在线安装不下载依赖，须上传自包含 ZIP/npm TGZ。离散设备提供者及其热装卸已实现，常驻设备会话和平台工具迁出仍待实施。
+在线 HTTP 另提供服务器/浏览器包上传、目录及部署删除，浏览器生产宿主支持动态模块加载和热装卸，见 [在线插件接口](../backend/docs/contracts/在线插件接口.md)。在线目录只列在线安装元数据，不等同于 plugin list 或运行中插件目录；CLI 安装的旧部署不自动进入在线目录。删除已加载服务器包须先卸载；删除浏览器包只移除服务器文件，其他浏览器已执行的代码由各实例自行停用。组件自身的业务模块仍须随包携带；运行工具通过公开 dependencies 声明，先自动发现再只下载缺失必需项。离散设备提供者及其热装卸已实现，常驻设备会话和平台工具迁出仍待实施。
 
-## 验收与发布边界
+## 历史验收与发布边界
 
 `npm test` 覆盖参数、网络、路径/来源、安装拒绝、实际 Rust 门禁、真实 HTTP/MCP、取消和端口冲突；`npm run smoke:cli` 打包并通过真实 npx 安装 tgz 插件，再验证依赖、禁用安装脚本、插件任务及本机/局域网地址。静态服务验收不等于页面视觉审核，未改变前端业务页面。
 
@@ -122,3 +122,11 @@ plugin.json 使用公开 SDK 清单字段 id/version/protocol_version/args/opera
 当前 npx 验收另实际安装协议 2/3 的嵌套产物提供者，检查最终 manifest.json 中的 input_pointers 保留，并通过 HTTP/独立 MCP 核对宿主副本、JSON 输出原字节、摘要、在途卸载及新旧代引用。成功和取消任务保留，原成功任务及事件在换代后保持一致。报告位于 artifacts/nested-device-artifacts-smoke-npx.json；这些 CLI 部署不自动进入在线安装元数据目录。
 
 当前运行包仅包含构建主机的平台。发布前需分别构建 Windows/Linux/macOS 的目标程序并组成平台包或平台矩阵，不能把 Windows 验收写成跨平台验证。--debug 仅用于开发验收；默认 prepare:runtime 使用 release。registry 发布、下载来源签名、其他平台与另一台局域网客户端验收单独跟踪。
+
+## 统一依赖与初始部署
+
+新版运行包声明 capabilities 中的 plugin_dependencies_v1。独立初始 `plugin install` 在文件部署后调用随包宿主的依赖准备模式，不启动监听；宿主先收集环境与整个 `.deviceforge` 共享工具，兼容直接复用，仅下载缺失必需项。完整发布与运行中组件安装复用同一用例。手动路径不是前置要求，主 npm 包不带工具归档，保存位置由 DEVICEFORGE_USER_DIR 决定。
+
+依赖准备失败不会删除已部署程序或破坏原有工具。CLI 返回 dependencies_required 或真实准备失败提示；可在管理页补救。旧运行包不具备新宿主能力时明确返回 host_check_required，不调用旧程序不支持的子命令，也不宣称工具已就绪。取消会回收本次整棵准备进程树，未确认的准备引用保守保留待检查。
+
+读取和补救仍可使用 `deviceforge plugin dependencies server <id>`、`deviceforge plugin dependencies scan server <id> --expected-revision <sha>` 和 `deviceforge plugin dependencies install release <id> --expected-revision <sha> --dependency-ids <id>`。写操作查询终态，不重放 POST。启动等待含插件完整性验证，有界上限 120 秒，不再沿用空宿主十五秒门限。当前平台与本次实际构建/验收以最新交付记录为准，前节是历史证据。

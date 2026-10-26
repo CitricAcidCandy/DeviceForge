@@ -11,13 +11,14 @@ use std::sync::Arc;
 use tower::ServiceExt;
 
 const TOOL: &str = "deviceforge.get_plugin_development_guide";
-const TOPICS: [&str; 7] = [
+const TOPICS: [&str; 8] = [
     "overview",
     "manifest",
     "sdk",
     "lifecycle",
     "examples",
     "packaging",
+    "dependencies",
     "validation",
 ];
 
@@ -167,8 +168,8 @@ async fn every_target_topic_returns_bounded_embedded_versioned_documents_without
     for target in ["frontend", "backend", "fullstack"] {
         for topic in TOPICS {
             let result = guide(&router, json!({"target": target, "topic": topic})).await;
-            assert_eq!(result["guide_version"], 2);
-            assert_eq!(result["release_format_versions"], json!([1]));
+            assert_eq!(result["guide_version"], 3);
+            assert_eq!(result["release_format_versions"], json!([1, 2]));
             assert_eq!(result["release_host_api_versions"], json!([2]));
             assert_eq!(result["host_version"], env!("CARGO_PKG_VERSION"));
             assert_eq!(result["frontend_sdk_version"], 2);
@@ -221,7 +222,7 @@ async fn every_target_topic_returns_bounded_embedded_versioned_documents_without
     }
     assert!(
         app.list(8).unwrap().is_empty(),
-        "21 种指南读取均不能创建任务"
+        "24 种指南读取均不能创建任务"
     );
     app.shutdown().await.unwrap();
 }

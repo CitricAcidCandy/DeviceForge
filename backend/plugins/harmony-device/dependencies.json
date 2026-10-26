@@ -1,0 +1,66 @@
+{
+  "format_version": 1,
+  "dependencies": [
+    {
+      "id": "hdc",
+      "entries": [
+        "hdc",
+        "libusb"
+      ],
+      "discovery": [
+        {
+          "kind": "environment",
+          "value": "HDC_PATH",
+          "entries": {
+            "hdc": ".",
+            "libusb": "libusb_shared.dll"
+          }
+        },
+        {
+          "kind": "environment",
+          "value": "APK_HDC",
+          "entries": {
+            "hdc": ".",
+            "libusb": "libusb_shared.dll"
+          }
+        },
+        {
+          "kind": "path",
+          "value": "hdc.exe",
+          "entries": {
+            "hdc": ".",
+            "libusb": "libusb_shared.dll"
+          }
+        },
+        {
+          "kind": "user_directory",
+          "value": "tools/hdc",
+          "entries": {
+            "hdc": "hdc.exe",
+            "libusb": "libusb_shared.dll"
+          }
+        }
+      ],
+      "name": "鸿蒙设备连接器",
+      "probe": {
+        "entry": "hdc",
+        "args": [
+          "-v"
+        ],
+        "pattern": "([0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+)",
+        "timeout_ms": 3000
+      },
+      "version_requirement": "=5.0.0.71",
+      "required": true,
+      "requires": [],
+      "sources": [],
+      "bindings": [
+        {
+          "component_id": "harmony-device",
+          "config_pointer": "/tools/hdc",
+          "entry": "hdc"
+        }
+      ]
+    }
+  ]
+}

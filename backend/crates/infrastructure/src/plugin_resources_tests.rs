@@ -69,6 +69,46 @@ impl Fixture {
 mod recovery_tests;
 
 #[tokio::test]
+async fn external_dependencies_validate_without_taking_repository_read_lock() {
+    let _serial = SERIAL.lock().await;
+    let fixture = Fixture::new();
+    let mut value = fixture.value();
+    value["managed_tools"] = json!({});
+    fixture.write(value);
+    let writer = fixture.repository.write().unwrap();
+    let lease = fixture.acquire().await.unwrap();
+    assert!(lease.reader.is_none());
+    drop(writer);
+    fs::remove_file(&fixture.entry).unwrap();
+    assert!(
+        matches!(fixture.acquire().await, Err(Error::Dependency(message))
+        if message.contains("外部依赖工具入口已失效"))
+    );
+}
+
+#[tokio::test]
+async fn mixed_dependencies_verify_package_revision_instead_of_runtime_version() {
+    let _serial = SERIAL.lock().await;
+    let fixture = Fixture::new();
+    let external = fixture._temporary.path().join("external.exe");
+    fs::write(&external, b"external").unwrap();
+    let mut value = fixture.value();
+    value["managed_tools"] = json!({"runtime":"1.0.0"});
+    value["tools"]["runtime"]["version"] = json!("1.0.0.5");
+    value["tools"]["external"] =
+        json!({"version":"2.0.0","platform":Repository::platform(),"entries":{"main":external}});
+    fixture.write(value);
+    let lease = fixture.acquire().await.unwrap();
+    assert!(lease.reader.is_some());
+    assert!(matches!(
+        fixture.repository.write(),
+        Err(deviceforge_tool_repository::Error::Busy)
+    ));
+    drop(lease);
+    fixture.repository.write().unwrap();
+}
+
+#[tokio::test]
 async fn managed_acquire_waits_before_read_lease_and_unmanaged_calls_bypass_full_pool() {
     let _serial = SERIAL.lock().await;
     let fixture = Fixture::new();

@@ -189,7 +189,10 @@ async fn execute(call: &mut Call, guard: &mut Guard) -> SessionExit {
     options.chunk_size = 65536;
     options.channel_capacity = handles::CAPACITY;
     options.input_limit = 32 * 1024 * 1024;
-    let mut command = ToolCommand::new(&call.manifest.executable, &call.manifest.args);
+    let mut command = ToolCommand::new(
+        tool_lease.executable(&call.manifest.executable),
+        &call.manifest.args,
+    );
     command.environment = Environment::Restricted;
     if let Some(path) = resources {
         command

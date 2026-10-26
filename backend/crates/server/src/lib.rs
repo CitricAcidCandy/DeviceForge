@@ -31,6 +31,7 @@ struct ApiState {
         Option<Arc<apk_application::browser_configurations::BrowserConfigurationService>>,
     installations: Option<Arc<apk_application::plugin_installations::InstallationService>>,
     installation_artifacts: Option<Arc<dyn apk_domain::artifacts::ArtifactStore>>,
+    dependencies: Option<Arc<apk_application::plugin_dependencies::DependencyService>>,
 }
 struct Gate {
     token: String,
@@ -67,16 +68,18 @@ impl IntoResponse for ApiError {
 }
 impl From<Error> for ApiError {
     fn from(error: Error) -> Self {
-        let (status, code) = match &error {
-            Error::TooLarge => (StatusCode::PAYLOAD_TOO_LARGE, "payload_too_large"),
-            Error::Invalid(_) => (StatusCode::BAD_REQUEST, "invalid_input"),
-            Error::NotFound(_) => (StatusCode::NOT_FOUND, "not_found"),
-            Error::Conflict(_) => (StatusCode::CONFLICT, "conflict"),
-            Error::Cancelled => (StatusCode::CONFLICT, "cancelled"),
-            Error::Timeout => (StatusCode::GATEWAY_TIMEOUT, "timeout"),
-            Error::CleanupFailed => (StatusCode::CONFLICT, "cleanup_failed"),
-            Error::Dependency(_) => (StatusCode::BAD_GATEWAY, "dependency_failed"),
-            Error::Storage(_) => (StatusCode::INTERNAL_SERVER_ERROR, "storage_failed"),
+        // 错误类别以领域公开契约为准，新增可修复状态不复制一份枚举映射。
+        let code = error.code();
+        let status = match code {
+            "payload_too_large" => StatusCode::PAYLOAD_TOO_LARGE,
+            "invalid_input" => StatusCode::BAD_REQUEST,
+            "not_found" => StatusCode::NOT_FOUND,
+            "conflict" | "cancelled" | "cleanup_failed" | "dependencies_required" => {
+                StatusCode::CONFLICT
+            }
+            "timeout" => StatusCode::GATEWAY_TIMEOUT,
+            "dependency_failed" => StatusCode::BAD_GATEWAY,
+            _ => StatusCode::INTERNAL_SERVER_ERROR,
         };
         if status.is_server_error() {
             // 底层错误可能包含部署路径，仅向客户端返回类别。
@@ -295,15 +298,83 @@ fn build_router(
     installations: Option<Arc<apk_application::plugin_installations::InstallationService>>,
     installation_artifacts: Option<Arc<dyn apk_domain::artifacts::ArtifactStore>>,
 ) -> apk_domain::Result<Router> {
+    build_router_with_dependencies(
+        app,
+        token,
+        requests_per_second,
+        config,
+        artifacts,
+        runtime,
+        packages,
+        configurations,
+        browser_configurations,
+        installations,
+        installation_artifacts,
+        None,
+    )
+}
+
+/// 在完整安装宿主上装配依赖服务，旧构造器与统一中间件保持兼容。
+#[allow(clippy::too_many_arguments)]
+pub fn router_with_dependencies(
+    app: Arc<Application>,
+    token: String,
+    requests_per_second: u32,
+    config: mcp::StreamableHttpServerConfig,
+    artifacts: Arc<dyn apk_domain::artifacts::ArtifactStore>,
+    runtime: runtime::RuntimeServices,
+    packages: Arc<apk_application::plugin_packages::PackageService>,
+    configurations: Arc<apk_application::plugin_configurations::PluginConfigurationService>,
+    browser_configurations: Arc<
+        apk_application::browser_configurations::BrowserConfigurationService,
+    >,
+    installations: Arc<apk_application::plugin_installations::InstallationService>,
+    installation_artifacts: Arc<dyn apk_domain::artifacts::ArtifactStore>,
+    dependencies: Arc<apk_application::plugin_dependencies::DependencyService>,
+) -> apk_domain::Result<Router> {
+    build_router_with_dependencies(
+        app,
+        token,
+        requests_per_second,
+        config,
+        Some(artifacts),
+        Some(runtime),
+        Some(packages),
+        Some(configurations),
+        Some(browser_configurations),
+        Some(installations),
+        Some(installation_artifacts),
+        Some(dependencies),
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn build_router_with_dependencies(
+    app: Arc<Application>,
+    token: String,
+    requests_per_second: u32,
+    config: mcp::StreamableHttpServerConfig,
+    artifacts: Option<Arc<dyn apk_domain::artifacts::ArtifactStore>>,
+    runtime: Option<runtime::RuntimeServices>,
+    packages: Option<Arc<apk_application::plugin_packages::PackageService>>,
+    configurations: Option<Arc<apk_application::plugin_configurations::PluginConfigurationService>>,
+    browser_configurations: Option<
+        Arc<apk_application::browser_configurations::BrowserConfigurationService>,
+    >,
+    installations: Option<Arc<apk_application::plugin_installations::InstallationService>>,
+    installation_artifacts: Option<Arc<dyn apk_domain::artifacts::ArtifactStore>>,
+    dependencies: Option<Arc<apk_application::plugin_dependencies::DependencyService>>,
+) -> apk_domain::Result<Router> {
     let plugin_service = runtime
         .as_ref()
         .and_then(|services| services.plugins.clone());
     let devices = apk_application::devices::DeviceService::new(app.clone());
-    let mcp_service = mcp::service_with_installations(
+    let mcp_service = mcp::service_with_dependencies(
         app.clone(),
         plugin_service,
         devices.clone(),
         installations.clone(),
+        dependencies.clone(),
         config,
     );
     if token.chars().any(char::is_whitespace) || requests_per_second == 0 {
@@ -321,6 +392,7 @@ fn build_router(
         browser_configurations,
         installations,
         installation_artifacts,
+        dependencies,
         gate: Arc::new(Gate {
             token,
             window: Mutex::new((Instant::now(), 0)),
@@ -353,6 +425,18 @@ fn build_router(
         .route("/api/v2/diagnostics/logging", get(runtime::logging))
         .route("/api/v2/system/shutdown", post(runtime::shutdown))
         .route("/api/v2/plugins", get(plugin_routes::list))
+        .route(
+            "/api/v2/plugin-dependencies/{target_kind}/{id}",
+            get(plugin_dependencies::get),
+        )
+        .route(
+            "/api/v2/plugin-dependencies/{target_kind}/{id}/scan",
+            post(plugin_dependencies::scan),
+        )
+        .route(
+            "/api/v2/plugin-dependencies/{target_kind}/{id}/install",
+            post(plugin_dependencies::install),
+        )
         .route(
             "/api/v2/plugin-installations",
             get(plugin_installations::list).post(plugin_installations::install),
@@ -654,6 +738,8 @@ mod mcp_tools;
 mod mcp_wire;
 mod plugin_configuration_openapi;
 mod plugin_configuration_routes;
+mod plugin_dependencies;
+mod plugin_dependencies_openapi;
 mod plugin_guide;
 mod plugin_installation_mcp;
 mod plugin_installation_openapi;

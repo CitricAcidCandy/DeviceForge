@@ -1,0 +1,137 @@
+{
+  "format_version": 1,
+  "dependencies": [
+    {
+      "id": "adb",
+      "entries": [
+        "adb",
+        "adb_win_api",
+        "adb_win_usb_api"
+      ],
+      "discovery": [
+        {
+          "kind": "environment",
+          "value": "ADB_PATH",
+          "entries": {
+            "adb": ".",
+            "adb_win_api": "AdbWinApi.dll",
+            "adb_win_usb_api": "AdbWinUsbApi.dll"
+          }
+        },
+        {
+          "kind": "environment",
+          "value": "APK_ADB",
+          "entries": {
+            "adb": ".",
+            "adb_win_api": "AdbWinApi.dll",
+            "adb_win_usb_api": "AdbWinUsbApi.dll"
+          }
+        },
+        {
+          "kind": "environment",
+          "value": "ANDROID_SDK_ROOT",
+          "entries": {
+            "adb": "platform-tools/adb.exe",
+            "adb_win_api": "platform-tools/AdbWinApi.dll",
+            "adb_win_usb_api": "platform-tools/AdbWinUsbApi.dll"
+          }
+        },
+        {
+          "kind": "environment",
+          "value": "ANDROID_HOME",
+          "entries": {
+            "adb": "platform-tools/adb.exe",
+            "adb_win_api": "platform-tools/AdbWinApi.dll",
+            "adb_win_usb_api": "platform-tools/AdbWinUsbApi.dll"
+          }
+        },
+        {
+          "kind": "path",
+          "value": "adb.exe",
+          "entries": {
+            "adb": ".",
+            "adb_win_api": "AdbWinApi.dll",
+            "adb_win_usb_api": "AdbWinUsbApi.dll"
+          }
+        },
+        {
+          "kind": "user_directory",
+          "value": "tools/adb",
+          "entries": {
+            "adb": "adb.exe",
+            "adb_win_api": "AdbWinApi.dll",
+            "adb_win_usb_api": "AdbWinUsbApi.dll"
+          }
+        }
+      ],
+      "name": "Android 调试桥",
+      "probe": {
+        "entry": "adb",
+        "args": [
+          "version"
+        ],
+        "pattern": "Version ([0-9]+\\.[0-9]+\\.[0-9]+)",
+        "timeout_ms": 3000
+      },
+      "version_requirement": ">=36.0.0, <37.0.0",
+      "required": true,
+      "requires": [],
+      "sources": [],
+      "bindings": [
+        {
+          "component_id": "automation",
+          "config_pointer": "/adb",
+          "entry": "adb"
+        }
+      ]
+    },
+    {
+      "id": "input-trace",
+      "entries": [
+        "input-trace"
+      ],
+      "discovery": [
+        {
+          "kind": "environment",
+          "value": "INPUT_TRACE_PATH",
+          "entries": {
+            "input-trace": "."
+          }
+        },
+        {
+          "kind": "path",
+          "value": "input-trace.exe",
+          "entries": {
+            "input-trace": "."
+          }
+        },
+        {
+          "kind": "path",
+          "value": "input-trace",
+          "entries": {
+            "input-trace": "."
+          }
+        },
+        {
+          "kind": "user_directory",
+          "value": "tools/input-trace",
+          "entries": {
+            "input-trace": "input-trace.exe"
+          }
+        }
+      ],
+      "name": "输入轨迹工具",
+      "version_requirement": "=1.0.0.0",
+      "required": false,
+      "requires": [],
+      "sources": [],
+      "bindings": [
+        {
+          "component_id": "automation",
+          "config_pointer": "/input_trace",
+          "entry": "input-trace"
+        }
+      ]
+    }
+  ]
+}

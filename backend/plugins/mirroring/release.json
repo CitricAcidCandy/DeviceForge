@@ -1,10 +1,10 @@
 {
-  "format_version": 1,
+  "format_version": 2,
   "host_api_version": 2,
   "id": "mirroring",
   "version": "0.1.0",
   "name": "设备投屏与录制",
-  "description": "提供实时画面、设备控制及录制。完整发布包自动准备并绑定 ADB、scrcpy 和匹配的 scrcpy-server 3.3.4；用户只需选择目标设备并确认连接与控制权限，无需单独填写必需工具路径。",
+  "description": "提供实时画面、设备控制及录制。通过本机发现、共享复用或声明的官方来源自动准备和绑定 ADB、scrcpy 和匹配的 scrcpy-server 3.3.4；用户只需选择目标设备并确认连接与控制权限，无需单独填写必需工具路径。",
   "components": [
     {
       "id": "mirroring",
@@ -13,47 +13,232 @@
       "variants": []
     }
   ],
-  "tools": [
-    {
-      "id": "adb",
-      "version": "36.0.0",
-      "required": true,
-      "variants": [],
-      "bindings": [
-        {
-          "component_id": "mirroring",
-          "config_pointer": "/adb",
-          "entry": "adb"
-        }
-      ]
-    },
-    {
-      "id": "scrcpy",
-      "version": "3.3.4",
-      "required": true,
-      "variants": [],
-      "bindings": [
-        {
-          "component_id": "mirroring",
-          "config_pointer": "/scrcpy",
-          "entry": "scrcpy"
-        }
-      ]
-    },
-    {
-      "id": "scrcpy-server",
-      "version": "3.3.4",
-      "required": true,
-      "variants": [],
-      "bindings": [
-        {
-          "component_id": "mirroring",
-          "config_pointer": "/live/scrcpy_server",
-          "entry": "server"
-        }
-      ]
-    }
-  ],
+  "tools": [],
+  "dependencies": {
+    "format_version": 1,
+    "dependencies": [
+      {
+        "id": "adb",
+        "entries": [
+          "adb",
+          "adb_win_api",
+          "adb_win_usb_api"
+        ],
+        "discovery": [
+          {
+            "kind": "environment",
+            "value": "ADB_PATH",
+            "entries": {
+              "adb": ".",
+              "adb_win_api": "AdbWinApi.dll",
+              "adb_win_usb_api": "AdbWinUsbApi.dll"
+            }
+          },
+          {
+            "kind": "environment",
+            "value": "APK_ADB",
+            "entries": {
+              "adb": ".",
+              "adb_win_api": "AdbWinApi.dll",
+              "adb_win_usb_api": "AdbWinUsbApi.dll"
+            }
+          },
+          {
+            "kind": "environment",
+            "value": "ANDROID_SDK_ROOT",
+            "entries": {
+              "adb": "platform-tools/adb.exe",
+              "adb_win_api": "platform-tools/AdbWinApi.dll",
+              "adb_win_usb_api": "platform-tools/AdbWinUsbApi.dll"
+            }
+          },
+          {
+            "kind": "environment",
+            "value": "ANDROID_HOME",
+            "entries": {
+              "adb": "platform-tools/adb.exe",
+              "adb_win_api": "platform-tools/AdbWinApi.dll",
+              "adb_win_usb_api": "platform-tools/AdbWinUsbApi.dll"
+            }
+          },
+          {
+            "kind": "path",
+            "value": "adb.exe",
+            "entries": {
+              "adb": ".",
+              "adb_win_api": "AdbWinApi.dll",
+              "adb_win_usb_api": "AdbWinUsbApi.dll"
+            }
+          },
+          {
+            "kind": "user_directory",
+            "value": "tools/adb",
+            "entries": {
+              "adb": "adb.exe",
+              "adb_win_api": "AdbWinApi.dll",
+              "adb_win_usb_api": "AdbWinUsbApi.dll"
+            }
+          }
+        ],
+        "name": "Android 调试桥",
+        "probe": {
+          "entry": "adb",
+          "args": [
+            "version"
+          ],
+          "pattern": "Version ([0-9]+\\.[0-9]+\\.[0-9]+)",
+          "timeout_ms": 3000
+        },
+        "version_requirement": ">=36.0.0, <37.0.0",
+        "required": true,
+        "requires": [],
+        "sources": [],
+        "bindings": [
+          {
+            "component_id": "mirroring",
+            "config_pointer": "/adb",
+            "entry": "adb"
+          }
+        ]
+      },
+      {
+        "id": "scrcpy",
+        "entries": [
+          "scrcpy",
+          "avcodec",
+          "avformat",
+          "avutil",
+          "swresample",
+          "sdl",
+          "libusb",
+          "adb_win_api",
+          "adb_win_usb_api"
+        ],
+        "discovery": [
+          {
+            "kind": "environment",
+            "value": "SCRCPY_PATH",
+            "entries": {
+              "scrcpy": ".",
+              "avcodec": "avcodec-61.dll",
+              "avformat": "avformat-61.dll",
+              "avutil": "avutil-59.dll",
+              "swresample": "swresample-5.dll",
+              "sdl": "SDL2.dll",
+              "libusb": "libusb-1.0.dll",
+              "adb_win_api": "AdbWinApi.dll",
+              "adb_win_usb_api": "AdbWinUsbApi.dll"
+            }
+          },
+          {
+            "kind": "path",
+            "value": "scrcpy.exe",
+            "entries": {
+              "scrcpy": ".",
+              "avcodec": "avcodec-61.dll",
+              "avformat": "avformat-61.dll",
+              "avutil": "avutil-59.dll",
+              "swresample": "swresample-5.dll",
+              "sdl": "SDL2.dll",
+              "libusb": "libusb-1.0.dll",
+              "adb_win_api": "AdbWinApi.dll",
+              "adb_win_usb_api": "AdbWinUsbApi.dll"
+            }
+          },
+          {
+            "kind": "user_directory",
+            "value": "tools/scrcpy",
+            "entries": {
+              "scrcpy": "scrcpy.exe",
+              "avcodec": "avcodec-61.dll",
+              "avformat": "avformat-61.dll",
+              "avutil": "avutil-59.dll",
+              "swresample": "swresample-5.dll",
+              "sdl": "SDL2.dll",
+              "libusb": "libusb-1.0.dll",
+              "adb_win_api": "AdbWinApi.dll",
+              "adb_win_usb_api": "AdbWinUsbApi.dll"
+            }
+          }
+        ],
+        "name": "scrcpy 客户端",
+        "probe": {
+          "entry": "scrcpy",
+          "args": [
+            "--version"
+          ],
+          "pattern": "([0-9]+\\.[0-9]+\\.[0-9]+(?:\\.[0-9]+)?)",
+          "timeout_ms": 3000
+        },
+        "version_requirement": "=3.3.4",
+        "required": true,
+        "requires": [],
+        "sources": [
+          {
+            "kind": "official",
+            "url": "https://github.com/Genymobile/scrcpy/releases/download/v3.3.4/scrcpy-win64-v3.3.4.zip",
+            "platform": "win32-x64",
+            "version": "3.3.4",
+            "format": "zip",
+            "sha256": "d8a155b7c180b7ca4cdadd40712b8750b63f3aab48cb5b8a2a39ac2d0d4c5d38",
+            "size": 7287033,
+            "entries": {
+              "scrcpy": "scrcpy-win64-v3.3.4/scrcpy.exe",
+              "avcodec": "scrcpy-win64-v3.3.4/avcodec-61.dll",
+              "avformat": "scrcpy-win64-v3.3.4/avformat-61.dll",
+              "avutil": "scrcpy-win64-v3.3.4/avutil-59.dll",
+              "swresample": "scrcpy-win64-v3.3.4/swresample-5.dll",
+              "sdl": "scrcpy-win64-v3.3.4/SDL2.dll",
+              "libusb": "scrcpy-win64-v3.3.4/libusb-1.0.dll",
+              "adb_win_api": "scrcpy-win64-v3.3.4/AdbWinApi.dll",
+              "adb_win_usb_api": "scrcpy-win64-v3.3.4/AdbWinUsbApi.dll"
+            }
+          }
+        ],
+        "bindings": [
+          {
+            "component_id": "mirroring",
+            "config_pointer": "/scrcpy",
+            "entry": "scrcpy"
+          }
+        ]
+      },
+      {
+        "id": "scrcpy-server",
+        "entries": [
+          "server"
+        ],
+        "discovery": [
+          {
+            "kind": "environment",
+            "value": "SCRCPY_SERVER_PATH",
+            "entries": {
+              "server": "."
+            }
+          },
+          {
+            "kind": "user_directory",
+            "value": "tools/scrcpy-server",
+            "entries": {
+              "server": "scrcpy-server"
+            }
+          }
+        ],
+        "name": "scrcpy 设备服务",
+        "version_requirement": "=3.3.4",
+        "required": true,
+        "requires": [],
+        "sources": [],
+        "bindings": [
+          {
+            "component_id": "mirroring",
+            "config_pointer": "/live/scrcpy_server",
+            "entry": "server"
+          }
+        ]
+      }
+    ]
+  },
   "requirements": [
     {
       "component_id": "mirroring",

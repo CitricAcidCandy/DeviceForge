@@ -5,6 +5,7 @@ import { createApiClient } from '../src/services/api/index.ts';
 import type { PluginConfigurationDto } from '../src/services/api/index.ts';
 import type { ConfigurationDefinition, HostContext, WebPlugin } from '../src/plugin-sdk/index.ts';
 import { createFrontendRuntime } from '../src/app/runtime.ts';
+import { noBrowserDependencies } from './plugin-dependencies-fixtures.ts';
 import { success, failure, signal, installedPackage, requestUrl } from './fixtures.ts';
 import { dom } from './dom-fixtures.ts';
 import { JSDOM } from 'jsdom';
@@ -368,7 +369,9 @@ test('真实运行实例激活前拒绝非法配置，保存并重载消费新�
     panelTarget: () => null,
     themeTarget: target,
     transport: async (input, init) =>
-      requestUrl(input).pathname.startsWith('/api/v2/browser-plugin-configurations/')
+      requestUrl(input).pathname === '/api/v2/plugin-dependencies/browser/example'
+        ? success(noBrowserDependencies())
+        : requestUrl(input).pathname.startsWith('/api/v2/browser-plugin-configurations/')
         ? configurationServer.transport(input, init)
         : success(
             requestUrl(input).pathname.endsWith('/plugin-packages/browser')

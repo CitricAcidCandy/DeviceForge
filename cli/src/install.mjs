@@ -1,16 +1,18 @@
-import { mkdir, mkdtemp, rm, rmdir, writeFile, lstat, readdir, realpath } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, rmdir, writeFile, lstat, readdir, realpath, copyFile } from 'node:fs/promises';
 import { dirname, basename, join, resolve } from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import {
   materializeManifest,
+  readPluginDeployment,
   readMarketMetadata,
   validateRegistrySource,
 } from './plugin-package.mjs';
 import { copyPackage } from './plugin-files.mjs';
-import { readJson, inside, atomicRename } from './paths.mjs';
+import { readJson, regularFile, inside, atomicRename } from './paths.mjs';
 import { loadRuntime } from './runtime.mjs';
 import { runNpm } from './processes.mjs';
+import { prepareDependencies } from './prepare-dependencies.mjs';
 
 async function sourceDirectory(source, temporary, signal) {
   const local = resolve(source);
@@ -60,7 +62,10 @@ async function sourceDirectory(source, temporary, signal) {
   return { root, modules: join(download, 'node_modules'), name };
 }
 
-export async function installPlugin(options, { signal, runtime, environment = process.env } = {}) {
+export async function installPlugin(
+  options,
+  { signal, runtime, environment = process.env, report = console.warn } = {},
+) {
   const resources = runtime || (await loadRuntime());
   signal?.throwIfAborted();
   const pluginDirectory = resolve(
@@ -90,6 +95,7 @@ export async function installPlugin(options, { signal, runtime, environment = pr
     }
     signal?.throwIfAborted();
     const stageManifest = await materializeManifest(packageRoot, packageRoot);
+    const { dependencies, runtimeMetadata } = await readPluginDeployment(packageRoot);
     const marketMetadata = await readMarketMetadata(packageRoot, stageManifest);
     const destination = join(pluginDirectory, stageManifest.id);
     const lockPath = join(stagingRoot, `lock-${stageManifest.id}`);
@@ -125,17 +131,43 @@ export async function installPlugin(options, { signal, runtime, environment = pr
     await writeFile(join(staged, 'manifest.json'), JSON.stringify(published, null, 2), {
       flag: 'w',
     });
+    // npm 根包位于平铺依赖树深处，宿主依赖扫描只读取部署根，不能遗漏旁置声明。
+    if (dependencies && packageRoot !== staged)
+      await copyFile(
+        await regularFile(packageRoot, 'dependencies.json'),
+        join(staged, 'dependencies.json'),
+      );
+    const runtimePath = join(staged, '.deviceforge-runtime.json');
+    if (runtimeMetadata)
+      await writeFile(runtimePath, JSON.stringify(runtimeMetadata, null, 2));
+    else await rm(runtimePath, { force: true });
     // npm 入口可能位于 node_modules 深处，宿主始终从部署根读取展示资料。
     if (marketMetadata)
       await writeFile(join(staged, 'market.json'), JSON.stringify(marketMetadata, null, 2));
     signal?.throwIfAborted();
     // 禁止覆盖已存在目录，Windows/Unix 非空目录的原子 rename 都会拒绝竞争安装。
     await atomicRename(staged, destination);
+    const prepared = dependencies?.dependencies.length
+      ? await prepareDependencies(resources, options, pluginDirectory, published.id, environment, signal) : null;
+    const dependencyMessage = prepared
+      ? (prepared.ready ? null : '插件已部署，但仍有无法自动准备的必需依赖，请在插件管理页查看缺项。')
+      : dependencies?.dependencies.length
+      ? '插件文件已部署；本次未检测或下载工具依赖。依赖检测由宿主启动扫描处理，缺项请通过宿主管理安装；就绪前不要视为插件可运行。'
+      : null;
+    if (dependencyMessage) {
+      // 文件已发布，展示通知失败不能将成功部署改写为安装失败。
+      try {
+        report(dependencyMessage);
+      } catch {}
+    }
     return {
       id: published.id,
       version: published.version,
       operations: published.operations.length,
       metadata_complete: marketMetadata !== null,
+      dependency_status: prepared ? (prepared.ready ? 'ready' : 'dependencies_required') : dependencyMessage ? 'host_check_required' : 'not_declared',
+      ...(prepared ? { dependencies: prepared } : {}),
+      dependency_message: dependencyMessage,
     };
   } finally {
     if (!inside(stagingRoot, temporary) || temporary === stagingRoot)

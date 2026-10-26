@@ -15,7 +15,7 @@ export interface PluginInstallation {
   readonly version: string;
   readonly revision: string;
   readonly enabled: boolean;
-  readonly status: 'installed' | 'enabled' | 'configuration_required' | 'recovery_blocked';
+  readonly status: 'installed' | 'enabled' | 'configuration_required' | 'dependencies_required' | 'recovery_blocked';
   readonly failure?: InstalledReleaseDto['failure'];
   readonly name: string;
   readonly summary: string;

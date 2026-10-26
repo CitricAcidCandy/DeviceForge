@@ -1,5 +1,4 @@
 import type { components } from '../../../services/api/generated.ts';
-
 export type ReleaseManifest = components['schemas']['PluginReleaseManifest'];
 export type ReleaseVariant = ReleaseManifest['components'][number]['variants'][number];
 export type ReleaseToolVariant = ReleaseManifest['tools'][number]['variants'][number];
@@ -15,6 +14,7 @@ export interface ReleasePublicationPlan {
   readonly manifest: ReleaseManifest;
   readonly file: File;
   readonly resources: readonly ReleasePublicationResource[];
+  readonly remoteResources?: readonly Omit<ReleasePublicationResource, 'blob'>[];
   readonly manifestSha256: string;
   readonly manifestBlob: Blob;
   readonly totalResourceBytes: number;

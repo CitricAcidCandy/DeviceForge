@@ -17,6 +17,7 @@ async fn request(app: &Router, method: Method, uri: &str, value: Option<&Value>)
                 .method(method)
                 .uri(uri)
                 .header(header::CONTENT_TYPE, "application/json")
+                .header(header::HOST, "market.invalid")
                 .header(header::ORIGIN, "http://127.0.0.1:5173")
                 .body(value.map_or_else(Body::empty, |value| Body::from(value.to_string())))
                 .unwrap(),
@@ -67,7 +68,7 @@ async fn entry(app: &Router, manifest: &Value) -> Value {
         "version":"1.0.0","summary":"完整发布","description":"发布测试",
         "applies_to":["deviceforge"],"supports_mcp":"none","supports_agent":false,
         "restart_policy":"plugin_reload","resource_id":resource.sha256,
-        "details":{"release_format_version":1,"host_api_version":2}})
+        "details":{"release_format_version":manifest["format_version"],"host_api_version":2}})
 }
 
 async fn catalog_count(app: &Router) -> u64 {
@@ -92,6 +93,152 @@ fn variant(bytes: &[u8], platform: &str, tool: bool) -> Value {
     value
 }
 
+fn second_version(source: Value) -> Value {
+    let mut value = manifest();
+    value["format_version"] = json!(2);
+    value["tools"] = json!([]);
+    value["dependencies"] = json!({"format_version":1,"dependencies":[{
+        "id":"third-party-runtime","name":"第三方工具","version_requirement":"^1.0.0",
+        "entries":["main"],"sources":[source],
+        "bindings":[{"component_id":"third-party","config_pointer":"/executable","entry":"main"}]
+    }]});
+    value
+}
+
+fn dependency_source(kind: &str, url: &str) -> Value {
+    json!({"kind":kind,"url":url,"platform":"any","version":"1.0.0",
+        "sha256":format!("{:x}",Sha256::digest(b"runtime")),"size":7,
+        "format":"file","entries":{"main":"payload"}})
+}
+
+#[tokio::test]
+async fn second_version_official_https_needs_metadata_not_uploaded_tool() {
+    let directory = tempfile::tempdir().unwrap();
+    let app = router(Store::open(directory.path()).unwrap());
+    upload(&app, b"component").await;
+    let value = second_version(dependency_source(
+        "official",
+        "https://upstream.invalid/runtime.bin",
+    ));
+    let catalog = entry(&app, &value).await;
+    let response = request(&app, Method::POST, "/api/v1/catalog", Some(&catalog)).await;
+    assert_eq!(response.status(), StatusCode::CREATED);
+    assert_eq!(catalog_count(&app).await, 1);
+}
+
+#[tokio::test]
+async fn second_version_market_waits_for_matching_digest_and_retains_distinct_revisions() {
+    let directory = tempfile::tempdir().unwrap();
+    let app = router(Store::open(directory.path()).unwrap());
+    upload(&app, b"component").await;
+    let digest = format!("{:x}", Sha256::digest(b"runtime"));
+    let mut value = second_version(dependency_source(
+        "market",
+        &format!("https://market.invalid/api/v1/resources/{digest}"),
+    ));
+    let mut official = dependency_source("official", "https://upstream.invalid/other-runtime.bin");
+    official["sha256"] = json!("b".repeat(64));
+    value["dependencies"]["dependencies"][0]["sources"]
+        .as_array_mut()
+        .unwrap()
+        .push(official);
+    let catalog = entry(&app, &value).await;
+    assert_unpublished(&app, &catalog, StatusCode::NOT_FOUND).await;
+    upload(&app, b"runtime").await;
+    assert_eq!(
+        request(&app, Method::POST, "/api/v1/catalog", Some(&catalog))
+            .await
+            .status(),
+        StatusCode::CREATED
+    );
+}
+
+#[tokio::test]
+async fn second_version_rejects_insecure_or_incomplete_sources_and_marker_mismatch() {
+    for change in [
+        "http",
+        "size",
+        "entries",
+        "marker",
+        "credentials",
+        "placeholder",
+        "file_entry",
+    ] {
+        let directory = tempfile::tempdir().unwrap();
+        let app = router(Store::open(directory.path()).unwrap());
+        upload(&app, b"component").await;
+        let mut value = second_version(dependency_source(
+            "official",
+            "https://upstream.invalid/runtime.bin",
+        ));
+        let source = &mut value["dependencies"]["dependencies"][0]["sources"][0];
+        match change {
+            "http" => source["url"] = json!("http://upstream.invalid/runtime.bin"),
+            "size" => source["size"] = json!(0),
+            "entries" => source["entries"] = json!({}),
+            "placeholder" => source["sha256"] = json!("0".repeat(64)),
+            "file_entry" => source["entries"] = json!({"main":"other.bin"}),
+            "credentials" => {
+                source["url"] = json!("https://user:secret@upstream.invalid/runtime.bin")
+            }
+            _ => (),
+        }
+        let mut catalog = entry(&app, &value).await;
+        if change == "marker" {
+            catalog["details"]["release_format_version"] = json!(1);
+        }
+        assert_unpublished(&app, &catalog, StatusCode::BAD_REQUEST).await;
+    }
+}
+
+#[tokio::test]
+async fn second_version_market_rejects_foreign_or_offline_urls_even_with_local_blob() {
+    let digest = format!("{:x}", Sha256::digest(b"runtime"));
+    for url in [
+        format!("https://other.invalid/api/v1/resources/{digest}"),
+        format!("https://market.invalid:7041/api/v1/resources/{digest}"),
+        format!("blobs/{digest}"),
+        format!("https://market.invalid/api/v1/resources/{digest}?download=1"),
+        format!("https://market.invalid/api/v1/resources/{}", "f".repeat(64)),
+    ] {
+        let directory = tempfile::tempdir().unwrap();
+        let app = router(Store::open(directory.path()).unwrap());
+        upload(&app, b"component").await;
+        upload(&app, b"runtime").await;
+        let value = second_version(dependency_source("market", &url));
+        let catalog = entry(&app, &value).await;
+        assert_unpublished(&app, &catalog, StatusCode::BAD_REQUEST).await;
+        // 来源失败不占用版本身份，修正清单可以使用同一 ID/版本发布。
+        let fixed = second_version(dependency_source("market", &digest));
+        let fixed = entry(&app, &fixed).await;
+        assert_eq!(
+            request(&app, Method::POST, "/api/v1/catalog", Some(&fixed))
+                .await
+                .status(),
+            StatusCode::CREATED
+        );
+    }
+}
+
+#[tokio::test]
+async fn second_version_market_checks_real_dependency_bytes_and_size() {
+    for corrupt_bytes in [false, true] {
+        let directory = tempfile::tempdir().unwrap();
+        let store = Store::open(directory.path()).unwrap();
+        let app = router(store.clone());
+        upload(&app, b"component").await;
+        let resource = upload(&app, b"runtime").await;
+        let mut value = second_version(dependency_source("market", &resource.sha256));
+        if corrupt_bytes {
+            std::fs::write(store.resource_path(&resource).unwrap(), b"corrupt").unwrap();
+        } else {
+            value["dependencies"]["dependencies"][0]["sources"][0]["size"] = json!(8);
+        }
+        let catalog = entry(&app, &value).await;
+        assert_unpublished(&app, &catalog, StatusCode::BAD_REQUEST).await;
+    }
+}
+
 #[tokio::test]
 async fn capabilities_get_head_and_cors_preflight_are_read_only() {
     let directory = tempfile::tempdir().unwrap();
@@ -105,7 +252,7 @@ async fn capabilities_get_head_and_cors_preflight_are_read_only() {
     assert_eq!(
         decode(response).await,
         json!({
-            "api_version":1,"release_publication":{"format_versions":[1],"host_api_versions":[2],
+            "api_version":1,"release_publication":{"format_versions":[1,2],"host_api_versions":[2],
                 "resource_max_bytes":2147483648_u64,"catalog_last":true,"immutable_versions":true}
         })
     );

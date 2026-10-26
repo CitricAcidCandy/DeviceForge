@@ -71,6 +71,7 @@ export function MarketplaceDetail({
   onClose,
   onDownload,
   onInstall,
+  onDependencies,
 }: {
   entry: MarketplaceEntry | null;
   installed: Pick<PackageInfo, 'version'> | undefined;
@@ -79,6 +80,7 @@ export function MarketplaceDetail({
   onClose(): void;
   onDownload(): void;
   onInstall(): void;
+  onDependencies?: (() => void) | undefined;
 }) {
   if (!entry) return null;
   const update = installed && newerVersion(entry.version, installed.version);
@@ -172,6 +174,7 @@ export function MarketplaceDetail({
         </div>
 
         <SheetFooter className="flex-row items-center gap-2 border-t border-[color:var(--hairline)] p-4">
+          {onDependencies && <Button variant="outline" onClick={onDependencies}>管理依赖</Button>}
           <Button variant="outline" disabled={busy || !entry.resource_id} onClick={onDownload}>
             <Download />
             {isReleaseEntry(entry) ? '下载发布清单' : '下载'}

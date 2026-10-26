@@ -1,4 +1,5 @@
 import { metadataIssues } from '../../../features/marketplace/index.ts';
+import { ApiError } from '../../../services/api/index.ts';
 import type { MarketplaceController, MarketplacePublishEntry, MarketplaceResourceRecord } from '../../../features/marketplace/index.ts';
 import { onlineManifest } from './manifest.ts';
 import { digestBytes } from './resource.ts';
@@ -39,19 +40,33 @@ export async function publishReleasePublication(
       digestBytes(new Uint8Array(await plan.manifestBlob.arrayBuffer())) !== plan.manifestSha256)
     throw new Error('发布计划已变化，请重新检查完整 ZIP');
   const source = marketplace.currentUrl();
+  const remoteResources = plan.remoteResources ?? [];
+  const totalResources = plan.resources.length + remoteResources.length;
   let completedResources = 0, completedBytes = 0, reusedCount = 0;
   function progress(stage: ReleasePublicationProgress['stage'], current?: string) {
     signal.throwIfAborted();
-    onProgress?.({ stage, completedResources, totalResources: plan.resources.length, completedBytes,
+    onProgress?.({ stage, completedResources, totalResources, completedBytes,
       totalBytes: plan.totalResourceBytes, ...(current === undefined ? {} : { current }) });
     signal.throwIfAborted();
   }
   progress('checking');
   const capabilities = await marketplace.releaseCapabilities(signal, source);
   signal.throwIfAborted();
+  if (!capabilities.release_publication.format_versions.includes(plan.manifest.format_version))
+    throw new ApiError('protocol', 'marketplace_upgrade_required', '市场服务器尚未支持此发布清单版本，请先升级市场服务器');
   const limit = capabilities.release_publication.resource_max_bytes;
-  if (plan.manifestBlob.size > limit || plan.resources.some((resource) => resource.size > limit || resource.blob.size !== resource.size))
+  if (plan.manifestBlob.size > limit || remoteResources.some((resource) => resource.size > limit) ||
+    plan.resources.some((resource) => resource.size > limit || resource.blob.size !== resource.size))
     throw new Error('发布资源超过当前市场单资源上限，或计划大小已变化');
+  // 先核对所有远端摘要闭包，不从官方地址抓包，也不把远端缺失伪装成本地可上传。
+  for (const resource of remoteResources) {
+    progress('checking', resource.path);
+    if (!await marketplace.probeResource(resource.sha256, resource.size, signal, source))
+      throw new Error(`当前市场缺少依赖摘要资源，请内嵌原包或先上传：${resource.sha256}`);
+    ++completedResources;
+    ++reusedCount;
+    completedBytes += resource.size;
+  }
   for (const resource of plan.resources) {
     progress('uploading', resource.path);
     const reused = await marketplace.probeResource(resource.sha256, resource.size, signal, source);
@@ -78,5 +93,5 @@ export async function publishReleasePublication(
   await marketplace.publish(entry, signal, source);
   signal.throwIfAborted();
   progress('complete');
-  return { resourceCount: plan.resources.length, reusedCount, manifestSha256: plan.manifestSha256, source };
+  return { resourceCount: totalResources, reusedCount, manifestSha256: plan.manifestSha256, source };
 }

@@ -97,8 +97,27 @@ fn resource(platform: &str, path: &str, sha256: &str, size: u64) -> Result<()> {
 
 impl ReleaseManifest {
     pub fn validate(&self) -> Result<()> {
-        if self.format_version != 1 || self.host_api_version != 2 {
+        if !matches!(self.format_version, 1 | 2) || self.host_api_version != 2 {
             return Err(Error::Invalid("发布格式或宿主 API 版本不受支持".into()));
+        }
+        if self.format_version == 1 && self.dependencies.is_some() {
+            return Err(Error::Invalid("依赖声明需要发布格式第二版".into()));
+        }
+        if let Some(dependencies) = &self.dependencies {
+            dependencies.validate().map_err(Error::Invalid)?;
+            for binding in dependencies
+                .dependencies
+                .iter()
+                .flat_map(|dependency| &dependency.bindings)
+            {
+                if !self
+                    .components
+                    .iter()
+                    .any(|component| component.id == binding.component_id)
+                {
+                    return Err(Error::Invalid("完整发布的依赖绑定必须指向声明组件".into()));
+                }
+            }
         }
         plugin_id(&self.id)?;
         version(&self.version)?;

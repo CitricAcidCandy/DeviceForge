@@ -69,3 +69,18 @@ pub(crate) fn owners(root: &Path, key: &ToolKey) -> Result<Vec<String>> {
     owners.sort();
     Ok(owners)
 }
+
+pub(crate) fn clear_temporary(root: &Path, owner: &str) -> Result<()> {
+    paths::segment(owner)?;
+    let directory = paths::existing_directory(root, Path::new(".repository/references"))?;
+    let path = directory.join(format!("{owner}.json"));
+    if !path.exists() {
+        return Ok(());
+    }
+    let snapshot: References = paths::read(&path, 32 * 1024 * 1024)?;
+    if snapshot.format_version != 1 || snapshot.owner != owner {
+        return Err(Error::Invalid("临时引用归属无效，拒绝删除"));
+    }
+    fs::remove_file(path)?;
+    Ok(())
+}

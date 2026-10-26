@@ -8,11 +8,13 @@ use std::{
     path::{Path, PathBuf},
 };
 
-const ACTIVE: [&str; 4] = [
+const ACTIVE: [&str; 6] = [
     "manifest.json",
     "market.json",
     "resources.json",
     "installation.json",
+    "dependencies.json",
+    ".deviceforge-runtime.json",
 ];
 const JOURNAL_LIMIT: usize = 32 * 1024 * 1024;
 #[derive(Serialize, Deserialize)]
@@ -375,6 +377,13 @@ pub(super) fn commit(
             .join(format!("{}.json", prepared.info.revision)),
         &prepared.manifest,
     )?;
+    if let Some(base) = &prepared.dependency_base {
+        let origins = paths::create_directory(&store.root, "installations/dependency-origins")?;
+        paths::write(
+            &origins.join(format!("{}.json", prepared.info.revision)),
+            &serde_json::json!({"format_version":1,"base_url":base}),
+        )?;
+    }
     let journal = Journal {
         id: prepared.info.id.clone(),
         revision: Some(prepared.info.revision.clone()),
@@ -400,6 +409,11 @@ pub(super) fn commit(
                 storage::component_root(&store.root, component.info.kind, &component.info.id);
             let version = root.join("revisions").join(&prepared.info.revision);
             for name in ACTIVE {
+                if ["dependencies.json", ".deviceforge-runtime.json"].contains(&name)
+                    && !version.join(name).exists()
+                {
+                    continue;
+                }
                 let bytes = fs::read(paths::existing(&version, name)?)
                     .map_err(|_| Error::Storage("组件活动视图读取失败".into()))?;
                 paths::write_bytes(&root.join(name), &bytes)?;

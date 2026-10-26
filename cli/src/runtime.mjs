@@ -33,5 +33,6 @@ export async function loadRuntime(packageRoot = fileURLToPath(new URL('../../', 
     validator,
     web: await realpath(web),
     version: manifest.version,
+    dependencyPreparation: Array.isArray(manifest.capabilities) && manifest.capabilities.includes('plugin_dependencies_v1'),
   };
 }

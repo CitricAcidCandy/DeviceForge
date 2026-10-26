@@ -18,6 +18,8 @@ pub struct PluginService {
     tracker: TaskTracker,
     installations:
         std::sync::OnceLock<Arc<dyn apk_domain::plugin_installations::InstallationStore>>,
+    dependencies:
+        std::sync::OnceLock<std::sync::Weak<crate::plugin_dependencies::DependencyService>>,
 }
 impl PluginService {
     pub fn new(
@@ -35,6 +37,7 @@ impl PluginService {
             closed: CancellationToken::new(),
             tracker: TaskTracker::new(),
             installations: std::sync::OnceLock::new(),
+            dependencies: std::sync::OnceLock::new(),
         })
     }
     /// 只在监听启动前装配初始贡献；运行中管理统一使用 load/unload。
@@ -69,9 +72,49 @@ impl PluginService {
             .set(store)
             .map_err(|_| Error::Conflict("插件安装存储已绑定".into()))
     }
+    pub fn bind_dependencies(
+        &self,
+        service: &Arc<crate::plugin_dependencies::DependencyService>,
+    ) -> Result<()> {
+        self.dependencies
+            .set(Arc::downgrade(service))
+            .map_err(|_| Error::Conflict("插件依赖服务已绑定".into()))
+    }
+    async fn require_dependencies(&self, id: &str) -> Result<()> {
+        let Some(service) = self.dependencies.get().and_then(std::sync::Weak::upgrade) else {
+            return Ok(());
+        };
+        use apk_domain::plugin_dependencies::*;
+        let target = DependencyTarget {
+            kind: DependencyTargetKind::Server,
+            id: id.into(),
+        };
+        let current = service.get(target.clone()).await?;
+        let scanned = service
+            .scan(
+                DependencyRequest {
+                    target,
+                    expected_revision: current.revision,
+                    dependency_ids: Vec::new(),
+                },
+                self.closed.clone(),
+                apk_domain::ExecutionContext {
+                    deadline: Some(std::time::Instant::now() + Duration::from_secs(120)),
+                },
+                Arc::new(apk_domain::NoProgress),
+            )
+            .await?;
+        if !scanned.ready {
+            return Err(Error::Dependency(
+                "插件依赖尚未就绪，请在插件管理页安装缺失依赖".into(),
+            ));
+        }
+        Ok(())
+    }
     /// 仅由已持有 serialized 门禁的安装用例调用，避免再次取得同一管理锁。
     pub(crate) async fn load_serialized(&self, id: &str) -> Result<PluginInfo> {
         plugin_id(id)?;
+        self.require_dependencies(id).await?;
         let plugin = self.catalog.load(id).await?;
         if plugin.id != id {
             return Err(Error::Invalid("部署插件 ID 与请求不符".into()));
@@ -178,6 +221,7 @@ impl PluginService {
             tracing::info!(plugin_id = %id, loading, "插件生命周期变更开始");
             let result = async {
                 if loading {
+                    service.require_dependencies(&id).await?;
                     let plugin = service.catalog.load(&id).await?;
                     if plugin.id != id {
                         return Err(Error::Invalid("部署插件 ID 与请求不符".into()));

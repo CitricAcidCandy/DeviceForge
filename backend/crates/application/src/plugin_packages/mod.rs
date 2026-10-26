@@ -13,6 +13,7 @@ pub struct PackageService {
     plugins: Arc<PluginService>,
     validators: Arc<tokio::sync::Semaphore>,
     installations: OnceLock<Arc<dyn apk_domain::plugin_installations::InstallationStore>>,
+    dependencies: OnceLock<Arc<crate::plugin_dependencies::DependencyService>>,
 }
 impl PackageService {
     pub fn new(store: Arc<dyn PackageStore>, plugins: Arc<PluginService>) -> Arc<Self> {
@@ -21,7 +22,45 @@ impl PackageService {
             plugins,
             validators: Arc::new(tokio::sync::Semaphore::new(2)),
             installations: OnceLock::new(),
+            dependencies: OnceLock::new(),
         })
+    }
+    pub fn bind_dependencies(
+        &self,
+        service: Arc<crate::plugin_dependencies::DependencyService>,
+    ) -> Result<()> {
+        self.dependencies
+            .set(service)
+            .map_err(|_| Error::Conflict("包依赖服务已绑定".into()))
+    }
+    async fn detect_dependencies(
+        &self,
+        info: &PackageInfo,
+        cancel: tokio_util::sync::CancellationToken,
+    ) -> Result<()> {
+        let Some(service) = self.dependencies.get() else {
+            return Ok(());
+        };
+        use apk_domain::plugin_dependencies::*;
+        let target = DependencyTarget {
+            kind: if info.kind == PackageKind::Browser {
+                DependencyTargetKind::Browser
+            } else {
+                DependencyTargetKind::Server
+            },
+            id: info.id.clone(),
+        };
+        service
+            .ensure(
+                target,
+                cancel,
+                apk_domain::ExecutionContext {
+                    deadline: Some(std::time::Instant::now() + Duration::from_secs(3_600)),
+                },
+                Arc::new(apk_domain::NoProgress),
+            )
+            .await?;
+        Ok(())
     }
     pub fn bind_installations(
         &self,
@@ -67,20 +106,29 @@ impl PackageService {
         expected_id: Option<String>,
         expected_version: Option<String>,
     ) -> Result<PackageInfo> {
-        tokio::time::timeout(Duration::from_secs(120), async {
-            let prepared = self
-                .prepare(kind, format, stream, expected_id, expected_version)
-                .await?;
-            let service = self.clone();
-            self.plugins
-                .serialized(move |_| async move {
-                    service.require_unmanaged(kind, &prepared.info().id).await?;
-                    prepared.commit().await
-                })
-                .await
-        })
+        let prepared = tokio::time::timeout(
+            Duration::from_secs(120),
+            self.prepare(kind, format, stream, expected_id, expected_version),
+        )
         .await
-        .map_err(|_| Error::Timeout)?
+        .map_err(|_| Error::Timeout)??;
+        let cancel = tokio_util::sync::CancellationToken::new();
+        let _cancel_on_drop = cancel.clone().drop_guard();
+        let service = self.clone();
+        let before_commit = cancel.clone();
+        let info = self
+            .plugins
+            .serialized(move |_| async move {
+                if before_commit.is_cancelled() {
+                    return Err(Error::Cancelled);
+                }
+                service.require_unmanaged(kind, &prepared.info().id).await?;
+                prepared.commit().await
+            })
+            .await?;
+        // 网络准备不持有全局插件管理锁；请求离开后仍保留已提交的部署文件。
+        self.detect_dependencies(&info, cancel).await?;
+        Ok(info)
     }
     async fn prepare(
         &self,
@@ -133,21 +181,29 @@ impl PackageService {
         stream: ArtifactStream,
         expected_version: Option<String>,
     ) -> Result<PackageInfo> {
-        tokio::time::timeout(Duration::from_secs(120), async {
-            let prepared = self
-                .prepare(kind, format, stream, Some(id.clone()), expected_version)
-                .await?;
-            let service = self.clone();
-            self.plugins
-                .serialized(move |plugins| async move {
-                    service.require_unmanaged(kind, &id).await?;
-                    require_unloaded(&plugins, kind, &id)?;
-                    prepared.replace().await
-                })
-                .await
-        })
+        let prepared = tokio::time::timeout(
+            Duration::from_secs(120),
+            self.prepare(kind, format, stream, Some(id.clone()), expected_version),
+        )
         .await
-        .map_err(|_| Error::Timeout)?
+        .map_err(|_| Error::Timeout)??;
+        let cancel = tokio_util::sync::CancellationToken::new();
+        let _cancel_on_drop = cancel.clone().drop_guard();
+        let before_commit = cancel.clone();
+        let service = self.clone();
+        let info = self
+            .plugins
+            .serialized(move |plugins| async move {
+                if before_commit.is_cancelled() {
+                    return Err(Error::Cancelled);
+                }
+                service.require_unmanaged(kind, &id).await?;
+                require_unloaded(&plugins, kind, &id)?;
+                prepared.replace().await
+            })
+            .await?;
+        self.detect_dependencies(&info, cancel).await?;
+        Ok(info)
     }
     pub async fn delete(self: &Arc<Self>, kind: PackageKind, id: String) -> Result<PackageInfo> {
         plugin_id(&id)?;
@@ -157,7 +213,20 @@ impl PackageService {
             .serialized(move |plugins| async move {
                 service.require_unmanaged(kind, &id).await?;
                 require_unloaded(&plugins, kind, &id)?;
-                store.delete(kind, &id).await
+                let record = store.delete(kind, &id).await?;
+                if let Some(dependencies) = service.dependencies.get() {
+                    dependencies
+                        .forget(apk_domain::plugin_dependencies::DependencyTarget {
+                            kind: if kind == PackageKind::Browser {
+                                apk_domain::plugin_dependencies::DependencyTargetKind::Browser
+                            } else {
+                                apk_domain::plugin_dependencies::DependencyTargetKind::Server
+                            },
+                            id,
+                        })
+                        .await?;
+                }
+                Ok(record)
             })
             .await
     }

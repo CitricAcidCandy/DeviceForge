@@ -39,10 +39,13 @@
 
 ## 完整功能发布清单
 
-`release.json` 是外层发布清单，不替代服务器 `plugin.json`。格式为 `format_version:1`、`host_api_version:2`，含 `id/version/name/description/components/tools/requirements`。`components[]` 含 `id/kind/version/variants`，其中 `kind` 取 `"server"` 或 `"browser"`；每个变体为 `platform/path/sha256/size/format`，组件格式仍为独立 ZIP/TGZ。成品版本必须锁定为实际固定版本，摘要和大小按最终原始字节计算。
+`release.json` 是外层发布清单，不替代服务器 `plugin.json`。格式为 `format_version:2`、`host_api_version:2`，含 `id/version/name/description/components/tools/requirements`。`components[]` 含 `id/kind/version/variants`，其中 `kind` 取 `"server"` 或 `"browser"`；每个变体为 `platform/path/sha256/size/format`，组件格式仍为独立 ZIP/TGZ。成品版本必须锁定为实际固定版本，摘要和大小按最终原始字节计算。
 
 `tools[]` 含固定 `id/version`、`required`（缺省 true）、变体和 `bindings`。工具格式可为 ZIP/TGZ/file，变体 `entries` 将稳定资源键映射到归档内文件；file 固定映射到 `payload`。绑定 `{component_id,config_pointer,entry}` 把资源键连接到组件有效配置，不能用开发机路径替代。可选工具缺当前平台可略过，但已选择资源的下载或完整性失败仍失败。
 
 `requirements[]` 为 `{component_id,config_pointer,any_of?,title,description,sensitive?,required?}`；同一声明的主 JSON Pointer 或最多 16 个候选 `any_of` 任一原值填写即可，多条必填仍全部满足。未知或重复指针、非法转义及无组件归属会被拒绝。二选一、值类型等完整约束仍归组件配置 schema；敏感字段不能根据遮蔽字符串判断是否已配置。
 
 组件的 `configuration` 声明版本、schema、defaults 和 apply_policy；为字段提供中文 `title/description`，敏感值使用公开敏感声明，不能用示例项目/令牌填充真实必要输入。发布和市场外显名、描述使用 `release.json.name/description` 与 `market.json`；插件 ID 保持稳定机器身份。安装器不改用户配置原值，托管路径只写有效快照。
+
+
+新版统一依赖使用 dependencies.json（独立组件）或 v2 清单的 dependencies，先自动发现本机与用户根共享工具，一次安装只下载缺失必需项；启动与重新检测不下载。v1 保留兼容。完整字段、来源约束与管理接口见 [共享依赖](dependencies.md)。

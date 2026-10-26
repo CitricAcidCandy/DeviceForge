@@ -5,6 +5,7 @@ import json
 import sys
 import tarfile
 import zipfile
+from urllib.parse import urlsplit
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -36,22 +37,62 @@ def write_json(file, value):
         output.write("\n")
 
 
+def dependencies_match(component, release):
+    if not component or component.get("format_version") != release.get("format_version"):
+        return False
+    packaged = {item["id"]: item for item in component.get("dependencies", [])}
+    published = {item["id"]: item for item in release.get("dependencies", [])}
+    if packaged.keys() != published.keys():
+        return False
+    for key, item in packaged.items():
+        other = published[key]
+        if {k: v for k, v in item.items() if k != "sources"} != {k: v for k, v in other.items() if k != "sources"}:
+            return False
+        if any(source not in other.get("sources", []) for source in item.get("sources", [])):
+            return False
+    return True
+
+
+def input_matches_inventory(expected, approved, dependency=False):
+    if any(expected[key] != approved[key] for key in ("version", "platform", "format", "size", "sha256")):
+        return False
+    if not dependency:
+        return expected["entries"] == approved["entries"]
+    # 第二版可补齐旧库存未命名的配套成员，但原有入口和原包身份不能被替换。
+    return all(expected["entries"].get(key) == path for key, path in approved["entries"].items())
+
+
+def tool_members(file, format):
+    if format == "file":
+        return {"payload"}
+    if format == "zip":
+        with zipfile.ZipFile(file) as bundle:
+            return {member.filename for member in bundle.infolist() if not member.is_dir()}
+    if format == "tgz":
+        with tarfile.open(file, mode="r|gz") as bundle:
+            return {member.name for member in bundle if member.isfile()}
+    raise ValueError("工具归档格式不受支持")
+
+
 def native_binary(stream):
     descriptor = None
     manifest = None
+    dependencies = None
     binaries = {}
     with tarfile.open(fileobj=stream, mode="r|gz") as bundle:
         for member in bundle:
             if not member.isfile():
                 continue
-            if member.name in ("package/package.json", "package/plugin.json"):
+            if member.name in ("package/package.json", "package/plugin.json", "package/dependencies.json"):
                 if member.size > 1024 * 1024:
                     raise ValueError("插件描述超过独立复验的元数据限制")
                 value = json.load(bundle.extractfile(member))
                 if member.name.endswith("package.json"):
                     descriptor = value
-                else:
+                elif member.name.endswith("plugin.json"):
                     manifest = value
+                else:
+                    dependencies = value
             elif member.name.startswith("package/bin/") and member.name.endswith(".exe"):
                 with bundle.extractfile(member) as binary:
                     binaries[member.name] = digest(binary)
@@ -61,7 +102,7 @@ def native_binary(stream):
     binary = binaries.get("package/" + entry)
     if not binary:
         raise ValueError("真实组件缺少目标EXE")
-    return descriptor, manifest, entry, binary
+    return descriptor, manifest, entry, binary, dependencies
 
 
 def verify(root, inventory_file):
@@ -82,16 +123,18 @@ def verify(root, inventory_file):
     write_json(root / "tool-inventory-snapshot.json", stock)
     executables = {}
     native_archives = []
+    native_dependencies = {}
     for component in native:
         archive = Path(component["archive"])
         actual = verify_file(archive, component)
         with archive.open("rb") as stream:
-            descriptor, manifest, entry, binary = native_binary(stream)
+            descriptor, manifest, entry, binary, dependencies = native_binary(stream)
         if manifest["id"] != component["id"] or descriptor["version"] != component["version"]:
             raise ValueError("原生组件身份或版本不符")
         executable = project / "backend/target/x86_64-pc-windows-msvc/release" / Path(entry).name
         verify_file(executable, binary)
         executables[component["id"]] = {"id": component["id"], "path": str(executable), **binary}
+        native_dependencies[component["id"]] = dependencies
         native_archives.append({"id": component["id"], "path": str(archive), **actual})
 
     rows = []
@@ -107,7 +150,9 @@ def verify(root, inventory_file):
             raise ValueError("发布修订与实际清单不符")
         resources = {}
         component_variants = {}
-        for declaration in manifest["components"] + manifest["tools"]:
+        if manifest["format_version"] not in (1, 2) or manifest["host_api_version"] != 2:
+            raise ValueError("不支持的发布格式或宿主API版本")
+        for declaration in manifest["components"] + manifest.get("tools", []):
             if declaration["version"] == "unresolved":
                 raise ValueError("成品残留未冻结版本")
             for variant in declaration["variants"]:
@@ -116,6 +161,24 @@ def verify(root, inventory_file):
                 resources[variant["path"]] = variant
                 if declaration in manifest["components"]:
                     component_variants[variant["path"]] = declaration["id"]
+        dependencies = manifest.get("dependencies", {"format_version": 1, "dependencies": []})
+        if dependencies["format_version"] != 1:
+            raise ValueError("依赖清单格式不符")
+        for dependency in dependencies["dependencies"]:
+            for source in dependency.get("sources", []):
+                if source["kind"] == "official":
+                    url = urlsplit(source["url"])
+                    if url.scheme != "https" or not url.hostname or url.username or url.password or url.fragment:
+                        raise ValueError("官方依赖不是无凭据HTTPS来源")
+                if not source.get("version") or not source.get("entries") or source.get("size", 0) <= 0 or len(source.get("sha256", "")) != 64:
+                    raise ValueError("依赖来源缺少固定元数据")
+                if source["kind"] == "market":
+                    name = "blobs/" + source["sha256"]
+                    if source["url"] != name:
+                        raise ValueError("离线市场依赖未引用摘要闭包")
+                    if name in resources and any(resources[name][key] != source[key] for key in ("size", "sha256", "format")):
+                        raise ValueError("相同依赖摘要的元数据矛盾")
+                    resources[name] = source
         with zipfile.ZipFile(archive) as bundle:
             names = bundle.namelist()
             if len(names) != len(set(names)) or set(names) != {"release.json", *resources}:
@@ -129,11 +192,13 @@ def verify(root, inventory_file):
                     raise ValueError("发布ZIP资源字节不符")
                 if name in component_variants:
                     with bundle.open(name) as stream:
-                        _, packaged_manifest, _, binary = native_binary(stream)
+                        _, packaged_manifest, _, binary, packaged_dependencies = native_binary(stream)
                     component_id = component_variants[name]
                     if packaged_manifest["id"] != component_id or any(binary[key] != executables[component_id][key] for key in binary):
                         raise ValueError("最终嵌入TGZ的EXE与本轮实际构建不符")
-            for declaration in manifest["tools"]:
+                    if manifest["format_version"] == 2 and (packaged_dependencies != native_dependencies[component_id] or not dependencies_match(packaged_dependencies, dependencies)):
+                        raise ValueError("独立组件与完整发布依赖声明不一致")
+            for declaration in manifest.get("tools", []):
                 expected = stock["tools"][declaration["id"]]
                 if declaration["version"] != expected["version"]:
                     raise ValueError("工具版本与批准库存不符")
@@ -144,19 +209,29 @@ def verify(root, inventory_file):
         inputs = read_json(root / "inputs" / (item["id"] + ".json"))
         if inputs["components"][item["id"]]["version"] != item["version"]:
             raise ValueError("本轮输入组件版本与成品不符")
-        for tool_id, expected in inputs["tools"].items():
+        for tool_id, expected in {**inputs.get("tools", {}), **inputs.get("dependencies", {})}.items():
             approved = stock["tools"][tool_id]
-            if any(expected[key] != approved[key] for key in ("version", "platform", "format", "size", "sha256", "entries")):
+            dependency = tool_id in inputs.get("dependencies", {})
+            if not input_matches_inventory(expected, approved, dependency):
                 raise ValueError("本轮输入与批准工具库存不符")
+            if dependency:
+                declaration = next(value for value in dependencies["dependencies"] if value["id"] == tool_id)
+                if not any(source["kind"] == "market" and all(source[key] == expected[key]
+                           for key in ("version", "platform", "format", "size", "sha256", "entries"))
+                           for source in declaration.get("sources", [])):
+                    raise ValueError("成品依赖未保留本轮输入的真实来源及配套入口")
+            tool_records[tool_id] = {"id": tool_id, **approved, "entries": expected["entries"]}
         rows.append({"id": item["id"], "archive": str(archive), **actual, "revision": item["revision"], "resources": len(resources), "zip_members_verified": True, "embedded_native_exe_verified": True})
 
     tool_sources = []
-    checked_files = set()
+    checked_files = {}
     for record in tool_records.values():
         file = (inventory_file.parent / record["file"]).resolve()
         if file not in checked_files:
             verify_file(file, record)
-            checked_files.add(file)
+            checked_files[file] = tool_members(file, record["format"])
+        if not all(entry in checked_files[file] for entry in record["entries"].values()):
+            raise ValueError("工具归档缺少声明的入口或配套成员")
         tool_sources.append({**record, "resolved_source": str(file)})
     host_identities = []
     for name in ("apk-server.exe", "validate-plugin.exe"):

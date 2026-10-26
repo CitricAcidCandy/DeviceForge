@@ -171,7 +171,7 @@ async fn run_version(
     let lease =
         crate::plugin_resources::acquire(call.resources, &call.cancel, deadline, &unresolved)
             .await?;
-    let mut cmd = command(call.executable, call.args, true);
+    let mut cmd = command(lease.executable(call.executable), call.args, true);
     if let Some(path) = call.configuration {
         cmd.env("DEVICEFORGE_PLUGIN_CONFIG", path);
     }

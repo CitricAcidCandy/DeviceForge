@@ -16,6 +16,7 @@ pub struct FilePluginCatalog {
     artifacts: Arc<dyn ArtifactStore>,
     workers: Arc<Semaphore>,
     configurations: Option<Arc<dyn apk_domain::plugin_configurations::PluginConfigurationStore>>,
+    dependency_root: Option<PathBuf>,
 }
 impl FilePluginCatalog {
     pub async fn open(root: &Path, artifacts: Arc<dyn ArtifactStore>) -> Result<Self> {
@@ -46,6 +47,7 @@ impl FilePluginCatalog {
             artifacts,
             workers: Arc::new(Semaphore::new(2)),
             configurations: None,
+            dependency_root: None,
         })
     }
     pub fn with_configurations(
@@ -53,6 +55,10 @@ impl FilePluginCatalog {
         configurations: Arc<dyn apk_domain::plugin_configurations::PluginConfigurationStore>,
     ) -> Self {
         self.configurations = Some(configurations);
+        self
+    }
+    pub fn with_dependency_root(mut self, root: PathBuf) -> Self {
+        self.dependency_root = Some(root);
         self
     }
     async fn blocking<T: Send + 'static>(
@@ -78,6 +84,7 @@ impl FilePluginCatalog {
     }
     pub async fn initial(&self) -> Result<Vec<Arc<ProcessPlugin>>> {
         let configurations = self.configurations.clone();
+        let dependency_root = self.dependency_root.clone();
         self.blocking(move |roots, artifacts| {
             let mut plugins = Vec::new();
             let mut seen = std::collections::HashSet::new();
@@ -116,12 +123,27 @@ impl FilePluginCatalog {
                     if plugins.len() >= 256 {
                         return Err(Error::TooLarge);
                     }
-                    plugins.push(read_plugin(
+                    let plugin = read_plugin(
                         root,
                         id,
                         artifacts.clone(),
                         configurations.clone(),
-                    )?);
+                        dependency_root.as_deref(),
+                    );
+                    match plugin {
+                        Err(Error::Dependency(_))
+                            if entry
+                                .path()
+                                .join(crate::plugin_runtime_dependencies::MARKER)
+                                .exists() =>
+                        {
+                            tracing::warn!(
+                                plugin_id = id,
+                                "脚本运行时尚未就绪，保留部署供依赖管理补装"
+                            );
+                        }
+                        other => plugins.push(other?),
+                    }
                 }
             }
             plugins.sort_by(|left, right| left.manifest().id.cmp(&right.manifest().id));
@@ -135,6 +157,7 @@ fn read_plugin(
     id: &str,
     artifacts: Arc<dyn ArtifactStore>,
     configurations: Option<Arc<dyn apk_domain::plugin_configurations::PluginConfigurationStore>>,
+    dependency_root: Option<&Path>,
 ) -> Result<Arc<ProcessPlugin>> {
     plugin_id(id)?;
     let directory = root.join(id);
@@ -169,11 +192,12 @@ fn read_plugin(
     if bytes.len() > 65536 {
         return Err(Error::TooLarge);
     }
-    let manifest: apk_plugin_sdk::Manifest = serde_json::from_slice(&bytes)
+    let mut manifest: apk_plugin_sdk::Manifest = serde_json::from_slice(&bytes)
         .map_err(|_| Error::Invalid("插件清单不符合公开协议".into()))?;
     if manifest.id != id {
         return Err(Error::Invalid("插件 ID 必须与部署目录一致".into()));
     }
+    crate::plugin_runtime_dependencies::resolve(&directory, dependency_root, &mut manifest)?;
     let display = metadata::read(&directory, &manifest.id, &manifest.version);
     let mut plugin = ProcessPlugin::with_artifacts(manifest, artifacts)?.with_metadata(display);
     if let Some(configurations) = configurations {
@@ -187,13 +211,20 @@ impl PluginCatalog for FilePluginCatalog {
         plugin_id(id)?;
         let id = id.to_owned();
         let configurations = self.configurations.clone();
+        let dependency_root = self.dependency_root.clone();
         let plugin = self
             .blocking(move |roots, artifacts| {
                 let root = roots
                     .iter()
                     .find(|root| root.join(&id).join("manifest.json").exists())
                     .ok_or_else(|| Error::NotFound("插件尚未部署".into()))?;
-                read_plugin(root, &id, artifacts, configurations)
+                read_plugin(
+                    root,
+                    &id,
+                    artifacts,
+                    configurations,
+                    dependency_root.as_deref(),
+                )
             })
             .await?;
         Ok(PluginContribution {

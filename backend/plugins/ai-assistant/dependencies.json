@@ -1,0 +1,74 @@
+{
+  "format_version": 1,
+  "dependencies": [
+    {
+      "id": "codex-cli",
+      "entries": [
+        "codex"
+      ],
+      "discovery": [
+        {
+          "kind": "environment",
+          "value": "CODEX_PATH",
+          "entries": {
+            "codex": "."
+          }
+        },
+        {
+          "kind": "path",
+          "value": "codex.exe",
+          "entries": {
+            "codex": "."
+          }
+        },
+        {
+          "kind": "path",
+          "value": "codex",
+          "entries": {
+            "codex": "."
+          }
+        },
+        {
+          "kind": "user_directory",
+          "value": "tools/codex",
+          "entries": {
+            "codex": "codex.exe"
+          }
+        }
+      ],
+      "name": "Codex 命令行",
+      "probe": {
+        "entry": "codex",
+        "args": [
+          "--version"
+        ],
+        "pattern": "([0-9]+\\.[0-9]+\\.[0-9]+(?:\\.[0-9]+)?)",
+        "timeout_ms": 3000
+      },
+      "version_requirement": "=0.162.1",
+      "required": true,
+      "requires": [],
+      "sources": [
+        {
+          "kind": "official",
+          "url": "https://registry.npmjs.org/@openai/codex/-/codex-0.162.1-win32-x64.tgz",
+          "platform": "win32-x64",
+          "version": "0.162.1",
+          "format": "tgz",
+          "sha256": "5d48824f11a512b0ecb351461c2e90a1040c80de1026bc4a80815d5121f3936d",
+          "size": 165053495,
+          "entries": {
+            "codex": "package/vendor/x86_64-pc-windows-msvc/bin/codex.exe"
+          }
+        }
+      ],
+      "bindings": [
+        {
+          "component_id": "ai-assistant",
+          "config_pointer": "/executable",
+          "entry": "codex"
+        }
+      ]
+    }
+  ]
+}

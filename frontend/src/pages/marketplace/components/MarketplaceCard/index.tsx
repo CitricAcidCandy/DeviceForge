@@ -39,6 +39,7 @@ export interface MarketplaceCardProps {
   clientState?: InstallationClientState | undefined;
   onSetEnabled?: ((enabled: boolean) => void) | undefined;
   onRetryBrowser?: (() => void) | undefined;
+  onDependencies?: (() => void) | undefined;
   busy: boolean;
   onDetail(): void;
   onDownload(): void;
@@ -60,6 +61,7 @@ export function MarketplaceCard({
   clientState,
   onSetEnabled,
   onRetryBrowser,
+  onDependencies,
   busy,
   onDetail,
   onDownload,
@@ -108,8 +110,8 @@ export function MarketplaceCard({
         ))}
         {entry.supports_mcp !== 'none' && <Badge variant="info">{mcpLabels[entry.supports_mcp]}</Badge>}
         {entry.supports_agent && <Badge variant="violet">Agent</Badge>}
-        {installation && <Badge variant={recoveryBlocked || installation.status === 'configuration_required' ? 'warning' : 'outline'}>
-          {recoveryBlocked ? '恢复受阻' : installation.status === 'configuration_required' ? '需要配置' : installation.enabled ? '已启用' : '已停用'}
+        {installation && <Badge variant={recoveryBlocked || installation.status === 'configuration_required' || installation.status === 'dependencies_required' ? 'warning' : 'outline'}>
+          {recoveryBlocked ? '恢复受阻' : installation.status === 'dependencies_required' ? '依赖未就绪' : installation.status === 'configuration_required' ? '需要配置' : installation.enabled ? '已启用' : '已停用'}
         </Badge>}
       </div>
 
@@ -127,6 +129,7 @@ export function MarketplaceCard({
           {entry.author || entry.sourceName}
           {entry.applies_to.length > 0 && ` · ${entry.applies_to.join(' / ')}`}
         </span>
+        {onDependencies && <Button variant="outline" size="sm" onClick={onDependencies}>依赖</Button>}
         {installedTab ? (
           <>
             {installation && onSetEnabled && <Button variant="outline" size="sm"

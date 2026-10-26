@@ -63,3 +63,7 @@ npm pack --ignore-scripts
 离线 ZIP 根包含 `release.json` 和它引用的全部资源，例如 `blobs/<sha256>`；网页在本地解析发布闭包，不把 ZIP 作为资源服务解包请求。安装到宿主时先上传 `/api/v2/plugin-installations/artifacts?filename=包名.zip` 获取产物 ID，再用 offline source 提交统一安装；在线 source 使用受信目录内清单 URL、发布 ID、版本和在线清单原始摘要。在线转换 path 后必须重算清单摘要，不混用离线修订。安装、发布均须查询各自实际结果，不把进度界面当成功证据。
 
 用户配置保存在运行宿主用户根的 `plugin-configurations/browser` 和 `server`，工具内容在共享 `tools`，npx 缓存与下载目录不保存业务原值。托管入口自动进入服务器有效配置，高级路径覆盖由部署者显式设置；浏览器不选择服务器绝对路径，也不覆盖用户原值。卸载发布保留配置，是否清理工具继续受共享引用保护。
+
+## 新版共享依赖
+
+新发布优先使用 v2 和统一 dependencies，详见[共享依赖](dependencies.md)。本篇格式 1 的工具全量闭包为旧兼容描述；v2 的 capabilities 和 catalog 标记均使用 2。市场来源只上传其自身固定归档，官方 HTTPS 来源有独立摘要，不强制内嵌全部工具。用户一次安装先发现后端本机环境及整个用户根仓库，只有缺失必需项自动下载；依赖面板负责重试和可选补装。主 npm 包不包含工具归档。

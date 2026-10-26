@@ -2,6 +2,7 @@ import { releaseArchive } from '../local-import/release-archive.ts';
 import { onlineManifest, parseReleaseManifest } from './manifest.ts';
 import { digestBytes, resourceSlice, verifyResource } from './resource.ts';
 import type { ReleasePublicationPlan, ReleasePublicationResource } from './types.ts';
+import { isRemoteDependencySource } from './dependency-manifest.ts';
 
 export async function prepareReleasePublication(file: File, signal: AbortSignal): Promise<ReleasePublicationPlan> {
   signal.throwIfAborted();
@@ -13,7 +14,17 @@ export async function prepareReleasePublication(file: File, signal: AbortSignal)
   const resources = new Map<string, ReleasePublicationResource>();
   const paths = new Map<string, string>();
   const ranges: { start: number; end: number }[] = [];
+  const remoteResources = new Map<string, Omit<ReleasePublicationResource, 'blob'>>();
   const variants = [...manifest.components.flatMap((entry) => entry.variants), ...manifest.tools.flatMap((entry) => entry.variants)];
+  for (const dependency of manifest.dependencies?.dependencies ?? []) for (const source of dependency.sources) {
+    if (source.kind !== 'market') continue;
+    // 打包器也用 blobs/摘要命名内嵌原包；存在 ZIP 成员时必须先核验，不能绕到远端复用。
+    if (!archive.entries.has(source.url.toLowerCase()) && isRemoteDependencySource(source)) {
+      const previous = remoteResources.get(source.sha256);
+      if (previous && previous.size !== source.size) throw new Error('相同依赖摘要声明不同大小');
+      remoteResources.set(source.sha256, { sha256: source.sha256, size: source.size, path: source.url });
+    } else variants.push({ ...source, path: source.url });
+  }
   for (const variant of variants) {
     signal.throwIfAborted();
     const entry = archive.entries.get(variant.path.toLowerCase());
@@ -35,12 +46,17 @@ export async function prepareReleasePublication(file: File, signal: AbortSignal)
     const previous = ranges[index - 1], current = ranges[index];
     if (previous && current && previous.end > current.start) throw new Error('完整 ZIP 资源数据范围重叠');
   }
+  for (const [digest, remote] of remoteResources) {
+    const local = resources.get(digest);
+    if (local && local.size !== remote.size) throw new Error('本地与远端依赖摘要声明不同大小');
+    if (local) remoteResources.delete(digest);
+  }
   const bytes = new TextEncoder().encode(`${JSON.stringify(onlineManifest(manifest), null, 2)}\n`);
   if (bytes.byteLength > 256 * 1024) throw new Error('在线发布清单超过 256 KiB');
   signal.throwIfAborted();
   return {
-    manifest, file, resources: [...resources.values()], manifestSha256: digestBytes(bytes),
+    manifest, file, resources: [...resources.values()], remoteResources: [...remoteResources.values()], manifestSha256: digestBytes(bytes),
     manifestBlob: new Blob([bytes], { type: 'application/json' }),
-    totalResourceBytes: [...resources.values()].reduce((total, entry) => total + entry.size, 0),
+    totalResourceBytes: [...resources.values(), ...remoteResources.values()].reduce((total, entry) => total + entry.size, 0),
   };
 }

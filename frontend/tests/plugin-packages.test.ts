@@ -3,6 +3,7 @@ import test from 'node:test';
 import { createFrontendRuntime } from '../src/app/index.ts';
 import type { HostContext } from '../src/plugin-sdk/index.ts';
 import { ApiError } from '../src/services/api/index.ts';
+import { noBrowserDependencies } from './plugin-dependencies-fixtures.ts';
 import {
   deferred,
   failure,
@@ -128,7 +129,8 @@ test('浏览器删除失败前已停本实例并撤销源，安装目录仍在�
         },
       };
     },
-    transport: async (_url, init) => {
+    transport: async (input, init) => {
+      if (requestUrl(input).pathname === '/api/v2/plugin-dependencies/browser/example') return success(noBrowserDependencies());
       if (init?.method === 'DELETE') {
         ++deletions;
         assert.equal(stopped, 1);
@@ -188,7 +190,8 @@ test('缺少 crypto.randomUUID 时在线包仍可启停重载，不复用运行�
             },
           };
         },
-        transport: async () => success([installedPackage()]),
+        transport: async (input) => success(requestUrl(input).pathname === '/api/v2/plugin-dependencies/browser/example'
+          ? noBrowserDependencies() : [installedPackage()]),
       });
       runtimes.push(runtime);
       return runtime;
@@ -271,7 +274,8 @@ test('浏览器本次释放失败仍报告并停止删除，历史诊断不封�
         },
       };
     },
-    transport: async (_url, init) => {
+    transport: async (input, init) => {
+      if (requestUrl(input).pathname === '/api/v2/plugin-dependencies/browser/example') return success(noBrowserDependencies());
       if (init?.method === 'DELETE') { ++deletions; return success(installedPackage()); }
       return success([installedPackage()]);
     },
@@ -325,7 +329,8 @@ test('浏览器删除等待取消仍重查服务端已删除目录，本实例�
         },
       },
     }),
-    transport: async (_url, init) => {
+    transport: async (input, init) => {
+      if (requestUrl(input).pathname === '/api/v2/plugin-dependencies/browser/example') return success(noBrowserDependencies());
       if (init?.method === 'DELETE') {
         ++deletions;
         assert.equal(stopped, true);

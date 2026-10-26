@@ -1,7 +1,7 @@
 import type { PluginDependency, PluginDependenciesState } from '../types/index.ts';
 
 export function initialPluginDependenciesState(): PluginDependenciesState {
-  return { phase: 'idle', result: null, stale: true, job: null, ticket: null, notice: null, issues: [] };
+  return { phase: 'idle', result: null, stale: true, job: null, progress: null, logId: null, ticket: null, notice: null, issues: [] };
 }
 
 export function canInstallDependency(value: PluginDependency): boolean {

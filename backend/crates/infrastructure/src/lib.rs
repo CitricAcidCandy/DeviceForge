@@ -25,6 +25,8 @@ pub mod bundles;
 pub mod browser_configurations;
 pub mod plugin_catalog;
 pub mod plugin_configurations;
+pub mod plugin_dependencies;
 pub mod plugin_installations;
 pub mod plugin_packages;
+mod plugin_runtime_dependencies;
 pub mod splits;

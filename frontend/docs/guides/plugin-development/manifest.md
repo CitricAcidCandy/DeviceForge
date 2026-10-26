@@ -47,8 +47,11 @@ SDK 2 的 `extensions/devices/artifacts/taskHistory/themes` 是可选上下文�
 
 ## 成套发布与基础配置
 
-浏览器 `plugin.json` 保持 `api_version:2`；外层 `release.json` 使用 `format_version:1`、`host_api_version:2`，以 `components[]` 组合独立服务器和浏览器包。每项是 `{id,kind,version,variants:[{platform,path,sha256,size,format}]}`，其中 kind 为 `server` 或 `browser`。组件版本和归档身份对应，不混用服务器程序入口与浏览器 ESM 入口。
+浏览器 `plugin.json` 保持 `api_version:2`；外层 `release.json` 使用 `format_version:2`、`host_api_version:2`，以 `components[]` 组合独立服务器和浏览器包。每项是 `{id,kind,version,variants:[{platform,path,sha256,size,format}]}`，其中 kind 为 `server` 或 `browser`。组件版本和归档身份对应，不混用服务器程序入口与浏览器 ESM 入口。
 
 工具在外层 `tools` 声明固定版本、平台变体、稳定 `entries` 及 `bindings:[{component_id,config_pointer,entry}]`，由宿主准备，不由浏览器下载到本地服务器目录。必要用户输入在 `requirements` 声明 `component_id/config_pointer/title/description/required/sensitive`，可用 `any_of` 提供同组件最多 16 个去重候选；组内任一原值满足，多个必填组分别满足。相互排斥继续由配置 schema 验证。
 
 外显功能名称和描述来自发布 `name/description` 与市场元数据，组件 ID 用于稳定引用。公开 `configuration` 提供版本、schema、defaults、apply_policy，字段用中文 title/description；敏感字段不能因显示 `********` 就认定已填写。不要把开发机工具绝对路径、凭据或用户业务配置固化到包中。服务器托管路径只进入有效配置，不写浏览器配置原值；高级覆盖由宿主管理配置流程处理。
+
+
+新版统一依赖使用 dependencies.json（独立组件）或 v2 清单的 dependencies，先自动发现本机与用户根共享工具，一次安装只下载缺失必需项；启动与重新检测不下载。v1 保留兼容。完整字段、来源约束与管理接口见 [共享依赖](dependencies.md)。

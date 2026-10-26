@@ -3,6 +3,17 @@ use apk_application::Application;
 use rmcp::model::Tool;
 use serde_json::json;
 
+pub(crate) fn dependency_tools() -> Vec<Tool> {
+    vec![Tool::new(
+        "deviceforge.get_plugin_dependencies",
+        "按 target 读取插件依赖和修订；变更使用 dependency.scan/install，返回任务后用 deviceforge.get_job 等待终态",
+        crate::openapi::schema::<crate::plugin_dependencies::DependencyQuery>()
+            .as_object()
+            .expect("依赖查询须为对象模式")
+            .clone(),
+    )]
+}
+
 pub(crate) fn catalog(app: &Application, management: bool) -> (u64, Vec<Tool>) {
     let (revision, operations, sessions) = app.contributions_snapshot();
     let mut tools: Vec<_> = operations.into_iter().map(operation_tool).collect();

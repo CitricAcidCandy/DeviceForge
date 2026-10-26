@@ -7,7 +7,7 @@ pub(crate) fn document() -> Value {
     json!({
         "api_version": 1,
         "release_publication": {
-            "format_versions": [1],
+            "format_versions": [1, 2],
             "host_api_versions": [2],
             "resource_max_bytes": RESOURCE_MAX_BYTES,
             "catalog_last": true,

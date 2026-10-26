@@ -14,6 +14,7 @@ pub use operation_execution::{OperationExecution, OperationExecutionSource};
 pub mod browser_configurations;
 pub mod interactive;
 pub mod plugin_configurations;
+pub mod plugin_dependencies;
 pub mod plugin_recovery;
 
 #[derive(Debug, thiserror::Error)]

@@ -12,7 +12,10 @@ pub struct DependencyManifest {
 
 impl Default for DependencyManifest {
     fn default() -> Self {
-        Self { format_version: 1, dependencies: Vec::new() }
+        Self {
+            format_version: 1,
+            dependencies: Vec::new(),
+        }
     }
 }
 
@@ -37,11 +40,17 @@ pub struct Dependency {
     pub bindings: Vec<DependencyBinding>,
 }
 
-fn required() -> bool { true }
+fn required() -> bool {
+    true
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
-pub enum DiscoveryKind { Environment, Path, UserDirectory }
+pub enum DiscoveryKind {
+    Environment,
+    Path,
+    UserDirectory,
+}
 
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -65,15 +74,24 @@ pub struct VersionProbe {
     pub timeout_ms: u64,
 }
 
-fn probe_timeout() -> u64 { 3_000 }
+fn probe_timeout() -> u64 {
+    3_000
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
-pub enum SourceKind { Market, Official }
+pub enum SourceKind {
+    Market,
+    Official,
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
-pub enum ArchiveFormat { Zip, Tgz, File }
+pub enum ArchiveFormat {
+    Zip,
+    Tgz,
+    File,
+}
 
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]

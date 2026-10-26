@@ -67,7 +67,7 @@ test('缺少完整发布保证、错误版本和非法上限均在能力查询�
     { ...capabilities, api_version: 2 },
     { ...capabilities, release_publication: [] },
     ...[
-      { format_versions: [2] },
+      { format_versions: [3] },
       { format_versions: [1, 1] },
       { format_versions: ['1'] },
       { host_api_versions: [1] },
@@ -117,6 +117,11 @@ test('兼容能力版本列表扩展，资源上限由服务器声明而不硬�
     await createMarketplace(async () => Response.json(value)).releaseCapabilities(signal()),
     value,
   );
+});
+
+test('仅声明第二版的市场可发布统一依赖清单，具体版本由发布计划核对', async () => {
+  const value = { ...capabilities, release_publication: { ...capabilities.release_publication, format_versions: [2] } };
+  assert.deepEqual(await createMarketplace(async () => Response.json(value)).releaseCapabilities(signal()), value);
 });
 
 test('资源复用仅接受强摘要标记和精确大小，固定来源且仅发 HEAD', async () => {

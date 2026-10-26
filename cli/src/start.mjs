@@ -21,7 +21,8 @@ async function freePort() {
   return port;
 }
 async function ready(process, port, headers, signal) {
-  const deadline = Date.now() + 15000;
+  // 启动包含已安装插件的有限依赖探测与完整性校验，不能沿用空宿主的十五秒门限。
+  const deadline = Date.now() + 120000;
   while (Date.now() < deadline) {
     signal?.throwIfAborted();
     if (process.failure || process.child.exitCode !== null || process.child.signalCode)
@@ -35,7 +36,7 @@ async function ready(process, port, headers, signal) {
     } catch {}
     await delay(50, undefined, { signal });
   }
-  throw new Error('后端未在 15 秒内就绪');
+  throw new Error('后端未在 120 秒内就绪，请检查插件依赖探测和宿主日志');
 }
 
 // 生命周期与 HTTP 代理分开；启动任一步失败都只清理本次创建的进程和监听。

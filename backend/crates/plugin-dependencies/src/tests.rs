@@ -29,10 +29,29 @@ fn rejects_traversal_cycles_and_unbounded_probes() {
     manifest.dependencies[0].discovery[0].kind = DiscoveryKind::UserDirectory;
     assert!(manifest.validate().is_err());
     let mut manifest = sample();
-    manifest.dependencies[0].requires.push("third-party-tool".into());
+    manifest.dependencies[0]
+        .requires
+        .push("third-party-tool".into());
     assert!(manifest.validate().is_err());
     let mut manifest = sample();
     manifest.dependencies[0].probe.as_mut().unwrap().timeout_ms = 0;
     assert!(manifest.validate().is_err());
     assert!(DependencyManifest::default().validate().is_ok());
+}
+
+#[test]
+fn dependency_identity_matches_public_management_routes() {
+    for id in ["7zip", "third-party.tool_1"] {
+        let mut manifest = sample();
+        manifest.dependencies[0].id = id.into();
+        manifest.validate().unwrap();
+    }
+    for id in ["Uppercase", "builtin.reserved", "../tool"] {
+        let mut manifest = sample();
+        manifest.dependencies[0].id = id.into();
+        assert!(manifest.validate().is_err());
+    }
+    let mut manifest = sample();
+    manifest.dependencies[0].id = "a".repeat(100);
+    assert!(manifest.validate().is_err());
 }

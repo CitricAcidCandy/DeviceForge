@@ -1,0 +1,201 @@
+{
+  "format_version": 1,
+  "dependencies": [
+    {
+      "id": "adb",
+      "entries": [
+        "adb",
+        "adb_win_api",
+        "adb_win_usb_api"
+      ],
+      "discovery": [
+        {
+          "kind": "environment",
+          "value": "ADB_PATH",
+          "entries": {
+            "adb": ".",
+            "adb_win_api": "AdbWinApi.dll",
+            "adb_win_usb_api": "AdbWinUsbApi.dll"
+          }
+        },
+        {
+          "kind": "environment",
+          "value": "APK_ADB",
+          "entries": {
+            "adb": ".",
+            "adb_win_api": "AdbWinApi.dll",
+            "adb_win_usb_api": "AdbWinUsbApi.dll"
+          }
+        },
+        {
+          "kind": "environment",
+          "value": "ANDROID_SDK_ROOT",
+          "entries": {
+            "adb": "platform-tools/adb.exe",
+            "adb_win_api": "platform-tools/AdbWinApi.dll",
+            "adb_win_usb_api": "platform-tools/AdbWinUsbApi.dll"
+          }
+        },
+        {
+          "kind": "environment",
+          "value": "ANDROID_HOME",
+          "entries": {
+            "adb": "platform-tools/adb.exe",
+            "adb_win_api": "platform-tools/AdbWinApi.dll",
+            "adb_win_usb_api": "platform-tools/AdbWinUsbApi.dll"
+          }
+        },
+        {
+          "kind": "path",
+          "value": "adb.exe",
+          "entries": {
+            "adb": ".",
+            "adb_win_api": "AdbWinApi.dll",
+            "adb_win_usb_api": "AdbWinUsbApi.dll"
+          }
+        },
+        {
+          "kind": "user_directory",
+          "value": "tools/adb",
+          "entries": {
+            "adb": "adb.exe",
+            "adb_win_api": "AdbWinApi.dll",
+            "adb_win_usb_api": "AdbWinUsbApi.dll"
+          }
+        }
+      ],
+      "name": "Android 调试桥",
+      "probe": {
+        "entry": "adb",
+        "args": [
+          "version"
+        ],
+        "pattern": "Version ([0-9]+\\.[0-9]+\\.[0-9]+)",
+        "timeout_ms": 3000
+      },
+      "version_requirement": ">=36.0.0, <37.0.0",
+      "required": true,
+      "requires": [],
+      "sources": [],
+      "bindings": [
+        {
+          "component_id": "frida",
+          "config_pointer": "/tools/adb",
+          "entry": "adb"
+        }
+      ]
+    },
+    {
+      "id": "frida",
+      "entries": [
+        "frida"
+      ],
+      "discovery": [
+        {
+          "kind": "environment",
+          "value": "FRIDA_PATH",
+          "entries": {
+            "frida": "."
+          }
+        },
+        {
+          "kind": "path",
+          "value": "frida.exe",
+          "entries": {
+            "frida": "."
+          }
+        },
+        {
+          "kind": "path",
+          "value": "frida",
+          "entries": {
+            "frida": "."
+          }
+        },
+        {
+          "kind": "user_directory",
+          "value": "tools/frida",
+          "entries": {
+            "frida": "frida.exe"
+          }
+        }
+      ],
+      "name": "Frida 客户端",
+      "probe": {
+        "entry": "frida",
+        "args": [
+          "--version"
+        ],
+        "pattern": "([0-9]+\\.[0-9]+\\.[0-9]+(?:\\.[0-9]+)?)",
+        "timeout_ms": 3000
+      },
+      "version_requirement": "=17.24.3",
+      "required": true,
+      "requires": [],
+      "sources": [],
+      "bindings": [
+        {
+          "component_id": "frida",
+          "config_pointer": "/tools/frida",
+          "entry": "frida"
+        }
+      ]
+    },
+    {
+      "id": "frida-ps",
+      "entries": [
+        "frida-ps"
+      ],
+      "discovery": [
+        {
+          "kind": "environment",
+          "value": "FRIDA_PS_PATH",
+          "entries": {
+            "frida-ps": "."
+          }
+        },
+        {
+          "kind": "path",
+          "value": "frida-ps.exe",
+          "entries": {
+            "frida-ps": "."
+          }
+        },
+        {
+          "kind": "path",
+          "value": "frida-ps",
+          "entries": {
+            "frida-ps": "."
+          }
+        },
+        {
+          "kind": "user_directory",
+          "value": "tools/frida-ps",
+          "entries": {
+            "frida-ps": "frida-ps.exe"
+          }
+        }
+      ],
+      "name": "Frida 进程工具",
+      "probe": {
+        "entry": "frida-ps",
+        "args": [
+          "--version"
+        ],
+        "pattern": "([0-9]+\\.[0-9]+\\.[0-9]+(?:\\.[0-9]+)?)",
+        "timeout_ms": 3000
+      },
+      "version_requirement": "=17.24.3",
+      "required": true,
+      "requires": [],
+      "sources": [],
+      "bindings": [
+        {
+          "component_id": "frida",
+          "config_pointer": "/tools/frida_ps",
+          "entry": "frida-ps"
+        }
+      ]
+    }
+  ]
+}

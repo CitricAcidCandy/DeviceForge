@@ -17,6 +17,12 @@ pub struct ManagedResources {
     pub tools: BTreeMap<String, ManagedTool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub repository: Option<ManagedRepository>,
+    /// 新快照仅对这些工具取得仓库租约；值为仓库包修订，未列出的入口为外部引用。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub managed_tools: Option<BTreeMap<String, String>>,
+    /// 脚本解释器随本次不可变资源快照选择，与配置绑定独立。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub runtime: Option<crate::packages::RuntimeDependency>,
     #[serde(default)]
     pub bindings: Vec<ResourceBinding>,
 }
@@ -87,6 +93,13 @@ impl ManagedResources {
                     .all(|byte| byte.is_ascii_alphanumeric() || b"_-".contains(&byte))
         }) {
             return Err(invalid("托管仓库描述无效"));
+        }
+        if value.managed_tools.as_ref().is_some_and(|tools| {
+            tools.iter().any(|(id, version)| {
+                !value.tools.contains_key(id) || version.is_empty() || version.len() > 200
+            })
+        }) {
+            return Err(invalid("托管工具身份映射无效"));
         }
         Ok(value)
     }

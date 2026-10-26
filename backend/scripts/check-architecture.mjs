@@ -3,12 +3,13 @@ import { relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const boundaries = {
-  'apk-domain': { internal: [], external: ['serde', 'serde_json', 'thiserror', 'async-trait', 'tokio-util', 'schemars', 'futures-util', 'bytes', 'uuid'] },
+  'apk-domain': { internal: ['deviceforge-plugin-dependencies'], external: ['serde', 'serde_json', 'thiserror', 'async-trait', 'tokio-util', 'schemars', 'futures-util', 'bytes', 'uuid'] },
   'apk-application': { internal: ['apk-domain', 'deviceforge-observability'] },
-  'apk-infrastructure': { internal: ['apk-domain', 'apk-plugin-sdk', 'deviceforge-data-codec', 'deviceforge-observability', 'deviceforge-tool-process', 'deviceforge-tool-repository', 'deviceforge-android-package-core'] },
+  'apk-infrastructure': { internal: ['apk-domain', 'apk-plugin-sdk', 'deviceforge-data-codec', 'deviceforge-observability', 'deviceforge-tool-process', 'deviceforge-tool-repository', 'deviceforge-android-package-core', 'deviceforge-plugin-dependencies'] },
   'apk-server': { internal: ['apk-domain', 'apk-application', 'apk-infrastructure', 'apk-plugin-sdk', 'deviceforge-observability'] },
   'deviceforge-observability': { internal: [], external: ['tracing', 'tracing-subscriber', 'tracing-appender', 'tokio', 'uuid', 'serde', 'schemars', 'tempfile', 'thiserror'] },
-  'apk-plugin-sdk': { internal: [], external: ['serde', 'serde_json'] },
+  'apk-plugin-sdk': { internal: ['deviceforge-plugin-dependencies'], external: ['serde', 'serde_json'] },
+  'deviceforge-plugin-dependencies': { internal: [], external: ['serde', 'serde_json', 'schemars', 'semver', 'regex'] },
   'deviceforge-plugin-runtime': { internal: ['apk-plugin-sdk'], external: ['serde_json', 'tokio', 'tokio-util', 'windows-sys'] },
   'deviceforge-data-codec': { internal: [], external: ['serde', 'serde_json', 'thiserror', 'rmpv'] },
   'deviceforge-tool-process': { internal: [], external: ['tokio', 'tokio-util', 'thiserror', 'windows-sys'] },

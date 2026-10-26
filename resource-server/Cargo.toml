@@ -6,6 +6,7 @@ license = "MIT"
 
 [dependencies]
 apk-domain = { path = "../backend/crates/domain" }
+deviceforge-plugin-dependencies = { path = "../backend/crates/plugin-dependencies" }
 axum = { version = "0.8", features = ["macros"] }
 bytes = "1"
 futures-util = "0.3"
@@ -22,6 +23,7 @@ tower-http = { version = "0.6", features = ["cors"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 uuid = { version = "1", features = ["v4"] }
+url = "2"
 
 [dev-dependencies]
 tempfile = "3"
