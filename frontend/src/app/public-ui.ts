@@ -1,6 +1,8 @@
 import * as React from 'react';
 import * as ReactDOMClient from 'react-dom/client';
-import { flushSync } from 'react-dom';
+import * as ReactDOM from 'react-dom';
+import * as jsxRuntime from 'react/jsx-runtime';
+import * as jsxDevRuntime from 'react/jsx-dev-runtime';
 import { Fragment, jsx, jsxs } from 'react/jsx-runtime';
 import * as components from '../components/index.ts';
 import { cn } from '../utils/classnames.ts';
@@ -12,7 +14,7 @@ import type { Dispose, HostUi } from '../plugin-sdk/index.ts';
 // 契约本身定义在 plugin-sdk/ui.ts，插件侧只需认那一份。
 function mountReact(root: HTMLElement, element: React.ReactElement): Dispose {
   const instance = ReactDOMClient.createRoot(root);
-  flushSync(() => {
+  ReactDOM.flushSync(() => {
     instance.render(element);
   });
   let released = false;
@@ -20,7 +22,7 @@ function mountReact(root: HTMLElement, element: React.ReactElement): Dispose {
     if (released) return;
     released = true;
     // 卸载若发生在别的 React 树提交期间，React 会报同步更新冲突，统一走 flushSync。
-    flushSync(() => {
+    ReactDOM.flushSync(() => {
       instance.unmount();
     });
   };
@@ -30,13 +32,17 @@ const hostUi = {
   apiVersion: 1,
   React,
   ReactDOMClient,
+  ReactDOM,
+  jsxRuntime,
+  jsxDevRuntime,
+  jsxDEV: jsxDevRuntime.jsxDEV,
   jsx,
   jsxs,
   Fragment,
   cn,
   mountReact,
   ...components,
-};
+} satisfies HostUi;
 
 export interface HostUiHolder {
   __DEVICEFORGE_HOST_UI__?: HostUi | undefined;
@@ -47,14 +53,12 @@ export interface HostUiHolder {
  */
 export function installPublicUi(target: HostUiHolder = globalThis): Dispose {
   const previous = target.__DEVICEFORGE_HOST_UI__;
-  // 宿主这边组件带精确属性类型，公开契约刻意放宽到「按名字可用」，
-  // 两者是一份实现与一份面向插件的声明，这里按声明发布。
-  target.__DEVICEFORGE_HOST_UI__ = hostUi as unknown as HostUi;
+  target.__DEVICEFORGE_HOST_UI__ = hostUi;
   let released = false;
   return () => {
     if (released) return;
     released = true;
-    if (target.__DEVICEFORGE_HOST_UI__ === (hostUi as unknown as HostUi))
+    if (target.__DEVICEFORGE_HOST_UI__ === hostUi)
       target.__DEVICEFORGE_HOST_UI__ = previous;
   };
 }

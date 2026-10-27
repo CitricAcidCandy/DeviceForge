@@ -270,13 +270,9 @@ test('具名槽位和模块有真实挂载/释放行为，发现入口与命令�
     components: [],
     modules: [],
     commands: [],
-    services: [
-      { id: 'host.ai-sdk', pluginId: 'host', generation: 0, version: '1' },
-      { id: 'host.ai-sdk.stream', pluginId: 'host', generation: 0, version: '1' },
-      { id: 'host.performance', pluginId: 'host', generation: 0, version: '1' },
-      { id: 'host.plugin-dependencies', pluginId: 'host', generation: 0, version: '1' },
-      { id: 'host.mirroring.stream', pluginId: 'host', generation: 0, version: '1' },
-    ],
+    services: ['host.ai-sdk', 'host.ai-sdk.stream', 'host.performance', 'host.plugin-dependencies', 'host.mirroring.stream']
+      .map((id) => ({ id, pluginId: 'host', generation: 0, version: '1',
+        inputSchema: true, outputSchema: true, available: true, reason: null })),
   });
   assert.throws(
     () => instance.extensions.executeCommand('example.command', null, signal()),
@@ -531,8 +527,11 @@ test('路由/命名冲突和激活失败回滚贡献，不影响已加载插件'
   register(instance, 'first', { modules: [module('first.page')] });
   register(instance, 'second', { modules: [module('second.page')] });
   await instance.webPlugins.load('first');
-  await assert.rejects(instance.webPlugins.load('second'), /路由冲突/);
-  assert.equal(instance.extensions.catalog().modules.length, 1);
+  await instance.webPlugins.load('second');
+  assert.equal(instance.extensions.catalog().modules.length, 2);
+  register(instance, 'collision', { modules: [module('collision.first'), module('collision.second')] });
+  await assert.rejects(instance.webPlugins.load('collision'), /路由冲突/);
+  assert.equal(instance.extensions.catalog().modules.length, 2);
   assert.throws(
     () =>
       register(instance, 'wrong', {

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import type { ProductServices } from './services.ts';
 import { PRODUCT_ROUTES, isPluginRoute, parseProductRoute, routeHash } from './routes.ts';
 import type { ProductRoute } from './routes.ts';
@@ -26,6 +26,12 @@ export function App({ services }: { services: ProductServices }) {
   );
   const [visited, setVisited] = useState<ReadonlySet<ProductRoute>>(() => new Set([route]));
   const pluginPages = usePluginPages(services);
+  const defaults = services.pluginDefaults;
+  const defaultsStore = useMemo(() => ({
+    subscribe: (notify: () => void) => defaults.subscribe(notify),
+    get: () => defaults.snapshot(),
+  }), [defaults]);
+  const defaultsSnapshot = useSyncExternalStore(defaultsStore.subscribe, defaultsStore.get, defaultsStore.get);
   function navigate(next: ProductRoute) {
     setRoute(next);
     setVisited((current) => new Set([...current, next]));
@@ -40,8 +46,9 @@ export function App({ services }: { services: ProductServices }) {
     window.addEventListener('hashchange', changed);
     return () => window.removeEventListener('hashchange', changed);
   }, []);
-  // 插件被卸载或禁用后，停在它页面上的用户必须被送回一个真实存在的地方。
-  const pluginPageMissing = isPluginRoute(route) && !pluginPages.some((page) => page.key === route);
+  // 启动目录尚未补齐时保留直达地址；启动结束后才把已卸载或缺失页面送回设备。
+  const pluginPageMissing = defaultsSnapshot.phase === 'completed' &&
+    isPluginRoute(route) && !pluginPages.some((page) => page.key === route);
   useEffect(() => {
     if (pluginPageMissing) navigate('devices');
     // navigate 依赖的只有 setState，按缺失状态变化触发即可。

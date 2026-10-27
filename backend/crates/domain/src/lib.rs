@@ -16,6 +16,7 @@ pub mod interactive;
 pub mod plugin_configurations;
 pub mod plugin_dependencies;
 pub mod plugin_recovery;
+pub mod services;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -108,6 +109,22 @@ pub struct Operation {
 }
 #[async_trait]
 pub trait Executor: Send + Sync {
+    fn services(&self) -> services::ServiceAccess {
+        Default::default()
+    }
+    /// 反向调用只能进入宿主端口，旧执行器继续沿用原签名。
+    async fn execute_with_services(
+        &self,
+        operation: &str,
+        input: Value,
+        cancel: CancellationToken,
+        context: ExecutionContext,
+        progress: std::sync::Arc<dyn ProgressReporter>,
+        _services: std::sync::Arc<dyn services::ServiceCaller>,
+    ) -> Result<Value> {
+        self.execute_with_progress(operation, input, cancel, context, progress)
+            .await
+    }
     fn operations(&self) -> Vec<Operation>;
     /// 默认没有展示元数据，插件标识和执行贡献不依赖市场描述。
     fn plugin_metadata(&self) -> Option<plugins::PluginDisplayMetadata> {

@@ -43,3 +43,9 @@ MCP 调用同名操作工具同样提交任务；用 `deviceforge.get_job`、`de
 描述包含 `format_version:1`、`release_id/revision/tools/bindings` 和可选 `repository`。需供应共享内容时使用公开仓库描述与 `deviceforge-tool-repository`，不绕过写锁、引用和调用读租约。工具供应 managed 模式允许省略/null 安装根；custom 或旧未声明模式必须提供本机合法绝对根，旧目录不自动搬迁。
 
 `DEVICEFORGE_PLUGIN_CONFIG` 指向宿主为本次调用选择的有效配置快照，SDK 的 `managed_config_path()` 可定位。用户配置原值和修订保存于用户根 `plugin-configurations/server`；托管绑定只补默认入口，用户高级显式路径优先，schema 必需 const 可在有效快照补齐但有歧义时失败。更改工具默认值不覆盖已保存的原值；不要把该快照、描述文件或绝对入口返回给浏览器。独立运行的旧旁置配置继续兼容，必要输入与敏感值满足性须由宿主原值门禁判断。
+
+## Rust 公共服务与协议 6
+
+公开运行入口为 serve_once_with_services/serve_io_with_services，处理器接收 Request、InvocationContext、ServiceClient 并返回 Execution。services.service::<Input,Output>(ServiceRef{id,version}) 创建 ServiceHandle，call(&input).await 经宿主端口调用；version 是精确字符串，例如 1.0，不转数字。调用 Future 丢弃触发 service_cancel；截止点、取消与清理不可重新授时。宿主 HTTP/MCP 提交继续返回原有 Job，不通过 HTTP 旁路调用插件。
+
+GET /api/v2/services 返回 ServiceInfo 数组；POST /api/v2/services/{id}/calls 请求 {version,input,generation?}，响应 202 Job。HTTP v2 含 log_id/data；generation 可选，指定时拒绝换代。详见 ../../contracts/公共服务与协议第六版.md。

@@ -3,6 +3,7 @@ import type { HostContext, PluginContributions } from '../../plugin-sdk/index.ts
 export interface ExtensionOwner {
   readonly pluginId: string;
   readonly generation: number;
+  readonly version?: string;
   readonly context: HostContext;
 }
 export interface Owned<T> {

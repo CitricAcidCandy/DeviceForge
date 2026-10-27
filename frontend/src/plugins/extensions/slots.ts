@@ -8,6 +8,8 @@ import type {
   SlotMode,
   SlotRequest,
 } from '../../plugin-sdk/index.ts';
+import { awaitLifecycle, lifecycleTimeouts } from '../lifecycle.ts';
+import type { LifecycleTimeouts } from '../lifecycle.ts';
 
 const slotIdPattern = /^[a-z][a-z0-9._-]{0,199}$/;
 const allModes: readonly SlotMode[] = ['append', 'replace'];
@@ -15,23 +17,33 @@ const allModes: readonly SlotMode[] = ['append', 'replace'];
 interface SlotRuntime {
   readonly definition: SlotDefinition;
   readonly modes: readonly SlotMode[];
-  readonly leases: Set<SlotLease>;
+  readonly leases: Map<SlotLease, () => Promise<void>>;
   defaultRoot: HTMLElement | null;
   defaultDispose: Dispose | null;
   replacement: SlotLease | null;
   // 释放后的槽位立刻停止重建默认渲染，避免连累后续清理。
   released: boolean;
+  readonly lifetime: AbortController;
 }
 
 export async function createNamedSlotAdapter(
   definitions: readonly SlotDefinition[],
-): Promise<SlotAdapter & SlotHost & { dispose: () => Promise<void> }> {
+  budgets: Partial<LifecycleTimeouts> = {},
+): Promise<SlotAdapter & SlotHost & { dispose: () => Promise<void>; cleanupSnapshot: () => readonly { id: string; error: unknown }[] }> {
+  const timeouts = lifecycleTimeouts(budgets);
   const slots = new Map<string, SlotRuntime>();
+  const lateFailures = new Map<string, unknown>();
   let closed = false;
-  let queue: Promise<unknown> = Promise.resolve();
-  function serial<T>(run: () => Promise<T>): Promise<T> {
+  let disposal: Promise<void> | null = null;
+  const queues = new Map<string, Promise<unknown>>();
+  function serial<T>(id: string, run: () => Promise<T>): Promise<T> {
+    const queue = queues.get(id) ?? Promise.resolve();
     const pending = queue.then(run, run);
-    queue = pending.catch(() => undefined);
+    const tail = pending.then(() => undefined, () => undefined);
+    queues.set(id, tail);
+    void tail.then(() => {
+      if (queues.get(id) === tail) queues.delete(id);
+    });
     return pending;
   }
   async function clearDefault(slot: SlotRuntime) {
@@ -39,7 +51,7 @@ export async function createNamedSlotAdapter(
     slot.defaultDispose = null;
     slot.defaultRoot?.remove();
     slot.defaultRoot = null;
-    await cleanup?.();
+    if (cleanup) await awaitLifecycle(cleanup, undefined, Date.now() + timeouts.cleanupMs, '默认槽位清理');
   }
   async function renderDefault(slot: SlotRuntime) {
     if (closed || slot.released || slot.replacement || slot.defaultRoot) return;
@@ -50,7 +62,19 @@ export async function createNamedSlotAdapter(
     slot.defaultRoot = root;
     slot.definition.target.append(root);
     try {
-      const release = await slot.definition.renderDefault(root);
+      const render = slot.definition.renderDefault;
+      const release = await awaitLifecycle(() => render(root), slot.lifetime.signal,
+        Date.now() + timeouts.mountMs, '默认槽位渲染', async (late) => {
+          if (typeof late === 'function') try {
+            await awaitLifecycle(late, undefined, Date.now() + timeouts.cleanupMs, '迟到默认槽位清理');
+          } catch (error) {
+            lateFailures.set(slot.definition.id, error);
+            if (lateFailures.size > 256) {
+              const oldest = lateFailures.keys().next().value;
+              if (oldest !== undefined) lateFailures.delete(oldest);
+            }
+          }
+        });
       if (typeof release !== 'function') throw new Error('默认槽位渲染必须返回释放函数');
       slot.defaultDispose = release;
     } catch (error) {
@@ -75,24 +99,25 @@ export async function createNamedSlotAdapter(
     const slot: SlotRuntime = {
       definition,
       modes,
-      leases: new Set(),
+      leases: new Map(),
       defaultRoot: null,
       defaultDispose: null,
       replacement: null,
       released: false,
+      lifetime: new AbortController(),
     };
     slots.set(definition.id, slot);
     return slot;
   }
-  async function releaseNow(id: string) {
-    const slot = slots.get(id);
-    if (!slot) return;
-    slots.delete(id);
+  async function releaseNow(slot: SlotRuntime) {
+    // 队列内直接调用内部清理；不能等待会再次排入同一队列的 lease.dispose。
+    if (slots.get(slot.definition.id) === slot) slots.delete(slot.definition.id);
     slot.released = true;
+    slot.lifetime.abort();
     const failures: unknown[] = [];
-    for (const lease of [...slot.leases]) {
+    for (const releaseLease of [...slot.leases.values()]) {
       try {
-        await lease.dispose();
+        await releaseLease();
       } catch (error) {
         failures.push(error);
       }
@@ -145,72 +170,80 @@ export async function createNamedSlotAdapter(
     }
     const root = slot.definition.target.ownerDocument.createElement('div');
     root.dataset.deviceforgeSlotOwner = `${request.pluginId}:${request.generation}:${request.componentId}`;
-    let disposal: Promise<void> | null = null;
+    let leaseDisposal: Promise<void> | null = null;
+    let released = false;
     const stop = () => root.remove();
+    const detach = () => {
+      stop();
+      signal.removeEventListener('abort', stop);
+    };
+    const releaseLeaseNow = async (): Promise<void> => {
+      if (released) return;
+      released = true;
+      detach();
+      slot.leases.delete(lease);
+      if (slot.replacement === lease) {
+        slot.replacement = null;
+        await renderDefault(slot);
+      }
+    };
     const lease: SlotLease = {
       target: root,
       dispose() {
-        if (disposal) return disposal;
-        stop();
-        signal.removeEventListener('abort', stop);
-        disposal = serial(async () => {
-          slot.leases.delete(lease);
-          if (slot.replacement === lease) {
-            slot.replacement = null;
-            await renderDefault(slot);
-          }
-        });
-        return disposal;
+        if (leaseDisposal) return leaseDisposal;
+        detach();
+        leaseDisposal = serial(slot.definition.id, releaseLeaseNow);
+        return leaseDisposal;
       },
     };
-    slot.leases.add(lease);
+    slot.leases.set(lease, releaseLeaseNow);
     if (request.mode === 'replace') slot.replacement = lease;
     slot.definition.target.append(root);
     signal.addEventListener('abort', stop, { once: true });
     return lease;
   }
   return {
-    acquire: (request, signal) => serial(() => acquireNow(request, signal)),
+    cleanupSnapshot: () => [...lateFailures].map(([id, error]) => ({ id, error })),
+    acquire: (request, signal) => serial(request.slot, () => acquireNow(request, signal)),
     // 晚注册：React 拿到真实节点后才知道挂载点，因此默认渲染不参与首帧。
     define: (definition) =>
-      serial(async () => {
+      serial(definition.id, async () => {
         if (closed) throw new Error('宿主槽位适配器已关闭');
         const slot = add(definition);
         try {
           await renderDefault(slot);
         } catch (error) {
           try {
-            await releaseNow(definition.id);
+            await releaseNow(slot);
           } catch (cleanupError) {
             throw new AggregateError([error, cleanupError], '宿主槽位定义失败且回滚不完整');
           }
           throw error;
         }
-        return () => serial(() => releaseNow(definition.id));
+        let release: Promise<void> | null = null;
+        // 闭包绑定本次实例，旧释放函数不能按名字删除后来登记的新实例。
+        return () => (release ??= serial(definition.id, () => releaseNow(slot)));
       }),
-    async dispose() {
+    dispose() {
+      if (disposal) return disposal;
       closed = true;
       for (const slot of slots.values()) {
-        for (const lease of slot.leases) lease.target.remove();
+        for (const lease of slot.leases.keys()) lease.target.remove();
         slot.released = true;
+        slot.lifetime.abort();
       }
-      const failures: unknown[] = [];
-      for (const slot of [...slots.values()].reverse()) {
-        for (const lease of [...slot.leases]) {
-          try {
-            await lease.dispose();
-          } catch (error) {
-            failures.push(error);
-          }
-        }
-        try {
-          await clearDefault(slot);
-        } catch (error) {
-          failures.push(error);
-        }
-      }
-      slots.clear();
-      if (failures.length) throw new AggregateError(failures, '宿主槽位释放失败');
+      const pending = [...slots.values()].reverse().map((slot) =>
+        serial(slot.definition.id, () => releaseNow(slot)),
+      );
+      // 排队中尚未登记的定义也必须结束，不能在关闭后留下未消费的工作。
+      const tails = [...queues.values()];
+      disposal = (async () => {
+        const results = await Promise.allSettled(pending);
+        await Promise.all(tails);
+        const failures = results.flatMap((result) => result.status === 'rejected' ? [result.reason] : []);
+        if (failures.length) throw new AggregateError(failures, '宿主槽位释放失败');
+      })();
+      return disposal;
     },
   };
 }

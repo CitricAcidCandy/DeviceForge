@@ -29,6 +29,7 @@ mod registry;
 mod registry_aliases;
 mod registry_sessions;
 mod runner;
+pub mod services;
 mod submission;
 mod submission_reservation;
 mod terminal;

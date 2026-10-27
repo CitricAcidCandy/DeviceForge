@@ -37,6 +37,8 @@ pub struct RuntimeDependency {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PortableServerManifest {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub services: Option<crate::services::ServiceAccess>,
     pub id: String,
     pub version: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]

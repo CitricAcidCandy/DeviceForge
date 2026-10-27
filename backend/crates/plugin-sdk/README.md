@@ -39,3 +39,7 @@ Manifest.devices 为可选设备声明，支持发现、提供者/设备范围�
 验证：cargo test -p apk-plugin-sdk，覆盖 JSON 空值、版本 1 字段省略、版本 2 输出结构和未知能力字段拒绝。
 
 性能能力通过可选 Manifest.performance 声明，公开 PerformanceTarget / PerformanceSample / FrameWindow 数据结构不引用宿主内部类型。[性能声明纯模块](src/performance.README.md) 区分默认 API 1 独立探针与显式 API 2 同提供者设备能力绑定；根模块继续导出原声明名。plugins/performance-demo 仅提供合成数据；部署及 FPS 口径见 ../../docs/性能采样插件协议.md，设备型迁出合同见 ../../docs/性能采样迁出最小实施裁定.md。
+
+## 公共服务与协议 6
+
+services 模块提供 ServiceRef、ServiceContract、ProvidedService、RequiredService、ServiceAccess 和独立 ServiceFrame。Manifest 与 PortableServerManifest 可选 services，旧清单省略该字段。服务 version 为非空字符串精确值，协议版本仍为整数 6；普通任务映射已有 operation，独立会话保持 5。详细线格式及入口级依赖规则见 ../../docs/contracts/公共服务与协议第六版.md。

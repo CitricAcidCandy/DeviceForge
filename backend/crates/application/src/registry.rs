@@ -11,6 +11,7 @@ use std::{
 use tokio_util::{sync::CancellationToken, task::TaskTracker};
 
 pub(crate) struct Registered {
+    pub service_outputs: Arc<BTreeMap<apk_domain::services::ServiceRef, jsonschema::Validator>>,
     pub operation: Operation,
     pub executor: Arc<dyn Executor>,
     pub validator: jsonschema::Validator,
@@ -92,6 +93,7 @@ fn prepare(
     owner: Option<Arc<Owner>>,
     operations: Vec<Operation>,
 ) -> Result<BTreeMap<String, Arc<Registered>>> {
+    crate::services::validate(executor.as_ref())?;
     let mut entries = BTreeMap::new();
     let provider = executor.device_provider();
     for operation in operations {
@@ -116,9 +118,21 @@ fn prepare(
             return Err(Error::Invalid("插件贡献不得越过自己的命名空间".into()));
         }
         let validator = registration::compile(&operation)?;
+        let service_outputs = executor
+            .services()
+            .provided
+            .into_iter()
+            .filter(|p| p.operation == operation.id)
+            .map(|p| {
+                jsonschema::validator_for(&p.contract.output_schema)
+                    .map(|validator| (p.service, validator))
+                    .map_err(|_| Error::Invalid("服务输出契约无效".into()))
+            })
+            .collect::<Result<BTreeMap<_, _>>>()?;
         entries.insert(
             operation.id.clone(),
             Arc::new(Registered {
+                service_outputs: Arc::new(service_outputs),
                 operation,
                 executor: executor.clone(),
                 validator,
@@ -173,6 +187,7 @@ impl Registry {
                 return Err(Error::Conflict("操作重复注册".into()));
             }
             snapshot.entries.extend(entries);
+            crate::services::catalog(&snapshot.entries)?;
         }
         let (changes, _) = tokio::sync::watch::channel(snapshot.revision);
         Ok(Self(RwLock::new(snapshot), Arc::new(bindings), changes))
@@ -345,6 +360,15 @@ impl Registry {
         if prepared.owner.info.id != id {
             return Err(Error::Invalid("重载插件身份不一致".into()));
         }
+        let mut service_entries = snapshot.entries.clone();
+        service_entries.retain(|_, entry| {
+            entry
+                .owner
+                .as_ref()
+                .is_none_or(|value| !Arc::ptr_eq(value, owner))
+        });
+        service_entries.extend(prepared.entries.clone());
+        crate::services::catalog(&service_entries)?;
         let foreign_entry = |name: &String| {
             snapshot.entries.get(name).is_some_and(|entry| {
                 !entry
@@ -405,6 +429,9 @@ impl Registry {
                 "插件或贡献已注册，排空期间也不能重载".into(),
             ));
         }
+        let mut service_entries = snapshot.entries.clone();
+        service_entries.extend(prepared.entries.clone());
+        crate::services::catalog(&service_entries)?;
         if snapshot.owners.len() >= 256
             || snapshot.entries.len()
                 + snapshot.sessions.len()
@@ -442,12 +469,10 @@ impl Registry {
             .get(id)
             .cloned()
             .ok_or_else(|| Error::NotFound("插件未加载".into()))?;
-        if require_idle {
-            if !owner.tracker.is_empty() || owner.draining.load(Ordering::Acquire) {
-                return Err(Error::Conflict(
-                    "插件仍有活动任务或会话，不能应用需要重载的配置".into(),
-                ));
-            }
+        if require_idle && (!owner.tracker.is_empty() || owner.draining.load(Ordering::Acquire)) {
+            return Err(Error::Conflict(
+                "插件仍有活动任务或会话，不能应用需要重载的配置".into(),
+            ));
         }
         if !owner.draining.load(Ordering::Acquire) {
             let revision = snapshot
@@ -737,7 +762,7 @@ mod tests {
         let owner = registered.owner.as_ref().unwrap();
         owner.mark_unresolved();
         assert!(registry.plugins()[0].cleanup_failed);
-        assert!(matches!(
+        assert!(
             crate::execution::execute(
                 registered.executor.as_ref(),
                 &registered.operation.id,
@@ -746,9 +771,9 @@ mod tests {
                 Some(owner),
                 None
             )
-            .await,
-            Ok(_)
-        ));
+            .await
+            .is_ok()
+        );
         let detached = registry.detach("test").unwrap();
         assert!(registry.finish(&detached).unwrap().cleanup_failed);
         registry.publish(performance(false).unwrap()).unwrap();

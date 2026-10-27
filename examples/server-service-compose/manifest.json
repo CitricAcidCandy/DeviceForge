@@ -1,0 +1,20 @@
+{
+  "id": "service-compose",
+  "version": "0.1.0",
+  "protocol_version": 6,
+  "operations": [
+    {"name":"compose","title":"组合文本服务","input_schema":{"type":"object","properties":{"text":{"type":"string"}},"required":["text"],"additionalProperties":false}},
+    {"name":"ping","title":"独立健康检查","input_schema":{"type":"object","additionalProperties":false}}
+  ],
+  "services": {
+    "provided": [{
+      "service":{"id":"example.text.compose","version":"1.0"},
+      "operation":"compose",
+      "contract": {
+        "input_schema":{"type":"object","properties":{"text":{"type":"string"}},"required":["text"],"additionalProperties":false},
+        "output_schema":{"type":"object","properties":{"text":{"type":"string"}},"required":["text"],"additionalProperties":false}
+      }
+    }],
+    "required": [{"service":{"id":"example.text.normalize","version":"1.0"},"operations":["compose"],"sessions":[]}]
+  }
+}

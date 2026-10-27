@@ -1,0 +1,11 @@
+{
+  "name": "deviceforge-example-service-compose",
+  "version": "0.1.0",
+  "private": true,
+  "files": ["manifest.json", "bin/", "README.md"],
+  "deviceforge": {
+    "kind": "server",
+    "manifest": "manifest.json",
+    "entrypoints": {"win32-x64":{"runtime":"native","path":"bin/deviceforge-service-compose.exe"}}
+  }
+}

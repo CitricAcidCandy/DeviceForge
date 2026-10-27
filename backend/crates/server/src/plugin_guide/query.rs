@@ -17,7 +17,8 @@ pub(crate) fn get(input: Value) -> Result<Value> {
             apk_plugin_sdk::PROTOCOL_VERSION,
             apk_plugin_sdk::ARTIFACT_PROTOCOL_VERSION,
             apk_plugin_sdk::cooperative::COOPERATIVE_PROTOCOL_VERSION,
-            apk_plugin_sdk::CONTEXT_PROTOCOL_VERSION
+            apk_plugin_sdk::CONTEXT_PROTOCOL_VERSION,
+            apk_plugin_sdk::services::SERVICE_PROTOCOL_VERSION
         ],
         "backend_session_protocol_versions": [apk_plugin_sdk::session::SESSION_PROTOCOL_VERSION],
         "target": input.target,

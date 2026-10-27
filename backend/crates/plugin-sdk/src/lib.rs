@@ -10,6 +10,7 @@ pub mod packages;
 pub mod performance;
 pub mod recovery;
 pub mod resources;
+pub mod services;
 pub mod session;
 pub mod session_access;
 pub use configuration::{ConfigurationApplyPolicy, ConfigurationDefinition, managed_config_path};
@@ -103,6 +104,8 @@ pub struct PerformanceSample {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Manifest {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub services: Option<services::ServiceAccess>,
     pub id: String,
     pub version: String,
     /// 可选资源核对入口，只能在已排空且冻结准入时由宿主调用。
@@ -115,7 +118,7 @@ pub struct Manifest {
     #[serde(default)]
     pub args: Vec<String>,
     pub operations: Vec<Contribution>,
-    /// 独立会话采用协议 5；顶层版本仍声明普通任务协议 1–4。
+    /// 独立会话采用协议 5；顶层普通任务显式选择协议 1–4 或 6。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sessions: Option<SessionAccess>,
     #[serde(default, skip_serializing_if = "Option::is_none")]

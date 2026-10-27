@@ -69,16 +69,33 @@ impl Application {
                 if let Some(attempt) = &discovery {
                     self.registry.begin_discovery(attempt)?;
                 }
-                let value = execution::execute_reported(
+                self.registry.check_required(
                     plan.target.executor.as_ref(),
                     &plan.target.operation.id,
-                    plan.input.clone(),
-                    token.clone(),
-                    owner.map(AsRef::as_ref),
+                    false,
+                )?;
+                let caller = crate::services::Invocation::root(
+                    self,
+                    plan.target.clone(),
+                    &plan.input,
                     deadline,
-                    crate::job_progress::JobProgressReporter::new(self, job.id.clone()),
-                )
-                .await?;
+                    token.clone(),
+                )?;
+                let value = plan
+                    .target
+                    .executor
+                    .execute_with_services(
+                        &plan.target.operation.id,
+                        plan.input.clone(),
+                        token.clone(),
+                        apk_domain::ExecutionContext {
+                            deadline: deadline.map(tokio::time::Instant::into_std),
+                        },
+                        crate::job_progress::JobProgressReporter::new(self, job.id.clone()),
+                        caller,
+                    )
+                    .await?;
+                crate::services::validate_outputs(&plan.target, &value)?;
                 let (projected, directory) = if let Some(attempt) = &discovery {
                     let (value, directory) = devices::observation::candidate(
                         &attempt.provider,

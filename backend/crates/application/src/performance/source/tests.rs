@@ -230,10 +230,11 @@ async fn source_binding_does_not_retain_application_and_old_cleanup_warning_allo
     ));
     application.registry.detach("source").unwrap();
     assert!(access.capabilities().is_err());
-    assert!(matches!(
-        access.admit(&target(), &CancellationToken::new(), None),
-        Err(_)
-    ));
+    assert!(
+        access
+            .admit(&target(), &CancellationToken::new(), None)
+            .is_err()
+    );
     let weak = Arc::downgrade(&application);
     drop(application);
     assert!(weak.upgrade().is_none());

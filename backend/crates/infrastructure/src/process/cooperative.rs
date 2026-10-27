@@ -21,6 +21,9 @@ use tokio::{
 use tokio_util::sync::CancellationToken;
 mod context;
 mod ownership;
+pub(crate) mod services;
+#[cfg(test)]
+mod services_tests;
 
 pub(crate) struct Invocation<'a> {
     pub executable: &'a str,

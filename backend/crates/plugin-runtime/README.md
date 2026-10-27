@@ -23,3 +23,7 @@ context.rs 负责公开上下文与加法入口，context/transport.rs 负责有
 会话入口的取消、满输入队列和输出失败均撤销新 I/O，并继续等待处理器真实 Execution，不改写 cleanup。正常结束排空输出后发送终态，取消丢弃未发送输出；半帧写入中断只报告传输失败，不向损坏流追加终态。终态在独立有界宽限内传输，失败不能证明宿主收到清理确认。本批实现冻结后由主代理执行独立测试与完整门禁；宿主代际/卸载、HTTP/MCP、前端消费和终端插件仍属后续批次。
 
 2026-10-10末帧增量已取得独立验证：response_flush两项先红后绿；context_stdio在debug/release各两个顶层测试通过，每种模式覆盖协议3/4与直接/阻塞池拒绝共32轮真实子进程。输入在完整错误末帧到达后才关闭，随后子进程零退出并回收；单轮共用15秒期限、整组60秒看门狗。ordinary真实宿主扩展debug/release各21检查/53Jobs、runtime两模式、日志、生命周期、合作取消与settings提交未知两构建模式均通过。完整workspace门禁及最终分发的状态以根交接和runtime-response-flush报告为准；当前证据不认定历史AI超时的唯一根因，也不证明背压下新增本地传输期限或真实外部业务。
+
+## 公共服务运行入口
+
+services 模块新增显式协议 6 的 serve_once_with_services/serve_io_with_services 与 ServiceClient、ServiceHandle<I,O>。处理器仍返回 Execution；旧协议 3/4/5 入口和签名不变。服务引用 version 为非空精确字符串；调用经宿主双向帧，不引入宿主依赖或 HTTP。固定五秒握手、C0 原期限、取消清理与有界队列见 ../../docs/contracts/公共服务与协议第六版.md。新测试和两个独立示例的构建/运行由主代理统一验证，本轮不将历史测试转计为协议 6 通过。

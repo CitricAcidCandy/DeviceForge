@@ -1,6 +1,7 @@
 import { HostError } from '../../plugin-sdk/index.ts';
 import type {
   CommandContribution,
+  HostContext,
   HostResult,
   JsonValue,
   TaskSubmission,
@@ -30,12 +31,13 @@ export async function invoke(
   input: JsonValue,
   signal: AbortSignal,
   available: () => boolean,
+  context: HostContext = owner.context,
 ): Promise<HostResult<JsonValue>> {
   ensureOwner(owner);
   const combined = AbortSignal.any([owner.context.signal, signal]);
   if (combined.aborted || !available())
     throw new HostError('cancelled', 'extension_revoked', '扩展调用已撤销');
-  const result: unknown = await awaitActive(() => call(input, owner.context, combined), combined);
+  const result: unknown = await awaitActive(() => call(input, context, combined), combined);
   ensureOwner(owner);
   if (combined.aborted || !available())
     throw new HostError('cancelled', 'stale_extension', '晚到扩展结果已撤销');

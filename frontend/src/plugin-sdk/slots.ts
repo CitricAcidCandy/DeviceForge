@@ -4,6 +4,7 @@
  * 这份代码放在 SDK 里，是因为 `plugins/**` 不能 import `app/**`，但可以 import SDK。
  */
 const slotKeyPattern = /^[a-z][a-z0-9._-]{0,63}$/;
+const pluginIdPattern = /^[a-z][a-z0-9._-]{0,99}$/;
 
 export function slotKey(value: string): string {
   const normalized = value
@@ -14,7 +15,12 @@ export function slotKey(value: string): string {
   return slotKeyPattern.test(normalized) ? normalized : `page-${normalized}`.slice(0, 64);
 }
 
+/** 合法插件 ID 是身份，不按页面片段的 64 字符规则截断；兼容旧的展示名输入。 */
+export function pluginSlotKey(pluginId: string): string {
+  return pluginIdPattern.test(pluginId) ? pluginId : slotKey(pluginId);
+}
+
 /** 插件模块派生的页面槽位：`page.<pluginId>.<page>`。 */
 export function pageSlotId(pluginId: string, page: string): string {
-  return `page.${slotKey(pluginId)}.${slotKey(page)}`;
+  return `page.${pluginSlotKey(pluginId)}.${slotKey(page)}`;
 }

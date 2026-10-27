@@ -176,7 +176,7 @@ async fn cleanup_window_exhaustion_keeps_warning_but_allows_next_independent_exe
     // 替身本身没有未确认位，风险须由应用owner保持，不能靠Future析构解除。
     assert!(!executor.has_unresolved_resources());
     assert!(owner.info().cleanup_failed);
-    assert!(matches!(
+    assert!(
         execute(
             executor.as_ref(),
             &entry.operation.id,
@@ -185,9 +185,9 @@ async fn cleanup_window_exhaustion_keeps_warning_but_allows_next_independent_exe
             Some(owner),
             None
         )
-        .await,
-        Ok(_)
-    ));
+        .await
+        .is_ok()
+    );
     assert_eq!(executor.calls.load(Ordering::SeqCst), 1);
     let detached = registry.detach("test").unwrap();
     assert!(registry.finish(&detached).unwrap().cleanup_failed);

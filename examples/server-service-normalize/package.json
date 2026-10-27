@@ -1,0 +1,11 @@
+{
+  "name": "deviceforge-example-service-normalize",
+  "version": "0.1.0",
+  "private": true,
+  "files": ["manifest.json", "bin/", "README.md"],
+  "deviceforge": {
+    "kind": "server",
+    "manifest": "manifest.json",
+    "entrypoints": {"win32-x64":{"runtime":"native","path":"bin/deviceforge-service-normalize.exe"}}
+  }
+}

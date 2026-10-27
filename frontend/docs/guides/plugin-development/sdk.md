@@ -1,5 +1,7 @@
 # 浏览器公开 SDK v2
 
+可选 `context.services` 提供精确引用调用、类型化调用、功能级依赖和诊断；`services.server.list/submit` 访问服务器目录与共享 Job，任务继续使用 `getJob/cancelJob`。组合示例、契约校验、父子期限、代际与清理边界见[插件生命周期与功能级服务组合](../../implementation/插件生命周期与功能级服务组合.md)。
+
 插件默认导出 `{ id, version, apiVersion: 2, panels, activate?, deactivate?, contributions? }`。`activate(context)` 返回 `Promise<void>`；`deactivate` 与所有释放函数的类型为 `() => void | Promise<void>`。`panels` 必填，允许空数组。不要导入宿主私有实现；下述类型与签名已经包含开发所需的公开边界。
 
 ## HostContext 基础

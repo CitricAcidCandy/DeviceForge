@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import type { ReactNode, RefObject } from 'react';
 import { Puzzle, TriangleAlert } from 'lucide-react';
-import type { ComponentInfo, Dispose, ExtensionCatalog } from '../../plugin-sdk/index.ts';
+import type { ComponentInfo, Dispose, ExtensionCatalog, SlotHost } from '../../plugin-sdk/index.ts';
 import type { ProductServices } from './services.ts';
 import { pluginRoute } from './routes.ts';
 import type { PluginRoute, ProductRoute } from './routes.ts';
@@ -135,10 +135,14 @@ interface SurfaceTarget {
   readonly id: string;
   readonly title: string;
   readonly pluginId: string;
+  readonly generation: number;
   readonly kind: MountKind;
 }
 function targetOf(component: ComponentInfo): SurfaceTarget {
-  return { id: component.id, title: component.title, pluginId: component.pluginId, kind: 'component' };
+  return {
+    id: component.id, title: component.title, pluginId: component.pluginId,
+    generation: component.generation, kind: 'component',
+  };
 }
 /** 先看有没有整块替换该槽位的组件，再看它是不是某个插件模块派生的页面槽位。 */
 function replacementOf(catalog: ExtensionCatalog, slot: string): SurfaceTarget | null {
@@ -148,8 +152,17 @@ function replacementOf(catalog: ExtensionCatalog, slot: string): SurfaceTarget |
   if (component) return targetOf(component);
   const page = catalog.modules.find((entry) => pageSlotId(entry.pluginId, entry.route) === slot);
   return page
-    ? { id: page.id, title: page.title, pluginId: page.pluginId, kind: 'module' }
+    ? { id: page.id, title: page.title, pluginId: page.pluginId, generation: page.generation, kind: 'module' }
     : null;
+}
+
+interface SurfaceRegistration {
+  readonly host: SlotHost;
+  readonly slot: string;
+}
+interface MountedSurface extends SurfaceRegistration {
+  readonly extensions: ProductServices['runtime']['extensions'];
+  readonly identity: string;
 }
 
 interface SurfaceState {
@@ -164,12 +177,13 @@ interface SurfaceState {
 }
 
 /**
- * 槽位生命周期：先晚注册槽位，再挂载替换贡献，卸载时先撤销贡献再释放槽位。
- * 顺序很重要——manager 按代次排队，先 unmount 才不会撞上「已挂载」的短路判断。
+ * 先晚注册槽位，再挂载贡献；登记与挂载分别绑定宿主、槽位及贡献代次。
+ * React 清理不等待异步回调，因此槽位适配器必须允许持租约释放，不能相互排队等待。
  */
 function useSurface(services: ProductServices, slot: string): SurfaceState {
   const catalog = useExtensionCatalog(services);
-  const host = services.runtime.extensions.slots;
+  const extensions = services.runtime.extensions;
+  const host = extensions.slots;
   const replacement = replacementOf(catalog, slot);
   const appends = catalog.components.filter(
     (entry) => entry.slot === slot && entry.mode === 'append',
@@ -177,15 +191,16 @@ function useSurface(services: ProductServices, slot: string): SurfaceState {
   const [ignored, setIgnored] = useIgnoredSlot(slot);
   const active = ignored ? null : replacement;
   const hostRef = useRef<HTMLDivElement | null>(null);
-  const [ready, setReady] = useState(false);
+  const [registration, setRegistration] = useState<SurfaceRegistration | null>(null);
   const [failure, setFailure] = useState<string | null>(null);
-  const [mountedId, setMountedId] = useState<string | null>(null);
+  const [mounted, setMounted] = useState<MountedSurface | null>(null);
+  const ready = registration?.host === host && registration?.slot === slot;
 
   useEffect(() => {
     const target = hostRef.current;
     setFailure(null);
-    setMountedId(null);
-    setReady(false);
+    setMounted(null);
+    setRegistration(null);
     if (!host || !target) return;
     let released: Dispose | null = null;
     let cancelled = false;
@@ -197,14 +212,14 @@ function useSurface(services: ProductServices, slot: string): SurfaceState {
           return;
         }
         released = dispose;
-        setReady(true);
+        setRegistration({ host, slot });
       })
       .catch((error: unknown) => {
         if (!cancelled) setFailure(messageOf(error));
       });
     return () => {
       cancelled = true;
-      setReady(false);
+      setRegistration(null);
       const release = released;
       released = null;
       if (release) void Promise.resolve(release()).catch(() => undefined);
@@ -213,43 +228,49 @@ function useSurface(services: ProductServices, slot: string): SurfaceState {
 
   const activeId = active?.id ?? null;
   const activeKind: MountKind | null = active?.kind ?? null;
+  const activeKey = active
+    ? JSON.stringify([active.pluginId, active.generation, active.kind, active.id])
+    : null;
   useEffect(() => {
-    if (!host || !ready || !activeId || !activeKind) return;
+    setMounted(null);
+    setFailure(null);
+    if (!host || !ready || !activeId || !activeKind || !activeKey) return;
     let cancelled = false;
-    const extensions = services.runtime.extensions;
     const pending =
       activeKind === 'module'
         ? extensions.mountModule(activeId)
         : extensions.mountComponent(activeId);
     void pending
       .then(() => {
-        if (!cancelled) setMountedId(activeId);
+        if (!cancelled) setMounted({ host, slot, extensions, identity: activeKey });
       })
       .catch((error: unknown) => {
         if (!cancelled) setFailure(messageOf(error));
       });
     return () => {
       cancelled = true;
-      setMountedId(null);
+      setMounted(null);
       void extensions.unmount(activeId).catch(() => undefined);
     };
-  }, [services, ready, activeId, activeKind]);
+  }, [extensions, host, slot, ready, activeId, activeKind, activeKey]);
 
-  const appendKey = appends.map((entry) => entry.id).join('|');
+  const appendKey = JSON.stringify(appends.map((entry) => [entry.pluginId, entry.generation, entry.id]));
   useEffect(() => {
-    if (!host || !ready || !appendKey) return;
-    const ids = appendKey.split('|');
+    if (!host || !ready || !appends.length) return;
+    const ids = appends.map((entry) => entry.id);
     let cancelled = false;
+    setFailure(null);
     for (const id of ids) {
-      void services.runtime.extensions.mountComponent(id).catch((error: unknown) => {
+      void extensions.mountComponent(id).catch((error: unknown) => {
         if (!cancelled) setFailure(messageOf(error));
       });
     }
     return () => {
       cancelled = true;
-      for (const id of ids) void services.runtime.extensions.unmount(id).catch(() => undefined);
+      for (const id of ids) void extensions.unmount(id).catch(() => undefined);
     };
-  }, [services, ready, appendKey]);
+    // appends 的身份由 appendKey 完整表达；其它目录项变化不重挂当前追加贡献。
+  }, [extensions, host, slot, ready, appendKey]);
 
   return {
     replacement,
@@ -259,7 +280,8 @@ function useSurface(services: ProductServices, slot: string): SurfaceState {
     setIgnored,
     hostRef,
     failure,
-    mounted: activeId !== null && mountedId === activeId,
+    mounted: ready && activeKey !== null && mounted?.identity === activeKey &&
+      mounted.host === host && mounted.slot === slot && mounted.extensions === extensions,
   };
 }
 
@@ -360,7 +382,7 @@ export function ExtensionSurface({ services, slot, fallback, fill = false }: Ext
         <IgnoredBar onEnable={() => state.setIgnored(false)} />
       )}
       <div ref={state.hostRef} className={target} data-deviceforge-slot={slot} />
-      {state.active ? null : fallback}
+      {state.mounted ? null : fallback}
     </div>
   );
 }

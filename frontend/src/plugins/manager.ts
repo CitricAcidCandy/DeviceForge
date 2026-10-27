@@ -13,7 +13,8 @@ import type { PluginScope } from './scope.ts';
 import { createExtensionRegistry } from './extensions/registry.ts';
 import type { ExtensionRegistry } from './extensions/registry.ts';
 import { createExtensionMounts } from './extensions/mounts.ts';
-import { awaitActive } from './extensions/await-active.ts';
+import { awaitLifecycle, createKeyedQueue, lifecycleTimeouts } from './lifecycle.ts';
+import type { LifecycleTimeouts } from './lifecycle.ts';
 
 export type TrustedRegistration = { readonly id: string; readonly trusted: true } & (
   | { readonly plugin: WebPlugin }
@@ -26,19 +27,6 @@ interface CleanupDiagnostic {
   readonly error: unknown;
 }
 
-// 仅约束宿主等待，不强制终止同页面可信回调；晚到拒绝仍由竞速消费。
-async function awaitCleanup(callback: () => void | Promise<void>, stage: string): Promise<void> {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  try {
-    await Promise.race([
-      Promise.resolve().then(callback),
-      new Promise<never>((_, reject) => {
-        timer = setTimeout(() => reject(new HostError('protocol', 'plugin_cleanup_timeout',
-          `${stage}等待超过 5 秒，清理结果未确认；上次组件操作告警，可重试`)), 5000);
-      }),
-    ]);
-  } finally { clearTimeout(timer); }
-}
 interface MountedPanel {
   readonly scope: PluginScope;
   readonly root: HTMLElement;
@@ -54,6 +42,7 @@ interface Runtime {
   state: 'loading' | 'loaded';
 }
 export interface ManagerOptions {
+  readonly timeouts?: Partial<LifecycleTimeouts>;
   readonly host: HostContext;
   readonly hostForPlugin?: (id: string) => HostContext;
   readonly panelTarget: (pluginId: string, panelId: string) => HTMLElement | null;
@@ -74,41 +63,47 @@ export interface ManagerOptions {
 
 export function createPluginManager(options: ManagerOptions) {
   const registry = options.extensionRegistry ?? createExtensionRegistry();
-  const mounts = createExtensionMounts();
+  const timeouts = lifecycleTimeouts(options.timeouts);
+  const mounts = createExtensionMounts(timeouts);
   const sources = new Map<string, TrustedRegistration>();
   const running = new Map<string, Runtime>();
   const cleanupFailures = new Map<string, CleanupDiagnostic>();
   const epochs = new Map<string, number>();
   const panelEpochs = new Map<string, number>();
   const extensionEpochs = new Map<string, number>();
-  let queue: Promise<unknown> = Promise.resolve();
+  const extensionControllers = new Map<string, AbortController>();
+  const serial = createKeyedQueue();
   let generation = 0;
   let closed = false;
-  function serial<T>(run: () => Promise<T>): Promise<T> {
-    const pending = queue.then(run, run);
-    queue = pending.catch(() => undefined);
-    return pending;
-  }
+  const awaitCleanup = async (callback: () => void | Promise<void>, stage: string, deadline = Date.now() + timeouts.cleanupMs) => {
+    try { await awaitLifecycle(callback, undefined, deadline, stage); }
+    catch (error) {
+      if (error instanceof HostError && error.code === 'plugin_lifecycle_timeout')
+        throw new HostError('protocol', 'plugin_cleanup_timeout', error.message);
+      throw error;
+    }
+  };
   function active(runtime: Runtime) {
     if (closed || runtime.scope.context.signal.aborted || running.get(runtime.id) !== runtime) {
       throw new HostError('cancelled', 'plugin_unloaded', '插件代际已撤销');
     }
   }
-  async function cleanup(runtime: Runtime) {
+  async function cleanup(runtime: Runtime, deadline = Date.now() + timeouts.cleanupMs) {
     runtime.scope.close();
     const failures: unknown[] = [];
+    const work: Promise<unknown>[] = [runtime.scope.dispose()];
+    if (runtime.activationStarted) {
+      runtime.activationStarted = false;
+      work.push(Promise.resolve().then(() => runtime.plugin?.deactivate?.()));
+    }
+    const completed = (async () => {
+        const results = await Promise.allSettled(work);
+        for (const result of results) if (result.status === 'rejected') failures.push(result.reason);
+    })();
     try {
-      await awaitCleanup(() => runtime.scope.dispose(), '插件资源回收');
+      await awaitCleanup(() => completed, '插件资源回收', deadline);
     } catch (error) {
       failures.push(error);
-    }
-    if (runtime.activationStarted) {
-      try {
-        await awaitCleanup(() => runtime.plugin?.deactivate?.(), '插件停用回调');
-      } catch (error) {
-        failures.push(error);
-      }
-      runtime.activationStarted = false;
     }
     if (running.get(runtime.id) === runtime) running.delete(runtime.id);
     if (failures.length) {
@@ -139,9 +134,11 @@ export function createPluginManager(options: ManagerOptions) {
       state: 'loading',
     };
     running.set(id, runtime);
+    const deadline = Date.now() + timeouts.loadMs;
     try {
       const plugin = readPluginModule(
-        'plugin' in source ? source.plugin : await source.loader(runtime.scope.context.signal),
+        'plugin' in source ? source.plugin : await awaitLifecycle(
+          () => source.loader(scope.context.signal), scope.context.signal, deadline, '插件加载'),
       );
       active(runtime);
       if (plugin.id !== id) throw new Error('加载模块与预注册插件标识不一致');
@@ -151,9 +148,10 @@ export function createPluginManager(options: ManagerOptions) {
       runtime.plugin = plugin;
       const prepareConfiguration = options.configuration;
       const configuration = prepareConfiguration
-        ? await awaitActive(
+        ? await awaitLifecycle(
             () => Promise.resolve(prepareConfiguration(plugin, runtime.scope.context.signal)),
             runtime.scope.context.signal,
+            deadline, '插件配置准备',
           )
         : undefined;
       active(runtime);
@@ -180,24 +178,27 @@ export function createPluginManager(options: ManagerOptions) {
         runtime.generation,
         runtime.context,
         runtime.scope.track,
+        true,
+        plugin.version,
       );
       if (plugin.contributions)
         runtime.scope.track(
           registry.register(
-            { pluginId: id, generation: runtime.generation, context: runtime.context },
+            { pluginId: id, generation: runtime.generation, version: plugin.version, context: runtime.context },
             plugin.contributions,
           ),
         );
       runtime.activationStarted = true;
-      await plugin.activate?.(runtime.context);
+      await awaitLifecycle(() => plugin.activate?.(runtime.context), scope.context.signal, deadline, '插件激活');
       active(runtime);
       const applyConfiguration = options.configurationApplied;
       if (applyConfiguration)
-        await awaitActive(async () => {
+        await awaitLifecycle(async () => {
           await applyConfiguration(plugin, runtime.scope.context.signal);
-        }, runtime.scope.context.signal);
+        }, runtime.scope.context.signal, deadline, '插件配置应用');
       active(runtime);
       runtime.state = 'loaded';
+      registry.publishServices(id, runtime.generation);
       return { id, generation: runtime.generation, state: runtime.state };
     } catch (error) {
       try {
@@ -227,7 +228,8 @@ export function createPluginManager(options: ManagerOptions) {
     runtime.panels.set(panelId, { scope, root });
     try {
       target.append(root);
-      const release = await panel.mount(root, scope.context);
+      const release = await awaitLifecycle(() => panel.mount(root, scope.context), scope.context.signal,
+        Date.now() + timeouts.mountMs, '面板挂载', (late) => { if (typeof late === 'function') scope.track(late); });
       if (typeof release !== 'function') throw new Error('面板挂载必须返回释放函数');
       scope.track(release);
       active(runtime);
@@ -254,7 +256,7 @@ export function createPluginManager(options: ManagerOptions) {
   function unload(id: string) {
     epochs.set(id, (epochs.get(id) ?? 0) + 1);
     running.get(id)?.scope.close();
-    return serial(async () => {
+    return serial(id, async () => {
       const runtime = running.get(id);
       if (runtime) await cleanup(runtime);
     });
@@ -276,10 +278,16 @@ export function createPluginManager(options: ManagerOptions) {
       ? pageSlotId(runtime.id, entry.contribution.route)
       : entry.contribution.slot;
     const mode = isModuleContribution ? 'replace' : (entry.contribution.mode ?? 'append');
+    const controller = new AbortController();
+    extensionControllers.set(id, controller);
+    const signal = AbortSignal.any([entry.owner.context.signal, controller.signal]);
+    const deadline = Date.now() + timeouts.mountMs;
+    const cleanupBudget: { deadline?: number } = {};
     let lease: SlotLease | null = null;
     try {
       if (options.slotAdapter) {
-        lease = await options.slotAdapter.acquire(
+        const adapter = options.slotAdapter;
+        lease = await awaitLifecycle(() => adapter.acquire(
           {
             slot,
             pluginId: runtime.id,
@@ -287,8 +295,11 @@ export function createPluginManager(options: ManagerOptions) {
             componentId: id,
             mode,
           },
-          entry.owner.context.signal,
-        );
+          signal,
+        ), signal, deadline, '槽位申请', (late) => late.dispose());
+        const acquired = lease;
+        let disposal: Promise<void> | null = null;
+        lease = { target: acquired.target, dispose: () => (disposal ??= Promise.resolve().then(() => acquired.dispose())) };
       }
       // 组件声明 replace 时必须真的能替换；模块的页面槽位允许退回 moduleTarget，保持旧装配可用。
       if (!isModuleContribution && mode === 'replace' && !options.slotAdapter)
@@ -304,30 +315,32 @@ export function createPluginManager(options: ManagerOptions) {
         target,
         () => (kind === 'component' ? registry.component(id) : registry.module(id)) === entry,
         lease?.dispose,
+        signal,
+        deadline,
+        cleanupBudget,
       );
       active(runtime);
     } catch (error) {
+      cleanupBudget.deadline ??= Date.now() + timeouts.cleanupMs;
       const failures: unknown[] = [error];
       try {
-        await awaitCleanup(() => lease?.dispose(), '扩展槽位回收');
+        await awaitCleanup(() => lease?.dispose(), '扩展槽位回收', cleanupBudget.deadline);
       } catch (cleanupError) {
         failures.push(cleanupError);
       }
-      if (
-        error instanceof HostError &&
-        error.kind === 'cancelled' &&
-        !runtime.scope.context.signal.aborted
-      ) {
+      if (signal.aborted && !runtime.scope.context.signal.aborted) {
         if (failures.length > 1) throw new AggregateError(failures, '扩展挂载取消后释放失败');
         throw error;
       }
       try {
-        await cleanup(runtime);
+        await cleanup(runtime, cleanupBudget.deadline);
       } catch (cleanupError) {
         failures.push(cleanupError);
       }
       if (failures.length > 1) throw new AggregateError(failures, '扩展挂载失败且插件回滚不完整');
       throw error;
+    } finally {
+      if (extensionControllers.get(id) === controller) extensionControllers.delete(id);
     }
   }
   return {
@@ -336,7 +349,8 @@ export function createPluginManager(options: ManagerOptions) {
       const source = sources.get(id);
       if (!source) throw new Error('插件来源尚未登记');
       const plugin = readPluginModule(
-        'plugin' in source ? source.plugin : await source.loader(signal),
+        'plugin' in source ? source.plugin : await awaitLifecycle(() => source.loader(signal), signal,
+          Date.now() + timeouts.loadMs, '插件配置检查'),
       );
       signal.throwIfAborted();
       if (plugin.id !== id) throw new Error('插件标识与登记来源不一致');
@@ -355,16 +369,16 @@ export function createPluginManager(options: ManagerOptions) {
     },
     load: (id: string) => {
       const epoch = epochs.get(id) ?? 0;
-      return serial(() => loadNow(id, epoch));
+      return serial(id, () => loadNow(id, epoch));
     },
     mount: (id: string, panelId: string) => {
       const epoch = panelEpochs.get(panelId) ?? 0;
-      return serial(() => mountNow(id, panelId, epoch));
+      return serial(id, () => mountNow(id, panelId, epoch));
     },
     unmount(id: string, panelId: string) {
       panelEpochs.set(panelId, (panelEpochs.get(panelId) ?? 0) + 1);
       running.get(id)?.panels.get(panelId)?.scope.close();
-      return serial(async () => {
+      return serial(id, async () => {
         const runtime = running.get(id);
         const panel = runtime?.panels.get(panelId);
         if (!runtime || !panel) return;
@@ -382,7 +396,7 @@ export function createPluginManager(options: ManagerOptions) {
     unregister(id: string) {
       epochs.set(id, (epochs.get(id) ?? 0) + 1);
       running.get(id)?.scope.close();
-      return serial(async () => {
+      return serial(id, async () => {
         const runtime = running.get(id);
         if (runtime) await cleanup(runtime);
         sources.delete(id);
@@ -391,16 +405,18 @@ export function createPluginManager(options: ManagerOptions) {
     extensions: registry,
     mountComponent: (id: string) => {
       const epoch = extensionEpochs.get(id) ?? 0;
-      return serial(() => mountExtension('component', id, epoch));
+      return serial(registry.component(id)?.owner.pluginId ?? id, () => mountExtension('component', id, epoch));
     },
     mountModule: (id: string) => {
       const epoch = extensionEpochs.get(id) ?? 0;
-      return serial(() => mountExtension('module', id, epoch));
+      return serial(registry.module(id)?.owner.pluginId ?? id, () => mountExtension('module', id, epoch));
     },
     unmountExtension: (id: string) => {
       extensionEpochs.set(id, (extensionEpochs.get(id) ?? 0) + 1);
+      extensionControllers.get(id)?.abort();
       mounts.close(id);
-      return serial(() => awaitCleanup(() => mounts.unmount(id), '扩展资源回收'));
+      const owner = registry.component(id)?.owner.pluginId ?? registry.module(id)?.owner.pluginId ?? id;
+      return serial(owner, () => awaitCleanup(() => mounts.unmount(id), '扩展资源回收'));
     },
     snapshot: (): readonly PluginSnapshot[] =>
       [...running.values()].map(({ id, generation, state }) => ({ id, generation, state })),
@@ -409,11 +425,11 @@ export function createPluginManager(options: ManagerOptions) {
     dispose() {
       closed = true;
       for (const runtime of running.values()) runtime.scope.close();
-      return serial(async () => {
+      return (async () => {
         const failures: unknown[] = [];
         for (const runtime of [...running.values()].reverse()) {
           try {
-            await cleanup(runtime);
+            await serial(runtime.id, () => cleanup(runtime));
           } catch (error) {
             failures.push(error);
           }
@@ -421,7 +437,7 @@ export function createPluginManager(options: ManagerOptions) {
         sources.clear();
         if (!options.extensionRegistry) registry.dispose();
         if (failures.length) throw new AggregateError(failures, '插件管理器关闭时有资源释放失败');
-      });
+      })();
     },
   };
 }

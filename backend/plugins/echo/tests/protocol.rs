@@ -6,6 +6,7 @@ use tokio_util::sync::CancellationToken;
 #[tokio::test]
 async fn independent_process_returns_correlated_response() {
     let plugin = ProcessPlugin::new(Manifest {
+        services: None,
         id: "echo".into(),
         version: "0.1.0".into(),
         protocol_version: PROTOCOL_VERSION,

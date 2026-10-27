@@ -12,6 +12,7 @@ use std::{sync::Arc, time::Duration};
 use tokio_util::sync::CancellationToken;
 fn manifest(mode: &str, fps: bool) -> Manifest {
     Manifest {
+        services: None,
         configuration: None,
         recovery: None,
         id: "performance_demo".into(),

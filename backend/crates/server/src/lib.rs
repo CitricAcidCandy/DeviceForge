@@ -422,6 +422,8 @@ fn build_router_with_dependencies(
         .nest("/api/v1", api.clone())
         .nest("/api/v2", api)
         .merge(interactive_routes::router())
+        .route("/api/v2/services", get(services::list))
+        .route("/api/v2/services/{id}/calls", post(services::call))
         .route("/api/v2/diagnostics/logging", get(runtime::logging))
         .route("/api/v2/system/shutdown", post(runtime::shutdown))
         .route("/api/v2/plugins", get(plugin_routes::list))
@@ -750,3 +752,4 @@ mod plugin_routes;
 mod response_stream;
 mod responses;
 pub mod runtime;
+mod services;

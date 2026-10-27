@@ -175,7 +175,7 @@ async fn every_target_topic_returns_bounded_embedded_versioned_documents_without
             assert_eq!(result["frontend_sdk_version"], 2);
             assert_eq!(
                 result["backend_task_protocol_versions"],
-                json!([1, 2, 3, 4])
+                json!([1, 2, 3, 4, 6])
             );
             assert_eq!(result["backend_session_protocol_versions"], json!([5]));
             assert_eq!(result["target"], target);

@@ -10367,6 +10367,330 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v2/services": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            data: {
+                                available: boolean;
+                                contract: {
+                                    input_schema: unknown;
+                                    output_schema: unknown;
+                                };
+                                operation: string;
+                                provider: {
+                                    generation: string;
+                                    id: string;
+                                    version: string;
+                                };
+                                service: {
+                                    id: string;
+                                    version: string;
+                                };
+                                unavailable_reason?: string | null;
+                            }[];
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/services/{id}/calls": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+
+                        generation?: string | null;
+                        input: unknown;
+                        version: string;
+                    };
+                };
+            };
+            responses: {
+
+                202: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            data: {
+
+                                created_at: number;
+                                error?: string | null;
+                                id: string;
+                                input: unknown;
+                                operation: string;
+                                result?: unknown;
+
+                                status: "queued" | "running" | "succeeded" | "failed" | "cancelled";
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v2/session-definitions": {
         parameters: {
             query?: never;
@@ -13206,6 +13530,48 @@ export interface components {
                     package_path: string;
                 };
             }[];
+        };
+
+        ServiceCallRequest: {
+
+            generation: string | null;
+            input: unknown;
+            version: string;
+        };
+
+        ServiceContract: {
+            input_schema: unknown;
+            output_schema: unknown;
+        };
+
+        ServiceInfo: {
+            available: boolean;
+            contract: {
+                input_schema: unknown;
+                output_schema: unknown;
+            };
+            operation: string;
+            provider: {
+                generation: string;
+                id: string;
+                version: string;
+            };
+            service: {
+                id: string;
+                version: string;
+            };
+            unavailable_reason?: string | null;
+        };
+
+        ServiceProvider: {
+            generation: string;
+            id: string;
+            version: string;
+        };
+
+        ServiceRef: {
+            id: string;
+            version: string;
         };
 
         SessionBytesInput: {

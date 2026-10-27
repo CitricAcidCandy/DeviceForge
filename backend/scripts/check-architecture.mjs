@@ -10,7 +10,7 @@ const boundaries = {
   'deviceforge-observability': { internal: [], external: ['tracing', 'tracing-subscriber', 'tracing-appender', 'tokio', 'uuid', 'serde', 'schemars', 'tempfile', 'thiserror'] },
   'apk-plugin-sdk': { internal: ['deviceforge-plugin-dependencies'], external: ['serde', 'serde_json'] },
   'deviceforge-plugin-dependencies': { internal: [], external: ['serde', 'serde_json', 'schemars', 'semver', 'regex'] },
-  'deviceforge-plugin-runtime': { internal: ['apk-plugin-sdk'], external: ['serde_json', 'tokio', 'tokio-util', 'windows-sys'] },
+  'deviceforge-plugin-runtime': { internal: ['apk-plugin-sdk'], external: ['serde', 'serde_json', 'tokio', 'tokio-util', 'windows-sys'] },
   'deviceforge-data-codec': { internal: [], external: ['serde', 'serde_json', 'thiserror', 'rmpv'] },
   'deviceforge-tool-process': { internal: [], external: ['tokio', 'tokio-util', 'thiserror', 'windows-sys'] },
   'deviceforge-tool-repository': { internal: [], external: ['serde', 'serde_json', 'thiserror', 'sha2', 'fs2', 'tempfile'] },

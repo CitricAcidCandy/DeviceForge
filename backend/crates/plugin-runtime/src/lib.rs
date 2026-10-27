@@ -1,7 +1,11 @@
 //! 独立插件的异步请求与合作取消运行库，不引用宿主模块。
 pub mod context;
 mod framing;
+pub mod services;
 pub mod session;
+pub use services::{
+    ServiceClient, ServiceHandle, serve_io_with_services, serve_once_with_services,
+};
 mod stdio;
 use apk_plugin_sdk::{ArtifactOutput, Request, Response, cooperative::*};
 pub use context::{

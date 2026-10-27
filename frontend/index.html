@@ -6,19 +6,19 @@
     <title>DeviceForge · 设备工坊</title>
     <!--
       插件包自带 React 会得到第二份实例：hooks 与 context 全部失效。
-      这些说明符统一指向宿主垫片，插件构建时照同名 bare import 即可复用宿主的
-      那一份 React 与组件（见 frontend/public/plugin-host.js）。
+      各说明符使用独立生成入口，导出其对应模块的完整公开 API；
+      它们只读取宿主全局契约，不内联 React。插件构建时保留这些裸模块名。
       importmap 必须出现在任何 module script 之前。
     -->
     <script type="importmap">
       {
         "imports": {
           "deviceforge-host": "/plugin-host.js",
-          "react": "/plugin-host.js",
-          "react/jsx-runtime": "/plugin-host.js",
-          "react/jsx-dev-runtime": "/plugin-host.js",
-          "react-dom": "/plugin-host.js",
-          "react-dom/client": "/plugin-host.js"
+          "react": "/plugin-react.js",
+          "react/jsx-runtime": "/plugin-jsx-runtime.js",
+          "react/jsx-dev-runtime": "/plugin-jsx-dev-runtime.js",
+          "react-dom": "/plugin-react-dom.js",
+          "react-dom/client": "/plugin-react-dom-client.js"
         }
       }
     </script>

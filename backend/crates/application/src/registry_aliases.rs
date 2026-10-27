@@ -89,6 +89,7 @@ pub(crate) fn prepare(
         aliases.push((
             binding.operation.id.clone(),
             Arc::new(Registered {
+                service_outputs: target.service_outputs.clone(),
                 operation: public_operation,
                 executor: target.executor.clone(),
                 validator,

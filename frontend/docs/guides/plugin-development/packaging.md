@@ -63,7 +63,29 @@ React 二选一，**不要混用**：同一个插件内既自带又引入宿主�
 import { React, mountReact, Button } from 'deviceforge-host';
 ```
 
-宿主的 `index.html` 已登记 importmap，把 `deviceforge-host`、`react`、`react/jsx-runtime`、`react/jsx-dev-runtime`、`react-dom`、`react-dom/client` 全部指向 `/plugin-host.js`。这个垫片只从全局契约 `__DEVICEFORGE_HOST_UI__` 取值，自身不带 React，所以四个说明符指向同一份实例是安全的。用自动 JSX 运行时也不需要额外配置——`react/jsx-runtime` 已指向垫片，导出的 `jsx/jsxs/Fragment` 就是宿主的运行时。
+宿主的 `index.html` 登记下列独立 importmap 入口，不再将所有包名指向同一组不完整导出：
+
+| 说明符 | 浏览器入口 | 主要导出 |
+| --- | --- | --- |
+| `deviceforge-host` | `/plugin-host.js` | `React`、`mountReact`、`cn` 与公开宿主组件 |
+| `react` | `/plugin-react.js` | 默认 React、标准命名 hooks、context 与组件 API |
+| `react-dom` | `/plugin-react-dom.js` | `createPortal`、`flushSync`、资源预载与表单 API |
+| `react-dom/client` | `/plugin-react-dom-client.js` | `createRoot`、`hydrateRoot` |
+| `react/jsx-runtime` | `/plugin-jsx-runtime.js` | `jsx`、`jsxs`、`Fragment` |
+| `react/jsx-dev-runtime` | `/plugin-jsx-dev-runtime.js` | `jsxDEV`、`Fragment` |
+
+这些入口均由宿主 TypeScript 源生成，只读取全局契约 `__DEVICEFORGE_HOST_UI__`，不内联 React。各模块的 hooks、portal 与 JSX 函数均来自宿主正在使用的同一实例。插件应在宿主完成 UI 安装后加载；旧宿主缺少对应入口时须提示升级，不能退回混用第二份 React。React 私有内部字段及未进入公开类型的实验 API 不属于兼容承诺。
+
+构建 TSX 插件时，将上述六个说明符全部设为 external（包含子路径），保留产物中的裸模块导入。仅 external `react` 而把 `react/jsx-runtime` 内联，仍会造成运行时分裂。普通命名导入和开发 JSX 均可直接使用：
+
+```ts
+import { useState, useContext } from 'react';
+import { createPortal } from 'react-dom';
+import { jsxDEV } from 'react/jsx-dev-runtime';
+import { Button, mountReact } from 'deviceforge-host';
+```
+
+宿主维护入口为 `src/app/public-ui-*.ts`。`node scripts/generate-public-ui.ts` 生成 `public/plugin-*.js`，`--check` 只检查漂移；禁止手改生成的 JavaScript。Vite 启动、构建及入口源热更新均调用生成器。公共组件契约按真实 DOM、Radix 与组合组件属性校验，例如 Button 变体、Field 受控值和 Select 字符串回调；属性类型错误应修改插件调用，不通过任意属性字典或断言绕过。
 
 纯 ESM 插件因此可以完全不构建：直接写 `import` 与 `React.createElement`（或 `.jsx` 交给自己的构建），`npm pack` 出包即可。用 TypeScript/TSX 的话照常在开发环境构建，构建时**不要**把 `react` 打进 bundle，也不要在产物里内联 React。
 

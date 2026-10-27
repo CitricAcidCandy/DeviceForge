@@ -5,6 +5,7 @@ use apk_domain::{
 };
 use apk_plugin_sdk::context::CONTEXT_PROTOCOL_VERSION;
 use apk_plugin_sdk::cooperative::COOPERATIVE_PROTOCOL_VERSION;
+use apk_plugin_sdk::services::SERVICE_PROTOCOL_VERSION;
 use apk_plugin_sdk::{ARTIFACT_PROTOCOL_VERSION, Manifest, PROTOCOL_VERSION, Request, Response};
 use async_trait::async_trait;
 use serde_json::Value;
@@ -23,8 +24,10 @@ mod interactive;
 mod performance;
 mod process_cleanup;
 mod recovery;
+mod services;
 
 pub struct ProcessPlugin {
+    services: apk_domain::services::ServiceAccess,
     manifest: Manifest,
     metadata: Option<apk_domain::plugins::PluginDisplayMetadata>,
     artifacts: Option<Arc<dyn ArtifactStore>>,
@@ -54,6 +57,7 @@ impl ProcessPlugin {
                 | ARTIFACT_PROTOCOL_VERSION
                 | COOPERATIVE_PROTOCOL_VERSION
                 | CONTEXT_PROTOCOL_VERSION
+                | SERVICE_PROTOCOL_VERSION
         ) {
             return Err(Error::Invalid("插件协议版本不兼容".into()));
         }
@@ -81,13 +85,17 @@ impl ProcessPlugin {
         if let Some(access) = &manifest.artifacts {
             if !matches!(
                 manifest.protocol_version,
-                ARTIFACT_PROTOCOL_VERSION | COOPERATIVE_PROTOCOL_VERSION | CONTEXT_PROTOCOL_VERSION
+                ARTIFACT_PROTOCOL_VERSION
+                    | COOPERATIVE_PROTOCOL_VERSION
+                    | CONTEXT_PROTOCOL_VERSION
+                    | SERVICE_PROTOCOL_VERSION
             ) {
                 return Err(Error::Invalid("产物能力要求插件协议版本 2、3 或 4".into()));
             }
             crate::plugin_artifacts::validate(access)?;
         }
         execution::validate(&manifest)?;
+        let services = services::definition(&manifest)?;
         let operations = execution::operations(&manifest);
         let devices = manifest
             .devices
@@ -96,6 +104,7 @@ impl ProcessPlugin {
             .transpose()?;
         let performance = performance::definition(&manifest, &operations, devices.as_ref())?;
         Ok(Self {
+            services,
             manifest,
             metadata: None,
             artifacts: None,
@@ -189,14 +198,38 @@ fn load_inner(
 }
 #[async_trait]
 impl Executor for ProcessPlugin {
+    fn services(&self) -> apk_domain::services::ServiceAccess {
+        self.services.clone()
+    }
+    async fn execute_with_services(
+        &self,
+        operation: &str,
+        input: Value,
+        cancel: CancellationToken,
+        context: ExecutionContext,
+        _progress: Arc<dyn apk_domain::ProgressReporter>,
+        services: Arc<dyn apk_domain::services::ServiceCaller>,
+    ) -> Result<Value> {
+        if self.manifest.protocol_version != SERVICE_PROTOCOL_VERSION {
+            return self
+                .execute_with_context(operation, input, cancel, context)
+                .await;
+        }
+        let id = uuid::Uuid::new_v4().to_string();
+        let span = tracing::info_span!("服务插件调用", plugin_id = %self.manifest.id, plugin_request_id = %id);
+        self.invoke(operation, input, cancel, id, context, Some(services))
+            .instrument(span)
+            .await
+    }
     fn plugin_metadata(&self) -> Option<apk_domain::plugins::PluginDisplayMetadata> {
         self.metadata.clone()
     }
     fn result_format(&self) -> ExecutorResultFormat {
         match self.manifest.protocol_version {
-            ARTIFACT_PROTOCOL_VERSION | COOPERATIVE_PROTOCOL_VERSION | CONTEXT_PROTOCOL_VERSION => {
-                ExecutorResultFormat::PublishedArtifacts
-            }
+            ARTIFACT_PROTOCOL_VERSION
+            | COOPERATIVE_PROTOCOL_VERSION
+            | CONTEXT_PROTOCOL_VERSION
+            | SERVICE_PROTOCOL_VERSION => ExecutorResultFormat::PublishedArtifacts,
             _ => ExecutorResultFormat::Json,
         }
     }
@@ -257,7 +290,9 @@ impl Executor for ProcessPlugin {
                     "插件存在历史清理告警，本次独立调用仍按实际进程结果判断"
                 );
             }
-            let result = self.invoke(operation, input, cancel, id, context).await;
+            let result = self
+                .invoke(operation, input, cancel, id, context, None)
+                .await;
             let code = result.as_ref().err().map(Error::code).unwrap_or("ok");
             tracing::info!(
                 code,
@@ -278,6 +313,7 @@ impl ProcessPlugin {
         cancel: CancellationToken,
         id: String,
         context: ExecutionContext,
+        services: Option<Arc<dyn apk_domain::services::ServiceCaller>>,
     ) -> Result<Value> {
         let deadline = context.deadline.map(tokio::time::Instant::from_std);
         execution_deadline::check(&cancel, deadline)?;
@@ -311,7 +347,10 @@ impl ProcessPlugin {
         };
         let files = if matches!(
             self.manifest.protocol_version,
-            ARTIFACT_PROTOCOL_VERSION | COOPERATIVE_PROTOCOL_VERSION | CONTEXT_PROTOCOL_VERSION
+            ARTIFACT_PROTOCOL_VERSION
+                | COOPERATIVE_PROTOCOL_VERSION
+                | CONTEXT_PROTOCOL_VERSION
+                | SERVICE_PROTOCOL_VERSION
         ) {
             let prepare_deadline =
                 deadline.unwrap_or_else(|| tokio::time::Instant::now() + Duration::from_secs(120));
@@ -356,7 +395,7 @@ impl ProcessPlugin {
         execution_deadline::check(&cancel, deadline)?;
         let response = if matches!(
             self.manifest.protocol_version,
-            COOPERATIVE_PROTOCOL_VERSION | CONTEXT_PROTOCOL_VERSION
+            COOPERATIVE_PROTOCOL_VERSION | CONTEXT_PROTOCOL_VERSION | SERVICE_PROTOCOL_VERSION
         ) {
             let invocation = process::cooperative::Invocation {
                 executable: &self.manifest.executable,
@@ -370,7 +409,14 @@ impl ProcessPlugin {
                 configuration: configuration.as_deref(),
                 resources: resources.as_deref(),
             };
-            if self.manifest.protocol_version == CONTEXT_PROTOCOL_VERSION {
+            if self.manifest.protocol_version == SERVICE_PROTOCOL_VERSION {
+                process::cooperative::services::run(
+                    invocation,
+                    self.unresolved.clone(),
+                    services.unwrap_or_else(|| Arc::new(services::Unavailable)),
+                )
+                .await?
+            } else if self.manifest.protocol_version == CONTEXT_PROTOCOL_VERSION {
                 process::cooperative::run_with_context(invocation, self.unresolved.clone()).await?
             } else {
                 process::cooperative::run(invocation, self.unresolved.clone()).await?
@@ -470,6 +516,7 @@ mod tests {
     #[test]
     fn reject_protocol_and_duplicate_names() {
         let mut manifest = Manifest {
+            services: None,
             id: "test".into(),
             configuration: None,
             recovery: None,

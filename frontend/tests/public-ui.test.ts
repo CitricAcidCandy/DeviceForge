@@ -6,7 +6,7 @@ import { readFile } from 'node:fs/promises';
 import { createServer } from 'vite';
 import type { ViteDevServer } from 'vite';
 import { JSDOM } from 'jsdom';
-import { createElement } from 'react';
+import { act, createElement } from 'react';
 import { hostUi } from '../src/plugin-sdk/index.ts';
 import type { HostUiHolder } from '../src/app/public-ui.ts';
 
@@ -34,13 +34,24 @@ function installBrowser() {
     getComputedStyle: windowRef.getComputedStyle.bind(windowRef),
     requestAnimationFrame: windowRef.requestAnimationFrame.bind(windowRef),
     cancelAnimationFrame: windowRef.cancelAnimationFrame.bind(windowRef),
+    IS_REACT_ACT_ENVIRONMENT: true,
   };
-  for (const [key, value] of Object.entries(globals))
+  const previous = new Map<string, PropertyDescriptor | undefined>();
+  for (const [key, value] of Object.entries(globals)) {
+    previous.set(key, Object.getOwnPropertyDescriptor(globalThis, key));
     Object.defineProperty(globalThis, key, { configurable: true, writable: true, value });
-  return windowRef;
+  }
+  return { windowRef, dispose() {
+    browser.window.close();
+    for (const [key, descriptor] of previous) {
+      if (descriptor) Object.defineProperty(globalThis, key, descriptor);
+      else Reflect.deleteProperty(globalThis, key);
+    }
+  } };
 }
 
-const windowRef = installBrowser();
+const browser = installBrowser();
+const { windowRef } = browser;
 let started: Promise<ViteDevServer> | null = null;
 function devServer(): Promise<ViteDevServer> {
   started ??= createServer({ server: { middlewareMode: true }, appType: 'custom' });
@@ -55,7 +66,13 @@ async function installPublicUi(): Promise<Install> {
 }
 
 test.after(async () => {
-  await (await started)?.close();
+  try {
+    await act(async () => {});
+    // React 调度器可能已将已提交的根工作送到下一轮宏任务，再恢复浏览器全局。
+    await new Promise<void>((done) => setImmediate(done));
+    await (await started)?.close();
+  }
+  finally { browser.dispose(); }
 });
 
 test('界面套件：未安装时明确报错，安装后可取用，释放后还原', async () => {
@@ -80,12 +97,13 @@ test('mountReact：用宿主组件渲染到插件节点，释放后清空', asyn
   try {
     const ui = hostUi();
     const host = windowRef.document.createElement('div');
-    const unmount = ui.mountReact(host, createElement(ui.Button, { type: 'button' }, '插件按钮'));
+    let unmount: ReturnType<typeof ui.mountReact> = () => {};
+    await act(async () => { unmount = ui.mountReact(host, createElement(ui.Button, { type: 'button' }, '插件按钮')); });
     const rendered = host.querySelector('button');
     assert.equal(rendered?.textContent, '插件按钮');
     // 类名带着宿主主题里的令牌，证明用的是宿主那套组件，而不是插件自带的副本。
     assert.equal(rendered?.className.includes('bg-primary'), true);
-    unmount();
+    await act(async () => { await unmount(); });
     assert.equal(host.innerHTML, '');
   } finally {
     release();
@@ -98,7 +116,8 @@ test('垫片：只从全局契约取值，且导出的名字宿主都提供', as
   try {
     const shimPath = resolve(import.meta.dirname, '../public/plugin-host.js');
     const shim: Record<string, unknown> = await import(pathToFileURL(shimPath).href);
-    const ui = hostUi() as unknown as Record<string, unknown>;
+    const ui = hostUi();
+    const entries: Record<string, unknown> = Object.fromEntries(Object.entries(ui));
     const source = await readFile(shimPath, 'utf8');
     // 垫片自己不能带 React：带了就是第二份实例，hooks 与 context 全部失效。
     assert.equal(/\bfrom\s+['"]react/.test(source), false);
@@ -107,10 +126,66 @@ test('垫片：只从全局契约取值，且导出的名字宿主都提供', as
     for (const [name, value] of Object.entries(shim)) {
       if (derived.has(name)) continue;
       assert.equal(name in ui, true, `垫片导出的 ${name} 在宿主契约里不存在`);
-      assert.equal(typeof value, typeof ui[name], `垫片导出的 ${name} 类型与宿主不一致`);
+      assert.equal(value, entries[name], `垫片导出的 ${name} 必须是宿主同一对象`);
     }
     assert.equal(shim['apiVersion'], 1);
   } finally {
     release();
+  }
+});
+
+test('独立 ESM 插件使用 hooks、宿主 context、开发 JSX 与 portal 实际渲染及释放', async () => {
+  const release = (await installPublicUi())();
+  const host = windowRef.document.createElement('div');
+  const portal = windowRef.document.createElement('div');
+  windowRef.document.body.append(host, portal);
+  let unmount: ReturnType<ReturnType<typeof hostUi>['mountReact']> | undefined;
+  try {
+    const ui = hostUi();
+    async function entry(name: string): Promise<Record<string, unknown>> {
+      return await import(pathToFileURL(resolve(import.meta.dirname, '../public', name)).href);
+    }
+    function same<Value>(actual: unknown, expected: Value): asserts actual is Value {
+      assert.equal(actual, expected);
+    }
+    const React = await entry('plugin-react.js');
+    const ReactDOM = await entry('plugin-react-dom.js');
+    const runtime = await entry('plugin-jsx-dev-runtime.js');
+    const { useState, useContext } = React;
+    const { createPortal } = ReactDOM;
+    const { jsxDEV } = runtime;
+    same(useState, ui.React.useState);
+    same(useContext, ui.React.useContext);
+    same(createPortal, ui.ReactDOM.createPortal);
+    same(jsxDEV, ui.jsxDEV);
+    const Context = ui.React.createContext('默认值');
+    const Plugin = () => {
+      const [value, setValue] = useState(1);
+      const label = useContext(Context);
+      return jsxDEV(ui.React.Fragment, { children: [
+        jsxDEV(ui.Button, {
+          onClick: () => setValue((previous: number) => previous + 1),
+          children: `${label}:${value}`,
+        }, undefined, false, undefined, undefined),
+        createPortal(jsxDEV('span', { children: `portal:${value}` }, undefined, false, undefined, undefined), portal),
+      ] }, undefined, true, undefined, undefined);
+    };
+    await act(async () => {
+      unmount = ui.mountReact(host, ui.React.createElement(Context.Provider, { value: '宿主上下文' }, ui.React.createElement(Plugin)));
+    });
+    assert.equal(host.textContent, '宿主上下文:1');
+    assert.equal(portal.textContent, 'portal:1');
+    await act(async () => { ui.ReactDOM.flushSync(() => host.querySelector('button')?.click()); });
+    assert.equal(host.textContent, '宿主上下文:2');
+    assert.equal(portal.textContent, 'portal:2');
+    await act(async () => { await unmount?.(); });
+    unmount = undefined;
+    assert.equal(host.innerHTML, '');
+    assert.equal(portal.innerHTML, '');
+  } finally {
+    await act(async () => { await unmount?.(); });
+    host.remove();
+    portal.remove();
+    await release();
   }
 });

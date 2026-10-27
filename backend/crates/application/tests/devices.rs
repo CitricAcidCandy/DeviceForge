@@ -262,10 +262,10 @@ async fn device_writes_serialize_but_other_devices_and_same_device_reads_run_con
 }
 
 #[tokio::test]
-async fn unresolved_cleanup_blocks_new_and_queued_jobs_but_confirmed_cleanup_allows_queue() {
+async fn historical_cleanup_risk_stays_visible_while_queued_and_new_jobs_execute() {
     for failed in [false, true] {
         let provider = Provider::new("cleanup");
-        let (app, _, devices, input) = setup(provider.clone()).await;
+        let (app, plugins, devices, input) = setup(provider.clone()).await;
         devices.refresh(input.clone()).await.unwrap();
         started(&provider).await;
         provider.blocked.store(true, Ordering::SeqCst);
@@ -282,35 +282,59 @@ async fn unresolved_cleanup_blocks_new_and_queued_jobs_but_confirmed_cleanup_all
             )
             .await
             .unwrap();
-        app.cancel_async(first.id).await.unwrap();
-        if failed {
-            assert_eq!(settled(&app, queued.id.clone()).await, JobStatus::Failed);
-            assert!(
-                app.get_async(queued.id)
+        assert_eq!(
+            app.get_async(queued.id.clone()).await.unwrap().status,
+            JobStatus::Queued
+        );
+        assert_eq!(provider.calls.load(Ordering::SeqCst), 2);
+        let cancelled = app.cancel_async(first.id.clone()).await.unwrap();
+        assert_eq!(cancelled.status, JobStatus::Cancelled);
+
+        for (index, entry) in ["queued", "device", "direct"].into_iter().enumerate() {
+            let job = match entry {
+                "queued" => queued.clone(),
+                "device" => devices
+                    .invoke(action(&input, "write", Some("same")))
                     .await
-                    .unwrap()
-                    .error
-                    .unwrap()
-                    .contains("清理未确认")
-            );
-            assert_eq!(provider.calls.load(Ordering::SeqCst), 2);
-            assert!(matches!(
-                devices.invoke(action(&input, "write", Some("same"))).await,
-                Err(Error::Conflict(_))
-            ));
-            assert!(matches!(
-                app.submit_async(
-                    "plugin.cleanup.write".into(),
-                    json!({"device_id":"same","input":{}})
-                )
-                .await,
-                Err(Error::Conflict(_))
-            ));
-        } else {
+                    .expect("历史清理告警不得阻止新的设备调用"),
+                _ => app
+                    .submit_async(
+                        "plugin.cleanup.write".into(),
+                        json!({"device_id":"same","input":{}}),
+                    )
+                    .await
+                    .expect("历史清理告警不得阻止新的直接任务"),
+            };
             started(&provider).await;
+            assert_eq!(provider.calls.load(Ordering::SeqCst), index + 3);
+            assert_eq!(provider.cleaned.load(Ordering::SeqCst), 1);
+            assert_eq!(provider.unresolved.load(Ordering::SeqCst), failed);
+            let plugin = &plugins.list()[0];
+            assert_eq!(plugin.generation, input.generation);
+            assert_eq!(plugin.cleanup_failed, failed);
+
+            // 每笔调用仍经过真实设备互斥并等待自身许可，旧告警不代替活动锁。
+            assert_eq!(
+                app.get_async(job.id.clone()).await.unwrap().status,
+                JobStatus::Running
+            );
             provider.release.add_permits(1);
-            assert_eq!(settled(&app, queued.id).await, JobStatus::Succeeded);
+            assert_eq!(settled(&app, job.id.clone()).await, JobStatus::Succeeded);
+            let completed = app.get_async(job.id).await.unwrap();
+            assert_eq!(completed.result, Some(completed.input));
+            assert!(completed.error.is_none());
+            assert_eq!(provider.release.available_permits(), 0);
+
+            // 新成功不清除历史风险，也不能改写旧任务已经取得的取消终态。
+            assert_eq!(provider.unresolved.load(Ordering::SeqCst), failed);
+            assert_eq!(plugins.list()[0].cleanup_failed, failed);
+            let history = app.get_async(first.id.clone()).await.unwrap();
+            assert_eq!(history.status, cancelled.status);
+            assert_eq!(history.result, cancelled.result);
+            assert_eq!(history.error, cancelled.error);
         }
+        assert_eq!(provider.calls.load(Ordering::SeqCst), 5);
+        assert_eq!(provider.cleaned.load(Ordering::SeqCst), 1);
         app.shutdown().await.unwrap();
     }
 }

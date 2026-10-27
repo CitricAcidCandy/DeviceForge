@@ -85,6 +85,8 @@ impl Application {
     ) -> Result<SessionInfo> {
         let admitted_at = tokio::time::Instant::now();
         let registered = self.registry.session(operation)?;
+        self.registry
+            .check_required(registered.owner.executor.as_ref(), operation, true)?;
         registered
             .validator
             .validate(&input)

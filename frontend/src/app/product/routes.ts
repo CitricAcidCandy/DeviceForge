@@ -12,7 +12,7 @@ import {
   Store,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { slotKey } from '../../plugin-sdk/slots.ts';
+import { pluginSlotKey, slotKey } from '../../plugin-sdk/slots.ts';
 
 // 画面与录制、应用与包已并入设备工作台，作为该页的两个模式，不再单列路由。
 // 插件装载与工具供应已并入市场：市场同时承担检索、安装、启用与卸载，不再有独立页面。
@@ -128,7 +128,7 @@ export const PRODUCT_ROUTES: readonly ProductRouteInfo[] = [
 const hostIndex = new Map<string, ProductRouteInfo>(PRODUCT_ROUTES.map((item) => [item.id, item]));
 
 export function pluginRoute(pluginId: string, page: string): PluginRoute {
-  return `plugin:${slotKey(pluginId)}:${slotKey(page)}`;
+  return `plugin:${pluginSlotKey(pluginId)}:${slotKey(page)}`;
 }
 export function isPluginRoute(route: string): route is PluginRoute {
   return /^plugin:[^:]+:/.test(route);

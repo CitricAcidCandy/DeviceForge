@@ -191,6 +191,7 @@ pub fn document() -> Value {
     device_paths(&mut document);
     recovery_paths(&mut document);
     crate::interactive_openapi::contribute(&mut document);
+    crate::services::contribute(&mut document);
     document
 }
 

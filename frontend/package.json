@@ -9,8 +9,10 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "generate:api": "node scripts/generate-api.ts",
+    "generate:ui": "node scripts/generate-public-ui.ts",
+    "check:ui-entries": "node scripts/generate-public-ui.ts --check",
     "check:architecture": "node scripts/check-architecture.ts",
-    "check": "npm run check:ui-policy && npm run check:architecture && tsc --noEmit",
+    "check": "npm run check:ui-entries && npm run check:ui-policy && npm run check:architecture && tsc --noEmit",
     "check:ui-policy": "node scripts/check-ui-policy.ts",
     "check:responsive": "node scripts/check-responsive.ts",
     "test": "node scripts/run-tests.ts",

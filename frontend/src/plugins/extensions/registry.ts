@@ -1,4 +1,4 @@
-import { HostError } from '../../plugin-sdk/index.ts';
+import { HostError, pageSlotId } from '../../plugin-sdk/index.ts';
 import type {
   BeforeTaskSubmitHook,
   CommandContribution,
@@ -7,12 +7,15 @@ import type {
   ExtensionAccess,
   ExtensionCatalog,
   HostContext,
+  HostResult,
   JsonValue,
   ModuleContribution,
   PluginContributions,
   ServiceContribution,
   TaskSubmission,
   ThemeAccess,
+  ServiceDirectoryEntry,
+  ServerServiceAccess,
 } from '../../plugin-sdk/index.ts';
 import { validatePluginContributions } from '../contributions.ts';
 import { createExtensionBus } from './bus.ts';
@@ -24,18 +27,28 @@ import { awaitActive } from './await-active.ts';
 import { createThemeRegistry } from '../themes/registry.ts';
 import type { ThemeAdapter } from '../themes/types.ts';
 import { scopedThemeAccess } from '../theme-access.ts';
+import { createServiceAccess } from './service-access.ts';
+import { compileServiceSchema, checkServiceValue } from './service-schema.ts';
+import { serviceInvocationContext, withinServiceCall } from './service-calls.ts';
+import type { ServiceCallFrame } from './service-calls.ts';
 
 export function createExtensionRegistry(themeAdapter?: ThemeAdapter) {
   const components = new Map<string, Owned<ComponentContribution>>();
   const modules = new Map<string, Owned<ModuleContribution>>();
   const commands = new Map<string, Owned<CommandContribution>>();
   const services = new Map<string, Owned<ServiceContribution>>();
+  const serviceSchemas = new Map<string, { input: ReturnType<typeof compileServiceSchema>; output: ReturnType<typeof compileServiceSchema> }>();
   const hooks = new Map<string, Owned<BeforeTaskSubmitHook>>();
   const themes = createThemeRegistry(themeAdapter);
   const ids = new Set<string>();
+  const registrations = new Map<string, ExtensionOwner>();
   const routes = new Set<string>();
   const bus = createExtensionBus();
   const lifetime = new AbortController();
+  const pendingServices = new Set<string>();
+  const ownerKey = (pluginId: string, generation: number) => JSON.stringify([pluginId, generation]);
+  const serviceAlive = (entry: Owned<ServiceContribution>) => alive(entry) &&
+    !pendingServices.has(ownerKey(entry.owner.pluginId, entry.owner.generation));
   let closed = false;
   const check = () => {
     if (closed) throw new HostError('cancelled', 'registry_closed', '扩展注册表已关闭');
@@ -87,10 +100,14 @@ export function createExtensionRegistry(themeAdapter?: ThemeAdapter) {
       ),
       services: Object.freeze(
         [...services.values()]
-          .filter(alive)
+          .filter(serviceAlive)
           .map(({ owner, contribution: c }) => ({
             ...metadata(owner, c.id),
             version: c.version,
+            inputSchema: c.inputSchema ?? true,
+            outputSchema: c.outputSchema ?? true,
+            available: true,
+            reason: null,
           })),
       ),
     });
@@ -100,24 +117,36 @@ export function createExtensionRegistry(themeAdapter?: ThemeAdapter) {
     cached ??= build();
     return cached;
   }
+  function serviceCatalog(): readonly ServiceDirectoryEntry[] {
+    check();
+    return [...services.values()].map((entry) => ({
+      service: { id: entry.contribution.id, version: entry.contribution.version },
+      contract: { inputSchema: structuredClone(entry.contribution.inputSchema ?? true), outputSchema: structuredClone(entry.contribution.outputSchema ?? true) },
+      operation: null,
+      provider: { id: entry.owner.pluginId, version: entry.owner.version ?? 'unknown', generation: String(entry.owner.generation) },
+      available: serviceAlive(entry), reason: serviceAlive(entry) ? null : 'provider_not_active',
+    }));
+  }
   function register(owner: ExtensionOwner, value: PluginContributions): Dispose {
     check();
     ensureOwner(owner);
     validatePluginContributions(owner.pluginId, value);
     const additions = contributionIds(value);
     if (additions.some((id) => ids.has(id))) throw new Error('已登记的扩展标识发生冲突');
-    const newRoutes = (value.modules ?? []).map((entry) => entry.route);
+    const newRoutes = (value.modules ?? []).map((entry) => pageSlotId(owner.pluginId, entry.route));
     if (
       new Set(newRoutes).size !== newRoutes.length ||
       newRoutes.some((route) => routes.has(route))
     )
       throw new Error('模块路由冲突');
+    const schemas = (value.services ?? []).map((entry) => ({ id: entry.id,
+      input: compileServiceSchema(entry.inputSchema), output: compileServiceSchema(entry.outputSchema) }));
     const scope = createPluginScope(owner.context);
     const registeredOwner: ExtensionOwner = { ...owner, context: scope.context };
     const releaseThemes = value.themes?.length
       ? themes.stage(registeredOwner, value.themes)
       : undefined;
-    for (const id of additions) ids.add(id);
+    for (const id of additions) { ids.add(id); registrations.set(id, registeredOwner); }
     for (const route of newRoutes) routes.add(route);
     for (const c of value.components ?? [])
       components.set(c.id, { owner: registeredOwner, contribution: c });
@@ -127,6 +156,7 @@ export function createExtensionRegistry(themeAdapter?: ThemeAdapter) {
       commands.set(c.id, { owner: registeredOwner, contribution: c });
     for (const c of value.services ?? [])
       services.set(c.id, { owner: registeredOwner, contribution: c });
+    for (const entry of schemas) serviceSchemas.set(entry.id, entry);
     for (const c of value.beforeTaskSubmit ?? [])
       hooks.set(c.id, { owner: registeredOwner, contribution: c });
     invalidate();
@@ -135,16 +165,20 @@ export function createExtensionRegistry(themeAdapter?: ThemeAdapter) {
       if (released) return;
       released = true;
       owner.context.signal.removeEventListener('abort', stop);
-      scope.close();
       for (const id of additions) {
+        if (registrations.get(id) !== registeredOwner) continue;
+        registrations.delete(id);
         ids.delete(id);
         components.delete(id);
         modules.delete(id);
         commands.delete(id);
         services.delete(id);
+        serviceSchemas.delete(id);
         hooks.delete(id);
       }
       for (const route of newRoutes) routes.delete(route);
+      // 先撤销所有权，再运行释放回调；回调可同步登记新贡献，旧回收不得删除它。
+      scope.close();
       releaseThemes?.();
       invalidate();
     };
@@ -168,18 +202,25 @@ export function createExtensionRegistry(themeAdapter?: ThemeAdapter) {
       () => commands.get(id) === entry,
     );
   }
-  function callService(id: string, version: string, input: JsonValue, signal: AbortSignal) {
+  function callService(id: string, version: string, input: JsonValue, signal: AbortSignal, parent?: ServiceCallFrame): Promise<HostResult<JsonValue>> {
     check();
     const entry = services.get(id);
-    if (!entry || entry.contribution.version !== version)
+    if (!entry || !serviceAlive(entry) || entry.contribution.version !== version)
       throw new HostError('protocol', 'service_unavailable', '服务或请求版本不可用');
-    return invoke(
+    const schema = serviceSchemas.get(id);
+    checkServiceValue(schema?.input ?? null, input, 'input');
+    return withinServiceCall(id, AbortSignal.any([signal, lifetime.signal, entry.owner.context.signal]), parent, (frame) => invoke(
       entry.owner,
       entry.contribution.invoke,
       input,
-      AbortSignal.any([signal, lifetime.signal]),
-      () => services.get(id) === entry,
-    );
+      frame.signal,
+      () => services.get(id) === entry && serviceAlive(entry),
+      serviceInvocationContext(entry.owner.context, frame, (ref, nextInput, nextSignal, nextFrame) =>
+        callService(ref.id, ref.version, nextInput, nextSignal, nextFrame)),
+    )).then((result) => {
+      checkServiceValue(schema?.output ?? null, result.data, 'output', result.logId);
+      return result;
+    });
   }
   function access(
     pluginId: string,
@@ -248,7 +289,14 @@ export function createExtensionRegistry(themeAdapter?: ThemeAdapter) {
     generation: number,
     base: HostContext,
     track: (dispose: Dispose) => Dispose,
+    deferServices = false,
+    version?: string,
   ): HostContext {
+    const key = ownerKey(pluginId, generation);
+    if (deferServices) {
+      pendingServices.add(key);
+      track(() => { pendingServices.delete(key); });
+    }
     const extensions = access(pluginId, generation, base.signal, track, (value) =>
       register(owner, value),
     );
@@ -261,12 +309,23 @@ export function createExtensionRegistry(themeAdapter?: ThemeAdapter) {
       base.signal,
       track,
     );
-    const context = Object.freeze<HostContext>({
+    const context: HostContext = Object.freeze<HostContext>({
       ...base,
       extensions,
+      services: createServiceAccess({
+        context: () => context, track,
+        catalog: serviceCatalog,
+        ...(base.services?.server ? { server: base.services.server } : {}),
+        resolve: (ref) => {
+          const entry = services.get(ref.id);
+          return entry && serviceAlive(entry) && entry.contribution.version === ref.version ? entry : null;
+        },
+        subscribe: (listener) => { listeners.add(listener); return () => { listeners.delete(listener); }; },
+        invoke: (ref, input, signal) => callService(ref.id, ref.version, input, signal),
+      }),
       ...(scopedThemes ? { themes: scopedThemes } : {}),
     });
-    const owner: ExtensionOwner = { pluginId, generation, context };
+    const owner: ExtensionOwner = { pluginId, generation, context, ...(version ? { version } : {}) };
     track(() => bus.clearOwner(pluginId));
     return context;
   }
@@ -318,6 +377,17 @@ export function createExtensionRegistry(themeAdapter?: ThemeAdapter) {
     },
     register,
     attach,
+    serviceAccess(context: HostContext, server?: ServerServiceAccess) {
+      const access: ReturnType<typeof createServiceAccess> = createServiceAccess({ context: () => ({ ...context, services: access }), track: context.onDispose, catalog: serviceCatalog,
+        ...(server ? { server } : {}),
+        resolve: (ref) => { const entry = services.get(ref.id); return entry && serviceAlive(entry) && entry.contribution.version === ref.version ? entry : null; },
+        subscribe: (listener) => { listeners.add(listener); return () => { listeners.delete(listener); }; },
+        invoke: (ref, input, signal) => callService(ref.id, ref.version, input, signal) });
+      return access;
+    },
+    publishServices(pluginId: string, generation: number) {
+      if (pendingServices.delete(ownerKey(pluginId, generation))) invalidate();
+    },
     executeCommand,
     callService,
     beforeTaskSubmit,
@@ -359,8 +429,11 @@ export function createExtensionRegistry(themeAdapter?: ThemeAdapter) {
       modules.clear();
       commands.clear();
       services.clear();
+      serviceSchemas.clear();
+      pendingServices.clear();
       hooks.clear();
       ids.clear();
+      registrations.clear();
       routes.clear();
       bus.clear();
       themes.dispose();

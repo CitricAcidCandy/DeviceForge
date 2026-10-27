@@ -19,6 +19,7 @@ const OPERATION: &str = "plugin.cooperative_demo.wait";
 
 fn manifest(directory: &Path, mode: &str) -> Manifest {
     Manifest {
+        services: None,
         configuration: None,
         recovery: None,
         id: "cooperative_demo".into(),

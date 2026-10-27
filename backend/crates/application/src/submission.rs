@@ -57,6 +57,11 @@ impl Application {
             .validate(&input)
             .map_err(|e| Error::Invalid(format!("操作输入不符合模式：{e}")))?;
         let plan = crate::alias_plan::Plan::new(&registered, &input)?;
+        self.registry.check_required(
+            plan.target.executor.as_ref(),
+            &plan.target.operation.id,
+            false,
+        )?;
         if !self
             .registry
             .current(&registered.operation.id, &registered)?

@@ -181,3 +181,7 @@ guide-suite/
 本例不执行外部工具，因此 tools 为空；需要工具时按 manifest 主题增加真实归档、entries 和 bindings，不把本机程序塞进组件业务参数。将目录内容打为 ZIP 时，根必须直接包含 release.json 和 blobs/，不要多套 guide-suite 目录；在线发布改为同服务摘要 path 后重算清单 SHA-256，遵守 packaging 中能力探测和 catalog 最后提交。
 
 安装该成套发布后，使用 `deviceforge.list_plugin_installations` 或公开 HTTP 查询真实修订和状态，再核对服务器操作及浏览器实例；不再把两个组件分别安装/加载当成完整功能验收。配置和高级路径覆盖仍保留用户原值，SDK 托管资源入口见 sdk 主题。
+
+## 独立服务插件
+
+examples/server-service-normalize 与 examples/server-service-compose 是两个分别构建/安装的 Rust 原生插件。前者提供 example.text.normalize@字符串1.0；后者用 ServiceHandle<Text,Text> 反向调用并提供组合服务，仅 compose 声明该必需依赖，ping 保持独立。两者只依赖公开 SDK/运行库，不引用宿主、不发 HTTP 请求。构建、打包与正负验证命令见各自 README；本轮示例源码不代表真实安装或运行通过。

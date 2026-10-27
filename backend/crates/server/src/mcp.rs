@@ -73,6 +73,9 @@ impl McpAdapter {
             return crate::interactive_mcp::invoke(&self.app, name, input).await;
         }
         match name {
+            "deviceforge.list_services" | "deviceforge.call_service" => {
+                crate::services::invoke(&self.app, name, input).await
+            }
             "deviceforge.get_plugin_dependencies" => {
                 let input: crate::plugin_dependencies::DependencyQuery = decode(input)?;
                 encode(
@@ -202,6 +205,7 @@ impl ServerHandler for McpAdapter {
         _: RequestContext<RoleServer>,
     ) -> std::result::Result<ListToolsResult, ErrorData> {
         let (revision, mut tools) = crate::mcp_tools::catalog(&self.app, self.plugins.is_some());
+        tools.extend(crate::services::tools());
         if self.installations.is_some() {
             tools.extend(crate::plugin_installation_mcp::tools());
         }
@@ -254,6 +258,7 @@ impl ServerHandler for McpAdapter {
                 crate::mcp_tools::management_tools(self.plugins.is_some())
                     .into_iter()
                     .chain(crate::device_mcp::tools())
+                    .chain(crate::services::tools())
                     .chain(crate::interactive_mcp::tools())
                     .chain(
                         self.dependencies

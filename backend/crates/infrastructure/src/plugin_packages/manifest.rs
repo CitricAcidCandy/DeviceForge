@@ -190,6 +190,7 @@ pub(crate) fn validate_with_dependencies(
                 args.insert(0, node_script_path(&entry_file));
             }
             let mut manifest = Manifest {
+                services: portable.services,
                 recovery: portable.recovery,
                 id: portable.id.clone(),
                 version: portable.version.clone(),

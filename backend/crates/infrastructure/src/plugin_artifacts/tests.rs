@@ -536,6 +536,7 @@ async fn v2_protocol_rejects_invalid_responses_and_preserves_null_envelope() {
         "null",
     ] {
         let plugin = crate::plugins::ProcessPlugin::new(Manifest {
+            services: None,
             id: "probe".into(),
             configuration: None,
             recovery: None,

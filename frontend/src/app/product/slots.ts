@@ -63,7 +63,7 @@ export function hostSlot(id: string): HostSlot | null {
 }
 /** 插件页面槽位不登记在清单里，但同样合法；其它未登记的槽位视为写错。 */
 export function isKnownSlot(id: string): boolean {
-  return index.has(id) || /^page\.[a-z][a-z0-9._-]{0,63}\.[a-z][a-z0-9._-]{0,63}$/.test(id);
+  return index.has(id) || /^page\.[a-z][a-z0-9._-]{0,99}\.[a-z][a-z0-9._-]{0,63}$/.test(id);
 }
 export function slotModes(id: string): readonly SlotModeName[] {
   return index.get(id)?.modes ?? (id.startsWith('page.') ? (['replace'] as const) : bothModes);

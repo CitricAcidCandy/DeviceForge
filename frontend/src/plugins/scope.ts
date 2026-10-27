@@ -5,7 +5,13 @@ import { scopedArtifactAccess } from './artifact-access.ts';
 import { scopedTaskHistoryAccess } from './task-history-access.ts';
 import { scopedThemeAccess } from './theme-access.ts';
 
-export function createPluginScope(host: HostContext) {
+export interface PluginScope {
+  readonly context: HostContext;
+  readonly close: () => void;
+  readonly dispose: () => Promise<void>;
+  readonly track: (dispose: Dispose) => Dispose;
+}
+export function createPluginScope(host: HostContext): PluginScope {
   const controller = new AbortController();
   const resources: Dispose[] = [];
   const pending = new Set<Promise<void>>();
@@ -147,6 +153,27 @@ export function createPluginScope(host: HostContext) {
       );
     },
     onDispose: track,
+    ...(host.services ? { services: {
+      catalog: () => { current(); return host.services!.catalog(); },
+      ...(host.services.server ? { server: {
+        list: (signal: AbortSignal) => call((combined) => host.services!.server!.list(combined), signal),
+        submit: (ref, input, signal, generation) => call((combined) => host.services!.server!.submit(ref, input, combined, generation), signal),
+      } satisfies NonNullable<NonNullable<HostContext['services']>['server']> } : {}),
+      call: (ref, input, signal) => call((combined) => host.services!.call(ref, input, combined), signal),
+      callTyped: (ref, input, signal) => call((combined) => host.services!.callTyped(ref, input, combined), signal),
+      diagnostics: () => { current(); return host.services!.diagnostics(); },
+      whenAvailable: (featureId, required, setup) => {
+        current();
+        return track(host.services!.whenAvailable(featureId, required, async (feature) => {
+          const child = createPluginScope({ ...feature, signal: AbortSignal.any([feature.signal, controller.signal]) });
+          const releaseChild = track(() => child.dispose());
+          feature.onDispose(releaseChild);
+          const release = await setup(child.context);
+          if (typeof release === 'function') child.track(release);
+          return releaseChild;
+        }));
+      },
+    } satisfies NonNullable<HostContext['services']> } : {}),
     ...(extensions ? { extensions } : {}),
     ...(devices ? { devices } : {}),
     ...(artifacts ? { artifacts } : {}),
@@ -163,4 +190,3 @@ export function createPluginScope(host: HostContext) {
   });
   return { context, close, dispose, track };
 }
-export type PluginScope = ReturnType<typeof createPluginScope>;

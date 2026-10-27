@@ -1,6 +1,6 @@
 # 服务器插件清单
 
-服务器插件有两种清单形态：便携包中的 `plugin.json` 省略机器入口路径；部署目录中的 `manifest.json` 由安装器填入绝对 `executable`。它们均声明普通任务协议 1–4。不要在便携包写入开发机路径。
+服务器插件有两种清单形态：便携包中的 `plugin.json` 省略机器入口路径；部署目录中的 `manifest.json` 由安装器填入绝对 `executable`。普通任务声明协议 1–4，反向服务任务显式选择 6；独立会话仍为 5。不要在便携包写入开发机路径。
 
 ## 最小便携清单
 
@@ -49,3 +49,7 @@
 
 
 新版统一依赖使用 dependencies.json（独立组件）或 v2 清单的 dependencies，先自动发现本机与用户根共享工具，一次安装只下载缺失必需项；启动与重新检测不下载。v1 保留兼容。完整字段、来源约束与管理接口见 [共享依赖](dependencies.md)。
+
+## 公共服务声明
+
+可选 services={provided,required}：provided 的 service={id,version} 使用非空字符串精确版本，contract 包含 input_schema/output_schema，operation 仅映射已有普通操作；required 用 operations/sessions 短名限定相关入口，不因依赖缺失停止整个插件。普通任务显式选择 protocol_version=6 才启用反向服务帧，便携安装原样保留声明。完整约束见 ../../contracts/公共服务与协议第六版.md。

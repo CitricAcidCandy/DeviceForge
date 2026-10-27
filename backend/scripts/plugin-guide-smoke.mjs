@@ -109,7 +109,7 @@ try {
       assert.equal(data.topic, topic);
       assert.equal(data.guide_version, 2);
       assert.equal(data.frontend_sdk_version, 2);
-      assert.deepEqual(data.backend_task_protocol_versions, [1, 2, 3, 4]);
+      assert.deepEqual(data.backend_task_protocol_versions, [1, 2, 3, 4, 6]);
       assert.deepEqual(data.backend_session_protocol_versions, [5]);
       assert.deepEqual(data.release_format_versions, [1]);
       assert.deepEqual(data.release_host_api_versions, [2]);

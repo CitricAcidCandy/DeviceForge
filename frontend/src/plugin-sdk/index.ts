@@ -4,6 +4,9 @@ import type { ArtifactAccess } from './artifacts.ts';
 import type { TaskHistoryAccess } from './task-history.ts';
 import type { ThemeAccess, ThemeContribution } from './themes.ts';
 import type { ConfigurationAccess, ConfigurationDefinition } from './configuration.ts';
+import type { ServiceAccess as ScopedServiceAccess } from './services.ts';
+export type { ServiceRef, ServiceContract, ServiceDirectoryEntry, ServerServiceAccess, TypedService, ServiceFeatureDiagnostic } from './services.ts';
+export type ServiceAccess = ScopedServiceAccess<HostContext>;
 export * from './models.ts';
 export * from './slots.ts';
 export { hostUi } from './ui.ts';
@@ -33,6 +36,7 @@ export interface HostContext {
   readonly taskHistory?: TaskHistoryAccess;
   readonly themes?: ThemeAccess;
   readonly configuration?: ConfigurationAccess;
+  readonly services?: ServiceAccess;
 }
 export interface PanelContribution {
   readonly id: string;
@@ -80,6 +84,8 @@ export interface ServiceContribution {
   readonly id: string;
   readonly version: string;
   readonly invoke: CommandContribution['execute'];
+  readonly inputSchema?: JsonValue;
+  readonly outputSchema?: JsonValue;
 }
 export interface BeforeTaskSubmitHook {
   readonly id: string;
@@ -117,6 +123,10 @@ export interface CommandInfo extends ContributionInfo {
 }
 export interface ServiceInfo extends ContributionInfo {
   readonly version: string;
+  readonly inputSchema: JsonValue;
+  readonly outputSchema: JsonValue;
+  readonly available: boolean;
+  readonly reason: string | null;
 }
 export interface ExtensionCatalog {
   readonly components: readonly ComponentInfo[];

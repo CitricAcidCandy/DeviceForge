@@ -26,6 +26,7 @@ import type {
 } from '../plugin-sdk/index.ts';
 import { createHostContext } from './host-context.ts';
 import { createReleaseHost } from './release-host.ts';
+import { createServerServiceAccess } from './server-services.ts';
 import { createReleaseRequestClient } from './release-requests.ts';
 import { createPluginPackages } from '../features/plugin-packages/index.ts';
 import { createInstallationGateway, createPluginInstallations } from '../features/plugin-installations/index.ts';
@@ -53,6 +54,7 @@ import {
 } from '../features/plugin-configurations/index.ts';
 
 export interface RuntimeOptions extends ClientOptions {
+  readonly timeouts?: ManagerOptions['timeouts'];
   readonly panelTarget: ManagerOptions['panelTarget'];
   readonly componentTarget?: ManagerOptions['componentTarget'];
   readonly moduleTarget?: ManagerOptions['moduleTarget'];
@@ -107,10 +109,11 @@ export function createFrontendRuntime(options: RuntimeOptions) {
     registerMirroringStreamingService(extensions, host.context, mirroringStreaming),
   );
   const themes = extensions.themeAccess(host.context);
-  const context = Object.freeze<HostContext>({
+  const context: HostContext = Object.freeze<HostContext>({
     ...host.context,
     extensions: extensions.hostAccess(host.context),
     themes,
+    services: extensions.serviceAccess(host.context, createServerServiceAccess(client, lifetime.signal)),
   });
   const serverPlugins = createServerPlugins(
     client,
@@ -137,6 +140,7 @@ export function createFrontendRuntime(options: RuntimeOptions) {
       return createReleaseHost(context, rawClient, release, tasks, devices);
     },
     panelTarget: options.panelTarget,
+    ...(options.timeouts ? { timeouts: options.timeouts } : {}),
     extensionRegistry: extensions,
     configuration: (plugin, signal) =>
       browserConfigurations.prepare(plugin.id, plugin.configuration ?? null, signal),
