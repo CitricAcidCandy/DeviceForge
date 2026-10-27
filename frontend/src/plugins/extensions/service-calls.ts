@@ -9,6 +9,7 @@ export interface ServiceCallFrame {
   readonly signal: AbortSignal;
 }
 type Caller = (ref: ServiceRef, input: JsonValue, signal: AbortSignal, frame: ServiceCallFrame) => Promise<HostResult<JsonValue>>;
+type Commander = (id: string, input: JsonValue, signal: AbortSignal, frame: ServiceCallFrame) => Promise<HostResult<JsonValue>>;
 
 export async function withinServiceCall<T>(
   id: string, signal: AbortSignal, parent: ServiceCallFrame | undefined,
@@ -31,7 +32,7 @@ export async function withinServiceCall<T>(
 }
 
 // 调用上下文显式携带父期限和取消，不能从根上下文重新起一条无归属调用链。
-export function serviceInvocationContext(context: HostContext, frame: ServiceCallFrame, call: Caller): HostContext {
+export function serviceInvocationContext(context: HostContext, frame: ServiceCallFrame, call: Caller, execute: Commander): HostContext {
   const invoke = (ref: ServiceRef, input: JsonValue, signal: AbortSignal) => call(ref, input, signal, frame);
   const upstream = context.services;
   const services: ServiceAccess | undefined = upstream ? {
@@ -47,5 +48,6 @@ export function serviceInvocationContext(context: HostContext, frame: ServiceCal
   return { ...context, signal: frame.signal,
     ...(services ? { services } : {}),
     ...(context.extensions ? { extensions: { ...context.extensions,
+      executeCommand: (id, input, signal) => execute(id, input, signal, frame),
       callService: (id, version, input, signal) => invoke({ id, version }, input, signal) } } : {}) };
 }

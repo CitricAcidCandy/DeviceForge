@@ -12,6 +12,56 @@ use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio_util::sync::CancellationToken;
 
 struct Echo;
+
+struct DelayedCleanup;
+#[async_trait]
+impl ServiceCaller for DelayedCleanup {
+    async fn call(&self, _: ServiceRef, _: Value, cancel: CancellationToken) -> Result<Value> {
+        cancel.cancelled().await;
+        tokio::time::sleep(Duration::from_millis(30)).await;
+        Err(apk_domain::Error::Cancelled)
+    }
+}
+
+#[tokio::test(start_paused = true)]
+async fn service_protocol_finished_near_deadline_keeps_the_full_child_cleanup_window() {
+    let (host, plugin) = tokio::io::duplex(8192);
+    let (reader, mut writer) = tokio::io::split(host);
+    let mut reader = BufReader::new(reader);
+    let cancel = CancellationToken::new();
+    let host = exchange(
+        &mut reader,
+        &mut writer,
+        "root",
+        tokio::time::Instant::now() + Duration::from_millis(100),
+        &cancel,
+        Arc::new(DelayedCleanup),
+    );
+    let plugin = async {
+        let (reader, mut writer) = tokio::io::split(plugin);
+        let mut reader = BufReader::new(reader);
+        writer
+            .write_all(b"{\"command\":\"ready\",\"protocol_version\":6,\"request_id\":\"root\"}\n")
+            .await
+            .unwrap();
+        let mut start = String::new();
+        reader.read_line(&mut start).await.unwrap();
+        let call = json!({"command":"service_call","protocol_version":6,"request_id":"root","call_id":"1","service":{"id":"demo.slow","version":"1.0"},"input":{}});
+        writer
+            .write_all(format!("{call}\n").as_bytes())
+            .await
+            .unwrap();
+        tokio::time::sleep(Duration::from_millis(90)).await;
+        let finished = json!({"command":"finished","protocol_version":6,"request_id":"root","execution":{"response":{"protocol_version":6,"request_id":"root","result":null},"cleanup":"complete"}});
+        writer
+            .write_all(format!("{finished}\n").as_bytes())
+            .await
+            .unwrap();
+        writer.shutdown().await.unwrap();
+    };
+    let (result, ()) = tokio::join!(host, plugin);
+    assert_eq!(result.unwrap().result, Some(Value::Null));
+}
 #[async_trait]
 impl ServiceCaller for Echo {
     async fn call(

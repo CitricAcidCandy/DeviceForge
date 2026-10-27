@@ -21,6 +21,7 @@ use tokio::{
 use tokio_util::sync::CancellationToken;
 mod context;
 mod ownership;
+mod service_stdin;
 pub(crate) mod services;
 #[cfg(test)]
 mod services_tests;

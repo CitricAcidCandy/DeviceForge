@@ -10387,6 +10387,7 @@ export interface paths {
 
                 200: {
                     headers: {
+                        "x-deviceforge-log-id"?: string;
                         [name: string]: unknown;
                     };
                     content: {
@@ -10418,6 +10419,7 @@ export interface paths {
 
                 400: {
                     headers: {
+                        "x-deviceforge-log-id"?: string;
                         [name: string]: unknown;
                     };
                     content: {
@@ -10435,6 +10437,7 @@ export interface paths {
 
                 401: {
                     headers: {
+                        "x-deviceforge-log-id"?: string;
                         [name: string]: unknown;
                     };
                     content: {
@@ -10452,6 +10455,7 @@ export interface paths {
 
                 404: {
                     headers: {
+                        "x-deviceforge-log-id"?: string;
                         [name: string]: unknown;
                     };
                     content: {
@@ -10469,6 +10473,7 @@ export interface paths {
 
                 409: {
                     headers: {
+                        "x-deviceforge-log-id"?: string;
                         [name: string]: unknown;
                     };
                     content: {
@@ -10486,6 +10491,7 @@ export interface paths {
 
                 429: {
                     headers: {
+                        "x-deviceforge-log-id"?: string;
                         [name: string]: unknown;
                     };
                     content: {
@@ -10503,6 +10509,7 @@ export interface paths {
 
                 500: {
                     headers: {
+                        "x-deviceforge-log-id"?: string;
                         [name: string]: unknown;
                     };
                     content: {
@@ -10560,6 +10567,7 @@ export interface paths {
 
                 202: {
                     headers: {
+                        "x-deviceforge-log-id"?: string;
                         [name: string]: unknown;
                     };
                     content: {
@@ -10584,6 +10592,7 @@ export interface paths {
 
                 400: {
                     headers: {
+                        "x-deviceforge-log-id"?: string;
                         [name: string]: unknown;
                     };
                     content: {
@@ -10601,6 +10610,7 @@ export interface paths {
 
                 401: {
                     headers: {
+                        "x-deviceforge-log-id"?: string;
                         [name: string]: unknown;
                     };
                     content: {
@@ -10618,6 +10628,7 @@ export interface paths {
 
                 404: {
                     headers: {
+                        "x-deviceforge-log-id"?: string;
                         [name: string]: unknown;
                     };
                     content: {
@@ -10635,6 +10646,7 @@ export interface paths {
 
                 409: {
                     headers: {
+                        "x-deviceforge-log-id"?: string;
                         [name: string]: unknown;
                     };
                     content: {
@@ -10652,6 +10664,7 @@ export interface paths {
 
                 429: {
                     headers: {
+                        "x-deviceforge-log-id"?: string;
                         [name: string]: unknown;
                     };
                     content: {
@@ -10669,6 +10682,7 @@ export interface paths {
 
                 500: {
                     headers: {
+                        "x-deviceforge-log-id"?: string;
                         [name: string]: unknown;
                     };
                     content: {

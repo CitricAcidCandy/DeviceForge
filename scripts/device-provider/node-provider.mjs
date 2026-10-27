@@ -2,9 +2,21 @@ import { appendFileSync, existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { createInterface } from 'node:readline';
 import { setTimeout as delay } from 'node:timers/promises';
+import { snapshotProcesses } from './process-identity.mjs';
 
 // 该文件作为自包含在线 TGZ 的入口执行；路径只来自测试管理员生成的配置。
 const config = JSON.parse(readFileSync(new URL('./fixture.json', import.meta.url), 'utf8'));
+const observed = snapshotProcesses([process.pid]).get(process.pid);
+if (observed?.state !== 'present' || !observed.command_line || !observed.created_at) {
+  throw new Error('无法取得本次夹具的操作系统进程身份');
+}
+const processIdentity = {
+  ...config.processScope,
+  pid: process.pid,
+  command_line: observed.command_line,
+  created_at: observed.created_at,
+  entry_path: process.argv[1],
+};
 const lines = createInterface({ input: process.stdin, crlfDelay: Infinity });
 let request;
 let label;
@@ -27,6 +39,7 @@ const record = (kind) =>
       operation: request.operation,
       device_id: request.input?.device_id ?? null,
       label,
+      ...(kind === 'started' ? { process_identity: processIdentity } : {}),
     })}\n`,
     'utf8',
   );

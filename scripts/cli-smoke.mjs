@@ -32,8 +32,10 @@ import {
 } from './cli-smoke-unified-discovery.mjs';
 import { configureOrdinaryNpx, verifyOrdinaryNpx } from './cli-smoke-ordinary.mjs';
 import { createNpxConfigurationCheck } from './cli-smoke-configurations.mjs';
+import { selectSmokePackageRoot } from './freeze-infrastructure-package.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
+const packRoot = await selectSmokePackageRoot(root);
 const temporary = await mkdtemp(join(tmpdir(), 'deviceforge-npx-'));
 const npm = npmCommand();
 const npx = join(dirname(npm.prefix[0]), 'npx-cli.js');
@@ -96,7 +98,7 @@ try {
   const pack = await promisify(execFile)(
     npm.command,
     [...npm.prefix, 'pack', '--json', '--pack-destination', temporary],
-    { cwd: root, windowsHide: true, maxBuffer: 1024 * 1024, timeout: 120000 },
+    { cwd: packRoot, windowsHide: true, maxBuffer: 1024 * 1024, timeout: 120000 },
   );
   const packed = JSON.parse(pack.stdout);
   assert.ok(packed[0].files.some((item) => item.path === 'runtime/manifest.json'));

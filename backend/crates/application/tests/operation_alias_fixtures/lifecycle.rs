@@ -166,7 +166,7 @@ async fn publish_unload_reload_are_atomic_and_keep_success_cancelled_history() {
 }
 
 #[tokio::test]
-async fn failed_cleanup_rejects_both_alias_and_native_new_and_queued_tasks() {
+async fn failed_cleanup_keeps_history_but_alias_and_native_queued_and_new_tasks_execute() {
     let fixture = Fixture::new(3, config()).await;
     let running = fixture
         .app
@@ -188,56 +188,68 @@ async fn failed_cleanup_rejects_both_alias_and_native_new_and_queued_tasks() {
         .await
         .unwrap();
     fixture.app.cancel_async(running.id.clone()).await.unwrap();
-    for job in [old, new] {
-        let failed = settled(&fixture.app, &job.id).await;
-        assert_eq!(failed.status, JobStatus::Failed);
-        assert!(failed.error.unwrap().contains("清理未确认"));
-    }
     fixture.event("failed-cleanup", "cleanup_failed").await;
     wait_gone(pid(&ready)).await;
+    // 进程退出早于宿主写入清理诊断，必须等待可观察状态，而非依赖调度先后。
+    let diagnostic_deadline = Instant::now() + Duration::from_secs(5);
+    while !fixture.plugin().has_unresolved_resources() || !fixture.plugins.list()[0].cleanup_failed
+    {
+        assert!(Instant::now() < diagnostic_deadline, "清理失败诊断未就绪");
+        tokio::time::sleep(Duration::from_millis(5)).await;
+    }
+    let failed_history = to_value(fixture.app.get(&running.id).unwrap()).unwrap();
     assert!(fixture.plugin().has_unresolved_resources());
     assert!(fixture.plugins.list()[0].cleanup_failed);
-    for label in ["blocked-old", "blocked-new"] {
-        assert!(fixture.recorded(label, "started").is_none());
+    // 两个入口均可继续；不假定异步锁等待者的先后调度顺序。
+    fixture.release("blocked-old");
+    fixture.release("blocked-new");
+    for (job, label) in [(old, "blocked-old"), (new, "blocked-new")] {
+        fixture.ready(label).await;
+        assert_eq!(
+            settled(&fixture.app, &job.id).await.status,
+            JobStatus::Succeeded
+        );
+        fixture.exited(label).await;
+        assert!(fixture.plugin().has_unresolved_resources());
+        assert!(fixture.plugins.list()[0].cleanup_failed);
     }
-    assert_eq!(
-        code(
-            fixture
-                .app
-                .submit_async(
-                    WRITE.into(),
-                    old_input("rejected-old", Some("same"), "normal")
-                )
-                .await
-        ),
-        "conflict"
-    );
-    assert_eq!(
-        code(
-            fixture
-                .devices
-                .invoke(fixture.action("write", Some("same"), "rejected-new", "normal"))
-                .await
-        ),
-        "conflict"
-    );
-    assert_eq!(
-        code(fixture.plugins.unload(PROVIDER.into()).await),
-        "cleanup_failed"
-    );
-    let info = fixture.plugins.list().remove(0);
-    assert_eq!(info.state, PluginState::Draining);
-    assert!(info.cleanup_failed);
+    let alias = fixture
+        .app
+        .submit_async(WRITE.into(), old_input("new-old", Some("same"), "normal"))
+        .await
+        .unwrap();
+    let native = fixture
+        .devices
+        .invoke(fixture.action("write", Some("same"), "new-native", "normal"))
+        .await
+        .unwrap();
+    for (job, label) in [(alias, "new-old"), (native, "new-native")] {
+        assert_eq!(
+            settled(&fixture.app, &job.id).await.status,
+            JobStatus::Succeeded
+        );
+        fixture.exited(label).await;
+    }
+    let previous = fixture.provider();
+    let unloaded = fixture.plugins.unload(PROVIDER.into()).await.unwrap();
+    assert_eq!(unloaded.state, PluginState::Unloaded);
+    assert!(unloaded.cleanup_failed);
+    assert!(fixture.plugins.list().is_empty());
     assert!(names(&fixture).is_empty());
     assert!(fixture.devices.directories().is_empty());
+    let loaded = fixture.plugins.load(PROVIDER.into()).await.unwrap();
+    assert_ne!(loaded.generation, previous.generation);
+    // 新代不继承旧代告警；旧卸载诊断与任务历史仍然完整保留。
+    assert!(!loaded.cleanup_failed);
+    assert!(unloaded.cleanup_failed);
     assert_eq!(
-        code(fixture.plugins.unload(PROVIDER.into()).await),
-        "cleanup_failed"
+        to_value(fixture.app.get(&running.id).unwrap()).unwrap(),
+        failed_history
     );
-    assert_eq!(
-        code(fixture.plugins.load(PROVIDER.into()).await),
-        "conflict"
-    );
+    assert_eq!(names(&fixture), expected());
+    let mut stale = fixture.action("write", Some("same"), "stale-after-cleanup", "normal");
+    stale.generation = previous.generation;
+    assert_eq!(code(fixture.devices.invoke(stale).await), "conflict");
     assert_eq!(
         fixture.app.get(&running.id).unwrap().status,
         JobStatus::Cancelled

@@ -1,5 +1,6 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { randomUUID } from 'node:crypto';
 import { archive, control, fixture } from '../device-provider/fixtures.mjs';
 
 export const names = {
@@ -13,14 +14,17 @@ export const names = {
 
 // 模拟贡献仅证明通用绑定；使用旧 ID 不表示 Android 平台命令已迁出。
 export async function inputs(directory) {
+  const processScope = { run_id: randomUUID(), profile: 'operation-alias', profile_directory: directory };
   const first = await fixture('alias_smoke_device', join(directory, 'markers'), {
     apiVersion: 2,
     executionTimeoutMs: 120000,
+    processScope,
   });
-  const bad = await fixture('alias_smoke_bad', join(directory, 'markers'));
+  const bad = await fixture('alias_smoke_bad', join(directory, 'markers'), { processScope });
   const ordinary = {
     id: 'alias_smoke_plain',
     directory: join(directory, 'markers', 'alias_smoke_plain'),
+    processScope,
   };
   await mkdir(ordinary.directory, { recursive: true });
   ordinary.manifest = {
@@ -44,10 +48,12 @@ export async function inputs(directory) {
     new URL('../device-provider/node-provider.mjs', import.meta.url),
     'utf8',
   );
+  const identitySource = await readFile(new URL('../device-provider/process-identity.mjs', import.meta.url), 'utf8');
   ordinary.archive = archive([
     ['package.json', JSON.stringify(descriptor)],
     ['plugin.json', JSON.stringify(ordinary.manifest)],
     ['dist/index.mjs', source],
+    ['dist/process-identity.mjs', identitySource],
     ['dist/fixture.json', JSON.stringify(ordinary)],
   ]);
   await control(ordinary, 'valid', 'plain-initial');
@@ -57,6 +63,7 @@ export async function inputs(directory) {
       id: `alias_smoke_artifact_${protocol}`,
       directory: join(directory, 'markers', `artifact_${protocol}`),
       protocol,
+      processScope,
     };
     await mkdir(item.directory, { recursive: true });
     const manifest = {
@@ -76,6 +83,7 @@ export async function inputs(directory) {
       ['package.json', JSON.stringify(description)],
       ['plugin.json', JSON.stringify(manifest)],
       ['dist/index.mjs', artifactSource],
+      ['dist/process-identity.mjs', identitySource],
       ['dist/fixture.json', JSON.stringify(item)],
     ]);
     artifacts.push(item);

@@ -24,6 +24,7 @@ import { contributionIds } from './types.ts';
 import type { ExtensionOwner, Owned } from './types.ts';
 import { createPluginScope } from '../scope.ts';
 import { awaitActive } from './await-active.ts';
+import { awaitLifecycle } from '../lifecycle.ts';
 import { createThemeRegistry } from '../themes/registry.ts';
 import type { ThemeAdapter } from '../themes/types.ts';
 import { scopedThemeAccess } from '../theme-access.ts';
@@ -190,17 +191,25 @@ export function createExtensionRegistry(themeAdapter?: ThemeAdapter) {
       return scope.dispose();
     };
   }
-  function executeCommand(id: string, input: JsonValue, signal: AbortSignal) {
+  function invocationContext(context: HostContext, frame: ServiceCallFrame): HostContext {
+    return serviceInvocationContext(context, frame, (ref, input, signal, parent) =>
+      callService(ref.id, ref.version, input, signal, parent), executeCommand);
+  }
+  function executeCommand(id: string, input: JsonValue, signal: AbortSignal, parent?: ServiceCallFrame): Promise<HostResult<JsonValue>> {
     check();
     const entry = commands.get(id);
     if (!entry) throw new HostError('protocol', 'command_unavailable', '命令已撤销或不存在');
-    return invoke(
+    const combined = AbortSignal.any([signal, lifetime.signal, ...(parent ? [parent.signal] : [])]);
+    const run = () => invoke(
       entry.owner,
       entry.contribution.execute,
       input,
-      AbortSignal.any([signal, lifetime.signal]),
+      combined,
       () => commands.get(id) === entry,
+      parent ? invocationContext(entry.owner.context, parent) : entry.owner.context,
     );
+    // 经命令间接转调服务也属于原调用链，不能重置父期限和递归路径。
+    return parent ? awaitLifecycle(run, combined, parent.deadline, '服务内命令调用') : run();
   }
   function callService(id: string, version: string, input: JsonValue, signal: AbortSignal, parent?: ServiceCallFrame): Promise<HostResult<JsonValue>> {
     check();
@@ -215,8 +224,7 @@ export function createExtensionRegistry(themeAdapter?: ThemeAdapter) {
       input,
       frame.signal,
       () => services.get(id) === entry && serviceAlive(entry),
-      serviceInvocationContext(entry.owner.context, frame, (ref, nextInput, nextSignal, nextFrame) =>
-        callService(ref.id, ref.version, nextInput, nextSignal, nextFrame)),
+      invocationContext(entry.owner.context, frame),
     )).then((result) => {
       checkServiceValue(schema?.output ?? null, result.data, 'output', result.logId);
       return result;

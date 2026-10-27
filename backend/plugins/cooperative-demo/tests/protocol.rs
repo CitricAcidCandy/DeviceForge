@@ -440,8 +440,8 @@ async fn real_application_unload_waits_cleanup_removes_owner_and_preserves_task_
 }
 
 #[tokio::test]
-async fn real_application_failed_cleanup_keeps_draining_owner_and_rejects_repeat_unload_reload_and_submit()
- {
+async fn real_application_failed_cleanup_keeps_history_without_blocking_unload_or_next_generation()
+{
     for mode in ["ignore", "failed"] {
         let directory = tempfile::tempdir().unwrap();
         let (app, service, plugin) = lifecycle_setup(directory.path(), mode).await;
@@ -455,36 +455,71 @@ async fn real_application_failed_cleanup_keeps_draining_owner_and_rejects_repeat
             app.get_async(job.id.clone()).await.unwrap().status,
             JobStatus::Running
         );
-        assert!(matches!(
-            service.unload("cooperative_demo".into()).await,
-            Err(Error::CleanupFailed)
-        ));
+        let unloaded = service.unload("cooperative_demo".into()).await.unwrap();
+        assert_eq!(unloaded.state, PluginState::Unloaded);
+        assert_eq!(unloaded.generation, generation);
+        assert!(unloaded.cleanup_failed);
         assert!(plugin.has_unresolved_resources());
         assert_exited(&pid).await;
-        let owners = service.list();
-        assert_eq!(owners.len(), 1);
-        assert_eq!(owners[0].state, PluginState::Draining);
-        assert!(owners[0].cleanup_failed);
-        assert_eq!(owners[0].generation, generation);
+        assert!(service.list().is_empty());
         assert!(app.operations().is_empty());
         assert!(matches!(
             service.unload("cooperative_demo".into()).await,
-            Err(Error::CleanupFailed)
-        ));
-        assert!(matches!(
-            service.load("cooperative_demo".into()).await,
-            Err(Error::Conflict(_))
+            Err(Error::NotFound(_))
         ));
         assert!(matches!(
             app.submit_async(OPERATION.into(), json!({})).await,
             Err(Error::NotFound(_))
         ));
-        assert_eq!(service.list()[0].generation, generation);
-        let terminal = app.get_async(job.id).await.unwrap();
+        let terminal = app.get_async(job.id.clone()).await.unwrap();
         assert_eq!(terminal.status, JobStatus::Failed);
         assert_eq!(terminal.error, Some(Error::CleanupFailed.to_string()));
         assert!(terminal.result.is_none());
         assert!(!directory.path().join("cleaned").exists());
+        // 修复本轮部署的故障配置后，以真实新进程验证新代；不清除旧实例告警。
+        tokio::fs::write(
+            directory
+                .path()
+                .join("deployed/cooperative_demo/manifest.json"),
+            serde_json::to_vec(&manifest(directory.path(), "")).unwrap(),
+        )
+        .await
+        .unwrap();
+        tokio::fs::remove_file(directory.path().join("started"))
+            .await
+            .unwrap();
+        let next = service.load("cooperative_demo".into()).await.unwrap();
+        assert_ne!(next.generation, generation);
+        assert!(!next.cleanup_failed);
+        let fresh = app
+            .submit_async(OPERATION.into(), json!({"duration_ms":1}))
+            .await
+            .unwrap();
+        tokio::time::timeout(Duration::from_secs(5), async {
+            loop {
+                let current = app.get_async(fresh.id.clone()).await.unwrap();
+                if matches!(
+                    current.status,
+                    JobStatus::Succeeded | JobStatus::Failed | JobStatus::Cancelled
+                ) {
+                    assert_eq!(current.status, JobStatus::Succeeded, "{:?}", current.error);
+                    break;
+                }
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+        })
+        .await
+        .unwrap();
+        assert_exited(&marker(directory.path(), "started").await).await;
+        marker(directory.path(), "cleaned").await;
+        assert!(plugin.has_unresolved_resources());
+        assert!(unloaded.cleanup_failed);
+        assert_eq!(
+            serde_json::to_value(app.get_async(job.id).await.unwrap()).unwrap(),
+            serde_json::to_value(terminal).unwrap()
+        );
+        let final_unload = service.unload("cooperative_demo".into()).await.unwrap();
+        assert!(!final_unload.cleanup_failed);
         service.close();
         service.wait().await;
         app.shutdown().await.unwrap();

@@ -30,7 +30,7 @@ export async function verifyNpxDeviceProvider({
   const installed = await runNpx([
     ...prefix,
     'plugin',
-    'install',
+    'install-legacy',
     archive,
     '--data-dir',
     dataDirectory,

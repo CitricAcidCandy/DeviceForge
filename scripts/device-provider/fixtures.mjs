@@ -3,6 +3,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
 import { poll } from './client.mjs';
+import { assessProcessIdentity, snapshotProcesses } from './process-identity.mjs';
 
 export const localId = 'same-local-device';
 export const otherId = 'other-local-device';
@@ -64,10 +65,10 @@ export function archive(files) {
   return gzipSync(Buffer.concat([...blocks, Buffer.alloc(1024)]));
 }
 
-export async function fixture(id, root, { apiVersion = 1, executionTimeoutMs } = {}) {
+export async function fixture(id, root, { apiVersion = 1, executionTimeoutMs, processScope } = {}) {
   const directory = join(root, id);
   await mkdir(directory, { recursive: true });
-  const config = { id, directory, localId, otherId, offlineId };
+  const config = { id, directory, localId, otherId, offlineId, processScope };
   const manifest = {
     id,
     version: '1.0.0',
@@ -113,15 +114,18 @@ export async function fixture(id, root, { apiVersion = 1, executionTimeoutMs } =
     },
   };
   const source = await readFile(new URL('./node-provider.mjs', import.meta.url), 'utf8');
+  const identitySource = await readFile(new URL('./process-identity.mjs', import.meta.url), 'utf8');
   const files = [
     ['package.json', JSON.stringify(descriptor)],
     ['plugin.json', JSON.stringify(manifest)],
     ['dist/index.mjs', source],
+    ['dist/process-identity.mjs', identitySource],
     ['dist/fixture.json', JSON.stringify(config)],
   ];
   const value = {
     id,
     directory,
+    processScope,
     manifest,
     archive: archive(files),
     invalidBudgetArchives: [0, 120001].map((budget) =>
@@ -189,6 +193,7 @@ export const started = (item, label) =>
     (all) => all.some((event) => event.kind === 'started' && event.label === label),
     label,
   ).then((all) => all.find((event) => event.kind === 'started' && event.label === label));
+// 旧验收脚本仍消费此保守检查；增强身份判定只由携带原始身份的夹具使用。
 export function exited(pid) {
   try {
     process.kill(pid, 0);
@@ -198,9 +203,19 @@ export function exited(pid) {
     throw error;
   }
 }
-export async function cleaned(item, label, { cancelled = false, atReturn = false } = {}) {
+export function processEvidence(item, all, observe = snapshotProcesses) {
+  const starts = all.filter((event) => event.kind === 'started');
+  const observations = observe(starts.map((start) => start.pid));
+  return starts.map((start) => ({
+    start,
+    process: assessProcessIdentity(start, observations.get(start.pid), item.processScope),
+  }));
+}
+export async function cleaned(item, label, {
+  cancelled = false, atReturn = false, readEvents = events, observe = snapshotProcesses,
+} = {}) {
   const read = async () => {
-    const all = await events(item);
+    const all = await readEvents(item);
     const start = all.find((event) => event.kind === 'started' && event.label === label);
     const done =
       start &&
@@ -210,12 +225,17 @@ export async function cleaned(item, label, { cancelled = false, atReturn = false
       all.some(
         (event) => event.kind === 'cancel_received' && event.request_id === start.request_id,
       );
-    return { start, done, notified, exited: start ? exited(start.pid) : false };
+    // 先读取退出标记再查询系统，避免查询耗时把卸载返回后的晚退出掩盖掉。
+    const exitRecorded = start && all.some(
+      (event) => event.kind === 'process_exit' && event.pid === start.pid && event.request_id === start.request_id,
+    );
+    const process = start ? processEvidence(item, [start], observe)[0].process : null;
+    return { start, done, notified, exitRecorded, process, exited: process?.process_exited === true };
   };
   const result = atReturn
     ? await read()
-    : await poll(read, (value) => value.done && value.exited, `${label} 清理及进程退出`);
-  assert.ok(result.done && result.exited, '卸载返回前必须完成自有夹具清理并退出');
+    : await poll(read, (value) => value.done && value.exitRecorded && value.exited, `${label} 清理及进程退出`);
+  assert.ok(result.done && result.exitRecorded && result.exited, '卸载返回前必须完成自有夹具清理并退出');
   if (cancelled) assert.equal(result.notified, true, '必须真正收到合作取消帧');
   return {
     label,
@@ -223,6 +243,8 @@ export async function cleaned(item, label, { cancelled = false, atReturn = false
     request_id: result.start.request_id,
     cleaned: true,
     process_exited: true,
+    process_exit_recorded: true,
+    process_observation: result.process,
     cancellation_received: result.notified,
   };
 }

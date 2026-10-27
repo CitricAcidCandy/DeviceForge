@@ -1,4 +1,5 @@
 import { createFrontendRuntime, createNamedSlotAdapter } from '/__production_host__';
+import { pageSlotId } from '../src/plugin-sdk/index.ts';
 
 function check(value: unknown, message: string): asserts value {
   if (!value) throw new Error(message);
@@ -68,6 +69,7 @@ export async function verifyInstalledPlugin() {
   const toolbar = target('toolbar');
   const module = target('module');
   const slot = await createNamedSlotAdapter([
+    { id: pageSlotId('browser_runtime_probe', '/probe'), target: module },
     {
       id: 'toolbar',
       target: toolbar,

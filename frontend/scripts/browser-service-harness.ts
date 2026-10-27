@@ -1,6 +1,8 @@
 import { createFrontendRuntime, createNamedSlotAdapter } from '/__production_host__';
 import { installPublicUi } from '../src/app/public-ui.ts';
 import type { JsonValue, ServiceFeatureDiagnostic } from '../src/plugin-sdk/index.ts';
+import { pageSlotId } from '../src/plugin-sdk/index.ts';
+import { verifyServiceProductRoutes } from './browser-service-product-routes.tsx';
 
 const providerId = 'example.service-provider';
 const consumerId = 'example.service-consumer';
@@ -78,12 +80,13 @@ export async function verifyServiceComposition() {
     slots = await createNamedSlotAdapter([
       { id: 'workspace.sidebar', target: widget },
       { id: 'service.independent', target: independent },
+      { id: pageSlotId(consumerId, '/catalog'), target: page },
+      { id: pageSlotId(consumerId, '/service-independent'), target: independentPage },
     ]);
     runtime = createFrontendRuntime({
       baseUrl: location.origin,
       transport: fetch.bind(globalThis),
       panelTarget: () => null,
-      moduleTarget: (id) => id === independentPageId ? independentPage : page,
       slotAdapter: slots,
       esmImporter: async (url, current) => {
         current.throwIfAborted();
@@ -212,15 +215,23 @@ export async function verifyServiceComposition() {
       check((await current.extensions.executeCommand(`${consumerId}.echo`, null, signal)).data === '组合服务已就绪', '恢复后的组合命令不可用');
       check(independent.querySelector('button') === independentButton && independentButton.textContent === '共享计数：2', '服务恢复丢失独立状态');
     });
-    await runCheck('删除安装包撤销全部本轮贡献与挂载', async () => {
-      await current.pluginPackages.remove('browser', consumerId, signal);
-      await current.pluginPackages.remove('browser', providerId, signal);
-      await eventually(() => roots.every((root) => root.childElementCount === 0), '卸载后仍有本轮 DOM');
-      const catalog = current.extensions.catalog();
-      check(Object.values(catalog).flat().every((entry) => entry.pluginId !== consumerId && entry.pluginId !== providerId), '卸载后仍有插件贡献');
-      check(current.webPlugins.snapshot().length === 0, '卸载后仍有运行插件');
-      check((await current.pluginPackages.refresh('browser', signal)).data.length === 0, '卸载后真实安装目录不为空');
-    });
+    // 先释放裸挂载宿主，再把同一批真实已安装包交给生产产品路由，避免双宿主争抢。
+    await current.dispose();
+    await slots.dispose();
+    check(roots.every((root) => root.childElementCount === 0), '移交产品路由前旧宿主仍有挂载');
+    await verifyServiceProductRoutes({
+      baseUrl: location.origin,
+      transport: fetch.bind(globalThis),
+      panelTarget: () => null,
+      esmImporter: async (url, currentSignal) => {
+        currentSignal.throwIfAborted();
+        check(/^\/api\/v2\/browser-plugins\/[^/]+\/runs\/[^/]+\/assets\//u.test(url), '产品插件没有使用真实运行 URL');
+        imports.push(url);
+        return import(/* @vite-ignore */ url);
+      },
+      packageEntryResolver: (info, runId) =>
+        `/api/v2/browser-plugins/${encodeURIComponent(info.id)}/runs/${runId}/assets/${info.entryPath}`,
+    }, signal, runCheck);
   } catch (error) {
     failed = true;
     checks.push({ name: activeCheck, passed: false, detail: error instanceof Error ? error.message : '未知浏览器验收错误' });

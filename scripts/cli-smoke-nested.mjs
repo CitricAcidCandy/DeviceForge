@@ -53,7 +53,7 @@ export async function verifyNpxNestedArtifacts({
       const installed = await runNpx([
         ...prefix,
         'plugin',
-        'install',
+        'install-legacy',
         archive,
         '--data-dir',
         dataDirectory,

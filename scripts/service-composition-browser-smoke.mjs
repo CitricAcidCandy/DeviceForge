@@ -104,6 +104,8 @@ export const requiredChecks = [
   'React命名入口复用宿主且hooks和portal可用', '提供者上线后发布页面元数据与槽位',
   '公开callTyped贯通两个独立包', '提供者停用仅撤销相关贡献与DOM',
   '独立页面组件命令及React状态保留', '恢复提供者产生新运行URL与代际',
+  '产品启动目录未就绪保留直达hash', '产品模块就绪后直达页面与服务调用可用',
+  '产品接管等待与失败保留默认内容', '产品卸载当前插件页回到devices',
   '恢复后重挂载新功能且旧节点不复活', '删除安装包撤销全部本轮贡献与挂载',
   '生产宿主释放', '槽位适配器释放', '公共UI与验收节点释放',
 ];
@@ -189,9 +191,9 @@ export async function main(args = process.argv.slice(2)) {
   const reportPath = join(root, 'artifacts', `service-composition-browser-${profile}.json`);
   const report = { run_id: runId, timestamp: new Date().toISOString(), profile, platform: process.platform,
     passed: false, checks: [], browser_runtime: { status: '尚未取得' }, process_cleanup: [],
-    scope: '真实Rust在线安装、两个独立浏览器TGZ、生产宿主ESM、公开SDK功能级服务组合与React共享实例；独立验收页面，不含协议第六版、产品路由壳与导航视觉、真机、性能或可信JS副作用强制停止证明',
+    scope: '真实Rust在线安装、两个独立浏览器TGZ、生产宿主ESM、公开SDK服务组合与React共享实例、生产App/ProductServices直达路由及默认内容回退；不含协议第六版、导航视觉、真机、性能或可信JS副作用强制停止证明',
     boundaries: ['仅本轮独立临时用户根和冻结HTTP二进制', '不构建、不连接用户服务、不操作设备',
-      '页面元数据通过公开目录核对并真实挂载，不替代产品路由壳验收', '服务失效使用显式停用模拟，不宣称服务器协议第六版通过',
+      '生产App直达路由消费真实安装包；等待与失败通过公开生命周期注入，不计视觉或其他产品功能验收', '服务失效使用显式停用模拟，不宣称服务器协议第六版通过',
       '失败报告、TGZ、示例源码与临时运行目录保留；不自动重试整轮验收'] };
   let temporary, vite, backend, base, port, proxyPort;
   let stage = '冻结输入';
@@ -273,7 +275,8 @@ export async function main(args = process.argv.slice(2)) {
     report.browser_process = browserEvidence;
     report.browser = await runBrowser(`http://127.0.0.1:${proxyPort}/__service_verification__`,
       `(async () => { const harness = await import('/assets/browser-service-harness.js'); return harness.verifyServiceComposition(); })()`,
-      join(temporary, 'browser-profile'), (runtime) => { report.browser_runtime = runtime; }, { evidence: browserEvidence });
+      join(temporary, 'browser-profile'), (runtime) => { report.browser_runtime = runtime; },
+      { evidence: browserEvidence, inProcessGpu: true, onResult: (value) => { report.browser = value; } });
     validateBrowserResult(report.browser);
     assert.equal(browserEvidence.normal_exit, true, '浏览器原始句柄未正常退出');
     assert.equal(browserEvidence.listener?.released, true, '浏览器调试端口没有释放');

@@ -71,7 +71,7 @@ export async function verifyNpxUnifiedDiscovery({
       const installed = await runNpx([
         ...prefix,
         'plugin',
-        'install',
+        'install-legacy',
         path,
         '--data-dir',
         dataDirectory,

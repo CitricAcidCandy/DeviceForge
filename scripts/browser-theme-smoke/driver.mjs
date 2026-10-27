@@ -150,6 +150,8 @@ export async function runBrowser(
       throw new Error(
         evaluation.exceptionDetails.exception?.description || '主题浏览器业务执行失败',
       );
+    // 业务结果先交给证据持有者；后续退出检查失败也不能抹掉这部分观察。
+    options.onResult?.(evaluation.result.value);
     return evaluation.result.value;
   } catch (error) {
     failure = error;

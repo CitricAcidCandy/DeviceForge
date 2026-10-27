@@ -233,7 +233,8 @@ test('激活失败及释放失败汇总，其他资源和另一个插件仍正�
 
 test('在途清理仍串行等待，有界超时保留旧代诊断，晚到拒绝不影响新代', async (t) => {
   for (const mode of ['scope', 'deactivate', 'confirmed'] as const) await t.test(mode, async (t) => {
-    t.mock.timers.enable({ apis: ['setTimeout'] });
+    // 绝对期限和定时器必须使用同一时钟，避免真实耗时提前吃掉边界毫秒。
+    t.mock.timers.enable({ apis: ['setTimeout', 'Date'], now: 0 });
     const pending = deferred<void>();
     const began = deferred<void>();
     const contexts: HostContext[] = [];

@@ -125,6 +125,25 @@ test('公开服务调用继承父链并拒绝递归，不拖死独立调用', as
   } finally { await runtime.dispose(); }
 });
 
+test('服务经公开命令转调时仍继承调用链，不能绕过递归拒绝', async () => {
+  const runtime = manager();
+  let calls = 0;
+  runtime.register({ id: 'bridge', trusted: true, plugin: { id: 'bridge', apiVersion: 2, version: '1', panels: [],
+    contributions: {
+      commands: [{ id: 'bridge.command', title: '转调', execute: async (input, context, signal) =>
+        services(context).call({ id: 'bridge.service', version: '1' }, input, signal) }],
+      services: [{ id: 'bridge.service', version: '1', invoke: async (input, context, signal) => {
+        if (++calls > 2) throw new Error('调用链被重置');
+        assert.ok(context.extensions);
+        return context.extensions.executeCommand('bridge.command', input, signal);
+      } }],
+    } } });
+  try {
+    await runtime.load('bridge');
+    await assert.rejects(runtime.extensions.callService('bridge.service', '1', null, AbortSignal.timeout(100)), /递归/);
+  } finally { await runtime.dispose(); }
+});
+
 test('两个独立模板仅用公开SDK完成界面、路由、服务并在提供者恢复后重建', async () => {
   const runtime = manager();
   runtime.register({ id: providerExample.id, trusted: true, plugin: providerExample });

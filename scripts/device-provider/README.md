@@ -4,6 +4,8 @@
 
 报告写入 `artifacts/device-provider-smoke-{profile}.json`，包括阶段、精确错误码、检查项、共享任务 ID、真实夹具进程与清理标记、响应日志关联及失败位置。写好脚本或语法检查通过仅是静态证据；报告的 `passed` 和本轮命令退出码共同表示真实验收结果。
 
+每次新报告还会保存为 `device-provider-smoke-{profile}-{run_id}.json`。更新最新入口前，先将旧报告原字节保存为 `device-provider-smoke-{profile}-preserved-{sha256}.json`；归档失败时不覆盖最新入口。新报告的 `previous_report` 记录归档路径与摘要，旧失败不能被新成功抹去。
+
 成功发现检查的 `providers` 摘要记录真实 HTTP 声明的 `devices_api_version`、能力 ID/版本、`execution_timeout_ms` 和 `execution_timeout_omitted`；同一声明已与 MCP 完整比较。省略预算时报告值为 `null` 且省略标志为 `true`，不将默认值推导写成实测预算。新增摘要需以重新运行后的报告为证，既有报告不会自动补齐。
 
 ## 已验证状态
@@ -16,6 +18,7 @@
 
 - `client.mjs`：默认不带 Authorization 的公开 HTTP/MCP 调用、日志 ID、分页和共享任务终态。
 - `fixtures.mjs`：小型自包含 TGZ、便携清单、设备/能力声明，以及受控门闩、标记和进程退出观测。
+- `process-identity.mjs`：只查询本次夹具记录的 PID；按命令行、操作系统创建时间、本次运行目录与运行标识判断同一实例、PID 复用或身份未确认，不发送任何终止信号。
 - `node-provider.mjs`：归档中的协议 3 独立 Node 入口，不依赖宿主内部代码。发现操作接受空对象，能力接受 `{device_id,input}`；响应后等待宿主输入 EOF。
 - `discovery.mjs`：提供者列表、明确刷新、同名设备身份，以及刷新失败撤销陈旧目录和成功刷新重建。
 - `actions.mjs`：两种范围和访问类型、固定准入错误、共享任务及真实执行互斥。
@@ -39,4 +42,23 @@
 
 夹具资源只有自有计时器、输入流和本次临时标记。协议 3 声明 `cleanup:complete` 与进程退出证明这些模拟资源已清理，不证明真实设备恢复、外部连接清理或常驻传输。管理员路径只放入本次包配置，不放入业务 HTTP/MCP 输入。
 
-失败也先关闭自有宿主，仅在必要时终止本脚本直接持有的 ChildProcess。绝不按可复用 PID 强杀；若夹具仍可见则失败并保留临时目录。递归删除前检查绝对目标位于系统临时目录内，只删除本次目录。不修改源后端、前端、runtime、旧 smoke 或用户其他文件。
+失败也先关闭自有宿主，仅在必要时终止本脚本直接持有的 ChildProcess。绝不按可复用 PID 强杀；若本次同一夹具实例仍存活，或身份无法确认，则失败并保留临时目录。递归删除前检查绝对目标位于系统临时目录内，只删除本次目录。不修改源后端、前端、runtime、旧 smoke 或用户其他文件。
+
+## 2026-10-27 PID 复用误判修正
+
+11:08 失败原件为 `artifacts/plugin-infrastructure-debug-20261027-110656/device-provider.log` 与 `artifacts/device-provider-smoke-debug.json`。失败落在正常关闭后的逐调用退出断言及最终回收检查，两处都只按 `process.kill(pid, 0)` 判断。报告中的宿主退出码为 0；旧夹具 PID 74008 于 11:07:50.753 已记录 `process_exit`，11:08:31 却因该 PID 可见而被判残留。旧记录未保存操作系统创建时间和命令行，不能凭历史 PID 在事后认领当前进程，也不把旧报告改写成通过。
+
+新夹具在启动时保存 PID、操作系统命令行与创建时间，以及 `run_id`、debug/release 和本次绝对临时目录。所有动作清理、逐调用终态、时序采集与最终回收检查共用同一判定：
+
+- `running`：PID、命令行与创建时间均为本次同一实例，仍属真实残留；即使自报 `cleaned` 或 `process_exit` 也不放行。
+- `exited`：成功的操作系统查询确认 PID 已不存在。
+- `pid_reused`：本次原始身份完整，而当前同 PID 的创建时间已改变；旧实例已退出，不认领或终止新实例。
+- `unconfirmed`：查询超时、访问被拒、身份缺失、命令变更但创建时间不变、目录或运行标识不匹配，均不当作退出成功。
+
+报告中 `pid_visible` 与 `process_visible` 分开：前者表示该数值 PID 可见；后者只表示本次同一实例存活，未确认时为 `null`。`process_observation` 保存原始自有身份、观察时间、判定原因及当前命令行摘要，不写入 PID 复用后用户程序的命令行参数。Windows 使用限定 PID 的 CIM 查询，隐藏窗口、单次最多 5 秒；Linux 使用 `/proc`，其他平台显式未确认，不以裸 PID 兜底。
+
+本修正不修改或清空 `cleanup_failed`，不新增历史失败准入门禁；本次真实清理失败仍保留失败与临时目录。历史诊断不能覆盖另一调用成功，同一 PID 对应的多次调用分别按创建身份判断。
+
+验证入口：`node --test scripts/tests/device-provider-process-identity.test.mjs`，同时纳入根目录 `npm test`。先提取旧 PID 可见性判定执行 13 项回归，3 过、10 失败，包含外来进程和同命令新实例复用的误报；修复后补齐查询边界、摘要脱敏及批量观测覆盖。本机自查仅查询单元测试自身 PID，辅助查询同步结束，不连接服务或设备。真实服务复验必须由主代理统一排程：`node scripts/device-provider-smoke.mjs`，发布候选追加 `--release`；本轮未运行，不将单测或旧报告计为新宿主验收。新增身份查询的真实卸载时序和运行开销也以该次复验为准。
+
+2026-10-27 11:46（Asia/Shanghai）最终验证：无服务测试 30/30 通过，5 个维护脚本语法检查通过，写集差异检查通过。补充的卸载时序用例要求首次事件读取时已有退出标记，不能用稍后查询到 PID 消失补齐晚退出。本轮未修改后端、前端或根 runtime，未提交；根进度记录由集成负责人合并。

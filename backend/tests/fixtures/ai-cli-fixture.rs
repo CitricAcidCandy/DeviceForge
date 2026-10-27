@@ -13,6 +13,11 @@ fn main() {
         .expect("夹具缺少目录")
         .to_owned();
     let args: Vec<String> = env::args().skip(1).collect();
+    if args.as_slice() == ["--version"] {
+        // 只用于合成业务的依赖探测；明确标注夹具，不声称真实模型调用已通过。
+        println!("DeviceForge 合成验收 CLI 0.162.1");
+        return;
+    }
     let valid = match args.as_slice() {
         [exec, json, flag, stdin] => {
             exec == "exec" && json == "--json" && flag == "--fixture" && stdin == "-"
@@ -22,7 +27,9 @@ fn main() {
                 && resume == "resume"
                 && json == "--json"
                 && id.len() == 36
-                && id.bytes().all(|byte| byte.is_ascii_hexdigit() || byte == b'-')
+                && id
+                    .bytes()
+                    .all(|byte| byte.is_ascii_hexdigit() || byte == b'-')
                 && flag == "--fixture"
                 && stdin == "-"
         }

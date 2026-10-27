@@ -122,6 +122,11 @@ impl ServiceCaller for Invocation {
                     .selection(&provider, device.as_deref(), &cap.scope, &cap.access)
             })
             .transpose()?;
+        let ancestor_read = lock.as_ref().is_some_and(|lock| {
+            self.held
+                .iter()
+                .any(|ancestor| ancestor.provider == lock.provider)
+        });
         let cancel = self.cancel.child_token();
         let mut held = self.held.clone();
         held.extend(lock);
@@ -140,7 +145,11 @@ impl ServiceCaller for Invocation {
         let _owner_claim = owner.map(|owner| owner.claim()).transpose()?;
         let future = async {
             let _guard = match selection {
-                Some(selection) => Some(selection.acquire_until(&cancel, deadline).await?),
+                Some(selection) => Some(
+                    selection
+                        .acquire_descendant_until(&cancel, deadline, ancestor_read)
+                        .await?,
+                ),
                 None => None,
             };
             if !app.registry.current(&target.operation.id, &target)?

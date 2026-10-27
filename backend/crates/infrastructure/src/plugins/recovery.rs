@@ -153,7 +153,16 @@ mod tests {
     async fn recovery_process_runs_with_new_active_lease_and_keeps_unreaped_debt_busy() {
         let directory = tempfile::tempdir().unwrap();
         let mut definition = manifest();
-        definition.executable = "node".into();
+        // 清单要求真实绝对入口，不能把 PATH 命令名当作可执行文件路径。
+        let node = std::process::Command::new("node")
+            .args(["-p", "process.execPath"])
+            .output()
+            .expect("恢复夹具需要可用的 Node.js");
+        assert!(node.status.success(), "查询 Node.js 绝对入口失败");
+        definition.executable = String::from_utf8(node.stdout)
+            .expect("Node.js 入口必须是 UTF-8")
+            .trim()
+            .into();
         definition.args = vec![
             std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
                 .join("tests/fixtures/cleanup_isolation.mjs")

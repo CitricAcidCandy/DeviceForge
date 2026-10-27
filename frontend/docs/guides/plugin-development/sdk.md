@@ -136,7 +136,18 @@ const action = {
 import { React, mountReact, Button, EmptyState } from 'deviceforge-host';
 ```
 
-`deviceforge-host` 由宿主的 importmap 指到 `/plugin-host.js`，它只从全局契约 `__DEVICEFORGE_HOST_UI__` 取值，自身不带 React。`react`、`react/jsx-runtime`、`react-dom/client` 三个说明符同样指向它，所以插件用自动 JSX 运行时也不需要打包 React。
+宿主按说明符生成六份独立 ESM 入口，只从全局契约 `__DEVICEFORGE_HOST_UI__` 取值，均不内联第二份 React。插件构建时将这些裸模块名保留为 external，自动 JSX 运行时及常见命名导入均使用宿主实例。
+
+| 说明符 | importmap 入口 | 常见导入 |
+| --- | --- | --- |
+| `deviceforge-host` | `/plugin-host.js` | `Button`、`mountReact` |
+| `react` | `/plugin-react.js` | 默认 `React`、`useState`、`createContext` |
+| `react-dom` | `/plugin-react-dom.js` | `createPortal`、`flushSync` |
+| `react-dom/client` | `/plugin-react-dom-client.js` | `createRoot`、`hydrateRoot` |
+| `react/jsx-runtime` | `/plugin-jsx-runtime.js` | `jsx`、`jsxs`、`Fragment` |
+| `react/jsx-dev-runtime` | `/plugin-jsx-dev-runtime.js` | `jsxDEV`、`Fragment` |
+
+入口由 `scripts/generate-public-ui.ts` 统一生成，不手工修改 public 产物。更新宿主依赖后重新生成并运行公开入口检查，不能仅添加 importmap 而遗漏命名导出。
 
 | 成员 | 说明 |
 | --- | --- |

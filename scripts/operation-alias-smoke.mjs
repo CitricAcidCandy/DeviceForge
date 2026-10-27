@@ -136,6 +136,7 @@ try {
     APK_OPERATION_BINDINGS: fixture.path,
     APK_MCP_HOSTS: `127.0.0.1:${port}`,
     APK_MCP_ORIGINS: base,
+    DEVICEFORGE_USER_DIR: join(directory, 'user', '.deviceforge'),
     DEVICEFORGE_NODE: process.execPath,
     DEVICEFORGE_HTTP_RATE: '10000',
   };

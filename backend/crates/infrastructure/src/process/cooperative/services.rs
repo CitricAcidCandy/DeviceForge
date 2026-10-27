@@ -1,4 +1,5 @@
 //! 协议 6 双向泵；子调用只进入领域端口，与协议 3/4 共用直接进程及租约归属。
+use super::service_stdin::ClosingStdin;
 use super::{CleanupGuard, Invocation, bounded, command, ownership};
 use apk_domain::{
     Error, Result,
@@ -194,7 +195,8 @@ pub(super) async fn exchange<R: AsyncBufRead + Unpin, W: AsyncWrite + Unpin>(
                             _ => return Err(Error::CleanupFailed),
                         }
                         for token in active.values() { token.cancel(); }
-                        if interrupted.is_none() { until = deadline.min(Instant::now() + Duration::from_millis(1250)); }
+                        // 业务结束与清理确认分别计时；不能用剩余业务预算截断子调用清理。
+                        if interrupted.is_none() { until = Instant::now() + Duration::from_millis(1250); }
                         finished = Some(execution.response);
                         writer.shutdown().await.map_err(|_| Error::CleanupFailed)?;
                     },
@@ -270,7 +272,7 @@ pub(crate) async fn run(
         confirmed: false,
         lease,
     };
-    let mut stdin = child.stdin.take().ok_or(Error::CleanupFailed)?;
+    let mut stdin = ClosingStdin::new(child.stdin.take().ok_or(Error::CleanupFailed)?);
     let mut stdout = BufReader::new(child.stdout.take().ok_or(Error::CleanupFailed)?);
     let stderr = child.stderr.take().ok_or(Error::CleanupFailed)?;
     let terminal = tokio::sync::Notify::new();

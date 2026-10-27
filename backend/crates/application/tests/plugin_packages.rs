@@ -138,7 +138,7 @@ fn setup(
 }
 
 #[tokio::test]
-async fn loaded_and_cleanup_failed_owners_block_deletion_and_keep_deployment() {
+async fn loaded_owner_blocks_deletion_but_unloaded_cleanup_history_does_not() {
     let (app, plugins, packages, deployment) = setup(false, false);
     plugins.load("test".into()).await.unwrap();
     assert!(matches!(
@@ -150,17 +150,29 @@ async fn loaded_and_cleanup_failed_owners_block_deletion_and_keep_deployment() {
         .unresolved
         .store(true, Ordering::Release);
     assert!(matches!(
-        plugins.unload("test".into()).await,
-        Err(Error::CleanupFailed)
-    ));
-    assert!(matches!(
         packages.delete(PackageKind::Server, "test".into()).await,
-        Err(Error::CleanupFailed)
+        Err(Error::Conflict(_))
     ));
     assert_eq!(deployment.deletes.load(Ordering::SeqCst), 0);
     assert!(deployment.deployed.load(Ordering::Acquire));
-    assert_eq!(plugins.list()[0].state, PluginState::Draining);
-    assert!(plugins.list()[0].cleanup_failed);
+    let unloaded = plugins.unload("test".into()).await.unwrap();
+    assert_eq!(unloaded.state, PluginState::Unloaded);
+    assert!(unloaded.cleanup_failed);
+    assert!(plugins.list().is_empty());
+    assert!(app.operations().is_empty());
+    let deleted = packages
+        .delete(PackageKind::Server, "test".into())
+        .await
+        .unwrap();
+    assert_eq!(deleted.id, "test");
+    assert_eq!(deployment.deletes.load(Ordering::SeqCst), 1);
+    assert!(!deployment.deployed.load(Ordering::Acquire));
+    // 部署删除不能改写旧代的清理告警，也不能让已删除的部署重新加载。
+    assert!(unloaded.cleanup_failed);
+    assert!(matches!(
+        plugins.load("test".into()).await,
+        Err(Error::NotFound(_))
+    ));
     plugins.close();
     plugins.wait().await;
     app.shutdown().await.unwrap();

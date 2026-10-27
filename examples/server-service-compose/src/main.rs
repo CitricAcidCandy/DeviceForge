@@ -2,6 +2,7 @@
 use apk_plugin_sdk::services::ServiceRef;
 use deviceforge_plugin_runtime::{Execution, ServiceHandle, serve_once_with_services};
 use serde::{Deserialize, Serialize};
+mod diagnostics;
 
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -12,6 +13,10 @@ struct Text {
 #[tokio::main]
 async fn main() {
     let result = serve_once_with_services(|request, context, services| async move {
+        let diagnostics = match diagnostics::Diagnostics::start(&request).await {
+            Ok(value) => value,
+            Err(error) => return Execution::complete(Err(error)),
+        };
         let outcome = async {
             context.check().map_err(|e| e.to_string())?;
             if request.operation == "ping" {
@@ -31,7 +36,11 @@ async fn main() {
             Ok(serde_json::json!({"text":format!("FORGE: {}", output.text)}).into())
         }
         .await;
-        Execution::complete(outcome)
+        let cancelled = context.cancellation().is_cancelled();
+        match diagnostics.finish(cancelled).await {
+            Ok(()) => Execution::complete(outcome),
+            Err(error) => Execution::complete(Err(error)),
+        }
     })
     .await;
     if result.is_err() {

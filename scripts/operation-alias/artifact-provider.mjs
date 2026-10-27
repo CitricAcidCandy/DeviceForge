@@ -1,9 +1,16 @@
 import { appendFileSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { createInterface } from 'node:readline';
+import { snapshotProcesses } from './process-identity.mjs';
 
 // 在线模拟包通过宿主授权输出目录发布真实文件，不用业务 JSON 自填产物 ID。
 const config = JSON.parse(readFileSync(new URL('./fixture.json', import.meta.url), 'utf8'));
+const observed = snapshotProcesses([process.pid]).get(process.pid);
+if (observed?.state !== 'present' || !observed.command_line || !observed.created_at) {
+  throw new Error('无法取得本次产物夹具的操作系统进程身份');
+}
+const processIdentity = { ...config.processScope, pid: process.pid,
+  command_line: observed.command_line, created_at: observed.created_at, entry_path: process.argv[1] };
 const lines = createInterface({ input: process.stdin, crlfDelay: Infinity });
 let request;
 const record = (kind) =>
@@ -16,6 +23,7 @@ const record = (kind) =>
       request_id: request.request_id,
       operation: request.operation,
       label: request.input.label,
+      ...(kind === 'started' ? { process_identity: processIdentity } : {}),
     })}\n`,
     'utf8',
   );

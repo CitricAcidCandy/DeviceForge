@@ -185,3 +185,24 @@ guide-suite/
 ## 独立服务插件
 
 examples/server-service-normalize 与 examples/server-service-compose 是两个分别构建/安装的 Rust 原生插件。前者提供 example.text.normalize@字符串1.0；后者用 ServiceHandle<Text,Text> 反向调用并提供组合服务，仅 compose 声明该必需依赖，ping 保持独立。两者只依赖公开 SDK/运行库，不引用宿主、不发 HTTP 请求。构建、打包与正负验证命令见各自 README；本轮示例源码不代表真实安装或运行通过。
+
+### 共享 target 与实际组合验证
+
+两个示例自带独立 `[workspace]`，后端 `cargo build --workspace` 不会构建它们。由主代理统一串行构建，避免共享 target 与门禁争用；在项目根执行：
+
+```powershell
+cargo build --manifest-path backend/Cargo.toml -p apk-server --target-dir backend/target -j 1
+cargo build --manifest-path examples/server-service-normalize/Cargo.toml --target-dir backend/target -j 1
+cargo build --manifest-path examples/server-service-compose/Cargo.toml --target-dir backend/target -j 1
+node backend/scripts/service-composition-smoke.mjs
+```
+
+release 验证必须把三条构建都加 `--release` 后再运行 `node backend/scripts/service-composition-smoke.mjs --release`，不能只更换脚本参数消费旧程序。冻结目录可使用绝对路径 `DEVICEFORGE_SMOKE_BINARY_DIR`。脚本自身不调用 Cargo/npm，直接将已有 Rust 程序与公开清单封装为本轮原生 TGZ，通过在线安装入口分别安装两个组件，不拿 Node 协议替身代表 Rust 反向服务。
+
+覆盖 HTTP/MCP 服务与普通操作提交、同 Job/事件、入口级依赖隔离、提供者卸载/恢复/错版本/旧代际、顶层/嵌套输入及输出 schema 拒绝、父取消和宿主退出。只有已卸载的本轮部署副本会被修改为负向 schema/版本，源码清单保持不变；失败报告和原包不被后续重试覆盖。完整矩阵与进程边界见 [验收说明](../../../scripts/service-composition/README.md)，公开线格式见 [公共服务与协议第六版](../../contracts/公共服务与协议第六版.md)。
+
+示例默认不写诊断文件。仅管理员清单传入 `--smoke-directory <已存在绝对目录>` 时记录请求身份、PID、开始/结束及取消状态，不记录输入；normalize 在该目录存在 `hold` 时进行最长六十秒、服从原上下文取消的受控等待。该参数用于确定父子均已启动再取消/卸载，不增加普通业务参数，也不创建常驻进程。结束标记不能替代宿主清理确认、直接进程退出或端口释放证据。
+
+同提供者祖先读屏障下，子调用不能排到外部写者后面自等待，应在不能立即取得读屏障时返回 `conflict`。收到 `Finished` 后仍保留完整 1250ms 清理窗口，不由剩余业务预算截短。这两个临界顺序需主代理的应用/协议定点回归，不能仅由组合成功外推。
+
+每轮证据在 `artifacts/service-composition-smoke-<模式>-<runID>/`，记录三份二进制、示例及脚本输入摘要、两份 TGZ、真实部署入口、Job、日志与进程/端口收尾；不替换用户服务、不操作设备。当前仅交接脚本与静态语法检查，debug/release 运行报告仍待主代理执行，不能据此宣称正式分发、长期会话或真机已通过。

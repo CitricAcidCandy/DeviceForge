@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { mkdir, mkdtemp, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
@@ -9,7 +9,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
 import { isDeepStrictEqual } from 'node:util';
 import { createClient, poll } from './device-provider/client.mjs';
-import { events, exited, fixture } from './device-provider/fixtures.mjs';
+import { events, fixture, processEvidence } from './device-provider/fixtures.mjs';
 import { verifyDiscovery } from './device-provider/discovery.mjs';
 import { verifyActions } from './device-provider/actions.mjs';
 import { verifyLifecycle } from './device-provider/lifecycle.mjs';
@@ -27,6 +27,7 @@ const binary = smokeBinary('apk-server', profile);
 const reportPath = resolve(root, 'artifacts', `device-provider-smoke-${profile}.json`);
 const report = {
   timestamp: new Date().toISOString(),
+  run_id: randomUUID(),
   profile,
   platform: process.platform,
   architecture: process.arch,
@@ -77,15 +78,18 @@ try {
     sha256: createHash('sha256').update(hostBytes).digest('hex'),
   };
   temporary = await mkdtemp(join(tmpdir(), 'deviceforge-provider-smoke-'));
+  report.profile_directory = temporary;
+  const processScope = { run_id: report.run_id, profile, profile_directory: temporary };
   const plugins = join(temporary, 'server-plugins');
   const browserPlugins = join(temporary, 'browser-plugins');
   await mkdir(plugins);
   await mkdir(browserPlugins);
-  fixtures.push(await fixture('provider_smoke_a', join(temporary, 'markers')));
+  fixtures.push(await fixture('provider_smoke_a', join(temporary, 'markers'), { processScope }));
   fixtures.push(
     await fixture('provider_smoke_b', join(temporary, 'markers'), {
       apiVersion: 2,
       executionTimeoutMs: 120000,
+      processScope,
     }),
   );
   const port = await reservePort();
@@ -242,11 +246,15 @@ try {
   report.fixture_processes = [];
   for (const item of fixtures) {
     const all = await events(item);
-    for (const start of all.filter((event) => event.kind === 'started')) {
+    for (const { start, process: observation } of processEvidence(item, all)) {
       assert.ok(
         all.some((event) => event.kind === 'cleaned' && event.request_id === start.request_id),
       );
-      assert.equal(exited(start.pid), true, '本次每个真实 Node 调用都必须退出');
+      assert.ok(
+        all.some((event) => event.kind === 'process_exit' && event.pid === start.pid && event.request_id === start.request_id),
+        '本次夹具必须保留独立退出标记，不能以清理标记代替',
+      );
+      assert.equal(observation.process_exited, true, `本次夹具退出未确认：${observation.state}`);
       report.fixture_processes.push({
         provider_id: item.id,
         request_id: start.request_id,
@@ -255,6 +263,8 @@ try {
         label: start.label,
         cleaned: true,
         process_exited: true,
+        process_exit_recorded: true,
+        process_observation: observation,
       });
     }
   }
@@ -273,14 +283,17 @@ try {
     report.fixture_timing = [];
     for (const item of fixtures) {
       const all = await events(item);
-      for (const start of all.filter((event) => event.kind === 'started')) {
+      for (const { start, process: observation } of processEvidence(item, all)) {
         const related = all.filter((event) => event.request_id === start.request_id);
         report.fixture_timing.push({
           provider_id: item.id,
           request_id: start.request_id,
           pid: start.pid,
           label: start.label,
-          process_visible: !exited(start.pid),
+          pid_visible: observation.observed?.state === 'present',
+          process_visible: observation.state === 'running' ? true : observation.process_exited ? false : null,
+          process_exited: observation.process_exited,
+          process_observation: observation,
           events: related.map(({ kind, at }) => ({
             kind,
             at,
@@ -328,10 +341,12 @@ try {
     }
     await captureEvidence();
     for (const item of fixtures) {
-      const running = (await events(item)).filter(
-        (event) => event.kind === 'started' && !exited(event.pid),
+      const unresolved = processEvidence(item, await events(item)).filter(
+        (entry) => !entry.process.process_exited,
       );
-      assert.deepEqual(running, [], '本次夹具 PID 仍可见，保留目录并交集成负责人检查；不强杀');
+      report.fixture_cleanup_observations ??= [];
+      report.fixture_cleanup_observations.push(...unresolved);
+      assert.deepEqual(unresolved, [], '本次夹具仍存活或身份未确认，保留目录并交集成负责人检查；不强杀');
     }
     if (temporary && report.passed) {
       const within = relative(resolve(tmpdir()), resolve(temporary));
@@ -365,6 +380,24 @@ try {
   }
   report.completed_at = new Date().toISOString();
   await mkdir(resolve(root, 'artifacts'), { recursive: true });
+  // 保留上次报告原字节；复验只更新最新入口，不能覆盖失败原件。
+  const previous = await readFile(reportPath).catch((error) => {
+    if (error.code === 'ENOENT') return null;
+    throw error;
+  });
+  if (previous) {
+    const digest = createHash('sha256').update(previous).digest('hex');
+    const preserved = resolve(root, 'artifacts', `device-provider-smoke-${profile}-preserved-${digest}.json`);
+    try {
+      await writeFile(preserved, previous, { flag: 'wx' });
+    } catch (error) {
+      if (error.code !== 'EEXIST') throw error;
+      assert.ok((await readFile(preserved)).equals(previous), '历史报告归档字节不一致，拒绝覆盖最新报告');
+    }
+    report.previous_report = { path: preserved, sha256: digest };
+  }
+  report.run_report_path = resolve(root, 'artifacts', `device-provider-smoke-${profile}-${report.run_id}.json`);
+  await writeFile(report.run_report_path, `${JSON.stringify(report, null, 2)}\n`, { encoding: 'utf8', flag: 'wx' });
   await writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
   console.log(JSON.stringify(report, null, 2));
 }
