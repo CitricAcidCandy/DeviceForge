@@ -5,6 +5,7 @@ use serde_json::json;
 use sha2::{Digest, Sha256};
 use std::fs;
 use std::io::{Cursor, Write};
+mod identity_entry;
 mod local_rebuild;
 mod successful;
 

@@ -44,7 +44,7 @@ impl Extractor<'_> {
         } else {
             name
         };
-        // 完整发布允许工具自身的点目录；旧便携上传继续沿用原有严格路径规则。
+        // 完整发布使用发布路径规则；便携上传额外保留宿主元数据文件名，允许普通点文件。
         let relative = if self.entry_limit > 4096 {
             apk_domain::plugin_installations::validate_release_path(name)?;
             std::path::PathBuf::from(name)

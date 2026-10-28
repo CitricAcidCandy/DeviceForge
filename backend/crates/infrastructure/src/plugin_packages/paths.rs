@@ -22,7 +22,9 @@ pub fn relative(value: &str) -> Result<PathBuf> {
         if part.is_empty()
             || part == "."
             || part == ".."
-            || part.starts_with('.')
+            // 点文件本身是合法资源；只保留宿主写入的元数据名，避免包覆盖或读取内部视图。
+            || part.eq_ignore_ascii_case(".deviceforge-package.json")
+            || part.eq_ignore_ascii_case(".deviceforge-runtime.json")
             || part.ends_with(['.', ' '])
             || part
                 .chars()
@@ -72,4 +74,45 @@ pub fn json<T: serde::de::DeserializeOwned>(root: &Path, path: &str) -> Result<T
         return Err(Error::TooLarge);
     }
     serde_json::from_slice(&bytes).map_err(|_| Error::Invalid("包清单结构无效".into()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn generated_identity_entry_and_normal_dot_paths_are_relative_resources() {
+        for path in [
+            ".deviceforge-entry.js",
+            "dist/.chunks/main.js",
+            ".assets/说明.txt",
+        ] {
+            assert_eq!(relative(path).unwrap(), PathBuf::from(path));
+        }
+    }
+
+    #[test]
+    fn traversal_aliases_and_host_metadata_are_not_package_resources() {
+        for path in [
+            "",
+            ".",
+            "..",
+            "../entry.js",
+            "dist/../entry.js",
+            "/entry.js",
+            "C:/entry.js",
+            "dist\\entry.js",
+            "dist//entry.js",
+            "entry.js.",
+            "entry.js ",
+            "CON.js",
+            "dist/LPT1",
+            ".deviceforge-package.json",
+            "dist/.DEVICEFORGE-PACKAGE.JSON",
+            ".deviceforge-runtime.json",
+            "dist/.DeviceForge-Runtime.json",
+        ] {
+            assert!(relative(path).is_err(), "不应接受包路径：{path}");
+        }
+    }
 }

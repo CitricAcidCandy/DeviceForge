@@ -12,6 +12,8 @@ deviceforge plugin publish dist-plugin --server http://127.0.0.1:7040
 
 pack 只读取清单与 files 声明的已构建内容，不执行 npm/Cargo/设备工具，不修改源工程。输出必须为尚不存在的新目录，默认 dist-plugin，父目录须存在；platform 默认当前系统/架构。输出含 components/*.tgz、生成的 market.json、release.json、blobs、完整离线 ZIP 和 pack-report.json。组件 package.json/plugin.json/market.json 及按需 dependencies.json 自动生成在组件包内；身份与版本自动继承，摘要与大小取最终归档真实字节。开发清单不是宿主部署目录里的运行 manifest.json，不能直接拿来安装。
 
+浏览器身份包装入口 `.deviceforge-entry.js` 由打包器生成，属于合法包资源，无须重命名或再手写入口声明。正常点文件和点目录可以随构建产物交付；`.`、`..` 和越界路径仍无效，`.deviceforge-package.json`、`.deviceforge-runtime.json` 是宿主保留元数据名，不作为自行交付的资源。
+
 plan 只核对本地闭包并生成在线发布计划，不访问远端。publish 先查询 /api/v1/capabilities，确认格式2、宿主API2、catalog_last、immutable_versions 和资源上限，随后资源先上传、在线清单后上传、catalog 最后提交；默认读取打包生成的 market.json，无需另填市场文件。发布是显式动作，失败不伪造成功。离线 ZIP 可直接由现有统一安装界面或 `deviceforge plugin install` 使用；安装业务可用性仍须实际核对。
 
 ### 从本地导入（无需发布市场）

@@ -12,6 +12,8 @@ deviceforge plugin publish dist-plugin --server http://127.0.0.1:7040
 
 pack 自动生成组件 package.json、plugin.json、market.json 及按需 dependencies.json，再生成组件 TGZ、完整 release.json、blobs、完整离线 ZIP 和 pack-report.json。源工程不被改写，不执行构建脚本，输出须为新目录（默认 dist-plugin，父目录须存在）；--platform 可指定已构建目标，默认当前系统/架构。浏览器公共 ESM 说明符须保持 external；本工具不替代你的 bundler。
 
+身份包装入口 `.deviceforge-entry.js` 由打包器生成，属于合法包资源，无须重命名或再维护一份入口声明。正常点文件和点目录可以随已构建产物交付；`.`、`..` 和越界路径仍无效，`.deviceforge-package.json`、`.deviceforge-runtime.json` 是宿主保留元数据名，不作为自行交付的资源。
+
 入口可默认导出 `({id,version,apiVersion}) => ({panels:[]})` 或普通插件对象，工具生成身份包装；业务代码无需复制版本。浏览器配置在组件 plugin.configuration 中，配套服务器在同一 components 中，市场资料只在顶层 market 中声明。plan 只读本地，publish 先核对 /api/v1/capabilities，后上传资源、清单和 catalog；两者直接读取生成市场资料，无需再维护 market.json。离线 ZIP 使用现有完整发布安装入口。
 
 ### 从本地导入（无需发布市场）
