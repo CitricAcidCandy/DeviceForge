@@ -1,5 +1,21 @@
 # 服务器插件打包与部署
 
+## 单一开发清单流程（推荐）
+
+安装部署者提供、帮助中含 `plugin pack` 的 DeviceForge CLI 发行包后，在自己的工程维护 manifest.json（manifest_version:1）。完整结构和 market 全部字段查询本指南 manifest 主题；不假设 npm registry 已发布此 CLI，不需要宿主源码。
+
+```powershell
+deviceforge plugin pack manifest.json --out dist-plugin --platform win32-x64
+deviceforge plugin plan dist-plugin --server http://127.0.0.1:7040
+deviceforge plugin publish dist-plugin --server http://127.0.0.1:7040
+```
+
+pack 只读取清单与 files 声明的已构建内容，不执行 npm/Cargo/设备工具，不修改源工程。输出必须为尚不存在的新目录，默认 dist-plugin，父目录须存在；platform 默认当前系统/架构。输出含 components/*.tgz、生成的 market.json、release.json、blobs、完整离线 ZIP 和 pack-report.json。组件 package.json/plugin.json/market.json 及按需 dependencies.json 自动生成在组件包内；身份与版本自动继承，摘要与大小取最终归档真实字节。开发清单不是宿主部署目录里的运行 manifest.json，不能直接拿来安装。
+
+plan 只核对本地闭包并生成在线发布计划，不访问远端。publish 先查询 /api/v1/capabilities，确认格式2、宿主API2、catalog_last、immutable_versions 和资源上限，随后资源先上传、在线清单后上传、catalog 最后提交；默认读取打包生成的 market.json，无需另填市场文件。发布是显式动作，失败不伪造成功。离线 ZIP 可直接由现有统一安装界面或 `deviceforge plugin install` 使用；安装业务可用性仍须实际核对。
+
+下文为生成产物、旧包兼容和发布协议参考，不要求新工程手写这些文件。
+
 服务器插件交付自包含的 ZIP 或 npm TGZ。安装器校验包、公开清单和当前平台入口，生成受控部署，不运行 npm 生命周期脚本或替插件下载依赖。Node 依赖应先打包进浏览器无关的服务器入口；原生插件应先编译目标平台可执行文件。
 
 当前推荐将这些独立组件包和工具一起编排为完整功能发布；下文先解释底层服务器包，最后给出统一在线与离线流程。外层 `release.json` 不改变 `package.json.deviceforge.kind:"server"`，浏览器包仍为 `kind:"browser"` 与 SDK v2 ESM。
@@ -37,19 +53,19 @@ npm pack --ignore-scripts
 
 HTTP 管理使用 `GET /api/v2/plugins`、`POST /api/v2/plugins/{id}/load`、`POST /api/v2/plugins/{id}/unload`；MCP 对应 `deviceforge.list_plugins`、`deviceforge.load_plugin` 和 `deviceforge.unload_plugin`。只向加载/卸载接口提供插件 ID，不传本机程序或任意目的目录。部署者配置可选令牌时按现有鉴权规则使用，令牌不进入包或提示词。
 
-本项目 CLI 的插件安装支持本地 TGZ；以部署者实际提供的 CLI 包或源码命令帮助为准，不假设 `@deviceforge/cli` 已发布到公共 registry。安装完成后运行中的服务仍须显式加载；初次服务启动可从部署目录加载已安装包。
+部署者提供的 CLI 可支持本地 TGZ 安装，具体命令以该发行包的 `--help` 为准；没有 CLI 时可使用宿主插件管理界面与本篇公开 HTTP/MCP 接口，不要求获取源码，也不假设 `@deviceforge/cli` 已发布到公共 registry。旧单组件安装完成后运行中的服务仍须显式加载；初次服务启动可从部署目录加载已安装包。
 
 ## 旧独立部署更新与回收
 
 同 ID 包更新不能绕过运行保护直接覆盖文件。先卸载旧运行代次并查询实际状态，确认真实在途工作退出及待变更文件可用后，再按当前部署 API 删除旧包、安装新包、加载并验证；不要求全插件历史清理告警归零。取消管理请求只撤销客户端等待，管理工作可能继续，应重新查询而非自动重放。
 
-卸载撤销新入口并有界等待真实在途工作；`draining` 与历史 `cleanup_failed` 分开处理。旧告警不冻结独立新调用或排空后的重载，真实占用、共享工具引用或文件事务异常只限制对应变更；规则见[资源故障隔离与后台回收裁定](../../implementation/资源故障隔离与后台回收裁定.md)。杀掉直接进程或重启页面不能作为外部资源清理完成的证据。历史任务与发布产物按宿主策略保留。新代际不接受旧设备引用、旧调用结果或缓存的私有上下文。
+卸载撤销新入口并有界等待真实在途工作；`draining` 与历史 `cleanup_failed` 分开处理。旧告警不冻结独立新调用或排空后的重载，真实占用、共享工具引用或文件事务异常只限制对应变更；生命周期规则查询本指南 `lifecycle` 主题。杀掉直接进程或重启页面不能作为外部资源清理完成的证据。历史任务与发布产物按宿主策略保留。新代际不接受旧设备引用、旧调用结果或缓存的私有上下文。
 
 ## 完整发布、市场和离线
 
-新发布优先使用 v2 和统一 `dependencies`（见[共享依赖](dependencies.md)）。以下固定 `tools[]` 的闭包和 `release_format_version:1` 为旧 v1 兼容流程；v2 市场能力必须包含 2，catalog 的 `release_format_version` 也用 2。v2 的市场来源必须已上传相应归档，官方 HTTPS 来源则保留独立固定摘要。用户一次插件安装先自动发现环境及共享工具，只下载缺失必需项，不要求把工具装进主 npm 包或全部内嵌到插件 ZIP。
+新发布优先使用 v2 和统一 `dependencies`，详细字段通过本指南工具查询 `dependencies` 主题。以下固定 `tools[]` 的闭包和 `release_format_version:1` 为旧 v1 兼容流程；v2 市场能力必须包含 2，catalog 的 `release_format_version` 也用 2。v2 的市场来源必须已上传相应归档，官方 HTTPS 来源则保留独立固定摘要。用户一次插件安装先自动发现环境及共享工具，只下载缺失必需项，不要求把工具装进主 npm 包或全部内嵌到插件 ZIP。
 
-用项目发布器将组件 ZIP/TGZ 和实际工具字节编排成 `release.json`：源码版本范围仅用于选择输入，成品必须固定版本、大小、SHA-256、平台与稳定工具 entries。离线 ZIP 根直接包含 `release.json`，所有 path 引用的资源在包内（例如 `blobs/<sha256>`），完整闭包不能遗漏，不下载缺失依赖。在线清单 path 改为同资源服务器的相对摘要，并重新计算原始清单修订，不能复用离线清单摘要。
+按本指南清单格式，用自己的打包脚本或部署者提供的发布工具，将组件 ZIP/TGZ 和实际工具字节编排成 `release.json`；不要求使用宿主仓库内的发布脚本。开发时的版本范围仅用于选择输入，成品必须固定版本、大小、SHA-256、平台与稳定工具 entries。离线 ZIP 根直接包含 `release.json`，所有 path 引用的资源在包内（例如 `blobs/<sha256>`），完整闭包不能遗漏，不下载缺失依赖。在线清单 path 改为同资源服务器的相对摘要，并重新计算原始清单修订，不能复用离线清单摘要。
 
 网页发布前 GET `/api/v1/capabilities`，要求 `api_version:1`、`release_publication.format_versions` 含 1、`host_api_versions` 含 2、`catalog_last:true`、`immutable_versions:true`，并遵守 `resource_max_bytes`（当前 2147483648）。缺接口或能力不兼容时提示升级，停止写入资源；不能试探性向旧服务器上传。HEAD `/api/v1/resources/{sha256}` 核对现有摘要和长度，缺失才 POST `/api/v1/resources`，组件/工具全部完成后上传在线清单，最后 POST `/api/v1/catalog`。只产生一个可见 plugin 条目，`resource_id` 引用清单摘要，details 固定 `release_format_version:1,host_api_version:2`。
 

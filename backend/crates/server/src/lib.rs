@@ -21,6 +21,7 @@ use std::{
 #[derive(Clone)]
 struct ApiState {
     app: Arc<Application>,
+    debugger: Arc<apk_application::debugger::DebuggerService>,
     devices: Arc<apk_application::devices::DeviceService>,
     gate: Arc<Gate>,
     artifacts: Option<Arc<dyn apk_domain::artifacts::ArtifactStore>>,
@@ -369,12 +370,16 @@ fn build_router_with_dependencies(
         .as_ref()
         .and_then(|services| services.plugins.clone());
     let devices = apk_application::devices::DeviceService::new(app.clone());
-    let mcp_service = mcp::service_with_dependencies(
+    let debugger = Arc::new(apk_application::debugger::DebuggerService::default());
+    let mcp_service = mcp::service_with_debugger_resources(
         app.clone(),
         plugin_service,
         devices.clone(),
         installations.clone(),
         dependencies.clone(),
+        debugger.clone(),
+        artifacts.clone(),
+        runtime.as_ref().map(|services| services.logging.clone()),
         config,
     );
     if token.chars().any(char::is_whitespace) || requests_per_second == 0 {
@@ -383,6 +388,7 @@ fn build_router_with_dependencies(
         ));
     }
     let state = ApiState {
+        debugger,
         devices,
         app,
         artifacts,
@@ -422,9 +428,11 @@ fn build_router_with_dependencies(
         .nest("/api/v1", api.clone())
         .nest("/api/v2", api)
         .merge(interactive_routes::router())
+        .merge(debugger::router())
         .route("/api/v2/services", get(services::list))
         .route("/api/v2/services/{id}/calls", post(services::call))
         .route("/api/v2/diagnostics/logging", get(runtime::logging))
+        .route("/api/v2/diagnostics/logs", get(runtime::logs))
         .route("/api/v2/system/shutdown", post(runtime::shutdown))
         .route("/api/v2/plugins", get(plugin_routes::list))
         .route(
@@ -464,6 +472,18 @@ fn build_router_with_dependencies(
         .route(
             "/api/v2/plugin-installations/{id}/enabled",
             axum::routing::patch(plugin_installations::enabled),
+        )
+        .route(
+            "/api/v2/plugin-installations/{id}/reload",
+            post(plugin_installations::reload),
+        )
+        .route(
+            "/api/v2/plugin-installations/{id}/restore-successful",
+            post(plugin_installations::restore_successful),
+        )
+        .route(
+            "/api/v2/plugin-installations/{id}/previous-successful",
+            get(plugin_installations::previous_successful),
         )
         .route(INSTALLATION_ASSET_ROUTE, get(plugin_installations::asset))
         .route(
@@ -680,7 +700,10 @@ async fn jobs(
     Ok(Json(state.app.list_async(limit).await?))
 }
 async fn job(State(state): State<ApiState>, Path(id): Path<String>) -> Result<Json<Job>, ApiError> {
-    Ok(Json(state.app.get_async(id).await?))
+    let result = state.app.get_async(id).await?;
+    // 只记录已核实的任务身份，使查询响应的日志编号也能定位对应任务。
+    tracing::info!(job_id = %result.id, "已读取任务状态");
+    Ok(Json(result))
 }
 async fn cancel(
     State(state): State<ApiState>,
@@ -695,9 +718,14 @@ async fn events(
 ) -> Result<Json<Vec<JobEvent>>, ApiError> {
     let Query(query) = query
         .map_err(|_| ApiError::new(StatusCode::BAD_REQUEST, "invalid_input", "事件游标无效"))?;
-    Ok(Json(
-        state.app.events_async(id, query.after.unwrap_or(0)).await?,
-    ))
+    let result = state
+        .app
+        .events_async(id.clone(), query.after.unwrap_or(0))
+        .await?;
+    if uuid::Uuid::parse_str(&id).is_ok() {
+        tracing::info!(job_id = %id, "已读取任务事件");
+    }
+    Ok(Json(result))
 }
 async fn health(axum::extract::OriginalUri(uri): axum::extract::OriginalUri) -> Json<Value> {
     let version = if uri.path().contains("/v2/") { 2 } else { 1 };
@@ -732,6 +760,7 @@ mod browser_configuration_routes;
 pub mod client_connection;
 mod correlation;
 mod cors;
+mod debugger;
 mod device_mcp;
 mod device_routes;
 mod mcp_notifications;

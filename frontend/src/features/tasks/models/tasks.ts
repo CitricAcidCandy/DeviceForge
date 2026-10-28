@@ -5,9 +5,10 @@ import {
   jobsEndpoint,
   submitEndpoint,
 } from '../../../services/api/index.ts';
-import type { ApiClient, EventQuery, JobDto, JobQuery } from '../../../services/api/index.ts';
+import type { ApiClient, EventQuery, JobDto, JobQuery, LogOrder } from '../../../services/api/index.ts';
 import { createLatestResource } from '../../../shared/lifecycle/latest.ts';
 import type { TaskSubmission } from '../../../plugin-sdk/index.ts';
+import { lookupTask, searchTasks } from './log-search.ts';
 
 export function createTasks(
   client: ApiClient,
@@ -25,6 +26,8 @@ export function createTasks(
     return requestClient.call(submitEndpoint, transformed, current);
   }
   return {
+    lookup: (id: string, signal: AbortSignal) => lookupTask(client, id, combined(signal)),
+    search: (query: string, order: LogOrder, signal: AbortSignal) => searchTasks(client, query, combined(signal), order),
     list: (query: JobQuery, signal: AbortSignal) =>
       client.call(jobsEndpoint, query, combined(signal)),
     submit,

@@ -6,7 +6,6 @@ use serde::Serialize;
 pub(super) struct Document {
     pub target: Target,
     pub topic: Topic,
-    pub source: &'static str,
     pub content: &'static str,
 }
 
@@ -15,7 +14,6 @@ macro_rules! document {
         Document {
             target: Target::$target,
             topic: Topic::$topic,
-            source: $source,
             content: include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../", $source)),
         }
     };

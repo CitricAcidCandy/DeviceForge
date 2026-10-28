@@ -2,6 +2,7 @@
 import { parseOptions, help } from '../src/options.mjs';
 import { start } from '../src/start.mjs';
 import { installPlugin, listPlugins } from '../src/install.mjs';
+import { runAuthoring } from '../src/plugin-authoring/commands.mjs';
 import {
   installPluginRelease,
   listPluginInstallations,
@@ -21,6 +22,8 @@ process.once('SIGTERM', stop);
 try {
   const options = parseOptions(process.argv.slice(2));
   if (options.command === 'help') console.log(help);
+  else if (['plugin.pack', 'plugin.plan', 'plugin.publish'].includes(options.command))
+    console.log(JSON.stringify(await runAuthoring(options, { signal: controller.signal }), null, 2));
   else if (options.command === 'start') await start(options, { signal: controller.signal });
   else if (options.command === 'config.path')
     console.log(rootConfigurationPath(options.dataDirectory));

@@ -29,9 +29,13 @@ impl Rejection {
         match self {
             Self::Cancelled => Error::Cancelled,
             Self::Timeout => Error::Timeout,
-            Self::Conflict => Error::Conflict("发现提供者、贡献或代际已撤销".into()),
+            Self::Conflict => {
+                Error::Conflict("获取设备列表时插件已更新或停止，请重新获取设备列表".into())
+            }
             Self::Storage => Error::Storage("发现存储处理失败".into()),
-            Self::Dependency => Error::Dependency("设备发现观测失败".into()),
+            Self::Dependency => Error::Dependency(
+                "未能获取设备列表，具体原因尚未确认，请检查设备插件和连接状态".into(),
+            ),
             Self::Cleanup => Error::CleanupFailed,
         }
     }

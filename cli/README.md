@@ -4,6 +4,24 @@ CLI 只负责分发边界，不复制设备业务。`bin/deviceforge.mjs` 是入
 
 ## 使用
 
+## 插件开发：只维护一份清单
+
+独立工程只维护 `manifest.json`（`manifest_version:1`）：顶层功能身份、名称和描述，`components` 中的服务器／浏览器入口与公开能力，`dependencies` 和必要本地 `dependency_files`，以及可选 `market` 展示资料。组件版本默认继承功能版本，单组件 ID 默认继承功能 ID，多组件默认为 `<功能ID>.<kind>`。自己的语言工程文件继续负责构建，不重复维护 DeviceForge 资料。
+
+```powershell
+deviceforge plugin pack manifest.json --out dist-plugin --platform win32-x64
+deviceforge plugin plan dist-plugin --server http://127.0.0.1:7040
+deviceforge plugin publish dist-plugin --server http://127.0.0.1:7040
+```
+
+使用包含上述命令的 CLI 发行包；也可通过部署者提供的本地 CLI TGZ 用 npx 调用，不假设已公开发布 npm。pack 不构建源码、不运行插件、不启动服务，不改源工程；默认读取当前 manifest.json，输出 dist-plugin，新输出目录的父目录须存在，既有输出不覆盖。组件便携清单、市场资料、依赖、TGZ、release.json、真实摘要和完整离线 ZIP 自动生成。浏览器可导出身份工厂 `({id}) => ({panels:[]})`，包装入口自动注入 id/version/apiVersion。
+
+plan 只读本地闭包，不访问远端。publish 显式写入指定资源服务，先核对能力，再按资源、在线清单、catalog 顺序提交，读取生成 market.json 而无需再传另一份声明。资源摘要只在最终字节确定后计算，不要求手填。旧安装格式及旧发布脚本继续可用；本功能不把现有已安装插件自动迁移或覆盖。
+
+market 可声明 summary、keywords、categories、applies_to、supports_mcp、supports_agent、restart_policy、author、license、homepage、visibility、details；id/version/name/description 从顶层派生。完整字段和示例由 MCP `get_plugin_development_guide` 的 manifest 主题直接提供，打包流程在 packaging 主题提供，不需要开发者获取项目源码。
+
+## 运行与安装
+
 服务器插件和浏览器插件配置统一写入用户 `~/.deviceforge/plugin-configurations/`，分别位于 `server/<插件ID>/` 与 `browser/<插件ID>/`。该位置独立于插件程序、npm 缓存和业务数据目录；`--data-dir` 不改变插件配置归属。需要隔离部署或测试时可显式设置 `DEVICEFORGE_USER_DIR` 指向独立用户根。浏览器插件通过当前服务器保存配置，因此局域网客户端共享该服务器所属用户的配置。
 
 旧业务目录内的配置修订和插件旁置配置仅在用户目录不存在对应配置时复制，原文件保留。已存在的用户配置优先，不被随包默认值或旧目录覆盖。浏览器旧 localStorage 在首次没有服务端记录时导入，之后保存必须由服务器确认成功。

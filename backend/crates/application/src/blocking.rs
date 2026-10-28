@@ -12,7 +12,7 @@ impl Application {
     ) -> Result<T> {
         self.blocking_until(None, None, work).await
     }
-    async fn blocking_until<T: Send + 'static>(
+    pub(crate) async fn blocking_until<T: Send + 'static>(
         &self,
         cancel: Option<CancellationToken>,
         deadline: Option<tokio::time::Instant>,

@@ -11,9 +11,11 @@ const BUFFER_SIZE: usize = 64 * 1024;
 
 pub(super) fn limit(media_type: &str) -> Option<u64> {
     match media_type {
-        "application/octet-stream" | "text/javascript" | "text/plain" | "application/x-ndjson" => {
-            Some(TEXT_LIMIT)
-        }
+        "application/octet-stream"
+        | "text/javascript"
+        | "text/plain"
+        | "text/markdown"
+        | "application/x-ndjson" => Some(TEXT_LIMIT),
         "video/mp4" => Some(VIDEO_LIMIT),
         _ => None,
     }
@@ -27,7 +29,7 @@ pub(super) fn validate(path: &Path, media_type: &str) -> Result<()> {
     }
     match media_type {
         "application/octet-stream" if size == 0 => Err(Error::Invalid("BIN 产物不能为空".into())),
-        "application/octet-stream" | "text/plain" => Ok(()),
+        "application/octet-stream" | "text/plain" | "text/markdown" => Ok(()),
         "text/javascript" if size == 0 => Err(Error::Invalid("JS 产物不能为空".into())),
         "text/javascript" => validate_script(file),
         "application/x-ndjson" => validate_jsonl(file),

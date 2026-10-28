@@ -38,10 +38,8 @@ const CSS_ALLOWLIST = new Set([
   'pages/devices/workspace.css',
   'pages/files/workspace.css',
   'pages/frida/workspace.css',
-  'pages/marketplace/components/LocalImportDialog/styles.css',
   'pages/marketplace/components/MarketplaceUploadContent/styles.css',
   'pages/marketplace/workspace.css',
-  'pages/settings/workspace.css',
 ]);
 
 // T2：行内样式只放图表几何（数据驱动的坐标、比例），其余交给 Tailwind。
@@ -188,9 +186,6 @@ const BASELINE: Readonly<Record<string, readonly string[]>> = {
     ],
     "pages/performance/index.tsx": [
       "fixed:160px"
-    ],
-    "pages/settings/index.tsx": [
-      "responsive"
     ],
     "components/Progress/index.tsx": [
       "inline:transform"

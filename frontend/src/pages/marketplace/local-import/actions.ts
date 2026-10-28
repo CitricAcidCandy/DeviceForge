@@ -3,7 +3,7 @@ import { ApiError } from '../../../services/api/index.ts';
 import { readonlyIssues } from '../../../utils/schema.ts';
 import type { PluginInstallations } from '../../../features/plugin-installations/index.ts';
 import { runUploadPreparation } from '../upload-preparation/index.ts';
-import type { PreparationExecutor } from '../upload-preparation/index.ts';
+import type { PreparationExecutor, UploadSelection } from '../upload-preparation/index.ts';
 import {
   digestLocalFile,
   mergeConfigurationPreview,
@@ -20,7 +20,7 @@ export interface LocalImportPorts {
   readonly tools: Pick<ProductServices['toolSupply'], 'importLocal'>;
   readonly settings: Pick<ProductServices['settings'], 'list' | 'import'>;
   readonly configurations: Pick<ProductServices['pluginConfigurations'], 'get' | 'save'>;
-  readonly installations?: Pick<PluginInstallations, 'install'>;
+  readonly installations?: Pick<PluginInstallations, 'install'> & Partial<Pick<PluginInstallations, 'refresh' | 'update'>>;
   readonly installationArtifacts?: Pick<ProductServices['runtime']['installationArtifacts'], 'upload'>;
 }
 export function localImportPorts(services: ProductServices): LocalImportPorts {
@@ -43,27 +43,39 @@ export async function previewLocalImport(
     readonly file: File;
     readonly manifest: LocalToolManifest | null;
     readonly moduleId: string;
+    readonly selection?: UploadSelection;
   },
   signal: AbortSignal,
   prepare: PreparationExecutor = runUploadPreparation,
 ): Promise<LocalImportPreview> {
-  const { kind, file } = input;
+  const { kind } = input;
+  let file = input.file;
   signal.throwIfAborted();
   if (kind === 'plugin') {
-    if (!/\.(zip|tgz|tar\.gz)$/i.test(file.name)) throw new Error('插件请选择 ZIP 或 TGZ 便携包');
-    const release = await inspectLocalRelease(file, signal);
-    if (release) return { kind: 'release', file, release, sha256: await digestLocalFile(file, signal),
-      target: `${release.name}（${release.id}）`,
-      summary: `版本 ${release.version}，${release.componentCount} 个组件、${release.toolCount} 个工具；目录与资源大小已核对，服务器将继续校验摘要，安装后自动启用。` };
-    const prepared = await prepare(
-      {
-        kind: 'plugin',
-        selection: { mode: 'archive', name: file.name, files: [{ path: file.name, file }] },
-      },
-      signal,
-    );
-    const inspection = 'inspection' in prepared ? prepared.inspection : prepared;
-    if (!inspection.identity) throw new Error('插件包缺少有效运行清单');
+    if (!input.selection && !/\.(zip|tgz|tar\.gz)$/i.test(file.name)) throw new Error('插件请选择包含 manifest.json 和构建产物的文件夹，或 ZIP/TGZ 便携包');
+    let release = input.selection?.mode === 'directory' ? null : await inspectLocalRelease(file, signal);
+    let inspection;
+    if (!release) {
+      const prepared = await prepare({ kind: 'plugin', localImport: true,
+        selection: input.selection ?? { mode: 'archive', name: file.name, files: [{ path: file.name, file }] } }, signal);
+      signal.throwIfAborted();
+      inspection = 'inspection' in prepared ? prepared.inspection : prepared;
+      if ('inspection' in prepared) file = prepared.file;
+      release = inspection.release ?? null;
+    }
+    if (release) {
+      // 在用户查看预览时固定修订；提交期间不重新选择更新基线，避免覆盖并行导入。
+      const directory = ports.installations?.refresh ? await ports.installations.refresh(signal) : null;
+      signal.throwIfAborted();
+      const current = directory?.data.find(item => item.id === release.id);
+      return { kind: 'release', file, release, sha256: await digestLocalFile(file, signal),
+        expectedRevision: current?.revision ?? null,
+        target: `${release.name}（${release.id}）`,
+        summary: `版本 ${release.version}，${release.componentCount} 个组件、${release.toolCount} 个工具；目录与资源大小已核对，服务器将继续校验摘要。${current
+          ? `将更新原安装，保留${current.enabled ? '启用' : '停用'}状态；同版本的新内容也按实际构建修订处理。`
+          : '首次安装后自动启用。'}` };
+    }
+    if (!inspection?.identity) throw new Error('插件包缺少有效运行清单');
     const sha256 = await digestLocalFile(file, signal);
     return {
       kind,
@@ -150,10 +162,16 @@ export async function submitLocalImport(
     signal.throwIfAborted();
     if (artifact.data.sha256 !== preview.sha256 || artifact.data.size !== preview.file.size)
       throw new ApiError('protocol', 'offline_release_mismatch', '服务器产物摘要或大小不一致，已停止插件安装', null, artifact.logId);
-    const installed = await ports.installations.install({ kind: 'offline', artifactId: artifact.data.id }, signal);
+    const source = { kind: 'offline', artifactId: artifact.data.id } as const;
+    let installed;
+    if (preview.expectedRevision) {
+      if (!ports.installations.update) throw new Error('当前宿主缺少统一更新能力，请升级后重新预览；不会改走覆盖安装');
+      installed = await ports.installations.update(preview.release.id, preview.expectedRevision, source, signal);
+    } else installed = await ports.installations.install(source, signal);
     signal.throwIfAborted();
     if (installed.id !== preview.release.id || installed.version !== preview.release.version)
       throw new Error('服务器安装结果与本地预览不一致，请刷新实际目录');
+    if (preview.expectedRevision) return `已更新 ${installed.name} ${installed.version}，${installed.enabled ? '保持启用' : '保持停用'}；请核对当前页面的运行构建，必要时刷新。`;
     return `已安装并启用 ${installed.name} ${installed.version}。`;
   }
   if (preview.kind === 'plugin') {

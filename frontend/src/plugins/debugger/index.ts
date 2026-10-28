@@ -1,0 +1,14 @@
+export { createDebugRegistry } from './registry.ts';
+export type { DebugRegistry, DebugTrack } from './registry.ts';
+export { scopedDebugAccess } from './scoped.ts';
+export { createUiCollector } from './collector.ts';
+export type { UiCollector, UiCollectorOptions, UiSemanticExtension, DebugSurface } from './collector.ts';
+export { queryTree } from './query.ts';
+export { diffTrees } from './diff.ts';
+export { assertTree } from './assert.ts';
+export { createDebugActions } from './actions.ts';
+export type { DebugActions, DebugActionsOptions, DebugPickResult } from './action-types.ts';
+export type * from './contracts.ts';
+export { redactText, sensitiveKey } from './privacy.ts';
+export { pickDocumentOnce } from './pick.ts';
+export { describeHostElement } from './dom-evidence.ts';

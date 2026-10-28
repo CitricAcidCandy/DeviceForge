@@ -69,6 +69,7 @@ impl FilePluginInstallations {
                 "installations/resources",
                 "installations/identities",
                 "installations/manifests",
+                "installations/successful",
             ] {
                 paths::create_directory(&root, child)?;
             }

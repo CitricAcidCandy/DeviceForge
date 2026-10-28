@@ -8,10 +8,9 @@ import {
   TableHeader,
   TableRow,
 } from '../../../../components/Table/index.tsx';
-import { EmptyState } from '../../../../components/index.ts';
-import { ActionFeedback, ErrorNotice } from '../../../../app/product/feedback.tsx';
-import { useAction } from '../../../../app/product/hooks.ts';
+import { errorLogId, useAction } from '../../../../app/product/hooks.ts';
 import type { ProductServices } from '../../../../app/product/services.ts';
+import { settingsButtonClass, SettingsFailure } from '../../primitives.tsx';
 
 export function McpConnection({ services }: { services: ProductServices }) {
   const [snapshot, setSnapshot] = useState(() => services.runtime.mcp.snapshot());
@@ -30,20 +29,21 @@ export function McpConnection({ services }: { services: ProductServices }) {
     services.connection?.baseUrl ??
     (typeof location === 'undefined' ? 'http://localhost:7031' : location.origin);
   return (
-    <section className="settings-group">
-      <div className="section-heading">
-        <h2>MCP 连接</h2>
-        <span className="text-state">{listening ? '已订阅目录变化' : '未订阅'}</span>
+    <section className="flex flex-col gap-4 text-[13px]">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h3 className="text-[15px]! font-medium! text-ink">MCP 连接</h3>
+        <span className="text-[12px] text-muted-foreground">{listening ? '已订阅目录变化' : '未订阅'}</span>
       </div>
       <p>
-        服务地址：<span className="mono">{new URL('/mcp', origin).href}</span>
+        服务地址：<span className="break-all font-mono">{new URL('/mcp', origin).href}</span>
       </p>
-      <p className="muted">
+      <p className="text-[12px] leading-6 text-muted-foreground">
         供支持 MCP 的客户端接入。这里核对真实工具目录；工具执行仍由对应客户端发起。
       </p>
-      <div className="action-row">
+      <div className="flex flex-wrap items-center gap-3">
         <Button
           variant="outline"
+          className={settingsButtonClass}
           disabled={action.pending}
           onClick={() =>
             void action.run(async (signal) => {
@@ -57,6 +57,7 @@ export function McpConnection({ services }: { services: ProductServices }) {
         </Button>
         <Button
           variant="outline"
+          className={settingsButtonClass}
           disabled={listening || action.pending}
           onClick={() =>
             void action.run(async (signal) => {
@@ -93,6 +94,7 @@ export function McpConnection({ services }: { services: ProductServices }) {
         </Button>
         <Button
           variant="ghost"
+          className={settingsButtonClass}
           disabled={!listening}
           onClick={() =>
             void action.run(async () => {
@@ -106,15 +108,11 @@ export function McpConnection({ services }: { services: ProductServices }) {
           停止订阅
         </Button>
       </div>
-      <ErrorNotice error={failure} />
-      <ActionFeedback {...action} />
+      <SettingsFailure error={failure ?? action.error} logId={failure ? errorLogId(failure) : action.logId} />
       {snapshot.version === 0 ? (
-        <EmptyState
-          title="尚未读取 MCP 目录"
-          description="目录来源与 HTTP 操作目录独立核对，不用操作数代替 MCP 工具数。"
-        />
+        <p className="text-[12px] leading-6 text-muted-foreground">尚未读取 MCP 目录。目录来源与 HTTP 操作目录独立核对。</p>
       ) : snapshot.tools.length === 0 ? (
-        <p className="muted">服务器返回空工具目录。</p>
+        <p className="text-[12px] leading-6 text-muted-foreground">服务器返回空工具目录。</p>
       ) : (
         <Table>
           <TableHeader>
@@ -128,13 +126,13 @@ export function McpConnection({ services }: { services: ProductServices }) {
               <TableRow key={tool.name}>
                 <TableCell>
                   {tool.title ?? tool.name}
-                  <small className="mono">{tool.name}</small>
+                  <small className="block break-all font-mono text-[12px] text-muted-foreground">{tool.name}</small>
                 </TableCell>
                 <TableCell>
                   {tool.description ?? '没有公开说明'}
                   <details>
                     <summary>输入契约</summary>
-                    <pre>{JSON.stringify(tool.inputSchema, null, 2)}</pre>
+                    <pre className="max-w-full overflow-x-auto py-3 font-mono text-[12px]">{JSON.stringify(tool.inputSchema, null, 2)}</pre>
                   </details>
                 </TableCell>
               </TableRow>

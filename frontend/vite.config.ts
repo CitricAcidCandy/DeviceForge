@@ -32,6 +32,7 @@ export default defineConfig({
         'browser-theme-harness': fileURLToPath(new URL('./scripts/browser-theme-harness.ts', import.meta.url)),
         'browser-product-harness': fileURLToPath(new URL('./scripts/browser-product-harness.ts', import.meta.url)),
         'performance-acceptance-harness': fileURLToPath(new URL('./scripts/performance-acceptance-harness.tsx', import.meta.url)),
+        'debugger-browser-harness': fileURLToPath(new URL('./scripts/debugger-browser-harness.ts', import.meta.url)),
       },
       external: ['/__production_host__'],
       preserveEntrySignatures: 'strict',

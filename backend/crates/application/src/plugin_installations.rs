@@ -1,4 +1,5 @@
 //! 统一插件安装生命周期；归档和目录操作留给基础设施端口。
+mod actions;
 use crate::plugin_lifecycle::PluginService;
 use apk_domain::{
     Error, Result, browser_configurations::BrowserConfigurationStore,
@@ -195,7 +196,11 @@ impl InstallationService {
                 if let Some(old) = &old
                     && let Err(error) = service.unload(&plugins, old).await
                 {
-                    if service.reload(&plugins, &old_loaded).await.is_err() {
+                    if service
+                        .reload_components(&plugins, &old_loaded)
+                        .await
+                        .is_err()
+                    {
                         return Err(service
                             .blocked(old, "unload_rollback", "旧组件撤销失败且重新加载未完成")
                             .await);
@@ -212,7 +217,10 @@ impl InstallationService {
                         }) {
                             return Err(error);
                         }
-                        if service.reload(&plugins, &old_loaded).await.is_err()
+                        if service
+                            .reload_components(&plugins, &old_loaded)
+                            .await
+                            .is_err()
                             && let Some(old) = &old
                         {
                             return Err(service
@@ -314,7 +322,11 @@ impl InstallationService {
                                     )
                                     .await);
                             }
-                            if service.reload(&plugins, &old_loaded).await.is_err() {
+                            if service
+                                .reload_components(&plugins, &old_loaded)
+                                .await
+                                .is_err()
+                            {
                                 return Err(service
                                     .blocked_current(
                                         &installed.id,
@@ -394,7 +406,11 @@ impl InstallationService {
                     if service.requires_configuration(&release).await? {
                         let previous = service.loaded_components(Some(&release));
                         if let Err(error) = service.unload(&plugins, &release).await {
-                            if service.reload(&plugins, &previous).await.is_err() {
+                            if service
+                                .reload_components(&plugins, &previous)
+                                .await
+                                .is_err()
+                            {
                                 return Err(service
                                     .blocked(
                                         &release,
@@ -412,7 +428,11 @@ impl InstallationService {
                         {
                             Ok(value) => Ok(value),
                             Err(error) => {
-                                if service.reload(&plugins, &previous).await.is_err() {
+                                if service
+                                    .reload_components(&plugins, &previous)
+                                    .await
+                                    .is_err()
+                                {
                                     return Err(service
                                         .blocked(
                                             &release,
@@ -429,7 +449,11 @@ impl InstallationService {
                 } else {
                     let previous = service.loaded_components(Some(&release));
                     if let Err(error) = service.unload(&plugins, &release).await {
-                        if service.reload(&plugins, &previous).await.is_err() {
+                        if service
+                            .reload_components(&plugins, &previous)
+                            .await
+                            .is_err()
+                        {
                             return Err(service
                                 .blocked(
                                     &release,
@@ -447,7 +471,11 @@ impl InstallationService {
                     {
                         Ok(value) => Ok(value),
                         Err(error) => {
-                            if service.reload(&plugins, &previous).await.is_err() {
+                            if service
+                                .reload_components(&plugins, &previous)
+                                .await
+                                .is_err()
+                            {
                                 return Err(service
                                     .blocked(
                                         &release,
@@ -652,7 +680,7 @@ impl InstallationService {
         }
         Ok(())
     }
-    async fn reload(&self, plugins: &PluginService, ids: &[String]) -> Result<()> {
+    async fn reload_components(&self, plugins: &PluginService, ids: &[String]) -> Result<()> {
         for id in ids {
             if !plugins.list().iter().any(|plugin| &plugin.id == id) {
                 plugins.load_serialized(id).await?;
@@ -683,9 +711,14 @@ impl InstallationService {
                     loaded.push(component.id.clone());
                 }
             }
-            self.store
+            let enabled = self
+                .store
                 .set_enabled(&release.id, &release.revision, true)
-                .await
+                .await?;
+            self.store
+                .record_successful_activation(&release.id, &release.revision)
+                .await?;
+            Ok(enabled)
         }
         .await;
         if outcome.is_err() {

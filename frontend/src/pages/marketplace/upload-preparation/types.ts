@@ -13,6 +13,7 @@ export interface UploadInspection {
   readonly totalSize: number;
   readonly metadata: MarketplacePublishEntry | null;
   readonly identity: { readonly id: string; readonly version: string; readonly kind: 'server' | 'browser' } | null;
+  readonly release?: { readonly id: string; readonly version: string; readonly name: string; readonly componentCount: number; readonly toolCount: number };
 }
 export interface PreparedUpload {
   readonly file: File;
@@ -23,6 +24,7 @@ export interface PreparationRequest {
   readonly selection: UploadSelection;
   readonly kind: MarketplaceKind;
   readonly metadata?: MarketplacePublishEntry;
+  readonly localImport?: boolean;
 }
 export type PreparationResponse =
   | { readonly ok: true; readonly result: UploadInspection | PreparedUpload }

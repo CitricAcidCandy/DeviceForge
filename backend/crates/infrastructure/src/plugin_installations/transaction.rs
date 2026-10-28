@@ -1,4 +1,5 @@
 //! 可恢复发布事务；活动文件逐个原子替换，以发布状态记录作为提交点。
+pub(super) mod successful;
 use super::{FilePluginInstallations, content, paths, prepare::Prepared, repository, storage};
 use apk_domain::{Error, Result, plugin_installations::*};
 use serde::{Deserialize, Serialize};
@@ -159,7 +160,7 @@ fn block_journal(root: &Path, journal: &Journal, phase: &str, reason: &str) -> R
 
 /// 回收器保护上一版和未决事务两端的全部资源，日志损坏时停止回收。
 pub(super) fn retained_records(root: &Path) -> Result<Vec<InstalledRelease>> {
-    let mut records = Vec::new();
+    let mut records = successful::retained_records(root)?;
     let installations = root.join("installations");
     for (count, entry) in fs::read_dir(&installations)
         .map_err(|_| Error::Storage("上版快照目录不可读".into()))?

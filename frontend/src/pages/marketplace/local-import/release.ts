@@ -2,6 +2,7 @@ import { jsonObject } from '../../../shared/jobs/index.ts';
 import type { JsonData } from '../../../shared/jobs/index.ts';
 import { safeRelativePath } from '../upload-preparation/rules.ts';
 import { releaseArchive } from './release-archive.ts';
+import { validateRelease, releaseResources } from '@deviceforge/plugin-manifest';
 
 export interface LocalReleaseIdentity {
   readonly id: string;
@@ -19,7 +20,7 @@ export async function inspectLocalRelease(file: File, signal: AbortSignal): Prom
   if (!archive) return null;
   const archiveEntries = archive.entries;
   const value: unknown = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(archive.manifest));
-  if (!jsonObject(value) || value.format_version !== 1 || value.host_api_version !== 2 ||
+  if (!jsonObject(value) || (value.format_version !== 1 && value.format_version !== 2) || value.host_api_version !== 2 ||
       typeof value.id !== 'string' || !/^[A-Za-z][A-Za-z0-9_.-]{0,127}$/.test(value.id) ||
       typeof value.version !== 'string' || !value.version.trim() || typeof value.name !== 'string' || !value.name.trim() ||
       typeof value.description !== 'string' || !Array.isArray(value.components) || !value.components.length ||
@@ -45,6 +46,14 @@ export async function inspectLocalRelease(file: File, signal: AbortSignal): Prom
   verifyResources(value.components);
   const tools = Array.isArray(value.tools) ? value.tools : [];
   verifyResources(tools);
+  if (value.format_version === 2) {
+    const release = validateRelease(value);
+    for (const resource of releaseResources(release)) {
+      const entry = archiveEntries.get(resource.path.toLowerCase());
+      if (!entry || entry.name !== resource.path || entry.size !== resource.size)
+        throw new Error(`离线发布资源缺失或大小不一致：${resource.path}`);
+    }
+  }
   signal.throwIfAborted();
   return { id: value.id, version: value.version, name: value.name, componentCount: value.components.length, toolCount: tools.length };
 }

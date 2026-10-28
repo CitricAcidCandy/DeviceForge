@@ -90,6 +90,16 @@ impl Executor for InstallationOperations {
                 "检查或清理没有引用的托管资源",
                 schema::<InstallationCleanup>(),
             ),
+            (
+                "installation.reload",
+                "按当前修订重载完整发布；浏览器运行仍须原共同加载层确认",
+                schema::<InstallationActionRequest>(),
+            ),
+            (
+                "installation.restore_successful",
+                "恢复上一份宿主激活成功代码包；保留启停意图，不回滚业务数据",
+                schema::<InstallationActionRequest>(),
+            ),
         ]
         .into_iter()
         .map(|(id, title, input_schema)| Operation {
@@ -98,7 +108,14 @@ impl Executor for InstallationOperations {
             input_schema,
             execution: Some(OperationExecution {
                 api_version: 1,
-                total_timeout_ms: 3_600_000,
+                total_timeout_ms: if matches!(
+                    id,
+                    "installation.reload" | "installation.restore_successful"
+                ) {
+                    30_000
+                } else {
+                    3_600_000
+                },
                 source: OperationExecutionSource::Declared,
             }),
         })
@@ -180,6 +197,23 @@ impl InstallationOperations {
             .ok_or_else(|| Error::Dependency("安装服务未绑定".into()))?;
         let decode = |error: serde_json::Error| Error::Invalid(error.to_string());
         let record = match operation {
+            "installation.reload" | "installation.restore_successful" => {
+                let input: InstallationActionRequest =
+                    serde_json::from_value(input).map_err(decode)?;
+                if !input.confirmed {
+                    return Err(Error::Conflict("整套重载或代码恢复需要本次显式确认".into()));
+                }
+                service
+                    .release_action(
+                        input.id,
+                        input.expected_revision,
+                        operation == "installation.restore_successful",
+                        cancel,
+                        context,
+                        progress,
+                    )
+                    .await?
+            }
             "installation.install" => {
                 let input: InstallationRequest = serde_json::from_value(input).map_err(decode)?;
                 service

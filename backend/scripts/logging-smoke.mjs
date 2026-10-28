@@ -29,7 +29,9 @@ await writeFile(join(directory, 'manifest.json'), JSON.stringify({
 const environment = Object.fromEntries(Object.entries(process.env).filter(([key]) => !/^(APK_|DEVICEFORGE_)/.test(key)));
 const child = spawn(smokeBinary('apk-server', profile), [], {
   env: { ...environment, APK_API_TOKEN: token, APK_BIND: `127.0.0.1:${port}`, APK_DATA_DIR: temporary,
-    APK_PLUGIN_DIR: join(temporary, 'plugins'), DEVICEFORGE_USER_DIR: join(temporary, 'user', '.deviceforge'), DEVICEFORGE_HTTP_RATE: '100000', DEVICEFORGE_LOG_QUEUE: '8192' },
+    APK_PLUGIN_DIR: join(temporary, 'plugins'), DEVICEFORGE_USER_DIR: join(temporary, 'user', '.deviceforge'), DEVICEFORGE_HTTP_RATE: '100000', DEVICEFORGE_LOG_QUEUE: '8192',
+    // 传输拒绝由部署者显式清单触发，不再依赖默认封锁浏览器来源。
+    APK_MCP_ORIGINS: base },
   stdio: 'ignore', windowsHide: true,
 });
 let spawnError;

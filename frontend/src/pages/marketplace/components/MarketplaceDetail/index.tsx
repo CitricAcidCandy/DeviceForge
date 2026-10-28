@@ -72,6 +72,7 @@ export function MarketplaceDetail({
   onDownload,
   onInstall,
   onDependencies,
+  onDebug,
 }: {
   entry: MarketplaceEntry | null;
   installed: Pick<PackageInfo, 'version'> | undefined;
@@ -81,6 +82,7 @@ export function MarketplaceDetail({
   onDownload(): void;
   onInstall(): void;
   onDependencies?: (() => void) | undefined;
+  onDebug?: (() => void) | undefined;
 }) {
   if (!entry) return null;
   const update = installed && newerVersion(entry.version, installed.version);
@@ -173,7 +175,8 @@ export function MarketplaceDetail({
           )}
         </div>
 
-        <SheetFooter className="flex-row items-center gap-2 border-t border-[color:var(--hairline)] p-4">
+        <SheetFooter className="flex-row flex-wrap items-center gap-2 border-t border-[color:var(--hairline)] p-4">
+          {onDebug && <Button variant="outline" disabled={busy} onClick={onDebug}>调试此插件</Button>}
           {onDependencies && <Button variant="outline" onClick={onDependencies}>管理依赖</Button>}
           <Button variant="outline" disabled={busy || !entry.resource_id} onClick={onDownload}>
             <Download />

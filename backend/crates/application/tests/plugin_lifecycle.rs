@@ -93,6 +93,105 @@ fn contribution(executor: Arc<Controlled>) -> PluginContribution {
 }
 
 #[tokio::test]
+async fn debugger_reload_expected_refuses_stale_generation_without_replacing_current() {
+    let worker = executor(&["plugin.test.work"]);
+    let catalog = Arc::new(Catalog {
+        executor: worker.clone(),
+        delay: false,
+        entered: Notify::new(),
+        release: Notify::new(),
+    });
+    let (app, service) = setup(catalog, HashSet::new());
+    let original = service.seed(contribution(worker)).await.unwrap();
+    assert!(matches!(
+        service
+            .reload_expected("test".into(), "obsolete-generation".into())
+            .await,
+        Err(Error::Conflict(_))
+    ));
+    assert_eq!(service.list()[0].generation, original.generation);
+    let next = service
+        .reload_expected("test".into(), original.generation.clone())
+        .await
+        .unwrap();
+    assert_ne!(next.generation, original.generation);
+    assert_eq!(next.version, "2");
+    service.close();
+    service.wait().await;
+    app.shutdown().await.unwrap();
+}
+
+#[tokio::test]
+async fn debugger_reload_validates_new_contribution_before_draining_old_plugin() {
+    let worker = executor(&["plugin.test.work"]);
+    let invalid = executor(&["another.write"]);
+    let catalog = Arc::new(Catalog {
+        executor: invalid,
+        delay: false,
+        entered: Notify::new(),
+        release: Notify::new(),
+    });
+    let (app, service) = setup(catalog, HashSet::new());
+    let original = service.seed(contribution(worker)).await.unwrap();
+    assert!(
+        service
+            .reload_expected("test".into(), original.generation.clone())
+            .await
+            .is_err()
+    );
+    assert_eq!(service.list()[0].generation, original.generation);
+    assert_eq!(app.operations()[0].id, "plugin.test.work");
+    service.close();
+    service.wait().await;
+    app.shutdown().await.unwrap();
+}
+
+#[tokio::test]
+async fn debugger_reload_cancel_or_expired_budget_keeps_current_generation() {
+    let worker = executor(&["plugin.test.work"]);
+    let catalog = Arc::new(Catalog {
+        executor: worker.clone(),
+        delay: false,
+        entered: Notify::new(),
+        release: Notify::new(),
+    });
+    let (app, service) = setup(catalog, HashSet::new());
+    let original = service.seed(contribution(worker)).await.unwrap();
+    let cancelled = CancellationToken::new();
+    cancelled.cancel();
+    assert!(matches!(
+        service
+            .reload_expected_with_execution(
+                "test".into(),
+                original.generation.clone(),
+                cancelled,
+                apk_domain::ExecutionContext {
+                    deadline: Some(std::time::Instant::now() + Duration::from_secs(1))
+                }
+            )
+            .await,
+        Err(Error::Cancelled)
+    ));
+    assert!(matches!(
+        service
+            .reload_expected_with_execution(
+                "test".into(),
+                original.generation.clone(),
+                CancellationToken::new(),
+                apk_domain::ExecutionContext {
+                    deadline: Some(std::time::Instant::now())
+                }
+            )
+            .await,
+        Err(Error::Timeout)
+    ));
+    assert_eq!(service.list()[0].generation, original.generation);
+    service.close();
+    service.wait().await;
+    app.shutdown().await.unwrap();
+}
+
+#[tokio::test]
 async fn conflicts_and_namespace_errors_publish_no_partial_contribution() {
     let valid = executor(&["plugin.test.work"]);
     let catalog = Arc::new(Catalog {

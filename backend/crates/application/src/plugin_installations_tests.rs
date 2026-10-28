@@ -5,6 +5,8 @@ use apk_domain::{
 use async_trait::async_trait;
 use serde_json::{Value, json};
 use std::sync::Mutex;
+#[path = "plugin_installations_tests/actions.rs"]
+mod actions;
 
 fn release(id: &str, revision: char) -> InstalledRelease {
     InstalledRelease {
@@ -34,6 +36,7 @@ struct Store {
     current: Arc<Mutex<Option<InstalledRelease>>>,
     previous: Arc<Mutex<Option<InstalledRelease>>>,
     next: InstalledRelease,
+    successful: Mutex<Vec<SuccessfulRelease>>,
 }
 struct Prepared {
     current: Arc<Mutex<Option<InstalledRelease>>>,
@@ -116,6 +119,79 @@ impl InstallationStore for Store {
         let previous = self.previous.lock().unwrap().clone().unwrap();
         *self.current.lock().unwrap() = Some(previous.clone());
         Ok(previous)
+    }
+    async fn record_successful_activation(&self, id: &str, expected: &str) -> Result<()> {
+        let current = self.get(id).await?;
+        if current.revision != expected
+            || !current.enabled
+            || current.status != InstallationStatus::Enabled
+        {
+            return Err(Error::Conflict("成功版本身份或激活状态不符".into()));
+        }
+        let mut history = self.successful.lock().unwrap();
+        history.retain(|entry| entry.release.revision != expected);
+        history.insert(
+            0,
+            SuccessfulRelease {
+                release: current,
+                activated_at: apk_domain::now(),
+                scope: SuccessfulReleaseScope::HostActivation,
+            },
+        );
+        history.truncate(2);
+        Ok(())
+    }
+    async fn previous_successful(&self, id: &str, expected: &str) -> Result<SuccessfulRelease> {
+        if self.get(id).await?.revision != expected {
+            return Err(Error::Conflict("修订不符".into()));
+        }
+        self.successful
+            .lock()
+            .unwrap()
+            .iter()
+            .find(|entry| entry.release.revision != expected)
+            .cloned()
+            .ok_or_else(|| Error::Conflict("没有成功版本证据".into()))
+    }
+    async fn restore_previous_successful(
+        &self,
+        id: &str,
+        expected: &str,
+        target: &str,
+        context: apk_domain::ExecutionContext,
+    ) -> Result<InstalledRelease> {
+        if context
+            .deadline
+            .is_some_and(|deadline| std::time::Instant::now() >= deadline)
+        {
+            return Err(Error::Timeout);
+        }
+        let current = self.get(id).await?;
+        let mut previous = self.previous_successful(id, expected).await?.release;
+        if previous.revision != target {
+            return Err(Error::Conflict("成功版本已变化".into()));
+        }
+        previous.enabled = current.enabled;
+        previous.status = InstallationStatus::Installed;
+        *self.previous.lock().unwrap() = Some(current);
+        *self.current.lock().unwrap() = Some(previous.clone());
+        Ok(previous)
+    }
+    async fn activation_pending(
+        &self,
+        id: &str,
+        expected: &str,
+        enabled: bool,
+        status: InstallationStatus,
+    ) -> Result<InstalledRelease> {
+        let mut current = self.get(id).await?;
+        if current.revision != expected {
+            return Err(Error::Conflict("修订不符".into()));
+        }
+        current.enabled = enabled;
+        current.status = status;
+        *self.current.lock().unwrap() = Some(current.clone());
+        Ok(current)
     }
     async fn recovery_blocked(
         &self,
@@ -217,6 +293,7 @@ fn setup(
         current: Arc::new(Mutex::new(current)),
         previous: Arc::new(Mutex::new(None)),
         next,
+        successful: Mutex::new(Vec::new()),
     });
     let app = crate::Application::new(
         Arc::new(apk_infrastructure::store::SqliteStore::open(":memory:").unwrap()),

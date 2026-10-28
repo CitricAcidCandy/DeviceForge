@@ -1,5 +1,21 @@
 # 浏览器插件打包与部署
 
+## 单一开发清单流程（推荐）
+
+在自己的工程只维护 manifest.json（manifest_version:1），结构及 market 全部字段查询 manifest 主题。部署者提供的 DeviceForge CLI 发行包须在 --help 中含 plugin pack，不假设公共 registry 已发布，不需要宿主源码。先把 TypeScript/React 构建成 ESM，再运行：
+
+```powershell
+deviceforge plugin pack manifest.json --out dist-plugin
+deviceforge plugin plan dist-plugin --server http://127.0.0.1:7040
+deviceforge plugin publish dist-plugin --server http://127.0.0.1:7040
+```
+
+pack 自动生成组件 package.json、plugin.json、market.json 及按需 dependencies.json，再生成组件 TGZ、完整 release.json、blobs、完整离线 ZIP 和 pack-report.json。源工程不被改写，不执行构建脚本，输出须为新目录（默认 dist-plugin，父目录须存在）；--platform 可指定已构建目标，默认当前系统/架构。浏览器公共 ESM 说明符须保持 external；本工具不替代你的 bundler。
+
+入口可默认导出 `({id,version,apiVersion}) => ({panels:[]})` 或普通插件对象，工具生成身份包装；业务代码无需复制版本。浏览器配置在组件 plugin.configuration 中，配套服务器在同一 components 中，市场资料只在顶层 market 中声明。plan 只读本地，publish 先核对 /api/v1/capabilities，后上传资源、清单和 catalog；两者直接读取生成市场资料，无需再维护 market.json。离线 ZIP 使用现有完整发布安装入口。
+
+下文为生成产物和旧包兼容参考，不要求新工程手工维护这些文件。
+
 浏览器插件交付已编译的 ESM 与包内资源，安装器不会替第三方包运行 npm install、构建或生命周期脚本。原生 JavaScript 可以直接作为入口；TypeScript、TSX、React 等先在开发环境构建，再把可浏览器执行的产物和依赖一起打包。不要依赖宿主私有 import 路径、Node 内置模块或浏览器无法解析的裸包名。
 
 推荐以 `release.json` 将浏览器组件、服务器组件和工具打成一个完整功能发布。下文组件归档仍是独立 `kind:"browser"` 包；外层成套管理不将两类组件合成同一种格式或同一个入口。
@@ -85,7 +101,7 @@ import { jsxDEV } from 'react/jsx-dev-runtime';
 import { Button, mountReact } from 'deviceforge-host';
 ```
 
-宿主维护入口为 `src/app/public-ui-*.ts`。`node scripts/generate-public-ui.ts` 生成 `public/plugin-*.js`，`--check` 只检查漂移；禁止手改生成的 JavaScript。Vite 启动、构建及入口源热更新均调用生成器。公共组件契约按真实 DOM、Radix 与组合组件属性校验，例如 Button 变体、Field 受控值和 Select 字符串回调；属性类型错误应修改插件调用，不通过任意属性字典或断言绕过。
+这些入口由运行宿主提供，插件开发者无需生成或修改宿主文件。公共组件按公开属性契约调用，例如 Button 变体、Field 受控值和 Select 字符串回调；属性类型错误应修改插件调用。目标宿主缺少公共入口或导出时提示升级，不转而读取宿主内部模块。
 
 纯 ESM 插件因此可以完全不构建：直接写 `import` 与 `React.createElement`（或 `.jsx` 交给自己的构建），`npm pack` 出包即可。用 TypeScript/TSX 的话照常在开发环境构建，构建时**不要**把 `react` 打进 bundle，也不要在产物里内联 React。
 
@@ -124,4 +140,4 @@ import { Button, mountReact } from 'deviceforge-host';
 
 ## 新版共享依赖
 
-新发布优先使用 v2 和统一 dependencies，详见[共享依赖](dependencies.md)。本篇格式 1 的工具全量闭包为旧兼容描述；v2 的 capabilities 和 catalog 标记均使用 2。市场来源只上传其自身固定归档，官方 HTTPS 来源有独立摘要，不强制内嵌全部工具。用户一次安装先发现后端本机环境及整个用户根仓库，只有缺失必需项自动下载；依赖面板负责重试和可选补装。主 npm 包不包含工具归档。
+新发布优先使用 v2 和统一 dependencies，详细字段通过本指南工具查询 `dependencies` 主题。本篇格式 1 的工具全量闭包为旧兼容描述；v2 的 capabilities 和 catalog 标记均使用 2。市场来源只上传其自身固定归档，官方 HTTPS 来源有独立摘要，不强制内嵌全部工具。用户一次安装先发现后端本机环境及整个用户根仓库，只有缺失必需项自动下载；依赖面板负责重试和可选补装。主 npm 包不包含工具归档。

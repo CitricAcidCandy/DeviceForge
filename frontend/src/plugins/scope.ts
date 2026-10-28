@@ -4,6 +4,7 @@ import { scopedDeviceAccess } from './device-access.ts';
 import { scopedArtifactAccess } from './artifact-access.ts';
 import { scopedTaskHistoryAccess } from './task-history-access.ts';
 import { scopedThemeAccess } from './theme-access.ts';
+import { scopedDebugAccess } from './debugger/index.ts';
 
 export interface PluginScope {
   readonly context: HostContext;
@@ -136,6 +137,7 @@ export function createPluginScope(host: HostContext): PluginScope {
   const artifacts = scopedArtifactAccess(host.artifacts, call);
   const taskHistory = scopedTaskHistoryAccess(host.taskHistory, call);
   const themes = scopedThemeAccess(host.themes, current, controller.signal, track);
+  const debug = scopedDebugAccess(host.debug, controller.signal, track);
   const context = Object.freeze<HostContext>({
     apiVersion: 2,
     signal: controller.signal,
@@ -179,6 +181,7 @@ export function createPluginScope(host: HostContext): PluginScope {
     ...(artifacts ? { artifacts } : {}),
     ...(taskHistory ? { taskHistory } : {}),
     ...(themes ? { themes } : {}),
+    ...(debug ? { debug } : {}),
     ...(host.configuration ? { configuration: {
       get() { current(); const configuration = host.configuration; if (!configuration) throw new Error('插件配置入口已撤销'); return configuration.get(); },
       subscribe(listener) {

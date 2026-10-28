@@ -43,6 +43,13 @@ import { createMcpClient } from '../features/mcp/index.ts';
 import { createHttpPerformance } from '../features/performance/index.ts';
 import { registerPerformanceService } from './performance-service.ts';
 import { registerPluginDependenciesService } from './plugin-dependencies-service.ts';
+import { createRuntimeDebugger } from './debugger-runtime.ts';
+import { createDebuggerBuildDirectory } from './debugger-builds.ts';
+import type { DebuggerRunningBuild } from './debugger-builds.ts';
+import { createDebuggerReload } from './debugger-reload.ts';
+import type { RuntimeDebuggerOptions } from './debugger-runtime.ts';
+import { isLoopbackDebuggerAddress } from '../features/debugger/index.ts';
+import { createDeveloperToolsHost } from './developer-tools.ts';
 import { createHttpMirroringStreaming } from '../features/mirroring-streaming/index.ts';
 import type { MirroringStreamSink } from '../features/mirroring-streaming/index.ts';
 import { registerMirroringStreamingService } from './mirroring-streaming-service.ts';
@@ -54,6 +61,8 @@ import {
 } from '../features/plugin-configurations/index.ts';
 
 export interface RuntimeOptions extends ClientOptions {
+  readonly debugger?: RuntimeDebuggerOptions;
+  readonly developerTools?: boolean;
   readonly timeouts?: ManagerOptions['timeouts'];
   readonly panelTarget: ManagerOptions['panelTarget'];
   readonly componentTarget?: ManagerOptions['componentTarget'];
@@ -132,6 +141,16 @@ export function createFrontendRuntime(options: RuntimeOptions) {
     signal: lifetime.signal,
   });
   const releaseSources = new Map<string, { id: string; revision: string; url: string }>();
+  const debuggerBuilds = new Map<string, DebuggerRunningBuild>();
+  const debuggerRuntime: ReturnType<typeof createRuntimeDebugger> | null = options.debugger && isLoopbackDebuggerAddress(options.baseUrl)
+    ? createRuntimeDebugger({ ...options.debugger, client, context, extensions, manager: () => webPlugins,
+        installation: createDebuggerBuildDirectory(client, () => [...debuggerBuilds.values()]),
+        reloadPlugin: createDebuggerReload({ client, manager: () => webPlugins,
+          packages: () => pluginPackages, browser: () => browserPackages, installations: () => pluginInstallations,
+          forgetReleaseSource: id => { releaseSources.delete(id); } }) })
+    : null;
+  if (debuggerRuntime) host.context.onDispose(() => debuggerRuntime.dispose());
+  let developerTools: ReturnType<typeof createDeveloperToolsHost> | null = null;
   const webPlugins = createPluginManager({
     host: context,
     hostForPlugin(id) {
@@ -142,6 +161,23 @@ export function createFrontendRuntime(options: RuntimeOptions) {
     panelTarget: options.panelTarget,
     ...(options.timeouts ? { timeouts: options.timeouts } : {}),
     extensionRegistry: extensions,
+    ...(debuggerRuntime ? {
+      debugForPlugin: (id: string, generation: number, scope: Parameters<NonNullable<ManagerOptions['debugForPlugin']>>[2]) =>
+        debuggerRuntime.attach(id, String(generation), scope),
+    } : {}),
+    observe(event) {
+      if (event.stage === 'loaded') {
+        const plugin = webPlugins.diagnosticSnapshot().find(item => item.id === event.pluginId);
+        const source = releaseSources.get(event.pluginId);
+        if (plugin) debuggerBuilds.set(event.pluginId, { pluginId: event.pluginId,
+          generation: String(event.generation), version: plugin.version ?? '',
+          installationId: source?.id ?? null, revision: source?.revision ?? null });
+      } else if (event.stage === 'unloaded' && debuggerBuilds.get(event.pluginId)?.generation === String(event.generation)) {
+        debuggerBuilds.delete(event.pluginId);
+      }
+      debuggerRuntime?.observe(event);
+      if (event.stage === 'loaded' || event.stage === 'unloaded') developerTools?.sync();
+    },
     configuration: (plugin, signal) =>
       browserConfigurations.prepare(plugin.id, plugin.configuration ?? null, signal),
     configurationApplied: (plugin, signal) => browserConfigurations.markApplied(plugin.id, signal),
@@ -149,6 +185,10 @@ export function createFrontendRuntime(options: RuntimeOptions) {
     ...(options.moduleTarget ? { moduleTarget: options.moduleTarget } : {}),
     ...(options.slotAdapter ? { slotAdapter: options.slotAdapter } : {}),
   });
+  if (options.developerTools) {
+    developerTools = createDeveloperToolsHost(extensions, webPlugins);
+    host.context.onDispose(() => developerTools?.dispose());
+  }
   const resolveEntry: PackageEntryResolver = (descriptor, runId) => {
     const release = releaseSources.get(descriptor.id);
     if (release) return release.url;
@@ -274,6 +314,8 @@ export function createFrontendRuntime(options: RuntimeOptions) {
   );
   let disposal: Promise<void> | null = null;
   return {
+    debugger: debuggerRuntime,
+    developerTools,
     host: context,
     operations,
     tasks,
@@ -331,6 +373,7 @@ export function createFrontendRuntime(options: RuntimeOptions) {
         extensions.dispose();
         browserPackages.clearSources();
         releaseSources.clear();
+        debuggerBuilds.clear();
         browserConfigurations.dispose();
         const failures = results.filter((result) => result.status === 'rejected');
         if (failures.length)

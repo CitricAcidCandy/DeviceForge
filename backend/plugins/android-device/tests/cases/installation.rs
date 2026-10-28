@@ -182,7 +182,7 @@ fn installation_invalid_utf8_in_each_stream_and_nonzero_exit_are_fixed_errors() 
             b"Success\n".as_slice(),
             b"".as_slice(),
             7,
-            "工具依赖失败：ADB客户端执行失败，请检查部署配置",
+            "工具依赖失败：设备连接工具执行失败，目前无法确认具体原因，请查看任务详情",
         ),
     ] {
         let mut fixture = Fixture::new("install-stream-error");

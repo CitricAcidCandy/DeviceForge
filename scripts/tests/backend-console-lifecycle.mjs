@@ -54,6 +54,12 @@ async function interact(config, commands) {
     ]);
     assert.equal(code, 0);
     assert.ok(writes.length > 0);
+    assert.ok(
+      writes.includes(
+        `MCP 地址：http://127.0.0.1:${config.port}/mcp，与 HTTP 共用同一后端进程和端口。`,
+      ),
+      '启动窗口须明确显示同一后端的 MCP 地址',
+    );
   } finally {
     timeout.abort();
     input.end();
@@ -194,6 +200,47 @@ export function registerLifecycleTests() {
         let server;
         try {
           server = await ensureServer(config, { background: true });
+          const endpoint = `http://127.0.0.1:${config.port}/mcp`;
+          const origin = 'http://127.0.0.1:5173';
+          const preflight = await fetch(endpoint, {
+            method: 'OPTIONS',
+            headers: {
+              origin,
+              'access-control-request-method': 'POST',
+              'access-control-request-headers': 'content-type,mcp-protocol-version,mcp-method',
+            },
+            signal: AbortSignal.timeout(3000),
+          });
+          assert.equal(preflight.status, 204);
+          assert.ok(preflight.headers.get('access-control-allow-headers').includes('mcp-method'));
+          const catalog = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+              origin,
+              'content-type': 'application/json',
+              accept: 'application/json, text/event-stream',
+              'mcp-protocol-version': '2026-07-28',
+              'mcp-method': 'tools/list',
+            },
+            body: JSON.stringify({
+              jsonrpc: '2.0',
+              id: 1,
+              method: 'tools/list',
+              params: {
+                _meta: {
+                  'io.modelcontextprotocol/protocolVersion': '2026-07-28',
+                  'io.modelcontextprotocol/clientInfo': {
+                    name: 'backend-console-test',
+                    version: '1',
+                  },
+                  'io.modelcontextprotocol/clientCapabilities': {},
+                },
+              },
+            }),
+            signal: AbortSignal.timeout(5000),
+          });
+          assert.equal(catalog.status, 200, await catalog.clone().text());
+          assert.ok(Array.isArray((await catalog.json()).result.tools));
           await interact(config, 'status\nquit\n');
           await healthy(config.port);
           const retained = await serverStatus(config);

@@ -24,6 +24,7 @@ pub struct LogMetrics {
     counters: Arc<Counters>,
     dropped: ErrorCounter,
     queue_capacity: usize,
+    pub(crate) search: crate::query::LogReader,
 }
 
 #[derive(Debug, Serialize, schemars::JsonSchema)]
@@ -155,6 +156,7 @@ impl LogRuntime {
             counters: counters.clone(),
             dropped: writer.error_counter(),
             queue_capacity: config.queue_capacity,
+            search: crate::query::LogReader::new(config.directory.clone()),
         };
         Self {
             config,

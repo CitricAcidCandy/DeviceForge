@@ -318,7 +318,8 @@ test('目录快照引用稳定，并在贡献变化时通知订阅者', async ()
 });
 
 test('宿主槽位清单开放全部路由，市场与设置只允许追加', () => {
-  assert.equal(HOST_SLOTS.length, 13, '11 个路由槽位 + 2 个区域槽位');
+  assert.equal(HOST_SLOTS.length, 14, '11 个路由槽位 + 2 个区域槽位 + 1 个全局工具槽位');
+  assert.deepEqual(slotModes('developer.tools'), ['append']);
   for (const route of [
     'devices',
     'files',

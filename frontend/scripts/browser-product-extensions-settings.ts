@@ -15,7 +15,11 @@ import { extensionObject } from './browser-product-extensions-fixture.ts';
 export async function verifySettingsProductPage(context: ExtensionBrowserContext) {
   const { target, fixture, passed } = context;
   const settings = fixture.settings;
+  const remoteStatus = (text: string) => [...target.querySelectorAll('[role="status"]')].some(
+    (entry) => entry.closest('[hidden]') === null && entry.textContent?.includes(text),
+  );
   await navigateExtensionPage('settings', '设置');
+  await click('工具配置');
   await until(() => !button('读取配置').disabled, '公开配置操作没有开放');
   check(button('保存此区').disabled, '未读取修订便允许配置写入');
   passed('未读取修订时禁用写入');
@@ -85,11 +89,16 @@ export async function verifySettingsProductPage(context: ExtensionBrowserContext
   );
   check(settings.writes.at(-1)?.input['expected_revision'] === '3', '重查后未消费新修订');
   passed('用户重查后使用新修订保存');
+  const transfers = [...target.querySelectorAll('summary')].find(
+    (entry) => entry.textContent?.trim() === '导入与远端配置',
+  );
+  check(transfers instanceof HTMLElement, '导入与远端配置入口缺失');
+  transfers.click();
+  await pause();
   await click('读取远端');
   await until(
     () =>
-      target.textContent?.includes('实际来源：本地备份 · 远端已提交：否 · 本地备份已更新：否') ===
-      true,
+      remoteStatus('实际来源：本地备份 · 远端已提交：否 · 本地备份已更新：否'),
     '本地回退来源未显示',
   );
   check(field('远端内容 · JSON 原值').value.includes('本地备份值'), '本地回退内容未呈现');
@@ -98,8 +107,7 @@ export async function verifySettingsProductPage(context: ExtensionBrowserContext
   await click('读取远端');
   await until(
     () =>
-      target.textContent?.includes('实际来源：远端服务 · 远端已提交：否 · 本地备份已更新：是') ===
-      true,
+      remoteStatus('实际来源：远端服务 · 远端已提交：否 · 本地备份已更新：是'),
     '远端读取备份状态未显示',
   );
   check(
@@ -116,8 +124,7 @@ export async function verifySettingsProductPage(context: ExtensionBrowserContext
   await click('保存远端');
   await until(
     () =>
-      target.textContent?.includes('实际来源：远端服务 · 远端已提交：是 · 本地备份已更新：否') ===
-      true,
+      remoteStatus('实际来源：远端服务 · 远端已提交：是 · 本地备份已更新：否'),
     '关闭备份的远端提交状态未显示',
   );
   check(
@@ -140,8 +147,7 @@ export async function verifySettingsProductPage(context: ExtensionBrowserContext
   await click('保存远端');
   await until(
     () =>
-      target.textContent?.includes('实际来源：远端服务 · 远端已提交：是 · 本地备份已更新：是') ===
-      true,
+      remoteStatus('实际来源：远端服务 · 远端已提交：是 · 本地备份已更新：是'),
     '远端与备份双成功状态未显示',
   );
   check(

@@ -14,6 +14,15 @@
     "cli/bin",
     "cli/src",
     "cli/README.md",
+    "scripts/plugin-releases/archive*.mjs",
+    "scripts/plugin-releases/contract.mjs",
+    "scripts/plugin-releases/dependencies.mjs",
+    "scripts/plugin-releases/versions.mjs",
+    "scripts/plugin-releases/io.mjs",
+    "scripts/plugin-releases/pack.mjs",
+    "scripts/plugin-releases/pack-dependencies.mjs",
+    "scripts/plugin-releases/templates.mjs",
+    "scripts/plugin-releases/publish.mjs",
     "runtime",
     "README.md"
   ],
@@ -30,6 +39,9 @@
     "start:resource-server": "cargo run --release --manifest-path resource-server/Cargo.toml -- --bind 127.0.0.1:7040",
     "format": "prettier --write \"frontend/src/**/*.{ts,tsx,css}\" \"frontend/scripts/**/*.ts\" \"frontend/tests/**/*.ts\" \"cli/**/*.{js,mjs,ts,json,md}\" \"scripts/**/*.{js,mjs,ts,json,md}\"",
     "format:check": "prettier --check \"frontend/src/**/*.{ts,tsx,css}\" \"frontend/scripts/**/*.ts\" \"frontend/tests/**/*.ts\" \"cli/**/*.{js,mjs,ts,json,md}\" \"scripts/**/*.{js,mjs,ts,json,md}\""
+  },
+  "dependencies": {
+    "semver": "7.8.5"
   },
   "devDependencies": {
     "prettier": "3.6.2"

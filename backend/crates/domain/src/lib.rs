@@ -32,7 +32,7 @@ pub enum Error {
     Cancelled,
     #[error("执行超时")]
     Timeout,
-    #[error("插件资源清理未确认，请检查外部资源后再恢复")]
+    #[error("插件结束时未能确认清理完成，请查看对应任务详情；无关操作不受此记录影响")]
     CleanupFailed,
     #[error("依赖执行失败：{0}")]
     Dependency(String),

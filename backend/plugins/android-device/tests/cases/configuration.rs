@@ -84,5 +84,8 @@ fn regular_non_executable_adb_has_fixed_spawn_failure_without_path_leak() {
     fs::write(&path, b"not an executable").unwrap();
     fixture.config["tools"]["adb"] = json!(path);
     fixture.save_config();
-    reject(&fixture, "工具依赖失败：ADB客户端执行失败，请检查部署配置");
+    reject(
+        &fixture,
+        "工具依赖失败：无法启动设备连接工具，请检查工具是否已安装且路径正确",
+    );
 }

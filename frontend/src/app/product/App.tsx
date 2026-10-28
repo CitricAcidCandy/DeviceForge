@@ -100,7 +100,9 @@ export function App({ services }: { services: ProductServices }) {
             key={entry.id}
             hidden={entry.id !== route}
             data-route={entry.id}
-            className={entry.id === 'automation' ? 'flex min-h-full w-full flex-col' : undefined}
+            className={entry.id === 'settings'
+              ? 'h-full min-h-0 w-full'
+              : entry.id === 'automation' ? 'flex min-h-full w-full flex-col' : undefined}
           >
             <RouteSurface services={services} route={entry.id}>
               {entry.id === 'devices' ? (

@@ -1,0 +1,16 @@
+{
+  "id": "demo_debugger_server",
+  "version": "1.0.0",
+  "protocol_version": 1,
+  "args": [],
+  "operations": [{
+    "name": "echo",
+    "title": "独立调试示例回显",
+    "input_schema": {
+      "type": "object",
+      "required": ["message"],
+      "additionalProperties": false,
+      "properties": { "message": { "type": "string", "maxLength": 1000 } }
+    }
+  }]
+}

@@ -1,6 +1,6 @@
 // 仅显式发布才写远端；先校验完整闭包，再上传资源，目录条目最后提交。
 import { createReadStream } from 'node:fs';
-import { basename } from 'node:path';
+import { basename, join } from 'node:path';
 import { readJson, verifyFile } from './io.mjs';
 import { releaseResources } from './contract.mjs';
 import { verifyReleaseDirectory, jsonBytes, digestBytes } from './pack.mjs';
@@ -120,7 +120,7 @@ export async function planPublication({ directory, market, server }) {
         source.url = new URL(`/api/v1/resources/${source.sha256}`, base).href;
   const bytes = jsonBytes(online),
     sha256 = digestBytes(bytes),
-    metadata = await readJson(market);
+    metadata = await readJson(market ?? join(directory, 'market.json'));
   const entry = catalogEntry(metadata, online, sha256);
   const source = {
     kind: 'market',

@@ -1,6 +1,7 @@
 //! 短贡献到业务输入与工具调用的薄编排，不读取部署配置或管理共享daemon。
 mod commands;
 mod models;
+mod start;
 
 use crate::{Control, Error, Result, config::Config, discovery, rules};
 use rules::Action;
@@ -221,6 +222,7 @@ pub(crate) async fn execute(control: &Control, config: &Config, input: Input) ->
             let devices = discovery::parse(text(&output.stdout)?)?;
             serde_json::to_value(devices).map_err(|_| Error::Dependency("设备发现结果无法编码"))?
         }
+        Input::Start { device_id, package } => start::execute(control, device_id, package).await?,
         Input::Action { device_id, action } => {
             if action.unicode_text().is_some() {
                 return crate::session::unicode::dispatch(control, config, &device_id, &action)

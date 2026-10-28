@@ -20,6 +20,7 @@
     "preview": "vite preview --host 127.0.0.1"
   },
   "dependencies": {
+    "@deviceforge/plugin-manifest": "file:../cli/src/plugin-authoring/core",
     "@noble/hashes": "2.0.1",
     "@xterm/addon-fit": "0.11.0",
     "@xterm/xterm": "6.0.0",

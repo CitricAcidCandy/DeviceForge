@@ -21,10 +21,13 @@ pub use rmcp::transport::streamable_http_server::StreamableHttpServerConfig;
 #[derive(Clone)]
 struct McpAdapter {
     app: Arc<Application>,
+    debugger: Arc<apk_application::debugger::DebuggerService>,
     plugins: Option<Arc<PluginService>>,
     devices: Arc<apk_application::devices::DeviceService>,
     installations: Option<Arc<apk_application::plugin_installations::InstallationService>>,
     dependencies: Option<Arc<apk_application::plugin_dependencies::DependencyService>>,
+    artifacts: Option<Arc<dyn apk_domain::artifacts::ArtifactStore>>,
+    logging: Option<deviceforge_observability::LogMetrics>,
     notifications: Arc<crate::mcp_notifications::CatalogNotifications>,
 }
 #[derive(Deserialize)]
@@ -53,11 +56,14 @@ impl McpAdapter {
         shutdown: tokio_util::sync::CancellationToken,
     ) -> Self {
         Self {
+            debugger: Arc::new(apk_application::debugger::DebuggerService::default()),
             app,
             plugins,
             devices,
             installations: None,
             dependencies: None,
+            artifacts: None,
+            logging: None,
             notifications: Arc::new(crate::mcp_notifications::CatalogNotifications::new(
                 shutdown,
             )),
@@ -206,6 +212,7 @@ impl ServerHandler for McpAdapter {
     ) -> std::result::Result<ListToolsResult, ErrorData> {
         let (revision, mut tools) = crate::mcp_tools::catalog(&self.app, self.plugins.is_some());
         tools.extend(crate::services::tools());
+        tools.extend(crate::debugger::tools());
         if self.installations.is_some() {
             tools.extend(crate::plugin_installation_mcp::tools());
         }
@@ -259,6 +266,7 @@ impl ServerHandler for McpAdapter {
                     .into_iter()
                     .chain(crate::device_mcp::tools())
                     .chain(crate::services::tools())
+                    .chain(crate::debugger::tools())
                     .chain(crate::interactive_mcp::tools())
                     .chain(
                         self.dependencies
@@ -280,13 +288,48 @@ impl ServerHandler for McpAdapter {
     async fn call_tool(
         &self,
         request: CallToolRequestParams,
-        _: RequestContext<RoleServer>,
+        context: RequestContext<RoleServer>,
     ) -> std::result::Result<CallToolResponse, ErrorData> {
         let input = Value::Object(request.arguments.unwrap_or_default());
-        let result = match self.invoke(&request.name, input).await {
+        let diagnostics = self
+            .logging
+            .as_ref()
+            .map(|logging| crate::debugger::PersistentDiagnostics(logging.clone()));
+        let called = if crate::debugger::manages(&request.name) {
+            match context.extensions.get::<axum::http::request::Parts>() {
+                Some(parts) => match crate::debugger::check(parts) {
+                    Ok(()) => {
+                        crate::debugger::invoke_configured(
+                            &self.app,
+                            self.plugins.as_ref(),
+                            &self.debugger,
+                            self.installations.as_ref(),
+                            self.artifacts.as_deref(),
+                            diagnostics.as_ref().map(|diagnostics| {
+                                diagnostics as &dyn crate::debugger::DebuggerDiagnostics
+                            }),
+                            &request.name,
+                            input,
+                        )
+                        .await
+                    }
+                    Err(error) => Err(error),
+                },
+                None => Err(crate::ApiError::new(
+                    axum::http::StatusCode::FORBIDDEN,
+                    "debugger_connection_unknown",
+                    "无法核实当前 MCP 的本机连接，请通过本机 HTTP MCP 地址连接后重试",
+                )),
+            }
+        } else {
+            self.invoke(&request.name, input)
+                .await
+                .map_err(crate::ApiError::from)
+        };
+        let result = match called {
             Ok(value) => CallToolResult::structured(value),
             Err(error) => {
-                let api_error: crate::ApiError = error.into();
+                let api_error = error;
                 CallToolResult::structured_error(
                     json!({"code":api_error.1.code,"message":api_error.1.message}),
                 )
@@ -335,9 +378,57 @@ pub(crate) fn service_with_dependencies(
     dependencies: Option<Arc<apk_application::plugin_dependencies::DependencyService>>,
     config: StreamableHttpServerConfig,
 ) -> StreamableHttpService<impl ServerHandler, LocalSessionManager> {
+    service_with_debugger(
+        app,
+        plugins,
+        devices,
+        installations,
+        dependencies,
+        Arc::new(apk_application::debugger::DebuggerService::default()),
+        config,
+    )
+}
+
+pub(crate) fn service_with_debugger(
+    app: Arc<Application>,
+    plugins: Option<Arc<PluginService>>,
+    devices: Arc<apk_application::devices::DeviceService>,
+    installations: Option<Arc<apk_application::plugin_installations::InstallationService>>,
+    dependencies: Option<Arc<apk_application::plugin_dependencies::DependencyService>>,
+    debugger: Arc<apk_application::debugger::DebuggerService>,
+    config: StreamableHttpServerConfig,
+) -> StreamableHttpService<impl ServerHandler, LocalSessionManager> {
+    service_with_debugger_resources(
+        app,
+        plugins,
+        devices,
+        installations,
+        dependencies,
+        debugger,
+        None,
+        None,
+        config,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn service_with_debugger_resources(
+    app: Arc<Application>,
+    plugins: Option<Arc<PluginService>>,
+    devices: Arc<apk_application::devices::DeviceService>,
+    installations: Option<Arc<apk_application::plugin_installations::InstallationService>>,
+    dependencies: Option<Arc<apk_application::plugin_dependencies::DependencyService>>,
+    debugger: Arc<apk_application::debugger::DebuggerService>,
+    artifacts: Option<Arc<dyn apk_domain::artifacts::ArtifactStore>>,
+    logging: Option<deviceforge_observability::LogMetrics>,
+    config: StreamableHttpServerConfig,
+) -> StreamableHttpService<impl ServerHandler, LocalSessionManager> {
     let mut adapter = McpAdapter::new(app, plugins, devices, config.cancellation_token.clone());
+    adapter.debugger = debugger;
     adapter.installations = installations;
     adapter.dependencies = dependencies;
+    adapter.artifacts = artifacts;
+    adapter.logging = logging;
     let handler = crate::mcp_observability::Observed(adapter);
     StreamableHttpService::new(
         move || Ok(handler.clone()),
@@ -346,7 +437,8 @@ pub(crate) fn service_with_dependencies(
     )
 }
 pub fn default_config() -> StreamableHttpServerConfig {
-    let mut config = StreamableHttpServerConfig::default().enforce_origin_validation();
+    // 个人及可信局域网与 HTTP 共用开放默认；部署者仍可显式设置 Host/Origin 清单。
+    let mut config = StreamableHttpServerConfig::default().disable_allowed_hosts();
     config.legacy_session_mode = false;
     config.json_response = true;
     config.max_request_body_bytes = 256 * 1024;

@@ -47,6 +47,37 @@ test('完整离线 ZIP 预览并上传产物后统一安装，不使用旧包上
   assert.deepEqual(calls, ['artifact', 'install']);
 });
 
+test('同版本重新导入在预览时固定原安装修订，提交走统一更新且保留停用意图', async () => {
+  const file = offlineFile();
+  const digest = checksum(new Uint8Array(await file.arrayBuffer()));
+  const calls: string[] = [];
+  const current = release(false);
+  const dependencies: LocalImportPorts = { ...ports(),
+    installationArtifacts: { upload: async filename => {
+      calls.push('artifact');
+      return { data: { id: 'artifact-new', filename, sha256: digest, size: file.size, media_type: 'application/zip', created_at: 1 }, logId: 'upload' };
+    } },
+    installations: {
+      install: unused,
+      refresh: async () => { calls.push('list'); return { data: [current], logId: 'directory' }; },
+      update: async (id, expected, source) => {
+        calls.push('update');
+        assert.equal(id, current.id);
+        assert.equal(expected, 'a'.repeat(64));
+        assert.deepEqual(source, { kind: 'offline', artifactId: 'artifact-new' });
+        return release(false, '1.0.0', 'b'.repeat(64));
+      },
+    },
+  };
+  const preview = await previewLocalImport(dependencies, { kind: 'plugin', file, manifest: null, moduleId: '' }, signal());
+  assert.equal(preview.kind, 'release');
+  if (preview.kind !== 'release') return;
+  assert.equal(preview.expectedRevision, current.revision);
+  assert.match(preview.summary, /更新/);
+  assert.match(await submitLocalImport(dependencies, preview, signal()), /保持停用/);
+  assert.deepEqual(calls, ['list', 'artifact', 'update']);
+});
+
 test('离线清单的资源缺失时在上传前阻断', async () => {
   await assert.rejects(inspectLocalRelease(offlineFile(true), signal()), /资源缺失或大小不一致/);
 });

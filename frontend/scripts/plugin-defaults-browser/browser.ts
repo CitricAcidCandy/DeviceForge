@@ -45,10 +45,13 @@ export async function createDefaultsBrowser(project: string, profile: string, ev
   let child: ChildProcess | null = null;
   let browser: Protocol | null = null;
   let page: Protocol | null = null;
+  const extraPages = new Set<Protocol>();
   let diagnostic = '';
   let port = 0;
   const close = async () => {
     page?.close();
+    for (const extra of extraPages) extra.close();
+    extraPages.clear();
     if (browser) await browser.call('Browser.close', {}, 5000).catch(() => {});
     browser?.close();
     const deadline = Date.now() + 5000;
@@ -110,6 +113,61 @@ export async function createDefaultsBrowser(project: string, profile: string, ev
     }
     return {
       evaluate, wait, close,
+      async newPage(url: string) {
+        const currentBrowser = browser; assert.ok(currentBrowser);
+        const address = new URL(`http://127.0.0.1:${port}/json/new?${encodeURIComponent(url)}`);
+        const response = await fetch(address, { method: 'PUT', signal: AbortSignal.timeout(10000) });
+        assert.ok(response.ok);
+        const target = record(await response.json());
+        const socket = target['webSocketDebuggerUrl'], targetId = target['id'];
+        assert.ok(typeof socket === 'string' && typeof targetId === 'string');
+        const extra = await module.themeProtocol(socket, evidence); extraPages.add(extra);
+        await extra.call('Runtime.enable');
+        const evaluateExtra = async (expression: string): Promise<unknown> => {
+          const reply = record(await extra.call('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true }, 30000));
+          if (reply['exceptionDetails']) throw new Error(JSON.stringify(reply['exceptionDetails']));
+          return record(reply['result'])['value'];
+        };
+        return {
+          evaluate: evaluateExtra,
+          async wait(expression: string) {
+            const deadline = Date.now() + 15000;
+            while (Date.now() < deadline) { if (await evaluateExtra(expression)) return; await delay(50); }
+            throw new Error('第二标签页未就绪');
+          },
+          async close() {
+            await currentBrowser.call('Target.closeTarget', { targetId }, 5000);
+            extra.close(); extraPages.delete(extra);
+          },
+        };
+      },
+      async pressKey(key: 'Tab' | 'Enter' | 'Escape' | 'ArrowLeft' | 'ArrowRight' | 'ArrowUp' | 'ArrowDown') {
+        const code = { Tab: 9, Enter: 13, Escape: 27, ArrowLeft: 37, ArrowRight: 39, ArrowUp: 38, ArrowDown: 40 }[key];
+        await currentPage.call('Page.bringToFront');
+        await currentPage.call('Emulation.setFocusEmulationEnabled', { enabled: true });
+        await currentPage.call('Input.dispatchKeyEvent', {
+          type: key === 'Enter' ? 'keyDown' : 'rawKeyDown', key, code: key,
+          windowsVirtualKeyCode: code, nativeVirtualKeyCode: code,
+          ...(key === 'Enter' ? { text: '\r', unmodifiedText: '\r' } : {}),
+        });
+        await currentPage.call('Input.dispatchKeyEvent', { type: 'keyUp', key, code: key, windowsVirtualKeyCode: code, nativeVirtualKeyCode: code });
+      },
+      async resize(width: number, height: number) {
+        assert.ok(Number.isInteger(width) && Number.isInteger(height) && width >= 320 && height >= 320);
+        await currentPage.call('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: false });
+      },
+      async drag(from: { x: number; y: number }, to: { x: number; y: number }) {
+        for (const point of [from, to]) assert.ok(Number.isFinite(point.x) && Number.isFinite(point.y));
+        await currentPage.call('Input.dispatchMouseEvent', { type: 'mouseMoved', ...from });
+        await currentPage.call('Input.dispatchMouseEvent', { type: 'mousePressed', ...from, button: 'left', buttons: 1, clickCount: 1 });
+        for (let step = 1; step <= 5; step++) {
+          await currentPage.call('Input.dispatchMouseEvent', { type: 'mouseMoved',
+            x: from.x + (to.x - from.x) * step / 5, y: from.y + (to.y - from.y) * step / 5,
+            button: 'left', buttons: 1 });
+        }
+        await currentPage.call('Input.dispatchMouseEvent', { type: 'mouseReleased', ...to, button: 'left', buttons: 0, clickCount: 1 });
+        await delay(50);
+      },
       async navigate(url: string) {
         await currentPage.call('Page.navigate', { url });
         await wait(`location.href===${JSON.stringify(url)}&&document.readyState!=='loading'`, '导航');

@@ -25,9 +25,9 @@ export function requireProvider(
   generation: string,
 ): DeviceProviderInfo {
   const provider = providers.find((item) => item.id === id);
-  if (!provider) return invalid('not_found', '设备提供者不存在或已卸载', 404);
+  if (!provider) return invalid('not_found', '设备插件尚未启用或已被移除，请先启用对应插件', 404);
   if (provider.generation !== generation)
-    return invalid('conflict', '设备提供者运行代次已变化', 409);
+    return invalid('conflict', '设备插件已更新，当前设备信息已过期，请刷新页面后重新选择设备', 409);
   return provider;
 }
 export function findDevice(
@@ -53,9 +53,9 @@ export function requireDevice(
       item.provider.id === reference.providerId &&
       item.provider.generation === reference.generation,
   );
-  if (!directory) return invalid('conflict', '设备提供者尚无本代观测目录', 409);
+  if (!directory) return invalid('conflict', '尚未获取此插件的设备列表，请先重新获取设备列表', 409);
   const device = findDevice([directory], reference);
-  if (!device) return invalid('not_found', '设备不在当前提供者观测目录中', 404);
+  if (!device) return invalid('not_found', '设备已不在最新列表中，请重新获取设备列表后选择设备', 404);
   return device;
 }
 export function validateAction(snapshot: DeviceSnapshot, action: DeviceAction): void {
@@ -76,21 +76,25 @@ export function validateAction(snapshot: DeviceSnapshot, action: DeviceAction): 
   const capability = provider.definition.capabilities.find(
     (item) => item.id === action.capability && item.version === action.version,
   );
-  if (!capability) invalid('not_found', '设备能力或请求版本未声明', 404);
+  if (!capability) invalid('not_found', '当前设备插件不支持这项功能或所需版本，请检查插件是否已更新', 404);
   if (capability.scope === 'provider') {
-    if (action.deviceId !== null) invalid('invalid_input', '提供者能力不能携带设备身份', 400);
+    if (action.deviceId !== null) invalid('invalid_input', '这项功能针对整个设备插件，不能指定单台设备', 400);
     return;
   }
-  if (!action.deviceId) invalid('invalid_input', '设备能力必须携带本地设备身份', 400);
+  if (!action.deviceId) invalid('invalid_input', '请先选择要操作的设备', 400);
   const device = requireDevice(snapshot.directories, {
     providerId: action.providerId,
     generation: action.generation,
     localId: action.deviceId,
   });
-  if (device.state !== 'online') invalid('conflict', '设备不在线或尚未授权', 409);
+  if (device.state !== 'online') invalid('conflict', device.state === 'unauthorized'
+    ? '设备尚未授权，请在设备上确认连接授权'
+    : device.state === 'offline'
+      ? '设备已离线，请检查连接后重新获取设备列表'
+      : '设备当前不在可操作状态，请检查设备状态后重新连接', 409);
   const availability = device.capabilities.find(
     (item) => item.id === action.capability && item.version === action.version,
   );
   if (!availability?.available)
-    invalid('conflict', availability?.reason || '设备能力缺失或当前不可用', 409);
+    invalid('conflict', availability?.reason || '当前设备无法使用这项功能，请检查设备是否满足功能要求', 409);
 }

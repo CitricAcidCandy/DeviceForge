@@ -34,15 +34,25 @@ impl Executor for Echo {
 async fn rpc(
     router: &Router,
     method: &str,
+    params: Value,
+    authorized: bool,
+    origin: Option<&str>,
+) -> (StatusCode, Value) {
+    rpc_with_host(router, method, params, authorized, origin, "127.0.0.1:7031").await
+}
+async fn rpc_with_host(
+    router: &Router,
+    method: &str,
     mut params: Value,
     authorized: bool,
     origin: Option<&str>,
+    host: &str,
 ) -> (StatusCode, Value) {
     params["_meta"] = json!({"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientInfo":{"name":"contract-tests","version":"1"},"io.modelcontextprotocol/clientCapabilities":{}});
     let mut request = Request::builder()
         .method("POST")
         .uri("/mcp")
-        .header("host", "127.0.0.1:7031")
+        .header("host", host)
         .header("content-type", "application/json")
         .header("accept", "application/json, text/event-stream")
         .header("MCP-Protocol-Version", "2026-07-28")
@@ -89,18 +99,6 @@ async fn mcp_discovers_and_submits_same_application_jobs() {
         rpc(&router, "tools/list", json!({}), false, None).await.0,
         StatusCode::UNAUTHORIZED
     );
-    assert_eq!(
-        rpc(
-            &router,
-            "tools/list",
-            json!({}),
-            true,
-            Some("https://untrusted.example")
-        )
-        .await
-        .0,
-        StatusCode::FORBIDDEN
-    );
     let (status, result) = rpc(&router, "tools/list", json!({}), true, None).await;
     assert_eq!(status, StatusCode::OK, "{result}");
     let tools = result["result"]["tools"]
@@ -144,6 +142,112 @@ async fn mcp_discovers_and_submits_same_application_jobs() {
     )
     .await;
     assert!(invalid.get("error").is_some() || invalid["result"]["isError"] == true);
+    app.shutdown().await.unwrap();
+}
+
+#[tokio::test]
+async fn browser_mcp_allows_preflight_and_catalog_from_loopback_and_lan() {
+    let app = Application::new(
+        Arc::new(SqliteStore::open(":memory:").unwrap()),
+        vec![Arc::new(Echo)],
+        1,
+        8,
+    )
+    .unwrap();
+    let router = apk_server::router(app.clone(), String::new(), 100).unwrap();
+    for (host, origin) in [
+        ("127.0.0.1:7031", "http://127.0.0.1:5173"),
+        ("192.168.50.41:7031", "http://192.168.50.5:5173"),
+    ] {
+        let headers = "authorization,content-type,mcp-protocol-version,mcp-method,mcp-name,mcp-session-id,last-event-id";
+        let preflight = Request::builder()
+            .method("OPTIONS")
+            .uri("/mcp")
+            .header("host", host)
+            .header("origin", origin)
+            .header("access-control-request-method", "POST")
+            .header("access-control-request-headers", headers)
+            .body(Body::empty())
+            .unwrap();
+        let response = router.clone().oneshot(preflight).await.unwrap();
+        assert_eq!(response.status(), StatusCode::NO_CONTENT);
+        assert_eq!(response.headers()["access-control-allow-origin"], "*");
+        let allowed = response.headers()["access-control-allow-headers"]
+            .to_str()
+            .unwrap();
+        for requested in headers.split(',') {
+            assert!(
+                allowed.split(',').any(|value| value.trim() == requested),
+                "浏览器 MCP 预检缺少请求头：{requested}"
+            );
+        }
+        let exposed = response.headers()["access-control-expose-headers"]
+            .to_str()
+            .unwrap();
+        for required in [
+            "mcp-session-id",
+            "mcp-protocol-version",
+            "x-deviceforge-log-id",
+        ] {
+            assert!(exposed.split(',').any(|value| value.trim() == required));
+        }
+        let (status, catalog) =
+            rpc_with_host(&router, "tools/list", json!({}), false, Some(origin), host).await;
+        assert_eq!(status, StatusCode::OK, "{catalog}");
+        assert!(
+            catalog["result"]["tools"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|tool| tool["name"] == "plugin.test.echo")
+        );
+    }
+    app.shutdown().await.unwrap();
+}
+
+#[tokio::test]
+async fn explicit_mcp_hosts_and_origins_still_limit_requests() {
+    let app = Application::new(
+        Arc::new(SqliteStore::open(":memory:").unwrap()),
+        vec![Arc::new(Echo)],
+        1,
+        8,
+    )
+    .unwrap();
+    let config = apk_server::mcp::default_config()
+        .with_allowed_hosts(["127.0.0.1"])
+        .with_allowed_origins(["http://127.0.0.1:5173"]);
+    let router =
+        apk_server::router_with_mcp(app.clone(), "test-mcp-token".into(), 100, config).unwrap();
+    for (host, origin, status) in [
+        ("127.0.0.1:7031", "http://127.0.0.1:5173", StatusCode::OK),
+        (
+            "127.0.0.1:7031",
+            "https://untrusted.example",
+            StatusCode::FORBIDDEN,
+        ),
+        (
+            "192.168.50.41:7031",
+            "http://127.0.0.1:5173",
+            StatusCode::FORBIDDEN,
+        ),
+    ] {
+        let (actual, body) =
+            rpc_with_host(&router, "tools/list", json!({}), true, Some(origin), host).await;
+        assert_eq!(actual, status, "{body}");
+    }
+    assert_eq!(
+        rpc(
+            &router,
+            "tools/list",
+            json!({}),
+            false,
+            Some("http://127.0.0.1:5173")
+        )
+        .await
+        .0,
+        StatusCode::UNAUTHORIZED
+    );
     app.shutdown().await.unwrap();
 }
 

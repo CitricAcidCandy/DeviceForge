@@ -277,7 +277,7 @@ test('提供者卸载/代变撤销旧引用和在途发现，重载不复活旧�
   );
   assert.throws(
     () => runtime.devices.select({ providerId: 'example', generation: 'g1', localId: 'same' }),
-    /代次/,
+    /插件已更新.*设备信息已过期/,
   );
   await runtime.devices.refreshDirectories(signal());
   assert.equal(runtime.devices.snapshot().directories[0]?.provider.generation, 'g2');

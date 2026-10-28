@@ -1,0 +1,21 @@
+{
+  "metadata_version": 1,
+  "id": "deviceforge_debugger",
+  "kind": "plugin",
+  "name": "DeviceForge 调试器",
+  "version": "0.1.0",
+  "summary": "检查插件公开目标、结构树、事件与调用证据",
+  "description": "官方普通浏览器插件。全局悬浮入口、明确目标与代次、结构树和节点动作、事件时间线、公开调用与报告导出。首次不采集，副作用操作需要显式确认。",
+  "keywords": ["调试", "插件", "结构树", "日志"],
+  "categories": ["ui", "integration"],
+  "applies_to": ["deviceforge", "universal"],
+  "supports_mcp": "none",
+  "supports_agent": false,
+  "restart_policy": "plugin_reload",
+  "platforms": ["windows", "linux", "macos"],
+  "architectures": ["x64", "arm64"],
+  "author": "DeviceForge",
+  "license": "MIT",
+  "visibility": "market",
+  "details": { "component_count": 1, "slot": "developer.tools", "api_version": 2 }
+}

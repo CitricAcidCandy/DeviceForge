@@ -168,7 +168,7 @@ async fn every_target_topic_returns_bounded_embedded_versioned_documents_without
     for target in ["frontend", "backend", "fullstack"] {
         for topic in TOPICS {
             let result = guide(&router, json!({"target": target, "topic": topic})).await;
-            assert_eq!(result["guide_version"], 3);
+            assert_eq!(result["guide_version"], 4);
             assert_eq!(result["release_format_versions"], json!([1, 2]));
             assert_eq!(result["release_host_api_versions"], json!([2]));
             assert_eq!(result["host_version"], env!("CARGO_PKG_VERSION"));
@@ -194,10 +194,8 @@ async fn every_target_topic_returns_bounded_embedded_versioned_documents_without
                     .iter()
                     .find(|document| document["target"] == *expected)
                     .unwrap_or_else(|| panic!("{target}/{topic} 缺少 {expected} 指南"));
-                assert_eq!(
-                    document["source"],
-                    format!("{expected}/docs/guides/plugin-development/{topic}.md")
-                );
+                assert_eq!(document["topic"], topic);
+                assert!(document.get("source").is_none());
             }
             for document in documents {
                 assert!(
@@ -207,12 +205,11 @@ async fn every_target_topic_returns_bounded_embedded_versioned_documents_without
                     "{target}/{topic} 不应夹带其他目标资料"
                 );
                 assert_eq!(document["topic"], topic);
-                let source = document["source"].as_str().unwrap();
-                assert!(source.contains("docs/") && source.ends_with(".md"));
-                assert!(!source.contains([':', '\\']), "来源应是可移植文档标识");
+                let fields = document.as_object().unwrap();
+                assert_eq!(fields.len(), 3, "公开文档只包含目标、主题和正文");
                 let content = document["content"].as_str().unwrap();
-                assert!(content.trim().len() >= 100, "{source} 应有实质知识");
-                assert!(content.len() <= 128 * 1024, "{source} 超过单文档预算");
+                assert!(content.trim().len() >= 100, "{target}/{topic} 应有实质知识");
+                assert!(content.len() <= 128 * 1024, "{target}/{topic} 超过单文档预算");
             }
             assert!(
                 result.to_string().len() <= 512 * 1024,

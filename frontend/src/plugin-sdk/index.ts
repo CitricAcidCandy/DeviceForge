@@ -5,6 +5,7 @@ import type { TaskHistoryAccess } from './task-history.ts';
 import type { ThemeAccess, ThemeContribution } from './themes.ts';
 import type { ConfigurationAccess, ConfigurationDefinition } from './configuration.ts';
 import type { ServiceAccess as ScopedServiceAccess } from './services.ts';
+import type { DebugAccess } from './debug.ts';
 export type { ServiceRef, ServiceContract, ServiceDirectoryEntry, ServerServiceAccess, TypedService, ServiceFeatureDiagnostic } from './services.ts';
 export type ServiceAccess = ScopedServiceAccess<HostContext>;
 export * from './models.ts';
@@ -16,6 +17,7 @@ export type * from './artifacts.ts';
 export type * from './task-history.ts';
 export type * from './themes.ts';
 export type * from './configuration.ts';
+export type * from './debug.ts';
 export interface HostContext {
   readonly apiVersion: 2;
   readonly signal: AbortSignal;
@@ -37,6 +39,7 @@ export interface HostContext {
   readonly themes?: ThemeAccess;
   readonly configuration?: ConfigurationAccess;
   readonly services?: ServiceAccess;
+  readonly debug?: DebugAccess;
 }
 export interface PanelContribution {
   readonly id: string;

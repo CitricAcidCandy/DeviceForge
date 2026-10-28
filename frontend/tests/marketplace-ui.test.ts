@@ -1209,3 +1209,36 @@ test('本地导入取消旧上传后，新预览不被旧请求迟到失败清�
     assert.equal(browser.documentRef.querySelector('[role="alert"]'), null);
   } finally { uploading.resolve(success([])); await services.dispose(); await browser.close(); }
 });
+
+test('本地导入文件夹将完整目录交给单清单打包，预览生成归档并可取消重选', async () => {
+  const browser = await fixture();
+  const services = createProductServices({ baseUrl: 'http://local.example', panelTarget: () => null,
+    transport: async () => { throw new Error('目录预览不应访问服务器'); } });
+  const loaded: unknown = await browser.server.ssrLoadModule('/src/pages/marketplace/components/LocalImportDialog/index.tsx');
+  assert.ok(localImportModule(loaded));
+  const received: string[][] = [];
+  const prepare: PreparationExecutor = async request => {
+    assert.equal(request.localImport, true);
+    assert.equal(request.selection.mode, 'directory');
+    received.push(request.selection.files.map(file => file.path));
+    return { file: new File(['已生成归档'], 'generated.zip'), sha256: 'a'.repeat(64), inspection: {
+      files: [], excluded: [], totalSize: 0, metadata: null, identity: { id: 'local.plugin', version: '1.0', kind: 'browser' },
+    } };
+  };
+  try {
+    await act(async () => { browser.root.render(createElement(loaded.LocalImportDialog, { open: true, services, onOpenChange() {}, prepare })); });
+    const input = browser.documentRef.querySelector('input[webkitdirectory]');
+    assert.ok(input instanceof browser.windowRef.HTMLInputElement);
+    const files = [new File(['{}'], 'manifest.json'), new File(['export default {}'], 'index.js')];
+    for (const file of files) Object.defineProperty(file, 'webkitRelativePath', { value: `工程/${file.name}` });
+    Object.defineProperty(input, 'files', { configurable: true, value: selectedFiles(files) });
+    await act(async () => { input.dispatchEvent(new browser.windowRef.Event('change', { bubbles: true })); });
+    await browser.click('检查导入内容');
+    await settled(() => browser.documentRef.body.textContent?.includes('generated.zip') ?? false, '尚未展示生成包');
+    assert.deepEqual(received, [['manifest.json', 'index.js']]);
+    assert.equal(browser.button('确认导入').disabled, false);
+    await chooseFile(browser, localPluginArchive('legacy.zip'));
+    assert.equal(Array.from(browser.documentRef.querySelectorAll('button')).some(button => button.textContent?.trim() === '确认导入'), false);
+    assert.doesNotMatch(browser.documentRef.body.textContent ?? '', /已选择 工程/);
+  } finally { await services.dispose(); await browser.close(); }
+});

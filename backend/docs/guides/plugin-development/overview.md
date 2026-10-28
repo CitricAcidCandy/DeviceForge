@@ -1,6 +1,12 @@
 # 服务器插件开发概览
 
-本指南随 DeviceForge 宿主构建发布。使用 MCP 工具 `deviceforge.get_plugin_development_guide`，指定 `target=backend` 与所需 `topic` 获取正文；配套开发使用 `target=fullstack`。响应给出宿主版本、指南版本和公开协议版本。文档来源路径是定位标签，远端客户端无需读取开发机文件。
+推荐流程：只维护一份 manifest.json 开发清单（manifest_version:1），在 components 中声明服务器/浏览器能力，在 market 中声明展示资料；两者完整结构、默认值和示例均由 manifest 主题直接提供。使用带 plugin pack 命令的 DeviceForge CLI 发行包自动生成运行、市场和发布清单，再 plan/publish 或离线安装；命令详见 packaging 主题。Cargo.toml/package.json 仅保留语言工具链职责，不重复维护 DeviceForge 元数据。
+
+使用 MCP 工具 `deviceforge.get_plugin_development_guide`，指定 `target=backend` 与所需 `topic` 获取正文；配套开发使用 `target=fullstack`。响应给出宿主版本、指南版本和公开协议版本，知识随宿主版本交付。
+
+插件在自己的独立工程开发，无需获取宿主源码。直接使用 MCP 返回的 `documents.content`、公开操作目录与 JSON Schema，按主题继续查询其他正文。公开 SDK 是可选开发依赖，取得可独立消费的 SDK 开发包后才使用；没有开发包时可按本指南 JSON 协议实现，`examples` 的 Node.js 完整包不依赖 SDK。
+
+知识范围包括开发流程、公开能力与接口、约束、生命周期、调试和发布要求。`overview` 介绍能力与开发顺序，`manifest` 描述声明约束，`sdk` 提供公开接口，`lifecycle` 说明运行和清理，`examples` 提供示例，`dependencies` 描述共享依赖，`packaging` 说明发布要求，`validation` 提供调试流程与结果核对。正文直接交付，不包含宿主源码位置或文档物理地址。
 
 ## 能力与边界
 
@@ -19,7 +25,7 @@
 | 5 | 持续输入、标准输出/错误双路输出的交互会话 | 单独的会话声明与运行库入口；不是普通任务版本 |
 | 6 | 任务内反向调用公共服务 | 独立帧、Ready/Start、类型化句柄与合作清理，不经过 HTTP |
 
-清单顶层 `protocol_version` 可选 1–4，或显式选择支持反向公共服务的 6；独立会话在 `sessions` 声明协议 5。每个任务或会话启动自己的插件进程；公共服务映射已有普通操作，不另建常驻 RPC 进程。协议 6 与服务契约版本字符串无关，详见[公共服务与协议第六版](../../contracts/公共服务与协议第六版.md)。
+清单顶层 `protocol_version` 可选 1–4，或显式选择支持反向公共服务的 6；独立会话在 `sessions` 声明协议 5。每个任务或会话启动自己的插件进程；公共服务映射已有普通操作，不另建常驻 RPC 进程。协议 6 与服务契约版本字符串无关，声明、运行入口和生命周期分别查询本指南的 `manifest`、`sdk` 与 `lifecycle` 主题。
 
 ## 推荐开发顺序
 
@@ -32,4 +38,4 @@
 配置、插件和工具归运行宿主的用户根，默认 `<home>/.deviceforge`，宿主可用 `DEVICEFORGE_USER_DIR` 指定。根 `config.json` 保存启动/市场配置，插件配置分别保存于 `plugin-configurations/server` 与 `browser`，工具位于 `tools`；npx 缓存只保存运行分发文件。托管资源用 SDK 与 `DEVICEFORGE_PLUGIN_RESOURCES` 读取，用户高级路径覆盖保留优先级；不把开发机绝对路径、令牌或示例项目写入发布默认值。在线来源和含完整闭包的离线 ZIP 走同一安装用例，具体字段见 `manifest`、`sdk` 和 `packaging`。
 
 
-新版统一依赖使用 dependencies.json（独立组件）或 v2 清单的 dependencies，先自动发现本机与用户根共享工具，一次安装只下载缺失必需项；启动与重新检测不下载。v1 保留兼容。完整字段、来源约束与管理接口见 [共享依赖](dependencies.md)。
+新版统一依赖使用 dependencies.json（独立组件）或 v2 清单的 dependencies，先自动发现本机与用户根共享工具，一次安装只下载缺失必需项；启动与重新检测不下载。v1 保留兼容。完整字段、来源约束与管理接口通过本指南工具查询 `dependencies` 主题。

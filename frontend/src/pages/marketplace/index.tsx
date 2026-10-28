@@ -419,6 +419,22 @@ export function MarketplacePage({
         installed={selected ? installedEntry(selected, market.packages, market.installations) : undefined}
         recoveryBlocked={selected ? market.installations.some((item) => item.id === selected.id && installationRequiresRecovery(item)) : false}
         busy={market.action.pending}
+        onDebug={selected && installedEntry(selected, market.packages, market.installations) && services.runtime.debugger
+          ? () => {
+            const entry = selected;
+            if (!entry) return;
+            const release = market.installations.find(item => item.id === entry.id && isReleaseEntry(entry));
+            const kind = entry.details['plugin_kind'];
+            const candidates = release ? release.components.map(item => ({ target_kind: item.kind, plugin_id: item.id }))
+              : (kind === 'browser' || kind === 'server') ? [{ target_kind: kind, plugin_id: entry.id }] : [];
+            void market.action.run(async signal => {
+              if (candidates.length === 0) throw new Error('该条目没有可选择的浏览器或服务器组件');
+              await services.runtime.extensions.callService('host.debugger', '1', {
+                action: 'focus', input: { candidates, installation_id: release?.id ?? null },
+              }, signal);
+              setSelected(null);
+            });
+          } : undefined}
         onDependencies={selected && installedEntry(selected, market.packages, market.installations) && dependencyTarget(selected)
           ? () => { setDependencies(selected); setSelected(null); } : undefined}
         onClose={() => setSelected(null)}

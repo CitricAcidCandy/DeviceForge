@@ -31,5 +31,7 @@ mod normal;
 mod output;
 #[path = "cases/screenshots.rs"]
 mod screenshots;
+#[path = "cases/start_failure.rs"]
+mod start_failure;
 #[path = "cases/validation.rs"]
 mod validation;

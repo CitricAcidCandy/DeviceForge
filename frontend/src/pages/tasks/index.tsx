@@ -2,13 +2,16 @@ import { useEffect, useRef, useState } from 'react';
 import { Copy, RefreshCw, Square } from 'lucide-react';
 import { Button } from '../../components/Button/index.tsx';
 import { Input } from '../../components/Input/index.tsx';
-import type { JobDto, JobEventDto } from '../../services/api/index.ts';
+import type { JobDto, JobEventDto, LogOrder } from '../../services/api/index.ts';
 import type { ProductServices } from '../../app/product/services.ts';
 import { formatJobProgress } from '../../features/tasks/index.ts';
+import type { TaskLookup } from '../../features/tasks/index.ts';
 import { useAction, useSnapshot } from '../../app/product/hooks.ts';
 import { EmptyState, JsonResult } from '../../components/index.ts';
 import { TaskArtifacts } from './components/TaskArtifacts/index.tsx';
 import { cn } from '../../utils/classnames.ts';
+import { LogRecords } from './LogRecords.tsx';
+import { copyText } from '../../shared/clipboard/index.ts';
 
 const taskStates = {
   queued: '排队中',
@@ -96,7 +99,12 @@ export function TasksPage({ services }: { services: ProductServices }) {
   const [events, setEvents] = useState<readonly JobEventDto[]>([]);
   const [filter, setFilter] = useState('all');
   const [query, setQuery] = useState('');
+  const [order, setOrder] = useState<LogOrder>('desc');
   const [loaded, setLoaded] = useState(false);
+  const [lookupResult, setLookupResult] = useState<TaskLookup | null>(null);
+  const lookupAction = useAction();
+  const lookupActive = useRef(false);
+  lookupActive.current = query.trim().length > 0 || lookupResult !== null || lookupAction.pending;
   const limit = useRef(50);
   const root = useRef<HTMLDivElement>(null);
   const action = useAction();
@@ -124,6 +132,7 @@ export function TasksPage({ services }: { services: ProductServices }) {
       if (
         document.visibilityState === 'visible' &&
         !root.current?.closest('[hidden]') &&
+        !lookupActive.current &&
         !refreshState.current.pending &&
         !refreshState.current.error
       ) {
@@ -133,18 +142,20 @@ export function TasksPage({ services }: { services: ProductServices }) {
     }, 10000);
     return () => window.clearInterval(timer);
   }, [services]);
-  const visibleJobs = jobs
+  const listedJobs = lookupResult?.jobs ?? jobs;
+  const visibleJobs = listedJobs
     .filter(
       (job) =>
         (filter === 'all' || filter === 'active'
           ? filter === 'all' || running(job)
-          : job.status === filter) &&
-        `${job.operation} ${job.id}`.toLowerCase().includes(query.toLowerCase()),
+          : job.status === filter),
     )
     .sort(
       (left, right) =>
-        Number(running(right)) - Number(running(left)) || right.created_at - left.created_at,
+        (left.created_at - right.created_at) * (order === 'desc' ? -1 : 1),
     );
+  const visibleEvents = [...events].sort((left, right) =>
+    (left.timestamp - right.timestamp || left.sequence - right.sequence) * (order === 'desc' ? -1 : 1));
   function select(id: string, quiet = false) {
     void details.run(async (signal) => {
       const [job, updates] = await Promise.all([
@@ -156,21 +167,39 @@ export function TasksPage({ services }: { services: ProductServices }) {
     }, { quiet, success: null, pending: '正在读取任务…' });
   }
   async function copyTaskId(id: string) {
-    try {
-      await navigator.clipboard.writeText(id);
+    if (await copyText(id)) {
       services.messages.success('任务 ID 已复制');
-    } catch {
+    } else {
       services.messages.warning('复制失败，请手动选择任务 ID');
     }
   }
+  function lookup(nextOrder = order) {
+    const id = query.trim();
+    if (!id) return;
+    setFilter('all');
+    setLookupResult(null);
+    void lookupAction.run(async (signal) => {
+      const result = await services.runtime.tasks.search(id, nextOrder, signal);
+      if (signal.aborted) return result;
+      setLookupResult(result.data);
+      const first = result.data.jobs[0];
+      if (first) select(first.id);
+      return result;
+    }, { pending: '正在查询任务与请求日志…', success: null });
+  }
+  function toggleOrder() {
+    const nextOrder = order === 'desc' ? 'asc' : 'desc';
+    setOrder(nextOrder);
+    if (query.trim()) lookup(nextOrder);
+  }
   const counts: Readonly<Record<string, number>> = {
-    all: jobs.length,
-    active: jobs.filter(running).length,
-    succeeded: jobs.filter((job) => job.status === 'succeeded').length,
-    failed: jobs.filter((job) => job.status === 'failed').length,
-    cancelled: jobs.filter((job) => job.status === 'cancelled').length,
+    all: listedJobs.length,
+    active: listedJobs.filter(running).length,
+    succeeded: listedJobs.filter((job) => job.status === 'succeeded').length,
+    failed: listedJobs.filter((job) => job.status === 'failed').length,
+    cancelled: listedJobs.filter((job) => job.status === 'cancelled').length,
   };
-  const selectedJob = selected;
+  const selectedJob = lookupAction.pending || (lookupResult !== null && !lookupResult.jobs.some((job) => job.id === selected?.id)) ? null : selected;
   const latestProgress = [...events].reverse().find((event) => event.progress)?.progress;
   const progressPercent =
     latestProgress?.total_bytes != null && latestProgress.total_bytes > 0
@@ -186,18 +215,19 @@ export function TasksPage({ services }: { services: ProductServices }) {
           </h1>
           <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] text-[color:var(--text-ghost)]">
             <span className="font-mono text-[color:var(--text-muted)]">
-              {loaded ? `${visibleJobs.length} / ${jobs.length}` : '读取中'}
+              {loaded ? `${visibleJobs.length} / ${listedJobs.length}` : '读取中'}
             </span>
             <span>项</span>
             <span aria-hidden="true" className="h-3 w-px bg-[color:var(--hairline)]" />
-            <span>10 秒自动刷新</span>
+            <span>{lookupResult ? '服务器搜索结果' : lookupActive.current ? '按 Enter 搜索服务器日志' : '10 秒自动刷新'}</span>
           </p>
         </div>
         <Button
           variant="ghost"
           size="sm"
-          disabled={action.pending}
+          disabled={action.pending || lookupAction.pending}
           onClick={() => {
+            if (query.trim()) { lookup(); return; }
             void action.run(refresh, { success: '任务列表已更新', pending: '正在刷新任务…' });
           }}
         >
@@ -211,9 +241,16 @@ export function TasksPage({ services }: { services: ProductServices }) {
           <Input
             id="task-query"
             value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="按操作名或任务 ID 过滤"
-            aria-label="过滤任务"
+            onChange={(event) => {
+              lookupAction.cancel();
+              setLookupResult(null);
+              setQuery(event.target.value);
+            }}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' && !event.nativeEvent.isComposing) { event.preventDefault(); lookup(); }
+            }}
+            placeholder="关键词 / 任务 ID / 日志 ID，按 Enter 搜索服务器"
+            aria-label="按操作名、任务 ID 或日志 ID 查询"
           />
         </div>
         <div className="flex flex-wrap items-center gap-1.5 lg:ml-auto" role="group" aria-label="状态筛选">
@@ -249,9 +286,10 @@ export function TasksPage({ services }: { services: ProductServices }) {
       <div className="flex min-h-0 flex-1 flex-col gap-2 px-4 pb-4 lg:flex-row lg:px-6">
         <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-[10px] bg-[color:var(--surface-sunken)] lg:w-[25rem] lg:flex-none lg:shrink-0">
           <div className="flex shrink-0 items-center justify-between gap-2 px-4 py-2.5">
-            <span className="text-[12px] font-medium text-[color:var(--text-muted)]">
-              任务 · 按时间
-            </span>
+            <button type="button" aria-label="切换时间排序" onClick={toggleOrder}
+              className="text-[12px] font-medium text-[color:var(--text-muted)] hover:text-[color:var(--primary)]">
+              任务 · {order === 'desc' ? '时间倒序 ↓' : '时间升序 ↑'}
+            </button>
             <span className="font-mono text-[12px] text-[color:var(--text-ghost)]">
               {visibleJobs.length}
             </span>
@@ -261,7 +299,7 @@ export function TasksPage({ services }: { services: ProductServices }) {
               <EmptyState
                 title={jobs.length === 0 ? '还没有任务记录' : '没有匹配的任务'}
                 description={
-                  jobs.length === 0 ? '发起操作后在这里查看进度与结果。' : '调整状态或过滤条件。'
+                  lookupResult ? '请求日志显示在右侧；没有关联任务不代表请求没有发生。' : jobs.length === 0 ? '发起操作后在这里查看进度与结果。' : '调整状态，或输入关键词、完整编号后按 Enter 搜索服务器。'
                 }
               />
             )}
@@ -305,14 +343,14 @@ export function TasksPage({ services }: { services: ProductServices }) {
                 </button>
               );
             })}
-            {jobs.length >= limit.current && limit.current < 500 && (
+            {!lookupActive.current && jobs.length >= limit.current && limit.current < 200 && (
               <div className="flex justify-center px-2 py-2">
                 <Button
                   variant="ghost"
                   size="sm"
                   disabled={action.pending}
                   onClick={() => {
-                    void action.run((signal) => refresh(signal, Math.min(500, limit.current + 50)), {
+                    void action.run((signal) => refresh(signal, Math.min(200, limit.current + 50)), {
                       success: '历史任务已更新',
                       pending: '正在读取历史任务…',
                     });
@@ -329,6 +367,7 @@ export function TasksPage({ services }: { services: ProductServices }) {
           aria-label="任务明细"
           className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[10px] border border-[color:var(--hairline)] bg-[color:var(--card)]"
         >
+          {lookupResult && <LogRecords result={lookupResult} messages={services.messages} order={order} onOrderChange={toggleOrder} />}
           {selectedJob ? (
             <>
               <div className="shrink-0 px-5 pb-3 pt-4">
@@ -338,7 +377,7 @@ export function TasksPage({ services }: { services: ProductServices }) {
                       {selectedJob.operation}
                     </h2>
                     <div className="mt-1 flex min-w-0 items-center gap-2">
-                      <span className="truncate font-mono text-[12px] text-[color:var(--text-ghost)]">
+                      <span className="select-text break-all font-mono text-[12px] text-[color:var(--text-ghost)]">
                         {selectedJob.id}
                       </span>
                       <button
@@ -422,16 +461,17 @@ export function TasksPage({ services }: { services: ProductServices }) {
                 <PaperBlock
                   title="任务日志"
                   aside={
-                    <span className="font-mono text-[12px] text-[color:var(--text-ghost)]">
-                      {events.length} 条
-                    </span>
+                    <button type="button" aria-label="切换任务日志时间排序" onClick={toggleOrder}
+                      className="text-[12px] text-[color:var(--text-ghost)] hover:text-[color:var(--primary)]">
+                      {events.length} 条 · {order === 'desc' ? '时间倒序 ↓' : '时间升序 ↑'}
+                    </button>
                   }
                 >
                   {events.length === 0 ? (
                     <p className="text-[12px] text-[color:var(--text-faint)]">没有返回任务事件。</p>
                   ) : (
                     <ol className="space-y-1">
-                      {events.map((event) => (
+                      {visibleEvents.map((event) => (
                         <li
                           key={event.sequence}
                           className="flex items-baseline gap-2 text-[12px] text-[color:var(--text-body)]"
@@ -476,7 +516,7 @@ export function TasksPage({ services }: { services: ProductServices }) {
           ) : (
             <div className="flex flex-1 items-center justify-center px-6">
               <p className="text-[13px] text-[color:var(--text-faint)]">
-                选一条任务，看事件、提交内容与产物。
+                {lookupResult?.logs ? '可从左侧选择关联任务，查看任务事件与最终结果。' : '选一条任务，看事件、提交内容与产物。'}
               </p>
             </div>
           )}

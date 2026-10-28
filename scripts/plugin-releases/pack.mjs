@@ -76,11 +76,19 @@ function portableComponent(members, component, platform, inputVersion) {
   if (component.kind === 'server') {
     const executable = entry.entrypoints?.[platform] ?? entry.entrypoints?.any;
     fail(
-      executable && ['native', 'node'].includes(executable.runtime),
+      executable && ['native', 'node', 'script'].includes(executable.runtime),
       '服务器组件缺少目标平台入口',
     );
     relativePath(executable.path);
     fail(members.has(prefix + executable.path), '组件程序入口不存在');
+    if (executable.runtime === 'script' || executable.dependency != null) {
+      const reference = executable.dependency;
+      const dependencies = dependencyBytes && JSON.parse(dependencyBytes).dependencies;
+      fail(executable.runtime !== 'native' && reference && typeof reference.id === 'string' &&
+        typeof reference.entry === 'string' && dependencies?.some((item) => item.id === reference.id &&
+          item.required !== false && item.entries.includes(reference.entry)),
+      '脚本入口须引用组件依赖清单中的必需运行时及公开入口');
+    }
   }
   return descriptor.version;
 }

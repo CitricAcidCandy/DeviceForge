@@ -29,6 +29,26 @@ fn input(bytes: Vec<u8>) -> ArtifactStream {
     ))
 }
 #[tokio::test]
+async fn debugger_markdown_report_uses_its_own_filename_and_media_type() {
+    let directory = tempfile::tempdir().unwrap();
+    let store = FileArtifacts::open(directory.path()).await.unwrap();
+    let expected = "# 插件调试报告\n\n仅包含本次明确导出的诊断。\n"
+        .as_bytes()
+        .to_vec();
+    let metadata = store
+        .put("插件调试报告.md".into(), input(expected.clone()))
+        .await
+        .unwrap();
+    assert_eq!(metadata.filename, "插件调试报告.md");
+    assert_eq!(metadata.media_type, "text/markdown");
+    let (_, mut stream) = store.download(&metadata.id).await.unwrap();
+    let mut bytes = Vec::new();
+    while let Some(chunk) = stream.next().await {
+        bytes.extend(chunk.unwrap());
+    }
+    assert_eq!(bytes, expected);
+}
+#[tokio::test]
 async fn streaming_roundtrip_metadata_preview_and_reopen() {
     let dir = tempfile::tempdir().unwrap();
     let store = FileArtifacts::open(dir.path()).await.unwrap();

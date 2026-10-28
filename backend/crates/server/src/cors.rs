@@ -28,13 +28,13 @@ pub(crate) async fn allow_browser(request: Request, next: Next) -> Response {
     headers.insert(
         header::ACCESS_CONTROL_ALLOW_HEADERS,
         HeaderValue::from_static(
-            "authorization, content-type, accept, range, x-deviceforge-plugin-release",
+            "authorization, content-type, accept, range, x-deviceforge-plugin-release, mcp-protocol-version, mcp-method, mcp-name, mcp-session-id, last-event-id",
         ),
     );
     headers.insert(
         header::ACCESS_CONTROL_EXPOSE_HEADERS,
         HeaderValue::from_static(
-            "x-deviceforge-log-id, content-disposition, content-range, retry-after",
+            "x-deviceforge-log-id, content-disposition, content-range, retry-after, mcp-session-id, mcp-protocol-version",
         ),
     );
     response

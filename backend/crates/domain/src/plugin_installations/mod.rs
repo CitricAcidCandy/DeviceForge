@@ -211,6 +211,36 @@ pub struct InstallationRevision {
     pub expected_revision: String,
 }
 
+/// 宿主完成整套贡献激活的证据，不表示浏览器运行、设备或业务验收通过。
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+pub struct SuccessfulRelease {
+    pub release: InstalledRelease,
+    pub activated_at: u64,
+    pub scope: SuccessfulReleaseScope,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum SuccessfulReleaseScope {
+    HostActivation,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct InstallationAction {
+    pub expected_revision: String,
+    pub confirmed: bool,
+}
+
+/// HTTP、MCP 和原 Job 共用；整套发布操作不得指定单个托管组件。
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct InstallationActionRequest {
+    pub id: String,
+    pub expected_revision: String,
+    pub confirmed: bool,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct InstallationEnabled {
@@ -352,6 +382,48 @@ pub trait InstallationStore: Send + Sync {
     ) -> Result<ResourceCleanupReport>;
     async fn restore_previous(&self, id: &str, expected_revision: &str)
     -> Result<InstalledRelease>;
+    /// 只有应用用例完成真实整套激活后调用；旧适配器不登记证据，也不因此获得恢复能力。
+    async fn record_successful_activation(
+        &self,
+        _id: &str,
+        _expected_revision: &str,
+    ) -> Result<()> {
+        Ok(())
+    }
+    /// 必须从独立成功证据选出不同于当前修订的版本，禁止推断普通事务快照已经成功。
+    async fn previous_successful(
+        &self,
+        _id: &str,
+        _expected_revision: &str,
+    ) -> Result<SuccessfulRelease> {
+        Err(crate::Error::Conflict(
+            "当前安装存储没有可恢复的成功激活记录".into(),
+        ))
+    }
+    /// 仍须原用例持有整套生命周期门禁；目标修订防止预览后成功记录发生变化。
+    async fn restore_previous_successful(
+        &self,
+        _id: &str,
+        _expected_revision: &str,
+        _target_revision: &str,
+        _context: crate::ExecutionContext,
+    ) -> Result<InstalledRelease> {
+        Err(crate::Error::Conflict(
+            "当前安装存储不支持成功版本恢复".into(),
+        ))
+    }
+    /// 恢复代码后缺依赖或配置时保持原启停意图，不把待激活误写为用户主动停用。
+    async fn activation_pending(
+        &self,
+        _id: &str,
+        _expected_revision: &str,
+        _enabled: bool,
+        _status: InstallationStatus,
+    ) -> Result<InstalledRelease> {
+        Err(crate::Error::Conflict(
+            "当前安装存储不支持保留启停意图的待激活状态".into(),
+        ))
+    }
     /// 应用门禁要求用户先停用；安装回滚允许删除尚未激活的 Installed 记录。
     async fn delete(&self, id: &str, expected_revision: &str) -> Result<InstalledRelease>;
     async fn asset(&self, component_id: &str, revision: &str, path: &str) -> Result<PackageAsset>;

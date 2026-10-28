@@ -14,8 +14,8 @@ import type {
   LocalImportPreview,
   LocalToolManifest,
 } from '../../local-import/types.ts';
-import type { PreparationExecutor } from '../../upload-preparation/index.ts';
-import './styles.css';
+import type { PreparationExecutor, UploadSelection } from '../../upload-preparation/index.ts';
+import { directorySelection } from '../../upload-preparation/directory.ts';
 
 export function LocalImportDialog({
   open,
@@ -32,6 +32,8 @@ export function LocalImportDialog({
 }) {
   const [kind, setKind] = useState<LocalImportKind>('plugin');
   const [file, setFile] = useState<File | null>(null);
+  const [selection, setSelection] = useState<UploadSelection | null>(null);
+  const folder = useRef<HTMLInputElement | null>(null);
   const [manifestFile, setManifestFile] = useState<File | null>(null);
   const [manifest, setManifest] = useState<LocalToolManifest | null>(null);
   const [moduleId, setModuleId] = useState('');
@@ -56,6 +58,7 @@ export function LocalImportDialog({
     }
     setKind('plugin');
     setFile(null);
+    setSelection(null);
     setManifestFile(null);
     setManifest(null);
     setModuleId('');
@@ -104,7 +107,7 @@ export function LocalImportDialog({
         if (!file) throw new Error('请先选择本地文件');
         const result = await previewLocalImport(
           localImportPorts(services),
-          { kind, file, manifest, moduleId },
+          { kind, file, manifest, moduleId, ...(selection ? { selection } : {}) },
           controller.signal,
           prepare,
         );
@@ -142,7 +145,7 @@ export function LocalImportDialog({
       onOpenChange={close}
       title="从本地导入"
       size="lg"
-      className="local-import-dialog"
+      className="min-w-0 [&_code]:whitespace-normal [&_code]:[overflow-wrap:anywhere]"
       description="按 DeviceForge 规范安装插件、工具包或合并配置，无须先发布市场。根启动配置可在服务器运行 deviceforge config path 查看路径，再用 config import 管理。"
       footer={
         completed ? (
@@ -174,13 +177,13 @@ export function LocalImportDialog({
         )
       }
     >
-      <div className="marketplace-upload-form">
+      <div className="flex min-w-0 flex-col gap-4 [&>*]:min-w-0">
         <SelectField
           label="导入类型"
           value={kind}
           disabled={pending || completed}
           options={[
-            { value: 'plugin', label: '插件便携包（ZIP / TGZ）' },
+            { value: 'plugin', label: '插件（清单文件夹 / ZIP / TGZ）' },
             { value: 'tool', label: '工具包（ZIP 与工具清单）' },
             { value: 'config', label: '配置（DeviceForge JSON）' },
           ]}
@@ -188,6 +191,7 @@ export function LocalImportDialog({
             if (value !== 'plugin' && value !== 'tool' && value !== 'config') return;
             setKind(value);
             setFile(null);
+            setSelection(null);
             setManifestFile(null);
             setManifest(null);
             setModuleId('');
@@ -207,9 +211,27 @@ export function LocalImportDialog({
           accept={kind === 'plugin' ? '.zip,.tgz,.tar.gz' : kind === 'tool' ? '.zip' : '.json'}
           onFileChange={(value) => {
             setFile(value);
+            setSelection(null);
             invalidate();
           }}
         />
+        {kind === 'plugin' && <>
+          <input hidden type="file" multiple aria-label="选择插件文件夹"
+            ref={node => { folder.current = node; node?.setAttribute('webkitdirectory', ''); }} disabled={pending || completed}
+            onChange={event => {
+              try {
+                const next = directorySelection(Array.from(event.target.files ?? []));
+                const first = next.files[0];
+                if (!first) throw new Error('请选择非空插件文件夹');
+                setSelection(next);
+                setFile(first.file);
+                invalidate();
+              } catch (reason) { setError(reason instanceof Error ? reason.message : '无法读取文件夹'); }
+              event.target.value = '';
+            }} />
+          <Button variant="outline" disabled={pending || completed} onClick={() => folder.current?.click()}>选择插件文件夹</Button>
+          <p className="text-sm text-muted-foreground">{selection ? `已选择 ${selection.name}，${selection.files.length} 个文件。` : '支持 manifest.json 与已构建产物，自动生成安装清单；也兼容原有便携包和完整离线 ZIP。'}</p>
+        </>}
         {kind === 'tool' && (
           <>
             <FileDropzone
@@ -255,7 +277,7 @@ export function LocalImportDialog({
           </p>
         )}
         {preview && (
-          <div className="marketplace-upload-review local-import-preview" role="status">
+          <div className="space-y-2 rounded-lg border p-4 [overflow-wrap:anywhere]" role="status">
             <h3>目标：{preview.target}</h3>
             <p>{preview.summary}</p>
             <p>
@@ -278,7 +300,7 @@ export function LocalImportDialog({
         {pending && <p role="status">正在处理本地导入…</p>}
         {pending && preview?.kind === 'release' && <InstallationProgress value={installationProgress} />}
         {error && (
-          <div role="alert" className="form-error">
+          <div role="alert" className="text-sm text-destructive [overflow-wrap:anywhere]">
             <p>{error}</p>
             {logId && (
               <p>

@@ -65,6 +65,7 @@ export async function runBackendConsole(
     server = await ensureServer(config, { background: mode === 'background' });
     write(`${server.started ? '后端已启动' : '已连接运行中的后端'}，进程 ID：${server.pid}。`);
     write(`访问地址：http://127.0.0.1:${config.port}，局域网使用本机 IP。`);
+    write(`MCP 地址：http://127.0.0.1:${config.port}/mcp，与 HTTP 共用同一后端进程和端口。`);
     write(`服务器日志：${config.logDirectory}`);
     if (mode === 'background' && !action) {
       write('后端在后台运行；使用 停止后端.bat 或 --stop 正常停止。');

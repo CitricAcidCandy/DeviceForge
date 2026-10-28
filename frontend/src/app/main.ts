@@ -11,6 +11,8 @@ import { productServiceOrigin, probeProductConnection } from './product/connecti
 import { createInstalledPackageImporter } from './installed-package-importer.ts';
 import { installPublicUi } from './public-ui.ts';
 import { ApiError } from '../services/api/index.ts';
+import { HOST_SLOTS } from './product/slots.ts';
+import { PRODUCT_ROUTES, parseProductRoute, pluginRoute, routeHash } from './product/routes.ts';
 
 export async function startFrontendApp(documentRef: Document, windowRef: Window) {
   const target = documentRef.getElementById('app');
@@ -28,11 +30,15 @@ export async function startFrontendApp(documentRef: Document, windowRef: Window)
   const panel = documentRef.createElement('div');
   const component = documentRef.createElement('div');
   const module = documentRef.createElement('div');
+  const developerTools = documentRef.createElement('div');
+  developerTools.dataset.deviceforgeSlot = 'developer.tools';
+  target.append(developerTools);
   panel.dataset.pluginPanels = '';
   component.dataset.pluginComponents = '';
   module.dataset.pluginModules = '';
   extensions.append(panel, component, module);
   const slots = await createNamedSlotAdapter([
+    { id: 'developer.tools', target: developerTools, modes: ['append'] },
     {
       id: 'workshop.extensions',
       target: component,
@@ -79,9 +85,25 @@ export async function startFrontendApp(documentRef: Document, windowRef: Window)
         moduleTarget: () => module,
         slotAdapter: slots,
         themeTarget: themeRoot,
+        debugger: { document: documentRef, slots: HOST_SLOTS,
+          readHostRoutes: () => [
+            ...PRODUCT_ROUTES.map(route => ({ path: `/${route.id}`, label: route.label,
+              slotIds: HOST_SLOTS.filter(slot => slot.route === route.id).map(slot => slot.id) })),
+            ...(services?.runtime.extensions.catalog().modules ?? []).map(module => ({
+              path: `/${routeHash(pluginRoute(module.pluginId, module.route))}`, label: module.title,
+            })),
+          ],
+          navigate(path, signal) {
+            signal.throwIfAborted();
+            windowRef.location.hash = routeHash(parseProductRoute(`#${path}`));
+          },
+        },
+        developerTools: true,
         connection: { baseUrl: origin, reconnect: connect },
       });
       root.render(createElement(App, { services }));
+      // 登记轻量实例供本机 MCP 发现；失败只影响调试，不影响普通插件与业务。
+      void services.runtime.debugger?.start().catch(() => undefined);
       // 产品启动默认启用已安装插件；独立工厂的构造和静态渲染保持无网络副作用。
       const currentServices = services;
       void currentServices.pluginDefaults.start(lifetime.signal).catch((error) => {
@@ -117,6 +139,7 @@ export async function startFrontendApp(documentRef: Document, windowRef: Window)
       ];
       application.remove();
       extensions.remove();
+      developerTools.remove();
       releasePublicUi();
       const failures = results.flatMap((result) =>
         result.status === 'rejected' ? [result.reason] : [],

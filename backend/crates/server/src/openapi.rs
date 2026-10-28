@@ -164,6 +164,18 @@ pub fn document() -> Value {
         }
     }
     document["paths"]["/api/v2/diagnostics/logging"] = json!({"get":diagnostics});
+    let mut logs = endpoint(
+        "在服务器保留日志中按编号或关键词搜索，默认时间倒序",
+        "200",
+        schema::<deviceforge_observability::LogSearch>(),
+    );
+    logs["parameters"] = json!([
+        {"name":"log_id","in":"query","required":false,"description":"完整日志编号，与 q 二选一","schema":{"type":"string","format":"uuid"}},
+        {"name":"q","in":"query","required":false,"description":"按公开诊断字段匹配，最多 128 字节；与 log_id 二选一","schema":{"type":"string","minLength":1,"maxLength":128}},
+        {"name":"order","in":"query","required":false,"description":"按时间排序，默认 desc；匹配后再截取结果","schema":schema::<deviceforge_observability::LogOrder>()}
+    ]);
+    logs["responses"]["503"] = response("日志查询服务尚未配置", schema::<crate::Failure>());
+    document["paths"]["/api/v2/diagnostics/logs"] = json!({"get":v2_endpoint(logs)});
     document["paths"]["/api/v2/system/shutdown"] = json!({"post":shutdown});
     document["paths"]["/api/v2/plugins"] = json!({"get":v2_endpoint(endpoint("列出运行中服务器插件与代际", "200", schema::<Vec<apk_domain::plugins::PluginInfo>>()))});
     for action in ["load", "unload"] {
@@ -192,6 +204,7 @@ pub fn document() -> Value {
     recovery_paths(&mut document);
     crate::interactive_openapi::contribute(&mut document);
     crate::services::contribute(&mut document);
+    crate::debugger::openapi::contribute(&mut document);
     document
 }
 

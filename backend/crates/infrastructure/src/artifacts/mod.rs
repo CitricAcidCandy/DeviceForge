@@ -94,10 +94,11 @@ pub(crate) fn media_type(filename: &str) -> Result<&'static str> {
         "bin" => Ok("application/octet-stream"),
         "js" => Ok("text/javascript"),
         "log" => Ok("text/plain"),
+        "md" | "markdown" => Ok("text/markdown"),
         "jsonl" => Ok("application/x-ndjson"),
         "mp4" => Ok("video/mp4"),
         _ => Err(Error::Invalid(
-            "仅支持 APK、APKS、AAB、HAP、ZIP、PNG、JPEG、JSON、MSGPACK、DEX、XLSX、XLS、CSV、BIN、JS、LOG、JSONL 和 MP4 产物".into(),
+            "仅支持 APK、APKS、AAB、HAP、ZIP、PNG、JPEG、JSON、MSGPACK、DEX、XLSX、XLS、CSV、BIN、JS、LOG、MD、MARKDOWN、JSONL 和 MP4 产物".into(),
         )),
     }
 }

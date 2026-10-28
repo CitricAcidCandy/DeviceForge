@@ -100,7 +100,7 @@ fn nonzero_adb_exit_is_fixed_error_without_tool_output_leak() {
         b"private stdout",
         b"private stderr",
         9,
-        "工具依赖失败：ADB客户端执行失败，请检查部署配置",
+        "工具依赖失败：设备连接工具执行失败，目前无法确认具体原因，请查看任务详情",
     );
 }
 

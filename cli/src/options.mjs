@@ -2,6 +2,7 @@ import { resolve } from 'node:path';
 import { homedir } from 'node:os';
 import { isIP } from 'node:net';
 import { readRootConfiguration } from './root-config.mjs';
+import { parseAuthoringOptions } from './plugin-authoring/commands.mjs';
 import {
   DEFAULT_MARKETPLACE_URL,
   readMarketplaceConfig,
@@ -15,6 +16,9 @@ export {
 
 export const help = `DeviceForge · 设备工坊
 用法：deviceforge start [--ip 0.0.0.0] [--port 7030] [--mcp-port 7032] [--data-dir 目录] [--marketplace-url 地址 | --marketplace-config 文件]
+      deviceforge plugin pack [manifest.json] [--out 新目录] [--platform win32-x64]
+      deviceforge plugin plan <打包目录> --server 资源服务地址
+      deviceforge plugin publish <打包目录> --server 资源服务地址
       deviceforge plugin install <release.json完整URL|离线ZIP> [--api-url 服务地址] [--release-id ID --release-version 版本 --manifest-sha256 摘要]
       deviceforge plugin update <发布ID> <release.json完整URL|离线ZIP> --expected-revision 旧修订 [--api-url 服务地址]
       deviceforge plugin list [--api-url 服务地址]
@@ -55,6 +59,8 @@ export function readApiToken(environment = process.env) {
 
 export function parseOptions(args, environment = process.env) {
   if (!args.length || ['--help', '-h', 'help'].includes(args[0])) return { command: 'help' };
+  const authoring = parseAuthoringOptions(args);
+  if (authoring) return authoring;
   const command =
     args[0] === 'start'
       ? 'start'

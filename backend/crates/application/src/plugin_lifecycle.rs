@@ -64,6 +64,117 @@ impl PluginService {
     pub async fn unload(self: &Arc<Self>, id: String) -> Result<PluginInfo> {
         self.change(id, false).await
     }
+    /// 调试重载与普通管理共用串行门禁，代次核验、排空和发布之间不插入另一项管理操作。
+    pub async fn reload_expected(
+        self: &Arc<Self>,
+        id: String,
+        generation: String,
+    ) -> Result<PluginInfo> {
+        self.reload_expected_with_execution(
+            id,
+            generation,
+            self.closed.child_token(),
+            apk_domain::ExecutionContext {
+                deadline: Some(std::time::Instant::now() + Duration::from_secs(30)),
+            },
+        )
+        .await
+    }
+    /// 截止点包含串行排队；已经开始的撤销继续有界收尾，取消后不再发布新代。
+    pub async fn reload_expected_with_execution(
+        self: &Arc<Self>,
+        id: String,
+        generation: String,
+        cancel: CancellationToken,
+        context: apk_domain::ExecutionContext,
+    ) -> Result<PluginInfo> {
+        plugin_id(&id)?;
+        self.serialized(move |service| async move {
+            let check = || {
+                if cancel.is_cancelled() {
+                    return Err(Error::Cancelled);
+                }
+                if context
+                    .deadline
+                    .is_some_and(|deadline| deadline <= std::time::Instant::now())
+                {
+                    return Err(Error::Timeout);
+                }
+                Ok(())
+            };
+            check()?;
+            let current = service
+                .list()
+                .into_iter()
+                .find(|plugin| plugin.id == id)
+                .ok_or_else(|| Error::Conflict("重载目标已卸载，请重新选择当前插件".into()))?;
+            if current.generation != generation {
+                return Err(Error::Conflict("插件代次已变化，本次未重载新实例".into()));
+            }
+            if service.protected.contains(&id) {
+                return Err(Error::Conflict(
+                    "当前插件被长期来源引用，不能在运行中重载".into(),
+                ));
+            }
+            if let Some(store) = service.installations.get()
+                && store.list().await?.iter().any(|release| {
+                    release
+                        .components
+                        .iter()
+                        .any(|component| component.id == id)
+                })
+            {
+                return Err(Error::Conflict(
+                    "该组件属于完整功能，请通过原完整功能管理入口重载，不能拆开变更所属组件".into(),
+                ));
+            }
+            service
+                .require_dependencies_with_execution(&id, cancel.clone(), context)
+                .await?;
+            check()?;
+            let plugin = service.catalog.load(&id).await?;
+            check()?;
+            if plugin.id != id {
+                return Err(Error::Invalid("部署插件 ID 与重载目标不一致".into()));
+            }
+            // 先验证新贡献；验证失败时旧插件继续运行，不先把业务卸载掉。
+            let app = service.app.clone();
+            let target = id.clone();
+            let preparing_cancel = cancel.clone();
+            let deadline = context.deadline.map(Into::into);
+            let prepared = service
+                .app
+                .blocking_until(Some(preparing_cancel.clone()), deadline, move || {
+                    let prepared = Prepared::new_with_bindings(plugin, &app.registry.1)?;
+                    crate::operation_budget::check(deadline, Some(&preparing_cancel))?;
+                    app.registry.validate_replacement(&target, &prepared)?;
+                    Ok(prepared)
+                })
+                .await?;
+            check()?;
+            service.app.uninstall_plugin(id.clone()).await?;
+            check()?;
+            let app = service.app.clone();
+            let publishing_cancel = cancel.clone();
+            service
+                .app
+                .blocking_until(Some(publishing_cancel.clone()), deadline, move || {
+                    let active = app
+                        .active
+                        .lock()
+                        .map_err(|_| Error::Storage("插件重载准入状态异常".into()))?;
+                    crate::operation_budget::check(deadline, Some(&publishing_cancel))?;
+                    if !active.accepting {
+                        return Err(Error::Conflict(
+                            "服务正在停止，旧插件已撤销，未发布新实例".into(),
+                        ));
+                    }
+                    app.registry.publish(prepared)
+                })
+                .await
+        })
+        .await
+    }
     pub fn bind_installations(
         &self,
         store: Arc<dyn apk_domain::plugin_installations::InstallationStore>,
@@ -81,6 +192,21 @@ impl PluginService {
             .map_err(|_| Error::Conflict("插件依赖服务已绑定".into()))
     }
     async fn require_dependencies(&self, id: &str) -> Result<()> {
+        self.require_dependencies_with_execution(
+            id,
+            self.closed.clone(),
+            apk_domain::ExecutionContext {
+                deadline: Some(std::time::Instant::now() + Duration::from_secs(120)),
+            },
+        )
+        .await
+    }
+    async fn require_dependencies_with_execution(
+        &self,
+        id: &str,
+        cancel: CancellationToken,
+        context: apk_domain::ExecutionContext,
+    ) -> Result<()> {
         let Some(service) = self.dependencies.get().and_then(std::sync::Weak::upgrade) else {
             return Ok(());
         };
@@ -97,10 +223,8 @@ impl PluginService {
                     expected_revision: current.revision,
                     dependency_ids: Vec::new(),
                 },
-                self.closed.clone(),
-                apk_domain::ExecutionContext {
-                    deadline: Some(std::time::Instant::now() + Duration::from_secs(120)),
-                },
+                cancel,
+                context,
                 Arc::new(apk_domain::NoProgress),
             )
             .await?;
@@ -120,6 +244,40 @@ impl PluginService {
             return Err(Error::Invalid("部署插件 ID 与请求不符".into()));
         }
         self.app.install_plugin(plugin).await
+    }
+    /// 整套事务已持有管理门禁；阻塞任务开始后等待其结束，不丢弃注册工作。
+    pub(crate) async fn load_serialized_until(
+        &self,
+        id: &str,
+        context: apk_domain::ExecutionContext,
+    ) -> Result<PluginInfo> {
+        plugin_id(id)?;
+        let deadline = context.deadline.map(Into::into);
+        crate::operation_budget::check(deadline, Some(&self.closed))?;
+        self.require_dependencies_with_execution(id, self.closed.clone(), context)
+            .await?;
+        crate::operation_budget::check(deadline, Some(&self.closed))?;
+        let plugin = self.catalog.load(id).await?;
+        crate::operation_budget::check(deadline, Some(&self.closed))?;
+        if plugin.id != id {
+            return Err(Error::Invalid("部署插件 ID 与请求不符".into()));
+        }
+        let app = self.app.clone();
+        let cancel = self.closed.clone();
+        self.app
+            .blocking_until(Some(cancel.clone()), deadline, move || {
+                let prepared = Prepared::new_with_bindings(plugin, &app.registry.1)?;
+                let active = app
+                    .active
+                    .lock()
+                    .map_err(|_| Error::Storage("任务准入状态异常".into()))?;
+                crate::operation_budget::check(deadline, Some(&cancel))?;
+                if !active.accepting {
+                    return Err(Error::Conflict("服务正在停止接收贡献".into()));
+                }
+                app.registry.publish(prepared)
+            })
+            .await
     }
     pub(crate) async fn validate_installation_operations(
         &self,
@@ -145,6 +303,36 @@ impl PluginService {
                     .active
                     .lock()
                     .map_err(|_| Error::Storage("任务准入状态异常".into()))?;
+                let owner = app.registry.detach_if_idle(&id)?;
+                app.registry.finish(&owner)?;
+                Ok(())
+            })
+            .await
+    }
+    /// 继承整套操作原期限；只撤销当前无活动任务的组件，不等待另一套管理锁。
+    pub(crate) async fn unload_idle_serialized_until(
+        &self,
+        id: &str,
+        context: apk_domain::ExecutionContext,
+    ) -> Result<()> {
+        let deadline = context.deadline.map(Into::into);
+        crate::operation_budget::check(deadline, Some(&self.closed))?;
+        if self.protected.contains(id) {
+            return Err(Error::Conflict("组件被长期来源引用，不能变更部署".into()));
+        }
+        if !self.list().iter().any(|plugin| plugin.id == id) {
+            return Ok(());
+        }
+        let app = self.app.clone();
+        let id = id.to_owned();
+        let cancel = self.closed.clone();
+        self.app
+            .blocking_until(Some(cancel.clone()), deadline, move || {
+                let _active = app
+                    .active
+                    .lock()
+                    .map_err(|_| Error::Storage("任务准入状态异常".into()))?;
+                crate::operation_budget::check(deadline, Some(&cancel))?;
                 let owner = app.registry.detach_if_idle(&id)?;
                 app.registry.finish(&owner)?;
                 Ok(())

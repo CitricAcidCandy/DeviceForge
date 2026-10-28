@@ -1,6 +1,12 @@
 # 浏览器公开 SDK v2
 
-可选 `context.services` 提供精确引用调用、类型化调用、功能级依赖和诊断；`services.server.list/submit` 访问服务器目录与共享 Job，任务继续使用 `getJob/cancelJob`。组合示例、契约校验、父子期限、代际与清理边界见[插件生命周期与功能级服务组合](../../implementation/插件生命周期与功能级服务组合.md)。
+## 错误反馈面向实际使用者
+
+先直接说明已确认的问题，再给出下一步建议；不能用“任务失败”、HTTP 状态或日志编号代替原因。错误原文、代码和任务／请求日志归属保留在技术详情，不展开请求体、凭据或任意底层工具输出。
+
+插件更新后旧设备信息失效，应显示“设备插件已更新，当前设备信息已过期”，可让用户主动刷新页面；普通资源占用、应用未安装或连接工具失败不能都解释成页面升级。取消等待不代表后台任务已经取消，网络断开也不代表写操作没有生效；应提醒先查任务状态，不自动刷新、不自动重放。旧服务术语由宿主反馈层兼容解释，不修改原错误码和历史日志。插件自行提供的错误文字也应遵守此规则，不以内部名词或堆栈替代具体原因。
+
+可选 `context.services` 提供精确引用调用、类型化调用、功能级依赖和诊断；`services.server.list/submit` 访问服务器目录与共享 Job，任务继续使用 `getJob/cancelJob`。本主题直接给出公开签名；功能级等待、撤销与清理查询 `lifecycle`，完整消费方查询 `examples`，均通过 MCP 获取正文。
 
 插件默认导出 `{ id, version, apiVersion: 2, panels, activate?, deactivate?, contributions? }`。`activate(context)` 返回 `Promise<void>`；`deactivate` 与所有释放函数的类型为 `() => void | Promise<void>`。`panels` 必填，允许空数组。不要导入宿主私有实现；下述类型与签名已经包含开发所需的公开边界。
 
@@ -26,6 +32,7 @@ interface Job {
 interface HostContext {
   readonly apiVersion: 2;
   readonly signal: AbortSignal;
+  readonly services?: ServiceAccess;
   listOperations(signal: AbortSignal): Promise<HostResult<readonly Operation[]>>;
   submit(operation: string, input: JsonValue, signal: AbortSignal): Promise<HostResult<Job>>;
   getJob(id: string, signal: AbortSignal): Promise<HostResult<Job>>;
@@ -35,7 +42,55 @@ interface HostContext {
 }
 ```
 
-`HostContext` 另有可选 `extensions/devices/artifacts/taskHistory/themes`，旧宿主或独立装配可省略，必须先判断。SDK 通常采用 camelCase，`Operation.input_schema` 则保留该公开字段名；不要自行将 SDK 参数变成 HTTP snake_case。`execution` 只描述当前操作总预算，不允许浏览器覆盖预算，也不用于给历史任务补写元数据。
+`HostContext` 另有可选 `extensions/devices/artifacts/taskHistory/themes/configuration`，旧宿主或独立装配可省略，必须先判断。SDK 通常采用 camelCase，`Operation.input_schema` 则保留该公开字段名；不要自行将 SDK 参数变成 HTTP snake_case。`execution` 只描述当前操作总预算，不允许浏览器覆盖预算，也不用于给历史任务补写元数据。
+
+## 公共服务与功能级组合
+
+以下签名直接包含在 MCP 返回正文中，不要求远端开发者访问仓库文件。`services` 是 SDK v2 的可选扩展；不需要新建“组合插件”类别，旧 `extensions.callService(id,version,input,signal)` 继续兼容。
+
+```typescript
+interface ServiceRef { readonly id: string; readonly version: string }
+interface ServiceContract { readonly inputSchema: JsonValue; readonly outputSchema: JsonValue }
+interface ServiceDirectoryEntry {
+  readonly service: ServiceRef;
+  readonly contract: ServiceContract;
+  readonly operation: string | null;
+  readonly provider: { readonly id: string; readonly version: string; readonly generation: string };
+  readonly available: boolean;
+  readonly reason: string | null;
+}
+interface ServerServiceAccess {
+  list(signal: AbortSignal): Promise<HostResult<readonly ServiceDirectoryEntry[]>>;
+  submit(ref: ServiceRef, input: JsonValue, signal: AbortSignal, generation?: string): Promise<HostResult<Job>>;
+}
+interface TypedService<I extends JsonValue, O extends JsonValue> extends ServiceRef {
+  readonly accepts: (value: unknown) => value is I;
+  readonly returns: (value: unknown) => value is O;
+}
+interface ServiceFeatureDiagnostic {
+  readonly featureId: string;
+  readonly state: 'waiting' | 'starting' | 'active' | 'failed' | 'stopped';
+  readonly missing: readonly ServiceRef[];
+  readonly error: string | null;
+  readonly cleanupErrors: readonly { readonly registration: number; readonly revision: number; readonly message: string }[];
+}
+interface ServiceAccess {
+  readonly server?: ServerServiceAccess;
+  catalog(): readonly ServiceDirectoryEntry[];
+  call(ref: ServiceRef, input: JsonValue, signal: AbortSignal): Promise<HostResult<JsonValue>>;
+  callTyped<I extends JsonValue, O extends JsonValue>(ref: TypedService<I, O>, input: I, signal: AbortSignal): Promise<HostResult<O>>;
+  whenAvailable(featureId: string, required: readonly ServiceRef[], setup: (feature: HostContext) => void | Dispose | Promise<void | Dispose>): Dispose;
+  diagnostics(): readonly ServiceFeatureDiagnostic[];
+}
+```
+
+- 服务 `version` 是精确字符串，例如 `'1'` 与 `'1.0'` 不等价，不做版本范围解析或数字转换。`provider.generation` 只标识当前提供者代际，重载后须重新读取目录。
+- `catalog()` 读取浏览器服务，`server.list(signal)` 读取后端服务，两者不是同一个调用通道。未激活浏览器提供者可诊断为 `available=false,reason='provider_not_active'`，不可提前调用。目录存在不等于业务一定成功。
+- 浏览器服务贡献可加 `inputSchema/outputSchema`；宿主在调用前后校验。旧贡献省略时兼容任意 JSON。`callTyped()` 还调用消费方提供的 `accepts/returns` 类型守卫，不能用 TypeScript 类型断言替代运行时验证。
+- `whenAvailable()` 只观察浏览器服务依赖，立即返回已纳入插件资源管理的撤销函数；不要在 `activate()` 中等待提供者永远出现。同一插件内 `featureId` 应唯一，空依赖数组可用于独立功能。
+- `setup` 使用收到的 `feature` 上下文注册命令、模块、槽位及清理资源，不捕获根上下文登记这些贡献。提供者缺失、版本不匹配、卸载或换代只撤销相关功能；恢复后新建子作用域，其他功能继续运行。完整可执行消费方见 `examples` 主题的 `service-consumer.mjs`。
+- `server.submit()` 返回现有异步 Job，而不是服务输出。继续用 `getJob()` 查询终态，需要停止时显式 `cancelJob()`；浏览器取消等待不保证已接受的后端任务被取消。传入 `generation` 可拒绝已换代提供者。
+- 嵌套浏览器服务和命令转调继承调用链的取消与期限，深度上限 8、每根最多 4 个活动后代，递归明确拒绝。需要让功能跟随目录变化时使用 `whenAvailable()`，不能保存旧代上下文后自行复活。
 
 ## 扩展贡献
 
@@ -46,7 +101,7 @@ interface HostContext {
 | `components` | `{id,title,slot,mode?: 'append'或'replace',mount}` |
 | `modules` | `{id,title,route,mount}`，`route` 为宿主路径（`/catalog`），派生出插件页面与侧栏「插件」分组条目 |
 | `commands` | `{id,title,execute(input,context,signal): Promise<HostResult<JsonValue>>}` |
-| `services` | `{id,version,invoke(input,context,signal): Promise<HostResult<JsonValue>>}` |
+| `services` | `{id,version,inputSchema?,outputSchema?,invoke(input,context,signal): Promise<HostResult<JsonValue>>}` |
 | `beforeTaskSubmit` | `{id,priority?,transform({operation,input},context,signal): Promise<{operation,input}>}` |
 | `themes` | `{id,title,variables?: Record<string,string>,css?: string,colorScheme?: 'light'或'dark'或'normal'}` |
 
@@ -63,7 +118,9 @@ interface HostContext {
 
 槽位标识只接受小写字母、数字与 `.` `_` `-`，最长 64 字符；大小写或中文都会先归一成这两条规矩下的字符串（`My Page` → `my-page`），所以插件模块的 `route` 应写成宿主路径（`/catalog`），页面槽位即 `page.<插件ID>.catalog`，地址栏是 `#/plugin/<插件ID>/catalog`。
 
-接管是**热拔插**的：插件装载即接管、卸载即回落，页面代码不需要知道插件存在。接管期间槽位顶部有一条 28px 来源条（插件标题 + 等宽插件 ID +「恢复默认」）；「恢复默认」只写本地忽略表并回落到宿主内容，不卸载插件、不改配置。挂载失败时换成琥珀降级条，宿主内容照常显示。
+接管是**热拔插**的：实际挂载成功才隐藏宿主默认内容，挂载等待或失败时保留默认内容，卸载即回落，页面代码不需要知道插件存在。接管期间槽位顶部有一条 28px 来源条（插件标题 + 等宽插件 ID +「恢复默认」）；「恢复默认」只写本地忽略表并回落到宿主内容，不卸载插件、不改配置。挂载失败时换成琥珀降级条，宿主内容照常显示。
+
+模块路由按插件命名空间判重，不同插件均可声明 `/catalog`；同一插件的 `/a/b` 与 `/a-b` 归一后页面键相同会被拒绝。启动目录尚未就绪时保留插件页面直达地址，确认页面不存在或卸载后才回到设备页。当前公开能力可接管业务页面，不提供完整替换导航、顶栏和整个产品外壳的接口；市场和设置仍只允许追加。
 
 写错槽位名不会静默成功：宿主未登记的槽位在挂载时抛 `宿主未登记此具名槽位`，市场页的插件详情也会把不在清单内的 `slot` 标出来。
 
@@ -130,7 +187,7 @@ const action = {
 
 宿主自带一份 React 与一套组件。插件不打包 React，改用宿主的实例，这样只有一份协调器、hooks 与 context 全部正常，样式和主题也自动跟随。
 
-入口在 `plugin-sdk/ui.ts` 的 `hostUi()`；在浏览器里更常用的是宿主垫片：
+浏览器插件通过宿主提供的公共 ESM 说明符直接导入，无需访问宿主文件：
 
 ```js
 import { React, mountReact, Button, EmptyState } from 'deviceforge-host';
@@ -147,7 +204,7 @@ import { React, mountReact, Button, EmptyState } from 'deviceforge-host';
 | `react/jsx-runtime` | `/plugin-jsx-runtime.js` | `jsx`、`jsxs`、`Fragment` |
 | `react/jsx-dev-runtime` | `/plugin-jsx-dev-runtime.js` | `jsxDEV`、`Fragment` |
 
-入口由 `scripts/generate-public-ui.ts` 统一生成，不手工修改 public 产物。更新宿主依赖后重新生成并运行公开入口检查，不能仅添加 importmap 而遗漏命名导出。
+这些公共入口由运行宿主直接提供，插件只需保留对应裸模块导入并检查目标宿主是否支持。入口缺失或命名导出不兼容时提示升级宿主，不要求插件开发者运行宿主生成器。
 
 | 成员 | 说明 |
 | --- | --- |

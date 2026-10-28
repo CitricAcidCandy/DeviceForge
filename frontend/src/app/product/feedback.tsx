@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useMessage } from '../../components/Message/index.tsx';
-import { errorLogId, isCancelledAction } from './hooks.ts';
+import { describeActionError } from './error-feedback.ts';
+import { isCancelledAction } from './hooks.ts';
 
 export function ErrorNotice({ error }: { error: unknown }) {
   const messages = useMessage();
@@ -12,9 +13,8 @@ export function ErrorNotice({ error }: { error: unknown }) {
     }
     if (previous.current?.error === error && previous.current.controller === messages) return;
     previous.current = { error, controller: messages };
-    messages.error(error instanceof Error ? error.message : '操作未完成，请重新查询状态', {
-      logId: errorLogId(error),
-    });
+    const feedback = describeActionError(error, () => window.location.reload());
+    messages[feedback.level](feedback.title, feedback.options);
   }, [error, messages]);
   return null;
 }

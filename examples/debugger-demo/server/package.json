@@ -1,0 +1,13 @@
+{
+  "name": "deviceforge-debugger-demo-server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22.18.0" },
+  "files": ["plugin.json", "entry.mjs", "protocol.mjs", "README.md"],
+  "deviceforge": {
+    "kind": "server",
+    "manifest": "plugin.json",
+    "entrypoints": { "any": { "runtime": "node", "path": "entry.mjs" } }
+  }
+}

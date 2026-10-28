@@ -275,6 +275,7 @@ test('中后台分组导航、折叠与专注保留页面草稿，设备上下�
     assert.ok(target.querySelector('.is-focused'));
     assert.equal(target.querySelector('.workplane > [data-route="devices"]'), deviceNode);
     await act(async () => navigate('设置').click());
+    await act(async () => findButton('工具配置').click());
     const configuration = target.querySelector('#settings-content');
     assert.ok(configuration instanceof windowRef.HTMLTextAreaElement);
     const setter = Object.getOwnPropertyDescriptor(

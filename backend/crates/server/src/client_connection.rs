@@ -5,12 +5,14 @@ use tokio::net::TcpListener;
 #[derive(Clone, Copy, Debug)]
 pub struct ClientConnection {
     is_local: bool,
+    is_loopback: bool,
 }
 
 impl ClientConnection {
     pub fn from_addresses(peer: SocketAddr, local: Option<SocketAddr>) -> Self {
         let peer_ip = normalize(peer.ip());
         Self {
+            is_loopback: peer_ip.is_loopback(),
             is_local: peer_ip.is_loopback()
                 || local.is_some_and(|address| normalize(address.ip()) == peer_ip),
         }
@@ -18,6 +20,10 @@ impl ClientConnection {
 
     pub fn is_local(self) -> bool {
         self.is_local
+    }
+
+    pub fn is_loopback(self) -> bool {
+        self.is_loopback
     }
 }
 
@@ -69,5 +75,16 @@ mod tests {
             ClientConnection::from_addresses("[::ffff:127.0.0.1]:1000".parse().unwrap(), None)
                 .is_local()
         );
+    }
+
+    #[test]
+    fn debugger_loopback_is_stricter_than_same_machine_interface() {
+        let local = Some("192.168.50.5:7031".parse().unwrap());
+        let interface = ClientConnection::from_addresses("192.168.50.5:1000".parse().unwrap(), local);
+        assert!(interface.is_local());
+        assert!(!interface.is_loopback());
+        for peer in ["127.0.0.1:1000", "[::1]:1000", "[::ffff:127.0.0.1]:1000"] {
+            assert!(ClientConnection::from_addresses(peer.parse().unwrap(), local).is_loopback());
+        }
     }
 }

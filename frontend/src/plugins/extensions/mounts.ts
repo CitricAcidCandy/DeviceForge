@@ -36,6 +36,8 @@ export function createExtensionMounts(timeouts: LifecycleTimeouts = defaultTimeo
     if (releaseTarget) scope.track(releaseTarget);
     const root = target.ownerDocument.createElement('div');
     root.dataset.deviceforgeExtension = id;
+    root.dataset.deviceforgePlugin = entry.owner.pluginId;
+    root.dataset.deviceforgeGeneration = String(entry.owner.generation);
     scope.track(() => root.remove());
     const abort = () => scope.close();
     scope.track(() => {

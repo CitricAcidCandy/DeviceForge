@@ -51,14 +51,14 @@ pub(crate) fn tool() -> Tool {
             "target": {"type": "string", "enum": ["frontend", "backend", "fullstack"],
                 "description": "开发浏览器插件、服务器插件或前后端配套插件"},
             "topic": {"type": "string", "enum": TOPICS, "default": "overview",
-                "description": "按需读取概览、清单、SDK、生命周期、完整示例、打包、共享依赖或验证"}
+                "description": "按需读取开发流程与能力概览；manifest 含单一开发清单和完整 market 结构，packaging 含自动打包发布命令；另有公开接口、生命周期、完整示例、共享依赖和调试验证"}
         },
         "required": ["target"],
         "additionalProperties": false
     });
     Tool::new(
         super::TOOL_NAME,
-        "开发 DeviceForge 插件前先读取此指南。返回随当前宿主发布的前端、后端或配套插件中文文档、版本与来源，含完整功能发布、托管资源、配置和旧入口兼容；只读、幂等，不执行代码、不创建任务。",
+        "开发 DeviceForge 插件时读取此指南，无需获取宿主源码。直接返回开发流程、公开能力和接口、约束、生命周期、调试与发布要求，包含独立工程示例；不提供源码位置或文档物理地址。只读、幂等，不执行代码、不创建任务。",
         schema.as_object().expect("固定指南模式为对象").clone(),
     )
     .with_annotations(

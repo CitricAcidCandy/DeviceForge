@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { Toast as ToastPrimitive } from 'radix-ui';
 import { AlertCircle, CheckCircle2, Info, LoaderCircle, X } from 'lucide-react';
 import { Button } from '../Button/index.tsx';
+import { copyText } from '../../shared/clipboard/index.ts';
 import type { GlobalMessage, MessageController } from './types.ts';
 import './styles.css';
 
@@ -31,13 +32,13 @@ function MessageItem({ item, controller }: { item: GlobalMessage; controller: Me
           ? Info
           : AlertCircle;
   const diagnostics = item.details ?? [];
-  const hasDetails = Boolean(item.logId || diagnostics.length || item.level === 'error');
+  const logId = item.logId?.trim() ? item.logId : null;
+  const hasDetails = Boolean(logId || diagnostics.length || item.level === 'error');
   async function copyLogId(value: string) {
-    try {
-      await navigator.clipboard.writeText(value);
+    if (await copyText(value)) {
       controller.success('日志 ID 已复制', { id: 'message-copy' });
-    } catch {
-      controller.warning('复制失败，请手动选择日志 ID', { id: 'message-copy' });
+    } else {
+      controller.warning('复制失败，请手动选择日志 ID', { id: 'message-copy', logId: value });
     }
   }
   return (
@@ -79,33 +80,31 @@ function MessageItem({ item, controller }: { item: GlobalMessage; controller: Me
             {item.action.label}
           </Button>
         )}
+        {logId && (
+          <div className="message-log">
+            <code className="select-text">{logId}</code>
+            <Button
+              variant="ghost"
+              size="sm"
+              aria-label="复制消息日志 ID"
+              onClick={() => { void copyLogId(logId); }}
+            >
+              复制
+            </Button>
+          </div>
+        )}
         {hasDetails && (
           <details className="message-diagnostics" data-message-details>
             <summary>查看详情</summary>
             <div className="message-diagnostics-content">
               {item.level === 'error' && <p>{item.title}</p>}
-              {item.logId && (
-                <div className="message-log">
-                  <code>{item.logId}</code>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    aria-label="复制消息日志 ID"
-                    onClick={() => {
-                      void copyLogId(item.logId ?? '');
-                    }}
-                  >
-                    复制
-                  </Button>
-                </div>
-              )}
               {diagnostics.map((detail, index) => (
                 <div className="message-detail" key={`${detail.label}-${index}`}>
                   <strong>{detail.label}</strong>
                   <p>{detail.message}</p>
-                  {detail.logId && (
+                  {detail.logId?.trim() && (
                     <div className="message-log">
-                      <code>{detail.logId}</code>
+                      <code className="select-text">{detail.logId}</code>
                       <Button
                         variant="ghost"
                         size="sm"

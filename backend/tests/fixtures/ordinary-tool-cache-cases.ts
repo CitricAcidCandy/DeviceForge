@@ -351,7 +351,7 @@ export async function toolCacheFaultCases(host: Host, source: ToolCacheSource, a
         failure_class: 'cache_cleanup', pending: '.manifest-cache/<source>.pending', pending_preexisting: true,
       });
       await check.traffic(start, [], 'live');
-      assert.equal(failed.error, '插件资源清理未确认，请检查外部资源后再恢复');
+      assert.equal(failed.error, '插件结束时未能确认清理完成，请查看对应任务详情；无关操作不受此记录影响');
       const pendingInfo = await lstat(pending); assert.ok(pendingInfo.isDirectory() && !pendingInfo.isSymbolicLink());
       assert.ok((await lstat(join(cacheDirectory, `${sourceIdentity}.json`))).isFile());
     } finally { await rmdir(pending); }

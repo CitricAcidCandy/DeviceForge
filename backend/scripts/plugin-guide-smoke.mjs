@@ -98,7 +98,15 @@ try {
   assert.equal(tool.annotations.readOnlyHint, true);
   assert.equal(tool.annotations.idempotentHint, true);
   report.checks.push('公开只读工具发现');
-  const topics = ['overview', 'manifest', 'sdk', 'lifecycle', 'examples', 'packaging', 'validation'];
+  const topics = ['overview', 'manifest', 'sdk', 'lifecycle', 'examples', 'packaging', 'dependencies', 'validation'];
+  const serviceTerms = {
+    'frontend/sdk': ['whenAvailable', 'callTyped', 'interface ServiceRef', 'interface ServiceFeatureDiagnostic', 'ServerServiceAccess'],
+    'frontend/lifecycle': ['30 秒', '10 秒', '5 秒', 'cleanupErrors', '同步死循环'],
+    'frontend/examples': ['service-consumer.mjs', 'guide_service_consumer.status'],
+    'backend/manifest': ['protocol_version=6', 'services: None'],
+    'backend/sdk': ['serve_once_with_services', 'ServiceClient'],
+    'backend/lifecycle': ['深度上限 8', '4 个活动后代'],
+  };
   report.documents = [];
   for (const target of ['frontend', 'backend', 'fullstack']) {
     for (const topic of topics) {
@@ -107,12 +115,13 @@ try {
       const data = reply.result.structuredContent;
       assert.equal(data.target, target);
       assert.equal(data.topic, topic);
-      assert.equal(data.guide_version, 2);
+      assert.equal(data.guide_version, 4);
       assert.equal(data.frontend_sdk_version, 2);
       assert.deepEqual(data.backend_task_protocol_versions, [1, 2, 3, 4, 6]);
       assert.deepEqual(data.backend_session_protocol_versions, [5]);
-      assert.deepEqual(data.release_format_versions, [1]);
+      assert.deepEqual(data.release_format_versions, [1, 2]);
       assert.deepEqual(data.release_host_api_versions, [2]);
+      assert.deepEqual(data.available_topics, topics);
       for (const term of ['release.json', '/api/v1/capabilities', 'catalog', 'DEVICEFORGE_PLUGIN_RESOURCES', 'configuration_required', '旧单组件']) {
         assert.ok(data.fullstack_workflow.includes(term), `配套流程缺少 ${term}`);
       }
@@ -120,11 +129,23 @@ try {
       for (const document of data.documents) {
         assert.ok(document.content.length > 100);
         assert.equal(document.topic, topic);
+        assert.ok(target === 'fullstack' ? ['frontend', 'backend'].includes(document.target) : document.target === target);
+        const expectedSource = `${document.target}/docs/guides/plugin-development/${topic}.md`;
+        assert.deepEqual(Object.keys(document).sort(), ['content', 'target', 'topic']);
+        const expected = await readFile(resolve(backend, '..', expectedSource));
+        assert.equal(digest(document.content), digest(expected), '重编宿主必须返回本次固定文档的完整字节');
+        for (const term of serviceTerms[`${document.target}/${topic}`] ?? []) {
+          assert.ok(document.content.includes(term), `${document.target}/${topic} 的真实 MCP 正文缺少 ${term}`);
+        }
         report.documents.push({ target: document.target, topic, bytes: Buffer.byteLength(document.content), sha256: digest(document.content) });
       }
       report.checks.push(`${target}/${topic}`);
     }
   }
+  report.guide_version = 4;
+  report.unique_documents = new Set(report.documents.map((document) => `${document.target}/${document.topic}`)).size;
+  assert.equal(report.unique_documents, 16);
+  report.checks.push('十六篇嵌入正文与当前源码摘要一致及服务组合知识自包含');
   const defaultTopic = await rpc('tools/call', { name: tool.name, arguments: { target: 'frontend' } });
   assert.equal(defaultTopic.result.structuredContent.topic, 'overview');
   report.checks.push('默认主题');

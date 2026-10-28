@@ -138,7 +138,14 @@ export function ProductShell({
         />
         <div className="workspace-main">
           <div className="workspace-content">
-            <main id="workplane" className="workplane" tabIndex={-1} data-product-workspace>
+            <main
+              id="workplane"
+              className={route === 'settings'
+                ? 'workplane overflow-hidden! bg-card! p-0! [scrollbar-gutter:auto]!'
+                : 'workplane'}
+              tabIndex={-1}
+              data-product-workspace
+            >
               {children}            </main>
           </div>
         </div>

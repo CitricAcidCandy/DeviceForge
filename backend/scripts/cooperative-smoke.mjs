@@ -233,7 +233,7 @@ async function scenario(mode, manifest) {
     const expectedStatus = mode === 'complete' ? 'cancelled' : 'failed';
     const expectedError = mode === 'complete'
       ? null
-      : '插件资源清理未确认，请检查外部资源后再恢复';
+      : '插件结束时未能确认清理完成，请查看对应任务详情；无关操作不受此记录影响';
     const terminal = await job(task.id);
     assert.equal(terminal.status, expectedStatus, '卸载后的历史任务必须保留对应的唯一终态');
     assert.equal(terminal.error, expectedError, '历史原因必须精确区分取消和资源清理未确认');

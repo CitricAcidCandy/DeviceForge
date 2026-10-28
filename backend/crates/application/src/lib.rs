@@ -11,6 +11,7 @@ mod alias_regression;
 mod blocking;
 pub mod browser_configurations;
 mod completion;
+pub mod debugger;
 pub mod devices;
 mod execution;
 pub mod installation_operations;

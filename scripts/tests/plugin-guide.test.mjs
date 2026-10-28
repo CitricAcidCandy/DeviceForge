@@ -9,12 +9,79 @@ import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { readPluginModule } from '../../frontend/src/plugins/contracts.ts';
 import { createPluginScope } from '../../frontend/src/plugins/scope.ts';
+import { createPluginManager } from '../../frontend/src/plugins/manager.ts';
 import { archiveMembers, writeTgz, writeZip } from '../plugin-releases/archive.mjs';
 import { validateRelease } from '../plugin-releases/contract.mjs';
+import { normalizeManifest } from '../../cli/src/plugin-authoring/manifest.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const frontendRequire = createRequire(new URL('../../frontend/package.json', import.meta.url));
 const topics = ['overview', 'manifest', 'sdk', 'lifecycle', 'examples', 'packaging', 'dependencies', 'validation'];
+
+test('MCP 单清单与市场结构直接可用，两端示例符合真实生成器', async () => {
+  const marketFields = ['summary', 'keywords', 'categories', 'applies_to', 'supports_mcp', 'supports_agent',
+    'restart_policy', 'author', 'license', 'homepage', 'visibility', 'details'];
+  for (const target of ['frontend', 'backend']) {
+    const directory = join(root, target, 'docs/guides/plugin-development');
+    const [manifest, packaging, overview] = await Promise.all(['manifest', 'packaging', 'overview'].map((topic) =>
+      readFile(join(directory, `${topic}.md`), 'utf8')));
+    const values = [...manifest.matchAll(/```json\r?\n([\s\S]*?)\r?\n```/g)].map(([, body]) => JSON.parse(body));
+    const declaration = values.find((value) => value.manifest_version === 1);
+    assert.ok(declaration, `${target} 缺少完整单一清单示例`);
+    assert.doesNotThrow(() => normalizeManifest(declaration));
+    for (const key of marketFields) {
+      assert.ok(manifest.includes(key), `${target} 没有直接给出 market.${key}`);
+      assert.ok(Object.hasOwn(declaration.market, key), `${target} 示例缺少 market.${key}`);
+    }
+    for (const command of ['plugin pack', 'plugin plan', 'plugin publish'])
+      assert.ok(packaging.includes(command), `${target} 缺少 ${command}`);
+    assert.ok(overview.includes('manifest.json') && overview.includes('market'));
+    assert.ok(manifest.includes('resource_id') && manifest.includes('SHA-256'));
+  }
+});
+
+test('MCP 默认总览、SDK 与示例准确指引现有界面插槽和插件路由', async () => {
+  const directory = join(root, 'frontend/docs/guides/plugin-development');
+  const [overview, sdk, examples, manifest] = await Promise.all(
+    ['overview', 'sdk', 'examples', 'manifest'].map((topic) => readFile(join(directory, `${topic}.md`), 'utf8')),
+  );
+  for (const slot of ['devices.apps', 'settings.plugin.section', 'route.settings', 'route.marketplace']) {
+    assert.ok(overview.includes(slot), `默认总览遗漏可用插槽 ${slot}`);
+    assert.ok(sdk.includes(slot), `SDK 遗漏可用插槽 ${slot}`);
+  }
+  assert.doesNotMatch(overview, /当前产品装配的具名插槽为 `workshop\.extensions`|不自动创建左侧导航或路由/);
+  assert.match(overview, /modules[\s\S]*侧栏/);
+  for (const term of ['panels', 'components', 'devices.apps', 'append', 'replace', 'mount', '每行'])
+    assert.ok(examples.includes(term), `示例遗漏界面接入边界 ${term}`);
+  assert.ok(manifest.includes('同一插件'), '清单必须明确路由按插件命名空间判重');
+  assert.ok(manifest.includes('/a/b') && manifest.includes('/a-b'), '清单必须说明归一化页面键碰撞');
+});
+
+test('MCP 插件开发知识允许无宿主源码独立开发', async () => {
+  for (const target of ['frontend', 'backend']) {
+    const overview = await readFile(join(root, target, 'docs/guides/plugin-development/overview.md'), 'utf8');
+    assert.ok(overview.includes('无需获取宿主源码'), `${target} 总览必须说明公开开发边界`);
+    assert.ok(overview.includes('独立工程'), `${target} 总览必须支持独立工程`);
+    for (const term of ['开发流程', '公开能力', '接口', '约束', '生命周期', '调试', '发布要求']) {
+      assert.ok(overview.includes(term), `${target} 总览缺少公开知识范围 ${term}`);
+    }
+    for (const topic of topics) {
+      const content = await readFile(join(root, target, 'docs/guides/plugin-development', `${topic}.md`), 'utf8');
+      assert.doesNotMatch(content, /backend\/(?:(?:crates|examples|scripts|target)\/|Cargo\.toml)|path\s*=\s*"[^"\r\n]*(?:\.\.\/)+(?:crates|backend)\//,
+        `${target}/${topic} 不得要求宿主工程路径`);
+      assert.doesNotMatch(content, /(?:AGENTS|主代理|scripts\/generate-public-ui|src\/app\/public-ui|examples\/server-service|plugin-sdk\/ui\.ts)/,
+        `${target}/${topic} 不得混入宿主维护流程`);
+      assert.doesNotMatch(content, /\]\((?!https?:\/\/|#)[^)]+\)/,
+        `${target}/${topic} 不得把知识留给本地相对文档`);
+      assert.doesNotMatch(content, /(?:详见|见)\s+\.\.\//,
+        `${target}/${topic} 不得要求读取仓库相对文档`);
+    }
+  }
+  for (const source of ['plugin_guide.rs', 'plugin_guide/schema.rs']) {
+    const content = await readFile(join(root, 'backend/crates/server/src', source), 'utf8');
+    assert.ok(content.includes('无需获取宿主源码'), `${source} 必须说明无需源码的开发入口`);
+  }
+});
 
 test('MCP 维护说明与实际指南版本、支持格式和主题保持同步', async () => {
   const [query, maintenance] = await Promise.all([
@@ -92,6 +159,69 @@ function block(markdown, name) {
   assert.ok(end > start, `${name} 的文件代码块未闭合`);
   return lines.slice(start + 1, end).join('\n') + '\n';
 }
+
+test('MCP 正文自包含服务 API、功能级生命周期与协议六兼容规则', async () => {
+  const required = {
+    'frontend/validation': ['调试流程', 'listOperations', 'getJob', 'logId', 'AbortSignal'],
+    'backend/validation': ['调试流程', 'tools/list', 'deviceforge.get_job', 'deviceforge.job_events', 'stderr'],
+    'frontend/sdk': ['services?: ServiceAccess', 'interface ServiceRef', 'interface TypedService',
+      'interface ServiceFeatureDiagnostic', 'interface ServerServiceAccess', 'callTyped', 'whenAvailable',
+      'diagnostics()', 'inputSchema', 'outputSchema', 'provider_not_active'],
+    'frontend/lifecycle': ['30 秒', '10 秒', '5 秒', 'whenAvailable', 'waiting', 'starting',
+      'active', 'failed', 'stopped', 'cleanupErrors', 'feature', '同步死循环'],
+    'frontend/examples': ['service-consumer.mjs', 'whenAvailable', 'callTyped', 'guide_service_consumer.status'],
+    'backend/manifest': ['services', 'protocol_version=6', 'services: None'],
+    'backend/sdk': ['serve_once_with_services', 'ServiceRef', 'ServiceClient'],
+    'backend/lifecycle': ['协议 6', '协议 5', '深度上限 8', '4 个活动后代'],
+  };
+  for (const [document, terms] of Object.entries(required)) {
+    const [target, topic] = document.split('/');
+    const content = await readFile(join(root, target, 'docs/guides/plugin-development', `${topic}.md`), 'utf8');
+    for (const term of terms) assert.ok(content.includes(term), `${document} 的 MCP 正文缺少 ${term}`);
+  }
+  const smoke = await readFile(join(root, 'backend/scripts/plugin-guide-smoke.mjs'), 'utf8');
+  for (const term of ["'dependencies'", 'data.guide_version, 4', 'data.release_format_versions, [1, 2]',
+    'whenAvailable', 'callTyped', '30 秒']) {
+    assert.ok(smoke.includes(term), `真实 MCP 验收缺少当前知识覆盖 ${term}`);
+  }
+});
+
+test('MCP 服务组合示例能等待、类型化调用、局部撤销并在提供者换代后恢复', { timeout: 10000 }, async () => {
+  await fixture('frontend', ['package.json', 'plugin.json', 'src/index.js', 'service-consumer.mjs'], async ({ directory }) => {
+    const consumer = (await import(pathToFileURL(join(directory, 'service-consumer.mjs')).href)).default;
+    const unsupported = async () => { throw new Error('此示例不应提交服务器任务'); };
+    const host = { apiVersion: 2, signal: new AbortController().signal,
+      listOperations: async () => ({ data: [], logId: null }), submit: unsupported,
+      getJob: unsupported, cancelJob: unsupported, subscribeOperations: () => () => {}, onDispose: () => () => {} };
+    const runtime = createPluginManager({ host, panelTarget: () => null });
+    const flush = async () => { for (let i = 0; i < 5; i++) await new Promise((done) => setImmediate(done)); };
+    const available = () => runtime.extensions.catalog().commands.map((command) => command.id);
+    runtime.register({ id: consumer.id, trusted: true, plugin: consumer });
+    runtime.register({ id: 'guide_service_provider', trusted: true, plugin: {
+      id: 'guide_service_provider', version: '1.0.0', apiVersion: 2, panels: [], contributions: { services: [{
+        id: 'guide_service_provider.echo', version: '1', inputSchema: { type: 'string' }, outputSchema: { type: 'string' },
+        invoke: async (input) => ({ data: input, logId: 'guide-service-log' }),
+      }] },
+    } });
+    try {
+      await runtime.load(consumer.id); await flush();
+      assert.deepEqual(available(), ['guide_service_consumer.status']);
+      await runtime.load('guide_service_provider'); await flush();
+      assert.ok(available().includes('guide_service_consumer.echo'));
+      const signal = new AbortController().signal;
+      assert.deepEqual(await runtime.extensions.executeCommand('guide_service_consumer.echo', '中文组合', signal),
+        { data: '中文组合', logId: 'guide-service-log' });
+      await assert.rejects(runtime.extensions.executeCommand('guide_service_consumer.echo', 42, signal), /输入/);
+      await runtime.unload('guide_service_provider'); await flush();
+      assert.deepEqual(available(), ['guide_service_consumer.status']);
+      assert.equal(runtime.snapshot().find((entry) => entry.id === consumer.id)?.state, 'loaded');
+      await runtime.load('guide_service_provider'); await flush();
+      assert.equal((await runtime.extensions.executeCommand('guide_service_consumer.echo', '新代', signal)).data, '新代');
+    } finally {
+      await runtime.dispose();
+    }
+  });
+});
 
 async function fixture(target, names, run) {
   const markdown = await readFile(

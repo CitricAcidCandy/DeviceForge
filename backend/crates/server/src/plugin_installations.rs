@@ -192,6 +192,57 @@ pub(crate) async fn delete(
         ),
     ))
 }
+
+pub(crate) async fn reload(
+    State(state): State<ApiState>,
+    Path(id): Path<String>,
+    body: Result<Json<InstallationAction>, axum::extract::rejection::JsonRejection>,
+) -> Result<impl IntoResponse, ApiError> {
+    submit_release_action(state, id, body, "installation.reload").await
+}
+
+pub(crate) async fn restore_successful(
+    State(state): State<ApiState>,
+    Path(id): Path<String>,
+    body: Result<Json<InstallationAction>, axum::extract::rejection::JsonRejection>,
+) -> Result<impl IntoResponse, ApiError> {
+    submit_release_action(state, id, body, "installation.restore_successful").await
+}
+
+async fn submit_release_action(
+    state: ApiState,
+    id: String,
+    body: Result<Json<InstallationAction>, axum::extract::rejection::JsonRejection>,
+    operation: &str,
+) -> Result<impl IntoResponse, ApiError> {
+    service(&state)?;
+    let Json(input) = body.map_err(|_| Error::Invalid("整套安装操作请求 JSON 无效".into()))?;
+    if !input.confirmed {
+        return Err(Error::Conflict("整套重载或代码恢复需要显式确认".into()).into());
+    }
+    let input = serde_json::to_value(InstallationActionRequest {
+        id,
+        expected_revision: input.expected_revision,
+        confirmed: input.confirmed,
+    })
+    .map_err(|_| Error::Invalid("整套安装操作请求编码失败".into()))?;
+    Ok((
+        StatusCode::ACCEPTED,
+        Json(state.app.submit_async(operation.into(), input).await?),
+    ))
+}
+
+pub(crate) async fn previous_successful(
+    State(state): State<ApiState>,
+    Path(id): Path<String>,
+    axum::extract::Query(input): axum::extract::Query<InstallationRevision>,
+) -> Result<Json<SuccessfulRelease>, ApiError> {
+    Ok(Json(
+        service(&state)?
+            .previous_successful(&id, &input.expected_revision)
+            .await?,
+    ))
+}
 pub(crate) async fn asset(
     State(state): State<ApiState>,
     Path((id, revision, path)): Path<(String, String, String)>,

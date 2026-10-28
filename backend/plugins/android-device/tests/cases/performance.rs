@@ -290,7 +290,7 @@ fn sample_nonzero_exit_is_fixed_failure_and_stops_remaining_commands() {
     );
     failure(
         &performance::complete(&fixture, performance::request(&fixture), 2),
-        "工具依赖失败：ADB客户端执行失败，请检查部署配置",
+        "工具依赖失败：设备连接工具执行失败，目前无法确认具体原因，请查看任务详情",
     );
 }
 
@@ -562,7 +562,7 @@ fn sample_unknown_wrong_exit_and_mixed_metric_diagnostics_remain_hard_failures()
                 if mixed {
                     performance::REJECTED
                 } else {
-                    "工具依赖失败：ADB客户端执行失败，请检查部署配置"
+                    "工具依赖失败：设备连接工具执行失败，目前无法确认具体原因，请查看任务详情"
                 },
             );
         }
@@ -580,7 +580,7 @@ fn sample_unknown_wrong_exit_and_mixed_metric_diagnostics_remain_hard_failures()
             fixture.plan(stage, b"", diagnostic.as_bytes(), 1);
             failure(
                 &performance::complete(&fixture, performance::request(&fixture), stage),
-                "工具依赖失败：ADB客户端执行失败，请检查部署配置",
+                "工具依赖失败：设备连接工具执行失败，目前无法确认具体原因，请查看任务详情",
             );
         }
     }

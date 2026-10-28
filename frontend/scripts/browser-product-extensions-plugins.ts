@@ -178,6 +178,7 @@ export async function verifyExtensionProductPage(context: ExtensionBrowserContex
     field('配置内容 · JSON') === draftNode && draftNode.value === draft,
     '主题撤销后配置页重建或草稿改变',
   );
+  await click('外观与主题');
   await select('工作空间主题', '受控公开主题');
   check(
     services.runtime.themes.snapshot().selected?.id === extensionThemeId,

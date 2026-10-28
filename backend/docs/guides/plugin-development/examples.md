@@ -1,5 +1,11 @@
 # 服务器插件完整示例
 
+## 推荐的单清单入口
+
+新工程使用 manifest 主题的 manifest.json（manifest_version:1）；将下面 entry.mjs 保存到对应组件 root，files 只列 entry.mjs，plugin.operations 使用下面回显操作。package.json、plugin.json、market.json 和 release.json 均由 `deviceforge plugin pack` 生成，不再手写。顶层 market 支持完整展示资料，字段、默认值和枚举均在 manifest 主题直接提供。
+
+下面旧协议示例的独立回显处理器仍可复用；其手写清单只用于旧包兼容与理解协议，不表示新开发仍需维护多份声明。
+
 ## Node.js 协议 1 回显包
 
 把以下三个文件放在同一个 `guide-echo` 目录。需要可运行的 Node.js；示例无 npm 依赖、不启动工具、不创建外部资源，适合协议 1。它是本地自建示例，没有假设官方 npm 包已经发布。
@@ -93,28 +99,11 @@ try {
 
 应得到同版本、同请求 ID 的 `result`，其中 `message` 为 `你好`、`source` 为 `guide_echo`。此检查只证明独立协议，不证明宿主安装或任务执行。按 `packaging` 安装并加载后，公开操作是 `plugin.guide_echo.echo`。
 
-## Rust 协议 4 最小入口
+## Rust 协议 4 处理器示意（可选 SDK）
 
-在本项目源码的 `backend/examples/guide-context` 中建立下列独立 Cargo 包。路径依赖指向当前源码中的公共库；不依赖已发布 crate，不引用宿主私有模块。它用于说明正确接入固定期限，无外部资源；实际工具、连接和设备资源须补齐清理实现后才可声明完成。
+以下只展示公共运行库的处理器 API，不是可直接构建的完整 Cargo 包。选择 Rust SDK 时，先取得与目标宿主协议兼容、可独立消费的 SDK 开发包，再在自己的插件工程声明 `apk-plugin-sdk`、`deviceforge-plugin-runtime`、`serde_json` 和 Tokio 依赖；不假设官方 crate 已发布，不要求宿主仓库或其目录结构。未取得开发包时，先使用上面的完整 Node.js 示例。此处理器无外部资源；实际工具、连接和设备资源须补齐清理实现后才可声明完成。
 
-### Cargo.toml
-
-```toml
-[package]
-name = "deviceforge-guide-context"
-version = "1.0.0"
-edition = "2024"
-
-[workspace]
-
-[dependencies]
-apk-plugin-sdk = { path = "../../crates/plugin-sdk" }
-deviceforge-plugin-runtime = { path = "../../crates/plugin-runtime" }
-serde_json = "1"
-tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
-```
-
-### src/main.rs
+### 处理器与入口
 
 ```rust
 use apk_plugin_sdk::Request;
@@ -143,7 +132,7 @@ async fn main() -> Result<(), String> {
 }
 ```
 
-构建使用 `cargo build --manifest-path backend/examples/guide-context/Cargo.toml`。其包清单可复用 Node 示例的操作模式，替换插件 ID，设置 `protocol_version=4`，以 `runtime=native` 指向预编译文件。`Ready/Start` 与取消控制由运行库处理，不能把普通协议 1 的一次性 stdin 命令当成协议 4 集成验证。
+依赖准备完成后，在自己的插件工程使用 `cargo build`，无需编译宿主。其包清单可复用 Node 示例的操作模式，替换插件 ID，设置 `protocol_version=4`，以 `runtime=native` 指向预编译文件。`Ready/Start` 与取消控制由运行库处理，不能把普通协议 1 的一次性 stdin 命令当成协议 4 集成验证。
 
 需要等待、工具或连接时，使用 `context.deadline()` 和 `context.cancellation()` 传递同一预算及取消信号；取消后先等待实际工作与清理结束，再返回 `Execution`。任何清理失败都返回明确的 `CleanupOutcome::Failed`，不能复用本例的 `complete` 掩盖资源未释放。
 
@@ -184,25 +173,8 @@ guide-suite/
 
 ## 独立服务插件
 
-examples/server-service-normalize 与 examples/server-service-compose 是两个分别构建/安装的 Rust 原生插件。前者提供 example.text.normalize@字符串1.0；后者用 ServiceHandle<Text,Text> 反向调用并提供组合服务，仅 compose 声明该必需依赖，ping 保持独立。两者只依赖公开 SDK/运行库，不引用宿主、不发 HTTP 请求。构建、打包与正负验证命令见各自 README；本轮示例源码不代表真实安装或运行通过。
+提供者和消费方各自是独立插件包。以文本规范化为例：提供者声明精确引用 `example.text.normalize@1.0`、输入/输出 JSON Schema 和映射的普通操作；消费方只在需要规范化的操作声明该必需依赖，独立的 `ping` 不声明。服务版本使用字符串 `"1.0"`。清单字段查询 `manifest`，公共运行入口 `serve_once_with_services`、`ServiceHandle` 与 `ServiceClient` 查询 `sdk`，父子期限、取消和清理查询 `lifecycle`。
 
-### 共享 target 与实际组合验证
+取得独立 SDK 开发包后，分别编译并按 `packaging` 打包两个插件，安装到部署者提供的兼容宿主，无需构建宿主。通过公开目录核对服务，再提交消费方操作并用 `deviceforge.get_job` 查询终态。服务缺失或版本不符时只影响依赖它的操作，独立 `ping` 仍可用。
 
-两个示例自带独立 `[workspace]`，后端 `cargo build --workspace` 不会构建它们。由主代理统一串行构建，避免共享 target 与门禁争用；在项目根执行：
-
-```powershell
-cargo build --manifest-path backend/Cargo.toml -p apk-server --target-dir backend/target -j 1
-cargo build --manifest-path examples/server-service-normalize/Cargo.toml --target-dir backend/target -j 1
-cargo build --manifest-path examples/server-service-compose/Cargo.toml --target-dir backend/target -j 1
-node backend/scripts/service-composition-smoke.mjs
-```
-
-release 验证必须把三条构建都加 `--release` 后再运行 `node backend/scripts/service-composition-smoke.mjs --release`，不能只更换脚本参数消费旧程序。冻结目录可使用绝对路径 `DEVICEFORGE_SMOKE_BINARY_DIR`。脚本自身不调用 Cargo/npm，直接将已有 Rust 程序与公开清单封装为本轮原生 TGZ，通过在线安装入口分别安装两个组件，不拿 Node 协议替身代表 Rust 反向服务。
-
-覆盖 HTTP/MCP 服务与普通操作提交、同 Job/事件、入口级依赖隔离、提供者卸载/恢复/错版本/旧代际、顶层/嵌套输入及输出 schema 拒绝、父取消和宿主退出。只有已卸载的本轮部署副本会被修改为负向 schema/版本，源码清单保持不变；失败报告和原包不被后续重试覆盖。完整矩阵与进程边界见 [验收说明](../../../scripts/service-composition/README.md)，公开线格式见 [公共服务与协议第六版](../../contracts/公共服务与协议第六版.md)。
-
-示例默认不写诊断文件。仅管理员清单传入 `--smoke-directory <已存在绝对目录>` 时记录请求身份、PID、开始/结束及取消状态，不记录输入；normalize 在该目录存在 `hold` 时进行最长六十秒、服从原上下文取消的受控等待。该参数用于确定父子均已启动再取消/卸载，不增加普通业务参数，也不创建常驻进程。结束标记不能替代宿主清理确认、直接进程退出或端口释放证据。
-
-同提供者祖先读屏障下，子调用不能排到外部写者后面自等待，应在不能立即取得读屏障时返回 `conflict`。收到 `Finished` 后仍保留完整 1250ms 清理窗口，不由剩余业务预算截短。这两个临界顺序需主代理的应用/协议定点回归，不能仅由组合成功外推。
-
-每轮证据在 `artifacts/service-composition-smoke-<模式>-<runID>/`，记录三份二进制、示例及脚本输入摘要、两份 TGZ、真实部署入口、Job、日志与进程/端口收尾；不替换用户服务、不操作设备。当前仅交接脚本与静态语法检查，debug/release 运行报告仍待主代理执行，不能据此宣称正式分发、长期会话或真机已通过。
+在自己的测试环境核对正常组合、错误输入/输出、提供者卸载和换代、父任务取消与本次资源清理。记录实际包版本、摘要、Job、日志及终态；不能用 API 示意、编译成功或普通回显代替协议 6 调用通过。需要可直接运行且无 SDK 依赖的完整入门包时，使用本篇开头的 Node.js 协议 1 示例。

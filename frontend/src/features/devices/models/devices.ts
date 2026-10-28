@@ -171,16 +171,16 @@ export function createDevices(gateway: DeviceGateway) {
     requestGateway: DeviceGateway = gateway,
   ): Promise<HostResult<Job>> {
     check(signal);
-    validateAction(state.snapshot(), action);
     const revision = state.directoryRevision(action.providerId);
     const request = {
       action: Object.freeze({ ...action }),
       controller: new AbortController(),
       selected: actionTargets(action, state.snapshot().selection),
     };
-    actions.add(request);
     const current = combined(signal, request.controller);
     try {
+      validateAction(state.snapshot(), request.action);
+      actions.add(request);
       const result = await awaitDeviceRequest(requestGateway.invoke(request.action, current), current);
       check(current);
       validateAction(state.snapshot(), request.action);
@@ -190,16 +190,14 @@ export function createDevices(gateway: DeviceGateway) {
       if (
         !current.aborted &&
         error instanceof HostError &&
-        error.kind === 'protocol' &&
+        (error.kind === 'http' || error.kind === 'protocol') &&
         error.code === 'conflict' &&
         error.status === 409 &&
-        revision === state.directoryRevision(action.providerId)
+        revision === state.directoryRevision(action.providerId) &&
+        // 已有聚合重查拥有目录写入权，不清空观测使其过期。
+        directoriesRequest === null
       ) {
-        if (
-          providersRequest !== null ||
-          directoriesRequest !== null ||
-          refreshes.size > 0
-        ) {
+        if (providersRequest !== null || refreshes.size > 0) {
           state.clearDirectory(action.providerId, action.generation);
         } else {
           // 冲突后仅重查公开目录，不重放动作；后启动的显式发现始终优先。
@@ -208,16 +206,26 @@ export function createDevices(gateway: DeviceGateway) {
             discoveries === discoveryRevision &&
             revision === state.directoryRevision(action.providerId) &&
             refreshes.size === 0;
+          const recovery = new AbortController();
+          // 只读恢复有独立上限，同时继承调用方取消或更短期限。
+          const timeout = setTimeout(() => recovery.abort(), 5_000);
           try {
-            await loadDirectories(signal, requestGateway, canPublish);
+            await loadDirectories(
+              AbortSignal.any([signal, recovery.signal]),
+              requestGateway,
+              canPublish,
+            );
           } catch {
             if (
               !lifetime.signal.aborted &&
               !signal.aborted &&
+              directoriesRequest === null &&
               revision === state.directoryRevision(action.providerId) &&
               !refreshes.has(action.providerId)
             )
               state.clearDirectory(action.providerId, action.generation);
+          } finally {
+            clearTimeout(timeout);
           }
         }
       }

@@ -1,0 +1,7 @@
+{
+  "说明": "以下为本轮实际通过 Ardot batch_edit 插入的矢量输入。读取接口不返回 vectorPaths 或 vectorNetwork，因此补记原始输入；这不是原生 .ardot 文件。",
+  "抓手节点": ["2:422", "2:424", "2:426", "2:428", "2:430", "2:498"],
+  "抓手SVG": "<svg width=\"28\" height=\"28\" viewBox=\"0 0 28 28\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M8 22L22 8M15 22L22 15\" stroke=\"#556176\" stroke-width=\"1.5\" stroke-linecap=\"round\"/></svg>",
+  "箭头节点": ["2:444"],
+  "箭头SVG": "<svg width=\"14\" height=\"14\" viewBox=\"0 0 14 14\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M3 5L7 9L11 5\" stroke=\"#556176\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg>"
+}

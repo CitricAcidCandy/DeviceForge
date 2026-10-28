@@ -263,6 +263,63 @@ impl InstallationStore for FilePluginInstallations {
         self.work(move |store| transaction::restore_previous(store, &id, &expected))
             .await
     }
+    async fn record_successful_activation(&self, id: &str, expected_revision: &str) -> Result<()> {
+        let (id, expected) = (id.to_owned(), expected_revision.to_owned());
+        self.work(move |store| transaction::successful::mark(store, &id, &expected))
+            .await
+    }
+    async fn previous_successful(
+        &self,
+        id: &str,
+        expected_revision: &str,
+    ) -> Result<SuccessfulRelease> {
+        let (id, expected) = (id.to_owned(), expected_revision.to_owned());
+        self.work(move |store| transaction::successful::previous(store, &id, &expected))
+            .await
+    }
+    async fn restore_previous_successful(
+        &self,
+        id: &str,
+        expected_revision: &str,
+        target_revision: &str,
+        context: apk_domain::ExecutionContext,
+    ) -> Result<InstalledRelease> {
+        let (id, expected, target) = (
+            id.to_owned(),
+            expected_revision.to_owned(),
+            target_revision.to_owned(),
+        );
+        self.work(move |store| {
+            transaction::successful::restore_successful(store, &id, &expected, &target, context)
+        })
+        .await
+    }
+    async fn activation_pending(
+        &self,
+        id: &str,
+        expected_revision: &str,
+        enabled: bool,
+        status: InstallationStatus,
+    ) -> Result<InstalledRelease> {
+        if !matches!(
+            status,
+            InstallationStatus::ConfigurationRequired | InstallationStatus::DependenciesRequired
+        ) {
+            return Err(Error::Invalid("待激活状态只能表示缺少配置或依赖".into()));
+        }
+        let (id, expected) = (id.to_owned(), expected_revision.to_owned());
+        self.work(move |store| {
+            let mut current = require_revision(store, &id, &expected)?;
+            if current.requires_recovery() {
+                return Err(Error::Conflict("不能覆盖未决文件事务".into()));
+            }
+            current.enabled = enabled;
+            current.status = status;
+            paths::write(&record_path(&store.root, &id), &current)?;
+            Ok(current)
+        })
+        .await
+    }
     async fn asset(&self, component_id: &str, revision: &str, path: &str) -> Result<PackageAsset> {
         use futures_util::TryStreamExt;
         plugin_id(component_id)?;

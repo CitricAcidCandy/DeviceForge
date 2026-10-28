@@ -5,6 +5,8 @@ export type { PluginReleaseReference } from './request-headers.ts';
 export { ApiError } from './errors.ts';
 export type { ApiErrorKind } from './errors.ts';
 export * from './endpoints.ts';
+export * from './log-search.ts';
+export * from './debugger.ts';
 export type {
   ApiClient,
   ApiResult,

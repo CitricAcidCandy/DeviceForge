@@ -39,6 +39,13 @@ const routeSlots: readonly HostSlot[] = PRODUCT_ROUTES.map((entry) => ({
 
 const areaSlots: readonly HostSlot[] = [
   {
+    id: 'developer.tools',
+    label: '开发者工具',
+    route: null,
+    modes: ['append'],
+    description: '业务路由之外的开发工具挂载区域，仅允许追加；不代表任意界面节点均可嵌入。',
+  },
+  {
     id: 'devices.apps',
     label: '设备应用面',
     route: 'devices',

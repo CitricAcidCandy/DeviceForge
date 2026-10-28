@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { useMessage } from '../../components/Message/index.tsx';
+import { HostError } from '../../plugin-sdk/index.ts';
 import { ApiError } from '../../services/api/index.ts';
-import { JobWaitFailure } from '../../shared/jobs/index.ts';
+import { describeActionError } from './error-feedback.ts';
 
 export interface SnapshotSource<T> {
   snapshot(): T;
@@ -31,12 +32,13 @@ export function errorLogId(value: unknown): string | null {
   return null;
 }
 export function isCancelledAction(value: unknown): boolean {
-  if (value instanceof ApiError) return value.kind === 'cancelled';
-  if (value instanceof JobWaitFailure) return isCancelledAction(value.cause);
+  if (value instanceof ApiError || value instanceof HostError) return value.kind === 'cancelled';
   return value instanceof Error && value.name === 'AbortError';
 }
 export interface ActionOptions {
   readonly quiet?: boolean;
+  /** 页面已就地显示错误时，避免全局消息重复遮挡正在修改的表单。 */
+  readonly errorFeedback?: 'message' | 'inline';
   readonly success?: string | null;
   readonly pending?: string;
 }
@@ -68,7 +70,9 @@ export function useAction() {
     if (notice.current) messages?.dismiss(notice.current);
     notice.current = null;
     if (waiting && mounted.current) setState((old) => ({ ...old, pending: false }));
-    if (waiting && !optionsRef.current.quiet) messages?.info('已停止等待');
+    if (waiting && !optionsRef.current.quiet) messages?.info('已停止等待', {
+      description: '仅停止当前页面等待，未确认服务器操作已取消。请先查询状态，不要直接重复提交。',
+    });
   }, [messages]);
   const run = useCallback(
     async (action: (signal: AbortSignal) => Promise<unknown>, options: ActionOptions = {}) => {
@@ -97,9 +101,10 @@ export function useAction() {
             setState((old) => ({ ...old, pending: false, error: null }));
           } else {
             setState((old) => ({ ...old, pending: false, error, logId: errorLogId(error) }));
-            messages?.error(error instanceof Error ? error.message : '操作未完成，请重试', {
-              logId: errorLogId(error),
-            });
+            if (options.errorFeedback !== 'inline') {
+              const feedback = describeActionError(error, () => window.location.reload());
+              messages?.[feedback.level](feedback.title, feedback.options);
+            }
           }
         }
       } finally {

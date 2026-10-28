@@ -46,6 +46,7 @@ export type LocalImportPreview = PreviewSummary &
         readonly kind: 'release';
         readonly release: LocalReleaseIdentity;
         readonly sha256: string;
+        readonly expectedRevision?: string | null;
       }
     | {
         readonly kind: 'tool';

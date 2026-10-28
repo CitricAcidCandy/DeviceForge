@@ -1,0 +1,11 @@
+{
+  "name": "deviceforge-debugger-demo",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22.18.0" },
+  "scripts": {
+    "test": "node --test --test-isolation=none --test-concurrency=1 tests/browser.test.mjs tests/server.test.mjs tests/package.test.mjs tests/debugger-client.test.mjs",
+    "pack": "node tools/pack.mjs"
+  }
+}

@@ -1,7 +1,7 @@
 # 受控产物存储
 
 ## 作用与适用场景
-保存浏览器上传的 APK、APKS、AAB、HAP、ZIP、PNG、JPEG、JSON、MessagePack、DEX、BIN、JS、LOG、JSONL 与 MP4，供设备、分析和编解码模块通过产物 ID 使用。实现领域 ArtifactStore 端口，业务代码不依赖本机绝对路径。
+保存浏览器上传的 APK、APKS、AAB、HAP、ZIP、PNG、JPEG、JSON、MessagePack、DEX、BIN、JS、LOG、Markdown、JSONL 与 MP4，供设备、分析和编解码模块通过产物 ID 使用。实现领域 ArtifactStore 端口，业务代码不依赖本机绝对路径。`.md`／`.markdown` 使用 `text/markdown`，复用普通文本的有界流式存储；下载仍作为附件，不在宿主执行其内容。
 
 ## 快速开始
 在后端目录执行 `cargo test -p apk-infrastructure --test artifacts`。启动服务器后使用 `POST /api/v1/artifacts?filename=应用.apk`，Content-Type 为 application/octet-stream，请求体为原始文件流。正式目录位于 APK_DATA_DIR/artifacts。

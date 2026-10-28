@@ -139,7 +139,7 @@ export async function commitCases(initial: Host, source: CommitSource, audit: Re
       await poll(async () => pidAlive(Number(armed!.plugin_pid)), (alive) => !alive, '失败调用的真实插件 PID 退出');
       await source.closed(); session!.command('snapshot'); const snapshot = await session!.next();
       audit.report.commit_snapshot = snapshot;
-      assert.equal(failedJob.error, '插件资源清理未确认，请检查外部资源后再恢复', '预期 ACL 拒绝导致公共 cleanup_failed');
+      assert.equal(failedJob.error, '插件结束时未能确认清理完成，请查看对应任务详情；无关操作不受此记录影响', '预期 ACL 拒绝导致公共 cleanup_failed');
       audit.report.independent_order = sequenceEvidence(snapshot, moduleId, true);
       assert.deepEqual(await raw(), original); await absent(join(transaction, 'backup'));
       assert.deepEqual(await readFile(join(payload, 'entry.txt')), entries[1]);

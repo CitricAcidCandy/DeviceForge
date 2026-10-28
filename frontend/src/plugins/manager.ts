@@ -45,6 +45,12 @@ export interface ManagerOptions {
   readonly timeouts?: Partial<LifecycleTimeouts>;
   readonly host: HostContext;
   readonly hostForPlugin?: (id: string) => HostContext;
+  readonly debugForPlugin?: (
+    id: string,
+    generation: number,
+    scope: PluginScope,
+  ) => HostContext['debug'];
+  readonly observe?: (event: PluginLifecycleObservation) => void;
   readonly panelTarget: (pluginId: string, panelId: string) => HTMLElement | null;
   readonly extensionRegistry?: ExtensionRegistry;
   readonly componentTarget?: (
@@ -61,6 +67,13 @@ export interface ManagerOptions {
   readonly configurationApplied?: (plugin: WebPlugin, signal: AbortSignal) => void | Promise<void>;
 }
 
+export interface PluginLifecycleObservation {
+  readonly pluginId: string;
+  readonly generation: number;
+  readonly stage: 'loading' | 'loaded' | 'failed' | 'unloading' | 'unloaded' | 'cleanup_failed';
+  readonly at: number;
+}
+
 export function createPluginManager(options: ManagerOptions) {
   const registry = options.extensionRegistry ?? createExtensionRegistry();
   const timeouts = lifecycleTimeouts(options.timeouts);
@@ -75,6 +88,10 @@ export function createPluginManager(options: ManagerOptions) {
   const serial = createKeyedQueue();
   let generation = 0;
   let closed = false;
+  function observe(runtime: Runtime, stage: PluginLifecycleObservation['stage']) {
+    try { options.observe?.({ pluginId: runtime.id, generation: runtime.generation, stage, at: Date.now() }); }
+    catch { /* 观测故障不能改变插件业务的成功或失败。 */ }
+  }
   const awaitCleanup = async (callback: () => void | Promise<void>, stage: string, deadline = Date.now() + timeouts.cleanupMs) => {
     try { await awaitLifecycle(callback, undefined, deadline, stage); }
     catch (error) {
@@ -89,6 +106,7 @@ export function createPluginManager(options: ManagerOptions) {
     }
   }
   async function cleanup(runtime: Runtime, deadline = Date.now() + timeouts.cleanupMs) {
+    observe(runtime, 'unloading');
     runtime.scope.close();
     const failures: unknown[] = [];
     const work: Promise<unknown>[] = [runtime.scope.dispose()];
@@ -109,8 +127,10 @@ export function createPluginManager(options: ManagerOptions) {
     if (failures.length) {
       const error = new AggregateError(failures, '插件卸载未完整释放资源');
       cleanupFailures.set(runtime.id, Object.freeze({ id: runtime.id, generation: runtime.generation, error }));
+      observe(runtime, 'cleanup_failed');
       throw error;
     }
+    observe(runtime, 'unloaded');
   }
   async function loadNow(id: string, epoch: number): Promise<PluginSnapshot> {
     if (closed || (epochs.get(id) ?? 0) !== epoch)
@@ -134,6 +154,11 @@ export function createPluginManager(options: ManagerOptions) {
       state: 'loading',
     };
     running.set(id, runtime);
+    try {
+      const debug = options.debugForPlugin?.(id, runtime.generation, scope);
+      if (debug) runtime.context = { ...runtime.context, debug };
+    } catch { /* 调试底座不可用时仍正常加载业务插件。 */ }
+    observe(runtime, 'loading');
     const deadline = Date.now() + timeouts.loadMs;
     try {
       const plugin = readPluginModule(
@@ -199,8 +224,10 @@ export function createPluginManager(options: ManagerOptions) {
       active(runtime);
       runtime.state = 'loaded';
       registry.publishServices(id, runtime.generation);
+      observe(runtime, 'loaded');
       return { id, generation: runtime.generation, state: runtime.state };
     } catch (error) {
+      observe(runtime, 'failed');
       try {
         await cleanup(runtime);
       } catch (cleanupError) {
@@ -223,6 +250,8 @@ export function createPluginManager(options: ManagerOptions) {
     const scope = createPluginScope(runtime.context);
     const root = target.ownerDocument.createElement('div');
     root.dataset.deviceforgePanel = panelId;
+    root.dataset.deviceforgePlugin = runtime.id;
+    root.dataset.deviceforgeGeneration = String(runtime.generation);
     scope.track(() => root.remove());
     runtime.scope.track(() => scope.dispose());
     runtime.panels.set(panelId, { scope, root });
@@ -420,6 +449,13 @@ export function createPluginManager(options: ManagerOptions) {
     },
     snapshot: (): readonly PluginSnapshot[] =>
       [...running.values()].map(({ id, generation, state }) => ({ id, generation, state })),
+    diagnosticSnapshot: () => [...running.values()].map((runtime) => ({
+      id: runtime.id, generation: runtime.generation, state: runtime.state,
+      version: runtime.plugin?.version ?? null,
+      panels: (runtime.plugin?.panels ?? []).map((panel) => ({
+        id: panel.id, title: panel.title, mounted: runtime.panels.has(panel.id),
+      })),
+    })),
     // 每个插件仅保留最近一条清理诊断；成功新代不会抹掉旧故障，也不受其封锁。
     cleanupSnapshot: (): readonly CleanupDiagnostic[] => [...cleanupFailures.values()],
     dispose() {

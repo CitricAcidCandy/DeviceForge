@@ -85,7 +85,10 @@ fn screenshot_nonzero_exit_does_not_publish() {
     let fixture = Fixture::new("screenshot-tool-error");
     let (request, output_root) = request(&fixture);
     let reply = artifacts::run(&fixture, request, &png(45), b"", 7);
-    failure(&reply, "工具依赖失败：ADB客户端执行失败，请检查部署配置");
+    failure(
+        &reply,
+        "工具依赖失败：设备连接工具执行失败，目前无法确认具体原因，请查看任务详情",
+    );
     assert!(!output_root.join("screenshot.png").exists());
 }
 

@@ -48,9 +48,13 @@ impl Registry {
             .owners
             .get(id)
             .and_then(|owner| super::rules::provider(owner))
-            .ok_or_else(|| Error::NotFound("设备提供者不存在".into()))?;
+            .ok_or_else(|| {
+                Error::NotFound("设备插件尚未启用或已被移除，请先启用对应插件".into())
+            })?;
         if provider.generation != generation {
-            return Err(Error::Conflict("设备提供者代际已变化".into()));
+            return Err(Error::Conflict(
+                "设备插件已更新，当前设备信息已过期，请刷新页面后重新选择设备".into(),
+            ));
         }
         let operation = match capability {
             None => &provider.definition.discover_operation,
@@ -60,15 +64,17 @@ impl Registry {
                     .capabilities
                     .iter()
                     .find(|cap| cap.id == id && cap.version == version)
-                    .ok_or_else(|| Error::NotFound("设备能力精确版本不存在".into()))?
+                    .ok_or_else(|| {
+                        Error::NotFound(
+                            "当前设备插件不支持这项功能或所需版本，请检查插件是否已更新".into(),
+                        )
+                    })?
                     .operation
             }
         };
-        let registered = snapshot
-            .entries
-            .get(operation)
-            .cloned()
-            .ok_or_else(|| Error::Conflict("设备贡献已撤销".into()))?;
+        let registered = snapshot.entries.get(operation).cloned().ok_or_else(|| {
+            Error::Conflict("设备插件已停止提供这项功能，请更新设备列表后重试".into())
+        })?;
         Ok((provider, registered))
     }
     #[cfg(test)]
@@ -93,7 +99,9 @@ impl Registry {
             .get(&directory.provider.id)
             .and_then(|owner| super::rules::provider(owner));
         if current.is_none_or(|current| current.generation != directory.provider.generation) {
-            return Err(Error::Conflict("发现结果属于旧提供者代际".into()));
+            return Err(Error::Conflict(
+                "获取设备列表时插件已更新，本次旧结果已忽略，请重新获取设备列表".into(),
+            ));
         }
         snapshot
             .directories
