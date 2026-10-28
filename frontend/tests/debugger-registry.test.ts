@@ -92,6 +92,22 @@ test('子作用域关闭只撤销本作用域节点资源，父与兄弟继续�
   await sibling.close(); await parent.close();
 });
 
+test('会话登记沿功能子作用域释放，不关闭父级或兄弟的会话', async () => {
+  const parent = lifetime(), child = lifetime(), sibling = lifetime();
+  const registry = createDebugRegistry(owner, parent.controller.signal, parent.track);
+  const closed: string[] = [];
+  const access = { ...registry.debug, registerSession: (id: string) => () => { closed.push(id); } };
+  const local = scopedDebugAccess(access, child.controller.signal, child.track);
+  const other = scopedDebugAccess(access, sibling.controller.signal, sibling.track);
+  assert.ok(local.registerSession); assert.ok(other.registerSession);
+  local.registerSession('child-session'); other.registerSession('sibling-session');
+  await child.close(); assert.deepEqual(closed, ['child-session']);
+  assert.throws(() => local.registerSession?.('late'), /撤销/);
+  other.registerSession('sibling-second');
+  await sibling.close(); assert.deepEqual(closed, ['child-session', 'sibling-second', 'sibling-session']);
+  await parent.close();
+});
+
 test('父级dispose逆序释放、保留失败且不跳过其他资源', async () => {
   const controller = new AbortController();
   const registry = createDebugRegistry(owner, controller.signal, (dispose) => dispose);

@@ -120,6 +120,15 @@ export function localInstallationEntry(installation: PluginInstallation): Market
     details: { release_format: 1, release_revision: installation.revision, release_enabled: installation.enabled, release_status: installation.status } };
 }
 
+export function bundledDebuggerEntry(identity: { readonly id: string; readonly version: string }, message: string | null): MarketplaceEntry {
+  return { metadata_version: 1, ...identity, kind: 'plugin', name: 'DeviceForge 调试器',
+    summary: message ?? '检查本机插件、界面树、服务和关联日志；选择目标后开始调试。',
+    description: '官方随附插件，编译并启动 DeviceForge 后即可使用。停用后可在此重新启用。仅支持本机回环地址，不自动选择目标或采集所有界面。',
+    keywords: ['调试'], categories: ['integration'], applies_to: ['deviceforge'], supports_mcp: 'server',
+    supports_agent: true, restart_policy: 'none', platforms: [], architectures: [], source: '',
+    sourceName: '宿主随附', details: { plugin_kind: 'browser', bundled: true } };
+}
+
 export function releaseConfigurationTargets(installation: PluginInstallation) {
   return installation.components.map((component) => ({ kind: component.kind, id: component.id }));
 }

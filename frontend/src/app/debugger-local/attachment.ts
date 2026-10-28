@@ -13,7 +13,8 @@ export function resetSession(entry: AttachedDebug): void {
 }
 
 export function createAttachment(pluginId: string, generation: string, scope: PluginScope, hostSignal: AbortSignal,
-  selected: () => boolean, remove: (entry: AttachedDebug) => void): AttachedDebug {
+  selected: () => boolean, remove: (entry: AttachedDebug) => void,
+  closeSession?: (sessionId: string) => Promise<void>): AttachedDebug {
   const lifetime = new AbortController();
   const signal = AbortSignal.any([scope.context.signal, hostSignal, lifetime.signal]);
   const quietTrack = (release: Dispose): Dispose => scope.track(async () => {
@@ -21,8 +22,24 @@ export function createAttachment(pluginId: string, generation: string, scope: Pl
   });
   const registry = createDebugRegistry({ pluginId, generation: Number(generation) }, signal, quietTrack);
   const scoped = scopedDebugAccess(registry.debug, signal, quietTrack);
+  const sessions = new Map<string, Dispose>();
   const entry: AttachedDebug = {
     pluginId, generation, scope, lifetime, registry, access: {
+      ...(closeSession ? { registerSession(sessionId: string): Dispose {
+        if (signal.aborted || !sessionId || sessionId.length > 128 || /\s/.test(sessionId))
+          throw new Error('调试会话标识无效或所属作用域已关闭');
+        const existing = sessions.get(sessionId);
+        if (existing) return existing;
+        if (sessions.size >= 64) throw new Error('当前插件最多登记64项调试会话');
+        let released = false;
+        const release = quietTrack(async () => {
+          if (released) return;
+          released = true; sessions.delete(sessionId);
+          try { await closeSession(sessionId); } catch (error) { recordFailure(); throw error; }
+        });
+        sessions.set(sessionId, release);
+        return release;
+      } } : {}),
       registerNode(definition) {
         try {
           const handle = scoped.registerNode(definition);

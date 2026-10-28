@@ -37,6 +37,7 @@ export async function startHost({
   port,
   ordinal,
   performancePlugin,
+  userDirectory,
 }) {
   const plugins = join(directory, 'server-plugins'),
     browser = join(directory, 'browser-plugins');
@@ -55,6 +56,7 @@ export async function startHost({
     APK_MCP_HOSTS: `127.0.0.1:${port}`,
     APK_MCP_ORIGINS: base,
     DEVICEFORGE_NODE: process.execPath,
+    ...(userDirectory ? { DEVICEFORGE_USER_DIR: userDirectory } : {}),
     DEVICEFORGE_HTTP_RATE: '10000',
     ...(bindingsPath ? { APK_OPERATION_BINDINGS: bindingsPath } : {}),
     ...(performancePlugin === undefined ? {} : { APK_PERFORMANCE_PLUGIN: performancePlugin }),

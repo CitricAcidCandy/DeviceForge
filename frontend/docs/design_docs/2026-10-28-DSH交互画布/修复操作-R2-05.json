@@ -1,0 +1,188 @@
+{
+  "fileUrl": "https://ardot.tencent.com/file/741227854728017",
+  "批次": 5,
+  "count": 9,
+  "操作": [
+    {
+      "方法": "U",
+      "绑定键": "失败_错误标题",
+      "节点ID": "2:101",
+      "更新": {
+        "fills": [
+          {
+            "type": "SOLID",
+            "color": {
+              "r": 0.15,
+              "g": 0.16,
+              "b": 0.21
+            },
+            "opacity": 1,
+            "visible": true,
+            "blendMode": "NORMAL"
+          }
+        ]
+      }
+    },
+    {
+      "方法": "U",
+      "绑定键": "失败_错误正文",
+      "节点ID": "2:102",
+      "更新": {
+        "fills": [
+          {
+            "type": "SOLID",
+            "color": {
+              "r": 0.4,
+              "g": 0.44,
+              "b": 0.52
+            },
+            "opacity": 1,
+            "visible": true,
+            "blendMode": "NORMAL"
+          }
+        ]
+      }
+    },
+    {
+      "方法": "U",
+      "绑定键": "失败_错误详情底",
+      "节点ID": "2:103",
+      "更新": {
+        "fills": [
+          {
+            "type": "SOLID",
+            "color": {
+              "r": 0.98,
+              "g": 0.97,
+              "b": 0.96
+            },
+            "opacity": 1,
+            "visible": true,
+            "blendMode": "NORMAL"
+          }
+        ]
+      }
+    },
+    {
+      "方法": "U",
+      "绑定键": "失败_错误详情",
+      "节点ID": "2:104",
+      "更新": {
+        "fills": [
+          {
+            "type": "SOLID",
+            "color": {
+              "r": 0.58,
+              "g": 0.39,
+              "b": 0.12
+            },
+            "opacity": 1,
+            "visible": true,
+            "blendMode": "NORMAL"
+          }
+        ]
+      }
+    },
+    {
+      "方法": "U",
+      "绑定键": "失败_重试",
+      "节点ID": "2:105",
+      "更新": {
+        "fills": [
+          {
+            "type": "SOLID",
+            "color": {
+              "r": 0.42,
+              "g": 0.3,
+              "b": 0.96
+            },
+            "opacity": 1,
+            "visible": true,
+            "blendMode": "NORMAL"
+          }
+        ]
+      }
+    },
+    {
+      "方法": "U",
+      "绑定键": "失败_重试_文字",
+      "节点ID": "2:106",
+      "更新": {
+        "fills": [
+          {
+            "type": "SOLID",
+            "color": {
+              "r": 1.0,
+              "g": 1.0,
+              "b": 1.0
+            },
+            "opacity": 1,
+            "visible": true,
+            "blendMode": "NORMAL"
+          }
+        ]
+      }
+    },
+    {
+      "方法": "U",
+      "绑定键": "失败_错误浏览器",
+      "节点ID": "2:107",
+      "更新": {
+        "fills": [
+          {
+            "type": "SOLID",
+            "color": {
+              "r": 1.0,
+              "g": 1.0,
+              "b": 1.0
+            },
+            "opacity": 1,
+            "visible": true,
+            "blendMode": "NORMAL"
+          }
+        ]
+      }
+    },
+    {
+      "方法": "U",
+      "绑定键": "失败_错误浏览器_文字",
+      "节点ID": "2:108",
+      "更新": {
+        "fills": [
+          {
+            "type": "SOLID",
+            "color": {
+              "r": 0.15,
+              "g": 0.16,
+              "b": 0.21
+            },
+            "opacity": 1,
+            "visible": true,
+            "blendMode": "NORMAL"
+          }
+        ]
+      }
+    },
+    {
+      "方法": "U",
+      "绑定键": "失败_重试范围",
+      "节点ID": "2:109",
+      "更新": {
+        "fills": [
+          {
+            "type": "SOLID",
+            "color": {
+              "r": 0.4,
+              "g": 0.44,
+              "b": 0.52
+            },
+            "opacity": 1,
+            "visible": true,
+            "blendMode": "NORMAL"
+          }
+        ]
+      }
+    }
+  ],
+  "operations": "U(\"2:101\",{\"fills\":[{\"type\":\"SOLID\",\"color\":{\"r\":0.15,\"g\":0.16,\"b\":0.21},\"opacity\":1,\"visible\":true,\"blendMode\":\"NORMAL\"}]})\nU(\"2:102\",{\"fills\":[{\"type\":\"SOLID\",\"color\":{\"r\":0.4,\"g\":0.44,\"b\":0.52},\"opacity\":1,\"visible\":true,\"blendMode\":\"NORMAL\"}]})\nU(\"2:103\",{\"fills\":[{\"type\":\"SOLID\",\"color\":{\"r\":0.98,\"g\":0.97,\"b\":0.96},\"opacity\":1,\"visible\":true,\"blendMode\":\"NORMAL\"}]})\nU(\"2:104\",{\"fills\":[{\"type\":\"SOLID\",\"color\":{\"r\":0.58,\"g\":0.39,\"b\":0.12},\"opacity\":1,\"visible\":true,\"blendMode\":\"NORMAL\"}]})\nU(\"2:105\",{\"fills\":[{\"type\":\"SOLID\",\"color\":{\"r\":0.42,\"g\":0.3,\"b\":0.96},\"opacity\":1,\"visible\":true,\"blendMode\":\"NORMAL\"}]})\nU(\"2:106\",{\"fills\":[{\"type\":\"SOLID\",\"color\":{\"r\":1.0,\"g\":1.0,\"b\":1.0},\"opacity\":1,\"visible\":true,\"blendMode\":\"NORMAL\"}]})\nU(\"2:107\",{\"fills\":[{\"type\":\"SOLID\",\"color\":{\"r\":1.0,\"g\":1.0,\"b\":1.0},\"opacity\":1,\"visible\":true,\"blendMode\":\"NORMAL\"}]})\nU(\"2:108\",{\"fills\":[{\"type\":\"SOLID\",\"color\":{\"r\":0.15,\"g\":0.16,\"b\":0.21},\"opacity\":1,\"visible\":true,\"blendMode\":\"NORMAL\"}]})\nU(\"2:109\",{\"fills\":[{\"type\":\"SOLID\",\"color\":{\"r\":0.4,\"g\":0.44,\"b\":0.52},\"opacity\":1,\"visible\":true,\"blendMode\":\"NORMAL\"}]})"
+}

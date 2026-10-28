@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { spawn } from 'node:child_process';
 import { copyFile, cp, mkdir, readFile, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { ensureServer, stopServer } from '../backend-console/server.mjs';
 import { processSnapshot } from '../backend-console/identities.mjs';
@@ -48,6 +48,7 @@ async function temporaryDeployment(directory) {
     config.logDirectory,
   ])
     await mkdir(target, { recursive: true });
+  await mkdir(dirname(config.binary), { recursive: true });
   await copyFile(join(project, 'backend', 'target', 'debug', 'apk-server.exe'), config.binary);
   return { bat, config };
 }

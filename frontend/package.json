@@ -7,6 +7,7 @@
     "node": ">=22.18.0"
   },
   "scripts": {
+    "predev": "node scripts/build-debugger-plugin.ts",
     "dev": "vite --host 127.0.0.1",
     "generate:api": "node scripts/generate-api.ts",
     "generate:ui": "node scripts/generate-public-ui.ts",
@@ -16,10 +17,12 @@
     "check:ui-policy": "node scripts/check-ui-policy.ts",
     "check:responsive": "node scripts/check-responsive.ts",
     "test": "node scripts/run-tests.ts",
+    "prebuild": "node scripts/build-debugger-plugin.ts",
     "build": "vite build",
     "preview": "vite preview --host 127.0.0.1"
   },
   "dependencies": {
+    "@deviceforge/browser-debugger": "file:../examples/browser-debugger",
     "@deviceforge/plugin-manifest": "file:../cli/src/plugin-authoring/core",
     "@noble/hashes": "2.0.1",
     "@xterm/addon-fit": "0.11.0",

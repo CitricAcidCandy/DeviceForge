@@ -20,6 +20,9 @@ export function createRuntimeDebugger(options: RuntimeDebuggerOptions & {
 }) {
   const gateway = createDebuggerGateway(options.client);
   const local = createLocalDebugger({ document: options.document, signal: options.context.signal,
+    closeSession: async sessionId => {
+      await gateway.call({ name: 'deviceforge.debug_session', input: { action: 'close', session_id: sessionId } }, AbortSignal.timeout(2000));
+    },
     manager: options.manager, extensions: options.extensions, ...(options.slots ? { slots: options.slots } : {}),
     ...(options.navigate ? { navigate: options.navigate } : {}),
     ...(options.readHostRoutes ? { readHostRoutes: options.readHostRoutes } : {}),

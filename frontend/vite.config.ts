@@ -19,7 +19,11 @@ export default defineConfig({
     },
     react(), tailwindcss(),
   ],
-  resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
+  resolve: {
+    alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
+    dedupe: ['react', 'react-dom'],
+  },
+  ssr: { noExternal: ['@deviceforge/browser-debugger'] },
   define: { 'import.meta.env.VITE_API_BASE_URL': JSON.stringify(process.env['VITE_API_BASE_URL'] ?? '') },
   build: {
     sourcemap: true,

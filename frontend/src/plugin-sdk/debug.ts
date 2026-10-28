@@ -59,6 +59,8 @@ export interface DebugAccess {
   readonly registerNode: (definition: DebugNodeDefinition) => DebugNodeHandle;
   readonly emit: (event: DebugEventInput) => void;
   readonly registerResource: (definition: DebugResourceDefinition, release: Dispose) => Dispose;
+  // 仅登记调用方已经明确取得的会话；宿主在本作用域释放时关闭，不影响其他观察者。
+  readonly registerSession?: (sessionId: string) => Dispose;
 }
 export interface DebugRegistrySnapshot {
   readonly owner: DebugOwner;

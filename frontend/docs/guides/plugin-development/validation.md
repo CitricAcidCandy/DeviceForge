@@ -2,6 +2,8 @@
 
 ## 本机 Debugger：公开合同与验证边界
 
+兼容的 DeviceForge 产品默认随附官方调试器。使用者正常启动宿主并在本机以回环地址打开界面，点击悬浮球选择目标即可；无需额外导入 Debugger 包或选择验收专用程序。资源市场「已安装」可停用和重新启用；已有同名独立安装仍由原安装入口管理。市场／MCP 的本地导入用于被调试插件，或显式替换随附调试器版本。旧宿主缺能力时先升级宿主，不把空结果当作调试成功。
+
 使用部署者提供的兼容 localhost 宿主及其实际 MCP 地址，不需要宿主源码或内部构建脚本。调试协议 1 要求真实回环连接及允许的本机浏览器来源。先查询实际能力；缺少公共服务时明确提示升级。当前实现与正式联调证据分开，`production_acceptance_complete=false` 保持不变。
 
 浏览器公共服务为 `context.extensions.callService('host.debugger','1',request,signal)`，返回原 `HostResult` 的 `data/logId`，需要先判断可选 `context.extensions`：
@@ -29,6 +31,8 @@
 `deviceforge.debug_report` 使用 `{session_id,parameters:{export:'none'}}`，`export` 支持 `none/json/markdown`，默认 `none`。返回 `{report,artifact}`，不导出时 `artifact=null`；显式导出写入原产物存储，返回产物元数据和下载 URL。缺产物存储、目标换代或结果未确认时明确失败，不自动重复导出。浏览器报告的 `snapshot_manifest/continuation` 位于报告 `evidence` 中，冻结快照续页调用 **`deviceforge.debug_ui_tree`**，参数为 `root_id/snapshot_id/offset/limit`；沿 `tree.page.nextOffset` 继续同一快照，不能将续页参数交给 `debug_report` 或重新采集变化中的 DOM。过期快照须显式重采。
 
 插件可选使用 `context.debug.registerNode` 登记语义节点，使用其返回句柄的 `update/dispose` 更新或撤销；通过 `context.debug.emit` 发事件，以及 `context.debug.registerResource(definition,release)` 登记资源。缺能力时普通功能及 `context.onDispose` 清理仍须工作。每次挂载各自登记，撤销释放本作用域资源，只接受有界 JSON 元数据，不读取任意 Props、输入或 React 私有状态。字段脱敏不能识别自由文本的所有秘密。独立工程的单元测试和打包成功不等于官方面板、实际安装、真实浏览器或完整生产闭环通过。
+
+调试工具创建并取得自己的会话标识后，可用 `context.debug?.registerSession?.(sessionId)` 登记其生命周期归属。返回的释放函数会关闭该会话，不是仅解除登记；显式关闭后也应调用以回收登记，重复关闭幂等。每插件最多64项活动登记，ID最多128字符。宿主在挂载／功能子作用域或插件卸载时独立、有界地关闭已登记会话，不复用已经撤销的插件调用入口，不关闭未登记的 MCP 会话。旧宿主缺能力时需提示自动回收不完整，失联或未获知会话ID时不得宣称已释放。
 
 验证对象应是将要上传的实际归档、当前宿主版本和目标环境。已有示例或历史门禁证明其对应版本，第三方改写的插件不能继承通过结论。下面是开发者复验步骤；执行并记录真实结果后才可声称通过。
 

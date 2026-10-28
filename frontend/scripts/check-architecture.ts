@@ -71,8 +71,10 @@ export async function checkArchitecture(root = fileURLToPath(new URL('../', impo
         );
       }
       for (const dependency of inspection.dependencies) {
-        let target = ts.resolveModuleName(dependency.value, path, parsed.options, ts.sys)
-          .resolvedModule?.resolvedFileName;
+        const resolved = ts.resolveModuleName(dependency.value, path, parsed.options, ts.sys).resolvedModule;
+        // npm 的本地工作区包可能解析到链接的真实目录，仍按公开外部包处理。
+        if (resolved?.isExternalLibraryImport) continue;
+        let target = resolved?.resolvedFileName;
         if (!target && dependency.value.startsWith('.')) {
           const direct = resolve(dirname(path), dependency.value);
           target = [

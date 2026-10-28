@@ -6,14 +6,15 @@ import { runBackendConsole } from './backend-console/console.mjs';
 const help = `DeviceForge 后端控制台
 用法：启动后端.bat [--background | --status | --stop | --help]
 
-双击启动后端.bat：启动或连接原预览后端，并持续显示服务器日志。
+双击启动后端.bat：启动或连接本仓库编译的后端，并持续显示服务器日志。
 输入 stop 回车，或按 Ctrl+C：正常停止后端并退出。
 输入 quit 回车：仅退出日志窗口，后端继续运行。
 输入 status 回车：查看后端状态。
 双击停止后端.bat，或启动后端.bat --stop：主动停止同一后端。
 --background 只启动后台服务；--status 只检查状态。
 
-沿用原预览数据、插件和 0.0.0.0:7031 监听，不重新编译或迁移目录。
+使用 backend/target/debug/apk-server.exe；沿用原数据、插件和 0.0.0.0:7031 监听，不迁移目录。
+程序缺失时先在 backend 目录运行 cargo build --locked -p apk-server --bin apk-server。
 MCP 与 HTTP 共用后端，地址为 http://127.0.0.1:7031/mcp，无需另起 MCP 进程。
 停止时先请求服务关闭，不结束无关进程；直接关闭窗口不能保证正常停止。
 `;

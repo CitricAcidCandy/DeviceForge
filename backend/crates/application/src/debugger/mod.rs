@@ -60,10 +60,9 @@ impl DebuggerService {
     ) -> Result<T> {
         // 临界区只处理有界内存；竞争时立即拒绝，不让请求线程无期限等锁。
         let mut state = self.state.try_lock().map_err(|failure| match failure {
-            TryLockError::WouldBlock => validation::error(
-                ErrorCode::Capacity,
-                "调试器正在处理其他状态变更，请稍后重试",
-            ),
+            TryLockError::WouldBlock => {
+                validation::error(ErrorCode::Busy, "调试器正在处理其他状态变更，请稍后重试")
+            }
             TryLockError::Poisoned(_) => validation::error(ErrorCode::Internal, "调试器状态锁异常"),
         })?;
         let revision = state.revision;

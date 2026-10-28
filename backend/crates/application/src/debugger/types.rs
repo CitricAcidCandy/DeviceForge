@@ -13,6 +13,7 @@ pub enum ErrorCode {
     InvalidInput,
     NotFound,
     Capacity,
+    Busy,
     InactiveSession,
     StaleTarget,
     WrongInstance,

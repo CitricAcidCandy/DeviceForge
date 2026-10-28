@@ -18,6 +18,10 @@ import {
 import { useInstalledMetadata } from './use-installed-metadata.ts';
 import { isReleaseEntry, marketInstallationSource, ownedInstallationComponents } from '../../features/plugin-installations/index.ts';
 import { localInstallationEntry } from './presentation.ts';
+import { bundledDebuggerEntry } from './presentation.ts';
+
+type BundledState = ReturnType<NonNullable<ProductServices['bundledDebugger']>['snapshot']>;
+const noBundledDebugger: BundledState = { phase: 'unavailable', message: null };
 
 export function useMarketplace(services: ProductServices, active: boolean, installedTab: boolean) {
   const [query, setQuery] = useState<MarketplaceQuery>({ limit: 24 });
@@ -34,6 +38,11 @@ export function useMarketplace(services: ProductServices, active: boolean, insta
   const source = services.marketplace.currentUrl();
   const metadata = useInstalledMetadata(services.marketplace, active && installedTab, generation);
   const defaults = useSnapshot(services.pluginDefaults);
+  const bundledSource = useMemo(() => services.bundledDebugger ?? {
+    snapshot: () => noBundledDebugger,
+    subscribe: (_listener: (value: BundledState) => void) => () => {},
+  }, [services]);
+  const bundledState = useSnapshot(bundledSource);
   const serverSource = useMemo(
     () => ({
       snapshot: () => services.runtime.pluginPackages.snapshot('server'),
@@ -247,6 +256,12 @@ export function useMarketplace(services: ProductServices, active: boolean, insta
       entry: remote && !remote.metadataIssues?.length ? { ...remote, details: { ...remote.details, ...local.details } } : local,
       removable: true, removeDisabled: false };
   });
+  const bundledEntries = services.bundledDebugger && !['unavailable', 'external'].includes(bundledState.phase) &&
+    !owned.has(`browser:${services.bundledDebugger.identity.id}`) &&
+    !packages.some(pkg => pkg.kind === 'browser' && pkg.id === services.bundledDebugger?.identity.id)
+    ? [{ pkg: undefined, installed: { version: services.bundledDebugger.identity.version },
+      entry: bundledDebuggerEntry(services.bundledDebugger.identity, bundledState.message), removable: false, removeDisabled: false }]
+    : [];
   return {
     query,
     setQuery,
@@ -258,7 +273,14 @@ export function useMarketplace(services: ProductServices, active: boolean, insta
     installationClients,
     installationProgress,
     cleanupWarnings: (serverRuntime.result?.data ?? []).filter((plugin) => plugin.cleanup_failed).map((plugin) => plugin.id),
-    installedEntries: [...releaseEntries, ...installedEntries, ...builtinEntries],
+    installedEntries: [...bundledEntries, ...releaseEntries, ...installedEntries, ...builtinEntries],
+    bundledEnabled: bundledState.phase === 'loaded',
+    setBundledEnabled(enabled: boolean) {
+      void action.run(async signal => { await services.bundledDebugger?.setEnabled(enabled, signal); }, {
+        pending: enabled ? '正在启用调试器…' : '正在停用调试器…',
+        success: enabled ? '调试器已启用，可从悬浮球打开' : '调试器已停用，刷新后保持停用',
+      });
+    },
     action,
     download,
     install,

@@ -4,7 +4,7 @@ import type {
   InstalledWebPackage,
   PackageEntryResolver,
 } from '../plugin-sdk/index.ts';
-import type { createPluginManager } from './manager.ts';
+import type { createPluginManager, TrustedRegistration } from './manager.ts';
 import { createInstalledPackageLoader } from './package-loader.ts';
 
 export function createInstalledPackageController(
@@ -13,6 +13,7 @@ export function createInstalledPackageController(
   importer?: EsmImporter,
 ) {
   const sources = new Map<string, InstalledWebPackage>();
+  const bundled = new Set<string>();
   function register(descriptor: InstalledWebPackage) {
     if (!importer) throw new Error('宿主未注入已安装包 ESM 导入器');
     const current = sources.get(descriptor.id);
@@ -24,6 +25,14 @@ export function createInstalledPackageController(
     manager.register(createInstalledPackageLoader(descriptor, importer, resolveEntry));
     sources.set(descriptor.id, descriptor);
   }
+  // 随发行提供的插件仍由同一个管理器持有；显式安装的包优先于随附来源。
+  async function prepare(descriptor: InstalledWebPackage) {
+    if (bundled.has(descriptor.id)) {
+      await manager.unregister(descriptor.id);
+      bundled.delete(descriptor.id);
+    }
+    register(descriptor);
+  }
   async function enable(descriptor: InstalledWebPackage, signal: AbortSignal) {
     if (signal.aborted) throw new HostError('cancelled', 'cancelled', '浏览器包启用等待已取消');
     const old = sources.get(descriptor.id);
@@ -32,7 +41,8 @@ export function createInstalledPackageController(
       sources.delete(descriptor.id);
     }
     if (signal.aborted) throw new HostError('cancelled', 'cancelled', '浏览器包启用等待已取消');
-    register(descriptor);
+    await prepare(descriptor);
+    if (signal.aborted) throw new HostError('cancelled', 'cancelled', '浏览器包启用等待已取消');
     let cancellation: Promise<void> | null = null;
     const cancel = () => {
       cancellation = manager.unload(descriptor.id);
@@ -50,12 +60,22 @@ export function createInstalledPackageController(
   }
   return {
     register,
+    prepare,
+    bundled: {
+      has: (id: string) => bundled.has(id),
+      register(source: TrustedRegistration) {
+        if (sources.has(source.id) || bundled.has(source.id)) throw new Error('插件来源已经登记');
+        manager.register(source);
+        bundled.add(source.id);
+      },
+    },
     enable,
     disable: manager.unload,
     async forget(id: string) {
       await manager.unregister(id);
       sources.delete(id);
+      bundled.delete(id);
     },
-    clearSources: () => sources.clear(),
+    clearSources() { sources.clear(); bundled.clear(); },
   };
 }

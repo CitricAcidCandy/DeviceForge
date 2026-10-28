@@ -59,7 +59,8 @@ export async function createDefaultsBrowser(project: string, profile: string, ev
     if (child && child.exitCode === null && child.signalCode === null) {
       child.kill();
       evidence['forced'] = true;
-      await delay(500);
+      const forcedDeadline = Date.now() + 5000;
+      while (child.exitCode === null && child.signalCode === null && Date.now() < forcedDeadline) await delay(50);
     }
     evidence['exit_code'] = child?.exitCode;
     evidence['diagnostic'] = diagnostic;
@@ -115,7 +116,7 @@ export async function createDefaultsBrowser(project: string, profile: string, ev
       evaluate, wait, close,
       async newPage(url: string) {
         const currentBrowser = browser; assert.ok(currentBrowser);
-        const address = new URL(`http://127.0.0.1:${port}/json/new?${encodeURIComponent(url)}`);
+        const address = new URL(`http://127.0.0.1:${port}/json/new?about:blank`);
         const response = await fetch(address, { method: 'PUT', signal: AbortSignal.timeout(10000) });
         assert.ok(response.ok);
         const target = record(await response.json());
@@ -123,6 +124,8 @@ export async function createDefaultsBrowser(project: string, profile: string, ev
         assert.ok(typeof socket === 'string' && typeof targetId === 'string');
         const extra = await module.themeProtocol(socket, evidence); extraPages.add(extra);
         await extra.call('Runtime.enable');
+        await extra.call('Page.enable');
+        await extra.call('Page.navigate', { url });
         const evaluateExtra = async (expression: string): Promise<unknown> => {
           const reply = record(await extra.call('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true }, 30000));
           if (reply['exceptionDetails']) throw new Error(JSON.stringify(reply['exceptionDetails']));

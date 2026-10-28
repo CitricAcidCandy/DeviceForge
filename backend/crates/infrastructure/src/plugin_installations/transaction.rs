@@ -301,13 +301,18 @@ pub(super) fn commit(
     if current
         .as_ref()
         .is_some_and(|record| record.version == prepared.info.version)
+        && !prepared.offline
     {
         return Err(Error::Conflict(
             "同一发布版本已绑定其他摘要，请发布新版本".into(),
         ));
     }
     let releases = storage::list(store)?;
-    validate_identities(store, &prepared.identities)?;
+    let local_update = current
+        .as_ref()
+        .filter(|_| prepared.offline)
+        .map(|current| (current, prepared.info.revision.as_str()));
+    validate_identities(store, &prepared.identities, local_update)?;
     for component in &prepared.info.components {
         if releases.iter().any(|release| {
             release.id != prepared.info.id
@@ -353,6 +358,18 @@ pub(super) fn commit(
         let path = directory.join(format!("{}.json", identity.platform));
         if !path.exists() {
             paths::write(&path, identity)?;
+        }
+        if prepared.offline && identity.kind != "tool" {
+            // 本地代码构建按发布修订另存；不改写市场原版本锁，也不放宽共享工具身份。
+            let relative =
+                build_identity_path(&prepared.info.id, &prepared.info.revision, identity);
+            let (directory, name) = relative.rsplit_once('/').expect("构建身份路径含父目录");
+            let directory = paths::create_directory(&store.root, directory)?;
+            let path = directory.join(name);
+            validate_identity_file(&path, identity, false)?;
+            if !path.exists() {
+                paths::write(&path, identity)?;
+            }
         }
     }
     for component in &prepared.components {
@@ -470,6 +487,7 @@ pub(super) fn commit(
 pub(super) fn validate_identities(
     store: &FilePluginInstallations,
     identities: &[super::prepare::ResourceIdentity],
+    local_update: Option<(&InstalledRelease, &str)>,
 ) -> Result<()> {
     for identity in identities {
         let relative = format!(
@@ -478,16 +496,55 @@ pub(super) fn validate_identities(
         );
         validate_release_path(&relative)?;
         let path = store.root.join(relative);
-        if path.exists() {
-            let old: super::prepare::ResourceIdentity = paths::read(&path, 16 * 1024)?;
-            if old.kind != identity.kind
-                || old.id != identity.id
-                || old.version != identity.version
-                || old.platform != identity.platform
-                || old.sha256 != identity.sha256
-            {
-                return Err(Error::Conflict("同一标识、版本和平台已绑定其他摘要".into()));
-            }
+        let local_build = local_update.filter(|(current, _)| {
+            (identity.kind == "release" && identity.id == current.id)
+                || current.components.iter().any(|component| {
+                    component.id == identity.id
+                        && match component.kind {
+                            apk_domain::plugin_packages::PackageKind::Server => {
+                                identity.kind == "server"
+                            }
+                            apk_domain::plugin_packages::PackageKind::Browser => {
+                                identity.kind == "browser"
+                            }
+                        }
+                })
+        });
+        validate_identity_file(&path, identity, local_build.is_some())?;
+        if let Some((current, revision)) = local_build {
+            let relative = build_identity_path(&current.id, revision, identity);
+            validate_release_path(&relative)?;
+            validate_identity_file(&store.root.join(relative), identity, false)?;
+        }
+    }
+    Ok(())
+}
+
+fn build_identity_path(
+    id: &str,
+    revision: &str,
+    identity: &super::prepare::ResourceIdentity,
+) -> String {
+    format!(
+        "installations/build-identities/{id}/{revision}/{}/{}/{}/{}.json",
+        identity.kind, identity.id, identity.version, identity.platform
+    )
+}
+
+fn validate_identity_file(
+    path: &Path,
+    identity: &super::prepare::ResourceIdentity,
+    allow_new_digest: bool,
+) -> Result<()> {
+    if path.exists() {
+        let old: super::prepare::ResourceIdentity = paths::read(path, 16 * 1024)?;
+        if old.kind != identity.kind
+            || old.id != identity.id
+            || old.version != identity.version
+            || old.platform != identity.platform
+            || (!allow_new_digest && old.sha256 != identity.sha256)
+        {
+            return Err(Error::Conflict("同一标识、版本和平台已绑定其他摘要".into()));
         }
     }
     Ok(())

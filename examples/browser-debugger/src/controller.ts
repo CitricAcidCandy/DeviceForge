@@ -24,6 +24,7 @@ export interface DebuggerState {
   readonly target: Target | null;
   readonly sessionId: string | null;
   readonly sessionState: string;
+  readonly sessionCleanupSupported: boolean;
   readonly capabilities: JsonValue;
   readonly inspection: JsonValue;
   readonly roots: readonly { readonly id: string; readonly label: string }[];
@@ -49,15 +50,17 @@ export interface DebuggerState {
   readonly logId: string | null;
 }
 
-export function createDebuggerController(context: Pick<HostContext, 'extensions' | 'signal'>) {
+export function createDebuggerController(context: Pick<HostContext, 'extensions' | 'signal' | 'debug'>) {
   const gateway = createGateway(context);
   const lifetime = new AbortController();
   const listeners = new Set<() => void>();
   const sessions = new Set<string>();
+  const sessionReleases = new Map<string, () => void | Promise<void>>();
   let request = new AbortController();
   let revision = 0, disposed = false, diagnosticSequence = 0;
   let state: DebuggerState = { open: false, busy: null, connected: false, stale: false, instanceId: null,
-    targets: [], target: null, sessionId: null, sessionState: 'none', capabilities: null, inspection: null,
+    targets: [], target: null, sessionId: null, sessionState: 'none', sessionCleanupSupported: Boolean(context.debug?.registerSession),
+    capabilities: null, inspection: null,
     roots: [], rootId: '', tree: null, trees: [], selectedNodeId: '', queries: null, entries: [], events: [],
     cursor: 0, eventGap: false, droppedEvents: 0, result: null, report: null, overview: null,
     installation: null, logs: null, requested: null, error: null,
@@ -145,6 +148,8 @@ export function createDebuggerController(context: Pick<HostContext, 'extensions'
   async function closeSession(id: string, signal: AbortSignal) {
     await gateway.call('session', { action: 'close', session_id: id }, signal);
     signal.throwIfAborted(); sessions.delete(id);
+    const release = sessionReleases.get(id); sessionReleases.delete(id);
+    await release?.();
   }
   async function select(target: Target) {
     await run('切换目标', async (signal) => {
@@ -156,6 +161,7 @@ export function createDebuggerController(context: Pick<HostContext, 'extensions'
       const response = await gateway.call('session', { action: 'open', target: targetInput(target) }, signal);
       const session = object(response.data), id = text(session.session_id);
       if (id) sessions.add(id);
+      if (id && context.debug?.registerSession) sessionReleases.set(id, context.debug.registerSession(id));
       signal.throwIfAborted();
       if (!id || session.state !== 'active') throw new Error('宿主没有返回有效活动会话');
       const actual = decodeTarget(session.target);
@@ -207,8 +213,11 @@ export function createDebuggerController(context: Pick<HostContext, 'extensions'
     disposed = true; request.abort(); lifetime.abort(); listeners.clear();
     context.signal.removeEventListener('abort', dispose);
     const wait = AbortSignal.timeout(2000);
-    const closing = [...sessions].map((sessionId) => gateway.call('session', { action: 'close', session_id: sessionId }, wait));
-    sessions.clear();
+    const closing = [...sessions].map((sessionId) => {
+      const release = sessionReleases.get(sessionId);
+      return release ? Promise.resolve(release()) : gateway.call('session', { action: 'close', session_id: sessionId }, wait);
+    });
+    sessions.clear(); sessionReleases.clear();
     return bounded(Promise.allSettled(closing), wait).then(() => undefined, () => undefined);
   }
   context.signal.addEventListener('abort', dispose, { once: true });

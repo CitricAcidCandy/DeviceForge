@@ -1,5 +1,6 @@
 import { createFrontendRuntime, createNamedSlotAdapter } from '../src/app/public-runtime.ts';
 import { installPublicUi } from '../src/app/public-ui.ts';
+import { createInstalledPackageImporter } from '../src/app/installed-package-importer.ts';
 import { pageSlotId } from '../src/plugin-sdk/index.ts';
 import type { JsonValue } from '../src/plugin-sdk/index.ts';
 import { debuggerFixtureIds as ids, debuggerJson, debuggerLoopback, debuggerObject as obj,
@@ -65,6 +66,8 @@ export async function mount(base: string) {
     { id: 'developer.tools', target: tools },
   ]);
   runtime = createFrontendRuntime({ baseUrl: base, transport: window.fetch.bind(window), panelTarget: () => panels, slotAdapter: slots,
+    esmImporter: createInstalledPackageImporter(base),
+    packageEntryResolver: (info, runId) => `/api/v2/browser-plugins/${encodeURIComponent(info.id)}/runs/${runId}/assets/${info.entryPath}`,
     developerTools: true, debugger: { document,
       slots: [
         { id: 'debugger.fixture.append', label: '追加槽', modes: ['append'], description: '受控追加' },
@@ -158,6 +161,8 @@ export async function structureAndActions() {
   }
   check(root.querySelector('output')?.textContent === '', '拒绝动作仍产生业务计数');
   record('禁用设备只读未知及未确认节点拒绝');
+  // 查询与动作也会采集当前状态；只保留十份快照，差异基线应紧邻待验证动作。
+  beforeSnapshot = text(obj((await command('ui_tree', { root_id: selectedRoot }))['tree'])['id']);
   const fresh = await command('ui_query', { root_id: selectedRoot, query: { name: '本地计数', role: 'button' } });
   const node = rows(fresh['nodes'])[0]; check(node, '本地按钮缺失');
   const applied = await command('ui_action', { root_id: selectedRoot, action: { type: 'click', target: ref(node), confirmed: true } });
@@ -166,7 +171,9 @@ export async function structureAndActions() {
   check(assertion['status'] === 'passed', '结构断言未通过');
   const after = obj((await command('ui_tree', { root_id: selectedRoot }))['tree']);
   const diff = await command('ui_diff', { root_id: selectedRoot, before_id: beforeSnapshot, after_id: text(after['id']) });
-  check(diff['status'] === 'comparable' && rows(diff['changed']).length + rows(diff['added']).length + rows(diff['removed']).length > 0, '快照差异未包含实际变更');
+  check(diff['status'] === 'indeterminate' && typeof diff['reason'] === 'string' && diff['reason'].includes('覆盖不完整') &&
+    rows(diff['changed']).length + rows(diff['added']).length > 0 && rows(diff['removed']).length === 0,
+  '含密码不透明节点时应保留实际变更，但不能冒充完整可比较或确认删除');
   record('确认本地动作结构断言与快照差异', { assertion, diff });
 }
 export async function beginPick() {
@@ -267,6 +274,19 @@ export async function beforeUpdate() {
   oldNode = ref(local);
   return { session_id: selectedSession, target: await target(), node: oldNode };
 }
+export async function reloadBrowserExplicitly() {
+  const previous = await target();
+  const result = await command('reload', { confirmed: true, follow: true, timeout_ms: 30000 });
+  const receipt = obj(result['command']);
+  check(receipt['state'] === 'succeeded' && result['followed'] === true, '浏览器重载未取得新代跟随回执');
+  const next = await target();
+  check(obj(next)['generation'] !== obj(previous)['generation'], '浏览器重载没有新代次');
+  await current().webPlugins.mount(ids.provider, `${ids.provider}.panel`);
+  for (const mode of ['append', 'replace']) await current().extensions.mountComponent(`${ids.provider}.${mode}`);
+  await current().extensions.mountModule(`${ids.provider}.page`);
+  await closeSessions(); await select();
+  record('浏览器重载使用当前安装源并显式跟随新代', { previous, next, result });
+}
 export async function update(base64: string) {
   const bytes = Uint8Array.from(atob(base64), (value) => value.charCodeAt(0));
   await current().pluginPackages.update('browser', ids.provider, new Blob([bytes]), 'application/zip', signal());
@@ -274,6 +294,7 @@ export async function update(base64: string) {
   await current().webPlugins.mount(ids.provider, `${ids.provider}.panel`);
   for (const mode of ['append', 'replace']) await current().extensions.mountComponent(`${ids.provider}.${mode}`);
   await current().extensions.mountModule(`${ids.provider}.page`);
+  await target();
   let oldRejected = false;
   try { await command('ui_action', { root_id: selectedRoot, action: { type: 'click', target: oldNode, confirmed: true } }); }
   catch (error) { oldRejected = /^debugger_(?:target_changed|stale_target|stale_generation|inactive_session|target_not_selected|session_inactive)$/.test(rejectionCode(error)); }
@@ -295,7 +316,32 @@ export async function focusOfficial() {
   check(current().debugger?.snapshot().activeSessions === 0, 'focus 带入候选时擅自打开采集会话');
   choose()?.click();
   await until(() => (current().debugger?.snapshot().activeSessions ?? 0) > 0, '官方面板明确选择后未打开目标会话');
-  const official = document.querySelector('[data-deviceforge-debugger]'); check(official?.textContent?.trim(), '官方面板内容为空');
+  const official = document.querySelector('[data-deviceforge-debugger]'); check(official, '官方面板节点不存在');
+  check(official.textContent?.trim(), '官方面板内容为空');
+  await until(() => {
+    const roots = official.querySelector<HTMLSelectElement>('[aria-label="挂载根"]');
+    return !!roots && [...roots.options].some(item => item.text.includes(`${ids.provider}.panel`));
+  }, '官方面板检查结束后仍未列出真实面板挂载根');
+  const rootSelect = official.querySelector<HTMLSelectElement>('[aria-label="挂载根"]');
+  check(rootSelect, '官方面板没有公开挂载根选择器');
+  const option = [...rootSelect.options].find(item => item.text.includes(`${ids.provider}.panel`));
+  check(option, '官方面板未列出真实面板挂载根');
+  const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value')?.set;
+  check(setter, '浏览器没有原生选择器值入口');
+  setter.call(rootSelect, option.value); rootSelect.dispatchEvent(new Event('change', { bubbles: true }));
+  const readTree = () => [...official.querySelectorAll('button')].find(node => node.textContent === '读取新快照');
+  await until(() => !!readTree() && !readTree()?.disabled, '选择挂载根后快照读取仍不可用');
+  readTree()?.click();
+  await until(() => official.querySelectorAll('[role="treeitem"]').length > 0, '官方面板没有显示实际树快照');
+  const selected = [...official.querySelectorAll<HTMLButtonElement>('[role="treeitem"]')].find(node => node.textContent?.includes('本地计数'));
+  check(selected, '官方树没有实际业务按钮'); selected.click();
+  await until(() => !!official.querySelector('[aria-label="节点详情"]')?.textContent?.includes('本地计数'), '节点详情没有当前选择');
+  const list = official.querySelector<HTMLElement>('[role="tree"]'); check(list, '树列表缺失');
+  await until(() => {
+    const row = selected.getBoundingClientRect(), area = list.getBoundingClientRect();
+    return list.clientHeight >= 160 && row.top >= area.top && row.bottom <= area.bottom;
+  }, '树的有效高度不足，或当前选择不在树自身可视区域中');
+  record('树列表保留至少160像素且当前选择可见', { height: list.clientHeight });
   record('官方公开focus入口显式目标会话');
 }
 export function officialGeometry() {

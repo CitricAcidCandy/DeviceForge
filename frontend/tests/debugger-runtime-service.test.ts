@@ -107,3 +107,34 @@ test('调试资源的真实释放失败保留原清理诊断，但不封锁新�
   } finally { await runtime.dispose(); }
   assert.equal(releases, 2);
 });
+
+test('调试工具卸载由宿主关闭已登记会话，不借用撤销作用域且不关闭其他工具会话', async () => {
+  const document = new JSDOM('<body></body>').window.document;
+  const closed: string[] = [];
+  const runtime = createFrontendRuntime({ baseUrl: 'http://127.0.0.1:7031', panelTarget: () => null,
+    debugger: { document }, transport: async (_input, init) => {
+      assert.ok(!init?.signal?.aborted, '清理不能使用已撤销插件的请求信号');
+      assert.equal(typeof init?.body, 'string');
+      const request: unknown = JSON.parse(String(init?.body));
+      assert.ok(request && typeof request === 'object' && 'input' in request);
+      const input = request.input;
+      assert.ok(input && typeof input === 'object' && 'session_id' in input && 'action' in input);
+      assert.equal(input.action, 'close'); assert.equal(typeof input.session_id, 'string');
+      closed.push(String(input.session_id)); return success({ state: 'closed' });
+    } });
+  try {
+    for (const id of ['first-tool', 'second-tool']) {
+      runtime.webPlugins.register({ id, trusted: true, plugin: { id, version: '1.0.0', apiVersion: 2,
+        panels: [], activate: async context => {
+          assert.ok(context.debug?.registerSession);
+          context.debug.registerSession(`${id}-session`);
+        } } });
+      await runtime.webPlugins.load(id);
+    }
+    await runtime.webPlugins.unload('first-tool');
+    assert.deepEqual(closed, ['first-tool-session']);
+    assert.ok(runtime.webPlugins.snapshot().some(plugin => plugin.id === 'second-tool'));
+    await runtime.webPlugins.unload('second-tool');
+    assert.deepEqual(closed, ['first-tool-session', 'second-tool-session']);
+  } finally { await runtime.dispose(); }
+});

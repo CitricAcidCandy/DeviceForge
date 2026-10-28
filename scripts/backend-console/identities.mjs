@@ -143,9 +143,14 @@ if (${pid} -gt 0) {
   }
 }
 
+export function deploymentOwnsBinary(config, binary) {
+  return sameBinary(binary, config.binary) ||
+    (typeof config.previousBinary === 'string' && sameBinary(binary, config.previousBinary));
+}
+
 export function ownedListener(config, snapshot) {
   if (snapshot.listeners.length === 0) return null;
-  if (snapshot.listeners.length !== 1 || !sameBinary(snapshot.listeners[0].binary, config.binary))
+  if (snapshot.listeners.length !== 1 || !deploymentOwnsBinary(config, snapshot.listeners[0].binary))
     throw new Error(`端口 ${config.port} 由其他进程占用，不能接管或停止`);
   return snapshot.listeners[0];
 }

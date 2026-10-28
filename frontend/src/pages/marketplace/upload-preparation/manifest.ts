@@ -1,58 +1,17 @@
 import {
   normalizeManifest, componentMetadata, marketMetadata, validateRelease,
-  validateDependencies, compatibleDependencyVersion, dependencyUrl, releaseResources,
-  type Manifest, type Dependencies, type DependencySource,
+  releaseResources,
+
 } from '@deviceforge/plugin-manifest';
 import { sha256 } from '@noble/hashes/sha2.js';
-import { readTgz, readZip, writeArchive } from './archives.ts';
+import { writeArchive } from './archives.ts';
+import { prepareManifestDependencies } from './manifest-dependencies.ts';
 import { jsonObject, validateFiles } from './rules.ts';
 import type { ArchiveFile } from './types.ts';
 
 const encode = (value: unknown) => new TextEncoder().encode(JSON.stringify(value, null, 2) + '\n');
 const digest = (bytes: Uint8Array) => [...sha256(bytes)].map(value => value.toString(16).padStart(2, '0')).join('');
 const reserved = new Set(['package.json', 'plugin.json', 'manifest.json', 'market.json', 'dependencies.json', '.deviceforge-entry.js']);
-
-async function verifyDependency(file: ArchiveFile, source: DependencySource) {
-  if (file.bytes.byteLength !== source.size || digest(file.bytes) !== source.sha256)
-    throw new Error('依赖输入摘要或大小不符');
-  const members = source.format === 'file' ? [{ path: 'payload', bytes: file.bytes }] :
-    source.format === 'tgz' ? await readTgz(file.bytes, false) : readZip(file.bytes, false);
-  const prefix = members.every(member => member.path.startsWith('package/')) ? 'package/' : '';
-  for (const path of Object.values(source.entries)) {
-    if (!members.some(member => member.path === prefix + path)) throw new Error(`依赖缺少声明入口：${path}`);
-  }
-}
-
-async function prepareDependencies(declaration: Manifest, files: readonly ArchiveFile[], blobs: Map<string, Uint8Array>): Promise<Dependencies> {
-  const dependencies = structuredClone(declaration.release.dependencies ?? { format_version: 1, dependencies: [] });
-  for (const item of dependencies.dependencies) {
-    const supplied = declaration.dependency_files[item.id];
-    for (const input of supplied === undefined ? [] : Array.isArray(supplied) ? supplied : [supplied]) {
-      const file = files.find(file => file.path === input.file);
-      if (!file || !compatibleDependencyVersion(item.version_requirement, input.version)) throw new Error(`依赖缺真实文件或版本不满足范围：${item.id}`);
-      const measured = { sha256: digest(file.bytes), size: file.bytes.byteLength };
-      if ((input.sha256 !== undefined && input.sha256 !== measured.sha256) || (input.size !== undefined && input.size !== measured.size))
-        throw new Error(`依赖输入摘要或大小不符：${item.id}`);
-      const source: DependencySource = { kind: 'market', url: `blobs/${measured.sha256}`, platform: input.platform,
-        version: input.version, format: input.format, entries: input.entries, ...measured };
-      validateDependencies({ format_version: 1, dependencies: [{ ...item, requires: [], sources: [source] }] });
-      await verifyDependency(file, source);
-      blobs.set(source.url, file.bytes);
-      item.sources ??= [];
-      if (!item.sources.some(other => JSON.stringify(other) === JSON.stringify(source))) item.sources.push(source);
-    }
-    for (const source of item.sources ?? []) {
-      if (source.kind !== 'market') continue;
-      const bytes = blobs.get(`blobs/${source.sha256}`);
-      const file = bytes ? { path: source.url, bytes } : !dependencyUrl(source) ? files.find(file => file.path === source.url) : undefined;
-      if (!file) throw new Error(`市场依赖须提供可核验的本地输入：${item.id}`);
-      await verifyDependency(file, source);
-      source.url = `blobs/${source.sha256}`;
-      blobs.set(source.url, file.bytes);
-    }
-  }
-  return validateDependencies(dependencies);
-}
 
 export async function generateManifestFiles(input: readonly ArchiveFile[], complete: boolean) {
   // 支持直接工程目录，以及 ZIP/TGZ 外包一层工程目录；不猜测嵌套组件里的清单。
@@ -64,9 +23,12 @@ export async function generateManifestFiles(input: readonly ArchiveFile[], compl
   if (!source) return null;
   const prefix = source.path.slice(0, -'manifest.json'.length);
   const files = input.map(file => ({ ...file, path: file.path.slice(prefix.length) }));
-  const declaration = normalizeManifest(jsonObject(source.bytes, 'manifest.json'));
+  const value = jsonObject(source.bytes, 'manifest.json');
+  // 老便携包允许把运行清单命名为 manifest.json，不能误认成新开发格式。
+  if (!Object.hasOwn(value, 'manifest_version') && files.some(file => file.path === 'package.json')) return null;
+  const declaration = normalizeManifest(value);
   const blobs = new Map<string, Uint8Array>();
-  const dependencies = await prepareDependencies(declaration, files, blobs);
+  const dependencies = await prepareManifestDependencies(declaration, files, blobs);
   if (!complete && (declaration.components.length !== 1 || dependencies.dependencies.length || declaration.release.requirements?.length))
     throw new Error('配套组件、依赖或用户输入请使用“从本地导入”，或打包后使用完整功能插件发布入口');
   const components = [];

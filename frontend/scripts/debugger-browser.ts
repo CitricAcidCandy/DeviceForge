@@ -20,7 +20,7 @@ interface OwnHost {
 }
 interface HostModule {
   reservePort(): Promise<number>;
-  startHost(options: { root: string; binary: string; directory: string; report: Record<string, unknown>; port: number; ordinal: number }): Promise<OwnHost>;
+  startHost(options: { root: string; binary: string; directory: string; userDirectory: string; report: Record<string, unknown>; port: number; ordinal: number }): Promise<OwnHost>;
   finishOwnHost(host: OwnHost): Promise<void>;
 }
 type DebuggerBrowser = Awaited<ReturnType<typeof createDefaultsBrowser>>;
@@ -28,6 +28,11 @@ const hostModule = (value: unknown): value is HostModule =>
   ['reservePort', 'startHost', 'finishOwnHost'].every((name) => typeof obj(value)[name] === 'function');
 const execute = promisify(execFile);
 const argument = process.argv.indexOf('--frozen');
+const browserOnly = process.argv.includes('--browser-only');
+const browserExecutable = process.env['DEVICEFORGE_TEST_BROWSER'] ?? 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe';
+const browserKind = /(?:^|[\\/])chrome\.exe$/i.test(browserExecutable) ? 'chrome' : 'edge';
+const officialReleaseArgument = process.argv.indexOf('--official-release');
+const officialReleasePath = officialReleaseArgument < 0 ? null : resolve(process.argv[officialReleaseArgument + 1] ?? '');
 assert.ok(argument >= 0 && process.argv[argument + 1],
   '真实联调尚未冻结。用法：node scripts/debugger-browser.ts --frozen <主代理确认的冻结清单.json>；准备夹具使用 debugger-fixture.ts');
 const frozen = parseDebuggerFreeze(JSON.parse(await readFile(resolve(process.argv[argument + 1] ?? ''), 'utf8')));
@@ -37,8 +42,10 @@ const output = join(debuggerProject, 'artifacts', 'debugger-20261028', run);
 const directory = join(output, 'host'), profile = join(output, 'browser-profile');
 await mkdir(output, { recursive: true });
 const report: Record<string, unknown> = { started_at: new Date().toISOString(), passed: false, output,
+  browser_executable: browserExecutable,
   scope: '新冻结底座、受控空设备宿主、两个独立浏览器插件和官方Debugger；不代表真机、市场发布或视觉审核通过',
   frozen, driver_pid: process.pid, requests: [], captures: [], cleanup: [] };
+report['installation_scope'] = browserOnly ? '本次仅定位浏览器闭环；统一安装恢复未执行，不计整体通过' : '包含原统一安装更新恢复';
 const requests: Record<string, unknown>[] = []; report['requests'] = requests;
 const cleanup: Record<string, unknown>[] = []; report['cleanup'] = cleanup;
 const captures: Record<string, unknown>[] = []; report['captures'] = captures;
@@ -93,6 +100,36 @@ async function noMatchingProcess(needle: string, description: string) {
     `$match='${escaped}'; @(Get-CimInstance Win32_Process | Where-Object { $_.ProcessId -ne $PID -and $_.CommandLine -and $_.CommandLine.Contains($match) }).Count`], { windowsHide: true });
   assert.equal(Number(result.stdout.trim()), 0, description + '已有同命令进程，拒绝再启动');
 }
+async function verifyOfficialRelease() {
+  assert.ok(officialReleasePath, '正式离线包路径没有明确指定');
+  const bytes = await readFile(officialReleasePath);
+  // 只移除本轮已经卸载的受控旧入口，再以原统一安装路径验证实际交付 ZIP。
+  await api('/api/v2/plugin-packages/browser/deviceforge_debugger', 'DELETE');
+  const uploaded = obj(await api('/api/v2/plugin-installations/artifacts?filename=debugger-final.zip',
+    'POST', bytes, 'application/octet-stream'));
+  const submitted = obj(await mcp('installation.install', { source: { kind: 'offline', artifact_id: text(uploaded['id']) }, expected_revision: null }));
+  const jobId = text(submitted['id']), deadline = Date.now() + 15000;
+  let current = submitted;
+  while (Date.now() < deadline && ['queued', 'running'].includes(text(current['status']))) {
+    await new Promise<void>(done => setTimeout(done, 50));
+    current = obj(await api(`/api/v2/jobs/${jobId}`));
+  }
+  assert.equal(current['status'], 'succeeded', '实际 Debugger 离线包未安装成功：' + JSON.stringify(current['error']));
+  const installed = obj(await api('/api/v2/plugin-installations/deviceforge_debugger_release'));
+  assert.equal(installed['enabled'], true);
+  const entries = installed['components']; assert.ok(Array.isArray(entries));
+  const component = entries.map(item => obj(item)).find(item => item['id'] === 'deviceforge_debugger' && item['kind'] === 'browser');
+  assert.ok(component);
+  const entryUrl = new URL(text(component['entry_url']), hostBase());
+  assert.equal(entryUrl.origin, new URL(hostBase()).origin);
+  assert.ok(entryUrl.pathname.startsWith(`/api/v2/plugin-installations/browser/deviceforge_debugger/revisions/${text(installed['revision'])}/assets/`));
+  const response = await fetch(entryUrl, { signal: AbortSignal.timeout(5000) });
+  assert.equal(response.status, 200);
+  const entry = frozen.official.files.find(item => item.path === 'dist/index.js'); assert.ok(entry);
+  assert.equal(debuggerDigest(new Uint8Array(await response.arrayBuffer())), entry.sha256, '实际离线包入口必须等于浏览器已验收的冻结字节');
+  report['official_release_installation'] = { path: officialReleasePath, sha256: debuggerDigest(bytes), bytes: bytes.length,
+    job_id: jobId, revision: installed['revision'], entry_sha256: entry.sha256, published: false };
+}
 async function verifySuiteReloadAndRestore(accepted: DebuggerInstallationAcceptanceResult) {
   const directory = obj(await mcp('deviceforge.debug_targets', {}));
   const plugins = directory['server_plugins']; assert.ok(Array.isArray(plugins));
@@ -139,11 +176,16 @@ try {
   hostPort = await module.reservePort();
   assert.ok(![7031, 5173, 5186].includes(hostPort));
   stage = '启动同一冻结宿主';
-  host = await module.startHost({ root: debuggerProject, binary: frozen.host.path, directory, report, port: hostPort, ordinal: 1 });
+  host = await module.startHost({ root: debuggerProject, binary: frozen.host.path, directory,
+    userDirectory: join(directory, 'user'), report, port: hostPort, ordinal: 1 });
   await host.ready();
   assert.deepEqual(await api('/api/v2/plugins'), []);
   assert.deepEqual(await api('/api/v2/devices'), []);
   assert.deepEqual(await api('/api/v2/device-providers'), []);
+  const guide = obj(await mcp('deviceforge.get_plugin_development_guide', { target: 'frontend', topic: 'validation' }));
+  assert.equal(guide['guide_version'], 4, '冻结宿主必须包含当前公开开发知识');
+  assert.match(JSON.stringify(guide['documents']), /registerSession/, '冻结宿主缺少会话归属公开知识');
+  report['plugin_guide'] = { guide_version: guide['guide_version'], target: 'frontend', topic: 'validation', session_ownership: true };
   stage = '原HTTP安装入口导入受控包';
   const packages = await createDebuggerPackages();
   const serverPackage = packages.find((entry) => entry.kind === 'server'); assert.ok(serverPackage);
@@ -157,11 +199,13 @@ try {
   await api('/api/v2/plugin-packages/browser?format=zip', 'POST', official, 'application/zip');
   report['packages'] = packages.map((entry) => ({ id: entry.id, kind: entry.kind, sha256: debuggerDigest(entry.bytes), bytes: entry.bytes.length }));
   report['official_package'] = { sha256: debuggerDigest(official), bytes: official.length };
-  stage = '共用离线导入与MCP整套安装更新';
-  const installationAcceptance = await runDebuggerInstallationAcceptance({ api, mcp });
-  report['installation_acceptance'] = installationAcceptance;
-  stage = '完整功能Debugger整套重载与上一成功代码包恢复';
-  await verifySuiteReloadAndRestore(installationAcceptance);
+  if (!browserOnly) {
+    stage = '共用离线导入与MCP整套安装更新';
+    const installationAcceptance = await runDebuggerInstallationAcceptance({ api, mcp });
+    report['installation_acceptance'] = installationAcceptance;
+    stage = '完整功能Debugger整套重载与上一成功代码包恢复';
+    await verifySuiteReloadAndRestore(installationAcceptance);
+  }
   stage = '启动受控浏览器入口';
   const files = new Map(frozen.frontend.files.map((entry) => ['/' + entry.path, entry]));
   const styles = frozen.frontend.files.filter((entry) => entry.path.endsWith('.css'));
@@ -215,6 +259,7 @@ try {
   const update = browsers[1]; assert.ok(update);
   await page(`update(${JSON.stringify(Buffer.from(update.bytes).toString('base64'))})`);
   report['updated_report'] = await page('report()');
+  stage = '浏览器显式重载跟随当前构建'; await page('reloadBrowserExplicitly()');
   stage = '第二标签页明确实例与路由隔离';
   secondary = await browser.newPage(webBase + '/');
   await secondary.wait('!!window.__debuggerHarness');
@@ -257,6 +302,7 @@ try {
   const ball = join(output, 'debugger-ball-1424x805.png'); await browser.capture(ball, 1424, 805);
   captures.push({ path: ball, width: 1424, height: 805, visual_review: '等待视觉代理' });
   stage = '官方Debugger卸载'; await page('unloadOfficial()');
+  if (officialReleasePath) { stage = '实际Debugger交付离线包原MCP导入'; await verifyOfficialRelease(); }
   stage = '显式重连无动作重放'; await page('reconnectExplicitly()');
   report['harness'] = await page('snapshot()');
   assert.deepEqual(await browser.evaluate('window.__debuggerErrors'), [], '页面存在未处理错误');
@@ -264,6 +310,14 @@ try {
   report['business_passed'] = true;
 } catch (error) {
   failure = error; report['failure'] = { stage, message: error instanceof Error ? error.message : String(error) };
+  // 仅记录本轮空设备夹具的受控面板文本和公开快照，便于识别真实失败而不只保留超时。
+  if (browser) {
+    try { report['failure_ui'] = await browser.evaluate(`({
+      debugger_text: document.querySelector('[data-deviceforge-debugger]')?.innerText?.slice(0, 6000),
+      page_errors: window.__debuggerErrors,
+      public_state: window.__debuggerHarness?.snapshot()
+    })`); } catch (diagnostic) { report['failure_ui_unavailable'] = String(diagnostic); }
+  }
 } finally {
   if (secondary) {
     try { await secondary.evaluate('window.__debuggerHarness.dispose()'); await secondary.close(); }
@@ -271,8 +325,8 @@ try {
   }
   if (browser) {
     try { report['disposed'] = await page('dispose()'); } catch (error) { cleanup.push({ kind: 'harness', released: false, error: String(error) }); failure ??= error; }
-    try { await browser.close(); cleanup.push({ kind: 'edge', pid: evidence['pid'], released: evidence['exit_code'] === 0 && browserListenerReleased(), listener: evidence['listener'] }); }
-    catch (error) { cleanup.push({ kind: 'edge', pid: evidence['pid'], released: false, error: String(error) }); failure ??= error; }
+    try { await browser.close(); cleanup.push({ kind: browserKind, pid: evidence['pid'], released: evidence['exit_code'] === 0 && browserListenerReleased(), listener: evidence['listener'] }); }
+    catch (error) { cleanup.push({ kind: browserKind, pid: evidence['pid'], released: false, error: String(error) }); failure ??= error; }
   }
   if (server.listening) {
     try {

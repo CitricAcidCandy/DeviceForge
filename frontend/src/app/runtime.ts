@@ -235,7 +235,7 @@ export function createFrontendRuntime(options: RuntimeOptions) {
       if (previous && previous.revision !== installation.revision) await browserPackages.forget(component.id);
       signal.throwIfAborted();
       releaseSources.set(component.id, { id: installation.id, revision: installation.revision, url: url.href });
-      browserPackages.register({ id: component.id, version: component.version, entryPath: component.entryPath });
+      await browserPackages.prepare({ id: component.id, version: component.version, entryPath: component.entryPath });
   }
   const pluginInstallations = createPluginInstallations(createInstallationGateway(client), {
     async enable(installation, component, signal) {
@@ -273,7 +273,7 @@ export function createFrontendRuntime(options: RuntimeOptions) {
         }
         throw new Error('浏览器插件不在当前安装目录中');
       }
-      browserPackages.register({ id: pkg.id, version: pkg.version, entryPath: pkg.entry_path });
+      await browserPackages.prepare({ id: pkg.id, version: pkg.version, entryPath: pkg.entry_path });
       return webPlugins.inspectConfiguration(id, signal);
     },
     async reloadBrowser(id, signal) {
@@ -342,6 +342,7 @@ export function createFrontendRuntime(options: RuntimeOptions) {
       ...(slotHost ? { slots: slotHost } : {}),
     },
     registerInstalledPackage: browserPackages.register,
+    bundledPlugins: browserPackages.bundled,
     artifacts,
     aiSdk,
     aiSdkStreaming,

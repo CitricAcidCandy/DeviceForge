@@ -15,7 +15,7 @@ function tree(id = 'snapshot-1', nodeId = 'node-1') {
     coverage: { completeness: 'observed-dom-only', truncation: [] }, bytes: 300 };
 }
 interface Request { readonly action: string; readonly name: string; readonly input: Record<string, unknown>; readonly signal: AbortSignal }
-function fixture(custom?: (request: Request) => Promise<JsonValue | undefined> | JsonValue | undefined) {
+function fixture(custom?: (request: Request) => Promise<JsonValue | undefined> | JsonValue | undefined, debug?: HostContext['debug']) {
   const requests: Request[] = [], lifetime = new AbortController();
   let sequence = 0;
   const extensions: ExtensionAccess = {
@@ -63,7 +63,7 @@ function fixture(custom?: (request: Request) => Promise<JsonValue | undefined> |
     },
     subscribeEvent: () => () => {}, emitEvent: () => {}, getState: () => undefined, setState: () => {}, subscribeState: () => () => {},
   };
-  const context: Pick<HostContext, 'extensions' | 'signal'> = { extensions, signal: lifetime.signal };
+  const context: Pick<HostContext, 'extensions' | 'signal' | 'debug'> = { extensions, signal: lifetime.signal, ...(debug ? { debug } : {}) };
   return { context, requests, lifetime, controller: createDebuggerController(context) };
 }
 
@@ -94,6 +94,24 @@ test('明确目标后按response解包检查与树，收起不关闭会话，关
     assert.equal(requests.filter((item) => item.input.action === 'close').length, 1);
     assert.equal(requests.some((item) => /unload|cancel_job/.test(item.name)), false);
   } finally { await controller.dispose(); }
+});
+
+test('切换目标及时释放会话登记，卸载不再借用撤销的插件调用入口', async () => {
+  const owned = new Set<string>(), released: string[] = [];
+  const { controller, lifetime, requests } = fixture(undefined, {
+    registerNode: () => ({ id: 'unused', generation: 1, update: () => {}, dispose: () => {} }),
+    emit: () => {}, registerResource: () => () => {},
+    registerSession(id) { owned.add(id); return () => { owned.delete(id); released.push(id); }; },
+  });
+  await controller.open();
+  for (let index = 0; index < 66; index++) {
+    await controller.select(index % 2 ? second : target);
+    assert.equal(owned.size, 1, '已关闭会话不能占满当前登记限额');
+  }
+  const calls = requests.length;
+  lifetime.abort(); await controller.dispose();
+  assert.equal(owned.size, 0); assert.equal(released.length, 66);
+  assert.equal(requests.length, calls, '撤销后必须交由宿主登记释放，不能调用插件 SDK');
 });
 
 test('多挂载根不任意选取，明确选择后才读取', async () => {

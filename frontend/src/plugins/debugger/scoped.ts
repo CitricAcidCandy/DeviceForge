@@ -30,6 +30,12 @@ export function scopedDebugAccess(parent: DebugAccess | undefined, signal: Abort
   if (signal.aborted) close();
   track(() => { signal.removeEventListener('abort', close); close(); });
   return Object.freeze<DebugAccess>({
+    ...(parent.registerSession ? { registerSession(sessionId: string) {
+      current();
+      const register = parent.registerSession;
+      if (!register) throw new Error('调试会话归属入口已撤销');
+      return own(register(sessionId));
+    } } : {}),
     registerNode(definition) {
       current();
       const handle = parent.registerNode(definition);

@@ -158,6 +158,37 @@ test('独立产品服务工厂构造与关闭保持零网络，默认启用只�
   assert.equal(calls, 0);
 });
 
+test('正常产品启动直接出现随附调试球，市场原卡片可停用并重新启用', async () => {
+  const paths: string[] = [];
+  await withMain(async input => {
+    const path = requestUrl(input).pathname;
+    paths.push(path);
+    return success([]);
+  }, async (app, browser) => {
+    const documentRef = browser.window.document;
+    await settled(() => documentRef.querySelector('[data-deviceforge-debugger]') !== null,
+      '空部署正常启动应挂载随附调试器');
+    assert.equal(app.runtime?.webPlugins.snapshot().filter(item => item.id === 'deviceforge_debugger').length, 1);
+    assert.equal(paths.some(path => /debugger\/(sessions|commands)/.test(path)), false,
+      '仅展示调试球不能自动打开调试会话或采集界面树');
+    await navigate(browser, 'marketplace');
+    const installed = Array.from(documentRef.querySelectorAll('button')).find(button => button.textContent?.startsWith('已安装 '));
+    assert.ok(installed);
+    await act(async () => installed.click());
+    const card = Array.from(documentRef.querySelectorAll('article')).find(article => article.textContent?.includes('deviceforge_debugger'));
+    assert.ok(card, '已安装列表应有宿主随附调试器');
+    const button = (text: string) => {
+      const found = Array.from(card.querySelectorAll('button')).find(item => item.textContent?.trim() === text);
+      assert.ok(found, `调试器卡片缺少${text}入口`);
+      return found;
+    };
+    await act(async () => button('停用').click());
+    await settled(() => documentRef.querySelector('[data-deviceforge-debugger]') === null, '停用后调试器应卸载');
+    await act(async () => button('启用').click());
+    await settled(() => documentRef.querySelector('[data-deviceforge-debugger]') !== null, '原卡片应能重新启用调试器');
+  });
+});
+
 test('生产入口读取两类安装目录和运行插件，已运行服务器不重复加载，真实ESM导入失败保留App', async () => {
   const requests: string[] = [];
   const transport: typeof fetch = async (input, init) => {

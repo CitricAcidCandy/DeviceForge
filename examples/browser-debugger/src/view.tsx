@@ -57,7 +57,7 @@ export function DebuggerApp({ controller, context }: { controller: DebuggerContr
     const escape = (event: KeyboardEvent) => { if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); controller.cancel(); panel.current?.focus(); } };
     doc?.addEventListener('keydown', escape, true); return () => doc?.removeEventListener('keydown', escape, true);
   }, [state.busy, controller]);
-  function collapse() { controller.collapse(); setKeyboardRect(null); ballRef.current?.focus(); }
+  function collapse() { controller.collapse(); setKeyboardRect(null); requestAnimationFrame(() => ballRef.current?.focus()); }
   function pointerStart(mode: 'move' | 'resize' | 'ball', event: React.PointerEvent<HTMLElement>) {
     if (event.button !== 0) return;
     if (mode === 'move' && event.target instanceof Element && event.target.closest('button,input,select,textarea,a')) return;
@@ -91,7 +91,7 @@ export function DebuggerApp({ controller, context }: { controller: DebuggerContr
   return <div data-deviceforge-debugger="" data-deviceforge-debugger-internal="" className="font-sans text-[#23272E]">
     <style>{DEBUGGER_STYLE}</style>
     <button ref={ballRef} type="button" aria-label={state.open ? '收起调试器' : '打开调试器'} aria-expanded={state.open} aria-controls="deviceforge-debugger-panel"
-      className="fixed left-[var(--df-x)] top-[var(--df-y)] z-[2147483001] flex size-12 touch-none select-none flex-col items-center justify-center rounded-full border border-white bg-[#6C4CF5] text-xs font-medium text-white shadow-lg outline-none focus-visible:ring-2 focus-visible:ring-[#6C4CF5] focus-visible:ring-offset-2"
+      className={`${state.open ? 'hidden' : 'flex'} fixed left-[var(--df-x)] top-[var(--df-y)] z-[2147483001] size-12 touch-none select-none flex-col items-center justify-center rounded-full border border-white bg-[#6C4CF5] text-xs font-medium text-white shadow-lg outline-none focus-visible:ring-2 focus-visible:ring-[#6C4CF5] focus-visible:ring-offset-2`}
       style={ballStyle} onPointerDown={(event) => pointerStart('ball', event)} onPointerMove={pointerMove} onPointerUp={pointerEnd} onPointerCancel={pointerEnd}
       onKeyDown={(event) => {
         if (!event.altKey || !event.key.startsWith('Arrow')) return;
@@ -114,7 +114,9 @@ export function DebuggerApp({ controller, context }: { controller: DebuggerContr
         if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); if (state.busy?.startsWith('拾取')) controller.cancel(); else collapse(); }
       }}>
       <header className="flex h-12 shrink-0 touch-none items-center gap-3 border-b border-[#E6EAF3] px-4 select-none"
+        title="拖动标题栏移动面板，靠近窗口边缘时吸附"
         onPointerDown={(event) => pointerStart('move', event)} onPointerMove={pointerMove} onPointerUp={pointerEnd} onPointerCancel={pointerEnd}>
+        <span aria-hidden="true" className="cursor-grab text-xs text-[#556176]">拖动</span>
         <h1 id="deviceforge-debugger-title" className="mr-auto truncate text-[17px] font-semibold">DeviceForge Debugger</h1>
         <Badge warning={disconnected}>{disconnected ? '已断线 / 过期' : state.connected ? '已连接' : '待连接'}</Badge>
         <Button aria-label="收起调试器，保留会话" onClick={collapse}>收起</Button><Button aria-label="关闭调试会话" onClick={() => { void controller.close().then(() => ballRef.current?.focus()); }}>关闭</Button>
@@ -124,7 +126,7 @@ export function DebuggerApp({ controller, context }: { controller: DebuggerContr
         <span className="min-w-0 break-all">插件 <code>{state.target?.pluginId ?? '未选择'}</code></span><span className="break-all">代次 <code>{state.target?.generation ?? '未提供'}{state.stale ? '（旧）' : ''}</code></span>
       </div>
       <div className="flex min-h-11 shrink-0 flex-wrap items-center gap-2 border-b border-[#E6EAF3] px-4 py-1.5 text-[13px]">
-        <span className="mr-auto text-[#556176]">{state.sessionId ? `会话 ${state.sessionState}` : '选择插件后才开始采集'}</span>
+        <span className="mr-auto min-w-0 break-all text-[#556176]">{state.sessionId ? `当前${state.target?.kind === 'server' ? '服务器' : '浏览器'}目标 ${state.target?.pluginId ?? '未选择'} · 会话 ${state.sessionState}` : '选择插件后才开始采集'}</span>
         <Button onClick={() => setTab('targets')}>选择其他目标</Button><Button disabled={!canOperate} onClick={() => void controller.refreshInspection()}>检查目标</Button>
       </div>
       <nav aria-label="调试页签" className="flex min-h-10 shrink-0 gap-1 overflow-x-auto border-b border-[#E6EAF3] px-3">
@@ -133,6 +135,7 @@ export function DebuggerApp({ controller, context }: { controller: DebuggerContr
           onClick={() => setTab(item.id)}>{item.label}</button>)}
       </nav>
       <div className="flex min-h-0 flex-1 flex-col overflow-auto p-4">
+        {!state.sessionCleanupSupported && <p role="status" className="mb-3 rounded-md bg-[#FFF8E6] px-4 py-2 text-xs text-[#8A5B00]">此宿主未提供会话生命周期登记。请先显式关闭调试会话再停用插件；卸载后不能保证立即回收，建议升级宿主并刷新页面。</p>}
         {state.error && <div role="alert" className="mb-3 space-y-2 rounded-md bg-[#FDF6ED] p-3 text-[13px] text-[#8A4D00]"><p>{state.error.message}</p><code className="block break-all text-xs">{state.error.code}</code><CopyId value={state.error.logId} /></div>}
         {oldSummary ? <div className="space-y-4"><Empty title="连接已断开，当前状态未知">
           最后快照与历史日志仍可查看。重新连接只恢复观察；原调用不自动重放。{state.tree && <p className="mt-2">最后观测：{new Date(state.tree.observedAt).toLocaleString()} · 旧代次 {state.target?.generation}</p>}

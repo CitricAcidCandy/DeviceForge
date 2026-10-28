@@ -2,8 +2,6 @@
 
 CLI 只负责分发边界，不复制设备业务。`bin/deviceforge.mjs` 是入口；src/options 解析参数；root-config-schema 校验根配置，root-config 管理有界读写与原子发布；marketplace 校验市场来源；network 生成监听及 Host/Origin；start 管理生命周期；web-server 提供静态资源和固定后端流式代理；processes 管理进程；runtime/paths 校验运行包；install、plugin-package、plugin-files 分别编排安装、解析便携清单与受限复制。
 
-## 使用
-
 ## 插件开发：只维护一份清单
 
 独立工程只维护 `manifest.json`（`manifest_version:1`）：顶层功能身份、名称和描述，`components` 中的服务器／浏览器入口与公开能力，`dependencies` 和必要本地 `dependency_files`，以及可选 `market` 展示资料。组件版本默认继承功能版本，单组件 ID 默认继承功能 ID，多组件默认为 `<功能ID>.<kind>`。自己的语言工程文件继续负责构建，不重复维护 DeviceForge 资料。
@@ -19,6 +17,8 @@ deviceforge plugin publish dist-plugin --server http://127.0.0.1:7040
 plan 只读本地闭包，不访问远端。publish 显式写入指定资源服务，先核对能力，再按资源、在线清单、catalog 顺序提交，读取生成 market.json 而无需再传另一份声明。资源摘要只在最终字节确定后计算，不要求手填。旧安装格式及旧发布脚本继续可用；本功能不把现有已安装插件自动迁移或覆盖。
 
 market 可声明 summary、keywords、categories、applies_to、supports_mcp、supports_agent、restart_policy、author、license、homepage、visibility、details；id/version/name/description 从顶层派生。完整字段和示例由 MCP `get_plugin_development_guide` 的 manifest 主题直接提供，打包流程在 packaging 主题提供，不需要开发者获取项目源码。
+
+本地使用同一份清单：在市场的“从本地导入”选择包含 manifest.json 和已构建产物的文件夹，或将该工程压成 ZIP/TGZ 导入。浏览器自动生成完整格式 2 离线包，预览后由统一安装用例提交；不在浏览器执行构建或插件。也可直接选择 plugin pack 生成的完整离线 ZIP；原有 package.json/plugin.json 便携包继续兼容。目录与工程归档沿用 256 MiB、4096 项限制，最终浏览器打包归档上限 64 MiB；更大完整包请使用 CLI 打包后导入。
 
 ## 运行与安装
 

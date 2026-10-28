@@ -11,6 +11,7 @@ import {
   processSnapshot,
   sameBinary,
   sameIdentity,
+  deploymentOwnsBinary,
   terminateIdentity,
 } from './identities.mjs';
 
@@ -109,10 +110,16 @@ export async function ensureServer(config, { background = false } = {}) {
   if (typeof background !== 'boolean') throw new Error('后台启动选项必须为布尔值');
   const current = await serverStatus(config);
   if (current.running) {
+    if (!sameBinary(current.server.binary, config.binary))
+      throw new Error('旧版后端仍在运行，请先使用停止后端.bat正常停止，再重新启动以使用本次编译的程序');
     if (!current.health) throw new Error('同一服务器进程已监听但健康检查失败，请先查看日志');
     return { ...current.server, started: false, stdoutPath: null, stderrPath: null };
   }
-  const metadata = await lstat(config.binary);
+  const metadata = await lstat(config.binary).catch(error => {
+    if (error.code === 'ENOENT')
+      throw new Error('尚未生成后端程序，请先在 backend 目录运行 cargo build --locked -p apk-server --bin apk-server');
+    throw error;
+  });
   if (!metadata.isFile() || metadata.isSymbolicLink()) throw new Error('服务器程序必须是普通文件');
   await mkdir(config.logDirectory, { recursive: true });
   const stamp = `${new Date().toISOString().replace(/[:.]/g, '-')}-${randomUUID().slice(0, 8)}`;
@@ -177,7 +184,7 @@ export async function stopServer(config, server) {
   const listener = ownedListener(config, snapshot);
   const selected = server ?? listener;
   if (!selected) return { stopped: true, forced: false, reason: '服务器未运行' };
-  if (!sameBinary(selected.binary, config.binary))
+  if (!deploymentOwnsBinary(config, selected.binary))
     throw new Error('待停止进程不属于当前服务器部署');
   if (listener && !sameIdentity(selected, listener))
     throw new Error('服务器身份与待停止进程不一致');

@@ -7,6 +7,14 @@ use std::{sync::Arc, time::Duration};
 mod generations;
 mod long_poll;
 
+#[test]
+fn short_state_contention_is_busy_not_exhausted_capacity() {
+    let service = DebuggerService::new();
+    let _held = service.state.lock().unwrap();
+    let error = service.with_state(|_, _, _| Ok(())).unwrap_err();
+    assert_eq!(error.code, ErrorCode::Busy);
+}
+
 fn plugin(generation: &str) -> BridgePlugin {
     BridgePlugin {
         plugin_id: "test.plugin".into(),

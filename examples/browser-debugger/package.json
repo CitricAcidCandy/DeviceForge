@@ -2,11 +2,12 @@
   "name": "@deviceforge/browser-debugger",
   "version": "0.1.0",
   "type": "module",
+  "exports": { ".": { "types": "./index.d.ts", "import": "./dist/index.js" } },
   "description": "通过公开宿主服务调试浏览器与服务器插件的官方普通浏览器插件",
   "license": "MIT",
   "author": "DeviceForge",
   "engines": { "node": ">=22.18.0" },
-  "files": ["dist", "plugin.json", "market.json", "README.md"],
+  "files": ["dist", "index.d.ts", "plugin.json", "market.json", "README.md"],
   "deviceforge": {
     "kind": "browser",
     "manifest": "plugin.json",

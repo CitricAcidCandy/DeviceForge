@@ -99,6 +99,11 @@ export async function startFrontendApp(documentRef: Document, windowRef: Window)
           },
         },
         developerTools: true,
+        bundledDebugger: {
+          browserOrigin: windowRef.location.origin,
+          load: () => import('@deviceforge/browser-debugger'),
+          ...browserPersistence(windowRef),
+        },
         connection: { baseUrl: origin, reconnect: connect },
       });
       root.render(createElement(App, { services }));
@@ -106,7 +111,8 @@ export async function startFrontendApp(documentRef: Document, windowRef: Window)
       void services.runtime.debugger?.start().catch(() => undefined);
       // 产品启动默认启用已安装插件；独立工厂的构造和静态渲染保持无网络副作用。
       const currentServices = services;
-      void currentServices.pluginDefaults.start(lifetime.signal).catch((error) => {
+      const defaults = currentServices.pluginDefaults.start(lifetime.signal);
+      void defaults.catch((error) => {
         if (lifetime.signal.aborted || (error instanceof ApiError && error.kind === 'cancelled'))
           return;
         currentServices.messages.error('插件默认启用未完成', {
@@ -114,6 +120,13 @@ export async function startFrontendApp(documentRef: Document, windowRef: Window)
           logId: error instanceof ApiError ? error.logId : null,
         });
         console.error('默认启用插件失败', error instanceof Error ? error.message : '未知原因');
+      });
+      void defaults.then(() => currentServices.bundledDebugger?.start(lifetime.signal)).catch((error: unknown) => {
+        if (lifetime.signal.aborted || currentServices.runtime.host.signal.aborted) return;
+        currentServices.messages.error('官方调试器暂未启动', {
+          description: error instanceof Error ? error.message : '请到资源市场的已安装列表查看调试器状态。',
+          logId: error instanceof ApiError ? error.logId : null,
+        });
       });
     } finally {
       switching = false;
@@ -163,6 +176,11 @@ export async function startFrontendApp(documentRef: Document, windowRef: Window)
     },
     dispose,
   };
+}
+
+function browserPersistence(windowRef: Window) {
+  try { return { persistence: windowRef.localStorage }; }
+  catch { return {}; }
 }
 
 if (typeof document !== 'undefined' && typeof window !== 'undefined') {

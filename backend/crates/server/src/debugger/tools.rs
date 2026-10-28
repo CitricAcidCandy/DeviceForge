@@ -83,6 +83,19 @@ fn empty() -> Value {
     json!({})
 }
 
+// 同一工具可选浏览器或服务器目标；浏览器命令和可选结果不能被服务器专用模式隐藏。
+fn invocation_schema() -> Value {
+    json!({"type":"object","additionalProperties":false,"required":["session_id","parameters"],
+    "properties":{"session_id":{"type":"string"},"parameters":{"anyOf":[
+        crate::openapi::schema::<super::server_target::InvokeInput>(),
+        {"type":"object","additionalProperties":false,
+            "required":["kind","id","input","confirmed","allow_unknown_side_effects"],
+            "properties":{"kind":{"enum":["command","service"]},"id":{"type":"string"},
+                "version":{"type":"string"},"input":{},"confirmed":{"type":"boolean"},
+                "allow_unknown_side_effects":{"type":"boolean"},"include_result":{"type":"boolean","default":false}}}
+    ]}}})
+}
+
 pub(crate) fn manages(name: &str) -> bool {
     matches!(
         name,
@@ -160,7 +173,7 @@ pub(crate) fn tools() -> Vec<Tool> {
         (
             "debug_invoke",
             "显式试调用选定插件的公开入口，服务器调用仍返回原任务",
-            crate::openapi::schema::<TypedCommandInput<super::server_target::InvokeInput>>(),
+            invocation_schema(),
             false,
         ),
         (
@@ -389,5 +402,26 @@ mod tests {
             );
             assert_eq!(tool.annotations.unwrap().read_only_hint, Some(!writes));
         }
+    }
+
+    #[test]
+    fn debugger_invoke_schema_exposes_browser_command_and_optional_result() {
+        let schema = invocation_schema();
+        let alternatives = schema["properties"]["parameters"]["anyOf"]
+            .as_array()
+            .unwrap();
+        assert_eq!(alternatives.len(), 2);
+        assert!(
+            alternatives[1]["properties"]["kind"]["enum"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|value| value == "command")
+        );
+        assert_eq!(
+            alternatives[1]["properties"]["include_result"]["default"],
+            false
+        );
+        assert_eq!(alternatives[1]["additionalProperties"], false);
     }
 }

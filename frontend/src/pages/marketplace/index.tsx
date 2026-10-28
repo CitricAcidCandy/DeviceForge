@@ -107,13 +107,14 @@ export function MarketplacePage({
       key={`${entry.source}:${entry.id}:${entry.version}`}
       entry={entry}
       installed={installed}
-      onDependencies={installed && dependencyTarget(entry) ? () => setDependencies(entry) : undefined}
+      onDependencies={installed && entry.details['bundled'] !== true && dependencyTarget(entry) ? () => setDependencies(entry) : undefined}
       removable={removable}
       removeDisabled={removeDisabled}
       cleanupWarning={entry.details['plugin_kind'] === 'server' && market.cleanupWarnings.includes(entry.id)}
       installation={installation}
       clientState={market.installationClients.find((item) => item.id === installation?.id && item.revision === installation.revision)}
-      onSetEnabled={installation ? (enabled) => market.setInstallationEnabled(installation.id, installation.revision, enabled) : undefined}
+      onSetEnabled={entry.details['bundled'] === true ? market.setBundledEnabled : installation ? (enabled) => market.setInstallationEnabled(installation.id, installation.revision, enabled) : undefined}
+      bundledEnabled={entry.details['bundled'] === true ? market.bundledEnabled : undefined}
       onRetryBrowser={installation ? () => market.retryInstallationBrowser(installation.id, installation.revision) : undefined}
       installedTab={tab === 'installed'}
       busy={market.action.pending}
@@ -416,7 +417,7 @@ export function MarketplacePage({
 
       <MarketplaceDetail
         entry={active ? selected : null}
-        installed={selected ? installedEntry(selected, market.packages, market.installations) : undefined}
+        installed={selected ? selected.details['bundled'] === true ? { version: selected.version } : installedEntry(selected, market.packages, market.installations) : undefined}
         recoveryBlocked={selected ? market.installations.some((item) => item.id === selected.id && installationRequiresRecovery(item)) : false}
         busy={market.action.pending}
         onDebug={selected && installedEntry(selected, market.packages, market.installations) && services.runtime.debugger

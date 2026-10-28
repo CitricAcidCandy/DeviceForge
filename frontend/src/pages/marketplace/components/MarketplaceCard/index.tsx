@@ -38,6 +38,7 @@ export interface MarketplaceCardProps {
   installation?: PluginInstallation | undefined;
   clientState?: InstallationClientState | undefined;
   onSetEnabled?: ((enabled: boolean) => void) | undefined;
+  bundledEnabled?: boolean | undefined;
   onRetryBrowser?: (() => void) | undefined;
   onDependencies?: (() => void) | undefined;
   busy: boolean;
@@ -60,6 +61,7 @@ export function MarketplaceCard({
   installation,
   clientState,
   onSetEnabled,
+  bundledEnabled,
   onRetryBrowser,
   onDependencies,
   busy,
@@ -74,6 +76,7 @@ export function MarketplaceCard({
   const blocked = installBlock(entry);
   const recoveryBlocked = installationRequiresRecovery(installation);
   const cleanupWarning = serverCleanupWarning || isLegacyCleanupWarning(installation);
+  const enabled = installation?.enabled ?? bundledEnabled;
   return (
     <article className="marketplace-card flex min-h-44 flex-col gap-2 rounded-xl border border-[color:var(--hairline)] bg-[color:var(--card)] p-3.5">
       <div className="flex items-start gap-2.5">
@@ -113,6 +116,7 @@ export function MarketplaceCard({
         {installation && <Badge variant={recoveryBlocked || installation.status === 'configuration_required' || installation.status === 'dependencies_required' ? 'warning' : 'outline'}>
           {recoveryBlocked ? '恢复受阻' : installation.status === 'dependencies_required' ? '依赖未就绪' : installation.status === 'configuration_required' ? '需要配置' : installation.enabled ? '已启用' : '已停用'}
         </Badge>}
+        {bundledEnabled !== undefined && <Badge variant="outline">{bundledEnabled ? '已启用' : '已停用'}</Badge>}
       </div>
 
       {recoveryBlocked && <p role="alert">安装恢复受阻，请查看服务器恢复日志，完成恢复后刷新目录。</p>}
@@ -132,26 +136,26 @@ export function MarketplaceCard({
         {onDependencies && <Button variant="outline" size="sm" onClick={onDependencies}>依赖</Button>}
         {installedTab ? (
           <>
-            {installation && onSetEnabled && <Button variant="outline" size="sm"
-              disabled={busy || (recoveryBlocked && !installation.enabled)} onClick={() => onSetEnabled(!installation.enabled)}>
-              {installation.enabled ? '停用' : '启用'}
+            {enabled !== undefined && onSetEnabled && <Button variant="outline" size="sm"
+              disabled={busy || (recoveryBlocked && !enabled)} onClick={() => onSetEnabled(!enabled)}>
+              {enabled ? '停用' : '启用'}
             </Button>}
             {installation?.enabled && (installation.status === 'enabled' || (installation.status === 'recovery_blocked' && !recoveryBlocked)) && clientState?.phase === 'failed' && onRetryBrowser &&
               <Button variant="outline" size="sm" disabled={busy} onClick={onRetryBrowser}>重试本客户端</Button>}
             <Button
               variant="outline"
               size="sm"
-              disabled={busy || entry.kind !== 'plugin'}
+              disabled={busy || entry.kind !== 'plugin' || bundledEnabled !== undefined}
               title="查看插件声明的配置"
               onClick={onConfigure}
             >
               <Settings2 />
               配置
             </Button>
-            <Button variant="ghost" size="sm" disabled={busy || removeDisabled} onClick={onRemove}>
+            {bundledEnabled === undefined && <Button variant="ghost" size="sm" disabled={busy || removeDisabled} onClick={onRemove}>
               <Trash2 />
               {removable ? '卸载' : '停用'}
-            </Button>
+            </Button>}
             {update && (
               <Button size="sm" disabled={busy || !!blocked || recoveryBlocked} title={blocked ?? undefined} onClick={onInstall}>
                 <ArrowUpCircle />

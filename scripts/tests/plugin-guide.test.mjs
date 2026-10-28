@@ -37,6 +37,11 @@ test('MCP 单清单与市场结构直接可用，两端示例符合真实生成�
       assert.ok(packaging.includes(command), `${target} 缺少 ${command}`);
     assert.ok(overview.includes('manifest.json') && overview.includes('market'));
     assert.ok(manifest.includes('resource_id') && manifest.includes('SHA-256'));
+    for (const term of ['元数据类型对照', 'plugin/tool/config/distribution/resource', 'function/theme/ui/integration',
+      'components[].kind', 'components[].files', 'dependency_files', 'requirements', 'true/false'])
+      assert.ok(manifest.includes(term), `${target} 缺少元数据类型或字段语义：${term}`);
+    for (const term of ['从本地导入', 'manifest.json', 'ZIP/TGZ', '格式 2', '4 GiB'])
+      assert.ok(packaging.includes(term), `${target} 缺少本地导入流程：${term}`);
   }
 });
 

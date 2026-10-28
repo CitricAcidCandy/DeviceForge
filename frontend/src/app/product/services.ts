@@ -20,6 +20,8 @@ import { createHttpWebRtcMirroring } from '../../features/mirroring-streaming/in
 import { createPluginDefaults } from '../../features/plugin-defaults/index.ts';
 import { createMessageController } from '../../components/Message/index.ts';
 import { createMarketplace } from '../../features/marketplace/index.ts';
+import { createBundledDebugger } from './bundled-debugger.ts';
+import type { BundledDebuggerOptions } from './bundled-debugger.ts';
 
 export interface ProductConnection {
   readonly baseUrl: string;
@@ -28,7 +30,10 @@ export interface ProductConnection {
 
 // 产品装配复用原工厂与任务钩子，不在页面中创建第二套业务协议。
 export function createProductServices(
-  options: RuntimeOptions & { readonly connection?: ProductConnection },
+  options: RuntimeOptions & {
+    readonly connection?: ProductConnection;
+    readonly bundledDebugger?: Omit<BundledDebuggerOptions, 'runtime' | 'baseUrl'>;
+  },
 ) {
   const messages = createMessageController();
   const marketplace = createMarketplace();
@@ -44,6 +49,9 @@ export function createProductServices(
     installations: runtime.pluginInstallations,
     signal: runtime.host.signal,
   });
+  const bundledDebugger = options.bundledDebugger ? createBundledDebugger({
+    ...options.bundledDebugger, runtime, baseUrl: options.baseUrl,
+  }) : null;
   const client = runtime.requestClient;
   const webRtcMirroring = createHttpWebRtcMirroring(client);
   const gateway: JobGateway = {
@@ -73,6 +81,7 @@ export function createProductServices(
     baseUrl: options.baseUrl,
     pluginConfigurations: runtime.pluginConfigurations,
     pluginDefaults,
+    bundledDebugger,
     messages,
     marketplace,
     client,
@@ -98,6 +107,7 @@ export function createProductServices(
       const terminalRelease = sessions.releaseSelectedTerminal();
       closing = (async () => {
         pluginDefaults.dispose();
+        bundledDebugger?.dispose();
         messages.dispose();
         packageAnalysis.dispose();
         frida.dispose();

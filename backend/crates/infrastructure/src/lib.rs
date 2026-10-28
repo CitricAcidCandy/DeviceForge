@@ -1,4 +1,5 @@
 mod artifact_files;
+mod atomic_publish;
 pub mod artifacts;
 pub mod device_artifacts;
 pub mod device_providers;

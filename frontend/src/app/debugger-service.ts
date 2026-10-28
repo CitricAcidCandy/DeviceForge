@@ -64,7 +64,7 @@ export async function invokeDebuggerPublic(options: DebuggerPublicOptions, reque
       return invalid('请指定浏览器或服务器插件及完整插件 ID');
     const tools = options.context.extensions?.catalog().components.filter(item => item.slot === 'developer.tools');
     if (!tools?.some(item => item.pluginId === 'deviceforge_debugger'))
-      throw new HostError('protocol', 'debugger_panel_unavailable', '请先在市场本地导入并启用官方 Debugger 插件，再选择调试目标');
+      throw new HostError('protocol', 'debugger_panel_unavailable', '调试器尚未启用，请在资源市场的已安装列表启用 DeviceForge 调试器后重试');
     options.context.extensions?.emitEvent('host.debugger.target_requested', input);
     return { logId: null, data: { requested: true } };
   }

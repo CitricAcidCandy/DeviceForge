@@ -41,6 +41,33 @@
 
 共享依赖放顶层 `dependencies:{format_version:1,dependencies:[...]}`；随包本地归档在 dependency_files 按依赖ID填写 `{file,platform,version,format,entries}` 或其数组，file 相对清单目录，摘要和大小自动计算。必需用户输入放顶层 requirements，bindings/requirements 的 component_id 指向最终组件 ID。详细依赖结构查询 dependencies 主题。工具生成组件依赖和完整发布格式2，旧格式1仍可读取。
 
+## 元数据类型对照
+
+下面的“类型”分别描述数据形状与业务类别，不共用同一个枚举。开发清单拒绝未知字段；没有使用的可选能力应省略。
+
+| 声明位置 | 数据类型与用途 | 必填、默认值或合法值 |
+| --- | --- | --- |
+| manifest_version | 整数，开发清单版本 | 必填，固定 1 |
+| id/version/name/description | 字符串，功能身份、固定版本及中文展示内容 | 必填；不在组件或市场资料重复维护 |
+| components | 组件对象数组 | 必填，1–32 项 |
+| components[].kind | 字符串，组件运行位置 | 必填，仅 server/browser；不是市场分类 |
+| components[].id/version | 字符串，最终组件身份与固定版本 | 可选，按前述规则继承；引用组件时使用继承后的最终 ID |
+| components[].root | 字符串，组件文件根 | 默认 .，相对清单目录 |
+| components[].package_name | 字符串，生成的 npm 包名 | 默认 deviceforge-plugin- 加组件 ID；与插件身份分别使用 |
+| components[].files | 字符串数组，已构建文件或目录 | 必填，1–256 项，不用 glob |
+| components[].entrypoints | 以平台名为键、入口对象为值的对象 | 必填，1–32 项；浏览器固定 any，原生须实际 os-arch |
+| entrypoints.<平台>.runtime/path | 字符串，运行时及相对组件根的入口文件 | 必填；浏览器为 browser，服务器为 native/node/script |
+| entrypoints.<平台>.dependency | {id:string,entry:string}，解释器的依赖 ID 与稳定入口键 | script 必填，node 可选，native 不适用；关联必需依赖 |
+| components[].plugin | 公开运行能力对象 | 可选，默认 {}；服务器能力见本主题下文，接口通过 sdk 主题查询 |
+| market | 市场展示对象 | 可选，默认值与字段类型见下表 |
+| dependencies | {format_version:1,dependencies:依赖对象数组} | 可选，默认空依赖；完整结构通过 target:backend/topic:dependencies 查询 |
+| dependency_files | 依赖 ID 到本地输入对象或其数组的映射对象 | 可选，默认 {}；每项必填 file/platform/version/format/entries，sha256/size 可选核对 |
+| requirements | 用户输入对象数组 | 可选，默认 []，最多128项；字段见本主题“完整功能发布清单” |
+
+市场条目 `kind` 在资源目录通用协议中有 plugin/tool/config/distribution/resource 五种；本插件开发清单生成的条目固定为 plugin，不在 market 中填写 kind。function/theme/ui/integration 是 `market.categories` 的分类标签：分别表示功能、主题、界面、集成，可多选；主题和界面插件的组件通常仍是 browser，不能把 theme/ui 当 components[].kind 或 runtime。`supports_mcp` 只描述客户端、服务器端或双向 MCP 能力，不会因填写 server 自动为插件创建新的监听服务。
+
+本地输入 `format` 取 zip/tgz/file，`entries` 为稳定入口键到归档内相对路径的字符串映射，file 格式固定映射到 payload。版本和平台为字符串，size 为正整数字节数，sha256 为64位小写十六进制字符串；未提供摘要与大小时由工具根据实际文件计算。JSON 对象中的布尔字段使用 true/false，数组不能写成逗号分隔字符串。
+
 ## market 数据结构与默认值
 
 market 是可选对象，下面是全部可声明字段。id/version/name/description/kind/metadata_version/resource_id/platforms/architectures 不在这里重复声明：身份和展示名来自顶层，类型固定 plugin，资源摘要由发布工具计算，平台由入口生成。未知字段、重复身份、非法枚举或重复数组项都会报错。

@@ -26,6 +26,7 @@ pub(super) struct Prepared {
     pub identities: Vec<ResourceIdentity>,
     pub manifest: ReleaseManifest,
     pub dependency_base: Option<String>,
+    pub offline: bool,
 }
 
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
@@ -78,6 +79,32 @@ pub(super) fn identities(manifest: &ReleaseManifest, revision: &str) -> Vec<Reso
     values
 }
 
+async fn validate_input_identities(
+    store: &FilePluginInstallations,
+    input: &fetch::ReleaseInput,
+    identities: Vec<ResourceIdentity>,
+) -> Result<()> {
+    let offline = matches!(&input.origin, fetch::Origin::Offline(_));
+    let id = input.manifest.id.clone();
+    let revision = input.revision.clone();
+    input
+        .stage
+        .work(store, move |store| {
+            let current = if offline {
+                storage::optional(store, &id)?
+            } else {
+                None
+            };
+            // 这里只判断准备资格；提交仍须在原文件事务锁内重新核对调用方 CAS。
+            transaction::validate_identities(
+                store,
+                &identities,
+                current.as_ref().map(|current| (current, revision.as_str())),
+            )
+        })
+        .await
+}
+
 pub(super) fn platform() -> String {
     let os = match std::env::consts::OS {
         "windows" => "win32",
@@ -111,13 +138,7 @@ pub(super) async fn plan(
     let mut download_size = 0u64;
     let mut downloads = std::collections::HashSet::new();
     let version_identities = identities(&input.manifest, &input.revision);
-    if let Err(error) = input
-        .stage
-        .work(store, move |store| {
-            transaction::validate_identities(store, &version_identities)
-        })
-        .await
-    {
+    if let Err(error) = validate_input_identities(store, &input, version_identities).await {
         if matches!(error, Error::Conflict(_)) {
             issues.push(PlanIssue {
                 code: "version_conflict".into(),
@@ -268,13 +289,7 @@ pub(super) async fn prepare_reported(
 ) -> Result<Box<dyn PreparedInstallation>> {
     let input = fetch::input(store, source).await?;
     let version_identities = identities(&input.manifest, &input.revision);
-    let identities_check = version_identities.clone();
-    input
-        .stage
-        .work(store, move |store| {
-            transaction::validate_identities(store, &identities_check)
-        })
-        .await?;
+    validate_input_identities(store, &input, version_identities.clone()).await?;
     let mut components = Vec::new();
     if let fetch::Origin::Offline(root) = &input.origin
         && let Some(dependencies) = &input.manifest.dependencies
@@ -533,6 +548,7 @@ pub(super) async fn prepare_reported(
         fetch::Origin::Market(base) => Some(base.to_string()),
         fetch::Origin::Offline(_) => None,
     };
+    let offline = matches!(&input.origin, fetch::Origin::Offline(_));
     Ok(Box::new(Prepared {
         store: store
             .handle
@@ -546,6 +562,7 @@ pub(super) async fn prepare_reported(
         identities: version_identities,
         manifest: input.manifest,
         dependency_base,
+        offline,
     }))
 }
 

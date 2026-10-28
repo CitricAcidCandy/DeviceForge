@@ -83,7 +83,7 @@ export function createLocalDebugger(options: LocalDebuggerOptions): LocalDebugge
       if (attachments.size >= 128) return fail('limit_exceeded', '调试登记最多128个插件实例');
       const entry = createAttachment(pluginId, currentGeneration, scope, options.signal,
         () => !disposed && selected.get(pluginId) === currentGeneration,
-        (closing) => { if (attachments.get(pluginId) === closing) attachments.delete(pluginId); });
+        (closing) => { if (attachments.get(pluginId) === closing) attachments.delete(pluginId); }, options.closeSession);
       if (!entry.lifetime.signal.aborted && !scope.context.signal.aborted) attachments.set(pluginId, entry);
       return entry.access;
     },

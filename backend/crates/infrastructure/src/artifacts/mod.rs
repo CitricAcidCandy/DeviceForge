@@ -376,7 +376,7 @@ impl FileArtifacts {
         file.write_all(&metadata).await.map_err(storage)?;
         file.sync_all().await.map_err(storage)?;
         drop(file);
-        fs::rename(&staging.0, self.root.join(id))
+        crate::atomic_publish::rename(&staging.0, &self.root.join(id), "调试报告或产物保存")
             .await
             .map_err(storage)?;
         reservation.commit()?;

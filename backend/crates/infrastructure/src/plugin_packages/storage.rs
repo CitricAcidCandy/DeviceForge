@@ -53,8 +53,10 @@ pub fn commit(prepared: Prepared) -> Result<PackageInfo> {
     if list_without_lock(&prepared.root, prepared.info.kind)?.len() >= 256 {
         return Err(Error::Conflict("已安装包数量达到上限".into()));
     }
-    fs::rename(prepared.staging.path().join("content"), destination)
-        .map_err(|_| Error::Storage("包原子发布失败".into()))?;
+    crate::atomic_publish::retry("插件包保存", || {
+        fs::rename(prepared.staging.path().join("content"), &destination)
+    })
+    .map_err(|_| Error::Storage("包原子发布失败".into()))?;
     Ok(prepared.info.clone())
 }
 

@@ -162,7 +162,7 @@ export async function runDebuggerInstallationAcceptance(
           assert.match(reason, rejection === 'revision'
             ? /修订.*(?:变化|不匹配|冲突)|revision.*(?:conflict|changed|mismatch)/i
             : /(?:SHA-?256|摘要|checksum).*(?:不匹配|不符|mismatch|invalid)/i, '失败原因必须对应本次故意错误');
-        } else assert.equal(status, 'succeeded', `${operation} 未成功，请查询原 Job，不得重放`);
+        } else assert.equal(status, 'succeeded', `${operation} 未成功：${typeof job['error'] === 'string' ? job['error'] : '原任务未提供失败说明'}；请查询原 Job，不得重放`);
         return;
       }
       assert.ok(status === 'queued' || status === 'running', '原 Job 状态无效，结果未确认');
@@ -211,7 +211,8 @@ export async function runDebuggerInstallationAcceptance(
 
   const initialSource = await upload('debugger-demo-initial.zip', bundle.initial);
   await change('installation.install', { source: initialSource, expected_revision: null });
-  const initial = await snapshot(bundle.initialRevision, false);
+  const initial = await snapshot(bundle.initialRevision, true);
+  // 无缺项的首次安装已启用；再次显式启用只核对状态，不要求服务器重新换代。
   await change('installation.enabled', { id: suiteId, expected_revision: initial.revision, enabled: true });
   const enabled = await snapshot(initial.revision, true);
   const updatedSource = await upload('debugger-demo-same-version.zip', bundle.updated);

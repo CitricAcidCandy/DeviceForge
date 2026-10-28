@@ -21,6 +21,15 @@ export function TreeView({ state, controller }: { state: DebuggerState; controll
   const selected = nodes.find((node) => node.id === state.selectedNodeId);
   const unavailable = state.stale || !state.connected || !state.sessionId || Boolean(state.busy);
   const supported = object(object(state.inspection).capabilities);
+  const treeList = React.useRef<HTMLUListElement>(null);
+  React.useEffect(() => {
+    const list = treeList.current, row = list?.querySelector('[aria-selected="true"]');
+    if (!list || !row) return;
+    const bounds = list.getBoundingClientRect(), position = row.getBoundingClientRect();
+    // 只滚动树自身，不让选中节点带动目标业务页或面板外层跳动。
+    if (position.top < bounds.top) list.scrollTop -= bounds.top - position.top;
+    else if (position.bottom > bounds.bottom) list.scrollTop += position.bottom - bounds.bottom;
+  }, [state.selectedNodeId, state.tree?.id]);
   React.useEffect(() => { setConfirmed(false); setAllowUnknown(false); setValue(''); }, [state.selectedNodeId, state.rootId, state.sessionId]);
   function toggle(node: UiNode) {
     setCollapsed((current) => { const next = new Set(current); if (next.has(node.id)) next.delete(node.id); else next.add(node.id); return next; });
@@ -47,11 +56,12 @@ export function TreeView({ state, controller }: { state: DebuggerState; controll
     {state.target?.kind === 'server' ? <Empty title="服务器目标不提供浏览器 UI 树">可以检查公开服务、查询事件和服务器日志，试调用仍沿原任务执行。</Empty>
       : !state.tree ? <Empty title={state.roots.length ? '尚未读取此挂载根的快照' : '目标未提供已实例化的挂载根'}>
         {state.roots.length > 1 ? '选择一个挂载根，再读取结构树。' : '未打开页面不会生成 UI 树。可以查询公开目录或在原业务入口打开页面后刷新检查。'}
-      </Empty> : <div className="grid min-h-64 flex-1 grid-cols-[minmax(190px,28%)_minmax(0,1fr)] gap-4 max-[700px]:grid-cols-1">
+      </Empty> : <div className="grid min-h-80 flex-1 grid-cols-[minmax(190px,28%)_minmax(0,1fr)] gap-4 max-[700px]:grid-cols-1">
         <section aria-label="UI 结构树" className="flex min-h-0 flex-col rounded-lg border border-[#E6EAF3]">
           <div className="space-y-2 border-b border-[#E6EAF3] p-3">
             <input className={`${fieldClass} w-full`} placeholder="搜索名称或节点 ID" aria-label="搜索节点" value={name} onChange={(event) => setName(event.currentTarget.value)} />
-            <div className="grid grid-cols-2 gap-2">
+            <details className="text-[13px] text-[#556176]"><summary className="cursor-pointer">高级筛选与语义查询</summary>
+            <div className="mt-2 grid grid-cols-2 gap-2">
               <select aria-label="语义角色" className={fieldClass} value={role} onChange={(event) => setRole(event.currentTarget.value)}><option value="">全部角色</option>
                 {[...new Set(nodes.map((node) => node.role))].filter(Boolean).map((item) => <option key={item}>{item}</option>)}
               </select>
@@ -61,8 +71,9 @@ export function TreeView({ state, controller }: { state: DebuggerState; controll
             <div className="flex flex-wrap gap-2"><Button disabled={unavailable} onClick={() => void controller.query({ ...(name ? { name } : {}), ...(role ? { role } : {}),
               ...(hidden ? { hidden } : {}), ...(disabled ? { disabled } : {}), limit: 500 })}>按语义查询</Button>
               {state.queries && <Button onClick={() => controller.clearQuery()}>清除查询</Button>}</div>
+            </details>
           </div>
-          <ul role="tree" aria-label="已观测节点" className="min-h-0 flex-1 overflow-auto p-2">
+          <ul ref={treeList} role="tree" aria-label="已观测节点" className="min-h-44 flex-1 overflow-auto p-2">
             {visible.map((node, index) => {
               const hasChildren = nodes.some((child) => child.parentId === node.id);
               const indent: IndentStyle = { '--df-depth': `${8 + nodeDepth(node, nodes) * 14}px` };

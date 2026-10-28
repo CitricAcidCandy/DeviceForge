@@ -52,7 +52,7 @@ function fixture(hooks: Hooks = {}) {
         entry_path: browser ? 'src/index.js' : 'entry.mjs',
         entry_url: browser ? `/api/v2/plugin-installations/browser/${String(component['id'])}/revisions/${revision}/assets/src/index.js` : null };
     });
-    const enabled = previous?.['enabled'] === true;
+    const enabled = previous === null || previous['enabled'] === true;
     state.current = { id: manifest['id'], version: manifest['version'], name: manifest['name'],
       description: manifest['description'], revision, enabled, status: enabled ? 'enabled' : 'installed',
       installed_at: 100, components, tools: [], requirements: [] };
@@ -76,7 +76,7 @@ function fixture(hooks: Hooks = {}) {
       assert.equal(typeof input['enabled'], 'boolean');
       current['enabled'] = input['enabled'];
       current['status'] = input['enabled'] === true ? 'enabled' : 'installed';
-      state.generation = input['enabled'] === true ? `generation-${++state.sequence}` : null;
+      state.generation = input['enabled'] === true ? state.generation ?? `generation-${++state.sequence}` : null;
     }
   }
 
@@ -137,8 +137,11 @@ test('原 HTTP 上传与 MCP 任务完成整套同版本更新、旧修订拒绝
   const result = await runDebuggerInstallationAcceptance(host.ports);
   assert.equal(result.suiteId, suiteId);
   assert.equal(result.report.production_acceptance_complete, false);
-  assert.equal(result.report.initial.enabled, false);
-  assert.equal(result.report.initial.serverGeneration, null);
+  assert.equal(result.report.initial.enabled, true);
+  assert.equal(result.report.initial.status, 'enabled');
+  assert.equal(result.report.initial.serverGeneration, 'generation-1');
+  assert.equal(result.report.enabled.enabled, true);
+  assert.equal(result.report.enabled.status, 'enabled');
   assert.equal(result.report.enabled.serverGeneration, 'generation-1');
   assert.equal(result.report.updated.serverGeneration, 'generation-2');
   assert.equal(result.report.updated.version, '1.0.0');
@@ -155,6 +158,7 @@ test('原 HTTP 上传与 MCP 任务完成整套同版本更新、旧修订拒绝
     null, result.report.initial.revision, result.report.initial.revision,
     result.report.initial.revision, result.report.updated.revision,
   ]);
+  assert.equal(host.mcpCalls[1]?.input['enabled'], true);
   assert.equal(host.mcpCalls[3]?.input['enabled'], false);
   assert.equal(host.artifacts.size, 3);
   assert.equal(host.apiCalls.filter((call) => call.path.startsWith('/api/v2/jobs/')).length, 10);

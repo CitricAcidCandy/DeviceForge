@@ -26,6 +26,33 @@
 
 浏览器 ESM 可以默认导出对象或 `({id,version,apiVersion}) => 插件对象` 的身份工厂。工具生成包装入口注入身份；贡献用 `id + '.panel'` 构造命名空间，不必在代码重复版本。手写身份与清单冲突时明确报错。配套服务器作为另一个 kind:server 组件放在同一 components 中。共享依赖在顶层 dependencies，用户输入在 requirements；需要本地归档时 dependency_files 按依赖ID填写 `{file,platform,version,format,entries}` 或其数组，摘要和大小自动计算；bindings/requirements 的 component_id 指向最终组件 ID。服务器完整字段查询 target:backend/topic:manifest，依赖结构查询 dependencies 主题。
 
+## 元数据类型对照
+
+字段的数据形状、组件运行位置和市场分类各自独立，不能混填。未使用的可选能力应省略，清单拒绝未知字段。
+
+| 声明位置 | 数据类型与用途 | 必填、默认值或合法值 |
+| --- | --- | --- |
+| manifest_version | 整数，开发清单版本 | 必填，固定 1 |
+| id/version/name/description | 字符串，功能身份、固定版本及中文展示内容 | 必填；组件和市场资料从顶层继承 |
+| components | 组件对象数组 | 必填，1–32 项 |
+| components[].kind | 字符串，组件运行位置 | 必填，仅 browser/server |
+| components[].id/version | 字符串，最终组件身份与固定版本 | 可选，按前述规则继承；贡献命名空间使用最终组件 ID |
+| components[].root | 字符串，组件文件根 | 默认 .，相对清单目录 |
+| components[].package_name | 字符串，生成的 npm 包名 | 默认 deviceforge-plugin- 加组件 ID |
+| components[].files | 字符串数组，已构建文件或目录 | 必填，1–256 项，不用 glob |
+| components[].entrypoints | 以平台名为键、入口对象为值的对象 | 必填，1–32 项；浏览器固定 any |
+| entrypoints.any.runtime/path | 字符串，运行时与相对组件根的入口 | 浏览器固定 runtime:browser，path 指向已构建 ESM |
+| components[].plugin.api_version | 整数，浏览器 SDK 版本 | 可选，默认且仅支持 2 |
+| components[].plugin.configuration | 配置对象，含版本、schema、defaults、apply_policy | 可选，通过公开配置能力消费；不放到 market.details 代替运行声明 |
+| market | 市场展示对象 | 可选，默认值与字段类型见下表 |
+| dependencies | {format_version:1,dependencies:依赖对象数组} | 可选，默认空依赖；完整结构通过 target:backend/topic:dependencies 查询 |
+| dependency_files | 依赖 ID 到本地输入对象或其数组的映射对象 | 可选，默认 {}；每项必填 file/platform/version/format/entries，sha256/size 可选核对 |
+| requirements | 用户输入对象数组 | 可选，默认 []，最多128项；字段见本主题“成套发布与基础配置” |
+
+通用市场条目 `kind` 有 plugin/tool/config/distribution/resource 五种；本插件开发清单自动生成 kind:plugin，不能在 market 中重复填写。`market.categories` 的 function/theme/ui/integration 分别是功能、主题、界面、集成，可多选；主题插件也应声明 components[].kind:browser，不能用 theme 作为组件种类或运行时。配套服务器的运行时才使用 native/node/script；完整入口与运行能力通过 target:backend/topic:manifest 查询。
+
+本地依赖输入的 file/platform/version 为字符串，format 为 zip/tgz/file，entries 为稳定入口键到归档内相对路径的字符串映射；file 格式固定映射到 payload。sha256 是64位小写十六进制字符串，size 为正整数字节数，省略时由工具计算。布尔字段使用 true/false，字符串数组使用 JSON 数组，details 必须是 JSON 对象。
+
 ## market 数据结构与默认值
 
 market 是可选对象，支持以下全部字段。id/version/name/description/kind/metadata_version/resource_id/platforms/architectures 不重复填写：身份、展示名与描述取顶层，kind 固定 plugin，平台从入口生成，资源摘要由发布工具计算。未知字段、重复身份、非法枚举或重复数组项会报错。

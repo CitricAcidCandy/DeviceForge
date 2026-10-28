@@ -1,0 +1,508 @@
+{
+  "fileUrl": "https://ardot.tencent.com/file/741227854728017",
+  "批次": 2,
+  "count": 25,
+  "操作": [
+    {
+      "方法": "U",
+      "绑定键": "正常_输入规则",
+      "节点ID": "2:26",
+      "更新": {
+        "fills": [
+          {
+            "type": "SOLID",
+            "color": {
+              "r": 0.4,
+              "g": 0.44,
+              "b": 0.52
+            },
+            "opacity": 1,
+            "visible": true,
+            "blendMode": "NORMAL"
+          }
+        ]
+      }
+    },
+    {
+      "方法": "U",
+      "绑定键": "正常_分隔手柄",
+      "节点ID": "2:27",
+      "更新": {
+        "fills": [
+          {
+            "type": "SOLID",
+            "color": {
+              "r": 0.97,
+              "g": 0.97,
+              "b": 0.98
+            },
+            "opacity": 1,
+            "visible": true,
+            "blendMode": "NORMAL"
+          }
+        ]
+      }
+    },
+    {
+      "方法": "U",
+      "绑定键": "正常_分隔轨道",
+      "节点ID": "2:28",
+      "更新": {
+        "fills": [
+          {
+            "type": "SOLID",
+            "color": {
+              "r": 0.71,
+              "g": 0.75,
+              "b": 0.81
+            },
+            "opacity": 1,
+            "visible": true,
+            "blendMode": "NORMAL"
+          }
+        ]
+      }
+    },
+    {
+      "方法": "U",
+      "绑定键": "正常_分隔抓手",
+      "节点ID": "2:29",
+      "更新": {
+        "fills": [
+          {
+            "type": "SOLID",
+            "color": {
+              "r": 0.4,
+              "g": 0.44,
+              "b": 0.52
+            },
+            "opacity": 1,
+            "visible": true,
+            "blendMode": "NORMAL"
+          }
+        ]
+      }
+    },
+    {
+      "方法": "U",
+      "绑定键": "正常_右栏",
+      "节点ID": "2:30",
+      "更新": {
+        "fills": [
+          {
+            "type": "SOLID",
+            "color": {
+              "r": 1.0,
+              "g": 1.0,
+              "b": 1.0
+            },
+            "opacity": 1,
+            "visible": true,
+            "blendMode": "NORMAL"
+          }
+        ]
+      }
+    },
+    {
+      "方法": "U",
+      "绑定键": "正常_右栏文件",
+      "节点ID": "2:31",
+      "更新": {
+        "fills": [
+          {
+            "type": "SOLID",
+            "color": {
+              "r": 0.15,
+              "g": 0.16,
+              "b": 0.21
+            },
+            "opacity": 1,
+            "visible": true,
+            "blendMode": "NORMAL"
+          }
+        ]
+      }
+    },
+    {
+      "方法": "U",
+      "绑定键": "正常_同步",
+      "节点ID": "2:32",
+      "更新": {
+        "fills": [
+          {
+            "type": "SOLID",
+            "color": {
+              "r": 0.4,
+              "g": 0.44,
+              "b": 0.52
+            },
+            "opacity": 1,
+            "visible": true,
+            "blendMode": "NORMAL"
+          }
+        ]
+      }
+    },
+    {
+      "方法": "U",
+      "绑定键": "正常_浏览器",
+      "节点ID": "2:33",
+      "更新": {
+        "fills": [
+          {
+            "type": "SOLID",
+            "color": {
+              "r": 1.0,
+              "g": 1.0,
+              "b": 1.0
+            },
+            "opacity": 1,
+            "visible": true,
+            "blendMode": "NORMAL"
+          }
+        ]
+      }
+    },
+    {
+      "方法": "U",
+      "绑定键": "正常_浏览器_文字",
+      "节点ID": "2:34",
+      "更新": {
+        "fills": [
+          {
+            "type": "SOLID",
+            "color": {
+              "r": 0.15,
+              "g": 0.16,
+              "b": 0.21
+            },
+            "opacity": 1,
+            "visible": true,
+            "blendMode": "NORMAL"
+          }
+        ]
+      }
+    },
+    {
+      "方法": "U",
+      "绑定键": "正常_关闭",
+      "节点ID": "2:35",
+      "更新": {
+        "fills": [
+          {
+            "type": "SOLID",
+            "color": {
+              "r": 1.0,
+              "g": 1.0,
+              "b": 1.0
+            },
+            "opacity": 1,
+            "visible": true,
+            "blendMode": "NORMAL"
+          }
+        ]
+      }
+    },
+    {
+      "方法": "U",
+      "绑定键": "正常_关闭_文字",
+      "节点ID": "2:36",
+      "更新": {
+        "fills": [
+          {
+            "type": "SOLID",
+            "color": {
+              "r": 0.15,
+              "g": 0.16,
+              "b": 0.21
+            },
+            "opacity": 1,
+            "visible": true,
+            "blendMode": "NORMAL"
+          }
+        ]
+      }
+    },
+    {
+      "方法": "U",
+      "绑定键": "正常_原生边界",
+      "节点ID": "2:37",
+      "更新": {
+        "fills": [
+          {
+            "type": "SOLID",
+            "color": {
+              "r": 0.96,
+              "g": 0.97,
+              "b": 0.98
+            },
+            "opacity": 1,
+            "visible": true,
+            "blendMode": "NORMAL"
+          }
+        ]
+      }
+    },
+    {
+      "方法": "U",
+      "绑定键": "正常_边界标记",
+      "节点ID": "2:38",
+      "更新": {
+        "fills": [
+          {
+            "type": "SOLID",
+            "color": {
+              "r": 0.4,
+              "g": 0.44,
+              "b": 0.52
+            },
+            "opacity": 1,
+            "visible": true,
+            "blendMode": "NORMAL"
+          }
+        ]
+      }
+    },
+    {
+      "方法": "U",
+      "绑定键": "正常_边界说明",
+      "节点ID": "2:39",
+      "更新": {
+        "fills": [
+          {
+            "type": "SOLID",
+            "color": {
+              "r": 0.4,
+              "g": 0.44,
+              "b": 0.52
+            },
+            "opacity": 1,
+            "visible": true,
+            "blendMode": "NORMAL"
+          }
+        ]
+      }
+    },
+    {
+      "方法": "U",
+      "绑定键": "正常_底栏",
+      "节点ID": "2:40",
+      "更新": {
+        "fills": [
+          {
+            "type": "SOLID",
+            "color": {
+              "r": 0.4,
+              "g": 0.44,
+              "b": 0.52
+            },
+            "opacity": 1,
+            "visible": true,
+            "blendMode": "NORMAL"
+          }
+        ]
+      }
+    },
+    {
+      "方法": "U",
+      "绑定键": "正常_文档图层",
+      "节点ID": "2:41",
+      "更新": {
+        "fills": [
+          {
+            "type": "SOLID",
+            "color": {
+              "r": 1.0,
+              "g": 1.0,
+              "b": 1.0
+            },
+            "opacity": 1,
+            "visible": true,
+            "blendMode": "NORMAL"
+          }
+        ]
+      }
+    },
+    {
+      "方法": "U",
+      "绑定键": "正常_文档标题",
+      "节点ID": "2:42",
+      "更新": {
+        "fills": [
+          {
+            "type": "SOLID",
+            "color": {
+              "r": 0.15,
+              "g": 0.16,
+              "b": 0.21
+            },
+            "opacity": 1,
+            "visible": true,
+            "blendMode": "NORMAL"
+          }
+        ]
+      }
+    },
+    {
+      "方法": "U",
+      "绑定键": "正常_文档描述",
+      "节点ID": "2:43",
+      "更新": {
+        "fills": [
+          {
+            "type": "SOLID",
+            "color": {
+              "r": 0.4,
+              "g": 0.44,
+              "b": 0.52
+            },
+            "opacity": 1,
+            "visible": true,
+            "blendMode": "NORMAL"
+          }
+        ]
+      }
+    },
+    {
+      "方法": "U",
+      "绑定键": "正常_设备卡片",
+      "节点ID": "2:44",
+      "更新": {
+        "fills": [
+          {
+            "type": "SOLID",
+            "color": {
+              "r": 1.0,
+              "g": 1.0,
+              "b": 1.0
+            },
+            "opacity": 1,
+            "visible": true,
+            "blendMode": "NORMAL"
+          }
+        ]
+      }
+    },
+    {
+      "方法": "U",
+      "绑定键": "正常_设备标签",
+      "节点ID": "2:45",
+      "更新": {
+        "fills": [
+          {
+            "type": "SOLID",
+            "color": {
+              "r": 0.4,
+              "g": 0.44,
+              "b": 0.52
+            },
+            "opacity": 1,
+            "visible": true,
+            "blendMode": "NORMAL"
+          }
+        ]
+      }
+    },
+    {
+      "方法": "U",
+      "绑定键": "正常_设备数量",
+      "节点ID": "2:46",
+      "更新": {
+        "fills": [
+          {
+            "type": "SOLID",
+            "color": {
+              "r": 0.15,
+              "g": 0.16,
+              "b": 0.21
+            },
+            "opacity": 1,
+            "visible": true,
+            "blendMode": "NORMAL"
+          }
+        ]
+      }
+    },
+    {
+      "方法": "U",
+      "绑定键": "正常_设备平台",
+      "节点ID": "2:47",
+      "更新": {
+        "fills": [
+          {
+            "type": "SOLID",
+            "color": {
+              "r": 0.4,
+              "g": 0.44,
+              "b": 0.52
+            },
+            "opacity": 1,
+            "visible": true,
+            "blendMode": "NORMAL"
+          }
+        ]
+      }
+    },
+    {
+      "方法": "U",
+      "绑定键": "正常_采集卡片",
+      "节点ID": "2:48",
+      "更新": {
+        "fills": [
+          {
+            "type": "SOLID",
+            "color": {
+              "r": 0.98,
+              "g": 0.98,
+              "b": 0.99
+            },
+            "opacity": 1,
+            "visible": true,
+            "blendMode": "NORMAL"
+          }
+        ]
+      }
+    },
+    {
+      "方法": "U",
+      "绑定键": "正常_采集标签",
+      "节点ID": "2:49",
+      "更新": {
+        "fills": [
+          {
+            "type": "SOLID",
+            "color": {
+              "r": 0.4,
+              "g": 0.44,
+              "b": 0.52
+            },
+            "opacity": 1,
+            "visible": true,
+            "blendMode": "NORMAL"
+          }
+        ]
+      }
+    },
+    {
+      "方法": "U",
+      "绑定键": "正常_采集数量",
+      "节点ID": "2:50",
+      "更新": {
+        "fills": [
+          {
+            "type": "SOLID",
+            "color": {
+              "r": 0.15,
+              "g": 0.16,
+              "b": 0.21
+            },
+            "opacity": 1,
+            "visible": true,
+            "blendMode": "NORMAL"
+          }
+        ]
+      }
+    }
+  ],
+  "operations": "U(\"2:26\",{\"fills\":[{\"type\":\"SOLID\",\"color\":{\"r\":0.4,\"g\":0.44,\"b\":0.52},\"opacity\":1,\"visible\":true,\"blendMode\":\"NORMAL\"}]})\nU(\"2:27\",{\"fills\":[{\"type\":\"SOLID\",\"color\":{\"r\":0.97,\"g\":0.97,\"b\":0.98},\"opacity\":1,\"visible\":true,\"blendMode\":\"NORMAL\"}]})\nU(\"2:28\",{\"fills\":[{\"type\":\"SOLID\",\"color\":{\"r\":0.71,\"g\":0.75,\"b\":0.81},\"opacity\":1,\"visible\":true,\"blendMode\":\"NORMAL\"}]})\nU(\"2:29\",{\"fills\":[{\"type\":\"SOLID\",\"color\":{\"r\":0.4,\"g\":0.44,\"b\":0.52},\"opacity\":1,\"visible\":true,\"blendMode\":\"NORMAL\"}]})\nU(\"2:30\",{\"fills\":[{\"type\":\"SOLID\",\"color\":{\"r\":1.0,\"g\":1.0,\"b\":1.0},\"opacity\":1,\"visible\":true,\"blendMode\":\"NORMAL\"}]})\nU(\"2:31\",{\"fills\":[{\"type\":\"SOLID\",\"color\":{\"r\":0.15,\"g\":0.16,\"b\":0.21},\"opacity\":1,\"visible\":true,\"blendMode\":\"NORMAL\"}]})\nU(\"2:32\",{\"fills\":[{\"type\":\"SOLID\",\"color\":{\"r\":0.4,\"g\":0.44,\"b\":0.52},\"opacity\":1,\"visible\":true,\"blendMode\":\"NORMAL\"}]})\nU(\"2:33\",{\"fills\":[{\"type\":\"SOLID\",\"color\":{\"r\":1.0,\"g\":1.0,\"b\":1.0},\"opacity\":1,\"visible\":true,\"blendMode\":\"NORMAL\"}]})\nU(\"2:34\",{\"fills\":[{\"type\":\"SOLID\",\"color\":{\"r\":0.15,\"g\":0.16,\"b\":0.21},\"opacity\":1,\"visible\":true,\"blendMode\":\"NORMAL\"}]})\nU(\"2:35\",{\"fills\":[{\"type\":\"SOLID\",\"color\":{\"r\":1.0,\"g\":1.0,\"b\":1.0},\"opacity\":1,\"visible\":true,\"blendMode\":\"NORMAL\"}]})\nU(\"2:36\",{\"fills\":[{\"type\":\"SOLID\",\"color\":{\"r\":0.15,\"g\":0.16,\"b\":0.21},\"opacity\":1,\"visible\":true,\"blendMode\":\"NORMAL\"}]})\nU(\"2:37\",{\"fills\":[{\"type\":\"SOLID\",\"color\":{\"r\":0.96,\"g\":0.97,\"b\":0.98},\"opacity\":1,\"visible\":true,\"blendMode\":\"NORMAL\"}]})\nU(\"2:38\",{\"fills\":[{\"type\":\"SOLID\",\"color\":{\"r\":0.4,\"g\":0.44,\"b\":0.52},\"opacity\":1,\"visible\":true,\"blendMode\":\"NORMAL\"}]})\nU(\"2:39\",{\"fills\":[{\"type\":\"SOLID\",\"color\":{\"r\":0.4,\"g\":0.44,\"b\":0.52},\"opacity\":1,\"visible\":true,\"blendMode\":\"NORMAL\"}]})\nU(\"2:40\",{\"fills\":[{\"type\":\"SOLID\",\"color\":{\"r\":0.4,\"g\":0.44,\"b\":0.52},\"opacity\":1,\"visible\":true,\"blendMode\":\"NORMAL\"}]})\nU(\"2:41\",{\"fills\":[{\"type\":\"SOLID\",\"color\":{\"r\":1.0,\"g\":1.0,\"b\":1.0},\"opacity\":1,\"visible\":true,\"blendMode\":\"NORMAL\"}]})\nU(\"2:42\",{\"fills\":[{\"type\":\"SOLID\",\"color\":{\"r\":0.15,\"g\":0.16,\"b\":0.21},\"opacity\":1,\"visible\":true,\"blendMode\":\"NORMAL\"}]})\nU(\"2:43\",{\"fills\":[{\"type\":\"SOLID\",\"color\":{\"r\":0.4,\"g\":0.44,\"b\":0.52},\"opacity\":1,\"visible\":true,\"blendMode\":\"NORMAL\"}]})\nU(\"2:44\",{\"fills\":[{\"type\":\"SOLID\",\"color\":{\"r\":1.0,\"g\":1.0,\"b\":1.0},\"opacity\":1,\"visible\":true,\"blendMode\":\"NORMAL\"}]})\nU(\"2:45\",{\"fills\":[{\"type\":\"SOLID\",\"color\":{\"r\":0.4,\"g\":0.44,\"b\":0.52},\"opacity\":1,\"visible\":true,\"blendMode\":\"NORMAL\"}]})\nU(\"2:46\",{\"fills\":[{\"type\":\"SOLID\",\"color\":{\"r\":0.15,\"g\":0.16,\"b\":0.21},\"opacity\":1,\"visible\":true,\"blendMode\":\"NORMAL\"}]})\nU(\"2:47\",{\"fills\":[{\"type\":\"SOLID\",\"color\":{\"r\":0.4,\"g\":0.44,\"b\":0.52},\"opacity\":1,\"visible\":true,\"blendMode\":\"NORMAL\"}]})\nU(\"2:48\",{\"fills\":[{\"type\":\"SOLID\",\"color\":{\"r\":0.98,\"g\":0.98,\"b\":0.99},\"opacity\":1,\"visible\":true,\"blendMode\":\"NORMAL\"}]})\nU(\"2:49\",{\"fills\":[{\"type\":\"SOLID\",\"color\":{\"r\":0.4,\"g\":0.44,\"b\":0.52},\"opacity\":1,\"visible\":true,\"blendMode\":\"NORMAL\"}]})\nU(\"2:50\",{\"fills\":[{\"type\":\"SOLID\",\"color\":{\"r\":0.15,\"g\":0.16,\"b\":0.21},\"opacity\":1,\"visible\":true,\"blendMode\":\"NORMAL\"}]})"
+}

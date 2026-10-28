@@ -20,6 +20,8 @@ AI 开发 DeviceForge 插件前，调用只读工具 `deviceforge.get_plugin_dev
 
 ## 本次基础设施知识覆盖
 
+2026-10-28 单清单开发：两端 manifest 直接提供 manifest_version:1 完整示例和 market 全部字段、默认值与枚举；packaging 提供 plugin pack/plan/publish 及本地目录、ZIP/TGZ 导入流程。查询响应声明 authoring_manifest_versions:[1] 和三条 authoring_cli_commands。独立 CLI 随包携带纯规则和发布依赖，不要求第三方执行宿主脚本；浏览器用工程内独立包消费相同规则，生成清单是分发产物而非第二份手写来源。文档由宿主编译嵌入，本次没有重启或部署，旧在线版本不自动更新。
+
 指南使用 `guide_version=4`，八主题和请求参数不变，文档项不再含来源字段；两端 `validation` 直接包含公开调试流程。知识接口版本不等于浏览器 SDK 或插件协议版本，前端 SDK 仍为 v2，普通任务支持协议 1–4 或显式选择 6，独立会话继续使用 5。
 
 - 前端 `sdk` 正文直接包含 `ServiceRef`、`TypedService`、`ServiceFeatureDiagnostic`、`ServerServiceAccess` 以及 `call/callTyped/whenAvailable/diagnostics` 签名，不能只提供指向仓库实现文档的链接。

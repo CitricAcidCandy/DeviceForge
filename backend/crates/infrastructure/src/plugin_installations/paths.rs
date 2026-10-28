@@ -144,9 +144,28 @@ pub(super) fn write_bytes(path: &Path, bytes: &[u8]) -> Result<()> {
         .write_all(bytes)
         .and_then(|_| temporary.as_file().sync_all())
         .map_err(|_| Error::Storage("安装记录刷新失败".into()))?;
-    temporary
-        .persist(path)
-        .map_err(|_| Error::Storage("安装记录发布失败".into()))?;
+    let mut pending = Some(temporary);
+    crate::atomic_publish::retry("插件安装记录保存", || {
+        match pending
+            .take()
+            .expect("失败重试保留原暂存文件")
+            .persist(path)
+        {
+            Ok(file) => Ok(file),
+            Err(failure) => {
+                pending = Some(failure.file);
+                Err(failure.error)
+            }
+        }
+    })
+    .map_err(|error| {
+        Error::Storage(format!(
+            "安装记录未能保存，系统错误码：{}；请检查文件占用或写入权限，旧记录未被强制删除",
+            error
+                .raw_os_error()
+                .map_or_else(|| "未知".into(), |code| code.to_string())
+        ))
+    })?;
     Ok(())
 }
 

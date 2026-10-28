@@ -32,6 +32,7 @@ pub(crate) fn error(error: DebuggerError) -> ApiError {
         ErrorCode::InvalidInput => (StatusCode::BAD_REQUEST, "debugger_invalid_input"),
         ErrorCode::NotFound => (StatusCode::NOT_FOUND, "debugger_not_found"),
         ErrorCode::Capacity => (StatusCode::TOO_MANY_REQUESTS, "debugger_capacity"),
+        ErrorCode::Busy => (StatusCode::TOO_MANY_REQUESTS, "debugger_busy"),
         ErrorCode::InactiveSession => (StatusCode::CONFLICT, "debugger_session_inactive"),
         ErrorCode::StaleTarget => (StatusCode::CONFLICT, "debugger_target_changed"),
         ErrorCode::WrongInstance => (StatusCode::CONFLICT, "debugger_wrong_instance"),

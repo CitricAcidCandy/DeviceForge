@@ -9,7 +9,7 @@ const read = ts.readConfigFile(join(root, 'tsconfig.json'), ts.sys.readFile);
 if (read.error) throw new Error('前端严格类型配置读取失败');
 const config = ts.parseJsonConfigFileContent(read.config, ts.sys, root);
 if (config.errors.length) throw new Error('前端严格类型配置解析失败');
-const roots = config.fileNames.filter(path => /[\\/](?:tests[\\/]debugger[^\\/]*|scripts[\\/](?:check-debugger|build-debugger-plugin|freeze-debugger|debugger[^\\/]*))\.tsx?$/.test(path));
+const roots = config.fileNames.filter(path => /[\\/](?:tests[\\/](?:bundled-debugger|product-plugin-startup|debugger)[^\\/]*|scripts[\\/](?:check-debugger|build-debugger-plugin|freeze-debugger|debugger[^\\/]*))\.tsx?$/.test(path));
 roots.push(join(root, 'src/app/debugger-runtime.ts'), join(root, 'src/app/main.ts'));
 roots.push(join(root, 'node_modules/vite/client.d.ts'));
 async function append(directory: string) {

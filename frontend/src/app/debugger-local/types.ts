@@ -16,6 +16,7 @@ export interface LocalDebuggerOptions {
   readonly readHostRoutes?: () => readonly HostDebugRoute[];
   readonly navigate?: (path: string, signal: AbortSignal) => void | Promise<void>;
   readonly reloadPlugin?: (target: ResolvedTarget, signal: AbortSignal) => Promise<JsonValue>;
+  readonly closeSession?: (sessionId: string) => Promise<void>;
   readonly slots?: readonly {
     readonly id: string;
     readonly label: string;

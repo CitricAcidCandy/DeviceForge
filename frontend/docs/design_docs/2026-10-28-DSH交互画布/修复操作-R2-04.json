@@ -1,0 +1,508 @@
+{
+  "fileUrl": "https://ardot.tencent.com/file/741227854728017",
+  "批次": 4,
+  "count": 25,
+  "操作": [
+    {
+      "方法": "U",
+      "绑定键": "失败_文件回执",
+      "节点ID": "2:76",
+      "更新": {
+        "fills": [
+          {
+            "type": "SOLID",
+            "color": {
+              "r": 1.0,
+              "g": 1.0,
+              "b": 1.0
+            },
+            "opacity": 1,
+            "visible": true,
+            "blendMode": "NORMAL"
+          }
+        ]
+      }
+    },
+    {
+      "方法": "U",
+      "绑定键": "失败_文件回执名",
+      "节点ID": "2:77",
+      "更新": {
+        "fills": [
+          {
+            "type": "SOLID",
+            "color": {
+              "r": 0.15,
+              "g": 0.16,
+              "b": 0.21
+            },
+            "opacity": 1,
+            "visible": true,
+            "blendMode": "NORMAL"
+          }
+        ]
+      }
+    },
+    {
+      "方法": "U",
+      "绑定键": "失败_文件回执态",
+      "节点ID": "2:78",
+      "更新": {
+        "fills": [
+          {
+            "type": "SOLID",
+            "color": {
+              "r": 0.4,
+              "g": 0.44,
+              "b": 0.52
+            },
+            "opacity": 1,
+            "visible": true,
+            "blendMode": "NORMAL"
+          }
+        ]
+      }
+    },
+    {
+      "方法": "U",
+      "绑定键": "失败_继续提示",
+      "节点ID": "2:79",
+      "更新": {
+        "fills": [
+          {
+            "type": "SOLID",
+            "color": {
+              "r": 0.4,
+              "g": 0.44,
+              "b": 0.52
+            },
+            "opacity": 1,
+            "visible": true,
+            "blendMode": "NORMAL"
+          }
+        ]
+      }
+    },
+    {
+      "方法": "U",
+      "绑定键": "失败_输入框",
+      "节点ID": "2:80",
+      "更新": {
+        "fills": [
+          {
+            "type": "SOLID",
+            "color": {
+              "r": 1.0,
+              "g": 1.0,
+              "b": 1.0
+            },
+            "opacity": 1,
+            "visible": true,
+            "blendMode": "NORMAL"
+          }
+        ]
+      }
+    },
+    {
+      "方法": "U",
+      "绑定键": "失败_输入提示",
+      "节点ID": "2:81",
+      "更新": {
+        "fills": [
+          {
+            "type": "SOLID",
+            "color": {
+              "r": 0.4,
+              "g": 0.44,
+              "b": 0.52
+            },
+            "opacity": 1,
+            "visible": true,
+            "blendMode": "NORMAL"
+          }
+        ]
+      }
+    },
+    {
+      "方法": "U",
+      "绑定键": "失败_文件上下文",
+      "节点ID": "2:82",
+      "更新": {
+        "fills": [
+          {
+            "type": "SOLID",
+            "color": {
+              "r": 0.4,
+              "g": 0.44,
+              "b": 0.52
+            },
+            "opacity": 1,
+            "visible": true,
+            "blendMode": "NORMAL"
+          }
+        ]
+      }
+    },
+    {
+      "方法": "U",
+      "绑定键": "失败_发送",
+      "节点ID": "2:83",
+      "更新": {
+        "fills": [
+          {
+            "type": "SOLID",
+            "color": {
+              "r": 0.42,
+              "g": 0.3,
+              "b": 0.96
+            },
+            "opacity": 1,
+            "visible": true,
+            "blendMode": "NORMAL"
+          }
+        ]
+      }
+    },
+    {
+      "方法": "U",
+      "绑定键": "失败_发送_文字",
+      "节点ID": "2:84",
+      "更新": {
+        "fills": [
+          {
+            "type": "SOLID",
+            "color": {
+              "r": 1.0,
+              "g": 1.0,
+              "b": 1.0
+            },
+            "opacity": 1,
+            "visible": true,
+            "blendMode": "NORMAL"
+          }
+        ]
+      }
+    },
+    {
+      "方法": "U",
+      "绑定键": "失败_输入规则",
+      "节点ID": "2:85",
+      "更新": {
+        "fills": [
+          {
+            "type": "SOLID",
+            "color": {
+              "r": 0.4,
+              "g": 0.44,
+              "b": 0.52
+            },
+            "opacity": 1,
+            "visible": true,
+            "blendMode": "NORMAL"
+          }
+        ]
+      }
+    },
+    {
+      "方法": "U",
+      "绑定键": "失败_分隔手柄",
+      "节点ID": "2:86",
+      "更新": {
+        "fills": [
+          {
+            "type": "SOLID",
+            "color": {
+              "r": 0.97,
+              "g": 0.97,
+              "b": 0.98
+            },
+            "opacity": 1,
+            "visible": true,
+            "blendMode": "NORMAL"
+          }
+        ]
+      }
+    },
+    {
+      "方法": "U",
+      "绑定键": "失败_分隔轨道",
+      "节点ID": "2:87",
+      "更新": {
+        "fills": [
+          {
+            "type": "SOLID",
+            "color": {
+              "r": 0.71,
+              "g": 0.75,
+              "b": 0.81
+            },
+            "opacity": 1,
+            "visible": true,
+            "blendMode": "NORMAL"
+          }
+        ]
+      }
+    },
+    {
+      "方法": "U",
+      "绑定键": "失败_分隔抓手",
+      "节点ID": "2:88",
+      "更新": {
+        "fills": [
+          {
+            "type": "SOLID",
+            "color": {
+              "r": 0.4,
+              "g": 0.44,
+              "b": 0.52
+            },
+            "opacity": 1,
+            "visible": true,
+            "blendMode": "NORMAL"
+          }
+        ]
+      }
+    },
+    {
+      "方法": "U",
+      "绑定键": "失败_右栏",
+      "节点ID": "2:89",
+      "更新": {
+        "fills": [
+          {
+            "type": "SOLID",
+            "color": {
+              "r": 1.0,
+              "g": 1.0,
+              "b": 1.0
+            },
+            "opacity": 1,
+            "visible": true,
+            "blendMode": "NORMAL"
+          }
+        ]
+      }
+    },
+    {
+      "方法": "U",
+      "绑定键": "失败_右栏文件",
+      "节点ID": "2:90",
+      "更新": {
+        "fills": [
+          {
+            "type": "SOLID",
+            "color": {
+              "r": 0.15,
+              "g": 0.16,
+              "b": 0.21
+            },
+            "opacity": 1,
+            "visible": true,
+            "blendMode": "NORMAL"
+          }
+        ]
+      }
+    },
+    {
+      "方法": "U",
+      "绑定键": "失败_同步",
+      "节点ID": "2:91",
+      "更新": {
+        "fills": [
+          {
+            "type": "SOLID",
+            "color": {
+              "r": 0.58,
+              "g": 0.39,
+              "b": 0.12
+            },
+            "opacity": 1,
+            "visible": true,
+            "blendMode": "NORMAL"
+          }
+        ]
+      }
+    },
+    {
+      "方法": "U",
+      "绑定键": "失败_浏览器",
+      "节点ID": "2:92",
+      "更新": {
+        "fills": [
+          {
+            "type": "SOLID",
+            "color": {
+              "r": 1.0,
+              "g": 1.0,
+              "b": 1.0
+            },
+            "opacity": 1,
+            "visible": true,
+            "blendMode": "NORMAL"
+          }
+        ]
+      }
+    },
+    {
+      "方法": "U",
+      "绑定键": "失败_浏览器_文字",
+      "节点ID": "2:93",
+      "更新": {
+        "fills": [
+          {
+            "type": "SOLID",
+            "color": {
+              "r": 0.15,
+              "g": 0.16,
+              "b": 0.21
+            },
+            "opacity": 1,
+            "visible": true,
+            "blendMode": "NORMAL"
+          }
+        ]
+      }
+    },
+    {
+      "方法": "U",
+      "绑定键": "失败_关闭",
+      "节点ID": "2:94",
+      "更新": {
+        "fills": [
+          {
+            "type": "SOLID",
+            "color": {
+              "r": 1.0,
+              "g": 1.0,
+              "b": 1.0
+            },
+            "opacity": 1,
+            "visible": true,
+            "blendMode": "NORMAL"
+          }
+        ]
+      }
+    },
+    {
+      "方法": "U",
+      "绑定键": "失败_关闭_文字",
+      "节点ID": "2:95",
+      "更新": {
+        "fills": [
+          {
+            "type": "SOLID",
+            "color": {
+              "r": 0.15,
+              "g": 0.16,
+              "b": 0.21
+            },
+            "opacity": 1,
+            "visible": true,
+            "blendMode": "NORMAL"
+          }
+        ]
+      }
+    },
+    {
+      "方法": "U",
+      "绑定键": "失败_原生边界",
+      "节点ID": "2:96",
+      "更新": {
+        "fills": [
+          {
+            "type": "SOLID",
+            "color": {
+              "r": 0.96,
+              "g": 0.97,
+              "b": 0.98
+            },
+            "opacity": 1,
+            "visible": true,
+            "blendMode": "NORMAL"
+          }
+        ]
+      }
+    },
+    {
+      "方法": "U",
+      "绑定键": "失败_边界标记",
+      "节点ID": "2:97",
+      "更新": {
+        "fills": [
+          {
+            "type": "SOLID",
+            "color": {
+              "r": 0.4,
+              "g": 0.44,
+              "b": 0.52
+            },
+            "opacity": 1,
+            "visible": true,
+            "blendMode": "NORMAL"
+          }
+        ]
+      }
+    },
+    {
+      "方法": "U",
+      "绑定键": "失败_边界说明",
+      "节点ID": "2:98",
+      "更新": {
+        "fills": [
+          {
+            "type": "SOLID",
+            "color": {
+              "r": 0.4,
+              "g": 0.44,
+              "b": 0.52
+            },
+            "opacity": 1,
+            "visible": true,
+            "blendMode": "NORMAL"
+          }
+        ]
+      }
+    },
+    {
+      "方法": "U",
+      "绑定键": "失败_底栏",
+      "节点ID": "2:99",
+      "更新": {
+        "fills": [
+          {
+            "type": "SOLID",
+            "color": {
+              "r": 0.4,
+              "g": 0.44,
+              "b": 0.52
+            },
+            "opacity": 1,
+            "visible": true,
+            "blendMode": "NORMAL"
+          }
+        ]
+      }
+    },
+    {
+      "方法": "U",
+      "绑定键": "失败_错误卡片",
+      "节点ID": "2:100",
+      "更新": {
+        "fills": [
+          {
+            "type": "SOLID",
+            "color": {
+              "r": 1.0,
+              "g": 1.0,
+              "b": 1.0
+            },
+            "opacity": 1,
+            "visible": true,
+            "blendMode": "NORMAL"
+          }
+        ]
+      }
+    }
+  ],
+  "operations": "U(\"2:76\",{\"fills\":[{\"type\":\"SOLID\",\"color\":{\"r\":1.0,\"g\":1.0,\"b\":1.0},\"opacity\":1,\"visible\":true,\"blendMode\":\"NORMAL\"}]})\nU(\"2:77\",{\"fills\":[{\"type\":\"SOLID\",\"color\":{\"r\":0.15,\"g\":0.16,\"b\":0.21},\"opacity\":1,\"visible\":true,\"blendMode\":\"NORMAL\"}]})\nU(\"2:78\",{\"fills\":[{\"type\":\"SOLID\",\"color\":{\"r\":0.4,\"g\":0.44,\"b\":0.52},\"opacity\":1,\"visible\":true,\"blendMode\":\"NORMAL\"}]})\nU(\"2:79\",{\"fills\":[{\"type\":\"SOLID\",\"color\":{\"r\":0.4,\"g\":0.44,\"b\":0.52},\"opacity\":1,\"visible\":true,\"blendMode\":\"NORMAL\"}]})\nU(\"2:80\",{\"fills\":[{\"type\":\"SOLID\",\"color\":{\"r\":1.0,\"g\":1.0,\"b\":1.0},\"opacity\":1,\"visible\":true,\"blendMode\":\"NORMAL\"}]})\nU(\"2:81\",{\"fills\":[{\"type\":\"SOLID\",\"color\":{\"r\":0.4,\"g\":0.44,\"b\":0.52},\"opacity\":1,\"visible\":true,\"blendMode\":\"NORMAL\"}]})\nU(\"2:82\",{\"fills\":[{\"type\":\"SOLID\",\"color\":{\"r\":0.4,\"g\":0.44,\"b\":0.52},\"opacity\":1,\"visible\":true,\"blendMode\":\"NORMAL\"}]})\nU(\"2:83\",{\"fills\":[{\"type\":\"SOLID\",\"color\":{\"r\":0.42,\"g\":0.3,\"b\":0.96},\"opacity\":1,\"visible\":true,\"blendMode\":\"NORMAL\"}]})\nU(\"2:84\",{\"fills\":[{\"type\":\"SOLID\",\"color\":{\"r\":1.0,\"g\":1.0,\"b\":1.0},\"opacity\":1,\"visible\":true,\"blendMode\":\"NORMAL\"}]})\nU(\"2:85\",{\"fills\":[{\"type\":\"SOLID\",\"color\":{\"r\":0.4,\"g\":0.44,\"b\":0.52},\"opacity\":1,\"visible\":true,\"blendMode\":\"NORMAL\"}]})\nU(\"2:86\",{\"fills\":[{\"type\":\"SOLID\",\"color\":{\"r\":0.97,\"g\":0.97,\"b\":0.98},\"opacity\":1,\"visible\":true,\"blendMode\":\"NORMAL\"}]})\nU(\"2:87\",{\"fills\":[{\"type\":\"SOLID\",\"color\":{\"r\":0.71,\"g\":0.75,\"b\":0.81},\"opacity\":1,\"visible\":true,\"blendMode\":\"NORMAL\"}]})\nU(\"2:88\",{\"fills\":[{\"type\":\"SOLID\",\"color\":{\"r\":0.4,\"g\":0.44,\"b\":0.52},\"opacity\":1,\"visible\":true,\"blendMode\":\"NORMAL\"}]})\nU(\"2:89\",{\"fills\":[{\"type\":\"SOLID\",\"color\":{\"r\":1.0,\"g\":1.0,\"b\":1.0},\"opacity\":1,\"visible\":true,\"blendMode\":\"NORMAL\"}]})\nU(\"2:90\",{\"fills\":[{\"type\":\"SOLID\",\"color\":{\"r\":0.15,\"g\":0.16,\"b\":0.21},\"opacity\":1,\"visible\":true,\"blendMode\":\"NORMAL\"}]})\nU(\"2:91\",{\"fills\":[{\"type\":\"SOLID\",\"color\":{\"r\":0.58,\"g\":0.39,\"b\":0.12},\"opacity\":1,\"visible\":true,\"blendMode\":\"NORMAL\"}]})\nU(\"2:92\",{\"fills\":[{\"type\":\"SOLID\",\"color\":{\"r\":1.0,\"g\":1.0,\"b\":1.0},\"opacity\":1,\"visible\":true,\"blendMode\":\"NORMAL\"}]})\nU(\"2:93\",{\"fills\":[{\"type\":\"SOLID\",\"color\":{\"r\":0.15,\"g\":0.16,\"b\":0.21},\"opacity\":1,\"visible\":true,\"blendMode\":\"NORMAL\"}]})\nU(\"2:94\",{\"fills\":[{\"type\":\"SOLID\",\"color\":{\"r\":1.0,\"g\":1.0,\"b\":1.0},\"opacity\":1,\"visible\":true,\"blendMode\":\"NORMAL\"}]})\nU(\"2:95\",{\"fills\":[{\"type\":\"SOLID\",\"color\":{\"r\":0.15,\"g\":0.16,\"b\":0.21},\"opacity\":1,\"visible\":true,\"blendMode\":\"NORMAL\"}]})\nU(\"2:96\",{\"fills\":[{\"type\":\"SOLID\",\"color\":{\"r\":0.96,\"g\":0.97,\"b\":0.98},\"opacity\":1,\"visible\":true,\"blendMode\":\"NORMAL\"}]})\nU(\"2:97\",{\"fills\":[{\"type\":\"SOLID\",\"color\":{\"r\":0.4,\"g\":0.44,\"b\":0.52},\"opacity\":1,\"visible\":true,\"blendMode\":\"NORMAL\"}]})\nU(\"2:98\",{\"fills\":[{\"type\":\"SOLID\",\"color\":{\"r\":0.4,\"g\":0.44,\"b\":0.52},\"opacity\":1,\"visible\":true,\"blendMode\":\"NORMAL\"}]})\nU(\"2:99\",{\"fills\":[{\"type\":\"SOLID\",\"color\":{\"r\":0.4,\"g\":0.44,\"b\":0.52},\"opacity\":1,\"visible\":true,\"blendMode\":\"NORMAL\"}]})\nU(\"2:100\",{\"fills\":[{\"type\":\"SOLID\",\"color\":{\"r\":1.0,\"g\":1.0,\"b\":1.0},\"opacity\":1,\"visible\":true,\"blendMode\":\"NORMAL\"}]})"
+}

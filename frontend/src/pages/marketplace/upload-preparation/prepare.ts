@@ -70,13 +70,13 @@ export async function prepareUpload(request: PreparationRequest): Promise<Upload
   if (!metadata && !generated && (!request.localImport || archive)) return inspection;
   const finalMetadata = metadata ?? imported;
   if (finalMetadata) {
-  checkIdentity(identity, finalMetadata);
-  if (generated?.release && (finalMetadata.id !== generated.release.id || finalMetadata.version !== generated.release.version))
-    throw new Error('市场身份与开发清单不一致');
-  // 资源摘要属于最终归档，不能把自身摘要写回归档形成循环依赖。
-  const { resource_id: _resourceId, ...embedded } = finalMetadata;
-  const marketBytes = new TextEncoder().encode(JSON.stringify(embedded, null, 2));
-  files = [...files.filter(file => file.path !== prefix + 'market.json'), { path: prefix + 'market.json', bytes: marketBytes }];
+    checkIdentity(identity, finalMetadata);
+    if (generated?.release && (finalMetadata.id !== generated.release.id || finalMetadata.version !== generated.release.version))
+      throw new Error('市场身份与开发清单不一致');
+    // 资源摘要属于最终归档，不能把自身摘要写回归档形成循环依赖。
+    const { resource_id: _resourceId, ...embedded } = finalMetadata;
+    const marketBytes = new TextEncoder().encode(JSON.stringify(embedded, null, 2));
+    files = [...files.filter(file => file.path !== prefix + 'market.json'), { path: prefix + 'market.json', bytes: marketBytes }];
   }
   validateFiles(files, plugin);
   const bytes = await writeArchive(files, tgz);
