@@ -1,4 +1,4 @@
-//! 离线同版本构建只允许同安装身份的 CAS 更新；市场与共享工具仍不可覆盖摘要。
+//! 离线同版本构建支持 CAS 更新与卸载后重装；市场与共享工具仍不可覆盖摘要。
 use super::*;
 
 fn unpack(bytes: Vec<u8>) -> Vec<(String, Vec<u8>)> {
@@ -127,7 +127,7 @@ async fn offline_same_version_cas_rebuild_keeps_successful_revision_restorable()
 }
 
 #[tokio::test]
-async fn offline_same_version_rebuild_requires_current_cas_and_keeps_tool_digest_locked() {
+async fn offline_same_version_rebuild_keeps_active_cas_and_tool_digest_locked() {
     let (_directory, artifacts, store) = setup().await;
     let first = store
         .prepare(upload(&artifacts, rebuild(b"shared-tool", "first")).await)
@@ -164,11 +164,47 @@ async fn offline_same_version_rebuild_requires_current_cas_and_keeps_tool_digest
     ));
     assert_eq!(store.get(&first.id).await.unwrap().revision, first.revision);
     store.delete(&first.id, &first.revision).await.unwrap();
-    // 删除后的全新安装没有同身份当前 CAS，不得借离线来源改写版本锁。
-    assert!(matches!(
-        store.prepare(source).await,
-        Err(Error::Conflict(_))
-    ));
+    let reinstalled = store
+        .prepare(source)
+        .await
+        .unwrap()
+        .commit(None)
+        .await
+        .unwrap();
+    assert_eq!(reinstalled.version, first.version);
+    assert_ne!(reinstalled.revision, first.revision);
+}
+
+#[tokio::test]
+async fn offline_rebuild_cannot_take_component_owned_by_another_installation() {
+    let (_directory, artifacts, store) = setup().await;
+    let first = store
+        .prepare(upload(&artifacts, rebuild(b"shared-tool", "first")).await)
+        .await
+        .unwrap()
+        .commit(None)
+        .await
+        .unwrap();
+    let mut files = unpack(rebuild(b"shared-tool", "second"));
+    let manifest = files
+        .iter_mut()
+        .find(|(name, _)| name == "release.json")
+        .unwrap();
+    let mut value: serde_json::Value = serde_json::from_slice(&manifest.1).unwrap();
+    value["id"] = "another_release".into();
+    manifest.1 = serde_json::to_vec(&value).unwrap();
+    let source = upload(
+        &artifacts,
+        zip(files
+            .iter()
+            .map(|(name, bytes)| (name.as_str(), bytes.clone()))
+            .collect()),
+    )
+    .await;
+    let result = store.prepare(source).await.unwrap().commit(None).await;
+    assert!(matches!(result, Err(Error::Conflict(message)) if message == "组件已由另一发布管理"));
+    assert_eq!(store.list().await.unwrap().len(), 1);
+    assert_eq!(store.get(&first.id).await.unwrap().revision, first.revision);
 }
 
 #[tokio::test]
@@ -196,7 +232,7 @@ async fn market_same_version_rebuild_remains_digest_locked() {
         manifest_sha256: format!("{:x}", Sha256::digest(&manifest)),
     };
     let task = tokio::spawn(async move {
-        for _ in 0..2 {
+        for _ in 0..4 {
             let (mut socket, _) = listener.accept().await.unwrap();
             let mut request = Vec::new();
             let mut buffer = [0; 512];
@@ -220,14 +256,21 @@ async fn market_same_version_rebuild_remains_digest_locked() {
         }
     });
     let plan = store.plan(source.clone()).await;
-    let prepared = store.prepare(source).await;
-    task.await.unwrap();
-    assert!(
-        plan.unwrap()
-            .issues
-            .iter()
-            .any(|issue| issue.code == "version_conflict")
-    );
-    assert!(matches!(prepared, Err(Error::Conflict(_))));
+    let prepared = store.prepare(source.clone()).await;
     assert_eq!(store.get(&first.id).await.unwrap().revision, first.revision);
+    store.delete(&first.id, &first.revision).await.unwrap();
+    let reinstall_plan = store.plan(source.clone()).await;
+    let reinstall_prepared = store.prepare(source).await;
+    task.await.unwrap();
+    for plan in [plan, reinstall_plan] {
+        assert!(
+            plan.unwrap()
+                .issues
+                .iter()
+                .any(|issue| issue.code == "version_conflict" && issue.required)
+        );
+    }
+    for prepared in [prepared, reinstall_prepared] {
+        assert!(matches!(prepared, Err(Error::Conflict(_))));
+    }
 }

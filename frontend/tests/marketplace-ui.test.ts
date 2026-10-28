@@ -1163,6 +1163,10 @@ test('本地导入对话框先检查摘要再明确安装，成功后不自动�
   };
   try {
     await render(true);
+    const unavailable = browser.documentRef.querySelector('[aria-label="导入后调试此插件"]');
+    assert.ok(unavailable instanceof browser.windowRef.HTMLButtonElement);
+    assert.equal(unavailable.disabled, true, '远程连接应显示明确不可用的调试选项');
+    assert.match(browser.documentRef.body.textContent ?? '', /调试仅支持本机连接/);
     await browser.click('检查导入内容'); assert.match(browser.documentRef.querySelector('[role="alert"]')?.textContent ?? '', /先选择/);
     await chooseFile(browser, localPluginArchive('plugin.zip'));
     await browser.click('检查导入内容');
@@ -1178,6 +1182,96 @@ test('本地导入对话框先检查摘要再明确安装，成功后不自动�
     assert.equal(browser.documentRef.querySelector('.ui-file-selected'), null);
     assert.equal(Array.from(browser.documentRef.querySelectorAll('button')).some(button => button.textContent?.trim() === '确认导入'), false);
   } finally { await services.dispose(); await browser.close(); }
+});
+
+test('本地导入调试选项默认关闭，勾选后仅带入实际导入插件并关闭模态窗口', async () => {
+  const browser = await fixture();
+  let uploads = 0, imported = 0, closed = 0;
+  const focus: unknown[] = [];
+  const pkg = localInstalledPackage('browser', { id: 'local.plugin', version: '1.0' });
+  const services = createProductServices({ baseUrl: 'http://localhost:7031', panelTarget: () => null,
+    debugger: { document: browser.documentRef }, transport: async (input, init) => {
+      assert.equal(requestUrl(input).pathname, '/api/v2/plugin-packages/browser');
+      if (init?.method === 'POST') { uploads++; return success(pkg); }
+      return success([pkg]);
+    } });
+  services.runtime.webPlugins.register({ id: 'deviceforge_debugger', trusted: true, plugin: {
+    id: 'deviceforge_debugger', version: '0.1.0', apiVersion: 2, panels: [], contributions: {
+      components: [{ id: 'deviceforge_debugger.floating', title: '调试器', slot: 'developer.tools',
+        mount: async () => () => {} }],
+    },
+  } });
+  await services.runtime.webPlugins.load('deviceforge_debugger');
+  const unsubscribe = services.runtime.host.extensions?.subscribeEvent('host.debugger.target_requested', event => { focus.push(event.data); });
+  const loaded: unknown = await browser.server.ssrLoadModule('/src/pages/marketplace/components/LocalImportDialog/index.tsx');
+  assert.ok(localImportModule(loaded));
+  const prepare: PreparationExecutor = async () => ({ files: [], excluded: [], totalSize: 0, metadata: null,
+    identity: { id: 'local.plugin', version: '1.0', kind: 'browser' } });
+  const render = async (open: boolean) => {
+    await act(async () => { browser.root.render(createElement(loaded.LocalImportDialog, { open, services, prepare,
+      onOpenChange(value) { if (!value) closed++; }, onImported() { imported++; } })); });
+  };
+  try {
+    await render(true);
+    const checkbox = browser.documentRef.querySelector('[role="checkbox"][aria-label="导入后调试此插件"]');
+    assert.ok(checkbox instanceof browser.windowRef.HTMLButtonElement, '本地导入插件时应提供调试选项');
+    assert.equal(checkbox.getAttribute('aria-checked'), 'false');
+    assert.equal(checkbox.disabled, false);
+    await chooseFile(browser, localPluginArchive('plugin.zip'));
+    await act(async () => checkbox.click());
+    await browser.click('检查导入内容');
+    await settled(() => [...browser.documentRef.querySelectorAll('button')].some(button => button.textContent?.trim() === '确认导入'), '检查未完成');
+    assert.equal(focus.length, 0, '预览不得开始调试');
+    await browser.click('确认导入');
+    await settled(() => closed === 1, '带入目标后应关闭模态窗口，让用户可操作调试面板');
+    assert.equal(imported, 1);
+    assert.equal(uploads, 1);
+    assert.deepEqual(focus, [{ candidates: [{ target_kind: 'browser', plugin_id: 'local.plugin' }], installation_id: null }]);
+    assert.equal(services.runtime.webPlugins.snapshot().some(item => item.id === 'local.plugin'), false, '打开调试器不自动启用独立插件');
+    await render(false); await render(true);
+    assert.equal(browser.documentRef.querySelector('[aria-label="导入后调试此插件"]')?.getAttribute('aria-checked'), 'false');
+  } finally { unsubscribe?.(); await act(async () => { await services.dispose(); }); await browser.close(); }
+});
+
+test('导入成功后调试器打开失败，保留成功结果且单独重试不会再次上传', async () => {
+  const browser = await fixture();
+  let uploads = 0, imported = 0;
+  const pkg = localInstalledPackage('browser', { id: 'local.plugin', version: '1.0' });
+  const services = createProductServices({ baseUrl: 'http://localhost:7031', panelTarget: () => null,
+    debugger: { document: browser.documentRef }, transport: async (_input, init) => {
+      if (init?.method === 'POST') { uploads++; return success(pkg); }
+      return success([pkg]);
+    } });
+  services.runtime.webPlugins.register({ id: 'deviceforge_debugger', trusted: true, plugin: {
+    id: 'deviceforge_debugger', version: '0.1.0', apiVersion: 2, panels: [], contributions: {
+      components: [{ id: 'deviceforge_debugger.floating', title: '调试器', slot: 'developer.tools', mount: async () => () => {} }],
+    },
+  } });
+  await services.runtime.webPlugins.load('deviceforge_debugger');
+  const loaded: unknown = await browser.server.ssrLoadModule('/src/pages/marketplace/components/LocalImportDialog/index.tsx');
+  assert.ok(localImportModule(loaded));
+  const prepare: PreparationExecutor = async () => ({ files: [], excluded: [], totalSize: 0, metadata: null,
+    identity: { id: 'local.plugin', version: '1.0', kind: 'browser' } });
+  try {
+    await act(async () => { browser.root.render(createElement(loaded.LocalImportDialog, { open: true, services, prepare,
+      onOpenChange() {}, onImported() { imported++; } })); });
+    await chooseFile(browser, localPluginArchive('plugin.zip'));
+    const checkbox = browser.documentRef.querySelector('[aria-label="导入后调试此插件"]');
+    assert.ok(checkbox instanceof browser.windowRef.HTMLButtonElement);
+    await act(async () => checkbox.click());
+    await browser.click('检查导入内容');
+    await settled(() => [...browser.documentRef.querySelectorAll('button')].some(button => button.textContent?.trim() === '确认导入'), '检查未完成');
+    await act(async () => { await services.runtime.webPlugins.unload('deviceforge_debugger'); });
+    await browser.click('确认导入');
+    await settled(() => browser.documentRef.body.textContent?.includes('插件已导入，但未能打开调试器') ?? false, '打开失败应有独立提示');
+    assert.equal(imported, 1);
+    assert.match(browser.documentRef.body.textContent ?? '', /已安装插件 local.plugin/);
+    assert.equal([...browser.documentRef.querySelectorAll('button')].some(button => button.textContent?.trim() === '确认导入'), false);
+    await act(async () => { await services.runtime.webPlugins.load('deviceforge_debugger'); });
+    await browser.click('重试打开调试器');
+    assert.equal(uploads, 1);
+    assert.equal(imported, 1);
+  } finally { await act(async () => { await services.dispose(); }); await browser.close(); }
 });
 
 test('本地导入取消旧上传后，新预览不被旧请求迟到失败清空', async () => {

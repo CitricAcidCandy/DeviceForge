@@ -82,3 +82,65 @@ async fn single_manifest_v2_update_installs_generated_tgz_and_serves_entry() {
         );
     }
 }
+
+#[tokio::test]
+async fn single_manifest_v2_reinstall_accepts_previous_and_new_builds_after_uninstall() {
+    let (_temporary, artifacts, store) = setup().await;
+    let original = upload(&artifacts, generated_release("first")).await;
+    let rebuilt = upload(&artifacts, generated_release("second")).await;
+    let first = store
+        .prepare(original.clone())
+        .await
+        .unwrap()
+        .commit(None)
+        .await
+        .unwrap();
+    let second = store
+        .prepare(rebuilt.clone())
+        .await
+        .unwrap()
+        .commit(Some(first.revision.clone()))
+        .await
+        .unwrap();
+    store.delete(&second.id, &second.revision).await.unwrap();
+
+    // 覆盖最后使用的包、新的同版本构建以及最初的包；重装不要求清除历史摘要。
+    let new_build = upload(&artifacts, generated_release("third")).await;
+    for (source, build) in [
+        (rebuilt, "second"),
+        (new_build, "third"),
+        (original, "first"),
+    ] {
+        let plan = store.plan(source.clone()).await.unwrap();
+        assert!(
+            plan.issues.iter().all(|issue| !issue.required),
+            "离线重装计划不应受历史版本锁阻断：{:?}",
+            plan.issues
+        );
+        let installed = store
+            .prepare(source)
+            .await
+            .unwrap()
+            .commit(None)
+            .await
+            .unwrap();
+        assert_eq!(installed.revision, plan.revision);
+        assert_eq!(installed.version, first.version);
+        let asset = store
+            .asset(
+                "identity_browser",
+                &installed.revision,
+                ".deviceforge-entry.js",
+            )
+            .await
+            .unwrap();
+        assert_eq!(
+            asset.stream.try_collect::<Vec<_>>().await.unwrap().concat(),
+            format!("export {{default}} from './index.js'; // 构建：{build}").as_bytes()
+        );
+        store
+            .delete(&installed.id, &installed.revision)
+            .await
+            .unwrap();
+    }
+}

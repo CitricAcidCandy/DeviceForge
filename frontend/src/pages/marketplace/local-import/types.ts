@@ -30,6 +30,14 @@ interface PreviewSummary {
   readonly summary: string;
   readonly file: File;
 }
+export interface ImportedPluginDebugTarget {
+  readonly installation: { readonly id: string; readonly revision: string } | null;
+  readonly candidates: readonly { readonly kind: 'server' | 'browser'; readonly id: string; readonly version: string }[];
+}
+export interface LocalImportResult {
+  readonly message: string;
+  readonly debugTarget: ImportedPluginDebugTarget | null;
+}
 export type LocalImportPreview = PreviewSummary &
   (
     | {

@@ -4,7 +4,7 @@ import { sha256 } from '@noble/hashes/sha2.js';
 import { strToU8, zipSync } from 'fflate';
 import { inspectLocalRelease } from '../src/pages/marketplace/local-import/release.ts';
 import { releaseArchive } from '../src/pages/marketplace/local-import/release-archive.ts';
-import { previewLocalImport, submitLocalImport } from '../src/pages/marketplace/local-import/actions.ts';
+import { previewLocalImport, submitLocalImport, submitLocalImportWithResult } from '../src/pages/marketplace/local-import/actions.ts';
 import type { LocalImportPorts } from '../src/pages/marketplace/local-import/actions.ts';
 import { marketInstallationSource } from '../src/features/plugin-installations/index.ts';
 import { crc32 } from '../src/pages/marketplace/upload-preparation/zip-directory.ts';
@@ -76,6 +76,25 @@ test('同版本重新导入在预览时固定原安装修订，提交走统一�
   assert.match(preview.summary, /更新/);
   assert.match(await submitLocalImport(dependencies, preview, signal()), /保持停用/);
   assert.deepEqual(calls, ['list', 'artifact', 'update']);
+});
+
+test('导入调试衔接取服务器实际安装身份与全部组件，不用离线预览猜测目标', async () => {
+  const file = offlineFile();
+  const digest = checksum(new Uint8Array(await file.arrayBuffer()));
+  const installed = release(false, '1.0.0', 'b'.repeat(64));
+  const dependencies: LocalImportPorts = { ...ports(),
+    installationArtifacts: { upload: async filename => ({ data: {
+      id: 'actual-artifact', filename, sha256: digest, size: file.size, media_type: 'application/zip', created_at: 1,
+    }, logId: 'upload-log' }) },
+    installations: { install: async () => installed },
+  };
+  const preview = await previewLocalImport(dependencies, { kind: 'plugin', file, manifest: null, moduleId: '' }, signal());
+  const result = await submitLocalImportWithResult(dependencies, preview, signal());
+  assert.match(result.message, /已安装 示例功能.*尚未启用/);
+  assert.deepEqual(result.debugTarget, { installation: { id: installed.id, revision: installed.revision }, candidates: [
+    { kind: 'server', id: 'example-server', version: '1.0.0' }, { kind: 'browser', id: 'example-browser', version: '1.0.0' },
+  ] });
+  assert.equal(installed.enabled, false);
 });
 
 test('离线清单的资源缺失时在上传前阻断', async () => {

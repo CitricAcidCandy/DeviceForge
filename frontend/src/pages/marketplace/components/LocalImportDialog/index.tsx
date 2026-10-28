@@ -1,19 +1,21 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Button, DialogShell, FileDropzone, SelectField } from '../../../../components/index.ts';
+import { Button, Checkbox, DialogShell, FileDropzone, SelectField } from '../../../../components/index.ts';
 import { errorLogId, useSnapshot } from '../../../../app/product/hooks.ts';
 import { InstallationProgress } from '../InstallationProgress/index.tsx';
 import type { ProductServices } from '../../../../app/product/services.ts';
 import {
   localImportPorts,
   previewLocalImport,
-  submitLocalImport,
+  submitLocalImportWithResult,
 } from '../../local-import/actions.ts';
 import { parseLocalToolManifest, readImportJson } from '../../local-import/rules.ts';
 import type {
   LocalImportKind,
   LocalImportPreview,
   LocalToolManifest,
+  ImportedPluginDebugTarget,
 } from '../../local-import/types.ts';
+import { localImportDebugUnavailableReason, openImportedPluginDebugger } from '../../local-import/debugger.ts';
 import type { PreparationExecutor, UploadSelection } from '../../upload-preparation/index.ts';
 import { directorySelection } from '../../upload-preparation/directory.ts';
 
@@ -43,7 +45,16 @@ export function LocalImportDialog({
   const [error, setError] = useState('');
   const [logId, setLogId] = useState<string | null>(null);
   const [feedback, setFeedback] = useState('');
+  const [debugAfterImport, setDebugAfterImport] = useState(false);
+  const [debugTarget, setDebugTarget] = useState<ImportedPluginDebugTarget | null>(null);
+  const [debugRetry, setDebugRetry] = useState(false);
   const request = useRef<AbortController | null>(null);
+  const debuggerSource = useMemo(() => ({
+    snapshot: () => localImportDebugUnavailableReason(services),
+    subscribe: (listener: (reason: string | null) => void) => services.runtime.extensions.subscribe(
+      () => listener(localImportDebugUnavailableReason(services))),
+  }), [services]);
+  const debugUnavailable = useSnapshot(debuggerSource);
   const progressSource = useMemo(() => ({
     snapshot: services.runtime.pluginInstallations.progressSnapshot,
     subscribe: (listener: (value: ReturnType<typeof services.runtime.pluginInstallations.progressSnapshot>) => void) =>
@@ -68,6 +79,9 @@ export function LocalImportDialog({
     setError('');
     setLogId(null);
     setFeedback('');
+    setDebugAfterImport(false);
+    setDebugTarget(null);
+    setDebugRetry(false);
     return () => {
       request.current?.abort();
       request.current = null;
@@ -80,21 +94,39 @@ export function LocalImportDialog({
     setLogId(null);
     setFeedback('');
     setCompleted(false);
+    setDebugTarget(null);
+    setDebugRetry(false);
   }
   function close(value: boolean) {
     if (!value) request.current?.abort();
     onOpenChange(value);
   }
-  async function run(action: 'manifest' | 'preview' | 'import') {
-    if (request.current || pending || completed) return;
+  async function openDebugger(target: ImportedPluginDebugTarget, controller: AbortController) {
+    try {
+      await openImportedPluginDebugger(services, target, controller.signal);
+      if (request.current !== controller || controller.signal.aborted) return;
+      setDebugRetry(false);
+      close(false);
+    } catch (reason) {
+      if (request.current !== controller || controller.signal.aborted) return;
+      setDebugRetry(true);
+      setError(`插件已导入，但未能打开调试器：${reason instanceof Error ? reason.message : '请查看调试器状态后重试。'}`);
+      setLogId(errorLogId(reason));
+    }
+  }
+  async function run(action: 'manifest' | 'preview' | 'import' | 'debug') {
+    if (request.current || pending || (completed && action !== 'debug')) return;
     const controller = new AbortController();
     request.current = controller;
     setPending(true);
     setError('');
     setLogId(null);
-    setFeedback('');
+    if (action !== 'debug') setFeedback('');
     try {
-      if (action === 'manifest') {
+      if (action === 'debug') {
+        if (!debugTarget) throw new Error('没有本次导入的插件目标，请到已安装列表选择插件。');
+        await openDebugger(debugTarget, controller);
+      } else if (action === 'manifest') {
         if (!manifestFile) throw new Error('请先选择工具清单 JSON');
         const result = parseLocalToolManifest(
           await readImportJson(manifestFile, controller.signal),
@@ -115,15 +147,17 @@ export function LocalImportDialog({
         setPreview(result);
       } else {
         if (!preview) throw new Error('请先检查导入内容');
-        const result = await submitLocalImport(
+        const result = await submitLocalImportWithResult(
           localImportPorts(services),
           preview,
           controller.signal,
         );
         controller.signal.throwIfAborted();
-        setFeedback(result);
+        setFeedback(result.message);
         setCompleted(true);
+        setDebugTarget(result.debugTarget);
         onImported?.();
+        if (debugAfterImport && result.debugTarget) await openDebugger(result.debugTarget, controller);
       }
     } catch (reason) {
       if (request.current === controller && !controller.signal.aborted) {
@@ -149,7 +183,10 @@ export function LocalImportDialog({
       description="按 DeviceForge 规范安装插件、工具包或合并配置，无须先发布市场。根启动配置可在服务器运行 deviceforge config path 查看路径，再用 config import 管理。"
       footer={
         completed ? (
-          <Button onClick={() => close(false)}>完成</Button>
+          <>
+            {debugRetry && <Button variant="outline" disabled={pending || !!debugUnavailable} onClick={() => void run('debug')}>重试打开调试器</Button>}
+            <Button onClick={() => close(false)}>完成</Button>
+          </>
         ) : (
           <>
             <Button variant="outline" onClick={() => close(false)}>
@@ -190,6 +227,7 @@ export function LocalImportDialog({
           onValueChange={(value) => {
             if (value !== 'plugin' && value !== 'tool' && value !== 'config') return;
             setKind(value);
+            setDebugAfterImport(false);
             setFile(null);
             setSelection(null);
             setManifestFile(null);
@@ -231,6 +269,17 @@ export function LocalImportDialog({
             }} />
           <Button variant="outline" disabled={pending || completed} onClick={() => folder.current?.click()}>选择插件文件夹</Button>
           <p className="text-sm text-muted-foreground">{selection ? `已选择 ${selection.name}，${selection.files.length} 个文件。` : '支持 manifest.json 与已构建产物，自动生成安装清单；也兼容原有便携包和完整离线 ZIP。'}</p>
+          <label className="flex items-start gap-3 text-sm">
+            <Checkbox aria-label="导入后调试此插件" aria-describedby="local-import-debug-help"
+              checked={debugAfterImport} disabled={pending || completed || !!debugUnavailable}
+              onCheckedChange={value => setDebugAfterImport(value === true)} />
+            <span className="min-w-0 space-y-1">
+              <span className="block">导入后调试此插件</span>
+              <span id="local-import-debug-help" className="block text-xs text-muted-foreground">
+                {debugUnavailable ?? '导入成功后打开调试器，带入本次插件；多个组件由你选择，不自动执行业务操作。'}
+              </span>
+            </span>
+          </label>
         </>}
         {kind === 'tool' && (
           <>
@@ -297,8 +346,8 @@ export function LocalImportDialog({
             )}
           </div>
         )}
-        {pending && <p role="status">正在处理本地导入…</p>}
-        {pending && preview?.kind === 'release' && <InstallationProgress value={installationProgress} />}
+        {pending && <p role="status">{completed ? '正在打开调试器…' : '正在处理本地导入…'}</p>}
+        {pending && !completed && preview?.kind === 'release' && <InstallationProgress value={installationProgress} />}
         {error && (
           <div role="alert" className="text-sm text-destructive [overflow-wrap:anywhere]">
             <p>{error}</p>

@@ -308,11 +308,10 @@ pub(super) fn commit(
         ));
     }
     let releases = storage::list(store)?;
-    let local_update = current
-        .as_ref()
-        .filter(|_| prepared.offline)
-        .map(|current| (current, prepared.info.revision.as_str()));
-    validate_identities(store, &prepared.identities, local_update)?;
+    let offline_build = prepared
+        .offline
+        .then_some((prepared.info.id.as_str(), prepared.info.revision.as_str()));
+    validate_identities(store, &prepared.identities, offline_build)?;
     for component in &prepared.info.components {
         if releases.iter().any(|release| {
             release.id != prepared.info.id
@@ -487,7 +486,7 @@ pub(super) fn commit(
 pub(super) fn validate_identities(
     store: &FilePluginInstallations,
     identities: &[super::prepare::ResourceIdentity],
-    local_update: Option<(&InstalledRelease, &str)>,
+    offline_build: Option<(&str, &str)>,
 ) -> Result<()> {
     for identity in identities {
         let relative = format!(
@@ -496,23 +495,15 @@ pub(super) fn validate_identities(
         );
         validate_release_path(&relative)?;
         let path = store.root.join(relative);
-        let local_build = local_update.filter(|(current, _)| {
-            (identity.kind == "release" && identity.id == current.id)
-                || current.components.iter().any(|component| {
-                    component.id == identity.id
-                        && match component.kind {
-                            apk_domain::plugin_packages::PackageKind::Server => {
-                                identity.kind == "server"
-                            }
-                            apk_domain::plugin_packages::PackageKind::Browser => {
-                                identity.kind == "browser"
-                            }
-                        }
-                })
+        // 身份只来自已验证的发布清单；离线代码按发布与修订保存，不借历史安装记录准入。
+        let local_build = offline_build.filter(|(release_id, _)| match identity.kind.as_str() {
+            "release" => identity.id == *release_id,
+            "server" | "browser" => true,
+            _ => false,
         });
         validate_identity_file(&path, identity, local_build.is_some())?;
-        if let Some((current, revision)) = local_build {
-            let relative = build_identity_path(&current.id, revision, identity);
+        if let Some((release_id, revision)) = local_build {
+            let relative = build_identity_path(release_id, revision, identity);
             validate_release_path(&relative)?;
             validate_identity_file(&store.root.join(relative), identity, false)?;
         }

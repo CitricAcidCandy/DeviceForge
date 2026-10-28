@@ -10,7 +10,7 @@ import {
   parseLocalConfiguration,
   readImportJson,
 } from './rules.ts';
-import type { LocalImportKind, LocalImportPreview, LocalToolManifest } from './types.ts';
+import type { LocalImportKind, LocalImportPreview, LocalToolManifest, LocalImportResult } from './types.ts';
 import { inspectLocalRelease } from './release.ts';
 
 export interface LocalImportPorts {
@@ -150,11 +150,11 @@ export async function previewLocalImport(
   };
 }
 
-export async function submitLocalImport(
+export async function submitLocalImportWithResult(
   ports: LocalImportPorts,
   preview: LocalImportPreview,
   signal: AbortSignal,
-): Promise<string> {
+): Promise<LocalImportResult> {
   signal.throwIfAborted();
   if (preview.kind === 'release') {
     if (!ports.installations || !ports.installationArtifacts) throw new Error('当前宿主尚未提供完整功能插件安装能力');
@@ -171,8 +171,14 @@ export async function submitLocalImport(
     signal.throwIfAborted();
     if (installed.id !== preview.release.id || installed.version !== preview.release.version)
       throw new Error('服务器安装结果与本地预览不一致，请刷新实际目录');
-    if (preview.expectedRevision) return `已更新 ${installed.name} ${installed.version}，${installed.enabled ? '保持启用' : '保持停用'}；请核对当前页面的运行构建，必要时刷新。`;
-    return `已安装并启用 ${installed.name} ${installed.version}。`;
+    return {
+      message: preview.expectedRevision
+        ? `已更新 ${installed.name} ${installed.version}，${installed.enabled ? '保持启用' : '保持停用'}；请核对当前页面的运行构建，必要时刷新。`
+        : installed.enabled ? `已安装并启用 ${installed.name} ${installed.version}。`
+          : `已安装 ${installed.name} ${installed.version}，当前尚未启用，请到已安装列表查看配置和启用状态。`,
+      debugTarget: { installation: { id: installed.id, revision: installed.revision },
+        candidates: installed.components.map(component => ({ kind: component.kind, id: component.id, version: component.version })) },
+    };
   }
   if (preview.kind === 'plugin') {
     const result = await ports.packages.upload(
@@ -183,7 +189,10 @@ export async function submitLocalImport(
       preview.plugin,
     );
     signal.throwIfAborted();
-    return `已安装插件 ${result.data.id} ${result.data.version}，尚未自动启用。`;
+    if (result.data.id !== preview.plugin.id || result.data.version !== preview.plugin.version || result.data.kind !== preview.plugin.kind)
+      throw new ApiError('protocol', 'local_plugin_result_mismatch', '服务器安装结果与本地预览不一致，请刷新实际目录后操作', null, result.logId);
+    return { message: `已安装插件 ${result.data.id} ${result.data.version}，尚未自动启用。`,
+      debugTarget: { installation: null, candidates: [{ kind: result.data.kind, id: result.data.id, version: result.data.version }] } };
   }
   if (preview.kind === 'tool') {
     const artifact = await ports.artifacts.upload(preview.file.name, preview.file, signal);
@@ -213,9 +222,10 @@ export async function submitLocalImport(
         null,
         result.logId,
       );
-    return result.data.changed
+    const message = result.data.changed
       ? `已导入工具 ${result.data.module_id} ${result.data.version}，未执行工具。`
       : `工具 ${result.data.module_id} ${result.data.version} 已是相同内容。`;
+    return { message, debugTarget: null };
   }
   const config = preview.configuration;
   if (config.kind === 'settings') {
@@ -229,7 +239,7 @@ export async function submitLocalImport(
       signal,
     );
     signal.throwIfAborted();
-    return `配置已导入，当前修订 ${result.data.revision}。`;
+    return { message: `配置已导入，当前修订 ${result.data.revision}。`, debugTarget: null };
   }
   const result = await ports.configurations.save(
     { kind: 'server', id: config.plugin_id },
@@ -240,7 +250,13 @@ export async function submitLocalImport(
   signal.throwIfAborted();
   if (!result.compatible || result.fieldErrors.length)
     throw new Error('配置校验未通过，原配置未改变');
-  return result.pendingReload
+  const message = result.pendingReload
     ? `插件配置已保存，修订 ${result.revision}；请在插件配置中显式应用。`
     : `插件配置已保存，修订 ${result.revision}，后续调用生效。`;
+  return { message, debugTarget: null };
+}
+
+// 保留既有只消费文案的调用方，调试衔接使用同一次导入的结构化结果。
+export async function submitLocalImport(ports: LocalImportPorts, preview: LocalImportPreview, signal: AbortSignal): Promise<string> {
+  return (await submitLocalImportWithResult(ports, preview, signal)).message;
 }

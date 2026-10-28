@@ -90,16 +90,11 @@ async fn validate_input_identities(
     input
         .stage
         .work(store, move |store| {
-            let current = if offline {
-                storage::optional(store, &id)?
-            } else {
-                None
-            };
-            // 这里只判断准备资格；提交仍须在原文件事务锁内重新核对调用方 CAS。
+            // 离线构建身份不依赖当前安装记录；提交仍在事务锁内核对 CAS 和组件归属。
             transaction::validate_identities(
                 store,
                 &identities,
-                current.as_ref().map(|current| (current, revision.as_str())),
+                offline.then_some((id.as_str(), revision.as_str())),
             )
         })
         .await
