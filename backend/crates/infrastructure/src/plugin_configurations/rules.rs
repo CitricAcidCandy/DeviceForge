@@ -33,7 +33,13 @@ pub(super) fn definition(
     annotations::validate(&definition.schema)?;
     let validator = jsonschema::validator_for(&definition.schema)
         .map_err(|_| Error::Invalid("插件配置模式无效".into()))?;
-    if !validator.is_valid(&definition.defaults) {
+    // 默认配置是初始草稿，可缺少用户必填输入；实际保存及运行仍验证完整模式。
+    if validator.iter_errors(&definition.defaults).any(|error| {
+        !matches!(
+            error.kind,
+            jsonschema::error::ValidationErrorKind::Required { .. }
+        )
+    }) {
         return Err(Error::Invalid("配置默认值不符合声明模式".into()));
     }
     Ok(definition)

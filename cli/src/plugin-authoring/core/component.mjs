@@ -9,6 +9,7 @@ export function componentMetadata(declaration, component, dependencies) {
     plugin.api_version = 2;
     const path = entrypoints.any.path;
     const identity = { id: component.id, version: component.version, apiVersion: 2 };
+    const configuration = component.plugin.configuration;
     generated.set('.deviceforge-entry.js', `import implementation from ${JSON.stringify('./' + path.split('/').map(encodeURIComponent).join('/'))};
 const identity = Object.freeze(${JSON.stringify(identity)});
 const plugin = typeof implementation === 'function' ? await implementation(identity) : implementation;
@@ -16,7 +17,7 @@ if (!plugin || typeof plugin !== 'object') throw new Error('浏览器插件必�
 for (const key of ['id', 'version', 'apiVersion']) {
   if (plugin[key] !== undefined && plugin[key] !== identity[key]) throw new Error('浏览器插件身份与开发清单冲突：' + key);
 }
-export default { panels: [], ...plugin, ...identity };
+export default { panels: [], ...plugin, ...identity${configuration == null ? '' : `, configuration: ${JSON.stringify(configuration)}`} };
 `);
     entrypoints.any.path = '.deviceforge-entry.js';
   } else {

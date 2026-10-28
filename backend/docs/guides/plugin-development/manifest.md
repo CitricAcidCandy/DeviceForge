@@ -139,6 +139,46 @@ market 是可选对象，下面是全部可声明字段。id/version/name/descri
 
 组件的 `configuration` 声明版本、schema、defaults 和 apply_policy；为字段提供中文 `title/description`，敏感值使用公开敏感声明，不能用示例项目/令牌填充真实必要输入。发布和市场外显名、描述使用 `release.json.name/description` 与 `market.json`；插件 ID 保持稳定机器身份。安装器不改用户配置原值，托管路径只写有效快照。
 
+### 配置声明的完整字段
+
+在 `components[].plugin.configuration` 声明一次，打包器写入生成的组件清单；浏览器配套组件还会把相同配置带入生成入口，无需重复维护。
+
+| 字段 | 类型、必填与默认 | 约束及语义 |
+| --- | --- | --- |
+| version | 整数，必填 | 1–4294967295，配置结构版本；不是插件版本字符串 |
+| schema | JSON Schema 对象，必填 | 根 type 固定 object；通过 properties、required、additionalProperties 和本地引用约束字段 |
+| defaults | JSON 对象，必填 | 初始配置草稿，可缺少 required 用户输入；已提供的值仍须符合字段约束，不用示例凭据冒充用户输入 |
+| apply_policy | 字符串，可省略 | 打包器和宿主均默认 next_invocation，也可显式 plugin_reload；分别为下次调用或插件重载生效，未知值仍拒绝 |
+| legacy_filename | 字符串或 null，可选 | 旧服务器配置迁移文件名，不含路径、非空且最多180个UTF-8字节；新工程通常省略 |
+
+安装和配置就绪分开：可先安装缺少必填输入的插件，配置视图显示待填写字段，保存、应用及运行时继续校验完整 schema。发布 requirements 可进一步把相关输入表达为完整功能的启用门禁。下面为开发清单片段，其余身份、入口和 files 沿用完整示例；component_id 对应最终组件 ID：
+
+```json
+{
+  "components": [{
+    "id": "example_server",
+    "plugin": { "configuration": {
+      "version": 1,
+      "apply_policy": "next_invocation",
+      "schema": {
+        "type": "object",
+        "properties": { "configUrl": {
+          "type": "string", "title": "配置地址", "pattern": "^https?://", "minLength": 1
+        } },
+        "required": ["configUrl"], "additionalProperties": false
+      },
+      "defaults": {}
+    } }
+  }],
+  "requirements": [{
+    "component_id": "example_server", "config_pointer": "/configUrl",
+    "title": "配置地址", "description": "启用前填写实际 HTTP/HTTPS 配置地址", "required": true
+  }]
+}
+```
+
+schema.required 含 configUrl 而 defaults:{} 时仍可安装，缺失输入由配置状态说明，不能直接运行；填写实际值并通过完整模式验证后再启用。只有缺失必填字段的错误可作为草稿保留，已提供的错误类型、越界值或无效模式仍会拒绝。打包器提前校验声明结构与生效策略，完整模式编译仍由宿主负责。旧完整离线ZIP省略apply_policy同样按next_invocation读取，不改包内容、摘要或业务代码，无需为此重打包。
+
 
 新版统一依赖使用 dependencies.json（独立组件）或 v2 清单的 dependencies，先自动发现本机与用户根共享工具，一次安装只下载缺失必需项；启动与重新检测不下载。v1 保留兼容。完整字段、来源约束与管理接口通过本指南工具查询 `dependencies` 主题。
 

@@ -3,9 +3,10 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::path::PathBuf;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ConfigurationApplyPolicy {
+    #[default]
     NextInvocation,
     PluginReload,
 }
@@ -16,6 +17,7 @@ pub struct ConfigurationDefinition {
     pub version: u32,
     pub schema: Value,
     pub defaults: Value,
+    #[serde(default)]
     pub apply_policy: ConfigurationApplyPolicy,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub legacy_filename: Option<String>,

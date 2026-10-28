@@ -81,6 +81,32 @@ test('ZIP与npm TGZ单清单无需旧元数据，外包一层工程目录也可�
   }
 });
 
+test('本地导入配置声明补生效策略，允许保留待用户填写的必填字段', async () => {
+  const value = declaration();
+  const configuration = { version: 1, schema: { type: 'object',
+    properties: { configUrl: { type: 'string', pattern: '^https?://' } } }, defaults: {} };
+  const configured = { ...value, components: [{ ...value.components[0], plugin: { configuration } }] };
+  const result = await prepareUpload({ kind: 'plugin', localImport: true, selection: directory(files(configured)) });
+  assert.ok('inspection' in result);
+  const entries = unzipSync(new Uint8Array(await result.file.arrayBuffer()));
+  const release = JSON.parse(text.decode(entries['release.json']));
+  const members = await readTgz(entries[release.components[0].variants[0].path], true);
+  const plugin = JSON.parse(text.decode(members.find(item => item.path === 'package/plugin.json')?.bytes));
+  assert.equal(plugin.configuration.apply_policy, 'next_invocation');
+  assert.deepEqual(plugin.configuration.defaults, {});
+  const incomplete = { ...configured, components: [{ ...configured.components[0], plugin: { configuration: {
+    ...configuration, schema: { ...configuration.schema, required: ['configUrl'] },
+  } } }] };
+  const draft = await prepareUpload({ kind: 'plugin', localImport: true, selection: directory(files(incomplete)) });
+  assert.ok('inspection' in draft);
+  const draftEntries = unzipSync(new Uint8Array(await draft.file.arrayBuffer()));
+  const draftRelease = JSON.parse(text.decode(draftEntries['release.json']));
+  const draftMembers = await readTgz(draftEntries[draftRelease.components[0].variants[0].path], true);
+  const draftPlugin = JSON.parse(text.decode(draftMembers.find(item => item.path === 'package/plugin.json')?.bytes));
+  assert.deepEqual(draftPlugin.configuration.schema.required, ['configUrl']);
+  assert.deepEqual(draftPlugin.configuration.defaults, {});
+});
+
 test('配套服务器与浏览器共用身份版本，组件ID与运行时保持各自声明', async () => {
   const value = declaration();
   const input = { ...value, components: [value.components[0], { kind: 'server', root: 'server', files: ['main.mjs'],

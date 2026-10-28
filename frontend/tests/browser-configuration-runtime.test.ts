@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { setImmediate as nextTurn } from 'node:timers/promises';
 import type { ConfigurationAccess, HostContext, WebPlugin } from '../src/plugin-sdk/index.ts';
-import { createPluginManager } from '../src/plugins/index.ts';
+import { createPluginManager, readPluginModule } from '../src/plugins/index.ts';
 import { browserConfigurationServer } from './browser-configuration-fixtures.ts';
 import { deferred } from './fixtures.ts';
 
@@ -43,6 +43,32 @@ function plugin(overrides: Partial<WebPlugin> = {}): WebPlugin {
   };
 }
 const access: ConfigurationAccess = { get: () => ({ count: 2 }), subscribe: () => () => {} };
+
+test('旧模块缺省生效策略可读取，空必填配置先展示并在填写后才允许运行', async () => {
+  const configuration = Object.freeze({ version: 1, defaults: {}, schema: {
+    type: 'object', properties: { endpoint: { type: 'string', minLength: 1 } }, required: ['endpoint'],
+  } });
+  const original = Object.freeze({ id: 'example', version: '1.0.0', apiVersion: 2, panels: [], configuration });
+  const parsed = readPluginModule({ default: original });
+  assert.equal(parsed.configuration?.apply_policy, 'next_invocation');
+  assert.equal(Object.hasOwn(configuration, 'apply_policy'), false);
+  assert.throws(() => readPluginModule({ ...original, configuration: { ...configuration, apply_policy: 'unknown' } }), /SDK v2/);
+  const model = browserConfigurationServer().model();
+  const active = new AbortController().signal;
+  try {
+    model.define(parsed.id, parsed.configuration ?? null);
+    const draft = await model.get(parsed.id, active);
+    assert.equal(draft.compatible, false);
+    assert.deepEqual(draft.values, {});
+    await assert.rejects(model.prepare(parsed.id, parsed.configuration ?? null, active), /配置无效/);
+    const invalid = await model.save(parsed.id, draft.revision, { endpoint: 42 }, active);
+    assert.equal(invalid.compatible, false);
+    const saved = await model.save(parsed.id, draft.revision, { endpoint: 'configured' }, active);
+    assert.equal(saved.compatible, true);
+    const prepared = await model.prepare(parsed.id, parsed.configuration ?? null, active);
+    assert.deepEqual(prepared?.get(), { endpoint: 'configured' });
+  } finally { model.dispose(); }
+});
 
 test('配置异步准备完成前不激活，应用确认完成前不发布已加载状态', async () => {
   const prepared = deferred<ConfigurationAccess>();

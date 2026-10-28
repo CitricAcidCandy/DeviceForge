@@ -130,5 +130,45 @@ SDK 2 的 `extensions/devices/artifacts/taskHistory/themes` 是可选上下文�
 
 外显功能名称和描述来自发布 `name/description` 与市场元数据，组件 ID 用于稳定引用。公开 `configuration` 提供版本、schema、defaults、apply_policy，字段用中文 title/description；敏感字段不能因显示 `********` 就认定已填写。不要把开发机工具绝对路径、凭据或用户业务配置固化到包中。服务器托管路径只进入有效配置，不写浏览器配置原值；高级覆盖由宿主管理配置流程处理。
 
+### 配置声明的完整字段
+
+在 `components[].plugin.configuration` 声明一次，打包器会把相同配置写入组件清单和生成的浏览器入口，无需业务入口再复制配置对象。
+
+| 字段 | 类型、必填与默认 | 约束及语义 |
+| --- | --- | --- |
+| version | 整数，必填 | 1–4294967295，配置结构版本；不是插件版本字符串 |
+| schema | JSON Schema 对象，必填 | 根 type 固定 object；可用 properties、required、additionalProperties 和本地引用描述字段 |
+| defaults | JSON 对象，必填 | 初始配置草稿，可缺少 required 用户输入；已提供值仍须符合字段约束，不放示例凭据冒充用户输入 |
+| apply_policy | 字符串，可省略 | 打包器、宿主和浏览器模块读取均默认 next_invocation；也可显式 plugin_reload，分别表示下次调用或重载插件后生效；未知值仍拒绝 |
+| legacy_filename | 字符串或 null，可选 | 服务器旧配置迁移使用，不含路径，非空且最多180个UTF-8字节；新工程通常省略 |
+
+安装和配置就绪分开：缺少必填输入时先完成安装，配置视图显示字段错误；保存与运行前仍检查完整schema。顶层requirements可进一步声明完整功能的启用门禁。例如以下开发清单片段（其余身份、入口和files沿用完整示例）：
+
+```json
+{
+  "components": [{
+    "id": "example_browser",
+    "plugin": { "configuration": {
+      "version": 1,
+      "apply_policy": "next_invocation",
+      "schema": {
+        "type": "object",
+        "properties": { "configUrl": {
+          "type": "string", "title": "配置地址", "pattern": "^https?://", "minLength": 1
+        } },
+        "required": ["configUrl"], "additionalProperties": false
+      },
+      "defaults": {}
+    } }
+  }],
+  "requirements": [{
+    "component_id": "example_browser", "config_pointer": "/configUrl",
+    "title": "配置地址", "description": "启用前填写实际 HTTP/HTTPS 配置地址", "required": true
+  }]
+}
+```
+
+schema.required:["configUrl"]与defaults:{}可以作为待填写草稿安装；填写实际地址并通过完整模式验证后才能运行。已提供的错误类型、越界值或无效模式仍会拒绝。打包器提前检查声明结构与生效策略，完整模式编译由宿主负责。旧完整离线ZIP按原字节处理，缺省apply_policy使用next_invocation，无需改包或重算摘要；浏览器读取缺省策略时也不修改原模块对象。
+
 
 新版统一依赖使用 dependencies.json（独立组件）或 v2 清单的 dependencies，先自动发现本机与用户根共享工具，一次安装只下载缺失必需项；启动与重新检测不下载。v1 保留兼容。完整字段、来源约束与管理接口通过本指南工具查询 `dependencies` 主题。

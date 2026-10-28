@@ -43,6 +43,40 @@ impl Fixture {
 }
 
 #[tokio::test]
+async fn incomplete_configuration_defaults_remain_editable_but_cannot_run_until_saved() {
+    let fixture = Fixture::new().await;
+    let manifest_path = fixture.store.deployment[0].join("demo/manifest.json");
+    let mut manifest: Value = storage::json(&manifest_path).unwrap();
+    manifest["configuration"] = json!({"version":1,"schema":{
+        "type":"object","properties":{"endpoint":{"type":"string","minLength":1}},
+        "required":["endpoint"],"additionalProperties":false},"defaults":{}});
+    fs::write(&manifest_path, serde_json::to_vec(&manifest).unwrap()).unwrap();
+    let draft = fixture.store.get("demo").await.unwrap();
+    assert!(!draft.compatible);
+    assert!(!draft.field_errors.is_empty());
+    assert_eq!(draft.values, json!({}));
+    assert_eq!(
+        draft.definition.unwrap().apply_policy,
+        ConfigurationApplyPolicy::NextInvocation
+    );
+    assert!(fixture.store.invocation_path("demo").await.is_err());
+    let saved = fixture
+        .store
+        .patch("demo", draft.revision, json!({"endpoint":"configured"}))
+        .await
+        .unwrap();
+    assert!(saved.compatible);
+    assert!(
+        fixture
+            .store
+            .invocation_path("demo")
+            .await
+            .unwrap()
+            .is_some()
+    );
+}
+
+#[tokio::test]
 async fn invocation_configuration_and_resources_wait_for_busy_workers() {
     let fixture = Fixture::new().await;
     let occupied = fixture

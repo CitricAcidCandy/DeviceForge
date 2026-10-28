@@ -61,7 +61,10 @@ function isWebPlugin(value: unknown): value is WebPlugin {
 }
 export function readPluginModule(value: unknown): WebPlugin {
   const candidate = record(value) && 'default' in value ? value.default : value;
-  if (!isWebPlugin(candidate)) throw new Error('模块不符合浏览器插件 SDK v2');
-  validateContributions([candidate]);
-  return candidate;
+  const normalized = record(candidate) && record(candidate.configuration) && candidate.configuration.apply_policy === undefined
+    ? { ...candidate, configuration: { ...candidate.configuration, apply_policy: 'next_invocation' } }
+    : candidate;
+  if (!isWebPlugin(normalized)) throw new Error('模块不符合浏览器插件 SDK v2');
+  validateContributions([normalized]);
+  return normalized;
 }

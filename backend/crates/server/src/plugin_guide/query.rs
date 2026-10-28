@@ -105,6 +105,41 @@ mod tests {
     }
 
     #[test]
+    fn configuration_fields_and_post_installation_inputs_are_documented() {
+        for target in ["frontend", "backend"] {
+            let response = get(json!({"target":target,"topic":"manifest"})).unwrap();
+            let content = response["documents"][0]["content"].as_str().unwrap();
+            for term in [
+                "4294967295",
+                "next_invocation",
+                "plugin_reload",
+                "legacy_filename",
+                "defaults:{}",
+                "requirements",
+            ] {
+                assert!(content.contains(term), "{target} 配置知识缺少 {term}");
+            }
+            let normalized = content.replace("\r\n", "\n");
+            let example = normalized
+                .split("```json\n")
+                .skip(1)
+                .map(|block| block.split("```").next().unwrap())
+                .filter_map(|block| serde_json::from_str::<Value>(block).ok())
+                .find(|value| value["requirements"][0]["config_pointer"] == "/configUrl")
+                .expect("应直接提供安装后配置输入示例");
+            let configuration: apk_plugin_sdk::ConfigurationDefinition =
+                serde_json::from_value(example["components"][0]["plugin"]["configuration"].clone())
+                    .unwrap();
+            assert_eq!(configuration.defaults, json!({}));
+            assert_eq!(configuration.schema["required"], json!(["configUrl"]));
+            assert_eq!(
+                example["requirements"][0]["component_id"],
+                example["components"][0]["id"]
+            );
+        }
+    }
+
+    #[test]
     fn embedded_service_docs_are_self_contained() {
         let cases: &[(&str, &str, &[&str])] = &[
             (

@@ -67,3 +67,54 @@ fn script_runtime_must_be_a_declared_required_dependency() {
         assert!(error.to_string().contains("脚本运行时"), "{error}");
     }
 }
+
+#[test]
+fn browser_configuration_accepts_missing_policy_and_required_inputs_but_rejects_bad_defaults() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = fs::canonicalize(temporary.path()).unwrap();
+    fs::write(root.join("index.js"), b"export default {panels:[]};").unwrap();
+    fs::write(
+        root.join("package.json"),
+        serde_json::to_vec(&json!({"version":"1.0.0", "deviceforge":{
+            "kind":"browser","manifest":"plugin.json", "entrypoints":{
+                "any":{"runtime":"browser","path":"index.js"}}}}))
+        .unwrap(),
+    )
+    .unwrap();
+    let valid = json!({"version":1,"apply_policy":"next_invocation",
+        "schema":{"type":"object","properties":{"endpoint":{"type":"string"}},
+            "additionalProperties":false},"defaults":{}});
+    let mut missing_policy = valid.clone();
+    missing_policy
+        .as_object_mut()
+        .unwrap()
+        .remove("apply_policy");
+    let mut missing_default = valid.clone();
+    missing_default["schema"]["required"] = json!(["endpoint"]);
+    let mut invalid_default = valid.clone();
+    invalid_default["defaults"] = json!({"endpoint":42});
+    let mut invalid_policy = valid.clone();
+    invalid_policy["apply_policy"] = json!("unknown");
+    for (configuration, expected_error) in [
+        (missing_policy, None),
+        (missing_default, None),
+        (invalid_policy, Some("包清单结构无效")),
+        (invalid_default, Some("配置默认值不符合声明模式")),
+        (valid, None),
+    ] {
+        fs::write(
+            root.join("plugin.json"),
+            serde_json::to_vec(&json!({"id":"configured_browser","version":"1.0.0",
+                "api_version":2,"configuration":configuration}))
+            .unwrap(),
+        )
+        .unwrap();
+        let result = validate(&root, &root, PackageKind::Browser, None);
+        if let Some(message) = expected_error {
+            assert!(matches!(result, Err(Error::Invalid(error)) if error == message));
+        } else {
+            let (package, _) = result.unwrap();
+            assert_eq!(package.id, "configured_browser");
+        }
+    }
+}

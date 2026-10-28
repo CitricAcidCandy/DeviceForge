@@ -75,6 +75,56 @@ test('市场所有公开字段可声明，身份和资源摘要保持自动派�
   assert.throws(() => marketMetadata({ ...value, market: { resource_id: 'manual' } }), /未知/);
 });
 
+test('配置声明补生效策略，允许必填输入缺省并拒绝非法配置结构', () => {
+  const input = declaration();
+  input.components[0].plugin = { configuration: { version: 1,
+    schema: { type: 'object', properties: { configUrl: { type: 'string' } } }, defaults: {} } };
+  const value = normalizeManifest(input);
+  assert.equal(value.components[0].plugin.configuration.apply_policy, 'next_invocation');
+  assert.equal(input.components[0].plugin.configuration.apply_policy, undefined);
+  for (const kind of ['browser', 'server']) {
+    const component = { ...input.components[0], kind,
+      entrypoints: { any: { runtime: kind === 'browser' ? 'browser' : 'node', path: 'index.js' } } };
+    const config = component.plugin.configuration;
+    assert.equal(normalizeManifest(declaration([component])).components[0].plugin.configuration.apply_policy, 'next_invocation');
+    for (const [patch, pattern] of [
+      [{ version: 0 }, /version/], [{ version: 1.5 }, /version/], [{ version: 0x100000000 }, /version/],
+      [{ schema: { type: 'array' } }, /schema/], [{ defaults: [] }, /defaults/],
+      [{ apply_policy: 'reload' }, /apply_policy/], [{ apply_policy: null }, /apply_policy/],
+      [{ schema: { ...config.schema, required: [42] } }, /required/],
+      [{ legacy_filename: '../config.json' }, /legacy_filename/], [{ unknown: true }, /未知/],
+    ]) assert.throws(() => normalizeManifest(declaration([{ ...component,
+      plugin: { configuration: { ...config, ...patch } } }])), pattern);
+    const draft = normalizeManifest(declaration([{ ...component, plugin: { configuration: {
+      ...config, schema: { ...config.schema, required: ['configUrl'] },
+    } } }]));
+    assert.deepEqual(draft.components[0].plugin.configuration.defaults, {});
+    assert.deepEqual(draft.components[0].plugin.configuration.schema.required, ['configUrl']);
+    const explicit = normalizeManifest(declaration([{ ...component, plugin: { configuration: {
+      ...config, apply_policy: 'plugin_reload', schema: { ...config.schema, required: ['configUrl'] },
+      defaults: { configUrl: 'https://example.test/config.json' },
+    } } }]));
+    assert.equal(explicit.components[0].plugin.configuration.apply_policy, 'plugin_reload');
+  }
+});
+
+test('配置仅在开发清单维护，生成包声明与浏览器实际入口共享相同配置', async () => fixture(async (root) => {
+  const value = declaration();
+  value.components[0].plugin = { configuration: { version: 1,
+    schema: { type: 'object', properties: { endpoint: { type: 'string' } } }, defaults: {} } };
+  const source = join(root, 'manifest.json'), destination = join(root, 'output');
+  await writeFile(source, JSON.stringify(value));
+  await writeFile(join(root, 'index.js'), 'export default {panels:[]};');
+  await packPlugin({ source, destination });
+  const pkgRoot = join(root, 'unpacked');
+  await unpack(join(destination, 'components/example.tgz'), pkgRoot);
+  const manifest = await json(join(pkgRoot, 'plugin.json'));
+  const runtime = (await import(pathToFileURL(join(pkgRoot, '.deviceforge-entry.js')).href)).default;
+  assert.deepEqual(runtime.configuration, manifest.configuration);
+  assert.equal(runtime.configuration.apply_policy, 'next_invocation');
+  assert.deepEqual(runtime.configuration.defaults, {});
+}));
+
 test('浏览器单清单生成身份工厂、组件包、离线闭包和可直接发布的市场资料', async () => fixture(async (root) => {
   const source = join(root, 'manifest.json'), destination = join(root, 'output');
   const value = declaration();

@@ -2,7 +2,18 @@
 use super::*;
 
 fn generated_release(build: &str) -> Vec<u8> {
+    generated_release_with_configuration(build, None)
+}
+
+fn generated_release_with_configuration(
+    build: &str,
+    configuration: Option<serde_json::Value>,
+) -> Vec<u8> {
     let version = "1.0.0";
+    let mut plugin = json!({"id":"identity_browser","version":version,"api_version":2});
+    if let Some(configuration) = &configuration {
+        plugin["configuration"] = configuration.clone();
+    }
     let gzip = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
     let mut archive = tar::Builder::new(gzip);
     for (path, bytes) in [
@@ -13,11 +24,7 @@ fn generated_release(build: &str) -> Vec<u8> {
                 "any":{"runtime":"browser","path":".deviceforge-entry.js"}}}}))
             .unwrap(),
         ),
-        (
-            "plugin.json",
-            serde_json::to_vec(&json!({"id":"identity_browser","version":version,"api_version":2}))
-                .unwrap(),
-        ),
+        ("plugin.json", serde_json::to_vec(&plugin).unwrap()),
         (
             ".deviceforge-entry.js",
             format!("export {{default}} from './index.js'; // 构建：{build}").into_bytes(),
@@ -35,11 +42,15 @@ fn generated_release(build: &str) -> Vec<u8> {
     let component = archive.into_inner().unwrap().finish().unwrap();
     let digest = format!("{:x}", Sha256::digest(&component));
     let path = format!("blobs/{digest}");
-    let manifest = json!({"format_version":2,"host_api_version":2,"id":"identity_release","version":version,
+    let mut manifest = json!({"format_version":2,"host_api_version":2,"id":"identity_release","version":version,
         "name":"身份入口回归","description":"单清单浏览器组件更新",
         "components":[{"id":"identity_browser","kind":"browser","version":version,"variants":[{
             "platform":"any","path":path,"sha256":digest,"size":component.len(),"format":"tgz"}]}],
         "dependencies":{"format_version":1,"dependencies":[]}});
+    if configuration.is_some() {
+        manifest["requirements"] = json!([{"component_id":"identity_browser","config_pointer":"/endpoint",
+            "title":"配置地址","description":"由使用者填写实际地址","required":true}]);
+    }
     zip(vec![
         ("release.json", serde_json::to_vec(&manifest).unwrap()),
         (
@@ -48,6 +59,37 @@ fn generated_release(build: &str) -> Vec<u8> {
         ),
         (&path, component),
     ])
+}
+
+#[tokio::test]
+async fn original_package_with_missing_policy_and_required_user_input_installs_without_rewriting() {
+    let (_temporary, artifacts, store) = setup().await;
+    let configuration = json!({"version":1,"schema":{"type":"object",
+        "properties":{"endpoint":{"type":"string","minLength":1}},"required":["endpoint"]},
+        "defaults":{}});
+    let source = upload(
+        &artifacts,
+        generated_release_with_configuration("draft", Some(configuration.clone())),
+    )
+    .await;
+    let plan = store.plan(source.clone()).await.unwrap();
+    let installed = store
+        .prepare(source)
+        .await
+        .unwrap()
+        .commit(None)
+        .await
+        .unwrap();
+    assert_eq!(installed.revision, plan.revision);
+    assert_eq!(installed.requirements.len(), 1);
+    let asset = store
+        .asset("identity_browser", &installed.revision, "plugin.json")
+        .await
+        .unwrap();
+    let bytes = asset.stream.try_collect::<Vec<_>>().await.unwrap().concat();
+    let preserved: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+    assert_eq!(preserved["configuration"], configuration);
+    assert!(preserved["configuration"].get("apply_policy").is_none());
 }
 
 #[tokio::test]

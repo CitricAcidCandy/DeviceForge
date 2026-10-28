@@ -3,6 +3,7 @@ import { utf8Length } from './encoding.mjs';
 import { relativePath, validateRelease } from './contract.mjs';
 import { fixedVersion } from './versions.mjs';
 import { fields, text, marketMetadata } from './market.mjs';
+import { configurationDefinition } from './configuration.mjs';
 
 function identifier(value, label) {
   if (typeof value !== 'string' || !/^[a-z][a-z0-9._-]{0,98}$/.test(value) || value.startsWith('builtin.'))
@@ -32,8 +33,10 @@ function component(value, source) {
   }
   if (!Array.isArray(value.files) || !value.files.length || value.files.length > 256) throw new Error('组件 files 须显式列出1至256个文件或目录');
   value.files.forEach(relativePath);
-  const plugin = fields(value.plugin ?? {}, value.kind === 'browser' ? ['api_version', 'configuration'] :
-    ['protocol_version', 'args', 'operations', 'sessions', 'artifacts', 'devices', 'performance', 'configuration', 'recovery', 'services'], '组件 plugin');
+  const plugin = structuredClone(fields(value.plugin ?? {}, value.kind === 'browser' ? ['api_version', 'configuration'] :
+    ['protocol_version', 'args', 'operations', 'sessions', 'artifacts', 'devices', 'performance', 'configuration', 'recovery', 'services'], '组件 plugin'));
+  if (plugin.configuration !== undefined && plugin.configuration !== null)
+    plugin.configuration = configurationDefinition(plugin.configuration, id);
   if (value.kind === 'browser' && (plugin.api_version ?? 2) !== 2) throw new Error('浏览器 SDK 版本必须为2');
   if (value.kind === 'server' && (![1, 2, 3, 4, 6].includes(plugin.protocol_version ?? 1) ||
       !Array.isArray(plugin.operations ?? []))) throw new Error('任务协议或操作列表无效');
