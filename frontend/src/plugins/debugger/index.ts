@@ -1,5 +1,7 @@
 export { createDebugRegistry } from './registry.ts';
 export type { DebugRegistry, DebugTrack } from './registry.ts';
+export type { DebugDataSources } from './data.ts';
+export { copyDataJson, isDataSecretKey } from './data-json.ts';
 export { scopedDebugAccess } from './scoped.ts';
 export { createUiCollector } from './collector.ts';
 export type { UiCollector, UiCollectorOptions, UiSemanticExtension, DebugSurface } from './collector.ts';

@@ -79,7 +79,8 @@ async fn capabilities(State(state): State<ApiState>) -> Json<Value> {
     Json(json!({"protocol_version":1,"local_only":true,
         "stage":"integration","tools":tools().into_iter().map(|tool| tool.name).collect::<Vec<_>>(),
         "source_breakpoints":false,"arbitrary_evaluation":false,
-        "reload_timeout_ms":30000,"persistent_log_pagination":state.runtime.is_some(),
+        "reload_timeout_ms":30000,"automation_timeout_ms":30000,"automation_max_steps":32,
+        "data_value_max_bytes":262144,"persistent_log_pagination":state.runtime.is_some(),
         "report_export":state.artifacts.is_some(),
         "ui_requires_selected_browser":true,"production_acceptance_complete":false}))
 }

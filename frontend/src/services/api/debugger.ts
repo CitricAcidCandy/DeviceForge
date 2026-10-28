@@ -17,7 +17,8 @@ export type DebuggerAckDto = components['schemas']['DebuggerBridgeAck'];
 export type DebuggerReceiptDto = components['schemas']['DebuggerCommandReceipt'];
 export type DebuggerToolCallDto = components['schemas']['DebuggerToolCall'];
 
-const tools = new Set(['inspect', 'ui_tree', 'ui_query', 'ui_diff', 'ui_assert', 'ui_action', 'invoke', 'reload', 'report']);
+const tools = new Set(['inspect', 'ui_tree', 'ui_query', 'ui_diff', 'ui_assert', 'ui_action', 'invoke', 'reload', 'report',
+  'data_catalog', 'data_read', 'data_write', 'automation_run']);
 const states = new Set(['queued', 'delivered', 'succeeded', 'failed', 'timed_out_unconfirmed', 'cancelled_unconfirmed']);
 const nonempty = (value: unknown): value is string => typeof value === 'string' && value.length > 0 && value.length <= 128;
 const nullableText = (value: unknown) => value === null || nonempty(value);
@@ -50,7 +51,8 @@ export function isDebuggerBatch(value: unknown): value is DebuggerBatchDto {
   return isStatus(value) && Array.isArray(commands) && commands.length <= 4 &&
     commands.every((item: unknown) => isRecord(item) && nonempty(item.command_id) &&
       nonempty(item.session_id) && isDebuggerTarget(item.target) && tools.has(String(item.tool)) &&
-      isSchemaValue(item.parameters) && natural(item.remaining_ms) && item.remaining_ms <= (item.tool === 'reload' ? 30000 : 10000));
+      isSchemaValue(item.parameters) && natural(item.remaining_ms) &&
+      item.remaining_ms <= (item.tool === 'reload' || item.tool === 'automation_run' ? 30000 : 10000));
 }
 function isReceipt(value: unknown): value is DebuggerReceiptDto {
   return isRecord(value) && nonempty(value.command_id) && nonempty(value.session_id) &&

@@ -3,7 +3,9 @@ import { waitFor } from './echo.js';
 // 可在自有开发工具内使用；不会自行连接、选目标、重试或执行变更。
 export async function debuggerRequest(context, request, callerSignal) {
   if (!context.extensions) throw new Error('宿主未提供公开扩展服务接口，请使用兼容发行版');
-  const signal = AbortSignal.any([context.signal, callerSignal, AbortSignal.timeout(10000)]);
+  const longCommand = request.action === 'call' &&
+    ['deviceforge.debug_automation_run', 'deviceforge.debug_reload'].includes(request.name);
+  const signal = AbortSignal.any([context.signal, callerSignal, AbortSignal.timeout(longCommand ? 35000 : 10000)]);
   signal.throwIfAborted();
   return waitFor(context.extensions.callService('host.debugger', '1', request, signal), signal);
 }

@@ -6,7 +6,7 @@ import { zip } from './archive.mjs';
 
 const sourceRoot = fileURLToPath(new URL('../', import.meta.url));
 export const componentFiles = {
-  browser: ['package.json', 'plugin.json', 'README.md', 'src/index.js', 'src/echo.js', 'src/mount.js', 'src/debugger-client.js'],
+  browser: ['package.json', 'plugin.json', 'README.md', 'src/index.js', 'src/echo.js', 'src/mount.js', 'src/debugger-client.js', 'src/data-source.js'],
   server: ['package.json', 'plugin.json', 'README.md', 'entry.mjs', 'protocol.mjs'],
 };
 const digest = (bytes) => createHash('sha256').update(bytes).digest('hex');

@@ -1,5 +1,17 @@
 # 浏览器插件调试、验证与交付
 
+## Agent自动调试与插件数据
+
+兼容宿主新增 `deviceforge.debug_data_catalog/data_read/data_write/automation_run/command`。先查询实际能力，不把源码指南更新视为已运行宿主升级。数据及步骤执行目前需要浏览器目标；服务器业务继续沿原公开服务和Job。
+
+插件可选调用 `context.debug.registerDataSource`，字段为 `id/label/schema/persistence/applyPolicy/read/write?`。`persistence` 取 `memory/persistent`，`applyPolicy` 取 `immediate/next_invocation/reload`；`read(query,signal)` 返回 `{revision,value}`，`write({expectedRevision,value},signal)` 在实际修改处原子比较修订。调用者使用读取所得不透明修订，不能猜测或硬编码。登记返回释放函数，应交由自己的作用域释放；缺少可选入口时业务继续运行。
+
+工具输入分别为 `{session_id,parameters:{}}`、`{session_id,parameters:{source_id,query?}}`、`{session_id,parameters:{source_id,expected_revision,value,confirmed:true}}`。写入完整替换无敏感字段的业务投影，保存后回读；只读字段、模式、实际修订仍校验。含敏感字段的整体替换拒绝，公开模式会省略敏感属性并标记 `schema_complete/omitted_schema_paths`。延迟生效策略不能把保存成功当运行状态已经改变。
+
+自动调试参数为 `{session_id,parameters:{confirmed,stop_on_failure?,steps:[{id,tool,parameters,bind?}]}}`，最多三十二步，内部共享二十八秒、单步十秒。允许检查、数据目录与读写、界面树、查询、断言、动作和公开入口试调用；禁止重载、嵌套和人工拾取。`bind.target_from_step` 只接续更早完整唯一界面查询的节点，`bind.revision_from_step` 只接续更早同源读取的修订，不支持脚本或任意对象路径。计划确认不替代动作自身确认。
+
+回执成功还须检查 `response.status` 和各步骤状态。派发不等于业务成功；数据回读是证据，当前没有通用数据相等断言或自动回滚。结果未知或取消后停止后续步骤，不自动重放；使用 `{session_id,command_id}` 调用只读 `deviceforge.debug_command` 查询已保留回执。超时只结束等待，可信旧回调可能继续执行，最终写入仍须插件原子比较修订。
+
 ## 本机 Debugger：公开合同与验证边界
 
 兼容的 DeviceForge 产品默认随附官方调试器。使用者正常启动宿主并在本机以回环地址打开界面，点击悬浮球选择目标即可；无需额外导入 Debugger 包或选择验收专用程序。资源市场「已安装」可停用和重新启用；已有同名独立安装仍由原安装入口管理。市场／MCP 的本地导入用于被调试插件，或显式替换随附调试器版本。旧宿主缺能力时先升级宿主，不把空结果当作调试成功。

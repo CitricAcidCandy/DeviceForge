@@ -39,6 +39,10 @@ export async function invokeDebuggerPublic(options: DebuggerPublicOptions, reque
   if (value.action === 'capabilities' || value.action === 'status') {
     return { logId: null, data: { protocol_version: 1, stage: 'integration', local_only: true,
       bridge: { ...options.snapshot() }, source_breakpoints: false, arbitrary_evaluation: false,
+      plugin_data: { catalog: true, read: true, write: true, registration_required: true },
+      automation: { run: true, max_steps: 32, total_timeout_ms: 28000,
+        step_timeout_ms: 10000, result_binding: ['target_from_step', 'revision_from_step'],
+        command_query: true, replay_mutations: false },
       production_acceptance_complete: false,
       note: '按当前目标能力执行；完整首期验收结果以随包交付记录为准' } };
   }
@@ -84,7 +88,7 @@ export async function invokeDebuggerPublic(options: DebuggerPublicOptions, reque
     return { data: response.data, logId: response.logId };
   }
   if (value.action !== 'call' || typeof value.name !== 'string' ||
-    !/^deviceforge\.debug_(session|targets|inspect|events|ui_tree|ui_query|ui_diff|ui_assert|ui_action|invoke|reload|report)$/.test(value.name) ||
+    !/^deviceforge\.debug_(session|targets|inspect|events|ui_tree|ui_query|ui_diff|ui_assert|ui_action|invoke|reload|report|data_catalog|data_read|data_write|automation_run|command)$/.test(value.name) ||
     !isJsonData(value.input)) return invalid('请使用公开调试工具名和对应 JSON 参数；不会执行任意脚本或其他宿主管理工具');
   const response = await options.gateway.call({ name: value.name, input: value.input }, combined);
   return { data: response.data, logId: response.logId };

@@ -1,6 +1,7 @@
 //! 有界调试会话与浏览器桥接；不执行浏览器脚本或服务器业务。
 
 mod bridge;
+mod commands;
 mod config;
 mod events;
 mod server_operations;
@@ -9,12 +10,21 @@ mod state;
 mod types;
 mod validation;
 
+pub use commands::{
+    AutomationBinding, AutomationInput, AutomationStep, AutomationStepTool, DataCatalogInput,
+    DataReadInput, DataWriteInput,
+};
 pub use config::{DebuggerClock, DebuggerConfig};
 pub use types::*;
 
 /// 校验已脱敏的调试结果结构与编码预算，不读取日志或文件。
 pub fn validate_debug_response(value: &serde_json::Value) -> Result<()> {
     validation::response(value)
+}
+
+/// HTTP 与 MCP 共用数据、步骤和传输预算校验，不在边界另建执行器。
+pub fn validate_debug_command(tool: DebugTool, parameters: &serde_json::Value) -> Result<()> {
+    commands::validate(tool, parameters)
 }
 
 use std::{

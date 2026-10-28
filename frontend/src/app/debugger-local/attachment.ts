@@ -25,6 +25,13 @@ export function createAttachment(pluginId: string, generation: string, scope: Pl
   const sessions = new Map<string, Dispose>();
   const entry: AttachedDebug = {
     pluginId, generation, scope, lifetime, registry, access: {
+      ...(scoped.registerDataSource ? { registerDataSource(definition: Parameters<NonNullable<DebugAccess['registerDataSource']>>[0]): Dispose {
+        try {
+          const register = scoped.registerDataSource;
+          if (!register) throw new Error('数据源登记入口已撤销');
+          return register(definition);
+        } catch { recordFailure(); return () => {}; }
+      } } : {}),
       ...(closeSession ? { registerSession(sessionId: string): Dispose {
         if (signal.aborted || !sessionId || sessionId.length > 128 || /\s/.test(sessionId))
           throw new Error('调试会话标识无效或所属作用域已关闭');

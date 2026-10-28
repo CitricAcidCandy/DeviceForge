@@ -3,8 +3,8 @@ use super::{ApiError, error};
 use apk_application::{
     Application,
     debugger::{
-        DebugCommandRequest, DebugTarget, DebugTool, DebuggerService, EventQuery, SessionRequest,
-        TargetKind,
+        AutomationInput, DataCatalogInput, DataReadInput, DataWriteInput, DebugCommandRequest,
+        DebugTarget, DebugTool, DebuggerService, EventQuery, SessionRequest, TargetKind,
     },
     plugin_lifecycle::PluginService,
 };
@@ -14,6 +14,7 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 use std::sync::Arc;
 
+mod command_query;
 mod diagnostics;
 mod diagnostics_adapter;
 pub(crate) use diagnostics_adapter::PersistentDiagnostics;
@@ -103,6 +104,11 @@ pub(crate) fn manages(name: &str) -> bool {
             | "deviceforge.debug_targets"
             | "deviceforge.debug_inspect"
             | "deviceforge.debug_events"
+            | "deviceforge.debug_command"
+            | "deviceforge.debug_data_catalog"
+            | "deviceforge.debug_data_read"
+            | "deviceforge.debug_data_write"
+            | "deviceforge.debug_automation_run"
             | "deviceforge.debug_ui_tree"
             | "deviceforge.debug_ui_query"
             | "deviceforge.debug_ui_diff"
@@ -139,6 +145,36 @@ pub(crate) fn tools() -> Vec<Tool> {
             "查询内存会话事件，或通过 source=logs 查询服务器持久日志；筛选、倒序和游标由日志端口执行",
             crate::openapi::schema::<diagnostics::EventsInput>(),
             true,
+        ),
+        (
+            "debug_command",
+            "查询归属本会话的原命令回执；允许读取结束或换代会话的历史，不会重新派发动作",
+            crate::openapi::schema::<command_query::CommandQuery>(),
+            true,
+        ),
+        (
+            "debug_data_catalog",
+            "列出所选浏览器插件主动登记的数据源、模式及读写能力，不触发数据读取",
+            crate::openapi::schema::<TypedCommandInput<DataCatalogInput>>(),
+            true,
+        ),
+        (
+            "debug_data_read",
+            "读取所选浏览器插件的明确数据源及修订；数据正文最多256KiB，返回已知敏感字段脱敏后的业务投影",
+            crate::openapi::schema::<TypedCommandInput<DataReadInput>>(),
+            true,
+        ),
+        (
+            "debug_data_write",
+            "按expected_revision完整替换已登记业务投影并回读；须confirmed=true，插件原子校验修订，未知结果不重放",
+            crate::openapi::schema::<TypedCommandInput<DataWriteInput>>(),
+            false,
+        ),
+        (
+            "debug_automation_run",
+            "在选定浏览器连续执行1至32步，总预算30秒；绑定只引用先前唯一查询节点或数据修订，禁止嵌套、重载和自动重放",
+            crate::openapi::schema::<TypedCommandInput<AutomationInput>>(),
+            false,
         ),
         (
             "debug_ui_tree",
@@ -309,8 +345,19 @@ pub(crate) async fn invoke_with_ports(
             }
         }
         "deviceforge.debug_events" => diagnostics::events(debugger, ports.diagnostics, input).await,
+        "deviceforge.debug_command" => command_query::query(debugger, input),
         _ => {
             let input: CommandInput = decode(input)?;
+            if let Some(suffix) = name.strip_prefix("deviceforge.debug_") {
+                if matches!(
+                    suffix,
+                    "data_catalog" | "data_read" | "data_write" | "automation_run"
+                ) {
+                    let tool: DebugTool = decode(json!(suffix))?;
+                    apk_application::debugger::validate_debug_command(tool, &input.parameters)
+                        .map_err(error)?;
+                }
+            }
             let session = debugger.touch_session(&input.session_id).map_err(error)?;
             if name == "deviceforge.debug_report" {
                 if session.target.target_kind == TargetKind::Server {
@@ -352,7 +399,7 @@ pub(crate) async fn invoke_with_ports(
                 return Err(ApiError::new(
                     StatusCode::BAD_REQUEST,
                     "debugger_capability_unavailable",
-                    "此服务器目标尚未接入该调试动作；UI 工具需要明确选择浏览器实例，服务器业务仍可使用原公开任务与服务入口",
+                    "此服务器目标尚未接入该调试动作；界面、登记数据与步骤工具需要明确选择浏览器实例，服务器数据仍通过原公开任务与服务入口读取或修改",
                 ));
             }
             if name == "deviceforge.debug_reload" {
@@ -383,7 +430,7 @@ mod tests {
     #[test]
     fn debugger_tools_are_unique_and_mutations_are_not_marked_read_only() {
         let tools = tools();
-        assert_eq!(tools.len(), 12);
+        assert_eq!(tools.len(), 17);
         let names = tools
             .iter()
             .map(|tool| tool.name.as_ref())
@@ -399,6 +446,8 @@ mod tests {
                     | "deviceforge.debug_invoke"
                     | "deviceforge.debug_reload"
                     | "deviceforge.debug_report"
+                    | "deviceforge.debug_data_write"
+                    | "deviceforge.debug_automation_run"
             );
             assert_eq!(tool.annotations.unwrap().read_only_hint, Some(!writes));
         }
@@ -423,5 +472,70 @@ mod tests {
             false
         );
         assert_eq!(alternatives[1]["additionalProperties"], false);
+    }
+
+    #[test]
+    fn debugger_data_and_automation_schemas_expose_actual_fields() {
+        let tools = tools();
+        for (name, fields) in [
+            ("deviceforge.debug_data_read", vec!["source_id", "query"]),
+            (
+                "deviceforge.debug_data_write",
+                vec!["source_id", "expected_revision", "value", "confirmed"],
+            ),
+            (
+                "deviceforge.debug_automation_run",
+                vec![
+                    "steps",
+                    "confirmed",
+                    "stop_on_failure",
+                    "target_from_step",
+                    "revision_from_step",
+                ],
+            ),
+            (
+                "deviceforge.debug_command",
+                vec!["session_id", "command_id"],
+            ),
+        ] {
+            let tool = tools.iter().find(|tool| tool.name == name).unwrap();
+            let schema = serde_json::to_string(&tool.input_schema).unwrap();
+            for field in fields {
+                assert!(schema.contains(field), "{name} 缺少 {field}");
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn debugger_server_data_and_automation_explicitly_report_unavailable() {
+        let (app, plugins, target) = super::super::server_target::tests::fixture().await;
+        let debugger = Arc::new(DebuggerService::new());
+        let session = debugger.open_session(SessionRequest { target }).unwrap();
+        for (name, parameters) in [
+            ("data_catalog", json!({})),
+            ("data_read", json!({"source_id":"aliases"})),
+            (
+                "data_write",
+                json!({"source_id":"aliases","expected_revision":"r1","value":{},"confirmed":true}),
+            ),
+            (
+                "automation_run",
+                json!({"steps":[{"id":"inspect","tool":"inspect","parameters":{}}],"confirmed":false}),
+            ),
+        ] {
+            let result = invoke_with_ports(
+                &app,
+                Some(&plugins),
+                &debugger,
+                DebuggerPorts::default(),
+                &format!("deviceforge.debug_{name}"),
+                json!({"session_id":session.session_id,"parameters":parameters}),
+            )
+            .await;
+            assert!(result.is_err(), "服务器目标不能伪造{name}成功");
+            if let Err(error) = result {
+                assert_eq!(error.1.code, "debugger_capability_unavailable");
+            }
+        }
     }
 }

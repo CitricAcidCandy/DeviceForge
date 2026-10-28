@@ -8,6 +8,7 @@ import { createLocalDebugger } from './debugger-local/index.ts';
 import type { LocalDebuggerOptions } from './debugger-local/index.ts';
 import { debuggerInputSchema, invokeDebuggerPublic } from './debugger-service.ts';
 import type { DebuggerPublicOptions } from './debugger-service.ts';
+import { runDebuggerAutomation } from './debugger-automation/index.ts';
 
 export type RuntimeDebuggerOptions = Pick<LocalDebuggerOptions, 'document' | 'slots' | 'readHostRoutes' | 'navigate'>;
 export function createRuntimeDebugger(options: RuntimeDebuggerOptions & {
@@ -31,8 +32,10 @@ export function createRuntimeDebugger(options: RuntimeDebuggerOptions & {
     select: local.select,
     async execute(command, signal) {
       if (!isJsonData(command.parameters)) throw new HostError('protocol', 'debugger_invalid_input', '调试命令参数不是有限 JSON');
-      return local.execute(command.tool, { plugin_id: command.target.plugin_id,
-        generation: command.target.generation ?? null }, command.parameters, signal);
+      const target = { plugin_id: command.target.plugin_id, generation: command.target.generation ?? null };
+      return command.tool === 'automation_run'
+        ? runDebuggerAutomation(command.parameters, target, signal, local.execute)
+        : local.execute(command.tool, target, command.parameters, signal);
     },
   });
   let bridge = makeBridge();

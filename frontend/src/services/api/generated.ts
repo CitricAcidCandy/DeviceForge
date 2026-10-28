@@ -3829,7 +3829,7 @@ export interface paths {
                                         version: string | null;
                                     };
 
-                                    tool: "inspect" | "ui_tree" | "ui_query" | "ui_diff" | "ui_assert" | "ui_action" | "invoke" | "reload" | "report";
+                                    tool: "inspect" | "ui_tree" | "ui_query" | "ui_diff" | "ui_assert" | "ui_action" | "data_catalog" | "data_read" | "data_write" | "automation_run" | "invoke" | "reload" | "report";
                                 }[];
                                 instance_id: string;
                                 targets: {
@@ -14659,6 +14659,25 @@ export interface components {
             expected_revision: number;
         };
 
+        DebuggerAutomationInput: {
+            confirmed: boolean;
+            steps: {
+
+                bind: {
+
+                    revision_from_step: string | null;
+
+                    target_from_step: string | null;
+                } | null;
+                id: string;
+                parameters: unknown;
+
+                tool: "inspect" | "data_catalog" | "data_read" | "ui_tree" | "ui_query" | "ui_assert" | "ui_action" | "data_write" | "invoke";
+            }[];
+
+            stop_on_failure: boolean;
+        };
+
         DebuggerBridgeAck: {
             command_id: string;
 
@@ -14707,7 +14726,7 @@ export interface components {
                     version: string | null;
                 };
 
-                tool: "inspect" | "ui_tree" | "ui_query" | "ui_diff" | "ui_assert" | "ui_action" | "invoke" | "reload" | "report";
+                tool: "inspect" | "ui_tree" | "ui_query" | "ui_diff" | "ui_assert" | "ui_action" | "data_catalog" | "data_read" | "data_write" | "automation_run" | "invoke" | "reload" | "report";
             }[];
             instance_id: string;
             targets: {
@@ -14821,6 +14840,21 @@ export interface components {
             response?: unknown;
             session_id: string;
             state: ("queued" | "delivered" | "succeeded" | "failed" | "cancelled_unconfirmed") | "timed_out_unconfirmed";
+        };
+
+        DebuggerDataCatalogInput: Record<string, never>;
+
+        DebuggerDataReadInput: {
+
+            query: unknown;
+            source_id: string;
+        };
+
+        DebuggerDataWriteInput: {
+            confirmed: boolean;
+            expected_revision: string;
+            source_id: string;
+            value: unknown;
         };
 
         DebuggerEventPage: {

@@ -55,12 +55,42 @@ export interface DebugResourceRecord {
   readonly metadata: DebugMetadata;
   readonly state: 'registered' | 'released' | 'release_failed';
 }
+// 数据源只公开插件主动选择的业务投影，不能据此访问任意对象路径。
+export interface DebugDataSnapshot {
+  readonly revision: string;
+  readonly value: JsonValue;
+}
+export interface DebugDataWrite {
+  readonly expectedRevision: string;
+  readonly value: JsonValue;
+}
+export interface DebugDataSourceDefinition {
+  readonly id: string;
+  readonly label: string;
+  readonly schema: JsonValue;
+  readonly persistence: 'memory' | 'persistent';
+  readonly applyPolicy: 'immediate' | 'next_invocation' | 'reload';
+  readonly read: (query: JsonValue, signal: AbortSignal) => Promise<DebugDataSnapshot>;
+  // 实际修订比较和写入必须在插件回调内原子完成；宿主预读不能替代此检查。
+  readonly write?: (request: DebugDataWrite, signal: AbortSignal) => Promise<void>;
+}
+export interface DebugDataSourceInfo {
+  readonly id: string;
+  readonly label: string;
+  readonly schema: JsonValue;
+  readonly schema_complete: boolean;
+  readonly omitted_schema_paths: readonly string[];
+  readonly writable: boolean;
+  readonly persistence: DebugDataSourceDefinition['persistence'];
+  readonly apply_policy: DebugDataSourceDefinition['applyPolicy'];
+}
 export interface DebugAccess {
   readonly registerNode: (definition: DebugNodeDefinition) => DebugNodeHandle;
   readonly emit: (event: DebugEventInput) => void;
   readonly registerResource: (definition: DebugResourceDefinition, release: Dispose) => Dispose;
   // 仅登记调用方已经明确取得的会话；宿主在本作用域释放时关闭，不影响其他观察者。
   readonly registerSession?: (sessionId: string) => Dispose;
+  readonly registerDataSource?: (definition: DebugDataSourceDefinition) => Dispose;
 }
 export interface DebugRegistrySnapshot {
   readonly owner: DebugOwner;

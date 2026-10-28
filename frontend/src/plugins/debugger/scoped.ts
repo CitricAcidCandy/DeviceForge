@@ -30,6 +30,21 @@ export function scopedDebugAccess(parent: DebugAccess | undefined, signal: Abort
   if (signal.aborted) close();
   track(() => { signal.removeEventListener('abort', close); close(); });
   return Object.freeze<DebugAccess>({
+    ...(parent.registerDataSource ? { registerDataSource(definition: Parameters<NonNullable<DebugAccess['registerDataSource']>>[0]) {
+      current();
+      const register = parent.registerDataSource;
+      if (!register) throw new Error('数据源登记入口已撤销');
+      const lifecycle = new AbortController();
+      const release = register({ ...definition,
+        read: (query, caller) => definition.read(query, AbortSignal.any([caller, signal, lifecycle.signal])),
+        ...(definition.write ? { write: (request, caller) => {
+          const write = definition.write;
+          if (!write) throw new Error('数据源写入入口已撤销');
+          return write(request, AbortSignal.any([caller, signal, lifecycle.signal]));
+        } } : {}),
+      });
+      return own(() => { lifecycle.abort(); return release(); });
+    } } : {}),
     ...(parent.registerSession ? { registerSession(sessionId: string) {
       current();
       const register = parent.registerSession;

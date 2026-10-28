@@ -5,10 +5,13 @@ import type {
 import type { Dispose } from '../../plugin-sdk/models.ts';
 import { copyMetadata, copyOwner, freezeJson, jsonBytes, MAX_BYTES, MAX_NODES, text } from './json.ts';
 import { redactText } from './privacy.ts';
+import { createDebugDataSources } from './data.ts';
+import type { DebugDataSources } from './data.ts';
 
 export type DebugTrack = (dispose: Dispose) => Dispose;
 export interface DebugRegistry {
   readonly debug: DebugAccess;
+  readonly data: DebugDataSources;
   readonly snapshot: () => DebugRegistrySnapshot;
   readonly dispose: () => Promise<void>;
 }
@@ -22,6 +25,7 @@ export function createDebugRegistry(ownerInput: DebugOwner, signal: AbortSignal,
   const events: DebugEventRecord[] = [];
   const failures: unknown[] = [];
   let revision = 0, sequence = 0, generationSequence = 0, droppedEvents = 0, disposed = false;
+  const data = createDebugDataSources(signal, () => { revision++; });
   function current() {
     if (disposed || signal.aborted) throw new Error('调试登记所属代际已撤销');
   }
@@ -39,6 +43,7 @@ export function createDebugRegistry(ownerInput: DebugOwner, signal: AbortSignal,
       role: input.role, label: redactText(input.label), metadata: copyMetadata(input.metadata) });
   }
   const debug: DebugAccess = {
+    registerDataSource: data.register,
     registerNode(input) {
       current();
       if (nodes.has(input.id)) throw new Error('语义节点标识已登记');
@@ -106,6 +111,7 @@ export function createDebugRegistry(ownerInput: DebugOwner, signal: AbortSignal,
   function close() {
     if (disposed) return;
     disposed = true; revision++; nodes.clear();
+    data.dispose();
     signal.removeEventListener('abort', close);
     for (const release of [...releases].reverse()) void release();
   }
@@ -118,7 +124,7 @@ export function createDebugRegistry(ownerInput: DebugOwner, signal: AbortSignal,
   if (signal.aborted) close();
   track(dispose);
   return {
-    debug: Object.freeze(debug), dispose,
+    debug: Object.freeze(debug), data, dispose,
     snapshot() {
       const result = { owner, revision, disposed, nodes: [...nodes.values()], events: [...events],
         resources: [...resources.values()], droppedEvents, truncated: false };

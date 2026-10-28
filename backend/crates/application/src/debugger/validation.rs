@@ -84,16 +84,61 @@ pub(super) fn payload(value: &Value) -> Result<()> {
         return Err(error(ErrorCode::InvalidInput, "命令参数必须是 JSON 对象"));
     }
     let mut remaining = 4096;
-    inspect(value, 0, 12, &mut remaining, &mut 0, false)?;
+    inspect(
+        value,
+        0,
+        12,
+        &mut remaining,
+        &mut 0,
+        false,
+        EvidenceScope::General,
+    )?;
     encoded_size(value, 64 * 1024)?;
     Ok(())
 }
 
-pub(super) fn response(value: &Value) -> Result<()> {
+pub(super) fn extended_payload(value: &Value, maximum_bytes: usize) -> Result<()> {
+    if !value.is_object() {
+        return Err(error(ErrorCode::InvalidInput, "命令参数必须是 JSON 对象"));
+    }
     let mut remaining = 32_768;
-    inspect(value, 0, 32, &mut remaining, &mut 0, true)?;
+    inspect(
+        value,
+        0,
+        16,
+        &mut remaining,
+        &mut 0,
+        false,
+        EvidenceScope::General,
+    )?;
+    encoded_size(value, maximum_bytes)?;
+    Ok(())
+}
+
+pub(super) fn response(value: &Value) -> Result<()> {
+    response_for(DebugTool::Inspect, value)
+}
+
+pub(super) fn response_for(tool: DebugTool, value: &Value) -> Result<()> {
+    let mut remaining = 32_768;
+    let scope = match tool {
+        DebugTool::DataRead | DebugTool::DataWrite => EvidenceScope::Data,
+        DebugTool::AutomationRun => EvidenceScope::Automation,
+        _ => EvidenceScope::General,
+    };
+    inspect(value, 0, 32, &mut remaining, &mut 0, true, scope)?;
     encoded_size(value, 1024 * 1024)?;
     Ok(())
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum EvidenceScope {
+    General,
+    Data,
+    Business,
+    Automation,
+    Steps,
+    Step,
 }
 
 pub(super) fn encoded_size(value: &Value, limit: usize) -> Result<usize> {
@@ -127,6 +172,7 @@ fn inspect(
     remaining: &mut usize,
     ui_nodes: &mut usize,
     is_response: bool,
+    scope: EvidenceScope,
 ) -> Result<()> {
     if depth > maximum_depth || *remaining == 0 {
         return Err(error(ErrorCode::Capacity, "调试数据结构超过深度或节点上限"));
@@ -162,7 +208,10 @@ fn inspect(
                         return Err(error(ErrorCode::InvalidInput, "调试数据包含禁止的凭据字段"));
                     }
                 }
-                if is_response && matches!(key.as_str(), "nodes" | "children") {
+                if is_response
+                    && scope != EvidenceScope::Business
+                    && matches!(key.as_str(), "nodes" | "children")
+                {
                     if let Value::Array(items) = child {
                         *ui_nodes += items.iter().filter(|item| item.is_object()).count();
                         if *ui_nodes > 500 {
@@ -173,13 +222,43 @@ fn inspect(
                         }
                     }
                 }
+                let child_scope = match (scope, key.as_str()) {
+                    (EvidenceScope::Business, _) => EvidenceScope::Business,
+                    (EvidenceScope::Data, "value") => {
+                        encoded_size(child, 256 * 1024)?;
+                        EvidenceScope::Business
+                    }
+                    (EvidenceScope::Automation, "steps") => {
+                        if child.as_array().is_some_and(|steps| steps.len() > 32) {
+                            return Err(error(ErrorCode::Capacity, "自动调试回执不能超过32个步骤"));
+                        }
+                        EvidenceScope::Steps
+                    }
+                    (EvidenceScope::Step, "result")
+                        if matches!(
+                            fields.get("tool").and_then(Value::as_str),
+                            Some("data_read" | "data_write")
+                        ) =>
+                    {
+                        EvidenceScope::Data
+                    }
+                    _ => EvidenceScope::General,
+                };
+                // 各步骤是独立观测；整体仍共享结构和字节预算，单步保留500节点上限。
+                let mut step_ui_nodes = 0;
+                let next_ui_nodes = if scope == EvidenceScope::Step && key == "result" {
+                    &mut step_ui_nodes
+                } else {
+                    &mut *ui_nodes
+                };
                 inspect(
                     child,
                     depth + 1,
                     maximum_depth,
                     remaining,
-                    ui_nodes,
+                    next_ui_nodes,
                     is_response,
+                    child_scope,
                 )?;
             }
         }
@@ -192,10 +271,15 @@ fn inspect(
                     remaining,
                     ui_nodes,
                     is_response,
+                    if scope == EvidenceScope::Steps {
+                        EvidenceScope::Step
+                    } else {
+                        scope
+                    },
                 )?;
             }
         }
-        Value::String(text) if text.len() > if is_response { 1024 * 1024 } else { 64 * 1024 } => {
+        Value::String(text) if text.len() > 1024 * 1024 => {
             return Err(error(ErrorCode::Capacity, "调试文本超过单条上限"));
         }
         _ => {}

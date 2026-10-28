@@ -18,6 +18,10 @@ pub(crate) fn contribute(document: &mut Value) {
         ("DebuggerBridgeAck", schema::<BridgeAck>()),
         ("DebuggerCommandResult", schema::<DebugCommandResult>()),
         ("DebuggerCommandReceipt", schema::<DebugCommandReceipt>()),
+        ("DebuggerDataCatalogInput", schema::<DataCatalogInput>()),
+        ("DebuggerDataReadInput", schema::<DataReadInput>()),
+        ("DebuggerDataWriteInput", schema::<DataWriteInput>()),
+        ("DebuggerAutomationInput", schema::<AutomationInput>()),
         ("DebuggerEventQuery", schema::<EventQuery>()),
         ("DebuggerEventPage", schema::<EventPage>()),
     ] {

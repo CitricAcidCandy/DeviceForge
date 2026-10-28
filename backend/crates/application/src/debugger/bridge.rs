@@ -12,12 +12,12 @@ use tokio::sync::oneshot;
 
 impl DebuggerService {
     pub fn enqueue(&self, input: DebugCommandRequest) -> Result<DebugCommandReceipt> {
-        validation::payload(&input.parameters)?;
+        commands::validate(input.tool, &input.parameters)?;
         self.with_state(|state, now, config| admit(state, input, None, now, config))
     }
 
     pub async fn execute(&self, input: DebugCommandRequest) -> Result<DebugCommandResult> {
-        validation::payload(&input.parameters)?;
+        commands::validate(input.tool, &input.parameters)?;
         let (sender, receiver) = oneshot::channel();
         let started = tokio::time::Instant::now();
         let receipt =
@@ -202,7 +202,15 @@ impl DebuggerService {
 
     pub fn acknowledge(&self, input: BridgeAck) -> Result<DebugCommandReceipt> {
         validation::instance_id(&input.instance_id)?;
-        validation::response(&input.response)?;
+        // 大正文校验留在锁外；数据投影按原命令工具识别，不信任回执自报种类。
+        let tool = self.with_state(|state, _, _| {
+            state
+                .commands
+                .get(&input.command_id)
+                .map(|command| command.tool)
+                .ok_or_else(|| error(ErrorCode::NotFound, "调试命令不存在或历史已淘汰"))
+        })?;
+        validation::response_for(tool, &input.response)?;
         self.with_state(|state, _, config| {
             let command = state
                 .commands
@@ -319,7 +327,9 @@ fn admit(
             "单浏览器最多 4 条在途与 32 条排队命令",
         ));
     }
-    let budget = if input.tool == DebugTool::Reload {
+    let budget = if input.tool == DebugTool::AutomationRun {
+        config.automation_timeout
+    } else if input.tool == DebugTool::Reload {
         config.reload_timeout
     } else if input.tool.is_action() {
         config.action_timeout

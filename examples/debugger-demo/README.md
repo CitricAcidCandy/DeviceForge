@@ -1,5 +1,23 @@
 # 无需宿主源码的独立 Debugger 示例
 
+## 数据源与Agent步骤示例
+
+浏览器插件激活时可选登记 `demo.settings` 数据源，业务值为 `{name:'调试示例',count:0}`。数据只在当前插件激活周期内保存，不修改回显面板。完整原生ESM实现随浏览器包一起交付，不需要SDK运行时依赖。缺少 `context.debug.registerDataSource` 的旧宿主仍可正常回显，但不提供数据读写。
+
+在兼容本机宿主明确选择这个浏览器插件并打开会话后，先调用 `deviceforge.debug_data_catalog({session_id,parameters:{}})`，再用 `deviceforge.debug_data_read({session_id,parameters:{source_id:'demo.settings'}})` 取得当前不透明修订。写入使用读取到的真实 `revision`，完整值例如 `{name:'新名称',count:2}`，并带 `confirmed:true`。宿主映射的公开修订不能硬编码为示例内部的数字修订。
+
+也可将以下 `parameters` 交给 `deviceforge.debug_automation_run`；外层另带实际 `session_id`：
+
+```json
+{"confirmed":true,"steps":[
+  {"id":"读取","tool":"data_read","parameters":{"source_id":"demo.settings"}},
+  {"id":"保存","tool":"data_write","bind":{"revision_from_step":"读取"},"parameters":{"source_id":"demo.settings","value":{"name":"新名称","count":2},"confirmed":true}},
+  {"id":"回读","tool":"data_read","parameters":{"source_id":"demo.settings"}}
+]}
+```
+
+写回回调在同一不让出执行权的片段中比较实际修订与修改；真实异步存储应使用事务或等价原子比较。超时不能强制停止可信插件代码，回调必须在实际提交时检查修订和取消。写入回执未知时不重新发送，可用 `deviceforge.debug_command({session_id,command_id})` 查询已保留回执，再读取实际数据。报告中的保存和回读是证据，不能替代业务相等断言或真实设备验收。
+
 将本目录作为自己的独立工程保存即可开发、测试和打包。需要 Node.js 22.18 及以上和 npm；没有 npm 依赖，无需执行安装依赖命令。浏览器采用原生 ESM、公开 SDK v2 对象接口，服务器采用无 SDK 的 Node JSON 协议 1。没有宿主类型路径、虚构的 npm 包或内部脚本依赖。
 
 运行环境由使用者提供：兼容 DeviceForge 发行版及其 localhost 宿主网页和 MCP 服务地址，例如部署者实际配置的 `http://127.0.0.1:<端口>`。本工程不附带、不构建、不启动宿主，也不连接设备。实际发行版缺少能力时应明确升级，不从源码猜接口。

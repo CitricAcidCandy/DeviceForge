@@ -136,6 +136,10 @@ pub enum DebugTool {
     UiDiff,
     UiAssert,
     UiAction,
+    DataCatalog,
+    DataRead,
+    DataWrite,
+    AutomationRun,
     Invoke,
     Reload,
     Report,
@@ -143,7 +147,10 @@ pub enum DebugTool {
 
 impl DebugTool {
     pub(crate) fn is_action(self) -> bool {
-        matches!(self, Self::UiAction | Self::Invoke | Self::Reload)
+        matches!(
+            self,
+            Self::UiAction | Self::Invoke | Self::Reload | Self::DataWrite | Self::AutomationRun
+        )
     }
 }
 

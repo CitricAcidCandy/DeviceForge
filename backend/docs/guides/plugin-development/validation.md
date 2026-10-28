@@ -1,5 +1,15 @@
 # 服务器插件调试与验证
 
+## Agent自动调试增量
+
+兼容宿主提供 `deviceforge.debug_data_catalog/data_read/data_write/automation_run/command`，先查询实际能力。新增数据源及步骤执行只支持浏览器目标，服务器数据继续由本插件已有公开服务或操作读取和修改，仍返回原Job；不要为新工具伪造浏览器实例或私有状态接口。
+
+数据工具外层为 `{session_id,parameters}`：目录参数 `{}`，读取 `{source_id,query?}`，写入 `{source_id,expected_revision,value,confirmed:true}`。数据源由浏览器插件可选SDK主动登记；写入完整替换无敏感字段业务投影，模式与只读字段须满足，实际写入点须原子比较修订，保存后回读。不透明修订必须来自当前数据读取，同名重新登记不能复用旧修订。`next_invocation/reload` 表示延迟生效，不能将保存成功宣称当前运行状态已应用。
+
+步骤工具输入为 `{session_id,parameters:{confirmed,stop_on_failure?,steps:[{id,tool,parameters,bind?}]}}`。最多三十二步，内部总二十八秒、单步十秒，外部桥总三十秒。只允许检查、数据目录/读写、界面树/查询/断言/动作与公开入口调用。`bind.target_from_step` 投影前面完整唯一查询节点，`bind.revision_from_step` 接续前面同源读取修订；禁止任意路径、脚本、嵌套、重载和人工拾取。
+
+步骤派发与业务成功分开报告，取消或结果未知停止后续步骤，不自动重放。使用只读 `deviceforge.debug_command({session_id,command_id})` 查询属于该会话的已保留命令回执；会话结束后仍可查询保留历史，但回执过期或未送达时不能凭空恢复结果。知识随兼容宿主发行，当前文档更新不证明旧服务已更新，也不表示真实浏览器或完整生产验收通过。
+
 ## 本机 Debugger：公开合同与验证边界
 
 兼容的 DeviceForge 产品默认随附官方调试器，使用者正常启动并通过本机回环地址打开界面，点击悬浮球选择目标即可，不要求另装 Debugger 或选择验收专用程序。资源市场「已安装」保留启停入口；已有同名独立安装优先。原市场／MCP 本地导入用于被调试插件，或显式替换随附版本。Agent 仍须显式指定实例和插件，不因为有默认入口就采集全部目标。旧宿主缺能力时明确要求升级宿主。

@@ -28,6 +28,7 @@ pub struct DebuggerConfig {
     pub read_timeout: Duration,
     pub action_timeout: Duration,
     pub reload_timeout: Duration,
+    pub automation_timeout: Duration,
     pub max_instances: usize,
     pub max_sessions: usize,
     pub max_session_history: usize,
@@ -45,6 +46,7 @@ impl Default for DebuggerConfig {
             read_timeout: Duration::from_secs(5),
             action_timeout: Duration::from_secs(10),
             reload_timeout: Duration::from_secs(30),
+            automation_timeout: Duration::from_secs(30),
             max_instances: 32,
             max_sessions: 128,
             max_session_history: 256,
@@ -74,6 +76,7 @@ impl DebuggerConfig {
             (self.read_timeout, defaults.read_timeout),
             (self.action_timeout, defaults.action_timeout),
             (self.reload_timeout, defaults.reload_timeout),
+            (self.automation_timeout, defaults.automation_timeout),
         ];
         if counts.iter().any(|(n, maximum)| *n == 0 || n > maximum)
             || durations

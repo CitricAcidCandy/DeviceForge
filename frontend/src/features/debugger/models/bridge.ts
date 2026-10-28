@@ -66,7 +66,7 @@ export function createDebuggerBridge(options: DebuggerBridgeOptions) {
     if (seen.size >= 4096) throw new Error('本实例调试命令历史已满，请刷新页面建立新实例');
     seen.add(command.command_id);
     const selectedInstance = instanceId;
-    const timeout = Math.min(command.remaining_ms, command.tool === 'reload' ? 30000 : 10000);
+    const timeout = Math.min(command.remaining_ms, command.tool === 'reload' || command.tool === 'automation_run' ? 30000 : 10000);
     const commandSignal = budget(Math.max(1, timeout));
     let success = false;
     let response: unknown;

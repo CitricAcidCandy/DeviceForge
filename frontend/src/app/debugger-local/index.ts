@@ -4,6 +4,8 @@ import { createLocalUi, clearCollectors } from './ui.ts';
 import { invoke, ownedCatalog, reload } from './invocation.ts';
 import { fail, json, keys, object, target, unavailable } from './validation.ts';
 import { localReport } from './report.ts';
+import { executeData } from './data.ts';
+import { copyDataJson } from '../../plugins/debugger/index.ts';
 export type { LocalDebugger, LocalDebuggerOptions, DebugTarget, HostDebugRoute, ResolvedTarget } from './types.ts';
 
 export function createLocalDebugger(options: LocalDebuggerOptions): LocalDebugger {
@@ -39,6 +41,9 @@ export function createLocalDebugger(options: LocalDebuggerOptions): LocalDebugge
     return {
       target: current, runtime: runtime ?? null, roots: ui.roots(current), slot_catalog: ui.slots(current), mount_catalog: ui.mounts(current),
       catalog: ownedCatalog(options, current),
+      data_sources: entry?.registry.data.catalog().map(source => ({ id: source.id, label: source.label,
+        writable: source.writable, persistence: source.persistence, apply_policy: source.apply_policy,
+        schema_complete: source.schema_complete })) ?? [],
       cleanup_history: options.manager().cleanupSnapshot().filter((item) => item.id === current.plugin_id)
         .map((item) => ({ plugin_id: item.id, generation: String(item.generation), state: 'cleanup_failed',
           message: '该代资源回收未完整确认，保留历史告警；不据此封锁本代独立调用', raw_error_included: false })),
@@ -46,6 +51,8 @@ export function createLocalDebugger(options: LocalDebuggerOptions): LocalDebugge
       lifecycle: entry?.lifecycle ?? [], registration_failures: entry?.registrationFailures ?? 0,
       capabilities: { inspect: true, ui_tree: true, ui_query: true, ui_assert: true, ui_diff: true,
         ui_action: true, invoke: true, reload: true, report: true, navigate: !!options.navigate && !!options.readHostRoutes,
+        data_catalog: true, data_read: (entry?.registry.data.catalog().length ?? 0) > 0,
+        data_write: entry?.registry.data.catalog().some(source => source.writable) ?? false,
         pick: true, persistent_reports: false,
         supported_ui_actions: ['highlight', 'click', 'fill', 'select', 'scroll', 'wait', 'pick',
           ...(options.navigate && options.readHostRoutes ? ['navigate'] : [])],
@@ -140,6 +147,8 @@ export function createLocalDebugger(options: LocalDebuggerOptions): LocalDebugge
           if (entry) ui.prune(current, entry);
           const evidence = inspect(current);
           result = tool === 'report' ? localReport(current, entry, evidence, input) : evidence;
+        } else if (['data_catalog', 'data_read', 'data_write'].includes(tool)) {
+          result = await executeData(tool, entry, input, signal);
         } else if (['ui_tree', 'ui_query', 'ui_assert', 'ui_diff', 'ui_action'].includes(tool)) {
           result = await ui.execute(tool, current, entry, input, signal);
         } else if (tool === 'invoke') {
@@ -158,14 +167,15 @@ export function createLocalDebugger(options: LocalDebuggerOptions): LocalDebugge
           const latest = resolve(current);
           if (selected.get(latest.plugin_id) !== latest.generation) return fail('target_not_selected', '结果返回前目标选择已撤销');
         }
-        if (entry && (tool === 'invoke' || tool === 'ui_action')) {
+        if (entry && (tool === 'invoke' || tool === 'ui_action' || tool === 'data_write')) {
           // 关联只进入当前目标的事件环，绝不复制填写值、调用输入或完整输出。
           const record = object(json(result, true));
           entry.access.emit({ name: `debugger.${tool}`, metadata: { tool,
             ...(typeof record.status === 'string' ? { status: record.status } : {}),
             ...(typeof record.logId === 'string' ? { log_id: record.logId } : {}) } });
         }
-        return json(result, true);
+        // 数据工具已经按字段和模式脱敏，保留数据包络及普通业务字段 value。
+        return tool.startsWith('data_') ? copyDataJson(result, false, 1024 * 1024) : json(result, true);
       } finally { inFlight--; }
     },
     dispose,

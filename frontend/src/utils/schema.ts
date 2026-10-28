@@ -1,4 +1,4 @@
-import Ajv from 'ajv';
+import { Ajv } from 'ajv';
 
 export type SchemaValue = null | boolean | number | string | SchemaValue[] | { [key: string]: SchemaValue };
 export interface SchemaIssue { readonly path: string; readonly message: string }

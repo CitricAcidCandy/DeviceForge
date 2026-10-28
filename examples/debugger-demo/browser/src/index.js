@@ -1,10 +1,12 @@
 import { inputSchema, outputSchema, localEcho, serverEcho } from './echo.js';
 import { mount } from './mount.js';
+import { registerDemoData } from './data-source.js';
 
 // 原生 ESM 直接消费公开 SDK 对象契约，无类型路径、裸包名或运行时 SDK 依赖。
 const id = 'demo.debugger.browser';
 export default {
   id, version: '1.0.0', apiVersion: 2,
+  async activate(context) { registerDemoData(context); },
   panels: [{ id: `${id}.panel`, title: '独立回显面板', mount }],
   contributions: {
     components: [
