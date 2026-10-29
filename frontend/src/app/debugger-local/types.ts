@@ -3,6 +3,7 @@ import type { createPluginManager, PluginLifecycleObservation } from '../../plug
 import type { ExtensionRegistry } from '../../plugins/extensions/registry.ts';
 import type { PluginScope } from '../../plugins/scope.ts';
 import type { DebugRegistry, UiCollector, DebugActions } from '../../plugins/debugger/index.ts';
+import type { UnifiedDebugData } from './unified-data.ts';
 
 export interface DebugTarget {
   readonly plugin_id: string;
@@ -44,6 +45,7 @@ export interface AttachedDebug {
   readonly scope: PluginScope;
   readonly lifetime: AbortController;
   readonly registry: DebugRegistry;
+  readonly unifiedData: UnifiedDebugData;
   readonly access: DebugAccess;
   readonly lifecycle: PluginLifecycleObservation[];
   readonly collectors: Map<string, { collector: UiCollector; actions: DebugActions }>;

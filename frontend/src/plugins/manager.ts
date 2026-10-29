@@ -13,6 +13,7 @@ import type { PluginScope } from './scope.ts';
 import { createExtensionRegistry } from './extensions/registry.ts';
 import type { ExtensionRegistry } from './extensions/registry.ts';
 import { createExtensionMounts } from './extensions/mounts.ts';
+import { createWorkspaceMounts } from './workspace-mounts.ts';
 import { awaitLifecycle, createKeyedQueue, lifecycleTimeouts } from './lifecycle.ts';
 import type { LifecycleTimeouts } from './lifecycle.ts';
 
@@ -80,6 +81,16 @@ export function createPluginManager(options: ManagerOptions) {
   const mounts = createExtensionMounts(timeouts);
   const sources = new Map<string, TrustedRegistration>();
   const running = new Map<string, Runtime>();
+  const workspaceMounts = createWorkspaceMounts({
+    registry: registry.workspaces,
+    timeouts,
+    contextFor(pluginId, currentGeneration) {
+      const runtime = running.get(pluginId);
+      return runtime?.state === 'loaded' && runtime.generation === currentGeneration &&
+        !runtime.context.signal.aborted ? runtime.context : null;
+    },
+  });
+  const releaseWorkspaceRenderer = registry.workspaceRendering.setRenderer(workspaceMounts.mount);
   const cleanupFailures = new Map<string, CleanupDiagnostic>();
   const epochs = new Map<string, number>();
   const panelEpochs = new Map<string, number>();
@@ -458,6 +469,7 @@ export function createPluginManager(options: ManagerOptions) {
     })),
     // 每个插件仅保留最近一条清理诊断；成功新代不会抹掉旧故障，也不受其封锁。
     cleanupSnapshot: (): readonly CleanupDiagnostic[] => [...cleanupFailures.values()],
+    workspaceCleanupSnapshot: workspaceMounts.cleanupSnapshot,
     dispose() {
       closed = true;
       for (const runtime of running.values()) runtime.scope.close();
@@ -471,7 +483,14 @@ export function createPluginManager(options: ManagerOptions) {
           }
         }
         sources.clear();
-        if (!options.extensionRegistry) registry.dispose();
+        for (const release of [releaseWorkspaceRenderer, workspaceMounts.dispose]) {
+          try { await release(); }
+          catch (error) { failures.push(error); }
+        }
+        if (!options.extensionRegistry) {
+          try { await registry.dispose(); }
+          catch (error) { failures.push(error); }
+        }
         if (failures.length) throw new AggregateError(failures, '插件管理器关闭时有资源释放失败');
       })();
     },

@@ -1,0 +1,18 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "paths": {
+      "@deviceforge/plugin-sdk": ["./src/plugin-sdk/index.ts"],
+      "/__production_host__": ["./src/app/public-runtime.ts"],
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": [
+    "plugins/default-shell/src/**/*.ts",
+    "plugins/default-shell/src/**/*.tsx",
+    "tests/default-shell*.test.ts",
+    "tests/workspace-pages.test.ts",
+    "tests/workspace-pages-runtime.test.ts",
+    "tests/workspace-storage-service.test.ts"
+  ]
+}

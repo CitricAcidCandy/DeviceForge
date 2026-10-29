@@ -1,0 +1,19 @@
+{
+  "manifest_version": 1,
+  "id": "deviceforge_shell",
+  "version": "0.1.0",
+  "name": "默认工作区",
+  "description": "通过公开插件能力组合页面、导航、工作区及浮动视图。",
+  "market": {
+    "categories": ["ui"],
+    "visibility": "internal",
+    "supports_mcp": "none",
+    "supports_agent": false,
+    "restart_policy": "none"
+  },
+  "components": [{
+    "kind": "browser",
+    "files": ["dist"],
+    "entrypoints": { "any": { "runtime": "browser", "path": "dist/index.js" } }
+  }]
+}

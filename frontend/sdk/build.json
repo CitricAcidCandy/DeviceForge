@@ -1,0 +1,244 @@
+{
+  "name": "@deviceforge/plugin-sdk",
+  "version": "0.1.0",
+  "frontend_sdk_version": 2,
+  "distribution": "local_tgz_unpublished",
+  "sources": [
+    {
+      "name": "artifacts.ts",
+      "sha256": "ccfc935f970301c3c287b165db6ad3b6fb27d2506cd1f2bf9c55ed770a75d51e"
+    },
+    {
+      "name": "configuration.ts",
+      "sha256": "f3ca3aa339eada0585025068b80b0a4427ec54a1a04c47b480b738d51fe79e3f"
+    },
+    {
+      "name": "data-sources.ts",
+      "sha256": "0e9142caf9b2753f580a725a811a6de165b75bbf5ba518a02292c5793859618c"
+    },
+    {
+      "name": "debug.ts",
+      "sha256": "ea2667c9cbcaed53dc652a92d0ace719ed6958f0a65257c4ce2190c16e39a3ff"
+    },
+    {
+      "name": "devices.ts",
+      "sha256": "773e69cc56e455e15c4b1774a9101467a5d82cf92f33398e02ae1998be938431"
+    },
+    {
+      "name": "index.ts",
+      "sha256": "95f705dc413170416fc081565e1d3a39957607508e94b1b7a241bd0d3288ab29"
+    },
+    {
+      "name": "json.ts",
+      "sha256": "5aa4c9bb6648c29f6e54348d15d67b8178764f2e3b757fd5e66644c739c672f4"
+    },
+    {
+      "name": "models.ts",
+      "sha256": "1a2bf49f439a973bb4ae3a5a44d405fe118d9819ec5463fea4ecff44e12405a3"
+    },
+    {
+      "name": "points.ts",
+      "sha256": "41a7a042eacfbb993fad6a28319e5e1b49c0d43d1e697e6dbe7ca456276f5425"
+    },
+    {
+      "name": "services.ts",
+      "sha256": "74d4cdf78cf2de94ae63cebd0f6ed7121c0af9a79a6b4fa7e492ee5e9fe92e32"
+    },
+    {
+      "name": "slots.ts",
+      "sha256": "8bff862ae2a2adb38fa0ea07fe3b1de6a26c3468cc25d75ad5ff4c63b26fd1e7"
+    },
+    {
+      "name": "task-history.ts",
+      "sha256": "f5141126cee2b2d505e00376f760435b0065b9e3fd0980bd95f7890d869c5860"
+    },
+    {
+      "name": "themes.ts",
+      "sha256": "366285e330fa9d456a0753922c4d052c89fd6c6bba9102c6e8bddcd5840ac398"
+    },
+    {
+      "name": "transport.ts",
+      "sha256": "f8c94660a78833216757b6b46d82b0c833f38a1f4887c2fdd57ffdcae86a6adc"
+    },
+    {
+      "name": "ui.ts",
+      "sha256": "f33b96433745f5d90c8c7f2dd32602726bc87f9e4ced58eaac53cc5fcae36fb6"
+    },
+    {
+      "name": "workspace.ts",
+      "sha256": "53fc03da546c4c7fdb39202d217a2a062c70a648e94cfab11054b8a20a6d50b1"
+    }
+  ],
+  "files": [
+    {
+      "name": "lib/models.js",
+      "size": 398,
+      "sha256": "9055f6f54c92290e9d07c20d34bbf39c85bd3051cc8cd0b437aa7241c06fcd3b"
+    },
+    {
+      "name": "lib/models.d.ts",
+      "size": 1199,
+      "sha256": "916d44e1125fa0290117f262c55677adf2b664710221bc326892344db9b34940"
+    },
+    {
+      "name": "lib/artifacts.js",
+      "size": 11,
+      "sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881"
+    },
+    {
+      "name": "lib/artifacts.d.ts",
+      "size": 486,
+      "sha256": "a6ca55f2f78420dbc7a117152814d0d0d1c835a4a6cf69054baf29dcad23ff52"
+    },
+    {
+      "name": "lib/configuration.js",
+      "size": 11,
+      "sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881"
+    },
+    {
+      "name": "lib/configuration.d.ts",
+      "size": 412,
+      "sha256": "a0ae1f246e011f7a714914270a56b9eaafd4460fd5b701351bf0d53cb09ad419"
+    },
+    {
+      "name": "lib/services.js",
+      "size": 11,
+      "sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881"
+    },
+    {
+      "name": "lib/services.d.ts",
+      "size": 2043,
+      "sha256": "2a20487c8a441f112304c4a880ab770f6eb05877756459cc3965982ab71fabea"
+    },
+    {
+      "name": "lib/data-sources.js",
+      "size": 11,
+      "sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881"
+    },
+    {
+      "name": "lib/data-sources.d.ts",
+      "size": 1723,
+      "sha256": "ffd9295c691cc8c242acb13d0cf92b672a6ea321d3fe176b2c501efc44d6371b"
+    },
+    {
+      "name": "lib/debug.js",
+      "size": 11,
+      "sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881"
+    },
+    {
+      "name": "lib/debug.d.ts",
+      "size": 3466,
+      "sha256": "f2ac1c123a02bfcb33cfbe9d9a02f0e5584002c290b069d8c7aad0386068cbf2"
+    },
+    {
+      "name": "lib/devices.js",
+      "size": 11,
+      "sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881"
+    },
+    {
+      "name": "lib/devices.d.ts",
+      "size": 2633,
+      "sha256": "69130b9e88c896a1c2a6fbdd78c37d3d98f2eb04f5897aeab50dea4d6ab336d8"
+    },
+    {
+      "name": "lib/task-history.js",
+      "size": 11,
+      "sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881"
+    },
+    {
+      "name": "lib/task-history.d.ts",
+      "size": 831,
+      "sha256": "b6241fe99c40da7efa6058f8bac1c5306ea7b480be530883d9765b52df5748d3"
+    },
+    {
+      "name": "lib/themes.js",
+      "size": 11,
+      "sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881"
+    },
+    {
+      "name": "lib/themes.d.ts",
+      "size": 848,
+      "sha256": "e20ad4e4d4b94edbf56fdae933548a27f584da3bb669bc381242bafafc782f60"
+    },
+    {
+      "name": "lib/points.js",
+      "size": 11,
+      "sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881"
+    },
+    {
+      "name": "lib/points.d.ts",
+      "size": 2654,
+      "sha256": "34acc0c68ac25ea52409a969d4be17644637a1ceea7cb35480c2c9cae74b7381"
+    },
+    {
+      "name": "lib/workspace.js",
+      "size": 11,
+      "sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881"
+    },
+    {
+      "name": "lib/workspace.d.ts",
+      "size": 5732,
+      "sha256": "774dbbc47514041741cf4e6dfdcb650cfb1f42b328649a675fb6c81dc0e4029a"
+    },
+    {
+      "name": "lib/transport.js",
+      "size": 11,
+      "sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881"
+    },
+    {
+      "name": "lib/transport.d.ts",
+      "size": 1126,
+      "sha256": "2e7b3076cbc6b96820b790dffa2ee1164e2f6af47dce73788c0360831e88e9b3"
+    },
+    {
+      "name": "lib/slots.js",
+      "size": 1147,
+      "sha256": "32e8c9ff128f1b18d5275d1b965628bbe86fd1c80f041acfe98b5ebdd2a5b3bb"
+    },
+    {
+      "name": "lib/slots.d.ts",
+      "size": 380,
+      "sha256": "d474de3eb593ced10db858ebcb13324d87db379a30e7a006dbc68af58882a179"
+    },
+    {
+      "name": "lib/ui.js",
+      "size": 442,
+      "sha256": "213029c2cd7f31cf3c4f614699d8fb421c09f9eecd556621dad2be138c415987"
+    },
+    {
+      "name": "lib/ui.d.ts",
+      "size": 7278,
+      "sha256": "33c92e4ba787b56bf1ac813b165c48881f636152957f830386fe0c9a9ee3ab4c"
+    },
+    {
+      "name": "lib/index.js",
+      "size": 91,
+      "sha256": "f47a8bc3281e570fe04ff9dd74cbe9caf1fd1eca523df3697ee1acfbb01d2136"
+    },
+    {
+      "name": "lib/index.d.ts",
+      "size": 8031,
+      "sha256": "2a9dffd1b2abbc96a230966ae7f9e0ca7fc4c5c226370f92cff8ed0c2c1df33d"
+    },
+    {
+      "name": "lib/json.js",
+      "size": 844,
+      "sha256": "33d9e311542ba155250b221f2ba6eef73a1aeff8310cf3821f1aa8ecd0dad56a"
+    },
+    {
+      "name": "lib/json.d.ts",
+      "size": 118,
+      "sha256": "e35b6bd061aed74e706920bb0b1c3ef2ca0b922974bf2bf9f9ebb4cea505c865"
+    },
+    {
+      "name": "package.json",
+      "size": 1221,
+      "sha256": "b995c738a119c2c9dd583058d2685227fb37d79e638e2da7e383292e5ff8a417"
+    },
+    {
+      "name": "README.md",
+      "size": 3153,
+      "sha256": "551f8d7abd9d997893f5f3e7e6eeeec65a85eac882f7147f398d5c9cb834e26d"
+    }
+  ]
+}

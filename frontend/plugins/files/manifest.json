@@ -1,0 +1,27 @@
+{
+  "manifest_version": 1,
+  "id": "deviceforge_files",
+  "version": "0.1.0",
+  "name": "文件与产物",
+  "description": "通过公开工作区和产物能力浏览、上传、预览、下载及删除服务器文件。",
+  "market": {
+    "summary": "可热拔插的文件工作区，支持 ZIP 分页与原字节下载。",
+    "keywords": ["文件", "产物", "ZIP"],
+    "categories": ["function", "ui"],
+    "applies_to": ["deviceforge"],
+    "supports_mcp": "none",
+    "supports_agent": true,
+    "restart_policy": "none",
+    "author": "DeviceForge",
+    "visibility": "internal"
+  },
+  "components": [{
+    "kind": "browser",
+    "package_name": "@deviceforge/files",
+    "entrypoints": { "any": { "runtime": "browser", "path": "dist/index.js" } },
+    "files": ["dist"],
+    "plugin": { "api_version": 2 }
+  }],
+  "requirements": [],
+  "dependencies": { "format_version": 1, "dependencies": [] }
+}

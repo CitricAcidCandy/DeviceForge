@@ -115,7 +115,7 @@ test('八主题十六篇嵌入文档保持固定来源、读取预算与第三�
     join(root, 'backend/crates/server/src/plugin_guide/catalog.rs'),
     'utf8',
   );
-  const documents = [...catalog.matchAll(/document!\(\s*(Frontend|Backend),\s*(\w+),\s*"([^"]+)"\s*\)/g)];
+  const documents = [...catalog.matchAll(/document!\(\s*(Frontend|Backend),\s*(\w+),\s*"([^"]+)"(?:,\s*"([^"]+)")?\s*\)/g)];
   assert.equal(documents.length, 16);
   const sources = new Set(documents.map(([, , , source]) => source));
   assert.equal(sources.size, 16, '嵌入来源不得重复');
@@ -142,8 +142,43 @@ test('八主题十六篇嵌入文档保持固定来源、读取预算与第三�
       for (const term of requiredTerms[topic]) {
         assert.ok(content.includes(term), `${source} 缺少 ${term}`);
       }
+      const supplement = entries[0][4];
+      if (supplement !== undefined) {
+        assert.equal(`${target}/${topic}`, 'frontend/sdk', '仅已有前端 sdk 主题拼接开放组合知识');
+        assert.equal(supplement, 'frontend/docs/guides/plugin-development/composition.md');
+        const supplementBytes = await readFile(join(root, supplement));
+        const supplementContent = new TextDecoder('utf-8', { fatal: true }).decode(supplementBytes);
+        assert.ok(supplementContent.length >= 100);
+        assert.ok(bytes.length + supplementBytes.length + 2 <= 128 * 1024, '拼接后的 MCP 正文超出读取预算');
+      }
     }
   }
+});
+
+test('MCP 现有 sdk 主题自包含开放组合与本地 SDK 发行边界', async () => {
+  const catalog = await readFile(join(root, 'backend/crates/server/src/plugin_guide/catalog.rs'), 'utf8');
+  assert.match(catalog, /document!\(\s*Frontend,\s*Sdk,\s*"frontend\/docs\/guides\/plugin-development\/sdk\.md",\s*"frontend\/docs\/guides\/plugin-development\/composition\.md"\s*\)/);
+  assert.match(catalog, /content:\s*concat!\([\s\S]*include_str![\s\S]*\$source[\s\S]*"\\n\\n"[\s\S]*include_str![\s\S]*\$supplement/);
+  const primary = await readFile(join(root, 'frontend/docs/guides/plugin-development/sdk.md'), 'utf8');
+  const supplement = await readFile(join(root, 'frontend/docs/guides/plugin-development/composition.md'), 'utf8');
+  const content = `${primary}\n\n${supplement}`;
+  for (const term of ['interface PointAccess', 'interface UiAccess', 'interface PluginTransport', 'interface DataAccess',
+    'extensions.points', 'WorkspacePageDefinition', 'WorkspaceViewDefinition', 'expectedRevision', 'persistence',
+    'deviceforge-plugin-sdk-0.1.0.tgz', '尚未发布 npm registry', '跨页面渲染尚未上线', 'source_id']) {
+    assert.ok(content.includes(term), `已嵌入 sdk 正文缺少 ${term}`);
+  }
+  assert.doesNotMatch(content, /(?:frontend|backend)\/(?:src|crates|scripts|target|docs)\//, '公开拼接正文不能返回宿主源码或文档地址');
+  assert.doesNotMatch(content, /\]\((?!https?:\/\/|#)[^)]+\)/, '组合知识不能依赖仓库相对链接');
+  for (const topic of ['overview', 'lifecycle', 'packaging']) {
+    const guide = await readFile(join(root, `frontend/docs/guides/plugin-development/${topic}.md`), 'utf8');
+    for (const term of ['manifest.json', 'TGZ', 'npm registry', '跨页面渲染尚未上线'])
+      assert.ok(guide.includes(term), `${topic} 缺少实际交付边界 ${term}`);
+  }
+  const backend = await readFile(join(root, 'backend/docs/guides/plugin-development/sdk.md'), 'utf8');
+  for (const term of ["target:'fullstack'", 'extensions.points', 'transport', 'data', 'getJob', '原子修订', 'manifest.json'])
+    assert.ok(backend.includes(term), `配套开发指南缺少 ${term}`);
+  const schema = await readFile(join(root, 'backend/crates/server/src/plugin_guide/schema.rs'), 'utf8');
+  assert.doesNotMatch(schema, /Composition|composition|Transport|transport/, '公开请求主题枚举保持原有八主题');
 });
 
 function block(markdown, name) {

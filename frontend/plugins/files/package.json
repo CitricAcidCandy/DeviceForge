@@ -1,0 +1,41 @@
+{
+  "name": "@deviceforge/files",
+  "version": "0.1.0",
+  "description": "通过公开工作区和产物能力浏览、上传、预览、下载及删除服务器文件。",
+  "type": "module",
+  "deviceforge": {
+    "kind": "browser",
+    "manifest": "plugin.json",
+    "entrypoints": {
+      "any": {
+        "runtime": "browser",
+        "path": ".deviceforge-entry.js"
+      }
+    }
+  },
+  "private": true,
+  "exports": {
+    ".": {
+      "development": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./model": {
+      "development": "./src/model/index.ts",
+      "types": "./dist/model/index.d.ts",
+      "import": "./dist/model/index.js"
+    },
+    "./view": {
+      "development": "./src/view.tsx",
+      "types": "./dist/view.d.ts",
+      "import": "./dist/view.js"
+    }
+  },
+  "peerDependencies": {
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  },
+  "devDependencies": {
+    "@deviceforge/plugin-sdk": "file:../../sdk/dist/deviceforge-plugin-sdk-0.1.0.tgz"
+  }
+}

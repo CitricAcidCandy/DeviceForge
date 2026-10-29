@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
 import { inspectSource } from './source-dependencies.ts';
 import { allowedDependency, findCycles, sourcePlacementIssue } from './architecture-policy.ts';
+import { checkPluginBoundaries } from './plugin-boundaries.ts';
 
 export async function checkArchitecture(root = fileURLToPath(new URL('../', import.meta.url))) {
   const sourceRoot = join(root, 'src');
@@ -14,6 +15,7 @@ export async function checkArchitecture(root = fileURLToPath(new URL('../', impo
   if (parsed.errors.length) throw new Error('TypeScript 配置无效');
   const graph = new Map<string, string[]>();
   const failures: string[] = [];
+  failures.push(...await checkPluginBoundaries(root));
   const portable = (path: string) => relative(sourceRoot, path).split(sep).join('/');
   async function checkMaintenanceFiles(directory: string): Promise<void> {
     for (const entry of await readdir(directory, { withFileTypes: true })) {

@@ -1,0 +1,33 @@
+{
+  "compilerOptions": {
+    "paths": {
+      "/__production_host__": [
+        "./src/app/public-runtime.ts"
+      ],
+      "@/*": [
+        "./src/*"
+      ],
+      "@deviceforge/plugin-sdk": [
+        "./src/plugin-sdk/index.ts"
+      ],
+      "@deviceforge/files/model": [
+        "./plugins/files/src/model/index.ts"
+      ],
+      "@deviceforge/tasks/model": [
+        "./plugins/tasks/src/model/index.ts"
+      ],
+      "@deviceforge/files/view": [
+        "./plugins/files/src/view.tsx"
+      ],
+      "@deviceforge/tasks/view": [
+        "./plugins/tasks/src/view.tsx"
+      ],
+      "@deviceforge/files": [
+        "./plugins/files/src/index.ts"
+      ],
+      "@deviceforge/tasks": [
+        "./plugins/tasks/src/index.ts"
+      ]
+    }
+  }
+}

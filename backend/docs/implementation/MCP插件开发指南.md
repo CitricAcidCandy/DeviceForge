@@ -33,7 +33,7 @@ AI 开发 DeviceForge 插件前，调用只读工具 `deviceforge.get_plugin_dev
 
 ## 编译与维护
 
-前端知识源为 `frontend/docs/guides/plugin-development/`，后端知识源为 `backend/docs/guides/plugin-development/`，分别维护八个主题，共十六篇文档。server 的 `plugin_guide` 模块用 `include_str!` 将内容嵌入可执行文件；复制单个宿主程序或通过现有 CLI 运行包分发时，指南随二进制交付，不需要增加运行时文件路径配置。
+前端知识源为 `frontend/docs/guides/plugin-development/`，后端知识源为 `backend/docs/guides/plugin-development/`，分别维护八个主题，共十六份返回正文。前端 `sdk` 由固定 `sdk.md`、两个换行及 `composition.md` 在编译期拼接，实际知识源为十七个文件，不新增公开主题或文档条目。server 的 `plugin_guide` 模块用 `include_str!` 将内容嵌入可执行文件；复制单个宿主程序或通过现有 CLI 运行包分发时，指南随二进制交付，不需要增加运行时文件路径配置。
 
 `mcp.rs` 只路由调用和提供初始化引导，`mcp_tools.rs` 负责目录组合，独立指南模块负责参数、文档选择与响应。响应沿既有 MCP 日志元数据关联，不将指南当作异步任务。
 
@@ -71,6 +71,15 @@ AI 开发 DeviceForge 插件前，调用只读工具 `deviceforge.get_plugin_dev
 历史记录：2026-10-23 第二版有限收口时，Node 定点测试 4/4 通过，宿主 smoke 仅语法检查通过，当时生产代码与十四篇嵌入文档未修改。该记录不代表第三版或当前构建通过；统一依赖管理的实际证据与未通过项见 `backend/docs/verification/市场插件依赖验收-20261026.md`，不能将 Node 归档验证计为真实 MCP、网页、设备或正式分发通过。
 
 具体通过结果记录于根 `todo.md`；命令存在不表示已经执行。该功能不扩展 MCP Resources、Prompts、在线安装或设备调用权限。
+
+## 2026-10-29 开放组合知识接线
+
+- 保留 `guide_version=4`、三目标八主题和文档项 `target/topic/content`。不新增 `api` 或 `composition` 请求主题，不修改生成接口；`fullstack/sdk` 仍返回前后端各一份正文，前端正文同时包含开放组合说明。
+- 前端 `sdk` 直接给出 `PointAccess`、页面／视图／实例与 `UiAccess`、`PluginTransport`、`DataAccess` 的主要签名和资源语义；总览、生命周期和打包说明同步新增可选能力。后端 `sdk` 说明浏览器如何用原服务、Job 及事件适配配套数据，服务调用不绕过既有任务与取消体系。
+- 本地 `@deviceforge/plugin-sdk@0.1.0` TGZ 已提供，尚未发布 npm registry；开发者取得实际文件后独立安装，不访问宿主路径或执行宿主生成器。前后端继续维护单一 `manifest.json`，SDK 包不等于业务插件发布包。
+- 明确页面／视图登记模型已提供，产品默认外壳及现有页面跨页面渲染尚未上线，不能把登记、类型包或目录元数据描述为完整界面。自定义扩展点须有真实消费者，旧组件槽位与 `modules` 路由保持原行为。
+- 固定来源单元检查同时校验补充文件的存在、UTF-8、拼接后128 KiB预算及无源码开发边界；后端真实指南验收脚本同步计算拼接正文摘要。本次不启动该脚本、不重启服务，源码接线不代表运行中的旧 MCP 已更新。
+- 本次精确执行指南相关七项 Node 单元；首次新增边界检查因总览缺少明确 TGZ 术语失败，补正文后仅重跑该项通过，其余六项已经通过。验收脚本 `node --check` 通过；未运行 Cargo、宿主构建、真实 MCP、浏览器或设备验收，无自有存活进程。
 
 ## 2026-10-27 无源码开发边界修订
 

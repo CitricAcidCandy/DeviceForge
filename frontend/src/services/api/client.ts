@@ -56,6 +56,11 @@ function envelope(response: Response, value: unknown): { logId: string; data: un
   return { logId: value.log_id, data: value.data };
 }
 
+/** JSON 调用和公开原始通路共用响应包装校验，不重复解释错误与日志归属。 */
+export async function readApiEnvelope(response: Response, signal: AbortSignal): Promise<ApiResult<unknown>> {
+  return envelope(response, await json(response, signal));
+}
+
 export function createApiClient(options: ClientOptions): ApiClient {
   const base = new URL(options.baseUrl);
   if (
@@ -72,7 +77,7 @@ export function createApiClient(options: ClientOptions): ApiClient {
     if (url.origin !== base.origin || !url.pathname.startsWith('/api/v2/'))
       throw new Error('端点超出同源 v2 API 边界');
     const headers = new Headers(spec.headers);
-    headers.set('accept', 'application/json');
+    if (!headers.has('accept')) headers.set('accept', 'application/json');
     if (spec.contentType) headers.set('content-type', spec.contentType);
     try {
       const token = await abortable(
@@ -109,7 +114,7 @@ export function createApiClient(options: ClientOptions): ApiClient {
     signal: AbortSignal,
   ): Promise<ApiResult<O>> {
     const response = await request(endpoint.request(input), signal);
-    const result = envelope(response, await json(response, signal));
+    const result = await readApiEnvelope(response, signal);
     if (!endpoint.decode(result.data))
       throw protocol(response, '业务响应不符合生成契约', result.logId);
     if (signal.aborted) throw cancelled(result.logId);
@@ -120,7 +125,7 @@ export function createApiClient(options: ClientOptions): ApiClient {
       { path: `/api/v2/artifacts/${encodedId(id)}/content`, method: 'GET' },
       signal,
     );
-    if (!response.ok) envelope(response, await json(response, signal));
+    if (!response.ok) await readApiEnvelope(response, signal);
     try {
       // 包括 application/json 产物在内，一律保留原字节。
       const data = await abortable(response.blob(), signal);
@@ -138,5 +143,5 @@ export function createApiClient(options: ClientOptions): ApiClient {
       );
     }
   }
-  return { call, downloadArtifact };
+  return { call, downloadArtifact, request };
 }

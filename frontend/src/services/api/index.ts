@@ -1,4 +1,4 @@
-export { createApiClient } from './client.ts';
+export { createApiClient, readApiEnvelope } from './client.ts';
 export type { ClientOptions } from './client.ts';
 export { withRequestHeaders, withPluginRelease, pluginReleaseHeaders } from './request-headers.ts';
 export type { PluginReleaseReference } from './request-headers.ts';

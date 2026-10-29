@@ -17,6 +17,17 @@ macro_rules! document {
             content: include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../", $source)),
         }
     };
+    ($target:ident, $topic:ident, $source:literal, $supplement:literal) => {
+        Document {
+            target: Target::$target,
+            topic: Topic::$topic,
+            content: concat!(
+                include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../", $source)),
+                "\n\n",
+                include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../", $supplement))
+            ),
+        }
+    };
 }
 
 static DOCUMENTS: [Document; 16] = [
@@ -43,7 +54,8 @@ static DOCUMENTS: [Document; 16] = [
     document!(
         Frontend,
         Sdk,
-        "frontend/docs/guides/plugin-development/sdk.md"
+        "frontend/docs/guides/plugin-development/sdk.md",
+        "frontend/docs/guides/plugin-development/composition.md"
     ),
     document!(
         Frontend,

@@ -1,0 +1,27 @@
+{
+  "manifest_version": 1,
+  "id": "deviceforge_tasks",
+  "version": "0.1.0",
+  "name": "任务与日志",
+  "description": "通过公开历史、取消、日志查询和产物能力管理后台任务。",
+  "market": {
+    "summary": "可热拔插的任务工作区，支持筛选、分页、日志查询与产物校验下载。",
+    "keywords": ["任务", "日志", "产物"],
+    "categories": ["function", "ui"],
+    "applies_to": ["deviceforge"],
+    "supports_mcp": "none",
+    "supports_agent": true,
+    "restart_policy": "none",
+    "author": "DeviceForge",
+    "visibility": "internal"
+  },
+  "components": [{
+    "kind": "browser",
+    "package_name": "@deviceforge/tasks",
+    "entrypoints": { "any": { "runtime": "browser", "path": "dist/index.js" } },
+    "files": ["dist"],
+    "plugin": { "api_version": 2 }
+  }],
+  "requirements": [],
+  "dependencies": { "format_version": 1, "dependencies": [] }
+}

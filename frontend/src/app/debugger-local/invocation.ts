@@ -23,11 +23,40 @@ export function ownedCatalog(options: LocalDebuggerOptions, target: ResolvedTarg
   const catalog = options.extensions.catalog();
   const current = (entry: { pluginId: string; generation: number }) =>
     entry.pluginId === target.plugin_id && String(entry.generation) === target.generation;
+  const points = options.extensions.points.catalog();
+  const workspace = options.extensions.workspaces.snapshot();
+  const instances = workspace.instances.filter((entry) =>
+    entry.provider?.pluginId === target.plugin_id && String(entry.providerGeneration) === target.generation);
+  const related = new Set(instances.map((entry) => entry.instanceId));
   return {
     components: catalog.components.filter(current), modules: catalog.modules.filter(current),
     commands: catalog.commands.filter(current).map((entry) => ({ ...entry, schema_status: 'missing' })),
     services: catalog.services.filter(current).map((entry) => ({ ...entry,
       schema_status: entry.inputSchema === true || entry.outputSchema === true ? 'unconstrained_or_missing' : 'declared',
+    })),
+    extension_points: {
+      definitions: points.definitions.filter((entry) => current(entry.provider)),
+      contributions: points.contributions.filter((entry) => current(entry.provider)),
+    },
+    workspace: {
+      revision: workspace.revision,
+      pages: workspace.catalog.pages.filter(current),
+      workspaces: workspace.catalog.workspaces.filter(current),
+      views: workspace.catalog.views.filter(current),
+      // 实例generation是实例轮换号；只用提供者代次确认归属，不冒认缺失实例。
+      instances: instances.map(({ target: _target, ...entry }) => entry),
+      layouts: workspace.layouts.map((entry) => ({
+        workspaceId: entry.workspaceId,
+        floating: entry.layout.floating.filter((item) => related.has(item.instanceId)),
+        overlays: entry.layout.overlays.filter((item) => related.has(item.instanceId))
+          .map(({ relativeTo, ...item }) => ({ ...item, ...(relativeTo && related.has(relativeTo) ? { relativeTo } : {}) })),
+      })).filter((entry) => entry.floating.length || entry.overlays.length),
+      coverage: '只含当前视图提供者代次；缺失提供者及其他插件的目标、布局树不推测归属',
+    },
+    data_sources: options.extensions.dataSources.catalog().filter((entry) => current(entry.provider)).map((entry) => ({
+      id: entry.id, title: entry.title, version: entry.version, readOnly: entry.readOnly, applyPolicy: entry.applyPolicy,
+      persistence: entry.persistence ?? null, persistence_known: entry.persistence !== undefined, provider: entry.provider,
+      read: entry.read, ...(entry.write ? { write: entry.write } : {}),
     })),
   };
 }

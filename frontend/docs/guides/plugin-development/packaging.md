@@ -1,5 +1,13 @@
 # 浏览器插件打包与部署
 
+## 独立 SDK 与新增契约的交付
+
+类型开发包 `@deviceforge/plugin-sdk@0.1.0` 已提供实际本地文件 `deviceforge-plugin-sdk-0.1.0.tgz`，尚未发布 npm registry。取得文件后，在自己的独立工程执行 `npm install --save-dev ./deviceforge-plugin-sdk-0.1.0.tgz`；无须获取宿主源码或运行宿主生成器。公开主入口包含 `extensions.points`、`UiAccess`、`PluginTransport`、`DataAccess` 等契约，JSON 守卫另有 `@deviceforge/plugin-sdk/json` 子入口。完整类型的 peer 配套依赖以 TGZ 内 `package.json` 为准，离线时一并准备。
+
+SDK TGZ 是开发依赖，不是可安装的 DeviceForge 插件包，不上传到浏览器插件安装入口。业务插件仍只维护一份 `manifest.json`，按需包含浏览器、服务器和共享依赖，构建后通过原 CLI 生成分发文件；新增页面／视图／数据源在插件运行时按公开契约登记，不增加第二份手工宿主目录。React 与宿主 UI 的浏览器入口按下文 external 规则处理，不能把类型包当成第二套 React 运行时。
+
+能力声明不等于目标宿主已完成全部渲染接线：页面、视图与实例模型已提供，产品默认外壳和现有页面的跨页面渲染尚未上线。发行说明应分别列出所需公开入口、实际渲染器与验证结果，不能仅因使用了新 SDK 类型就声称全界面热拔插已完成。配套服务器仍使用原任务、服务与会话协议；完整两端知识通过 `target:'fullstack'` 查询同名主题取得。
+
 ## 单一开发清单流程（推荐）
 
 在自己的工程只维护 manifest.json（manifest_version:1），结构及 market 全部字段查询 manifest 主题。部署者提供的 DeviceForge CLI 发行包须在 --help 中含 plugin pack，不假设公共 registry 已发布，不需要宿主源码。先把 TypeScript/React 构建成 ESM，再运行：

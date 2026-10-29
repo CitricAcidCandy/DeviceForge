@@ -25,6 +25,11 @@ import type {
   SlotHost,
 } from '../plugin-sdk/index.ts';
 import { createHostContext } from './host-context.ts';
+import { createPluginTransport } from './plugin-transport.ts';
+import { scopedTransportAccess } from '../plugins/transport-access.ts';
+import { registerWorkspaceStorageService } from './workspace-storage-service.ts';
+import { createWorkspaceStorage } from './workspace-storage.ts';
+import type { WorkspaceStorageLike } from './workspace-storage.ts';
 import { createReleaseHost } from './release-host.ts';
 import { createServerServiceAccess } from './server-services.ts';
 import { createReleaseRequestClient } from './release-requests.ts';
@@ -72,6 +77,7 @@ export interface RuntimeOptions extends ClientOptions {
   readonly slotAdapter?: ManagerOptions['slotAdapter'];
   readonly themeTarget?: HTMLElement;
   readonly mirroringSink?: MirroringStreamSink;
+  readonly workspaceStorage?: WorkspaceStorageLike | null;
 }
 export function createFrontendRuntime(options: RuntimeOptions) {
   const lifetime = new AbortController();
@@ -120,6 +126,9 @@ export function createFrontendRuntime(options: RuntimeOptions) {
   const themes = extensions.themeAccess(host.context);
   const context: HostContext = Object.freeze<HostContext>({
     ...host.context,
+    transport: scopedTransportAccess(createPluginTransport(client), lifetime.signal, host.context.onDispose),
+    ui: extensions.uiAccess(host.context),
+    data: extensions.dataAccess(host.context),
     extensions: extensions.hostAccess(host.context),
     themes,
     services: extensions.serviceAccess(host.context, createServerServiceAccess(client, lifetime.signal)),
@@ -134,6 +143,16 @@ export function createFrontendRuntime(options: RuntimeOptions) {
   } catch {
     legacyStorage = undefined;
   }
+  const layoutStorage = options.workspaceStorage === undefined ? legacyStorage : options.workspaceStorage;
+  const workspaceStorage = layoutStorage
+    ? createWorkspaceStorage({
+        registry: extensions.workspaces,
+        storage: layoutStorage,
+        key: `deviceforge:workspaces:v1:${new URL(options.baseUrl).origin}`,
+        signal: lifetime.signal,
+      })
+    : null;
+  host.context.onDispose(registerWorkspaceStorageService(extensions, context, workspaceStorage));
   const browserConfigurations = createBrowserConfigurations({
     baseUrl: options.baseUrl,
     persistence: createBrowserConfigurationPersistence(client),
@@ -176,6 +195,9 @@ export function createFrontendRuntime(options: RuntimeOptions) {
         debuggerBuilds.delete(event.pluginId);
       }
       debuggerRuntime?.observe(event);
+      context.extensions?.emitEvent('host.plugins.changed', {
+        pluginId: event.pluginId, generation: event.generation, stage: event.stage,
+      });
       if (event.stage === 'loaded' || event.stage === 'unloaded') developerTools?.sync();
     },
     configuration: (plugin, signal) =>
@@ -331,6 +353,7 @@ export function createFrontendRuntime(options: RuntimeOptions) {
     pluginConfigurations,
     webPlugins,
     themes,
+    workspaceStorage,
     extensions: {
       catalog: extensions.catalog,
       subscribe: extensions.subscribe,
@@ -371,15 +394,17 @@ export function createFrontendRuntime(options: RuntimeOptions) {
           mcp.dispose(),
           release.finally(() => mirroringStreaming.dispose()),
         ]);
-        extensions.dispose();
+        const failures: unknown[] = results.flatMap((result) =>
+          result.status === 'rejected' ? [result.reason] : []);
+        try { await extensions.dispose(); }
+        catch (error) { failures.push(error); }
         browserPackages.clearSources();
         releaseSources.clear();
         debuggerBuilds.clear();
         browserConfigurations.dispose();
-        const failures = results.filter((result) => result.status === 'rejected');
         if (failures.length)
           throw new AggregateError(
-            failures.map((result) => result.reason),
+            failures,
             '前端运行实例关闭失败',
           );
       })();

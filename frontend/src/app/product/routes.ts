@@ -34,7 +34,9 @@ export type HostRoute =
  * 路由、导航、槽位派生三处不用各自再解析一遍路径。
  */
 export type PluginRoute = `plugin:${string}:${string}`;
-export type ProductRoute = HostRoute | PluginRoute;
+/** 新页面保持完整本地路径，不进入宿主业务联合或固定路由清单。 */
+export type LocalRoute = `/${string}`;
+export type ProductRoute = HostRoute | PluginRoute | LocalRoute;
 
 export interface ProductRouteInfo {
   readonly id: HostRoute;
@@ -140,18 +142,55 @@ export function splitPluginRoute(route: PluginRoute): { pluginId: string; page: 
 export function hostRouteInfo(route: string): ProductRouteInfo | null {
   return hostIndex.get(route) ?? null;
 }
+/** 注册与地址解析共用安全规则；拒绝外链、路径穿越、控制符及编码后的分隔符。 */
+export function normalizeLocalRoute(value: string): LocalRoute | null {
+  if (!value.startsWith('/') || value.startsWith('//') || value.length > 2048 || /[?#\\\u0000-\u0020\u007f]/.test(value))
+    return null;
+  const path = value.length > 1 ? value.replace(/\/+$/, '') : value;
+  const segments = path.slice(1).split('/');
+  if (path !== '/' && segments.some((segment) => !segment)) return null;
+  for (const segment of segments) {
+    let decoded: string;
+    try { decoded = decodeURIComponent(segment); } catch { return null; }
+    if (decoded === '.' || decoded === '..' || /[/?#\\:\u0000-\u0020\u007f]/.test(decoded) || /%[0-9a-f]{2}/i.test(decoded))
+      return null;
+  }
+  return `/${path.slice(1)}`;
+}
+/** 旧宿主键只负责地址兼容；新业务路径直接作为动态键。 */
+export function localRouteKey(path: LocalRoute): ProductRoute {
+  const name = path.slice(1);
+  const legacy = hostIndex.get(name);
+  if (legacy) return legacy.id;
+  const plugin = /^plugin\/([^/]+)\/(.+)$/.exec(name);
+  if (plugin) return pluginRoute(plugin[1] ?? '', plugin[2] ?? '');
+  return path;
+}
 /** 地址栏里的写法：宿主路由保持原样，插件页面写成 plugin/<pluginId>/<page>（不含 `#`）。 */
 export function routeHash(route: ProductRoute): string {
+  if (route.startsWith('/')) return route.slice(1);
   if (!isPluginRoute(route)) return route;
   const { pluginId, page } = splitPluginRoute(route);
   return `plugin/${pluginId}/${page}`;
 }
-export function parseProductRoute(value: string): ProductRoute {
+export function parseProductRoute(
+  value: string,
+  routes?: readonly { readonly key: ProductRoute }[],
+  preserveUnknown = false,
+): ProductRoute {
   const route = value.replace(/^#\/?/, '').split('?', 1)[0];
-  if (!route) return 'devices';
+  if (!route) return routes?.some((entry) => entry.key === '/') ? '/' : 'devices';
+  if (isPluginRoute(route)) {
+    const { pluginId, page } = splitPluginRoute(route);
+    return pluginRoute(pluginId, page);
+  }
+  const path = normalizeLocalRoute(`/${route.replace(/^\//, '')}`);
+  if (!path) return 'devices';
   const plugin = /^plugin\/([^/]+)\/(.+)$/.exec(route);
   if (plugin) return pluginRoute(plugin[1] ?? '', plugin[2] ?? '');
-  return hostIndex.has(route) ? (route as HostRoute) : 'devices';
+  const key = localRouteKey(path);
+  if (!key.startsWith('/') || preserveUnknown || routes?.some((entry) => entry.key === key)) return key;
+  return 'devices';
 }
 // 侧栏与状态栏只数可见路由；隐藏路由仍可直达。
 export const VISIBLE_ROUTES = PRODUCT_ROUTES.filter((entry) => !entry.hidden);

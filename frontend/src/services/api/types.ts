@@ -58,6 +58,8 @@ export interface Endpoint<I, O> {
   readonly decode: (value: unknown) => value is O;
 }
 export interface ApiClient {
+  /** 公开原始响应通路，仍复用同源校验、令牌、取消与发布修订头。旧测试客户端可省略。 */
+  readonly request?: (request: RequestSpec, signal: AbortSignal) => Promise<Response>;
   readonly call: <I, O>(
     endpoint: Endpoint<I, O>,
     input: I,

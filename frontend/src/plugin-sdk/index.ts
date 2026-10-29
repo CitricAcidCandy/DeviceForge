@@ -6,6 +6,10 @@ import type { ThemeAccess, ThemeContribution } from './themes.ts';
 import type { ConfigurationAccess, ConfigurationDefinition } from './configuration.ts';
 import type { ServiceAccess as ScopedServiceAccess } from './services.ts';
 import type { DebugAccess } from './debug.ts';
+import type { PointAccess } from './points.ts';
+import type { UiAccess } from './workspace.ts';
+import type { PluginTransport } from './transport.ts';
+import type { DataAccess } from './data-sources.ts';
 export type { ServiceRef, ServiceContract, ServiceDirectoryEntry, ServerServiceAccess, TypedService, ServiceFeatureDiagnostic } from './services.ts';
 export type ServiceAccess = ScopedServiceAccess<HostContext>;
 export * from './models.ts';
@@ -18,6 +22,10 @@ export type * from './task-history.ts';
 export type * from './themes.ts';
 export type * from './configuration.ts';
 export type * from './debug.ts';
+export type * from './points.ts';
+export type * from './workspace.ts';
+export type * from './transport.ts';
+export type * from './data-sources.ts';
 export interface HostContext {
   readonly apiVersion: 2;
   readonly signal: AbortSignal;
@@ -40,6 +48,12 @@ export interface HostContext {
   readonly configuration?: ConfigurationAccess;
   readonly services?: ServiceAccess;
   readonly debug?: DebugAccess;
+  /** 可选的工作区组合能力；旧 SDK v2 宿主可以不提供。 */
+  readonly ui?: UiAccess;
+  /** 复用当前连接的公开通信能力，不向插件暴露令牌。 */
+  readonly transport?: PluginTransport;
+  /** 公开数据源通过已有版本化服务读写，结果未知不自动重试。 */
+  readonly data?: DataAccess;
 }
 export interface PanelContribution {
   readonly id: string;
@@ -144,6 +158,8 @@ export interface HostEvent {
   readonly generation: number;
 }
 export interface ExtensionAccess {
+  /** 插件可以定义并消费扩展点，标识无需加入宿主的固定清单。 */
+  readonly points?: PointAccess;
   readonly catalog: () => ExtensionCatalog;
   readonly executeCommand: (
     id: string,

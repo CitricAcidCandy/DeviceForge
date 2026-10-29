@@ -1,0 +1,19 @@
+{
+  "name": "@deviceforge/tasks",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./model": "./src/model/index.ts",
+    "./view": "./src/view.tsx"
+  },
+  "dependencies": {
+    "@noble/hashes": "2.0.1",
+    "lucide-react": "1.56.0"
+  },
+  "peerDependencies": {
+    "@deviceforge/plugin-sdk": "0.1.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  }
+}

@@ -132,7 +132,11 @@ try {
         assert.ok(target === 'fullstack' ? ['frontend', 'backend'].includes(document.target) : document.target === target);
         const expectedSource = `${document.target}/docs/guides/plugin-development/${topic}.md`;
         assert.deepEqual(Object.keys(document).sort(), ['content', 'target', 'topic']);
-        const expected = await readFile(resolve(backend, '..', expectedSource));
+        const primary = await readFile(resolve(backend, '..', expectedSource));
+        const expected = document.target === 'frontend' && topic === 'sdk'
+          ? Buffer.concat([primary, Buffer.from('\n\n'),
+            await readFile(resolve(backend, '../frontend/docs/guides/plugin-development/composition.md'))])
+          : primary;
         assert.equal(digest(document.content), digest(expected), '重编宿主必须返回本次固定文档的完整字节');
         for (const term of serviceTerms[`${document.target}/${topic}`] ?? []) {
           assert.ok(document.content.includes(term), `${document.target}/${topic} 的真实 MCP 正文缺少 ${term}`);

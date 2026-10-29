@@ -4,7 +4,7 @@ import { createLocalUi, clearCollectors } from './ui.ts';
 import { invoke, ownedCatalog, reload } from './invocation.ts';
 import { fail, json, keys, object, target, unavailable } from './validation.ts';
 import { localReport } from './report.ts';
-import { executeData } from './data.ts';
+import { dataCatalog, executeData } from './data.ts';
 import { copyDataJson } from '../../plugins/debugger/index.ts';
 export type { LocalDebugger, LocalDebuggerOptions, DebugTarget, HostDebugRoute, ResolvedTarget } from './types.ts';
 
@@ -38,12 +38,15 @@ export function createLocalDebugger(options: LocalDebuggerOptions): LocalDebugge
     const runtime = options.manager().diagnosticSnapshot().find((item) => item.id === current.plugin_id);
     const entry = entryFor(current);
     const snapshot = entry?.registry.snapshot();
+    const sources = dataCatalog(entry);
     return {
       target: current, runtime: runtime ?? null, roots: ui.roots(current), slot_catalog: ui.slots(current), mount_catalog: ui.mounts(current),
       catalog: ownedCatalog(options, current),
-      data_sources: entry?.registry.data.catalog().map(source => ({ id: source.id, label: source.label,
+      data_sources: sources.map(source => ({ id: source.id, label: source.label,
         writable: source.writable, persistence: source.persistence, apply_policy: source.apply_policy,
-        schema_complete: source.schema_complete })) ?? [],
+        ...('persistence_known' in source ? { persistence_known: source.persistence_known, origin: source.origin,
+          source_ref: source.source_ref } : {}),
+        schema_complete: source.schema_complete })),
       cleanup_history: options.manager().cleanupSnapshot().filter((item) => item.id === current.plugin_id)
         .map((item) => ({ plugin_id: item.id, generation: String(item.generation), state: 'cleanup_failed',
           message: '该代资源回收未完整确认，保留历史告警；不据此封锁本代独立调用', raw_error_included: false })),
@@ -51,8 +54,8 @@ export function createLocalDebugger(options: LocalDebuggerOptions): LocalDebugge
       lifecycle: entry?.lifecycle ?? [], registration_failures: entry?.registrationFailures ?? 0,
       capabilities: { inspect: true, ui_tree: true, ui_query: true, ui_assert: true, ui_diff: true,
         ui_action: true, invoke: true, reload: true, report: true, navigate: !!options.navigate && !!options.readHostRoutes,
-        data_catalog: true, data_read: (entry?.registry.data.catalog().length ?? 0) > 0,
-        data_write: entry?.registry.data.catalog().some(source => source.writable) ?? false,
+        data_catalog: true, data_read: sources.length > 0,
+        data_write: sources.some(source => source.writable),
         pick: true, persistent_reports: false,
         supported_ui_actions: ['highlight', 'click', 'fill', 'select', 'scroll', 'wait', 'pick',
           ...(options.navigate && options.readHostRoutes ? ['navigate'] : [])],
@@ -90,7 +93,8 @@ export function createLocalDebugger(options: LocalDebuggerOptions): LocalDebugge
       if (attachments.size >= 128) return fail('limit_exceeded', '调试登记最多128个插件实例');
       const entry = createAttachment(pluginId, currentGeneration, scope, options.signal,
         () => !disposed && selected.get(pluginId) === currentGeneration,
-        (closing) => { if (attachments.get(pluginId) === closing) attachments.delete(pluginId); }, options.closeSession);
+        (closing) => { if (attachments.get(pluginId) === closing) attachments.delete(pluginId); }, options.closeSession,
+        options.extensions.dataAccess(scope.context));
       if (!entry.lifetime.signal.aborted && !scope.context.signal.aborted) attachments.set(pluginId, entry);
       return entry.access;
     },

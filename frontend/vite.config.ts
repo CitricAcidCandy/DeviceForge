@@ -3,9 +3,18 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { fileURLToPath } from 'node:url';
 import { generatePublicUi, publicUiEntries } from './scripts/generate-public-ui.ts';
+import { workspacePluginPackages } from './scripts/workspace-plugin-packages.ts';
+
+const frontendRoot = fileURLToPath(new URL('.', import.meta.url));
 
 export default defineConfig({
   plugins: [
+    {
+      name: 'deviceforge-workspace-public-packages',
+      resolveId(id: string) {
+        return workspacePluginPackages(frontendRoot).aliases.find((entry) => entry.find === id)?.replacement ?? null;
+      },
+    },
     {
       name: 'deviceforge-public-ui',
       async configResolved(config) { await generatePublicUi(config.root); },
@@ -20,7 +29,10 @@ export default defineConfig({
     react(), tailwindcss(),
   ],
   resolve: {
-    alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
+    alias: {
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
+      '@deviceforge/plugin-sdk': fileURLToPath(new URL('./src/plugin-sdk/index.ts', import.meta.url)),
+    },
     dedupe: ['react', 'react-dom'],
   },
   ssr: { noExternal: ['@deviceforge/browser-debugger'] },

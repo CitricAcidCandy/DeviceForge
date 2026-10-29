@@ -10,6 +10,14 @@
 
 插件通过公开 JSON 协议接入，无需获取宿主源码。Rust 可选公共库名为 `apk-plugin-sdk` 与 `deviceforge-plugin-runtime`；只有取得可独立消费的 SDK 开发包后，才按该包实际提供的版本和依赖方式接入自己的工程。当前不假设这些库已发布到 crates.io，也不假设存在官方 Node SDK；未取得开发包时可使用本指南 `examples` 中无 SDK 依赖的完整 Node.js 示例，不应猜测下载地址或要求访问宿主仓库。
 
+## 前后端配套与开放界面
+
+浏览器 SDK v2 新增可选 `extensions.points`、`ui`、`transport` 和 `data`，分别用于开放扩展点、页面／工作区／多实例视图、公开连接请求及可发现数据源。它们是浏览器上下文能力，不进入服务器 `InvocationContext`，不改变下文任务、服务或会话协议；组件、函数和运行对象不通过 JSON 发往服务器。查询 `target:'fullstack',topic:'sdk'` 可在同一响应取得完整浏览器签名及本服务器契约。
+
+公开数据源的 `read/write` 引用浏览器已登记的精确版本服务。需要服务器数据时，该浏览器服务通过原 `services.server.submit` 提交，按 `getJob` 确认终态并适配结果，不将 Job 接受回执当成数据快照。数据读写返回 `{value,revision}`，写输入携带 `{value,expectedRevision}`；服务器提供者负责原子修订比较，浏览器保留冲突草稿，未知写入先查询，不自动重放。
+
+一个独立工程维护一份 `manifest.json`，按需交付两类组件与共享依赖。浏览器类型包 `@deviceforge/plugin-sdk@0.1.0` 当前只有实际本地 `deviceforge-plugin-sdk-0.1.0.tgz`，尚未发布 npm registry，不代表 Rust SDK 已发布或运行组件已安装。页面／视图登记模型已提供，产品默认外壳及现有页面跨页面渲染尚未上线；不能把目录登记或类型包视为整套界面已交付。
+
 ## 单任务协议
 
 `Request` 包含 `protocol_version`、`request_id`、局部 `operation`、`input` 和可选 `artifacts`。例如公开操作 `plugin.guide_echo.echo` 的进程请求 `operation` 是 `echo`。请求与响应使用 UTF-8 JSON，标准输出仅用于协议，诊断写标准错误。

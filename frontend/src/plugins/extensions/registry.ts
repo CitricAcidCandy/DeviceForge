@@ -32,8 +32,16 @@ import { createServiceAccess } from './service-access.ts';
 import { compileServiceSchema, checkServiceValue } from './service-schema.ts';
 import { serviceInvocationContext, withinServiceCall } from './service-calls.ts';
 import type { ServiceCallFrame } from './service-calls.ts';
+import { createPointRegistry } from '../points/index.ts';
+import { createWorkspaceRegistry } from '../workspace/index.ts';
+import { createDataSourceRegistry } from '../data-sources/index.ts';
+import { createWorkspaceRendering } from '../workspace-rendering.ts';
 
 export function createExtensionRegistry(themeAdapter?: ThemeAdapter) {
+  const points = createPointRegistry();
+  const workspaces = createWorkspaceRegistry();
+  const dataSources = createDataSourceRegistry();
+  const workspaceRendering = createWorkspaceRendering();
   const components = new Map<string, Owned<ComponentContribution>>();
   const modules = new Map<string, Owned<ModuleContribution>>();
   const commands = new Map<string, Owned<CommandContribution>>();
@@ -192,8 +200,15 @@ export function createExtensionRegistry(themeAdapter?: ThemeAdapter) {
     };
   }
   function invocationContext(context: HostContext, frame: ServiceCallFrame): HostContext {
-    return serviceInvocationContext(context, frame, (ref, input, signal, parent) =>
+    const invocation = serviceInvocationContext(context, frame, (ref, input, signal, parent) =>
       callService(ref.id, ref.version, input, signal, parent), executeCommand);
+    if (!context.data) return invocation;
+    // 数据源只是原服务的描述，嵌套读写必须继承本次调用链和绝对期限。
+    const scoped = dataSources.access({ pluginId: 'host', generation: 0, signal: frame.signal }, {
+      call: (ref, input, signal) => callService(ref.id, ref.version, input,
+        AbortSignal.any([signal, frame.signal]), frame),
+    }, context.onDispose);
+    return { ...invocation, data: { ...context.data, read: scoped.read, write: scoped.write } };
   }
   function executeCommand(id: string, input: JsonValue, signal: AbortSignal, parent?: ServiceCallFrame): Promise<HostResult<JsonValue>> {
     check();
@@ -242,6 +257,7 @@ export function createExtensionRegistry(themeAdapter?: ThemeAdapter) {
       if (signal.aborted) throw new HostError('cancelled', 'extension_revoked', '扩展上下文已撤销');
     };
     return Object.freeze<ExtensionAccess>({
+      points: points.access({ pluginId, generation, signal, track }),
       catalog: () => {
         current();
         return catalog();
@@ -320,6 +336,14 @@ export function createExtensionRegistry(themeAdapter?: ThemeAdapter) {
     const context: HostContext = Object.freeze<HostContext>({
       ...base,
       extensions,
+      ui: workspaceRendering.access(workspaces.access({ pluginId, generation, signal: base.signal }, track)),
+      data: dataSources.access({ pluginId, generation, signal: base.signal }, {
+        call: (ref, input, signal) => {
+          const services = context.services;
+          if (!services) throw new HostError('protocol', 'services_unavailable', '数据源服务入口不可用');
+          return services.call(ref, input, signal);
+        },
+      }, track),
       services: createServiceAccess({
         context: () => context, track,
         catalog: serviceCatalog,
@@ -375,6 +399,21 @@ export function createExtensionRegistry(themeAdapter?: ThemeAdapter) {
     return value;
   }
   return {
+    points,
+    workspaces,
+    dataSources,
+    workspaceRendering,
+    uiAccess(context: HostContext) {
+      return workspaceRendering.access(workspaces.access({
+        pluginId: 'host', generation: 0, signal: context.signal,
+      }, context.onDispose));
+    },
+    dataAccess(context: HostContext) {
+      return dataSources.access({ pluginId: 'host', generation: 0, signal: context.signal }, {
+        call: (ref, input, signal) => callService(ref.id, ref.version, input,
+          AbortSignal.any([signal, context.signal])),
+      }, context.onDispose);
+    },
     catalog,
     subscribe(listener: () => void) {
       check();
@@ -445,8 +484,15 @@ export function createExtensionRegistry(themeAdapter?: ThemeAdapter) {
       routes.clear();
       bus.clear();
       themes.dispose();
+      points.dispose();
+      workspaces.dispose();
+      dataSources.dispose();
+      const renderingDisposal = workspaceRendering.dispose();
+      // 保留旧同步调用方的撤资格语义；可等待的调用方仍取得同一份清理结果。
+      void renderingDisposal.catch(() => undefined);
       listeners.clear();
       cached = null;
+      return renderingDisposal;
     },
   };
 }

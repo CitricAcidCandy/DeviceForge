@@ -1,8 +1,10 @@
 import type { DebugAccess, DebugNodeHandle, Dispose } from '../../plugin-sdk/index.ts';
 import { createDebugRegistry, scopedDebugAccess } from '../../plugins/debugger/index.ts';
 import type { PluginScope } from '../../plugins/scope.ts';
+import type { DataAccess } from '../../plugin-sdk/data-sources.ts';
 import type { AttachedDebug } from './types.ts';
 import { clearCollectors } from './ui.ts';
+import { createUnifiedDebugData } from './unified-data.ts';
 
 export function resetSession(entry: AttachedDebug): void {
   clearCollectors(entry);
@@ -14,17 +16,18 @@ export function resetSession(entry: AttachedDebug): void {
 
 export function createAttachment(pluginId: string, generation: string, scope: PluginScope, hostSignal: AbortSignal,
   selected: () => boolean, remove: (entry: AttachedDebug) => void,
-  closeSession?: (sessionId: string) => Promise<void>): AttachedDebug {
+  closeSession?: (sessionId: string) => Promise<void>, data?: DataAccess): AttachedDebug {
   const lifetime = new AbortController();
   const signal = AbortSignal.any([scope.context.signal, hostSignal, lifetime.signal]);
   const quietTrack = (release: Dispose): Dispose => scope.track(async () => {
     try { await release(); } catch { /* 调试释放失败保留在登记表，不传播到业务清理。 */ }
   });
   const registry = createDebugRegistry({ pluginId, generation: Number(generation) }, signal, quietTrack);
+  const unifiedData = createUnifiedDebugData(pluginId, generation, data, signal);
   const scoped = scopedDebugAccess(registry.debug, signal, quietTrack);
   const sessions = new Map<string, Dispose>();
   const entry: AttachedDebug = {
-    pluginId, generation, scope, lifetime, registry, access: {
+    pluginId, generation, scope, lifetime, registry, unifiedData, access: {
       ...(scoped.registerDataSource ? { registerDataSource(definition: Parameters<NonNullable<DebugAccess['registerDataSource']>>[0]): Dispose {
         try {
           const register = scoped.registerDataSource;
@@ -78,6 +81,7 @@ export function createAttachment(pluginId: string, generation: string, scope: Pl
   const close = () => {
     signal.removeEventListener('abort', close);
     clearCollectors(entry);
+    unifiedData.dispose();
     entry.lifecycle.length = 0;
     remove(entry);
   };

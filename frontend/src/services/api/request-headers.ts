@@ -24,6 +24,16 @@ export function withRequestHeaders(
       }, input, signal);
     },
     downloadArtifact: client.downloadArtifact,
+    ...(client.request ? {
+      async request(request: RequestSpec, signal: AbortSignal) {
+        if (signal.aborted) throw new ApiError('cancelled', 'cancelled', '请求等待已取消');
+        const headers = await abortable(Promise.resolve(resolve(request, signal)), signal);
+        if (signal.aborted) throw new ApiError('cancelled', 'cancelled', '请求等待已取消');
+        const raw = client.request;
+        if (!raw) throw new ApiError('protocol', 'transport_unavailable', '原始请求通路已撤销');
+        return raw({ ...request, headers: { ...request.headers, ...headers } }, signal);
+      },
+    } : {}),
   };
 }
 

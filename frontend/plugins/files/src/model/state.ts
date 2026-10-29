@@ -1,9 +1,10 @@
-import { ApiError } from '../../../services/api/index.ts';
 import type {
   ArtifactBrowserSnapshot,
   ArtifactEntriesView,
   ArtifactMetadataView,
-} from '../types/index.ts';
+  FileFailure,
+  FileFailureConstructor,
+} from './types.ts';
 
 export interface ArtifactBrowserRequest {
   readonly revision: number;
@@ -24,7 +25,7 @@ const empty = (): ArtifactBrowserSnapshot =>
     uploadLogId: null,
     downloadLogId: null,
   });
-export function createArtifactBrowserState() {
+export function createArtifactBrowserState(ApiError: FileFailureConstructor) {
   let state = empty();
   let revision = 0;
   let closed = false;
@@ -96,7 +97,7 @@ export function createArtifactBrowserState() {
       assertOpen();
       if (!state.selection || !state.metadata)
         throw new ApiError('protocol', 'artifact_not_selected', '请先选择并读取产物元数据');
-      if (state.metadata.media_type !== 'application/zip')
+      if (state.metadata.mediaType !== 'application/zip')
         throw new ApiError('protocol', 'artifact_not_archive', '当前产物不是 ZIP 容器');
       return begin(state.selection, 'entries', signal);
     },
@@ -182,7 +183,7 @@ export function createArtifactBrowserState() {
       publish({ ...state, loading: null, error: null, downloadLogId: logId });
       assertCurrent(context, logId);
     },
-    failure(context: ArtifactBrowserRequest, error: ApiError) {
+    failure(context: ArtifactBrowserRequest, error: FileFailure) {
       if (!latest(context)) return;
       publish({
         ...state,

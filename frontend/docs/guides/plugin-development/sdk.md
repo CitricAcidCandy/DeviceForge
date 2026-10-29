@@ -33,6 +33,9 @@ interface HostContext {
   readonly apiVersion: 2;
   readonly signal: AbortSignal;
   readonly services?: ServiceAccess;
+  readonly ui?: UiAccess;
+  readonly transport?: PluginTransport;
+  readonly data?: DataAccess;
   listOperations(signal: AbortSignal): Promise<HostResult<readonly Operation[]>>;
   submit(operation: string, input: JsonValue, signal: AbortSignal): Promise<HostResult<Job>>;
   getJob(id: string, signal: AbortSignal): Promise<HostResult<Job>>;
@@ -42,7 +45,7 @@ interface HostContext {
 }
 ```
 
-`HostContext` 另有可选 `extensions/devices/artifacts/taskHistory/themes/configuration`，旧宿主或独立装配可省略，必须先判断。SDK 通常采用 camelCase，`Operation.input_schema` 则保留该公开字段名；不要自行将 SDK 参数变成 HTTP snake_case。`execution` 只描述当前操作总预算，不允许浏览器覆盖预算，也不用于给历史任务补写元数据。
+`HostContext` 另有可选 `extensions/devices/artifacts/taskHistory/themes/configuration`，旧宿主或独立装配可省略，必须先判断。`extensions.points`、`ui`、`transport`、`data` 是 SDK v2 新增的可选能力，保持旧插件兼容；本主题末尾直接包含开放组合说明与独立 SDK 取得方式。SDK 通常采用 camelCase，`Operation.input_schema` 则保留该公开字段名；不要自行将 SDK 参数变成 HTTP snake_case。`execution` 只描述当前操作总预算，不允许浏览器覆盖预算，也不用于给历史任务补写元数据。
 
 ## 公共服务与功能级组合
 
@@ -105,7 +108,7 @@ interface ServiceAccess {
 | `beforeTaskSubmit` | `{id,priority?,transform({operation,input},context,signal): Promise<{operation,input}>}` |
 | `themes` | `{id,title,variables?: Record<string,string>,css?: string,colorScheme?: 'light'或'dark'或'normal'}` |
 
-组件只在已开放的具名槽位生效。宿主把槽位的可用模式在装配处写死，插件无法自我授权：`replace` 由槽位适配器管理默认内容的释放与恢复，`append` 只往后追加。当前产品开放的槽位：
+旧 `components` 接口只在已开放的具名槽位生效，其模式由对应适配器定义：`replace` 管理默认内容的释放与恢复，`append` 只往后追加。新 `extensions.points` 允许插件定义自己的扩展点；它与下列旧槽位兼容并存，不会自动把原页面内部变为开放渲染区域。当前产品开放的旧槽位：
 
 | 槽位 | 形态 | 允许模式 |
 | --- | --- | --- |
@@ -238,3 +241,156 @@ async mount(target, context) {
 服务器进程通过 `DEVICEFORGE_PLUGIN_RESOURCES` 和 Rust `apk_plugin_sdk::managed_resources()` 取得工具入口，通过 `DEVICEFORGE_PLUGIN_CONFIG` 读取有效配置；这两个字段均不进入浏览器上下文。工具默认路径只覆盖服务器有效快照，用户高级显式路径优先，配置原值与修订保留在运行宿主用户根。浏览器不得推断开发机或同事本机目录，也不能把资源描述暴露为下载接口。
 
 浏览器配置保留自己的版本、原值及敏感路径，凭据展示走宿主管理流程，不把 `********` 当真实输入再次提交。发布 requirements 的来源候选按原值判断；浏览器保存记录的服务器启用门禁不具备服务器插件同等的 schema/版本校验，必须继续检查本地配置兼容性与实际激活错误。
+
+## 开放组合的公开接口
+
+以下为公开包中新增接口的主要签名摘录，不是完整插件工程。相关 `PointCatalog`、`WorkspaceContributions`、`WorkspaceSnapshot`、`WorkspaceLayout` 等数据模型均由同一 SDK 主入口导出；不需要宿主源码或私有类型。新增定义、贡献和源的 ID 使用所属插件命名空间；引用版本均是精确值。
+
+```typescript
+interface PointAccess {
+  define(definition: PointDefinition): Dispose;
+  contribute(contribution: PointContribution): PointContributionHandle;
+  catalog(): PointCatalog;
+  list(point: PointRef): readonly LocalPointContribution[];
+  selected(point: PointRef): LocalPointContribution | null;
+  select(point: PointRef, contributionId: string | null): void;
+  subscribe(listener: () => void): Dispose;
+}
+interface PointDefinition extends PointRef {
+  readonly title: string;
+  readonly inputSchema?: JsonValue;
+  readonly modes?: readonly ('append' | 'replace')[];
+}
+interface PointContribution {
+  readonly id: string;
+  readonly point: PointRef;
+  readonly order?: number;
+  readonly mode?: 'append' | 'replace';
+  readonly data: JsonValue;
+  readonly payload?: unknown;
+}
+interface PointContributionHandle {
+  update(value: PointContribution): void;
+  readonly dispose: Dispose;
+}
+```
+
+`PointRef` 为 `{id:string,version:string}`。目录中的定义和贡献带有 `provider:{pluginId,generation}`；贡献还包含 `state/reason/selected`。目录只含 JSON，`payload` 只由本地 `list/selected` 返回。自定义扩展点必须有真正的消费渲染器；登记贡献不等于在任意页面插入 DOM。
+
+```typescript
+interface WorkspaceViewRef { readonly pluginId: string; readonly viewId: string }
+interface WorkspaceInstanceInput {
+  readonly instanceId: string;
+  readonly workspaceId: string;
+  readonly provider: WorkspaceViewRef | null;
+  readonly target?: JsonValue;
+  readonly visible?: boolean;
+}
+interface WorkspaceViewContext {
+  readonly signal: AbortSignal;
+  snapshot(): WorkspaceInstance;
+  subscribeVisibility(listener: (visible: boolean) => void): Dispose;
+}
+type WorkspaceMount = (
+  target: HTMLElement, context: HostContext, instance: WorkspaceViewContext,
+) => Promise<Dispose>;
+interface WorkspacePageDefinition {
+  readonly id: string;
+  readonly title: string;
+  readonly route: string;
+  readonly workspaceId?: string;
+  readonly mount?: WorkspaceMount;
+}
+interface WorkspaceDefinition {
+  readonly id: string;
+  readonly title: string;
+  readonly defaultLayout?: WorkspaceLayout;
+}
+interface WorkspaceViewDefinition {
+  readonly id: string;
+  readonly title: string;
+  readonly provides?: readonly string[];
+  readonly mount: WorkspaceMount;
+}
+interface WorkspaceContributions {
+  readonly pages?: readonly WorkspacePageDefinition[];
+  readonly workspaces?: readonly WorkspaceDefinition[];
+  readonly views?: readonly WorkspaceViewDefinition[];
+}
+interface UiAccess {
+  register(contributions: WorkspaceContributions): Dispose;
+  catalog(): WorkspaceCatalog;
+  snapshot(): WorkspaceSnapshot;
+  subscribe(listener: () => void): Dispose;
+  open(input: WorkspaceInstanceInput, signal?: AbortSignal): WorkspaceInstance;
+  close(instanceId: string): void;
+  setTarget(instanceId: string, target: JsonValue): WorkspaceInstance;
+  setVisible(instanceId: string, visible: boolean): WorkspaceInstance;
+  selectProvider(instanceId: string, provider: WorkspaceViewRef | null): WorkspaceInstance;
+  readLayout(workspaceId: string): WorkspaceLayout | null;
+  writeLayout(workspaceId: string, layout: WorkspaceLayout): void;
+}
+```
+
+工作区快照包括页面、工作区、视图目录以及实例和布局。实例的 `generation` 是实例轮换号，`providerGeneration` 才是当前视图提供者代次，二者不能混用。布局模型 `version:1` 支持 `view/split/tabs/custom` 节点、`floating` 和 `overlays`；布局保存引用及几何信息，不保存组件、函数或正在执行的操作。
+
+**当前交付边界：页面、视图与实例登记和模型已提供，产品默认外壳及设备、文件等现有页面的跨页面渲染尚未上线。** `ui.register/open` 不会单凭登记就将新视图显示在原页面或原导航中，也没有已交付的全局外壳替换入口。需要当前实际可见页面时继续使用 `modules`、面板或已开放槽位；新工作区消费方须自行提供渲染接线。页面隐藏、数据采集暂停与外部会话关闭是不同动作，不能凭 `visible:false` 假定业务已停止。
+
+## 通用请求与可发现数据
+
+```typescript
+interface PluginRequest {
+  readonly path: string;
+  readonly method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+  readonly headers?: Readonly<Record<string, string>>;
+  readonly body?: JsonValue;
+  readonly content?: Blob | ArrayBuffer;
+  readonly contentType?: string;
+  readonly timeoutMs?: number;
+}
+interface PluginJsonRequest extends PluginRequest {
+  readonly envelope?: 'v2' | 'raw';
+}
+interface PluginTransport {
+  readonly request: (request: PluginJsonRequest, signal: AbortSignal) => Promise<HostResult<JsonValue>>;
+  readonly bytes: (request: PluginRequest, signal: AbortSignal) => Promise<HostResult<Blob>>;
+  readonly stream: (request: PluginRequest, signal: AbortSignal) => Promise<HostResult<ReadableStream<Uint8Array>>>;
+}
+```
+
+`transport` 复用当前服务器连接及可选令牌管理，只接受以 `/api/v2/` 开头的公开相对路径；不能自选服务器地址、覆盖凭据头或读取令牌。JSON `body` 与原始 `content` 不能同时提供，字节上传使用 `content` 与明确的 `contentType`。默认 `envelope:'v2'` 将响应映射为 `{data,logId}`，公开原始 JSON 使用 `raw`；下载原字节使用 `bytes`，流使用 `stream`，不对其重复拆业务包络。
+
+默认请求期限为 30 秒，可显式设定 `timeoutMs` 为 1 至 300000 毫秒；调用取消、期限到达或所属作用域撤销会结束等待，已经交付的流也会撤销读取。该行为不表示服务器任务或写操作已回滚，已接受任务仍须显式取消并查询最终状态。不自动重试写入或重播流。通用 HTTP 接口不代替 `services` 的功能级服务依赖，也不提供任意服务器文件系统或进程权限。
+
+```typescript
+interface DataSourceRef { readonly id: string; readonly version: string }
+interface DataSourceDefinition extends DataSourceRef {
+  readonly title: string;
+  readonly readOnly: boolean;
+  readonly applyPolicy: 'immediate' | 'reload';
+  readonly persistence?: 'memory' | 'persistent';
+  readonly schema?: JsonValue;
+  readonly read: ServiceRef;
+  readonly write?: ServiceRef;
+}
+interface DataSourceInfo extends DataSourceDefinition {
+  readonly provider: { readonly pluginId: string; readonly generation: number };
+}
+interface DataSnapshot { readonly value: JsonValue; readonly revision: string }
+interface DataWrite { readonly value: JsonValue; readonly expectedRevision: string }
+interface DataAccess {
+  register(definition: DataSourceDefinition): Dispose;
+  catalog(): readonly DataSourceInfo[];
+  read(ref: DataSourceRef, signal: AbortSignal): Promise<HostResult<DataSnapshot>>;
+  write(ref: DataSourceRef, input: DataWrite, signal: AbortSignal): Promise<HostResult<DataSnapshot>>;
+  subscribe(listener: () => void): Dispose;
+}
+```
+
+数据源必须先登记真实浏览器读写服务。读服务输入 `{}`，写服务输入 `{value,expectedRevision}`，二者输出均为 `{value,revision}`，外层仍是 `HostResult`。`readOnly:true` 不得同时声明 `write`；允许修改时必须声明。宿主校验输入输出 Schema，实际修订比较与提交须在提供者写服务内原子完成，消费方预读不能替代该检查。
+
+`subscribe` 通知目录变更及本通道确认成功的写入，不是服务器实时数据流。业务实时变化应使用提供者公开事件或读取服务。冲突原码及 `logId` 由通用数据访问保留，消费方保留草稿；断线或未知结果先查询实际状态，不自动重放。`persistence` 省略表示未声明，不能猜测；保存方式与 `applyPolicy` 的立即生效或待重载分别展示。
+
+配套服务器数据由浏览器服务通过原 `services.server.submit`、`getJob` 和现有事件适配，不能把后端 `ServiceRef` 当成本地已登记服务直接调用。服务器仍使用现有公开任务／会话协议，不增加第二执行器或另一份清单。调用 `deviceforge.get_plugin_development_guide` 时选择 `target:'fullstack',topic:'sdk'`，可在同一响应取得两端契约。
+
+调试器按明确目标及运行代次直接读取统一目录，无需再维护调试数据白名单；只公开提供者登记的业务投影，不自动解析私有闭包。数据工具写入仍需显式确认，敏感字段与只读字段受保护。调试 `source_id` 与公开源 ID 可能不同，必须从当前 `data_catalog` 取得；返回的修订是不透明令牌，不得与服务私有修订拼接或跨登记复用。目录新增内容不代表调试器已新增对应的可视化界面。
