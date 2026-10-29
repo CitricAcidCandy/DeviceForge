@@ -73,6 +73,14 @@ pub struct AutomationBinding {
 #[serde(deny_unknown_fields)]
 pub struct AutomationStep {
     pub id: String,
+    /// Agent 提供的业务展示名称；不参与绑定或执行状态判定。
+    #[serde(
+        default,
+        deserialize_with = "display_label",
+        skip_serializing_if = "Option::is_none"
+    )]
+    #[schemars(with = "String", length(min = 1, max = 80))]
+    pub label: Option<String>,
     pub tool: AutomationStepTool,
     pub parameters: Value,
     #[serde(default)]
@@ -87,6 +95,12 @@ pub struct AutomationInput {
     pub confirmed: bool,
     #[serde(default = "stop_on_failure")]
     pub stop_on_failure: bool,
+}
+
+fn display_label<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> std::result::Result<Option<String>, D::Error> {
+    String::deserialize(deserializer).map(Some)
 }
 
 fn stop_on_failure() -> bool {
@@ -140,6 +154,16 @@ fn validate_automation(parameters: &Value) -> Result<()> {
     }
     let mut previous = BTreeMap::<&str, &AutomationStep>::new();
     for step in &input.steps {
+        if step.label.as_ref().is_some_and(|label| {
+            label.trim().is_empty()
+                || label.chars().count() > 80
+                || label.chars().any(char::is_control)
+        }) {
+            return Err(error(
+                ErrorCode::InvalidInput,
+                "步骤名称必须为1到80个无控制字符的文字",
+            ));
+        }
         validation::identifier(&step.id)?;
         if previous.contains_key(step.id.as_str()) {
             return Err(error(ErrorCode::InvalidInput, "自动调试步骤标识不能重复"));

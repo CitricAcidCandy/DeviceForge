@@ -3,10 +3,11 @@ import type { JsonValue } from '../../../frontend/src/plugin-sdk/index.ts';
 import { array, object, text } from './protocol.ts';
 
 export const fieldClass = 'min-w-0 rounded-md border border-[#7A879B] bg-white px-2 py-1.5 text-[13px] text-[#23272E] outline-none focus-visible:ring-2 focus-visible:ring-[#6C4CF5] disabled:cursor-not-allowed disabled:opacity-50';
-export function Button({ children, primary = false, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { primary?: boolean }) {
+export function Button({ children, primary = false, soft = false, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { primary?: boolean; soft?: boolean }) {
   return <button type="button" {...props} className={`${primary
     ? 'border-[#6C4CF5] bg-[#6C4CF5] text-white hover:bg-[#5835DA]'
-    : 'border-[#E6EAF3] bg-white text-[#23272E] hover:bg-[#F7F8FC]'} min-h-8 shrink-0 rounded-md border px-3 py-1 text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-[#6C4CF5] disabled:cursor-not-allowed disabled:opacity-50 ${props.className ?? ''}`}>
+    : soft ? 'border-transparent bg-[#EFEBFF] text-[#6C4CF5] hover:bg-[#F7F8FC]'
+      : 'border-[#E6EAF3] bg-white text-[#23272E] hover:bg-[#F7F8FC]'} min-h-9 shrink-0 rounded-lg border px-3 py-1.5 text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-[#6C4CF5] disabled:cursor-not-allowed disabled:opacity-50 ${props.className ?? ''}`}>
     {children}
   </button>;
 }

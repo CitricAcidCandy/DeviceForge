@@ -27,6 +27,8 @@ pub(super) enum Phase {
 }
 
 pub(super) struct CommandEntry {
+    pub activity_sequence: u64,
+    pub activity_steps: Vec<ActivityStep>,
     pub result: DebugCommandResult,
     pub target: DebugTarget,
     pub tool: DebugTool,
@@ -44,6 +46,8 @@ pub(super) struct State {
     pub instances: BTreeMap<String, InstanceEntry>,
     pub sessions: BTreeMap<String, SessionEntry>,
     pub commands: BTreeMap<String, CommandEntry>,
+    pub activity_sequence: u64,
+    pub activity_history_evicted: bool,
     pub(super) session_history: VecDeque<String>,
     command_history: VecDeque<String>,
     result_bytes: usize,
@@ -207,6 +211,7 @@ impl State {
         {
             if let Some(expired) = self.command_history.pop_front() {
                 if let Some(removed) = self.commands.remove(&expired) {
+                    self.activity_history_evicted = true;
                     self.result_bytes -= removed.response_bytes;
                 }
             } else {

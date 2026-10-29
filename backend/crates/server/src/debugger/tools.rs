@@ -3,8 +3,9 @@ use super::{ApiError, error};
 use apk_application::{
     Application,
     debugger::{
-        AutomationInput, DataCatalogInput, DataReadInput, DataWriteInput, DebugCommandRequest,
-        DebugTarget, DebugTool, DebuggerService, EventQuery, SessionRequest, TargetKind,
+        ActivityQuery, AutomationInput, DataCatalogInput, DataReadInput, DataWriteInput,
+        DebugCommandRequest, DebugTarget, DebugTool, DebuggerService, EventQuery, SessionRequest,
+        TargetKind,
     },
     plugin_lifecycle::PluginService,
 };
@@ -14,6 +15,7 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 use std::sync::Arc;
 
+mod activity;
 mod command_query;
 mod diagnostics;
 mod diagnostics_adapter;
@@ -105,6 +107,7 @@ pub(crate) fn manages(name: &str) -> bool {
             | "deviceforge.debug_inspect"
             | "deviceforge.debug_events"
             | "deviceforge.debug_command"
+            | "deviceforge.debug_activity"
             | "deviceforge.debug_data_catalog"
             | "deviceforge.debug_data_read"
             | "deviceforge.debug_data_write"
@@ -150,6 +153,12 @@ pub(crate) fn tools() -> Vec<Tool> {
             "debug_command",
             "查询归属本会话的原命令回执；允许读取结束或换代会话的历史，不会重新派发动作",
             crate::openapi::schema::<command_query::CommandQuery>(),
+            true,
+        ),
+        (
+            "debug_activity",
+            "只读观察明确会话当前目标的保留调试调用；可跨同目标会话查看，列表不含原参数，详情须command_id且不派发或续期",
+            crate::openapi::schema::<ActivityQuery>(),
             true,
         ),
         (
@@ -346,6 +355,7 @@ pub(crate) async fn invoke_with_ports(
         }
         "deviceforge.debug_events" => diagnostics::events(debugger, ports.diagnostics, input).await,
         "deviceforge.debug_command" => command_query::query(debugger, input),
+        "deviceforge.debug_activity" => activity::query(debugger, input),
         _ => {
             let input: CommandInput = decode(input)?;
             if let Some(suffix) = name.strip_prefix("deviceforge.debug_") {
@@ -430,7 +440,7 @@ mod tests {
     #[test]
     fn debugger_tools_are_unique_and_mutations_are_not_marked_read_only() {
         let tools = tools();
-        assert_eq!(tools.len(), 17);
+        assert_eq!(tools.len(), 18);
         let names = tools
             .iter()
             .map(|tool| tool.name.as_ref())
@@ -487,6 +497,7 @@ mod tests {
                 "deviceforge.debug_automation_run",
                 vec![
                     "steps",
+                    "label",
                     "confirmed",
                     "stop_on_failure",
                     "target_from_step",
@@ -497,6 +508,10 @@ mod tests {
                 "deviceforge.debug_command",
                 vec!["session_id", "command_id"],
             ),
+            (
+                "deviceforge.debug_activity",
+                vec!["session_id", "command_id", "before", "limit"],
+            ),
         ] {
             let tool = tools.iter().find(|tool| tool.name == name).unwrap();
             let schema = serde_json::to_string(&tool.input_schema).unwrap();
@@ -504,6 +519,19 @@ mod tests {
                 assert!(schema.contains(field), "{name} 缺少 {field}");
             }
         }
+    }
+
+    #[test]
+    fn debugger_activity_schema_requires_only_session_and_defaults_page_size() {
+        let tool = tools()
+            .into_iter()
+            .find(|tool| tool.name == "deviceforge.debug_activity")
+            .expect("活动工具应登记");
+        let schema = serde_json::to_value(tool.input_schema).expect("模式可序列化");
+        assert_eq!(schema["required"], json!(["session_id"]));
+        assert_eq!(schema["properties"]["limit"]["default"], 20);
+        assert!(schema["properties"].get("before").is_some());
+        assert!(schema["properties"].get("command_id").is_some());
     }
 
     #[tokio::test]

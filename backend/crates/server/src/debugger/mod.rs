@@ -81,6 +81,7 @@ async fn capabilities(State(state): State<ApiState>) -> Json<Value> {
         "source_breakpoints":false,"arbitrary_evaluation":false,
         "reload_timeout_ms":30000,"automation_timeout_ms":30000,"automation_max_steps":32,
         "data_value_max_bytes":262144,"persistent_log_pagination":state.runtime.is_some(),
+        "target_activity_read_only":true,"activity_max_page":50,"automation_step_label_max_chars":80,
         "report_export":state.artifacts.is_some(),
         "ui_requires_selected_browser":true,"production_acceptance_complete":false}))
 }

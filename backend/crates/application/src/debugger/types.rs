@@ -1,5 +1,6 @@
 //! 调试器公开传输契约；不承载脚本、工具路径或认证材料。
 
+use super::AutomationStepTool;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -248,6 +249,58 @@ pub struct DebugCommandResult {
     pub session_id: String,
     pub state: CommandState,
     pub response: Option<Value>,
+}
+
+/// 从明确观察会话读取同一目标的有限命令事实；不派发、不续期、不返回原参数。
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ActivityQuery {
+    pub session_id: String,
+    #[serde(default = "activity_limit")]
+    #[schemars(default = "activity_limit", range(min = 1, max = 50))]
+    pub limit: usize,
+    #[serde(default)]
+    #[schemars(default)]
+    pub before: Option<u64>,
+    #[serde(default)]
+    #[schemars(default)]
+    pub command_id: Option<String>,
+}
+
+fn activity_limit() -> usize {
+    20
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ActivityStep {
+    pub id: String,
+    pub tool: AutomationStepTool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub label: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ActivityItem {
+    pub sequence: u64,
+    pub command_id: String,
+    pub tool: DebugTool,
+    pub state: CommandState,
+    pub steps: Vec<ActivityStep>,
+    /// 列表始终为空；只有明确命令详情才返回已验证的原回执。
+    pub response: Option<Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ActivityPage {
+    pub target: DebugTarget,
+    pub items: Vec<ActivityItem>,
+    pub next_before: Option<u64>,
+    /// 有界命令历史曾淘汰时保守报告缺口，不据此声称该目标的完整历史。
+    pub gap: bool,
+    pub retained_only: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]

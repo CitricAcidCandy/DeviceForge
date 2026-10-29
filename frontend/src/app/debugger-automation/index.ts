@@ -32,7 +32,8 @@ export async function runDebuggerAutomation(parameters: JsonValue, target: Targe
   let evidenceBytes = 0;
   try {
     for (const step of plan.steps) {
-      const base = { id: step.id, tool: step.tool, target_generation: target.generation };
+      const base = { id: step.id, ...(step.label === undefined ? {} : { label: step.label }),
+        tool: step.tool, target_generation: target.generation };
       if (stopped || current.aborted) {
         if (!stopped) status = signal.aborted ? 'cancelled' : 'indeterminate';
         stopped = true;

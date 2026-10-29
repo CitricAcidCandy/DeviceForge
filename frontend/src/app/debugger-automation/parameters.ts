@@ -4,6 +4,7 @@ import { action, assertion, query } from '../debugger-local/ui-parameters.ts';
 
 export interface AutomationStep {
   readonly id: string;
+  readonly label?: string;
   readonly tool: string;
   readonly parameters: JsonValue;
   readonly bind: { readonly target_from_step?: string; readonly revision_from_step?: string };
@@ -77,8 +78,12 @@ export function parsePlan(value: JsonValue): AutomationPlan {
   const steps: AutomationStep[] = [];
   for (const candidate of input.steps) {
     const step = object(candidate);
-    keys(step, ['id', 'tool', 'parameters', 'bind']);
+    keys(step, ['id', 'label', 'tool', 'parameters', 'bind']);
     const id = text(step.id, '步骤标识', 128);
+    const label = step.label;
+    if (label !== undefined && (typeof label !== 'string' || !label.trim() ||
+        Array.from(label).length > 80 || /\p{Cc}/u.test(label)))
+      return fail('invalid_parameters', '步骤名称必须为1到80个字符且不含控制字符');
     const tool = text(step.tool, '步骤工具', 32);
     if (prior.has(id) || !tools.has(tool)) return fail('invalid_parameters', '步骤标识重复或工具不支持自动调试');
     if (mutationTools.has(tool) && input.confirmed !== true)
@@ -104,7 +109,7 @@ export function parsePlan(value: JsonValue): AutomationPlan {
         return fail('confirmation_required', '界面变更步骤仍需明确确认');
     }
     preflight(tool, parameters, target !== undefined, revision !== undefined);
-    steps.push({ id, tool, parameters, bind: {
+    steps.push({ id, ...(label === undefined ? {} : { label }), tool, parameters, bind: {
       ...(target === undefined ? {} : { target_from_step: target }),
       ...(revision === undefined ? {} : { revision_from_step: revision }),
     } });

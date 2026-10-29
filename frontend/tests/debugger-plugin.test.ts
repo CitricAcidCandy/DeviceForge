@@ -18,6 +18,7 @@ interface Request { readonly action: string; readonly name: string; readonly inp
 function fixture(custom?: (request: Request) => Promise<JsonValue | undefined> | JsonValue | undefined, debug?: HostContext['debug']) {
   const requests: Request[] = [], lifetime = new AbortController();
   let sequence = 0;
+  const sessionTargets = new Map<string, JsonValue>();
   const extensions: ExtensionAccess = {
     catalog: () => ({ components: [], modules: [], commands: [], services: [] }),
     executeCommand: async () => { throw new Error('不应绕过调试公开服务'); },
@@ -37,12 +38,18 @@ function fixture(custom?: (request: Request) => Promise<JsonValue | undefined> |
         { plugin_id: 'example', generation: '7', version: '1.0.0' }, { plugin_id: 'second', generation: '8', version: '1.0.0' },
       ] }], server_plugins: [{ id: 'server', generation: 'server-g1', version: '2.0' }] }, logId: null };
       if (name === 'deviceforge.debug_session') {
-        if (entry.input.action === 'open') return { data: { session_id: `session-${++sequence}`, state: 'active', target: json(entry.input.target) }, logId: null };
+        if (entry.input.action === 'open') {
+          const id = `session-${++sequence}`, selected = json(entry.input.target);
+          sessionTargets.set(id, selected);
+          return { data: { session_id: id, state: 'active', target: selected }, logId: null };
+        }
         if (entry.input.action === 'get') return { data: { session_id: json(entry.input.session_id), state: 'active', target: {
           target_kind: target.kind, instance_id: target.instanceId, plugin_id: target.pluginId, generation: target.generation, version: target.version,
         } }, logId: null };
         return { data: { state: 'closed' }, logId: null };
       }
+      if (name === 'deviceforge.debug_activity') return { data: { target: sessionTargets.get(text(entry.input.session_id)) ?? null,
+        items: [], next_before: null, gap: false, retained_only: true }, logId: null };
       const parameters = object(entry.input.parameters);
       let response: JsonValue = { status: 'applied', reason: '公开结果' };
       if (name === 'deviceforge.debug_inspect') response = { roots: [{ root_id: 'root-1', contribution_id: 'example.main' }],
@@ -79,10 +86,13 @@ test('插件初始只有入口，无联网、会话和结构采集；打开默�
   } finally { await controller.dispose(); }
 });
 
-test('明确目标后按response解包检查与树，收起不关闭会话，关闭独立释放', async () => {
+test('明确目标后只读公开目录，显式读树后按response解包；收起不关闭会话，关闭独立释放', async () => {
   const { controller, requests } = fixture();
   try {
     await controller.open(); await controller.select(target);
+    assert.equal(controller.snapshot().tree, null);
+    assert.equal(requests.some((item) => item.name === 'deviceforge.debug_ui_tree'), false);
+    await controller.tree();
     assert.equal(controller.snapshot().tree?.nodes[0]?.id, 'node-1');
     assert.equal(controller.snapshot().inspection !== null, true);
     assert.equal(controller.snapshot().entries.length, 2);
@@ -134,10 +144,11 @@ test('切换目标隔离忽略取消的旧代晚到结构结果', async () => {
   const late = new Promise<JsonValue>((resolve) => { release = resolve; });
   const { controller } = fixture(({ name }) => name === 'deviceforge.debug_ui_tree' && !waiting ? (waiting = true, late) : undefined);
   try {
-    await controller.open(); const previous = controller.select(target);
+    await controller.open(); await controller.select(target); const previous = controller.tree();
     for (let i = 0; i < 20 && !waiting; i++) await new Promise((resolve) => setTimeout(resolve, 1));
     assert.equal(waiting, true);
     await controller.select(second);
+    await controller.tree();
     release({ command_id: 'old', state: 'succeeded', response: { root_id: 'old-root', tree: tree('old-snapshot', 'old-node') } });
     await previous;
     assert.equal(controller.snapshot().target?.pluginId, 'second'); assert.equal(controller.snapshot().tree?.id, 'snapshot-1');
@@ -152,6 +163,7 @@ test('失败回执读取response.error，日志ID保留；未知结果不重放�
   } : undefined);
   try {
     await controller.open(); await controller.select(target);
+    await controller.tree();
     const node = controller.snapshot().tree?.nodes[0]; assert.ok(node);
     await controller.action('click', node, '', false, false);
     assert.equal(calls, 0);
@@ -168,7 +180,7 @@ test('失败回执读取response.error，日志ID保留；未知结果不重放�
 test('桥断线保留过期快照且阻断旧节点动作，重连显式且不重放', async () => {
   const { controller, requests } = fixture(({ action }) => action === 'status' ? { bridge: { state: 'disconnected', instanceId: 'instance-current', reason: '桥已断线' } } : undefined);
   try {
-    await controller.open(); await controller.select(target); await controller.checkConnection();
+    await controller.open(); await controller.select(target); await controller.tree(); await controller.checkConnection();
     assert.equal(controller.snapshot().stale, true); assert.equal(controller.snapshot().tree?.id, 'snapshot-1');
     const count = requests.length; const node = controller.snapshot().tree?.nodes[0]; assert.ok(node);
     await controller.action('click', node, '', true, true); assert.equal(requests.length, count);
@@ -218,7 +230,7 @@ test('树分页绑定原快照与根，不把分页当成新快照', async () =>
       page: { snapshotId: 'stable', offset: typeof parameters.offset === 'number' ? parameters.offset : 0, limit: 1, nextOffset: parameters.offset ? null : 1, total: 2 } } } };
   });
   try {
-    await controller.open(); await controller.select(target); await controller.nextTreePage();
+    await controller.open(); await controller.select(target); await controller.tree(); await controller.nextTreePage();
     assert.equal(controller.snapshot().tree?.nodes.length, 2); assert.equal(controller.snapshot().trees.length, 1);
     assert.deepEqual(object(requests.at(-1)?.input.parameters), { root_id: 'root-1', snapshot_id: 'stable', offset: 1, limit: 500 });
   } finally { await controller.dispose(); }
@@ -319,7 +331,7 @@ test('重载等待未确认单独标记，保持旧快照且不自动重载第�
     state: 'timed_out_unconfirmed', automatic_replay: false,
   } : undefined);
   try {
-    await controller.open(); await controller.select(target); await controller.reload(true);
+    await controller.open(); await controller.select(target); await controller.tree(); await controller.reload(true);
     assert.equal(controller.snapshot().error?.unconfirmed, true);
     assert.equal(controller.snapshot().tree?.id, 'snapshot-1');
     assert.equal(requests.filter((entry) => entry.name === 'deviceforge.debug_reload').length, 1);
@@ -333,7 +345,7 @@ test('拾取宿主普通节点只保留只读身份并清空插件动作选择',
       source: 'host-dom', host: { tag: 'button', role: 'button', label: '宿主按钮', insertable: false }, reason: '只读身份' },
   } : undefined);
   try {
-    await controller.open(); await controller.select(target); controller.setNode('node-1');
+    await controller.open(); await controller.select(target); await controller.tree(); controller.setNode('node-1');
     await controller.action('pick', null, '', false, false);
     assert.equal(controller.snapshot().selectedNodeId, '');
     assert.equal(object(controller.snapshot().result).source, 'host-dom');

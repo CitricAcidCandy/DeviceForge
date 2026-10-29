@@ -131,6 +131,90 @@ export interface Invocation {
   readonly available: boolean;
   readonly reason: string;
 }
+
+export interface ActivityStep {
+  readonly id: string;
+  readonly tool: string;
+  readonly label: string | null;
+}
+export interface ActivityItem {
+  readonly sequence: number;
+  readonly commandId: string;
+  readonly tool: string;
+  readonly state: string;
+  readonly steps: readonly ActivityStep[];
+  readonly response: JsonValue | null;
+}
+export interface ActivityPage {
+  readonly target: Target | null;
+  readonly items: readonly ActivityItem[];
+  readonly nextBefore: number | null;
+  readonly gap: boolean;
+  readonly retainedOnly: boolean;
+  readonly unavailable?: string | null;
+}
+export interface DataSourceInfo {
+  readonly id: string;
+  readonly label: string;
+  readonly schema: JsonValue;
+  readonly schemaComplete: boolean;
+  readonly omittedSchemaPaths: readonly string[];
+  readonly writable: boolean;
+  readonly persistence: 'memory' | 'persistent' | null;
+  readonly applyPolicy: 'immediate' | 'next_invocation' | 'reload' | null;
+}
+export interface DataSnapshot {
+  readonly sourceId: string;
+  readonly revision: string;
+  readonly value: JsonValue;
+  readonly writable: boolean;
+  readonly applyPolicy: 'immediate' | 'next_invocation' | 'reload' | null;
+  readonly runtimeApplied: 'declared' | 'pending' | null;
+}
+function decodeActivityStep(value: unknown): ActivityStep | null {
+  const item = object(value), id = text(item.id), tool = text(item.tool);
+  if (!id || !tool) return null;
+  const label = text(item.label) || null;
+  return { id, tool, label };
+}
+function decodeActivityItem(value: unknown): ActivityItem | null {
+  const item = object(value), commandId = text(item.command_id), tool = text(item.tool);
+  if (!commandId || !tool || !Number.isSafeInteger(item.sequence)) return null;
+  const steps = array(item.steps).map(decodeActivityStep).filter((step): step is ActivityStep => step !== null);
+  return { sequence: Number(item.sequence), commandId, tool, state: text(item.state, 'unknown'), steps,
+    response: item.response === null || item.response === undefined ? null : json(item.response) };
+}
+export function decodeActivity(value: unknown, fallbackTarget: Target | null): ActivityPage {
+  const item = object(value), target = decodeTarget(item.target);
+  if (!target || (fallbackTarget && targetKey(target) !== targetKey(fallbackTarget)))
+    throw new Error('调试调用回执不属于当前明确目标');
+  return { target, items: array(item.items).map(decodeActivityItem).filter((entry): entry is ActivityItem => entry !== null),
+    nextBefore: item.next_before === null || item.next_before === undefined ? null : number(item.next_before),
+    gap: item.gap === true, retainedOnly: item.retained_only === true,
+    ...(text(item.unavailable) ? { unavailable: text(item.unavailable) } : {}) };
+}
+function policy(value: unknown): DataSourceInfo['applyPolicy'] {
+  return value === 'immediate' || value === 'next_invocation' || value === 'reload' ? value : null;
+}
+function persistence(value: unknown): DataSourceInfo['persistence'] {
+  return value === 'memory' || value === 'persistent' ? value : null;
+}
+export function decodeDataSources(value: unknown): DataSourceInfo[] {
+  return array(object(value).sources).map((raw): DataSourceInfo | null => {
+    const item = object(raw), id = text(item.id), label = text(item.label, id);
+    if (!id) return null;
+    return { id, label, schema: json(item.schema ?? null), schemaComplete: item.schema_complete !== false,
+      omittedSchemaPaths: array(item.omitted_schema_paths).map((path) => text(path)).filter(Boolean),
+      writable: item.writable === true, persistence: persistence(item.persistence), applyPolicy: policy(item.apply_policy) };
+  }).filter((source): source is DataSourceInfo => source !== null);
+}
+export function decodeDataSnapshot(value: unknown, fallbackSourceId: string): DataSnapshot | null {
+  const item = object(value), revision = text(item.revision), sourceId = text(item.source_id, fallbackSourceId);
+  if (!revision || !sourceId || item.value === undefined) return null;
+  return { sourceId, revision, value: json(item.value), writable: item.writable === true,
+    applyPolicy: policy(item.apply_policy), runtimeApplied: item.runtime_applied === 'declared' || item.runtime_applied === 'pending'
+      ? item.runtime_applied : null };
+}
 export function invocations(value: unknown): Invocation[] {
   const item = object(value), catalog = object(item.catalog);
   const result: Invocation[] = [];

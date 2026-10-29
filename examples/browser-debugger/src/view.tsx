@@ -5,25 +5,26 @@ import { ballPosition, fit, initialRect, resizeByKey, snapPanel } from './geomet
 import type { Rect } from './geometry.ts';
 import { DEBUGGER_STYLE } from './style.ts';
 import { TreeView } from './tree-view.tsx';
-import { CatalogView, TargetsView } from './targets-view.tsx';
+import { TargetsView } from './targets-view.tsx';
 import { InvokeView } from './invoke-view.tsx';
-import { TimelineView } from './timeline-view.tsx';
 import { ReportView } from './report-view.tsx';
-import { Badge, Button, Check, CopyId, Empty, ResultView } from './ui.tsx';
+import { ActivityView } from './activity-view.tsx';
+import { activitySteps, activitySummary } from './activity-presentation.ts';
+import { DetailsView } from './details-view.tsx';
+import { DataView } from './data-view.tsx';
+import { json } from './protocol.ts';
+import { Button, CopyId, ResultView } from './ui.tsx';
 
 interface PositionStyle extends React.CSSProperties {
   '--df-x': string; '--df-y': string; '--df-width'?: string; '--df-height'?: string;
 }
-type Tab = 'targets' | 'tree' | 'catalog' | 'invoke' | 'timeline' | 'report';
-const tabs: readonly { readonly id: Tab; readonly label: string }[] = [
-  { id: 'targets', label: '调试目标' }, { id: 'tree', label: 'UI 树' }, { id: 'catalog', label: '公开目录' },
-  { id: 'invoke', label: '试调用' }, { id: 'timeline', label: '事件与日志' }, { id: 'report', label: '报告与重载' },
-];
+type Surface = 'process' | 'targets' | 'tree' | 'data' | 'invoke' | 'details' | 'report';
+const surfaceTitles: Record<Surface, string> = { process: '调试过程', targets: '选择调试插件', tree: '检查界面', data: '查看数据',
+  invoke: '调用公开能力', details: '技术详情', report: '保存调试报告' };
 export function DebuggerApp({ controller, context }: { controller: DebuggerController; context: HostContext }) {
   const state = React.useSyncExternalStore(controller.subscribe, controller.snapshot, controller.snapshot);
-  const [tab, setTab] = React.useState<Tab>('targets'), [showOld, setShowOld] = React.useState(false);
-  const [reconnectConfirmed, setReconnectConfirmed] = React.useState(false);
-  const [rect, setRect] = React.useState<Rect>({ x: 16, y: 64, width: 1032, height: 640 });
+  const [surface, setSurface] = React.useState<Surface>('process');
+  const [rect, setRect] = React.useState<Rect>({ x: 112, y: 48, width: 1200, height: 704 });
   const [ball, setBall] = React.useState({ x: 16, y: 16 });
   const [keyboardRect, setKeyboardRect] = React.useState<Rect | null>(null);
   const panel = React.useRef<HTMLElement>(null), ballRef = React.useRef<HTMLButtonElement>(null), sizeRef = React.useRef<HTMLButtonElement>(null);
@@ -43,14 +44,23 @@ export function DebuggerApp({ controller, context }: { controller: DebuggerContr
     const frame = requestAnimationFrame(() => panel.current?.focus());
     return () => cancelAnimationFrame(frame);
   }, [state.open]);
-  React.useEffect(() => { if (state.requested) setTab('targets'); }, [state.requested]);
-  React.useEffect(() => { if (state.sessionId) { setTab(state.target?.kind === 'server' ? 'invoke' : 'tree'); setShowOld(false); } }, [state.sessionId]);
-  React.useEffect(() => { if (state.stale) setShowOld(false); }, [state.stale]);
+  React.useEffect(() => { if (state.requested) setSurface('targets'); }, [state.requested]);
+  React.useEffect(() => { if (state.sessionId) setSurface('process'); }, [state.sessionId]);
   React.useEffect(() => {
     if (!state.open) return;
-    const timer = setInterval(() => { void controller.checkConnection(); }, 5000);
-    return () => clearInterval(timer);
-  }, [state.open, controller]);
+    let checking = false, closed = false;
+    const timer = setInterval(() => {
+      if (checking || controller.snapshot().busy) return;
+      checking = true;
+      void (async () => {
+        try {
+          await controller.checkConnection();
+          if (!closed && state.sessionId && surface === 'process') await controller.refreshActivity();
+        } finally { checking = false; }
+      })();
+    }, 5000);
+    return () => { closed = true; clearInterval(timer); };
+  }, [state.open, state.sessionId, surface, controller]);
   React.useEffect(() => {
     if (!state.busy?.startsWith('拾取')) return;
     const doc = ballRef.current?.ownerDocument;
@@ -86,8 +96,17 @@ export function DebuggerApp({ controller, context }: { controller: DebuggerContr
   const panelStyle: PositionStyle = { '--df-x': `${rect.x}px`, '--df-y': `${rect.y}px`, '--df-width': `${rect.width}px`, '--df-height': `${rect.height}px` };
   const ballStyle: PositionStyle = { '--df-x': `${ball.x}px`, '--df-y': `${ball.y}px` };
   const disconnected = state.stale || (Boolean(state.instanceId) && !state.connected);
-  const oldSummary = disconnected && !showOld && (tab === 'tree' || tab === 'invoke' || tab === 'catalog');
   const canOperate = Boolean(state.sessionId) && !state.stale && state.connected && !state.busy;
+  const selecting = surface === 'targets' || !state.target;
+  const current = state.activityDetail ?? state.activity?.items[0] ?? null;
+  const summary = selecting ? { title: '先选择要调试的插件', description: '选择插件 → 让 Agent 调用调试工具 → 在这里查看过程与结果。', warning: false }
+    : surface === 'process' ? activitySummary(json(current), disconnected)
+      : { title: surfaceTitles[surface], description: disconnected ? '最后观测内容已过期，仅供只读查看。' : '当前插件的公开能力；所有修改仍按实际回执确认。', warning: disconnected };
+  async function pick() {
+    setSurface('tree');
+    await controller.action('pick', null, '', false, false);
+  }
+  function data() { setSurface('data'); void controller.refreshDataSources(); }
   return <div data-deviceforge-debugger="" data-deviceforge-debugger-internal="" className="font-sans text-[#23272E]">
     <style>{DEBUGGER_STYLE}</style>
     <button ref={ballRef} type="button" aria-label={state.open ? '收起调试器' : '打开调试器'} aria-expanded={state.open} aria-controls="deviceforge-debugger-panel"
@@ -102,8 +121,8 @@ export function DebuggerApp({ controller, context }: { controller: DebuggerContr
         if (suppressClick.current) { suppressClick.current = false; return; }
         if (state.open) collapse(); else void controller.open();
       }} title="调试器；拖动吸边，Alt + 方向键移动"><span aria-hidden="true">⌘</span><span>调试</span></button>
-    {state.open && <section ref={panel} id="deviceforge-debugger-panel" role="dialog" aria-modal="false" aria-labelledby="deviceforge-debugger-title" tabIndex={-1}
-      style={panelStyle} className="fixed left-[var(--df-x)] top-[var(--df-y)] z-[2147483000] flex h-[var(--df-height)] w-[var(--df-width)] min-w-0 flex-col overflow-hidden rounded-xl border border-[#E6EAF3] bg-white shadow-2xl outline-none"
+    <section ref={panel} id="deviceforge-debugger-panel" role="dialog" aria-modal="false" aria-labelledby="deviceforge-debugger-title" tabIndex={-1}
+      hidden={!state.open || state.busy?.startsWith('拾取')} style={panelStyle} className={`${!state.open || state.busy?.startsWith('拾取') ? 'hidden' : 'flex'} fixed left-[var(--df-x)] top-[var(--df-y)] z-[2147483000] h-[var(--df-height)] w-[var(--df-width)] min-w-0 flex-col overflow-hidden rounded-2xl border border-[#E6EAF3] bg-white shadow-2xl outline-none`}
       onKeyDown={(event) => {
         if (keyboardRect) {
           if (event.key.startsWith('Arrow')) { event.preventDefault(); event.stopPropagation(); setRect((current) => resizeByKey(current, event.key, event.shiftKey, viewport())); }
@@ -113,54 +132,48 @@ export function DebuggerApp({ controller, context }: { controller: DebuggerContr
         }
         if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); if (state.busy?.startsWith('拾取')) controller.cancel(); else collapse(); }
       }}>
-      <header className="flex h-12 shrink-0 touch-none items-center gap-3 border-b border-[#E6EAF3] px-4 select-none"
+      <header className="flex min-h-[72px] shrink-0 touch-none flex-wrap items-center gap-3 px-6 py-3 select-none"
         title="拖动标题栏移动面板，靠近窗口边缘时吸附"
         onPointerDown={(event) => pointerStart('move', event)} onPointerMove={pointerMove} onPointerUp={pointerEnd} onPointerCancel={pointerEnd}>
-        <span aria-hidden="true" className="cursor-grab text-xs text-[#556176]">拖动</span>
-        <h1 id="deviceforge-debugger-title" className="mr-auto truncate text-[17px] font-semibold">DeviceForge Debugger</h1>
-        <Badge warning={disconnected}>{disconnected ? '已断线 / 过期' : state.connected ? '已连接' : '待连接'}</Badge>
-        <Button aria-label="收起调试器，保留会话" onClick={collapse}>收起</Button><Button aria-label="关闭调试会话" onClick={() => { void controller.close().then(() => ballRef.current?.focus()); }}>关闭</Button>
+        <div className="mr-auto min-w-0"><h1 id="deviceforge-debugger-title" className="truncate text-[18px] font-semibold">{selecting ? '选择调试插件' : surfaceTitles[surface]}</h1>
+          <p className="mt-1 truncate text-xs text-[#556176]">{state.target ? `${disconnected ? '最后调试' : '正在调试'}：${state.target.pluginId} · ${state.target.kind === 'server' ? '服务器插件' : '浏览器插件'}` : '在这里选择插件，无需寻找插件页面'}</p></div>
+        <span className={`${disconnected ? 'bg-[#FDF6ED] text-[#8A4D00]' : state.connected ? 'bg-[#EAF8F0] text-[#17664F]' : 'bg-[#F7F8FC] text-[#556176]'} rounded-full px-4 py-1.5 text-xs`}>{disconnected ? '已断开' : state.connected ? '已连接' : '待连接'}</span>
+        {state.target && <Button soft onClick={() => setSurface('targets')}>更换插件</Button>}
+        <Button aria-label="收起调试器，保留会话" onClick={collapse}>收起</Button><button type="button" aria-label="关闭调试会话，保留悬浮入口" className="size-9 rounded-lg text-lg text-[#556176] outline-none focus-visible:ring-2 focus-visible:ring-[#6C4CF5]" onClick={() => { void controller.close().then(() => ballRef.current?.focus()); }}>×</button>
       </header>
-      <div className="flex min-h-11 shrink-0 flex-wrap items-center gap-x-4 gap-y-1 border-b border-[#E6EAF3] px-4 py-2 text-xs text-[#556176]">
-        <span className="min-w-0 break-all" title={state.target?.instanceId ?? state.instanceId ?? ''}>实例 <code>{state.target?.instanceId ?? state.instanceId ?? '未连接'}</code></span>
-        <span className="min-w-0 break-all">插件 <code>{state.target?.pluginId ?? '未选择'}</code></span><span className="break-all">代次 <code>{state.target?.generation ?? '未提供'}{state.stale ? '（旧）' : ''}</code></span>
+      <div className={`${summary.warning ? 'bg-[#FDF6ED]' : 'bg-[#F7F8FC]'} min-h-24 shrink-0 space-y-2 px-6 py-4`}>
+        <h2 className={`text-lg font-semibold ${summary.warning ? 'text-[#8A4D00]' : surface === 'process' && activitySteps(json(current)).some(step => step.status === '页面检查通过') ? 'text-[#17664F]' : 'text-[#23272E]'}`}>{summary.title}</h2>
+        <p className="text-[13px] leading-relaxed text-[#556176]">{summary.description}</p>
       </div>
-      <div className="flex min-h-11 shrink-0 flex-wrap items-center gap-2 border-b border-[#E6EAF3] px-4 py-1.5 text-[13px]">
-        <span className="mr-auto min-w-0 break-all text-[#556176]">{state.sessionId ? `当前${state.target?.kind === 'server' ? '服务器' : '浏览器'}目标 ${state.target?.pluginId ?? '未选择'} · 会话 ${state.sessionState}` : '选择插件后才开始采集'}</span>
-        <Button onClick={() => setTab('targets')}>选择其他目标</Button><Button disabled={!canOperate} onClick={() => void controller.refreshInspection()}>检查目标</Button>
-      </div>
-      <nav aria-label="调试页签" className="flex min-h-10 shrink-0 gap-1 overflow-x-auto border-b border-[#E6EAF3] px-3">
-        {tabs.map((item) => <button key={item.id} type="button" aria-current={tab === item.id ? 'page' : undefined}
-          className={`${tab === item.id ? 'border-[#6C4CF5] text-[#6C4CF5]' : 'border-transparent text-[#556176]'} shrink-0 border-b-2 px-3 py-2 text-[13px] font-medium outline-none focus-visible:ring-2 focus-visible:ring-[#6C4CF5]`}
-          onClick={() => setTab(item.id)}>{item.label}</button>)}
-      </nav>
-      <div className="flex min-h-0 flex-1 flex-col overflow-auto p-4">
-        {!state.sessionCleanupSupported && <p role="status" className="mb-3 rounded-md bg-[#FFF8E6] px-4 py-2 text-xs text-[#8A5B00]">此宿主未提供会话生命周期登记。请先显式关闭调试会话再停用插件；卸载后不能保证立即回收，建议升级宿主并刷新页面。</p>}
+      <div className="min-h-0 flex-1 overflow-auto p-6">
         {state.error && <div role="alert" className="mb-3 space-y-2 rounded-md bg-[#FDF6ED] p-3 text-[13px] text-[#8A4D00]"><p>{state.error.message}</p><code className="block break-all text-xs">{state.error.code}</code><CopyId value={state.error.logId} /></div>}
-        {oldSummary ? <div className="space-y-4"><Empty title="连接已断开，当前状态未知">
-          最后快照与历史日志仍可查看。重新连接只恢复观察；原调用不自动重放。{state.tree && <p className="mt-2">最后观测：{new Date(state.tree.observedAt).toLocaleString()} · 旧代次 {state.target?.generation}</p>}
-        </Empty><div className="flex flex-wrap gap-2"><Button disabled={!state.tree} onClick={() => { setShowOld(true); setTab('tree'); }}>查看最后快照（只读 / 已过期）</Button><Button onClick={() => setTab('timeline')}>查看历史日志</Button><Button onClick={() => setTab('targets')}>选择其他目标</Button></div>
-          <Check checked={reconnectConfirmed} onChange={setReconnectConfirmed}>确认建立新浏览器实例，不重放原调用</Check><Button disabled={!reconnectConfirmed || Boolean(state.busy)} primary onClick={() => { void controller.reconnect(reconnectConfirmed); setReconnectConfirmed(false); }}>重新连接</Button>
-        </div> : <>
-          {disconnected && showOld && tab === 'tree' && <div className="mb-3 flex flex-wrap items-center gap-2 rounded-md bg-[#FDF6ED] p-3 text-[13px] text-[#8A4D00]"><span className="mr-auto">已过期：仅最后观测，不代表当前运行状态；所有节点动作已停用。</span><Button onClick={() => setShowOld(false)}>返回断线摘要</Button></div>}
-          {tab === 'targets' && <TargetsView state={state} controller={controller} />}
-          {tab === 'tree' && <TreeView state={state} controller={controller} />}
-          {tab === 'catalog' && <CatalogView state={state} controller={controller} />}
-          {tab === 'invoke' && <InvokeView state={state} controller={controller} />}
-          {tab === 'timeline' && <TimelineView state={state} controller={controller} />}
-          {tab === 'report' && <ReportView state={state} controller={controller} context={context} />}
-          {(tab === 'tree' || tab === 'invoke') && <div className="mt-3"><ResultView value={state.result} /></div>}
+        {disconnected && state.target && <div className="mb-4 flex flex-wrap items-center gap-3 text-[13px] text-[#8A4D00]"><span className="mr-auto">最后观测已过期；重新连接只恢复观察，不重放先前动作。</span><Button disabled={Boolean(state.busy)} onClick={() => void controller.reconnect(true)}>重新连接并核对目标</Button></div>}
+        {selecting ? <TargetsView state={state} controller={controller} /> : <>
+          {surface === 'process' && <ActivityView state={state} controller={controller} narrow={rect.width < 1040} onData={data} onInspect={() => void pick()} onDetails={() => setSurface('details')} onTargets={() => setSurface('targets')} />}
+          {surface === 'tree' && <><p className="mb-4 text-sm text-[#556176]">在页面上选择后查看简短结果；完整树和查询工具可按需展开。</p><ResultView value={state.result} /><details className="mt-4 rounded-xl border border-[#E6EAF3] p-4"><summary className="cursor-pointer text-sm font-medium">节点树、属性与界面检查工具</summary><div className="mt-4"><TreeView state={state} controller={controller} /></div></details></>}
+          {surface === 'data' && <DataView state={state} controller={controller} narrow={rect.width < 1040} />}
+          {surface === 'invoke' && <><InvokeView state={state} controller={controller} /><div className="mt-4"><ResultView value={state.result} /></div></>}
+          {surface === 'details' && <DetailsView state={state} controller={controller} context={context} onInvoke={() => setSurface('invoke')} onResize={() => { setKeyboardRect(rect); sizeRef.current?.focus(); }} />}
+          {surface === 'report' && <ReportView state={state} controller={controller} context={context} />}
         </>}
       </div>
-      <footer className="relative flex min-h-11 shrink-0 items-center gap-2 border-t border-[#E6EAF3] bg-[#FBFCFE] px-4 pr-10 py-1.5">
-        <p role="status" title={state.notice} className="mr-auto min-w-0 truncate text-[13px] text-[#556176]">{keyboardRect ? '方向键每次 8px，Shift 32px；Enter 应用，Esc 取消' : state.busy ? `正在${state.busy}` : state.notice}</p>
-        {state.busy && <Button onClick={() => controller.cancel()}>取消等待</Button>}
-        <button ref={sizeRef} type="button" aria-pressed={Boolean(keyboardRect)} className="shrink-0 rounded-md border border-[#E6EAF3] bg-white px-2 py-1.5 text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-[#6C4CF5]" onClick={() => { if (!keyboardRect) setKeyboardRect(rect); else setKeyboardRect(null); sizeRef.current?.focus(); }}>键盘调尺寸</button>
-        <Button disabled={!canOperate} onClick={() => void controller.refreshInspection()}>{disconnected ? '刷新不可用' : '刷新检查'}</Button>
+      <footer className="relative flex min-h-14 shrink-0 flex-wrap items-center gap-3 border-t border-[#E6EAF3] bg-[#FBFCFE] px-6 py-2 pr-10">
+        {selecting ? <><p className="mr-auto text-[13px] text-[#556176]">{state.target ? '选择后切换观察目标，不会停止业务插件。' : '尚未选择插件，调试器不会读取页面。'}</p>{state.target && <Button onClick={() => setSurface('process')}>返回调试过程</Button>}</> : <>
+          {surface !== 'process' ? <Button soft onClick={() => setSurface('process')}>← 返回调试过程</Button>
+            : <Button soft disabled={!canOperate || state.target?.kind !== 'browser'} onClick={() => void pick()}>⌖ 在页面上选择</Button>}
+          <details className="relative"><summary className="cursor-pointer rounded-lg bg-white px-3 py-2 text-[13px] focus-visible:ring-2 focus-visible:ring-[#6C4CF5]">手动检查 ▾</summary><div className="absolute bottom-full left-0 z-10 mb-2 flex min-w-40 flex-col gap-1 rounded-xl border border-[#E6EAF3] bg-white p-2 shadow-lg">
+            <Button disabled={!state.target} onClick={() => setSurface('tree')}>检查界面</Button><Button disabled={!state.target} onClick={data}>查看数据</Button><Button disabled={!state.target} onClick={() => setSurface('invoke')}>调用公开能力</Button>
+          </div></details><span className="mr-auto" />
+          <Button onClick={() => setSurface('details')}>技术详情 ›</Button>{current && <Button onClick={() => setSurface('report')}>保存报告</Button>}
+        </>}
+        {state.busy && <Button onClick={() => controller.cancel()}>停止等待</Button>}
+        <span role="status" className="sr-only">{keyboardRect ? '方向键每次8像素，Shift32像素；Enter应用，Esc取消' : state.notice}</span>
+        {keyboardRect && <button ref={sizeRef} type="button" className="text-[13px] text-[#6C4CF5]" onClick={() => setKeyboardRect(null)}>完成尺寸调整</button>}
         <button type="button" aria-label="拖动调整调试面板尺寸" className="absolute right-0 bottom-0 flex size-7 touch-none cursor-se-resize items-center justify-center rounded-br-xl text-lg text-[#556176] outline-none focus-visible:ring-2 focus-visible:ring-[#6C4CF5]"
           onPointerDown={(event) => pointerStart('resize', event)} onPointerMove={pointerMove} onPointerUp={pointerEnd} onPointerCancel={pointerEnd}
           onKeyDown={(event) => { if (event.key.startsWith('Arrow')) { event.preventDefault(); setRect((current) => resizeByKey(current, event.key, event.shiftKey, viewport())); } }}>╱╱</button>
       </footer>
-    </section>}
+    </section>
+    {state.open && state.busy?.startsWith('拾取') && <div role="status" className="fixed bottom-6 left-1/2 z-[2147483001] -translate-x-1/2 rounded-full border border-[#E6EAF3] bg-white px-5 py-3 text-sm shadow-lg">在页面上选择元素 · Esc 取消 <Button onClick={() => controller.cancel()}>取消选择</Button></div>}
   </div>;
 }

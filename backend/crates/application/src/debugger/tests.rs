@@ -5,6 +5,7 @@ use serde_json::json;
 use std::{sync::Arc, time::Duration};
 
 mod data_automation;
+mod activity;
 mod generations;
 mod long_poll;
 

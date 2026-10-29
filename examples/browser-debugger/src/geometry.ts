@@ -9,9 +9,9 @@ export function fit(rect: Rect, viewport: Viewport): Rect {
     y: clamp(rect.y, margin, viewport.height - margin - height) };
 }
 export function initialRect(viewport: Viewport): Rect {
-  return fit({ x: viewport.width >= 1200 ? viewport.width - 1056 : 16,
-    y: viewport.width >= 1200 ? 88 : 64, width: viewport.width >= 1200 ? 1032 : viewport.width - 32,
-    height: viewport.width >= 1200 ? 640 : 624 }, viewport);
+  return fit({ x: viewport.width >= 1280 ? (viewport.width - 1200) / 2 : 16,
+    y: viewport.width >= 1280 ? 48 : 40, width: viewport.width >= 1280 ? 1200 : viewport.width - 32,
+    height: viewport.width >= 1280 ? 704 : 688 }, viewport);
 }
 export function snapPanel(rect: Rect, viewport: Viewport): Rect {
   const fitted = fit(rect, viewport);

@@ -14659,6 +14659,51 @@ export interface components {
             expected_revision: number;
         };
 
+        DebuggerActivityPage: {
+
+            gap: boolean;
+            items: {
+                command_id: string;
+
+                response?: unknown;
+
+                sequence: number;
+                state: ("queued" | "delivered" | "succeeded" | "failed" | "cancelled_unconfirmed") | "timed_out_unconfirmed";
+                steps: {
+                    id: string;
+                    label?: string | null;
+
+                    tool: "inspect" | "data_catalog" | "data_read" | "ui_tree" | "ui_query" | "ui_assert" | "ui_action" | "data_write" | "invoke";
+                }[];
+
+                tool: "inspect" | "ui_tree" | "ui_query" | "ui_diff" | "ui_assert" | "ui_action" | "data_catalog" | "data_read" | "data_write" | "automation_run" | "invoke" | "reload" | "report";
+            }[];
+
+            next_before?: number | null;
+            retained_only: boolean;
+            target: {
+
+                generation: string | null;
+
+                instance_id: string | null;
+                plugin_id: string;
+
+                target_kind: "browser" | "server";
+
+                version: string | null;
+            };
+        };
+
+        DebuggerActivityQuery: {
+
+            before: number | null;
+
+            command_id: string | null;
+
+            limit: number;
+            session_id: string;
+        };
+
         DebuggerAutomationInput: {
             confirmed: boolean;
             steps: {
@@ -14670,6 +14715,8 @@ export interface components {
                     target_from_step: string | null;
                 } | null;
                 id: string;
+
+                label?: string;
                 parameters: unknown;
 
                 tool: "inspect" | "data_catalog" | "data_read" | "ui_tree" | "ui_query" | "ui_assert" | "ui_action" | "data_write" | "invoke";

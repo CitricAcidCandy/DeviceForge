@@ -9,9 +9,9 @@ import { localReport, markdownReport } from '../../examples/browser-debugger/src
 import { createDebuggerController } from '../../examples/browser-debugger/src/controller.ts';
 import { decodeCatalog } from '../src/features/marketplace/services/catalog.ts';
 
-test('桌面和940窄窗匹配R2几何，更小视口保持标题与控制入口在内', () => {
-  assert.deepEqual(initialRect({ width: 1424, height: 805 }), { x: 368, y: 88, width: 1032, height: 640 });
-  assert.deepEqual(initialRect({ width: 940, height: 760 }), { x: 16, y: 64, width: 908, height: 624 });
+test('桌面和940窄窗匹配确认的新稿几何，更小视口保持标题与控制入口在内', () => {
+  assert.deepEqual(initialRect({ width: 1424, height: 805 }), { x: 112, y: 48, width: 1200, height: 704 });
+  assert.deepEqual(initialRect({ width: 940, height: 760 }), { x: 16, y: 40, width: 908, height: 688 });
   for (const viewport of [{ width: 720, height: 480 }, { width: 390, height: 600 }, { width: 280, height: 320 }]) {
     const rect = fit({ x: 3000, y: -500, width: 2000, height: 1000 }, viewport);
     assert.ok(rect.x >= 0 && rect.y >= 0); assert.ok(rect.x + rect.width <= viewport.width);

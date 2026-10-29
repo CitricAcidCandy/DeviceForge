@@ -346,9 +346,31 @@ fn admit(
         state: CommandState::Queued,
         timeout_ms: millis(budget),
     };
+    // 仅保留有限展示元数据，参数在交付后仍按原规则释放。
+    let activity_steps = if input.tool == DebugTool::AutomationRun {
+        let plan: AutomationInput = serde_json::from_value(input.parameters.clone())
+            .map_err(|_| error(ErrorCode::InvalidInput, "自动步骤展示信息不符合模式"))?;
+        plan.steps
+            .into_iter()
+            .map(|step| ActivityStep {
+                id: step.id,
+                tool: step.tool,
+                label: step.label,
+            })
+            .collect()
+    } else {
+        Vec::new()
+    };
+    state.activity_sequence = state
+        .activity_sequence
+        .checked_add(1)
+        .filter(|sequence| *sequence <= 9_007_199_254_740_991)
+        .ok_or_else(|| error(ErrorCode::Capacity, "调试命令序号已到上限"))?;
     state.commands.insert(
         id.clone(),
         CommandEntry {
+            activity_sequence: state.activity_sequence,
+            activity_steps,
             result: DebugCommandResult {
                 command_id: id.clone(),
                 session_id: session.session_id.clone(),

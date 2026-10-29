@@ -6,7 +6,9 @@
 
 数据工具外层为 `{session_id,parameters}`：目录参数 `{}`，读取 `{source_id,query?}`，写入 `{source_id,expected_revision,value,confirmed:true}`。数据源由浏览器插件可选SDK主动登记；写入完整替换无敏感字段业务投影，模式与只读字段须满足，实际写入点须原子比较修订，保存后回读。不透明修订必须来自当前数据读取，同名重新登记不能复用旧修订。`next_invocation/reload` 表示延迟生效，不能将保存成功宣称当前运行状态已应用。
 
-步骤工具输入为 `{session_id,parameters:{confirmed,stop_on_failure?,steps:[{id,tool,parameters,bind?}]}}`。最多三十二步，内部总二十八秒、单步十秒，外部桥总三十秒。只允许检查、数据目录/读写、界面树/查询/断言/动作与公开入口调用。`bind.target_from_step` 投影前面完整唯一查询节点，`bind.revision_from_step` 接续前面同源读取修订；禁止任意路径、脚本、嵌套、重载和人工拾取。
+步骤工具输入为 `{session_id,parameters:{confirmed,stop_on_failure?,steps:[{id,label?,tool,parameters,bind?}]}}`。可选 `label` 由Agent提供业务名称，1到80个Unicode字符、不得为空白或含控制字符；它仅用于展示，不替代稳定 `id`，不改变执行状态。最多三十二步，内部总二十八秒、单步十秒，外部桥总三十秒。只允许检查、数据目录/读写、界面树/查询/断言/动作与公开入口调用。`bind.target_from_step` 投影前面完整唯一查询节点，`bind.revision_from_step` 接续前面同源读取修订；禁止任意路径、脚本、嵌套、重载和人工拾取。
+
+`deviceforge.debug_activity` 使用 `{session_id,limit?,before?,command_id?}` 只读观察明确目标的留存调用。列表默认20、最多50条，按种类、实例、插件和代次隔离，不返回原参数、原会话ID或批量结果正文；指定命令后读取单条已有脱敏回执。记录可能淘汰且不跨重启保留，`gap`和`retained_only`不省略。该入口不续期、不派发，原 `debug_command` 仍只读取属于原会话的命令。
 
 步骤派发与业务成功分开报告，取消或结果未知停止后续步骤，不自动重放。使用只读 `deviceforge.debug_command({session_id,command_id})` 查询属于该会话的已保留命令回执；会话结束后仍可查询保留历史，但回执过期或未送达时不能凭空恢复结果。知识随兼容宿主发行，当前文档更新不证明旧服务已更新，也不表示真实浏览器或完整生产验收通过。
 

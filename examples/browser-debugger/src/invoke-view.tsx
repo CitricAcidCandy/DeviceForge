@@ -5,14 +5,14 @@ import { array, isJsonObject, json, object, parseJson, text } from './protocol.t
 import { schemaDefault, schemaLabel, simpleSchema, validateInput } from './schema.ts';
 import { Badge, Button, Check, Empty, fieldClass, JsonDetails } from './ui.tsx';
 
-function JsonInput({ value, onChange, onError, label }: { value: JsonValue; onChange: (value: JsonValue) => void; onError: (error: string) => void; label: string }) {
+export function JsonInput({ value, onChange, onError, label }: { value: JsonValue; onChange: (value: JsonValue) => void; onError: (error: string) => void; label: string }) {
   const [source, setSource] = React.useState(JSON.stringify(value, null, 2));
   return <textarea aria-label={label} className={`${fieldClass} min-h-28 w-full font-mono`} value={source} onChange={(event) => {
     setSource(event.currentTarget.value);
     try { onChange(parseJson(event.currentTarget.value)); onError(''); } catch (error) { onError(error instanceof Error ? error.message : 'JSON 无效'); }
   }} />;
 }
-function SchemaField({ name, schema, value, required, onChange, onError }: { name: string; schema: JsonValue; value: JsonValue | undefined;
+export function SchemaField({ name, schema, value, required, onChange, onError }: { name: string; schema: JsonValue; value: JsonValue | undefined;
   required: boolean; onChange: (value: JsonValue | undefined) => void; onError: (error: string) => void }) {
   const item = object(schema), enumeration = array(item.enum), type = text(item.type);
   const id = React.useId();

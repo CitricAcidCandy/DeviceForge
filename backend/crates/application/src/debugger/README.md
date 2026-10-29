@@ -14,6 +14,7 @@
 | `state.rs` | 原子终态、到期扫描、槽位晋升和有界历史 |
 | `bridge.rs` | 入队、异步等待、两秒长轮询和回执校验 |
 | `events.rs` | 双限额事件环、会话过滤和缺口分页 |
+| `activity.rs` | 当前明确目标的跨会话只读命令投影，列表去参数、详情复用已校验回执；不续期或派发 |
 | `validation.rs` | 身份、结构、凭据字段和流式编码字节限额 |
 | `server_operations.rs` | 精确代次的原贡献目录与原 Job 提交，复用原业务准入 |
 | `tests.rs`、`tests/long_poll.rs`、`tests/generations.rs` | 专项失败路径、可控时钟、通知、跨代选择与重载回归 |

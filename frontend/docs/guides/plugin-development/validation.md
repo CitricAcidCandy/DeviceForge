@@ -8,7 +8,9 @@
 
 工具输入分别为 `{session_id,parameters:{}}`、`{session_id,parameters:{source_id,query?}}`、`{session_id,parameters:{source_id,expected_revision,value,confirmed:true}}`。写入完整替换无敏感字段的业务投影，保存后回读；只读字段、模式、实际修订仍校验。含敏感字段的整体替换拒绝，公开模式会省略敏感属性并标记 `schema_complete/omitted_schema_paths`。延迟生效策略不能把保存成功当运行状态已经改变。
 
-自动调试参数为 `{session_id,parameters:{confirmed,stop_on_failure?,steps:[{id,tool,parameters,bind?}]}}`，最多三十二步，内部共享二十八秒、单步十秒。允许检查、数据目录与读写、界面树、查询、断言、动作和公开入口试调用；禁止重载、嵌套和人工拾取。`bind.target_from_step` 只接续更早完整唯一界面查询的节点，`bind.revision_from_step` 只接续更早同源读取的修订，不支持脚本或任意对象路径。计划确认不替代动作自身确认。
+自动调试参数为 `{session_id,parameters:{confirmed,stop_on_failure?,steps:[{id,label?,tool,parameters,bind?}]}}`，最多三十二步，内部共享二十八秒、单步十秒。可选 `label` 由Agent提供业务名称，1到80个Unicode字符、不得为空白或含控制字符；它仅用于展示，不替代稳定 `id`，不改变执行状态。允许检查、数据目录与读写、界面树、查询、断言、动作和公开入口试调用；禁止重载、嵌套和人工拾取。`bind.target_from_step` 只接续更早完整唯一界面查询的节点，`bind.revision_from_step` 只接续更早同源读取的修订，不支持脚本或任意对象路径。计划确认不替代动作自身确认。
+
+`deviceforge.debug_activity` 使用 `{session_id,limit?,before?,command_id?}` 只读观察明确目标的留存调用。列表默认20、最多50条，按种类、实例、插件和代次隔离，不返回原参数、原会话ID或批量结果正文；指定命令后读取单条已有脱敏回执。记录可能淘汰且不跨重启保留，`gap`和`retained_only`不省略。该入口不续期、不派发，原 `debug_command` 仍只读取属于原会话的命令。
 
 回执成功还须检查 `response.status` 和各步骤状态。派发不等于业务成功；数据回读是证据，当前没有通用数据相等断言或自动回滚。结果未知或取消后停止后续步骤，不自动重放；使用 `{session_id,command_id}` 调用只读 `deviceforge.debug_command` 查询已保留回执。超时只结束等待，可信旧回调可能继续执行，最终写入仍须插件原子比较修订。
 

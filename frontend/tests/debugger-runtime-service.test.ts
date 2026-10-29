@@ -35,6 +35,32 @@ test('宿主公开调试服务可发现且独立工厂不自动联网', async ()
   } finally { await runtime.dispose(); }
 });
 
+test('只读活动查询通过既有宿主服务转发，不创建会话或桥命令', async () => {
+  const document = new JSDOM('<body></body>').window.document;
+  const calls: unknown[] = [];
+  const runtime = createFrontendRuntime({ baseUrl: 'http://127.0.0.1:7031', panelTarget: () => null,
+    debugger: { document }, transport: async (_input, init) => {
+      calls.push(JSON.parse(String(init?.body)));
+      return success({ target: { target_kind: 'browser', instance_id: instanceId,
+        plugin_id: 'example', generation: '7', version: '1' }, items: [],
+        next_before: null, gap: false, retained_only: true });
+    } });
+  try {
+    const result = await runtime.extensions.callService('host.debugger', '1', {
+      action: 'call', name: 'deviceforge.debug_activity', input: { session_id: 'observer-session', limit: 20 },
+    }, signal());
+    assert.deepEqual(calls, [{ name: 'deviceforge.debug_activity', input: { session_id: 'observer-session', limit: 20 } }]);
+    assert.ok(result.data && typeof result.data === 'object' && !Array.isArray(result.data));
+    assert.equal(result.data.retained_only, true);
+    const capabilities = await runtime.extensions.callService('host.debugger', '1', { action: 'capabilities' }, signal());
+    assert.ok(capabilities.data && typeof capabilities.data === 'object' && !Array.isArray(capabilities.data));
+    const automation = capabilities.data.automation;
+    assert.ok(automation && typeof automation === 'object' && !Array.isArray(automation));
+    assert.equal(automation.step_labels, true);
+    assert.equal(automation.activity_query, true);
+  } finally { await runtime.dispose(); }
+});
+
 test('显式启动后登记当前实例，关闭释放桥且非回环宿主不开放调试服务', async () => {
   const document = new JSDOM('<body></body>').window.document;
   const paths: string[] = [];

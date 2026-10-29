@@ -1,8 +1,10 @@
 import type { HostContext, JsonValue } from '../../../frontend/src/plugin-sdk/index.ts';
-import { array, bounded, createGateway, decodeDirectory, decodeTarget, decodeTree, failure, invocations,
-  json, number, object, targetInput, targetKey, text } from './protocol.ts';
-import type { DebuggerFailure, Invocation, JsonObject, Target, UiNode, UiTree } from './protocol.ts';
+import { array, bounded, createGateway, decodeActivity, decodeDirectory,
+  decodeTarget, decodeTree, failure, invocations, json, number, object, targetInput, targetKey, text } from './protocol.ts';
+import type { ActivityItem, ActivityPage, DataSnapshot, DataSourceInfo, DebuggerFailure, Invocation, JsonObject,
+  Target, UiNode, UiTree } from './protocol.ts';
 import { nextReportPage } from './report-pages.ts';
+import { createDataActions } from './controller-data.ts';
 
 export interface EventRow {
   readonly key: string;
@@ -43,6 +45,12 @@ export interface DebuggerState {
   readonly overview: JsonValue;
   readonly installation: JsonValue;
   readonly logs: JsonValue;
+  readonly activity: ActivityPage | null;
+  readonly activityDetail: ActivityItem | null;
+  readonly dataSources: readonly DataSourceInfo[];
+  readonly dataSnapshot: DataSnapshot | null;
+  readonly dataConflict: boolean;
+  readonly dataNotice: string | null;
   readonly requested: { readonly candidates: readonly { readonly kind: string; readonly pluginId: string }[];
     readonly installationId: string | null } | null;
   readonly error: DebuggerFailure | null;
@@ -63,7 +71,8 @@ export function createDebuggerController(context: Pick<HostContext, 'extensions'
     capabilities: null, inspection: null,
     roots: [], rootId: '', tree: null, trees: [], selectedNodeId: '', queries: null, entries: [], events: [],
     cursor: 0, eventGap: false, droppedEvents: 0, result: null, report: null, overview: null,
-    installation: null, logs: null, requested: null, error: null,
+    installation: null, logs: null, activity: null, activityDetail: null, dataSources: [], dataSnapshot: null,
+    dataConflict: false, dataNotice: null, requested: null, error: null,
     notice: '首次只显示调试入口；打开后连接，明确选择目标后才采集。', logId: null };
   const snapshot = () => state;
   function patch(change: Partial<DebuggerState>) {
@@ -107,6 +116,24 @@ export function createDebuggerController(context: Pick<HostContext, 'extensions'
     signal.throwIfAborted();
     patch({ logId: result.logId ?? state.logId });
     return result.data;
+  }
+  async function activityTool(parameters: JsonObject, signal: AbortSignal) {
+    const sessionId = state.sessionId;
+    const target = state.target;
+    if (!sessionId || !target) throw new Error('请先明确选择调试目标并打开会话');
+    try {
+      const result = await gateway.call('activity', { session_id: sessionId, ...parameters }, signal);
+      signal.throwIfAborted();
+      patch({ logId: result.logId ?? state.logId });
+      return result.data;
+    } catch (error) {
+      const problem = failure(error);
+      if (!signal.aborted && parameters.command_id === undefined &&
+        /(?:capability_unavailable|tool_(?:not_found|unavailable)|unknown_tool|service_unavailable)$/.test(problem.code))
+        return { target: targetInput(target), items: [], next_before: null, gap: false, retained_only: true,
+          unavailable: '当前后端尚不支持调试活动查询，请正常更新宿主；仍可手动检查。' };
+      throw error;
+    }
   }
   function applyTree(value: unknown, append = false) {
     const response = object(value), tree = decodeTree(response.tree);
@@ -156,7 +183,8 @@ export function createDebuggerController(context: Pick<HostContext, 'extensions'
       const previous = state.sessionId;
       patch({ target, sessionId: null, sessionState: 'opening', tree: null, trees: [], inspection: null,
         roots: [], rootId: '', entries: [], selectedNodeId: '', queries: null, cursor: 0, result: null,
-        report: null, stale: false, notice: '正在打开明确选定目标的调试会话' });
+        report: null, activity: null, activityDetail: null, dataSources: [], dataSnapshot: null,
+        dataConflict: false, dataNotice: null, stale: false, notice: '正在打开明确选定目标的调试会话' });
       if (previous) await closeSession(previous, signal);
       const response = await gateway.call('session', { action: 'open', target: targetInput(target) }, signal);
       const session = object(response.data), id = text(session.session_id);
@@ -167,7 +195,16 @@ export function createDebuggerController(context: Pick<HostContext, 'extensions'
       const actual = decodeTarget(session.target);
       if (!actual || targetKey(actual) !== targetKey(target)) throw new Error('会话身份与明确选定目标不一致');
       patch({ sessionId: id, sessionState: 'active', connected: true, logId: response.logId });
-      await inspect(signal, true);
+      // 首次选择只读取公开目录和调试活动，不自动读取完整 UI 树。
+      await inspect(signal, false);
+      const activity = decodeActivity(await activityTool({ limit: 20 }, signal), target);
+      const latest = activity.items[0];
+      let activityDetail: ActivityItem | null = null;
+      if (latest) {
+        const detailPage = decodeActivity(await activityTool({ command_id: latest.commandId }, signal), target);
+        activityDetail = detailPage.items.find((item) => item.commandId === latest.commandId) ?? null;
+      }
+      patch({ activity, activityDetail });
     }, true);
   }
   async function checkConnection() {
@@ -231,6 +268,31 @@ export function createDebuggerController(context: Pick<HostContext, 'extensions'
     select,
     checkConnection,
     refreshTargets: () => run('刷新目标目录', directory),
+    refreshActivity: (before?: number) => {
+      if (state.busy) return Promise.resolve();
+      return run('读取调试调用', async (signal) => {
+        const page = decodeActivity(await activityTool({ limit: 20, ...(before === undefined ? {} : { before }) }, signal), state.target);
+        const current = state.activity;
+        const items = before !== undefined && current
+          ? [...current.items, ...page.items.filter((item) => !current.items.some((old) => old.commandId === item.commandId))]
+          : page.items;
+        let activityDetail = state.activityDetail;
+        if (before === undefined && page.items[0]) {
+          const detailPage = decodeActivity(await activityTool({ command_id: page.items[0].commandId }, signal), state.target);
+          activityDetail = detailPage.items.find((item) => item.commandId === page.items[0]?.commandId) ?? null;
+        }
+        patch({ activity: { ...page, items }, activityDetail,
+          notice: page.gap ? '调试调用历史存在淘汰缺口；仅展示当前仍保留的公开记录。' : '调试调用记录已更新。' });
+      });
+    },
+    selectActivity: (commandId: string) => run('读取调试调用结果', async (signal) => {
+      if (!commandId.trim()) throw new Error('请选择要查看的调试调用');
+      const page = decodeActivity(await activityTool({ command_id: commandId }, signal), state.target);
+      const item = page.items.find((entry) => entry.commandId === commandId);
+      if (!item) throw new Error('找不到当前目标的调试调用记录');
+      patch({ activityDetail: item, notice: item.response === null ? '该调用尚无可展示的最终回执。' : '已读取原调试调用回执；不会重新派发动作。' });
+    }),
+    ...createDataActions({ snapshot, patch, run, tool }),
     async requestTargets(candidates: readonly { readonly kind: string; readonly pluginId: string }[], installationId: string | null = null) {
       if (!candidates.length) return;
       patch({ requested: { candidates, installationId }, open: true });
@@ -245,7 +307,7 @@ export function createDebuggerController(context: Pick<HostContext, 'extensions'
       signal.throwIfAborted();
       const instanceId = text(object(response.data).instance_id);
       if (!instanceId || instanceId === state.instanceId) throw new Error('重连尚未返回不同的新实例，请核对桥状态');
-      patch({ instanceId, connected: true, stale: Boolean(state.tree), sessionState: 'disconnected',
+      patch({ instanceId, connected: true, stale: Boolean(state.target), sessionState: 'disconnected',
         notice: '新实例已建立；旧快照仍过期。请明确选择当前插件新代，会话与原动作不自动重放。' });
       await directory(signal);
     }, true),
@@ -263,7 +325,7 @@ export function createDebuggerController(context: Pick<HostContext, 'extensions'
     async close() {
       await run('关闭调试会话', async (signal) => {
         if (state.sessionId) await closeSession(state.sessionId, signal);
-        patch({ open: false, sessionId: null, sessionState: 'closed', stale: Boolean(state.tree),
+        patch({ open: false, sessionId: null, sessionState: 'closed', stale: Boolean(state.target),
           notice: '调试会话已关闭；业务插件与任务继续由原入口管理。' });
       }, true);
     },

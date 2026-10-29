@@ -1,9 +1,9 @@
 {
   "id": "deviceforge_debugger",
   "version": "0.1.0",
-  "bytes": 127232,
-  "sha256": "15fbb0dab186cdee88f87131619ad8f325c3a4689a7442ac95ac4b503acdf43a",
-  "built_at": "2026-10-28T09:19:01.378Z",
-  "source_files": 15,
+  "bytes": 165092,
+  "sha256": "654ac59c5cb9406907fb8d075d3941f9c3631817bbc5f8288d79c00002e8333a",
+  "built_at": "2026-10-28T11:11:01.123Z",
+  "source_files": 20,
   "validation": "构建身份；不代表本机浏览器或生产验收完成"
 }

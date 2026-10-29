@@ -1,6 +1,7 @@
 //! 有界调试会话与浏览器桥接；不执行浏览器脚本或服务器业务。
 
 mod bridge;
+mod activity;
 mod commands;
 mod config;
 mod events;
