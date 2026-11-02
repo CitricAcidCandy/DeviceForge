@@ -10,6 +10,23 @@ function fixture() {
   return { registry, lifetime, access };
 }
 
+test('跨提供者同址保留来源用于冲突诊断，同一提供者重复路径仍原子拒绝', async () => {
+  const registry = createWorkspaceRegistry();
+  const lifetime = new AbortController();
+  const a = registry.access({ pluginId: 'a', generation: 1, signal: lifetime.signal });
+  const b = registry.access({ pluginId: 'b', generation: 1, signal: lifetime.signal });
+  const mount: WorkspacePageDefinition['mount'] = async () => () => {};
+  try {
+    const release = a.register({ pages: [{ id: 'a.page', title: '甲', route: '/same', mount }] });
+    b.register({ pages: [{ id: 'b.page', title: '乙', route: '/same', mount }] });
+    assert.equal(registry.catalog().pages.length, 2);
+    assert.throws(() => a.register({ pages: [{ id: 'a.other', title: '重复', route: '/same', mount }] }), /路由重复/);
+    assert.equal(registry.catalog().pages.length, 2);
+    await release();
+    assert.deepEqual(registry.catalog().pages.map((entry) => entry.pluginId), ['b']);
+  } finally { registry.dispose(); }
+});
+
 test('页面挂载通过同一公开视图目录可发现并随提供者撤销', () => {
   const { registry, access, lifetime } = fixture();
   const mount: WorkspacePageDefinition['mount'] = async () => () => {};

@@ -1,0 +1,14 @@
+{
+  "extends": "../tsconfig.json",
+  "include": [
+    "../plugins/marketplace/src/**/*.ts",
+    "../plugins/marketplace/src/**/*.tsx",
+    "../plugins/marketplace/tests/context.ts",
+    "./marketplace-plugin-workbench.test.ts",
+    "./marketplace-plugin-workflows.test.ts",
+    "./marketplace-plugin-activation.test.ts",
+    "./marketplace-plugin-upload-worker.test.ts",
+    "./marketplace-plugin-view.test.ts"
+  ],
+  "exclude": []
+}

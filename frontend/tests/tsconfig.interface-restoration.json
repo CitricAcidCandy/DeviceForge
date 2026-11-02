@@ -1,0 +1,16 @@
+{
+  "extends": "../tsconfig.json",
+  "include": [
+    "../plugins/default-shell/src/shell.tsx",
+    "../plugins/devices/src/index.ts",
+    "../plugins/devices/src/view.tsx",
+    "../plugins/files/src/index.ts",
+    "../plugins/files/src/view.tsx",
+    "./default-shell-responsive.test.ts",
+    "./shell-connection.test.ts",
+    "./files-responsive.test.ts",
+    "./official-devices-plugin.test.ts",
+    "./device-workbench.test.ts",
+    "./workspace-mounts.test.ts"
+  ]
+}

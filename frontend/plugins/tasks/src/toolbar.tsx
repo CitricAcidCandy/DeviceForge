@@ -29,7 +29,7 @@ export function TaskToolbar({ context, pointId }: { context: HostContext; pointI
   }, [points, pointId]);
   const ui = context.ui;
   if (!ui || !entries.length) return null;
-  return <div className="flex flex-wrap items-center gap-2 px-4 pt-3 lg:px-6" aria-label="插件任务工具">
+  return <div className="flex shrink-0 flex-wrap items-center gap-2 px-4 pt-3 @min-[900px]/tasks:px-6" aria-label="插件任务工具">
     {entries.map((entry) => {
       const data = entry.data;
       if (data === null || typeof data !== 'object' || Array.isArray(data) ||

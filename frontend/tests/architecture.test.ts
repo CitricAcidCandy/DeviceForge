@@ -219,6 +219,7 @@ test('真实页面目录组合公共请求与核心逻辑，别名和重导出�
     await writeFile(target, content);
   };
   try {
+    await put('src/app/main.ts', 'export const platform = true;');
     await put(
       'tsconfig.json',
       JSON.stringify({
@@ -319,6 +320,7 @@ test('跨功能只经公开核心入口，类型引用也禁止内部路径和�
     await writeFile(target, content);
   };
   try {
+    await put('src/app/main.ts', 'export const platform = true;');
     await put(
       'tsconfig.json',
       JSON.stringify({

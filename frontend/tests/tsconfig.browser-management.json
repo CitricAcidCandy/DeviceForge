@@ -1,0 +1,13 @@
+{
+  "extends": "../tsconfig.json",
+  "include": [
+    "../src/app/composition/browser-management.ts",
+    "../src/app/composition/bundled-browser-management.ts",
+    "../src/app/product/services.ts",
+    "../plugins/marketplace/src/browser-management.ts",
+    "./composition-browser-management.test.ts",
+    "./composition-product-browser-management.test.ts",
+    "./marketplace-plugin-browser-management.test.ts"
+  ],
+  "exclude": []
+}

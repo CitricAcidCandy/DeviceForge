@@ -70,11 +70,22 @@ test('真实 TGZ 保留独立 ESM 与声明，不包含宿主源码、源码路�
   assert.match(declaration, /workspace\.js/);
   assert.match(declaration, /transport\.js/);
   assert.match(declaration, /data-sources\.js/);
+  assert.match(declaration, /api-errors\.js/);
+  assert.match(declaration, /job-errors\.js/);
+  assert.match(declaration, /onCleanup\?: CleanupRegistration/);
+  const cleanupDeclaration = await readFile(join(packageRoot, 'lib/cleanup.d.ts'), 'utf8');
+  assert.match(cleanupDeclaration, /readonly deadline: number/);
+  assert.match(cleanupDeclaration, /Pick<PluginTransport, 'request'>/);
   assert.doesNotMatch(declaration, /\.ts['"]|\.\.\/src|[A-Z]:\\/);
   const dataDeclaration = await readFile(join(packageRoot, 'lib/data-sources.d.ts'), 'utf8');
   assert.match(dataDeclaration, /persistence\?:\s*'memory'\s*\|\s*'persistent'/);
   const workspaceDeclaration = await readFile(join(packageRoot, 'lib/workspace.d.ts'), 'utf8');
   assert.match(workspaceDeclaration, /mount\?:\s*\(instanceId: string, target: HTMLElement, signal: AbortSignal\)\s*=>\s*Promise<Dispose>/);
+  assert.match(workspaceDeclaration, /updatePage\?:\s*\(pageId: string, changes: WorkspacePageUpdate\)\s*=>\s*void/);
+  const pointsDeclaration = await readFile(join(packageRoot, 'lib/points.d.ts'), 'utf8');
+  assert.match(pointsDeclaration, /selection\?:\s*\(point: PointRef\)\s*=>\s*string \| null/);
+  const uiDeclaration = await readFile(join(packageRoot, 'lib/ui.d.ts'), 'utf8');
+  assert.match(uiDeclaration, /usePortalContentRef\?:\s*<Element extends HTMLElement>/);
   const tar = gunzipSync(await readFile(archive));
   const names: string[] = [];
   for await (const entry of extract()([tar])) {
@@ -83,6 +94,8 @@ test('真实 TGZ 保留独立 ESM 与声明，不包含宿主源码、源码路�
   }
   assert.ok(names.includes('package/lib/json.js'));
   assert.ok(names.includes('package/lib/json.d.ts'));
+  assert.ok(names.includes('package/lib/api-errors.js'));
+  assert.ok(names.includes('package/lib/job-errors.d.ts'));
   assert.equal(names.some((name) => /node_modules|\/src\/|\.tsx?$/.test(name) && !name.endsWith('.d.ts')), false);
 });
 
@@ -90,8 +103,18 @@ test('脱离宿主源码的临时插件工程可严格消费所有新契约，�
   const file = join(temporary, 'consumer/index.ts');
   await writeFile(join(temporary, 'consumer/package.json'), '{"type":"module"}', 'utf8');
   await writeFile(file, [
-    'import type { HostContext, WebPlugin, PointRef, PointAccess, UiAccess, PluginTransport, DataAccess, DataSourceDefinition, Dispose } from "@deviceforge/plugin-sdk";',
+    'import type { HostContext, WebPlugin, PointRef, PointAccess, UiAccess, PluginTransport, DataAccess, DataSourceDefinition, Dispose, CleanupContext, Job, HostUi } from "@deviceforge/plugin-sdk";',
+    'import { ApiError, JobFailure, JobWaitFailure, readHostError } from "@deviceforge/plugin-sdk";',
     'import { isJsonValue } from "@deviceforge/plugin-sdk/json";',
+    'const cause = new ApiError("network", "disconnected", "连接断开", null, "read-log");',
+    'const job: Job = { id: "owned-job", operation: "sample.run", status: "failed", result: null, error: "任务失败" };',
+    'const known: Job = new JobFailure(job, "submit-log", "result-log").job;',
+    'const pending: Job = new JobWaitFailure(job, "submit-log", null, cause).job;',
+    'const errorLog: string | null | undefined = readHostError(cause)?.logId;',
+    'export function usePopupRef(ui: HostUi, ref: import("react").Ref<HTMLDivElement> | undefined) {',
+    '  const owned: import("react").Ref<HTMLDivElement> | undefined = ui.usePortalContentRef?.(ref) ?? ref;',
+    '  return owned;',
+    '}',
     'const reference: PointRef = { id: "sample.tools", version: "1" };',
     'const source: DataSourceDefinition = { id: "sample.settings", version: "1", title: "配置", readOnly: true, applyPolicy: "immediate", persistence: "persistent", read: { id: "sample.read", version: "1" } };',
     'const consume = (context: HostContext): [PointAccess | undefined, UiAccess | undefined, PluginTransport | undefined, DataAccess | undefined] =>',
@@ -100,8 +123,18 @@ test('脱离宿主源码的临时插件工程可严格消费所有新契约，�
     '  const ui = context.ui; if (!ui?.mount) return null;',
     '  const release: Dispose = await ui.mount("sample.instance", target, signal); context.onDispose(release); return release;',
     '}',
+    'export function trackRemoteResource(context: HostContext): Dispose | null {',
+    '  if (!context.onCleanup) return null;',
+    '  return context.onCleanup(async (cleanup: CleanupContext) => {',
+    '    const deadline: number = cleanup.deadline; cleanup.signal.throwIfAborted();',
+    '    if (deadline > 0 && cleanup.transport) await cleanup.transport.request({ path: "/api/v2/example/owned/release", method: "POST" }, cleanup.signal);',
+    '  });',
+    '}',
     'export const plugin: WebPlugin = { id: "sample", version: "1", apiVersion: 2, panels: [], async activate(context) {',
     '  consume(context); context.data?.register(source); if (isJsonValue(reference.id)) context.extensions?.points?.contribute({ id: "sample.item", point: reference, data: reference.id });',
+    '  context.ui?.register({ pages: [{ id: "sample.page", title: "示例", route: "/new", navigation: { group: "工作台", order: 20, hidden: false }, operations: ["sample.run"], taskPolicy: "listed", mount: async () => () => {} }] });',
+    '  context.ui?.updatePage?.("sample.page", { operations: ["sample.read"], taskPolicy: "listed" });',
+    '  const intent: string | null | undefined = context.extensions?.points?.selection?.(reference);',
     '} };',
   ].join('\n'), 'utf8');
   const options: ts.CompilerOptions = {
@@ -112,9 +145,24 @@ test('脱离宿主源码的临时插件工程可严格消费所有新契约，�
   const valid = ts.createProgram([file], options);
   assert.deepEqual(ts.getPreEmitDiagnostics(valid).map((item) => ts.flattenDiagnosticMessageText(item.messageText, '\n')), []);
   assert.equal(valid.getSourceFiles().some((source) => source.fileName.startsWith(join(frontend, 'src'))), false);
-  await writeFile(file, 'import type { PointRef } from "@deviceforge/plugin-sdk"; const invalid: PointRef = { id: "sample.tools", version: 1 };', 'utf8');
+  await writeFile(file, [
+    'import { JobFailure } from "@deviceforge/plugin-sdk";',
+    'import type { PointRef, JsonValue, WorkspacePageUpdate } from "@deviceforge/plugin-sdk";',
+    'const invalid: PointRef = { id: "sample.tools", version: 1 };',
+    'new JobFailure({ status: "failed" }, null, null);',
+    'export function unverified(error: JobFailure) {',
+    '  const result: JsonValue = error.job.result; return result;',
+    '}',
+    'const wrongPage: WorkspacePageUpdate = { route: "/other" };',
+  ].join('\n'), 'utf8');
   const invalid = ts.createProgram([file], options);
-  assert.ok(ts.getPreEmitDiagnostics(invalid).some((item) => item.code === 2322));
+  const invalidDiagnostics = ts.getPreEmitDiagnostics(invalid);
+  assert.ok(invalidDiagnostics.some((item) => item.code === 2345), '任务错误必须带有真实任务身份');
+  assert.ok(invalidDiagnostics.some((item) => item.code === 2322 && item.start !== undefined &&
+    item.file?.getLineAndCharacterOfPosition(item.start).line === 5),
+  '未经检查的历史任务结果不能被默认声明成 SDK JSON');
+  assert.ok(invalidDiagnostics.some((item) => item.code === 2353 && item.start !== undefined &&
+    item.file?.getLineAndCharacterOfPosition(item.start).line === 7), '页面原位元数据更新不能改写路由');
 });
 
 test('运行时只加载 SDK 辅助而不加载 React，JSON 子入口可直接执行', async () => {
@@ -122,6 +170,18 @@ test('运行时只加载 SDK 辅助而不加载 React，JSON 子入口可直接�
   assert.ok(sdk && typeof sdk === 'object' && 'hostUi' in sdk && typeof sdk.hostUi === 'function');
   const hostUi = sdk.hostUi;
   assert.throws(() => hostUi(), /宿主未提供/);
+  assert.ok('ApiError' in sdk && typeof sdk.ApiError === 'function');
+  assert.ok('readHostError' in sdk && typeof sdk.readHostError === 'function');
+  assert.ok('JobWaitFailure' in sdk && typeof sdk.JobWaitFailure === 'function');
+  const failure: unknown = Reflect.construct(sdk.ApiError, ['http', 'conflict', '数据已变化', 409, 'owned-log']);
+  assert.deepEqual(sdk.readHostError(failure), {
+    kind: 'http', code: 'conflict', message: '数据已变化', status: 409, logId: 'owned-log', retryAfter: null,
+  });
+  const job = { id: 'owned-job', status: 'running', operation: 'sample.run', result: null, error: null };
+  const wait: unknown = Reflect.construct(sdk.JobWaitFailure, [job, 'submit-log', null, failure]);
+  assert.ok(wait instanceof Error && 'job' in wait && 'cause' in wait);
+  assert.equal(wait.job, job);
+  assert.equal(wait.cause, failure);
   const json: unknown = await import(pathToFileURL(join(packageRoot, 'lib/json.js')).href);
   assert.ok(json && typeof json === 'object' && 'isJsonValue' in json && typeof json.isJsonValue === 'function');
   assert.equal(json.isJsonValue({ title: '独立插件' }), true);

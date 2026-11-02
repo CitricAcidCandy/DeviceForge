@@ -10,9 +10,12 @@ import type { PointAccess } from './points.js';
 import type { UiAccess } from './workspace.js';
 import type { PluginTransport } from './transport.js';
 import type { DataAccess } from './data-sources.js';
+import type { CleanupRegistration } from './cleanup.js';
 export type { ServiceRef, ServiceContract, ServiceDirectoryEntry, ServerServiceAccess, TypedService, ServiceFeatureDiagnostic } from './services.js';
 export type ServiceAccess = ScopedServiceAccess<HostContext>;
 export * from './models.js';
+export * from './api-errors.js';
+export * from './job-errors.js';
 export * from './slots.js';
 export { hostUi } from './ui.js';
 export type * from './ui.js';
@@ -26,6 +29,7 @@ export type * from './points.js';
 export type * from './workspace.js';
 export type * from './transport.js';
 export type * from './data-sources.js';
+export type * from './cleanup.js';
 export interface HostContext {
     readonly apiVersion: 2;
     readonly signal: AbortSignal;
@@ -35,6 +39,8 @@ export interface HostContext {
     readonly cancelJob: (id: string, signal: AbortSignal) => Promise<HostResult<Job>>;
     readonly subscribeOperations: (listener: (operations: readonly Operation[]) => void) => Dispose;
     readonly onDispose: (dispose: Dispose) => Dispose;
+    /** 已归属资源的有界释放；普通请求在撤销后仍失效，旧宿主可以不提供。 */
+    readonly onCleanup?: CleanupRegistration;
     readonly extensions?: ExtensionAccess;
     readonly devices?: DeviceAccess;
     readonly artifacts?: ArtifactAccess;

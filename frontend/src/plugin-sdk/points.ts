@@ -62,6 +62,8 @@ export interface PointAccess {
   /** 包含等待和无效项；渲染方只消费 active 项，替换项还须经显式选择。 */
   list(point: PointRef): readonly LocalPointContribution[];
   selected(point: PointRef): LocalPointContribution | null;
+  /** 读取显式选择的标识，即使提供者暂不可用；旧宿主可不提供，与当前可用项selected分开。 */
+  readonly selection?: (point: PointRef) => string | null;
   select(point: PointRef, contributionId: string | null): void;
   subscribe(listener: () => void): Dispose;
 }

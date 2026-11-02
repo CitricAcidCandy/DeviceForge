@@ -223,13 +223,13 @@ function TasksContent({ context, model, toolbarPointId }: {
       : null;
   const elapsedSeconds = selectedJob ? Math.max(0, (Date.now() - selectedJob.createdAt) / 1000) : 0;
   return (
-    <div className="flex min-h-0 w-full flex-1 flex-col" ref={root}>
-      {Boolean(message || action.error || details.error || lookupAction.error) && <div className="space-y-2 px-4 pt-3 lg:px-6" role="status">
+    <div className="@container/tasks flex h-full min-h-0 min-w-0 w-full flex-1 flex-col overflow-y-auto overscroll-contain" ref={root} data-product-page="tasks">
+      {Boolean(message || action.error || details.error || lookupAction.error) && <div className="shrink-0 space-y-2 px-4 pt-3 @min-[900px]/tasks:px-6" role="status">
         {message && <p className="text-[12px] text-[color:var(--text-muted)]">{message}</p>}
         <ActionError error={action.error || details.error || lookupAction.error} />
       </div>}
       <TaskToolbar context={context} pointId={toolbarPointId} />
-      <header className="flex shrink-0 items-start justify-between gap-4 px-4 pt-5 lg:px-6">
+      <header className="flex min-w-0 shrink-0 flex-wrap items-start justify-between gap-4 px-4 pt-5 @min-[900px]/tasks:px-6">
         <div className="min-w-0">
           <h1 className="text-[24px] font-semibold leading-8 tracking-tight text-[color:var(--text-strong)]">
             任务与日志
@@ -257,7 +257,7 @@ function TasksContent({ context, model, toolbarPointId }: {
         </Button>
       </header>
 
-      <div className="flex shrink-0 flex-wrap items-center gap-2 px-4 py-3 lg:px-6">
+      <div className="flex shrink-0 flex-wrap items-center gap-2 px-4 py-3 @min-[900px]/tasks:px-6">
         <div className="w-full max-w-[22rem] [&_input]:h-8 [&_input]:text-[13px]">
           <Input
             id="task-query"
@@ -274,7 +274,7 @@ function TasksContent({ context, model, toolbarPointId }: {
             aria-label="按操作名、任务 ID 或日志 ID 查询"
           />
         </div>
-        <div className="flex flex-wrap items-center gap-1.5 lg:ml-auto" role="group" aria-label="状态筛选">
+        <div className="flex flex-wrap items-center gap-1.5 @min-[900px]/tasks:ml-auto" role="group" aria-label="状态筛选">
           {filters.map((entry) => (
             <button
               key={entry.id}
@@ -304,8 +304,8 @@ function TasksContent({ context, model, toolbarPointId }: {
         </div>
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col gap-2 px-4 pb-4 lg:flex-row lg:px-6">
-        <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-[10px] bg-[color:var(--surface-sunken)] lg:w-[25rem] lg:flex-none lg:shrink-0">
+      <div className="flex min-h-[480px] min-w-0 flex-1 flex-col gap-2 px-4 pb-4 @min-[900px]/tasks:min-h-[320px] @min-[900px]/tasks:flex-row @min-[900px]/tasks:px-6" data-tasks-content>
+        <div className="flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-hidden rounded-[10px] bg-[color:var(--surface-sunken)] @min-[900px]/tasks:w-[25rem] @min-[900px]/tasks:flex-none @min-[900px]/tasks:shrink-0">
           <div className="flex shrink-0 items-center justify-between gap-2 px-4 py-2.5">
             <button type="button" aria-label="切换时间排序" onClick={toggleOrder}
               className="text-[12px] font-medium text-[color:var(--text-muted)] hover:text-[color:var(--primary)]">
@@ -386,7 +386,7 @@ function TasksContent({ context, model, toolbarPointId }: {
 
         <section
           aria-label="任务明细"
-          className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[10px] border border-[color:var(--hairline)] bg-[color:var(--card)]"
+          className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-[10px] border border-[color:var(--hairline)] bg-[color:var(--card)]"
         >
           {lookupResult && <LogRecords result={lookupResult} messages={services.messages} order={order} onOrderChange={toggleOrder} />}
           {selectedJob ? (

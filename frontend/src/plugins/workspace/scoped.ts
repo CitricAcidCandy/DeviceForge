@@ -1,6 +1,6 @@
 import { HostError } from '../../plugin-sdk/models.ts';
 import type { Dispose } from '../../plugin-sdk/models.ts';
-import type { UiAccess } from '../../plugin-sdk/workspace.ts';
+import type { UiAccess, WorkspacePageUpdate } from '../../plugin-sdk/workspace.ts';
 import { mountWorkspaceResource } from '../workspace-rendering.ts';
 
 /** 子功能与挂载共享同一注册表，只缩短资源所属期，不创建另一套管理器。 */
@@ -12,12 +12,18 @@ export function scopedWorkspaceAccess(upstream: UiAccess | undefined, signal: Ab
     if (signal.aborted) throw new HostError('cancelled', 'workspace_scope_revoked', '工作区所属作用域已撤销');
   };
   const mount = upstream.mount;
+  const updatePage = upstream.updatePage;
   return Object.freeze<UiAccess>({
     ...(mount ? {
       mount(instanceId: string, target: HTMLElement, caller?: AbortSignal) {
         current();
         return mountWorkspaceResource((running) => mount(instanceId, target, running),
           caller ? AbortSignal.any([caller, signal]) : signal, track);
+      },
+    } : {}),
+    ...(updatePage ? {
+      updatePage(pageId: string, changes: WorkspacePageUpdate) {
+        current(); updatePage.call(upstream, pageId, changes);
       },
     } : {}),
     register(value) { current(); return track(upstream.register(value)); },

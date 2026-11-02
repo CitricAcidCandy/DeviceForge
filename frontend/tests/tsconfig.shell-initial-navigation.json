@@ -1,0 +1,7 @@
+{
+  "extends": "../tsconfig.json",
+  "include": [
+    "./shell-initial-navigation.test.ts",
+    "./composition-official-plugins.test.ts"
+  ]
+}

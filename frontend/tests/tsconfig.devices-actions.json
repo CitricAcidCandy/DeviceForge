@@ -1,0 +1,10 @@
+{
+  "extends": "../tsconfig.json",
+  "include": [
+    "../plugins/devices/src/actions.ts",
+    "../plugins/devices/src/action-rules.ts",
+    "../plugins/devices/src/workbench.tsx",
+    "./devices-actions.test.ts",
+    "./devices-tools-view.test.ts"
+  ]
+}

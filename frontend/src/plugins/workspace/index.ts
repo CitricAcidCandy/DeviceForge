@@ -8,7 +8,7 @@ import { createInstanceStore } from './instances.ts';
 import type { OwnedWorkspace, WorkspaceOwner } from './instances.ts';
 import { layoutInstanceIds, removeFromLayout, validateWorkspaceLayout } from './layout.ts';
 import { validateSavedState } from './persistence.ts';
-import { validatePageMetadata } from './pages.ts';
+import { updatedPageMetadata, validatePageMetadata } from './pages.ts';
 import { clone, frozen, invalid, notify, requireId, requireOwnedId, requirePluginId, requireTitle } from './rules.ts';
 import type { WorkspaceLayout } from '../../plugin-sdk/workspace.ts';
 
@@ -16,12 +16,14 @@ export { validateWorkspaceLayout } from './layout.ts';
 export { scopedWorkspaceAccess } from './scoped.ts';
 export type { WorkspaceOwner } from './instances.ts';
 
+interface PageEntry<T> { readonly owner: WorkspaceOwner; definition: T }
+
 /** 仅管理声明、布局和运行身份；实际挂载由渲染宿主使用现有挂载期限执行。 */
 export function createWorkspaceRegistry(options: { readonly initial?: unknown } = {}) {
-  const pages = new Map<string, OwnedWorkspace<WorkspacePageDefinition>>();
+  const pages = new Map<string, PageEntry<WorkspacePageDefinition>>();
   const workspaces = new Map<string, OwnedWorkspace<WorkspaceDefinition>>();
   const views = new Map<string, OwnedWorkspace<WorkspaceViewDefinition>>();
-  const pageViews = new Map<string, OwnedWorkspace<WorkspaceViewDefinition>>();
+  const pageViews = new Map<string, PageEntry<WorkspaceViewDefinition>>();
   const layouts = new Map<string, WorkspaceLayout>();
   const releases = new Set<Dispose>();
   const listeners = new Set<() => void>();
@@ -100,7 +102,9 @@ export function createWorkspaceRegistry(options: { readonly initial?: unknown } 
       if (ids.has(item.id) || pages.has(item.id) || workspaces.has(item.id) || views.has(item.id)) invalid('工作区贡献标识重复');
       ids.add(item.id);
     }
-    const routes = new Set([...pages.values()].map((entry) => entry.definition.route));
+    // 同一提供者不能重复声明路径；跨提供者保留目录供外壳诊断，不按注册先后抢占。
+    const routes = new Set([...pages.values()].filter((entry) => entry.owner.pluginId === owner.pluginId)
+      .map((entry) => entry.definition.route));
     for (const page of value.pages ?? []) {
       if (typeof page.route !== 'string' || !page.route.startsWith('/') || page.route.startsWith('//') || /[?#\\]/.test(page.route) || page.route.length > 512)
         invalid('页面路由必须是无查询参数的本地路径');
@@ -176,6 +180,17 @@ export function createWorkspaceRegistry(options: { readonly initial?: unknown } 
     };
     return Object.freeze<UiAccess>({
       register: (value) => { current(); return track(register(owner, value)); },
+      updatePage(pageId, changes) {
+        current(); requireOwnedId(owner.pluginId, pageId);
+        const entry = pages.get(pageId);
+        if (!entry || entry.owner !== owner) invalid('只能更新当前所属作用域登记的页面');
+        const definition = updatedPageMetadata(entry.definition, changes);
+        // 保留登记令牌和派生视图身份，避免清理失效、实例换代或丢失草稿。
+        entry.definition = definition;
+        const view = pageViews.get(pageId);
+        if (view) view.definition = Object.freeze({ ...view.definition, title: definition.title });
+        changed(true);
+      },
       catalog: () => { current(); return catalog(); },
       snapshot: () => { current(); return snapshot(); },
       subscribe(listener) {

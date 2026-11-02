@@ -1,0 +1,21 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "scripts/build-workspace-plugins.ts",
+    "scripts/workspace-build-tool.ts",
+    "scripts/workspace-release-inputs.ts",
+    "scripts/workspace-release-packages.ts",
+    "scripts/workspace-release-resume.ts",
+    "scripts/browser-bundle-closure.ts",
+    "scripts/workspace-ui-theme.ts",
+    "tests/workspace-release-inputs.test.ts",
+    "tests/workspace-build-tool.test.ts",
+    "tests/workspace-release-packages.test.ts",
+    "tests/workspace-release-resume.test.ts",
+    "tests/browser-bundle-closure.test.ts",
+    "tests/workspace-ui-theme.test.ts",
+    "tests/workspace-plugin-entry.test.ts",
+    "tests/workspace-library-package.test.ts",
+    "tests/official-plugin-artifacts.test.ts"
+  ]
+}

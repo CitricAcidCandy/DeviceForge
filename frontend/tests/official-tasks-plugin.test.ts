@@ -78,7 +78,7 @@ test('任务插件从清单身份工厂注册页面、全部任务归属与开�
   const points = createPointRegistry();
   const input = fixture();
   const owner = { pluginId: 'custom_tasks', generation: 1, signal: input.controller.signal };
-  const pointAccess = points.access(owner);
+  const pointAccess = points.access({ ...owner, track: (release) => release });
   const context: HostContext = {
     ...input.context, ui: registry.access(owner),
     extensions: {
@@ -92,6 +92,7 @@ test('任务插件从清单身份工厂注册页面、全部任务归属与开�
   await plugin.activate?.(context);
   assert.equal(plugin.version, '9.2.1');
   assert.equal(context.ui?.catalog().pages[0]?.route, '/tasks');
+  assert.equal(context.ui?.catalog().pages[0]?.navigation?.order, 90);
   assert.equal(context.ui?.catalog().pages[0]?.taskPolicy, 'all');
   assert.equal(pointAccess.catalog().definitions[0]?.id, 'custom_tasks.toolbar');
   assert.deepEqual(input.calls, []);

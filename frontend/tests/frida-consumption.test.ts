@@ -1,10 +1,11 @@
+import './official-business-imports.ts';
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createFrida } from '../src/features/frida/index.ts';
-import { ApiError } from '../src/services/api/index.ts';
-import type { ArtifactAccess } from '../src/plugin-sdk/index.ts';
-import type { ArtifactDto } from '../src/services/api/index.ts';
-import type { JobGateway, JsonData } from '../src/shared/jobs/index.ts';
+const { createFrida } = await import('@deviceforge/frida/model');
+const { ApiError } = await import('@deviceforge/business-kit/api');
+import type { ArtifactAccess } from '@deviceforge/plugin-sdk';
+import type { ArtifactDto } from '@deviceforge/business-kit/api';
+import type { JobGateway, JsonData } from '@deviceforge/business-kit/jobs';
 import { signal } from './fixtures.ts';
 
 const script = {
@@ -27,8 +28,8 @@ function metadata(filename: string, size = 0, sha256 = 'a'.repeat(64)): Artifact
     filename,
     size,
     sha256,
-    media_type: 'application/octet-stream',
-    created_at: 1,
+    mediaType: 'application/octet-stream',
+    createdAt: 1,
   };
 }
 function envelope(result: JsonData, names: readonly string[]): JsonData {
@@ -39,8 +40,8 @@ function envelope(result: JsonData, names: readonly string[]): JsonData {
       filename,
       size: 0,
       sha256: 'a'.repeat(64),
-      media_type: 'application/octet-stream',
-      created_at: 1,
+    mediaType: 'application/octet-stream',
+    createdAt: 1,
     })),
   };
 }

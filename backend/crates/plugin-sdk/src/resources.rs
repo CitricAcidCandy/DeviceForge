@@ -85,12 +85,7 @@ impl ManagedResources {
         if value.repository.as_ref().is_some_and(|repository| {
             repository.format_version != 1
                 || !repository.root.is_absolute()
-                || repository.client_id.is_empty()
-                || repository.client_id.len() > 128
-                || !repository
-                    .client_id
-                    .bytes()
-                    .all(|byte| byte.is_ascii_alphanumeric() || b"_-".contains(&byte))
+                || !repository_client(&repository.client_id)
         }) {
             return Err(invalid("托管仓库描述无效"));
         }
@@ -112,6 +107,26 @@ impl ManagedResources {
             .map(PathBuf::as_path)
             .ok_or_else(|| invalid("发布未绑定所需工具入口"))
     }
+}
+
+// 与公开工具仓库的安全路径段一致，组件身份中的内部点号不等于目录穿越。
+fn repository_client(value: &str) -> bool {
+    if value.is_empty()
+        || value.len() > 128
+        || value.starts_with('.')
+        || value.ends_with('.')
+        || !value
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || b"-_.+".contains(&byte))
+    {
+        return false;
+    }
+    let base = value.split('.').next().unwrap_or("").to_ascii_uppercase();
+    ![
+        "CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8",
+        "COM9", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
+    ]
+    .contains(&base.as_str())
 }
 
 /// 旧部署没有此环境变量时返回 None；存在但损坏的绑定不能静默回退。
@@ -158,6 +173,88 @@ mod tests {
         for client in ["../escape", "", "invalid:client"] {
             value["repository"]["client_id"] = client.into();
             assert!(ManagedResources::decode(&serde_json::to_vec(&value).unwrap()).is_err());
+        }
+    }
+
+    #[test]
+    fn repository_descriptor_accepts_dotted_component_without_tools() {
+        let value = serde_json::json!({
+            "format_version": 1,
+            "release_id": "workspace_suite",
+            "revision": "a".repeat(64),
+            "tools": {},
+            "bindings": [],
+            "repository": {
+                "format_version": 1,
+                "root": std::env::current_dir().unwrap(),
+                "client_id": "workspace_suite.server"
+            }
+        });
+        let resources = ManagedResources::decode(&serde_json::to_vec(&value).unwrap()).unwrap();
+        assert!(resources.tools.is_empty());
+        assert!(resources.bindings.is_empty());
+        assert!(resources.runtime.is_none());
+        assert_eq!(
+            resources.repository.unwrap().client_id,
+            "workspace_suite.server"
+        );
+    }
+
+    #[test]
+    fn repository_descriptor_preserves_safe_segment_and_resource_validation() {
+        let mut value = serde_json::json!({
+            "format_version": 1,
+            "release_id": "workspace_suite",
+            "revision": "b".repeat(64),
+            "tools": {"runtime": {"version": "1", "platform": "test",
+                "entries": {"main": std::env::current_exe().unwrap()}}},
+            "repository": {"format_version": 1, "root": std::env::current_dir().unwrap(),
+                "client_id": "workspace_suite.server"}
+        });
+        for client in ["workspace_suite.server", "tool-supply", "supplier+node.v1"] {
+            value["repository"]["client_id"] = client.into();
+            assert!(ManagedResources::decode(&serde_json::to_vec(&value).unwrap()).is_ok());
+        }
+        for client in [
+            "",
+            ".",
+            "..",
+            "../escape",
+            "escape/path",
+            "escape\\path",
+            "invalid:client",
+            ".hidden",
+            "trailing.",
+            "CON",
+            "con.server",
+            "NUL.service",
+            "LPT1.plugin",
+        ] {
+            value["repository"]["client_id"] = client.into();
+            assert!(
+                ManagedResources::decode(&serde_json::to_vec(&value).unwrap()).is_err(),
+                "不安全的仓库客户身份不能被接纳：{client}"
+            );
+        }
+        value["repository"]["client_id"] = "a".repeat(129).into();
+        assert!(ManagedResources::decode(&serde_json::to_vec(&value).unwrap()).is_err());
+        value["repository"]["client_id"] = "workspace_suite.server".into();
+        for (pointer, replacement) in [
+            ("/repository/format_version", serde_json::json!(2)),
+            ("/repository/root", serde_json::json!("relative")),
+            (
+                "/tools/runtime/entries/main",
+                serde_json::json!("relative.exe"),
+            ),
+            ("/revision", serde_json::json!("invalid")),
+            ("/format_version", serde_json::json!(2)),
+        ] {
+            let mut invalid = value.clone();
+            *invalid.pointer_mut(pointer).unwrap() = replacement;
+            assert!(
+                ManagedResources::decode(&serde_json::to_vec(&invalid).unwrap()).is_err(),
+                "合法点号身份不能绕过现有资源检查：{pointer}"
+            );
         }
     }
 }

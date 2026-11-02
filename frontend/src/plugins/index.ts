@@ -4,4 +4,5 @@ export { validateContributions, readPluginModule } from './contracts.ts';
 export { createExtensionRegistry } from './extensions/registry.ts';
 export { createInstalledPackageLoader } from './package-loader.ts';
 export { createNamedSlotAdapter } from './extensions/slots.ts';
+export type { SlotDirectory, SlotDirectoryEntry } from './extensions/slots.ts';
 export { createInstalledPackageController } from './package-controller.ts';

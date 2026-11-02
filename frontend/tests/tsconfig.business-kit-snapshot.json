@@ -1,0 +1,6 @@
+{
+  "extends": "../tsconfig.json",
+  "include": [
+    "./business-kit-snapshot.test.ts"
+  ]
+}

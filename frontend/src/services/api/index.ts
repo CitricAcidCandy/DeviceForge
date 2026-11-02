@@ -2,7 +2,7 @@ export { createApiClient, readApiEnvelope } from './client.ts';
 export type { ClientOptions } from './client.ts';
 export { withRequestHeaders, withPluginRelease, pluginReleaseHeaders } from './request-headers.ts';
 export type { PluginReleaseReference } from './request-headers.ts';
-export { ApiError } from './errors.ts';
+export { ApiError, JobFailure, JobWaitFailure } from './errors.ts';
 export type { ApiErrorKind } from './errors.ts';
 export * from './endpoints.ts';
 export * from './log-search.ts';

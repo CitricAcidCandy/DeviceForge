@@ -36,6 +36,7 @@ import { createPointRegistry } from '../points/index.ts';
 import { createWorkspaceRegistry } from '../workspace/index.ts';
 import { createDataSourceRegistry } from '../data-sources/index.ts';
 import { createWorkspaceRendering } from '../workspace-rendering.ts';
+import { registerLegacyModulePages } from './legacy-modules.ts';
 
 export function createExtensionRegistry(themeAdapter?: ThemeAdapter) {
   const points = createPointRegistry();
@@ -155,6 +156,16 @@ export function createExtensionRegistry(themeAdapter?: ThemeAdapter) {
     const releaseThemes = value.themes?.length
       ? themes.stage(registeredOwner, value.themes)
       : undefined;
+    try {
+      if (value.modules?.length) registerLegacyModulePages(workspaces.access({
+        pluginId: owner.pluginId, generation: owner.generation, signal: scope.context.signal,
+      }, scope.track), owner.pluginId, value.modules);
+    } catch (error) {
+      scope.close();
+      void scope.dispose().catch(() => undefined);
+      releaseThemes?.();
+      throw error;
+    }
     for (const id of additions) { ids.add(id); registrations.set(id, registeredOwner); }
     for (const route of newRoutes) routes.add(route);
     for (const c of value.components ?? [])

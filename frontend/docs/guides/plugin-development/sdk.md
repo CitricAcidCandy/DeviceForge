@@ -29,6 +29,11 @@ interface Job {
   readonly result: JsonValue;
   readonly error: string | null;
 }
+interface CleanupContext {
+  readonly signal: AbortSignal;
+  readonly deadline: number;
+  readonly transport?: Pick<PluginTransport, 'request'>;
+}
 interface HostContext {
   readonly apiVersion: 2;
   readonly signal: AbortSignal;
@@ -42,10 +47,33 @@ interface HostContext {
   cancelJob(id: string, signal: AbortSignal): Promise<HostResult<Job>>;
   subscribeOperations(listener: (items: readonly Operation[]) => void): Dispose;
   onDispose(dispose: Dispose): Dispose;
+  readonly onCleanup?: (cleanup: (context: CleanupContext) => void | Promise<void>) => Dispose;
 }
 ```
 
 `HostContext` 另有可选 `extensions/devices/artifacts/taskHistory/themes/configuration`，旧宿主或独立装配可省略，必须先判断。`extensions.points`、`ui`、`transport`、`data` 是 SDK v2 新增的可选能力，保持旧插件兼容；本主题末尾直接包含开放组合说明与独立 SDK 取得方式。SDK 通常采用 camelCase，`Operation.input_schema` 则保留该公开字段名；不要自行将 SDK 参数变成 HTTP snake_case。`execution` 只描述当前操作总预算，不允许浏览器覆盖预算，也不用于给历史任务补写元数据。
+
+## 错误与任务票据辅助
+
+实际 SDK 包的主入口提供 `HostError`、`ApiError`、`JobFailure`、`JobWaitFailure` 和 `readHostError`。它们不是旧宿主上的全局对象；未使用该运行时包时，仍按公开错误字段处理，不能要求读取宿主实现。
+
+`HostError` 的构造顺序为 `(kind, code, message, logId?, status?, retryAfter?)`；兼容 HTTP 的 `ApiError` 为 `(kind, code, message, status?, logId?, retryAfter?)`，不要交换日志与状态参数。二者保留错误分类、代码、原文、状态、日志和限流值。
+
+```typescript
+interface HostErrorFields {
+  readonly kind: 'http' | 'network' | 'cancelled' | 'protocol';
+  readonly code: string;
+  readonly message: string;
+  readonly status: number | null;
+  readonly logId: string | null;
+  readonly retryAfter: string | null;
+}
+declare function readHostError(error: unknown): HostErrorFields | null;
+```
+
+跨窗口或独立打包的 SDK 不共享构造器，不能仅凭 `instanceof` 判定错误。`readHostError` 只读取完整有效的公开字段；无效、缺失、属性抛错或撤销对象返回 `null`，不伪造日志，不认证异常来源。
+
+`new JobFailure(job, submitLogId, logId)` 用于已确认的失败或取消；`new JobWaitFailure(job, submitLogId, logId, cause, lastKnownLogId?)` 表示等待失败、真实任务结果仍需查询。两者保留原 `job` 引用，后者另保留 `cause` 和最后已知日志。它们不发请求、不改变任务状态，也不因创建错误对象而自动取消、重试或重放操作。
 
 ## 公共服务与功能级组合
 
@@ -174,7 +202,7 @@ const action = {
 
 ## 已装配的宿主服务
 
-先从 `extensions.catalog().services` 确认 ID 和精确版本，再调用。当前产品 runtime 提供下列版本 `"1"` 服务；可用的服务器插件、项目配置和设备仍需满足业务前置条件：
+先从 `extensions.catalog().services` 确认 ID 和精确版本，再调用。采用全界面组合装配的宿主由对应业务插件提供服务，下列版本 `"1"` 旧名称只作薄转调：AI 插件提供 `deviceforge_ai.sdk@1`、`deviceforge_ai.sdk.stream@1`，性能插件提供 `deviceforge_performance.api@1`。提供者缺失、停用或换代会撤销相应旧名称，不静默创建内置业务模型；可用的服务器插件、项目配置和设备仍需满足业务前置条件。旧宿主的实际装配以当前目录为准：
 
 | ID | 动作 |
 | --- | --- |
@@ -214,9 +242,10 @@ import { React, mountReact, Button, EmptyState } from 'deviceforge-host';
 | `apiVersion` | 当前为 `1`；宿主没有这个契约时取不到，说明宿主太旧或页面不是宿主加载的 |
 | `React` / `ReactDOMClient` / `jsx` / `jsxs` / `Fragment` | 宿主的真实实例，用于写组件与创建元素 |
 | `mountReact(root, element)` | 用 `createRoot` + `flushSync` 挂载，返回释放函数；**直接把它作为 `mount` 的返回值** |
+| `hostUi().usePortalContentRef?(ref)` | 可选的共享弹层归属 Hook；独立弹层组件在渲染时调用，把返回 ref 接到实际 Content，旧宿主缺能力时沿用原 ref |
 | `cn(...)` | 宿主同一套类名合并 |
 
-组件（与 `components/index.ts` 的公开桶同名）：`Button`、`Input`、`Textarea`、`Label`、`Switch`、`Checkbox`、`Badge`、`Progress`、`Alert`＋`AlertTitle`＋`AlertDescription`、`Card` 系列、`Field`、`FormSection`、`FormRow`、`FormGrid`、`FormActions`、`PageTitle`、`EmptyState`、`ErrorNotice`、`JsonResult`、`FileDropzone`、`Stepper`、`MultiTrackChart`、`BlobDownload`、`Select` 系列、`Tabs` 系列、`Table` 系列。
+公开组件：`Button`、`Input`、`Textarea`、`Label`、`Switch`、`Checkbox`、`Badge`、`Progress`、`Alert`＋`AlertTitle`＋`AlertDescription`、`Card` 系列、`Field`、`FormSection`、`FormRow`、`FormGrid`、`FormActions`、`PageTitle`、`EmptyState`、`ErrorNotice`、`JsonResult`、`FileDropzone`、`Stepper`、`MultiTrackChart`、`BlobDownload`、`Select` 系列、`Tabs` 系列、`Table` 系列。
 
 三条边界：
 
@@ -231,6 +260,19 @@ async mount(target, context) {
   return mountReact(target, React.createElement(MyPanel, { context }));
 }
 ```
+
+支持弹层归属的宿主中，经 `mountReact` 挂载并使用宿主共享的 `Dialog`、`Sheet`、`DropdownMenu`（含子菜单）、`Select`、`Tooltip` 时，实际弹层会纳入创建视图所属插件及本代的调试界面目录。弹层仍使用原来的 Portal 位置，不为调试搬回视图容器；外部 ref、组件属性及原有动作确认规则保持不变。关闭弹层、释放挂载或来源换代后，旧界面引用失效，不会追随新实例。
+
+该能力不自动识别原生自建 `createPortal`、独立 `createRoot` 或任意第三方弹层，也不读取 React 私有状态。仅复制 DOM 标记不构成有效宿主归属；应在目标宿主实际查询界面目录与操作结果，不能把“页面上看得到弹窗”当作 Agent 已能操作。旧宿主缺少此接线时，普通弹层仍可正常使用，但自动调试覆盖不完整。
+
+独立封装的弹层应在一次挂载内固定所用能力，并在每次渲染时按相同顺序调用：
+
+```tsx
+const [useContentRef] = React.useState(() => hostUi().usePortalContentRef);
+const contentRef = useContentRef?.(ref) ?? ref;
+```
+
+将 `contentRef` 传给实际 Content。此 Hook 仅组合 refs 并登记渲染来源，不操作设备、不确认写入，也不替代 `mountReact` 的作用域释放；只在兼容宿主提供的挂载边界内建立归属。升级宿主后重新挂载，不在事件回调、循环或条件分支中调用 Hook。
 
 ## 完整发布与配置边界
 
@@ -253,6 +295,7 @@ interface PointAccess {
   catalog(): PointCatalog;
   list(point: PointRef): readonly LocalPointContribution[];
   selected(point: PointRef): LocalPointContribution | null;
+  readonly selection?: (point: PointRef) => string | null;
   select(point: PointRef, contributionId: string | null): void;
   subscribe(listener: () => void): Dispose;
 }
@@ -317,8 +360,11 @@ interface WorkspaceContributions {
   readonly workspaces?: readonly WorkspaceDefinition[];
   readonly views?: readonly WorkspaceViewDefinition[];
 }
+type WorkspacePageUpdate = Partial<Pick<WorkspacePageDefinition,
+  'title' | 'navigation' | 'operations' | 'taskPolicy'>>;
 interface UiAccess {
   register(contributions: WorkspaceContributions): Dispose;
+  readonly updatePage?: (pageId: string, changes: WorkspacePageUpdate) => void;
   catalog(): WorkspaceCatalog;
   snapshot(): WorkspaceSnapshot;
   subscribe(listener: () => void): Dispose;
@@ -334,7 +380,7 @@ interface UiAccess {
 
 工作区快照包括页面、工作区、视图目录以及实例和布局。实例的 `generation` 是实例轮换号，`providerGeneration` 才是当前视图提供者代次，二者不能混用。布局模型 `version:1` 支持 `view/split/tabs/custom` 节点、`floating` 和 `overlays`；布局保存引用及几何信息，不保存组件、函数或正在执行的操作。
 
-**当前交付边界：页面、视图与实例登记和模型已提供，产品默认外壳及设备、文件等现有页面的跨页面渲染尚未上线。** `ui.register/open` 不会单凭登记就将新视图显示在原页面或原导航中，也没有已交付的全局外壳替换入口。需要当前实际可见页面时继续使用 `modules`、面板或已开放槽位；新工作区消费方须自行提供渲染接线。页面隐藏、数据采集暂停与外部会话关闭是不同动作，不能凭 `visible:false` 假定业务已停止。
+**实际界面组合以当前目录和视图提供者为准，不能把 SDK 类型或登记成功当作完整页面体验验收。** 支持组合的宿主通过页面目录建立导航，由外壳或布局提供者消费视图；`ui.register/open` 本身不向任意 DOM 插入内容。全局外壳通过 `host.shell@1` 的替换贡献选择，默认外壳还公开自己的顶栏、侧栏和底栏扩展点；具体契约见本主题的组合说明。旧 `modules`、面板和已开放槽位继续兼容。页面隐藏、数据采集暂停与外部会话关闭是不同动作，不能凭 `visible:false` 假定业务已停止。
 
 ## 通用请求与可发现数据
 

@@ -22,7 +22,7 @@ process.once('SIGTERM', stop);
 try {
   const options = parseOptions(process.argv.slice(2));
   if (options.command === 'help') console.log(help);
-  else if (['plugin.pack', 'plugin.plan', 'plugin.publish'].includes(options.command))
+  else if (['plugin.pack', 'plugin.finalize', 'plugin.plan', 'plugin.publish'].includes(options.command))
     console.log(JSON.stringify(await runAuthoring(options, { signal: controller.signal }), null, 2));
   else if (options.command === 'start') await start(options, { signal: controller.signal });
   else if (options.command === 'config.path')

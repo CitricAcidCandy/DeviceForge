@@ -1,29 +1,9 @@
 /*
  * 设备工作台 · 画面：舞台常驻，右栏在「画面参数」与「应用」之间切换。
  * 应用不再盖住画面——这是把「画面与录制」并进设备页之后唯一要守住的东西。
- * 右栏宽度取 --workbench-rail-width（384px）：参数表的标签与数值要能一眼读完，
- * 296px 那版把「分辨率 / 传输 / 控制」挤成一团。
+ * 组合层宽度与重排已迁至 Tailwind 容器查询；此处只保留尚未迁出的画面内部样式。
  */
-.device-workbench {
-  position: relative;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) var(--workbench-rail-width, 384px);
-  grid-template-rows: minmax(0, 1fr);
-  height: 100%;
-  min-width: 0;
-  min-height: 0;
-}
-
 /* ── 右栏 ─────────────────────────────────────────── */
-.workbench-rail {
-  /* 显式定位：只给 grid-column 会让自动放置把后一项挤到第二行，舞台会被压扁。 */
-  grid-area: 1 / 2 / 2 / 3;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  border-left: 1px solid var(--hairline);
-  background: var(--surface-card);
-}
 /*
  * 右栏两个面：等分两格、各带一个图标。
  * 早先只有两个纯文字标签，在 384px 的栏里像一段说明文字，不像可以切的东西。
@@ -542,22 +522,6 @@ video.media-canvas {
   outline: 2px solid var(--ring);
   outline-offset: -2px;
 }
-/* 读数浮在舞台顶部那条带子里，不占画面高度。 */
-.media-stage-readout {
-  position: absolute;
-  top: 6px;
-  left: 20px;
-  z-index: 3;
-  margin: 0;
-  max-width: calc(100% - 40px);
-  font-size: 0.8125rem;
-  letter-spacing: 0.04em;
-  color: var(--text-ghost);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  pointer-events: none;
-}
 .media-stage-dock {
   position: absolute;
   left: 50%;
@@ -654,30 +618,10 @@ video.media-canvas {
   color: var(--media-muted);
 }
 
-@media (max-width: 1180px) {
-  .device-workbench {
-    grid-template-columns: minmax(0, 1fr) 312px;
-  }
-}
 @media (max-width: 1024px) {
-  .device-workbench {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: minmax(0, 1fr) auto;
-  }
-  .workbench-rail {
-    grid-area: 2 / 1 / 3 / 2;
-    max-height: 46vh;
-    border-left: 0;
-    border-top: 1px solid var(--hairline);
-  }
   .workbench-stage {
     grid-area: 1 / 1 / 2 / 2;
     /* 堆叠布局里画面更矮，上下两条带子跟着收一点，但必须保留，否则胶囊会压住画面。 */
     padding: 24px 12px var(--stage-bottom-compact, 50px);
-  }
-  .media-stage-readout {
-    /* 工具轨在这个断点贴左上角，读数条右移让位。 */
-    left: 62px;
-    max-width: calc(100% - 74px);
   }
 }

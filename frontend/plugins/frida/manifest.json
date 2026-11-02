@@ -1,0 +1,48 @@
+{
+  "manifest_version": 1,
+  "id": "deviceforge_frida",
+  "version": "0.1.0",
+  "name": "Frida",
+  "description": "服务器状态、进程与脚本调试",
+  "market": {
+    "summary": "服务器状态、进程与脚本调试",
+    "keywords": [
+      "Frida"
+    ],
+    "categories": [
+      "function",
+      "ui"
+    ],
+    "applies_to": [
+      "deviceforge"
+    ],
+    "supports_mcp": "none",
+    "supports_agent": true,
+    "restart_policy": "none",
+    "author": "DeviceForge",
+    "visibility": "internal"
+  },
+  "components": [
+    {
+      "kind": "browser",
+      "package_name": "@deviceforge/frida",
+      "entrypoints": {
+        "any": {
+          "path": "dist/index.js",
+          "runtime": "browser"
+        }
+      },
+      "files": [
+        "dist"
+      ],
+      "plugin": {
+        "api_version": 2
+      }
+    }
+  ],
+  "requirements": [],
+  "dependencies": {
+    "dependencies": [],
+    "format_version": 1
+  }
+}

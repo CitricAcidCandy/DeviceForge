@@ -1,0 +1,18 @@
+{
+  "extends": "../tsconfig.json",
+  "include": [
+    "../src/app/main.ts",
+    "../src/app/product/platform-services.ts",
+    "../src/app/product/legacy-services.ts",
+    "../src/app/product/services.ts",
+    "../src/app/product/device-views.tsx",
+    "product-platform-boundary.test.ts",
+    "product-legacy-business.test.ts",
+    "composition-startup.test.ts",
+    "../scripts/check-architecture.ts",
+    "../scripts/platform-startup-boundaries.ts",
+    "platform-startup-architecture.test.ts",
+    "platform-startup-boundaries.test.ts",
+    "architecture.test.ts"
+  ]
+}

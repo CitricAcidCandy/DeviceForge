@@ -1,0 +1,25 @@
+{
+  "name": "@deviceforge/plugin-tools",
+  "version": "0.1.1",
+  "description": "DeviceForge 独立浏览器插件构建工具",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": { "types": "./lib/index.d.ts", "import": "./lib/index.js" },
+    "./package.json": "./package.json"
+  },
+  "files": ["lib", "README.md"],
+  "engines": { "node": ">=22.18.0" },
+  "dependencies": {
+    "@tailwindcss/vite": "4.3.3",
+    "@vitejs/plugin-react": "6.1.2",
+    "rolldown": "1.2.13",
+    "tailwindcss": "4.3.3",
+    "vite": "8.3.3"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "~5.9.0"
+  }
+}

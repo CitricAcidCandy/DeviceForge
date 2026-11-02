@@ -1,4 +1,4 @@
-import type { createFrontendRuntime } from '../runtime.ts';
+import type { PlatformRuntime } from '../platform-runtime.ts';
 import { isLoopbackDebuggerAddress } from '../../features/debugger/index.ts';
 
 export const BUNDLED_DEBUGGER_ID = 'deviceforge_debugger';
@@ -8,7 +8,7 @@ export interface BundledDebuggerSnapshot {
   readonly message: string | null;
 }
 export interface BundledDebuggerOptions {
-  readonly runtime: ReturnType<typeof createFrontendRuntime>;
+  readonly runtime: PlatformRuntime;
   readonly baseUrl: string;
   readonly browserOrigin: string;
   readonly load: (signal: AbortSignal) => Promise<unknown>;

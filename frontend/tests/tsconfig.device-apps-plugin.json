@@ -1,0 +1,8 @@
+{
+  "extends": "../tsconfig.json",
+  "include": [
+    "../plugins/device-apps/src/**/*.ts",
+    "../plugins/device-apps/src/**/*.tsx",
+    "./device-apps-plugin-*.test.ts"
+  ]
+}

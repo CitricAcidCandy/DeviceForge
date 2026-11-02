@@ -1,0 +1,8 @@
+{
+  "extends": "../tsconfig.json",
+  "include": [
+    "../plugins/performance/src/index.ts",
+    "../plugins/performance/src/public-service.ts",
+    "./performance-plugin-public-service.test.ts"
+  ]
+}

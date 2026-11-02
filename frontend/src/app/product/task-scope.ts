@@ -1,5 +1,5 @@
 import type { JobDto } from '../../services/api/index.ts';
-import type { ProductRoute } from './routes.ts';
+import type { ProductRoute } from './route-address.ts';
 
 export const taskStateLabels: Readonly<Record<JobDto['status'], string>> = {
   queued: '排队中',

@@ -31,30 +31,30 @@ export function ProviderPicker({ state, controller, replacing, onClose }: {
   }
   return <div className="fixed inset-0 z-[400] flex justify-end bg-[#22263124]" onKeyDown={(event) => { if (event.key === 'Escape') onClose(); }}>
     <section role="dialog" aria-modal="true" aria-labelledby="shell-provider-title"
-      className="flex h-full w-[392px] max-w-full flex-col border-l border-[#E6EAF3] bg-white shadow-xl">
-      <header className="flex h-16 items-center justify-between border-b border-[#E6EAF3] px-6">
-        <div><h2 id="shell-provider-title" className="text-base font-semibold">{replacing ? '更换视图提供者' : '添加功能'}</h2>
-          <p className="mt-1 text-xs text-[#596479]">{replacing ? '先验证新视图，成功后再替换' : '由插件提供完整视图，可重复添加'}</p></div>
-        <button type="button" onClick={onClose} aria-label="关闭视图目录" className="rounded p-2 text-xl text-[#596479]">×</button>
+      className="flex h-full max-h-[100dvh] min-h-0 min-w-0 w-[392px] max-w-full flex-col overflow-y-auto border-l border-[#E6EAF3] bg-white shadow-xl">
+      <header className="flex min-h-16 min-w-0 shrink-0 items-center justify-between gap-3 border-b border-[#E6EAF3] px-6 py-3">
+        <div className="min-w-0"><h2 id="shell-provider-title" className="break-words text-base font-semibold">{replacing ? '更换视图提供者' : '添加功能'}</h2>
+          <p className="mt-1 break-words text-xs text-[#596479]">{replacing ? '先验证新视图，成功后再替换' : '由插件提供完整视图，可重复添加'}</p></div>
+        <button type="button" onClick={onClose} aria-label="关闭视图目录" className="shrink-0 rounded p-2 text-xl text-[#596479]">×</button>
       </header>
-      <div className="border-b border-[#E6EAF3] px-6 py-4">
+      <div className="min-w-0 shrink-0 border-b border-[#E6EAF3] px-6 py-4">
         <input autoFocus type="search" value={search} onChange={(event) => setSearch(event.currentTarget.value)}
           placeholder="搜索功能或插件" aria-label="搜索功能或插件" className="w-full rounded-lg border border-[#E6EAF3] px-3 py-2.5 text-sm outline-none focus:border-[#6C4CF5]" />
       </div>
-      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-6 py-4">
+      <div className="min-h-0 min-w-0 flex-1 space-y-2 overflow-y-auto px-6 py-4">
         {views.map((view) => {
           const checked = selected?.pluginId === view.pluginId && selected.viewId === view.id;
           return <button type="button" key={`${view.pluginId}:${view.id}`}
-            className={`w-full rounded-xl border p-4 text-left ${checked ? 'border-[#6C4CF5] bg-[#F5F2FF]' : 'border-[#E6EAF3] hover:bg-[#FAFBFE]'}`}
+            className={`min-w-0 w-full rounded-xl border p-4 text-left ${checked ? 'border-[#6C4CF5] bg-[#F5F2FF]' : 'border-[#E6EAF3] hover:bg-[#FAFBFE]'}`}
             aria-pressed={checked} onClick={() => setSelected({ pluginId: view.pluginId, viewId: view.id })}>
-            <span className="block text-sm font-semibold text-[#222631]">{view.title}</span>
+            <span className="block break-words text-sm font-semibold text-[#222631]">{view.title}</span>
             <span className="mt-1.5 block break-all text-xs text-[#596479]">来自 {view.pluginId}</span>
-            {view.provides.length > 0 && <span className="mt-2 block text-[10px] text-[#596479]">{view.provides.join(' · ')}</span>}
+            {view.provides.length > 0 && <span className="mt-2 block break-all text-[10px] text-[#596479]">{view.provides.join(' · ')}</span>}
           </button>;
         })}
         {!views.length && <p className="rounded-xl border border-dashed border-[#E6EAF3] px-5 py-10 text-center text-sm leading-6 text-[#596479]">没有可添加的视图。请先启用提供界面功能的插件。</p>}
       </div>
-      <footer className="space-y-4 border-t border-[#E6EAF3] p-6">
+      <footer className="max-h-[60dvh] min-h-0 min-w-0 shrink-0 space-y-4 overflow-y-auto border-t border-[#E6EAF3] p-6">
         {!replacing && <fieldset><legend className="mb-2 text-xs font-semibold">放置方式</legend>
           <div className="grid grid-cols-2 gap-2">{([
             ['split', '新建分栏'], ['tabs', '加入页签'], ['floating', '作为浮窗'], ['overlay', '作为覆盖层'],

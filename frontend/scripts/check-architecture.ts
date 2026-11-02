@@ -6,6 +6,7 @@ import ts from 'typescript';
 import { inspectSource } from './source-dependencies.ts';
 import { allowedDependency, findCycles, sourcePlacementIssue } from './architecture-policy.ts';
 import { checkPluginBoundaries } from './plugin-boundaries.ts';
+import { checkPlatformStartupBoundaries } from './platform-startup-boundaries.ts';
 
 export async function checkArchitecture(root = fileURLToPath(new URL('../', import.meta.url))) {
   const sourceRoot = join(root, 'src');
@@ -16,6 +17,9 @@ export async function checkArchitecture(root = fileURLToPath(new URL('../', impo
   const graph = new Map<string, string[]>();
   const failures: string[] = [];
   failures.push(...await checkPluginBoundaries(root));
+  const startup = await checkPlatformStartupBoundaries({ frontendRoot: root });
+  failures.push(...startup.violations.map((issue) =>
+    `${issue.file}:${issue.line}: ${issue.message} [${issue.chain.join(' -> ')}]`));
   const portable = (path: string) => relative(sourceRoot, path).split(sep).join('/');
   async function checkMaintenanceFiles(directory: string): Promise<void> {
     for (const entry of await readdir(directory, { withFileTypes: true })) {

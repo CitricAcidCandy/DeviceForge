@@ -1,0 +1,18 @@
+{
+  "extends": "../tsconfig.json",
+  "include": [
+    "../src/plugins/workspace/index.ts",
+    "../src/plugins/workspace/scoped.ts",
+    "../plugins/tasks/src/footer.tsx",
+    "../plugins/devices/src/page-metadata.ts",
+    "../plugins/device-apps/src/index.ts",
+    "../src/app/product/device-views.tsx",
+    "./workspace-page-updates.test.ts",
+    "./task-drawer-view.test.ts",
+    "./task-drawer-core.test.ts",
+    "./default-shell-responsive.test.ts",
+    "./device-views-bridge.test.ts",
+    "./device-apps-plugin-lifecycle.test.ts",
+    "./official-devices-plugin.test.ts"
+  ]
+}

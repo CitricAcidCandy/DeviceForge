@@ -1,0 +1,71 @@
+{
+  "manifest_version": 1,
+  "id": "workspace_suite",
+  "version": "0.1.0",
+  "name": "独立工作区配套示例",
+  "description": "通过公开工作区、扩展点、版本服务和内存数据演示独立前后端插件",
+  "market": {
+    "summary": "公开 SDK 前后端配套与跨页面组合示例",
+    "keywords": ["示例", "工作区", "服务", "热拔插"],
+    "categories": ["function", "integration"],
+    "applies_to": ["deviceforge"],
+    "supports_mcp": "server",
+    "supports_agent": true,
+    "restart_policy": "none",
+    "author": "DeviceForge",
+    "license": "MIT",
+    "visibility": "internal",
+    "details": {}
+  },
+  "components": [
+    {
+      "kind": "server",
+      "root": "dist/server",
+      "files": ["server/entry.js", "server/normalize.js", "shared/service-contracts.js"],
+      "entrypoints": { "any": { "runtime": "node", "path": "server/entry.js" } },
+      "plugin": {
+        "protocol_version": 1,
+        "operations": [{
+          "name": "normalize",
+          "title": "规范化示例消息",
+          "input_schema": {
+            "type": "object",
+            "properties": { "message": { "type": "string", "maxLength": 1000 } },
+            "required": ["message"],
+            "additionalProperties": false
+          }
+        }],
+        "services": {
+          "provided": [{
+            "service": { "id": "example.workspace.normalize", "version": "1" },
+            "operation": "normalize",
+            "contract": {
+              "input_schema": {
+                "type": "object",
+                "properties": { "message": { "type": "string", "maxLength": 1000 } },
+                "required": ["message"],
+                "additionalProperties": false
+              },
+              "output_schema": {
+                "type": "object",
+                "properties": { "message": { "type": "string", "maxLength": 1000 } },
+                "required": ["message"],
+                "additionalProperties": false
+              }
+            }
+          }],
+          "required": []
+        }
+      }
+    },
+    {
+      "kind": "browser",
+      "root": "dist/browser",
+      "files": ["index.js"],
+      "entrypoints": { "any": { "runtime": "browser", "path": "index.js" } },
+      "plugin": { "api_version": 2 }
+    }
+  ],
+  "requirements": [],
+  "dependencies": { "format_version": 1, "dependencies": [] }
+}

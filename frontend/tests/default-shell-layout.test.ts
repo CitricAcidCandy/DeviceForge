@@ -5,6 +5,7 @@ import {
   emptyLayout, placeView, removeView, replaceView, reorderView, resizeSplit,
   changeFloating, selectTab, visibleInstances, customChildren,
 } from '../plugins/default-shell/src/layout.ts';
+import { floatingPosition } from '../plugins/default-shell/src/floating.ts';
 
 test('布局增删覆盖分栏页签浮窗覆盖层，不修改原快照或重复引用实例', () => {
   const original = emptyLayout();
@@ -35,7 +36,8 @@ test('替换与重排保留分栏比例及实例独立身份', () => {
   assert.deepEqual(replaced.root.children[0], { kind: 'view', instanceId: 'new' });
   const reordered = reorderView(replaced, 'new', 1);
   assert.deepEqual(reordered.root?.kind === 'split' ? reordered.root.children[0] : null, { kind: 'view', instanceId: 'b' });
-  assert.deepEqual(original.root.kind === 'split' ? original.root.children[0] : null, { kind: 'view', instanceId: 'a' });
+  assert.equal(original.root?.kind, 'split');
+  assert.deepEqual(original.root?.kind === 'split' ? original.root.children[0] : null, { kind: 'view', instanceId: 'a' });
 });
 
 test('页签路径只更新指定节点，隐藏项不进入可见实例目录', () => {
@@ -71,4 +73,19 @@ test('自定义布局描述只携带JSON数据，不把函数或运行对象带�
     kind: 'custom', provider: { pluginId: 'other', viewId: 'other.layout' }, data: { gap: 16 },
     children: [{ kind: 'view', instanceId: 'a' }],
   });
+});
+
+test('浮动显示夹紧当前画布，缩窗保留原持久布局且至少可见拖动区', () => {
+  const view = { instanceId: 'a', x: 8000, y: 8000, width: 640, height: 480, z: 1 };
+  const result = floatingPosition(view, { x: 0, y: 0, width: 320, height: 240 });
+  assert.deepEqual(result, { x: 200, y: 160, width: 320, height: 240, left: 200, top: 160 });
+  assert.equal(view.x, 8000);
+  assert.equal(view.width, 640);
+});
+
+test('覆盖层坐标相对真实视图锚点，而不是重复套用画布原点', () => {
+  assert.deepEqual(floatingPosition(
+    { instanceId: 'a', x: 20, y: 15, width: 300, height: 140, z: 1 },
+    { x: 180, y: 70, width: 400, height: 300 },
+  ), { x: 20, y: 15, width: 300, height: 140, left: 200, top: 85 });
 });

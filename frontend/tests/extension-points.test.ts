@@ -6,6 +6,25 @@ import type { PointContribution, PointRef } from '../src/plugin-sdk/points.ts';
 import type { Dispose } from '../src/plugin-sdk/models.ts';
 
 const point: PointRef = { id: 'workbench.tools', version: '1' };
+
+test('只读选择意图与当前可用选择分离，子作用域撤销后不能读取且旧宿主可缺省', () => {
+  const registry = createPointRegistry(), provider = owner('workbench'), addon = owner('addon');
+  const access = registry.access(provider);
+  access.define({ ...point, title: '工具', modes: ['replace'] });
+  const handle = registry.access(addon).contribute(contribution('addon.replace', { mode: 'replace' }));
+  access.select(point, 'addon.replace');
+  assert.equal(access.selection?.(point), 'addon.replace');
+  handle.dispose();
+  assert.equal(access.selected(point), null); assert.equal(access.selection?.(point), 'addon.replace');
+  access.select(point, null); assert.equal(access.selection?.(point), null);
+  const child = owner('child'); const scoped = scopedPointAccess(access, child.signal, child.track);
+  assert.equal(scoped.selection?.(point), null); child.close();
+  assert.throws(() => scoped.selection?.(point));
+  const { selection: _selection, ...legacy } = access;
+  const old = scopedPointAccess(legacy, provider.signal, provider.track);
+  assert.equal(old.selection, undefined);
+  registry.dispose();
+});
 function owner(pluginId: string, generation = 1) {
   const controller = new AbortController();
   const releases = new Set<Dispose>();

@@ -31,12 +31,23 @@ export function createTasksPlugin(identity: TasksPluginIdentity): WebPlugin {
             version: 1, root: { kind: 'view', instanceId }, floating: [], overlays: [],
           },
         }],
-        views: [{ id: viewId, title: '任务与日志', provides: ['tasks.history'], mount }],
+        views: [
+          { id: viewId, title: '任务与日志', provides: ['tasks.history'], mount },
+          {
+            id: `${identity.id}.footer`, title: '最近任务状态', provides: ['tasks.status'],
+            mount: async (target, host) => (await import('./footer.tsx')).mountTaskFooter(target, host),
+          },
+        ],
         pages: [{
           id: `${identity.id}.page`, title: '任务与日志', route: '/tasks', workspaceId,
-          navigation: { group: '工坊', order: 10, icon: 'list-checks', description: '查看后台任务、请求日志与可下载产物' },
+          navigation: { group: '工坊', order: 90, icon: 'list-checks', description: '查看后台任务、请求日志与可下载产物' },
           taskPolicy: 'all',
         }],
+      });
+      context.extensions?.points?.contribute({
+        id: `${identity.id}.footer.status`,
+        point: { id: 'deviceforge_shell.footer', version: '1' },
+        data: { pluginId: identity.id, viewId: `${identity.id}.footer` }, mode: 'append', order: 10,
       });
       context.extensions?.points?.define({
         id: pointId, version: '1.0', title: '任务工具', modes: ['append'],

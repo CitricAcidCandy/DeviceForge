@@ -4,6 +4,7 @@ import * as React from 'react';
 import { cn } from '../../utils/classnames.ts';
 import { CheckIcon, ChevronRightIcon, CircleIcon } from 'lucide-react';
 import { DropdownMenu as DropdownMenuPrimitive } from 'radix-ui';
+import { usePortalContentRef } from '../PortalBoundary/index.tsx';
 
 function DropdownMenu({ ...props }: React.ComponentProps<typeof DropdownMenuPrimitive.Root>) {
   return <DropdownMenuPrimitive.Root data-slot="dropdown-menu" {...props} />;
@@ -24,8 +25,10 @@ function DropdownMenuTrigger({
 function DropdownMenuContent({
   className,
   sideOffset = 4,
+  ref,
   ...props
 }: React.ComponentProps<typeof DropdownMenuPrimitive.Content>) {
+  const contentRef = usePortalContentRef(ref);
   return (
     <DropdownMenuPrimitive.Portal>
       <DropdownMenuPrimitive.Content
@@ -36,6 +39,7 @@ function DropdownMenuContent({
           className,
         )}
         {...props}
+        ref={contentRef}
       />
     </DropdownMenuPrimitive.Portal>
   );
@@ -194,8 +198,10 @@ function DropdownMenuSubTrigger({
 
 function DropdownMenuSubContent({
   className,
+  ref,
   ...props
 }: React.ComponentProps<typeof DropdownMenuPrimitive.SubContent>) {
+  const contentRef = usePortalContentRef(ref);
   return (
     <DropdownMenuPrimitive.SubContent
       data-slot="dropdown-menu-sub-content"
@@ -204,6 +210,7 @@ function DropdownMenuSubContent({
         className,
       )}
       {...props}
+      ref={contentRef}
     />
   );
 }

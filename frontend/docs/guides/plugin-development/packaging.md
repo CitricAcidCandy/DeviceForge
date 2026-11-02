@@ -6,7 +6,41 @@
 
 SDK TGZ 是开发依赖，不是可安装的 DeviceForge 插件包，不上传到浏览器插件安装入口。业务插件仍只维护一份 `manifest.json`，按需包含浏览器、服务器和共享依赖，构建后通过原 CLI 生成分发文件；新增页面／视图／数据源在插件运行时按公开契约登记，不增加第二份手工宿主目录。React 与宿主 UI 的浏览器入口按下文 external 规则处理，不能把类型包当成第二套 React 运行时。
 
-能力声明不等于目标宿主已完成全部渲染接线：页面、视图与实例模型已提供，产品默认外壳和现有页面的跨页面渲染尚未上线。发行说明应分别列出所需公开入口、实际渲染器与验证结果，不能仅因使用了新 SDK 类型就声称全界面热拔插已完成。配套服务器仍使用原任务、服务与会话协议；完整两端知识通过 `target:'fullstack'` 查询同名主题取得。
+需要独立展示适配时，可同时取得实际本地发行的 `deviceforge-business-kit-0.1.0.tgz`，在自己的工程安装为 `@deviceforge/business-kit`；它同样是开发依赖，未发布 registry。`@deviceforge/business-kit/dialog` 与 `/sheet` 使用共享 React 和普通 Radix 依赖，通过可选 `HostUi.usePortalContentRef` 让兼容宿主识别弹层归属。旧宿主缺桥时普通弹层仍可用，但不能据此声称 Agent 已可观察；所需第三方依赖及共享包版本以实际 TGZ 内清单为准，继续查询 `sdk` 主题了解边界。
+
+能力声明不等于目标宿主已完成全部渲染接线：实际组合以当前目录和视图提供者为准。发行说明应分别列出所需公开入口、外壳/布局渲染器、数据/资源生命周期及验证结果，不能仅因使用了新 SDK 类型或登记成功就声称全界面热拔插已完成。默认外壳和全局外壳替换的公开契约查询 `sdk` 主题；配套服务器仍使用原任务、服务与会话协议，完整两端知识通过 `target:'fullstack'` 查询同名主题取得。
+
+## 独立浏览器构建工具
+
+已提供真实本地 `deviceforge-plugin-tools-0.1.1.tgz`，公开包名为 `@deviceforge/plugin-tools@0.1.1`，未发布 registry。旧 `0.1.0` 归档不含下述契约生成入口。部署者须交付所需版本文件及包内声明的第三方依赖，不能只给出包名或要求访问宿主目录。工具要求 Node.js 22.18 以上，固定使用 Vite、React 编译插件和 Tailwind；实际版本以包内依赖为准。
+
+将 SDK 与工具 TGZ 放到自己工程的 `vendor/` 并声明 `file:./vendor/文件名`。安装后，在自己的 TypeScript 脚本调用：
+
+```typescript
+import { fileURLToPath } from 'node:url';
+import { buildBrowserPlugin } from '@deviceforge/plugin-tools';
+
+const result = await buildBrowserPlugin({
+  root: process.cwd(), entry: './src/index.ts', outputDir: './dist',
+  dependencies: {
+    '@deviceforge/plugin-sdk': fileURLToPath(import.meta.resolve('@deviceforge/plugin-sdk')),
+    '@deviceforge/plugin-sdk/json': fileURLToPath(import.meta.resolve('@deviceforge/plugin-sdk/json')),
+  },
+});
+console.log(result.buildId);
+```
+
+脚本在安装了上述依赖的自有工程中执行，不需要宿主源码或内部生成器。依赖映射必须精确匹配公开包说明符，值为该包实际发行的 JavaScript 文件；不能映射宿主源码或用 `development` 条件冒充发行包。其它正常浏览器依赖由自有 `node_modules` 解析并打进归档。React、ReactDOM、两种 JSX 运行时与 `deviceforge-host` 是宿主已有共享入口，保留裸导入，不内联第二份 React；Worker 不继承页面 importmap，不能导入这些裸名。
+
+工具生成 `index.js`、延迟块、CSS、Worker、资源与 `styles.js`，不执行用户工程配置、不改源文件、不安装或发布插件。`plugin-build.json` 是本机开发归属报告，可能含本机路径，不属于运行资源，不应打进公开安装组件。清单 `files` 须覆盖实际模块和资源闭包，不能只收录入口而漏掉延迟块、CSS 或 Worker。
+
+同包提供 `generatePluginContracts(manifest: unknown)`。在自有工程读取唯一 `manifest.json`，将返回的 `source` 写入自己选择的共享 TypeScript 文件；前后端从同一生成物消费类型、服务引用、Schema 和薄提交函数。返回的 `services` 给出 `id/version/operation/exportName`，对应导出 `<exportName>Input/Output/Ref/Schema/Submit` 和同名描述。不支持或有歧义的 Schema 在生成阶段明确失败，不静默放宽类型；长度、正则和数值限制仍以原 Schema 作运行期校验。
+
+生成的 `Submit(server,input,signal,generation?)` 只转调公开 `ServerServiceAccess.submit` 一次，原样返回 `HostResult<Job>`；不等待终态、不自动重试或取消后台任务。调用方仍需按原 Job 查询实际结果，不能把受理回执当成业务输出。生成工具在独立开发工程执行，不需要宿主源码、内部脚本或另一份业务清单。
+
+`styles.js` 导入时没有 DOM 副作用。存在自有界面的插件在激活或挂载时执行 `acquireStyles(document)`，将返回的释放函数登记到 `context.onDispose`；同一 Document 内引用计数，最后释放才移除所属样式。全局工具类覆盖门户，不能只限定挂载根而漏掉 Radix 弹窗。没有自有界面的纯逻辑插件不必加载样式。
+
+复用平台语义工具类时，发行者可同时提供 `deviceforge-ui-theme.json`，将其中公开 `theme` 文本传入构建选项；它只包含命名令牌和暗色变体，不是宿主私有 CSS。主题缺失时不能假定 `text-ink` 等自定义工具类仍会生成。
 
 ## 单一开发清单流程（推荐）
 
@@ -19,6 +53,10 @@ deviceforge plugin publish dist-plugin --server http://127.0.0.1:7040
 ```
 
 pack 自动生成组件 package.json、plugin.json、market.json 及按需 dependencies.json，再生成组件 TGZ、完整 release.json、blobs、完整离线 ZIP 和 pack-report.json。源工程不被改写，不执行构建脚本，输出须为新目录（默认 dist-plugin，父目录须存在）；--platform 可指定已构建目标，默认当前系统/架构。浏览器公共 ESM 说明符须保持 external；本工具不替代你的 bundler。
+
+包含准备提交功能的 CLI 还支持 `deviceforge plugin pack manifest.json --out dist-plugin --prepare-only true`。它返回 `state:prepared`、`receipt`、`staging` 与 `target`，只说明构建字节已经封口，不能据此宣称安装包已提交。让该命令退出后，用其返回的实际路径运行 `deviceforge plugin finalize 回执.json`；最终逐成员核对大小、SHA-256、清单与 ZIP 后才返回 `state:completed`。普通 `pack` 不要求改用此流程，旧 CLI 也不承诺提供新参数。
+
+准备流程不覆盖已有目录。失败或结果未知时保留回执和暂存，重新读取实际状态，不自动重打包或重复业务操作；源已消失且最终目标与原回执完整一致时，`finalize` 只报告原提交完成。不要删除未知占用者或将暂存目录当成正式发布。需要原生目录提交的 Windows 环境使用已安装 PowerShell 7 的现行执行策略，不修改策略或启动用户服务。CLI 发行物和正在运行的宿主指南分别更新，源码存在不代表部署版本已具备。
 
 身份包装入口 `.deviceforge-entry.js` 由打包器生成，属于合法包资源，无须重命名或再维护一份入口声明。正常点文件和点目录可以随已构建产物交付；`.`、`..` 和越界路径仍无效，`.deviceforge-package.json`、`.deviceforge-runtime.json` 是宿主保留元数据名，不作为自行交付的资源。
 

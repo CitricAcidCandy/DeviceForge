@@ -1,9 +1,10 @@
+import './official-business-imports.ts';
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createAutomation } from '../src/features/automation/index.ts';
-import type { AutomationSequence } from '../src/features/automation/index.ts';
-import { ApiError } from '../src/services/api/index.ts';
-import type { JobGateway, JsonData } from '../src/shared/jobs/index.ts';
+const { createAutomation } = await import('@deviceforge/automation/model');
+import type { AutomationSequence } from '@deviceforge/automation/model';
+const { ApiError } = await import('@deviceforge/business-kit/api');
+import type { JobGateway, JsonData } from '@deviceforge/business-kit/jobs';
 import { signal } from './fixtures.ts';
 
 const sequence: AutomationSequence = {

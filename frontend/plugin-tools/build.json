@@ -1,0 +1,220 @@
+{
+  "formatVersion": 1,
+  "name": "@deviceforge/plugin-tools",
+  "version": "0.1.1",
+  "distribution": "local_tgz_unpublished",
+  "kind": "development_tool",
+  "archive": "deviceforge-plugin-tools-0.1.1.tgz",
+  "bytes": 22640,
+  "sha256": "7b0dcc49beab4c5f7f9f3526adae5ec4853dc005bb6730a39e78f4e17fff2b9f",
+  "sources": [
+    {
+      "name": "build.ts",
+      "sha256": "053082c63d438b292a8cddb17cfbb6f37efb2565bf2c8098b57f974a577d4858"
+    },
+    {
+      "name": "commit.ts",
+      "sha256": "93aa61c41dd04fa3725466e0af3116576dc284735dc20ff66e89bffe5ab4a1d1"
+    },
+    {
+      "name": "contracts/index.ts",
+      "sha256": "9a357a4322c3cf682ae338e99d1980104969cf257305e4532969e85dd0ade8c1"
+    },
+    {
+      "name": "contracts/json.ts",
+      "sha256": "7bf1832d73a5f15b3101888cc4392eecc1c1d9231a2ba367c8d46b34e1f6c45a"
+    },
+    {
+      "name": "contracts/manifest.ts",
+      "sha256": "18d57db48c9e597e4d9e7b84ea3c5c96bdc40c604e7250dbe30a751a95c9adad"
+    },
+    {
+      "name": "contracts/schema.ts",
+      "sha256": "f5bd8ff69d6e51c721bd9dfcb350b08b39b32fa78749662bfb6d2d6cce7efbcc"
+    },
+    {
+      "name": "contracts/source.ts",
+      "sha256": "c24cca948305d9c6e8ffe6f28c8017d7c17946104ba34504149b8c9625e66d3f"
+    },
+    {
+      "name": "contracts/types.ts",
+      "sha256": "053c4293ade68c6a87e48a98aeb91b9f08530fe85f84a8b2c4c9d505f41a628f"
+    },
+    {
+      "name": "imports.ts",
+      "sha256": "dfa9b76a44350aaf310ad11ffd7fbd4795164c9c31a789be519e34ba765a9616"
+    },
+    {
+      "name": "index.ts",
+      "sha256": "6195bb0e55de4db120926131077d754890b69023178f81b8949b4422c65fbf08"
+    },
+    {
+      "name": "paths.ts",
+      "sha256": "6aceaaec2a255dd1c7426d47a8d54cb8c5dc692ba0a2e5ca2a5cdac43ca6fb4f"
+    },
+    {
+      "name": "styles.ts",
+      "sha256": "9917c88e60d0225b93836c92bf9ed2af7e1c4659e1eb70c00fef6f7487ab0aaf"
+    },
+    {
+      "name": "types.ts",
+      "sha256": "e7f28522ef54c509602368ae38240dedb9c9853e493dcef7f7cdffa71eba9703"
+    },
+    {
+      "name": "worker.ts",
+      "sha256": "7da7751f90cc4fd4c00aecb89fbefefa524653a88b113f2ec33c27da04a99e7b"
+    }
+  ],
+  "files": [
+    {
+      "name": "README.md",
+      "bytes": 11105,
+      "sha256": "23c3eb1eab953b964b05e8476164b9fc0b96df4ce3b814302c9eb6eb130f6b0d"
+    },
+    {
+      "name": "lib/build.d.ts",
+      "bytes": 306,
+      "sha256": "fb17e5a55e6eef82ad6677eeccce4d8e1809303c23d89a6be2560ad7f45f3227"
+    },
+    {
+      "name": "lib/build.js",
+      "bytes": 6778,
+      "sha256": "9bffa8a86f06115bfd629f64a98ae3c4fd6f8cca761ee95183cb9595a0399007"
+    },
+    {
+      "name": "lib/commit.d.ts",
+      "bytes": 374,
+      "sha256": "8334d177434ca35fc3bae831cab9b83148ed8f738a7cf4628a62b02c36cf4982"
+    },
+    {
+      "name": "lib/commit.js",
+      "bytes": 5347,
+      "sha256": "017ff0f2820992c156331d06415fa6d82b9a3e25ce1bbe482b1241012dfd7208"
+    },
+    {
+      "name": "lib/contracts/index.d.ts",
+      "bytes": 363,
+      "sha256": "0cf86453a9c660a981b0b6118fa854ccdeec5c9c4e6c0c6f837905ebf42dbabc"
+    },
+    {
+      "name": "lib/contracts/index.js",
+      "bytes": 513,
+      "sha256": "7402f0872321df97bca48a3db8ec82ac36ae47856c873ad739b659ec0257c1ae"
+    },
+    {
+      "name": "lib/contracts/json.d.ts",
+      "bytes": 884,
+      "sha256": "38b38983d995a3b34161a131a0a9471189d73889d5a9660ac91f808bf423f283"
+    },
+    {
+      "name": "lib/contracts/json.js",
+      "bytes": 4426,
+      "sha256": "c8f14f7713bfbcbf1364e195e3200ca99ce391ac1d9435cae12f11b1f2f1eea1"
+    },
+    {
+      "name": "lib/contracts/manifest.d.ts",
+      "bytes": 510,
+      "sha256": "2db902aa75b5deeff631f53f35365739be708881c216e0429887a99244cef431"
+    },
+    {
+      "name": "lib/contracts/manifest.js",
+      "bytes": 6452,
+      "sha256": "0009fcf678ecc200e58cde562c30e1cefcbc2751980e7df8e8bb8321bada0ddc"
+    },
+    {
+      "name": "lib/contracts/schema.d.ts",
+      "bytes": 232,
+      "sha256": "8c1eb2f451de9385ff068f29c99a62006ee545fe8d047621d885d3edab15bb9f"
+    },
+    {
+      "name": "lib/contracts/schema.js",
+      "bytes": 8256,
+      "sha256": "b6470a82bf1c3492877a9a5ececd1e52496f294e4253d606233712607ae3db96"
+    },
+    {
+      "name": "lib/contracts/source.d.ts",
+      "bytes": 255,
+      "sha256": "05328318b77aab16359158dac37c06b09509c02dc488c5c8c111071088295926"
+    },
+    {
+      "name": "lib/contracts/source.js",
+      "bytes": 2187,
+      "sha256": "125e058c8dba12ed474d608d39d546736586f8b6966c562b4f329812db73bcdf"
+    },
+    {
+      "name": "lib/contracts/types.d.ts",
+      "bytes": 297,
+      "sha256": "a817defaab6668f30e2aba778cc9a2f7db48f0f8c72f2d9c4629334a70f67d97"
+    },
+    {
+      "name": "lib/contracts/types.js",
+      "bytes": 11,
+      "sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881"
+    },
+    {
+      "name": "lib/imports.d.ts",
+      "bytes": 236,
+      "sha256": "800a7398d16c080e089746277cdc58bf27b7638fe99363c524428e31055ca93a"
+    },
+    {
+      "name": "lib/imports.js",
+      "bytes": 4160,
+      "sha256": "19f8b20d3c2b8d4f403d43d988f8af646743e19ff5e569c99be3efd7fea0fd15"
+    },
+    {
+      "name": "lib/index.d.ts",
+      "bytes": 376,
+      "sha256": "b348a9944996c92c4e588743580e59e2aa44fcd46fa278ecf780b138191e2207"
+    },
+    {
+      "name": "lib/index.js",
+      "bytes": 156,
+      "sha256": "e7416c7d7d75882f9ef01970f574479e889024fca33f12609833d5231eda1b0f"
+    },
+    {
+      "name": "lib/paths.d.ts",
+      "bytes": 505,
+      "sha256": "e42b71121db42fbda22a76bed191d625b72fe718255df745b61726aeeda2c9c3"
+    },
+    {
+      "name": "lib/paths.js",
+      "bytes": 5242,
+      "sha256": "2b785b4c8b68bc77c694262305befe294a2d1801c2cbc2531d95434475413018"
+    },
+    {
+      "name": "lib/styles.d.ts",
+      "bytes": 348,
+      "sha256": "13ae9581ddc440d9b935a4321dbf9f9d9a6133182c83b763fda90b8ca122206e"
+    },
+    {
+      "name": "lib/styles.js",
+      "bytes": 1486,
+      "sha256": "8dbcaf4e40580f118a7f1c0a1bef2c9e644c5ad67fd2bc2bd6335c655fd092db"
+    },
+    {
+      "name": "lib/types.d.ts",
+      "bytes": 2085,
+      "sha256": "5f24f43cddd4ef7173c03ab812da20bc17bd78511fcb2581a0d0c81d2a0eea61"
+    },
+    {
+      "name": "lib/types.js",
+      "bytes": 149,
+      "sha256": "b274533980bdcb8678638a1f55cceb4e49dabc63fa17e72e36948fbba309d9b0"
+    },
+    {
+      "name": "lib/worker.d.ts",
+      "bytes": 11,
+      "sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881"
+    },
+    {
+      "name": "lib/worker.js",
+      "bytes": 6785,
+      "sha256": "3ede81c5f73d19978b93d4afb6bbe8dd6d4ecd57d233802ccadd198af875f992"
+    },
+    {
+      "name": "package.json",
+      "bytes": 648,
+      "sha256": "8affa635694b04bfbbd7b8c3644a61b498ce812566dcba41d55430d797b2ba46"
+    }
+  ]
+}

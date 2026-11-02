@@ -1,13 +1,14 @@
+import './official-business-imports.ts';
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {
+const {
   createPerformance,
   PerformanceJobFailure,
   PerformanceWaitFailure,
-} from '../src/features/performance/index.ts';
-import type { PerformanceGateway } from '../src/features/performance/index.ts';
-import { HostError } from '../src/plugin-sdk/index.ts';
-import type { HostResult, Job, JsonValue } from '../src/plugin-sdk/index.ts';
+} = await import('@deviceforge/performance/model');
+import type { PerformanceGateway } from '@deviceforge/performance/model';
+const { HostError } = await import('@deviceforge/plugin-sdk');
+import type { HostResult, Job, JsonValue } from '@deviceforge/plugin-sdk';
 import { deferred, signal } from './fixtures.ts';
 
 const firstId = '11111111-1111-4111-8111-111111111111';

@@ -1,0 +1,29 @@
+{
+  "manifest_version": 1,
+  "id": "workspace_contributor",
+  "version": "0.1.0",
+  "name": "独立工作区贡献示例",
+  "description": "晚注册扩展点、功能级服务依赖与独立命令的第二插件",
+  "market": {
+    "summary": "提供者缺失可等待、恢复后继续工作的独立贡献插件",
+    "keywords": ["示例", "扩展点", "依赖", "热拔插"],
+    "categories": ["integration"],
+    "applies_to": ["deviceforge"],
+    "supports_mcp": "none",
+    "supports_agent": true,
+    "restart_policy": "none",
+    "author": "DeviceForge",
+    "license": "MIT",
+    "visibility": "internal",
+    "details": {}
+  },
+  "components": [{
+    "kind": "browser",
+    "root": "dist/browser",
+    "files": ["index.js"],
+    "entrypoints": { "any": { "runtime": "browser", "path": "index.js" } },
+    "plugin": { "api_version": 2 }
+  }],
+  "requirements": [],
+  "dependencies": { "format_version": 1, "dependencies": [] }
+}

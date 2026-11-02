@@ -7,6 +7,7 @@ import { fail, integer, json, keys, object, text } from './validation.ts';
 import { publicOverview } from './overview.ts';
 import { navigate } from './navigation.ts';
 import { hostPick } from './host-pick.ts';
+import { isManagedPortalRoot, resolveOwnedPortalRoot } from '../portal-ownership.ts';
 
 export function clearCollectors(entry: AttachedDebug): void {
   entry.session.abort();
@@ -24,16 +25,25 @@ export function createLocalUi(options: LocalDebuggerOptions, entries: () => Iter
     const found = options.document.querySelectorAll(
       `[data-deviceforge-plugin="${target.plugin_id}"][data-deviceforge-generation="${target.generation}"]`,
     );
+    const candidates = new Set<Element>(found);
     const result: { id: string; element: Element; kind: 'panel' | 'surface'; contribution: string }[] = [];
     for (const element of found) {
       if (element.closest('[data-deviceforge-debugger-internal]')) continue;
+      const managedPortal = isManagedPortalRoot(element);
+      if (managedPortal) {
+        const ownership = resolveOwnedPortalRoot(element);
+        // 失效Portal不得降级成旧surface，来源也必须仍是本次明确目标的有效根。
+        if (!ownership || !candidates.has(ownership.anchor) ||
+            ownership.anchor.closest('[data-deviceforge-debugger-internal]')) continue;
+      }
       const panel = element.getAttribute('data-deviceforge-panel');
       const extension = element.getAttribute('data-deviceforge-extension');
       if (panel === null && extension === null) continue;
       if (result.length === 64) return fail('limit_exceeded', '选定插件挂载根超过64项，不能任意截取');
       let id = ids.get(element);
       if (!id) { id = `root-${++sequence}`; ids.set(element, id); }
-      result.push({ id, element, kind: panel !== null ? 'panel' : 'surface', contribution: panel ?? extension ?? '' });
+      result.push({ id, element, kind: !managedPortal && panel !== null ? 'panel' : 'surface',
+        contribution: managedPortal ? extension ?? '' : panel ?? extension ?? '' });
     }
     return result;
   }
@@ -66,10 +76,29 @@ export function createLocalUi(options: LocalDebuggerOptions, entries: () => Iter
   }
   function mountCatalog(target: ResolvedTarget) {
     const catalog = options.extensions.catalog();
-    const observed = new Set(roots(target).map((root) => root.contribution));
+    const mountedRoots = roots(target);
+    const observed = new Set(mountedRoots.map((root) => root.contribution));
     const owner = { pluginId: target.plugin_id, generation: Number(target.generation) };
     const current = (item: { pluginId: string; generation: number }) => item.pluginId === owner.pluginId && item.generation === owner.generation;
     const runtime = options.manager().diagnosticSnapshot().find((item) => item.id === owner.pluginId && item.generation === owner.generation);
+    const workspace = options.extensions.workspaces.snapshot();
+    const views = new Map(workspace.catalog.views.filter(current).map((view) => [view.id, view.title]));
+    const workspaceMounts = workspace.instances.flatMap((instance) => {
+      const provider = instance.provider;
+      if (provider?.pluginId !== owner.pluginId || instance.providerGeneration !== owner.generation) return [];
+      const id = `workspace.${instance.instanceId}.${instance.generation}`;
+      // ready只表示提供者可用；当前实例的实际锚点才是DOM挂载证据。
+      const mounted = mountedRoots.some((root) => root.contribution === id &&
+        root.element.getAttribute('data-deviceforge-workspace-instance') === instance.instanceId &&
+        root.element.getAttribute('data-deviceforge-workspace-view') === provider.viewId &&
+        root.element.getAttribute('data-deviceforge-workspace-generation') === String(instance.generation));
+      return [{
+        id, kind: 'workspace', label: views.get(provider.viewId) ?? provider.viewId, owner, slot_id: null,
+        path: null, mode: null, workspace_id: instance.workspaceId, instance_id: instance.instanceId,
+        view_id: provider.viewId, instance_generation: instance.generation,
+        mounted, dom_observed: mounted, evidence: 'selected-plugin-workspace-instance-anchor',
+      }];
+    });
     return [
       ...(runtime?.panels ?? []).map((panel) => ({ id: panel.id, kind: 'panel', label: panel.title, owner, slot_id: null,
         path: null, mode: null, mounted: panel.mounted, dom_observed: observed.has(panel.id), evidence: 'host-public-panel-runtime' })),
@@ -78,6 +107,7 @@ export function createLocalUi(options: LocalDebuggerOptions, entries: () => Iter
       ...catalog.modules.filter(current).map((item) => ({ id: item.id, kind: 'module', label: item.title, owner,
         slot_id: pageSlotId(item.pluginId, item.route), path: item.route, mode: 'replace', mounted: observed.has(item.id),
         dom_observed: observed.has(item.id), evidence: 'selected-plugin-mounted-anchor' })),
+      ...workspaceMounts,
     ];
   }
   function prune(target: ResolvedTarget, entry: AttachedDebug) {

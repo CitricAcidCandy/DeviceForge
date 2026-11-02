@@ -1,0 +1,9 @@
+{
+  "extends": "../tsconfig.json",
+  "include": [
+    "../src/app/public-ui.ts",
+    "../plugins/business-kit/src/react/dialog.tsx",
+    "../plugins/business-kit/src/react/sheet.tsx",
+    "./business-kit-portals.test.ts"
+  ]
+}

@@ -33,14 +33,111 @@ test('点击仅派发合成事件且返回业务未知，无确认不派发', as
 });
 
 test('禁用、隐藏、校验失败、真实设备、未知副作用、表单与链接均不自动点击', async () => {
-  const item = fixture('<button type="button" disabled data-deviceforge-action="local">禁用</button><button type="button" hidden data-deviceforge-action="local">隐藏</button><button type="button" aria-invalid="true" data-deviceforge-action="local">无效</button><button type="button" data-deviceforge-action="device">设备</button><button type="button">未知</button><button data-deviceforge-action="local">提交</button><a href="/x" data-deviceforge-action="local">跳转</a>');
+  const item = fixture('<button type="button" disabled data-deviceforge-action="local">禁用</button><button type="button" hidden data-deviceforge-action="local">隐藏</button><button type="button" aria-invalid="true" data-deviceforge-action="local">无效</button><button type="button" data-deviceforge-action="device">设备</button><button type="button">未知</button><form><button data-deviceforge-action="local">提交</button></form><a href="/x" data-deviceforge-action="local">跳转</a>');
   try {
     let clicks = 0; item.root.addEventListener('click', () => { clicks++; });
-    for (const element of item.root.children) {
+    for (const element of item.root.querySelectorAll('button, a')) {
       const ref = item.collector.reference(element); assert.ok(ref);
       assert.equal((await item.actions.execute({ type: 'click', target: ref, confirmed: true }, item.signal)).status, 'rejected');
     }
     assert.equal(clicks, 0);
+  } finally { item.close(); }
+});
+
+test('无真实form关联的默认button和提交类input可普通点击，只派发一次合成事件', async () => {
+  const item = fixture([
+    '<button id="default" data-deviceforge-action="local">默认按钮</button>',
+    '<button type="submit" data-deviceforge-action="local">独立提交按钮</button>',
+    '<button type="reset" data-deviceforge-action="local">独立重置按钮</button>',
+    '<input type="submit" data-deviceforge-action="local">',
+    '<input type="reset" data-deviceforge-action="local">',
+    '<input type="image" data-deviceforge-action="local" alt="独立图片按钮">',
+    '<form id="ancestor"><button form="missing" data-deviceforge-action="local">显式解除祖先表单关联</button></form>',
+  ].join(''));
+  try {
+    let clicks = 0, submissions = 0, resets = 0;
+    item.root.addEventListener('click', () => { clicks++; });
+    item.root.addEventListener('submit', (event) => { submissions++; event.preventDefault(); });
+    item.root.addEventListener('reset', () => { resets++; });
+    const controls = item.root.querySelectorAll('button, input');
+    const first = item.target('#default');
+    assert.ok(first.element instanceof item.dom.window.HTMLButtonElement);
+    assert.equal(first.element.type, 'submit');
+    for (const element of controls) {
+      assert.ok(element instanceof item.dom.window.HTMLButtonElement || element instanceof item.dom.window.HTMLInputElement);
+      assert.equal(element.form, null);
+      const ref = item.collector.reference(element); assert.ok(ref);
+      const result = await item.actions.execute({ type: 'click', target: ref, confirmed: true }, item.signal);
+      assert.equal(result.status, 'dispatched');
+      assert.equal(result.businessOutcome, 'unknown');
+    }
+    assert.equal(clicks, controls.length);
+    assert.equal(submissions, 0);
+    assert.equal(resets, 0);
+  } finally { item.close(); }
+});
+
+test('真实form内及form属性关联的submit/reset/image仍拒绝，普通button保持可点击', async () => {
+  const item = fixture([
+    '<form id="inside">',
+    '<button data-deviceforge-action="local">默认提交</button>',
+    '<button type="SUBMIT" data-deviceforge-action="local">大小写提交</button>',
+    '<button type="reset" data-deviceforge-action="local">重置</button>',
+    '<input type="submit" data-deviceforge-action="local">',
+    '<input type="reset" data-deviceforge-action="local">',
+    '<input type="image" data-deviceforge-action="local" alt="图片提交">',
+    '<button id="ordinary" type="button" data-deviceforge-action="local">普通按钮</button>',
+    '</form>',
+    '<form id="outside"></form>',
+    '<button form="outside" data-deviceforge-action="local">外部默认提交</button>',
+    '<button form="outside" type="reset" data-deviceforge-action="local">外部重置</button>',
+    '<input form="outside" type="submit" data-deviceforge-action="local">',
+    '<input form="outside" type="reset" data-deviceforge-action="local">',
+    '<input form="outside" type="image" data-deviceforge-action="local" alt="外部图片提交">',
+  ].join(''));
+  try {
+    let clicks = 0, submissions = 0, resets = 0;
+    item.root.addEventListener('click', () => { clicks++; });
+    item.root.addEventListener('submit', (event) => { submissions++; event.preventDefault(); });
+    item.root.addEventListener('reset', () => { resets++; });
+    for (const element of item.root.querySelectorAll('button, input')) {
+      assert.ok(element instanceof item.dom.window.HTMLButtonElement || element instanceof item.dom.window.HTMLInputElement);
+      assert.ok(element.form);
+      if (element.hasAttribute('form')) assert.equal(element.closest('form'), null);
+      const ref = item.collector.reference(element); assert.ok(ref);
+      const result = await item.actions.execute({
+        type: 'click', target: ref, confirmed: true, allowUnknownSideEffects: true,
+      }, item.signal);
+      assert.equal(result.status, element.id === 'ordinary' ? 'dispatched' : 'rejected');
+    }
+    assert.equal(clicks, 1);
+    assert.equal(submissions, 0);
+    assert.equal(resets, 0);
+  } finally { item.close(); }
+});
+
+test('无form默认按钮仍需未知副作用独立授权，确认不能绕过设备或禁用规则', async () => {
+  const item = fixture('<button id="unknown">未知副作用</button><button data-deviceforge-action="device">设备</button><button disabled>禁用</button>');
+  try {
+    let clicks = 0;
+    item.root.addEventListener('click', () => { clicks++; });
+    const unknown = item.target('#unknown');
+    assert.equal((await item.actions.execute({
+      type: 'click', target: unknown.ref, confirmed: true,
+    }, item.signal)).status, 'rejected');
+    assert.equal((await item.actions.execute({
+      type: 'click', target: unknown.ref, allowUnknownSideEffects: true,
+    }, item.signal)).status, 'rejected');
+    assert.equal((await item.actions.execute({
+      type: 'click', target: unknown.ref, confirmed: true, allowUnknownSideEffects: true,
+    }, item.signal)).status, 'dispatched');
+    for (const element of [...item.root.querySelectorAll('button')].slice(1)) {
+      const ref = item.collector.reference(element); assert.ok(ref);
+      assert.equal((await item.actions.execute({
+        type: 'click', target: ref, confirmed: true, allowUnknownSideEffects: true,
+      }, item.signal)).status, 'rejected');
+    }
+    assert.equal(clicks, 1);
   } finally { item.close(); }
 });
 

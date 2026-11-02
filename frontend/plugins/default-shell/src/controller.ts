@@ -5,7 +5,7 @@ import type {
 import type { MountPool } from './mount-pool.ts';
 import {
   emptyLayout, placeView, replaceView, reorderView, resizeSplit, selectTab,
-  changeFloating, visibleInstances, instancesIn, customChildren,
+  changeFloating, visibleInstances, instancesIn, customChildren, hasCustomLayout, directInstancesIn,
 } from './layout.ts';
 import type { Placement } from './layout.ts';
 
@@ -13,6 +13,7 @@ export interface VisitedPage { readonly page: WorkspacePageInfo; readonly worksp
 export interface ShellState {
   readonly model: WorkspaceSnapshot;
   readonly pages: readonly WorkspacePageInfo[];
+  readonly routeConflicts: readonly string[];
   readonly visited: readonly VisitedPage[];
   readonly route: string;
   readonly current: VisitedPage | null;
@@ -32,11 +33,15 @@ export function identity(value: string): string {
   for (const character of value) hash = Math.imul(hash ^ character.charCodeAt(0), 16777619);
   return (hash >>> 0).toString(36);
 }
-export function createShellController(context: HostContext, pool: MountPool, initialRoute: string) {
+export function createShellController(context: HostContext, pool: MountPool, initialRoute: string, homeRoute?: string) {
   const ui = requireUi(context.ui);
   const visited = new Map<string, VisitedPage>();
   const listeners = new Set<() => void>();
-  let route = normalizeRoute(initialRoute);
+  const destination = (value: string) => {
+    const normalized = normalizeRoute(value);
+    return normalized === '/' && homeRoute ? normalizeRoute(homeRoute) : normalized;
+  };
+  let route = destination(initialRoute);
   let compact = false, compactView: string | null = null;
   let notice: string | null = null, preparing = 0, sequence = 0;
   let closed = false, refreshing = false;
@@ -76,7 +81,14 @@ export function createShellController(context: HostContext, pool: MountPool, ini
     if (closed || refreshing) return;
     refreshing = true;
     try {
-      const pages = [...ui.catalog().pages].sort((a, b) =>
+      const registered = ui.catalog().pages;
+      const counts = new Map<string, number>();
+      for (const page of registered) {
+        const key = normalizeRoute(page.route);
+        counts.set(key, (counts.get(key) ?? 0) + 1);
+      }
+      const routeConflicts = [...counts].filter(([, count]) => count > 1).map(([path]) => path).sort();
+      const pages = registered.filter((page) => counts.get(normalizeRoute(page.route)) === 1).sort((a, b) =>
         (a.navigation?.order ?? 100) - (b.navigation?.order ?? 100) || a.id.localeCompare(b.id));
       if (route === '/') {
         const first = pages.find((page) => !page.navigation?.hidden) ?? pages[0];
@@ -88,28 +100,41 @@ export function createShellController(context: HostContext, pool: MountPool, ini
       const activeLayout = layout(current);
       const all = [...instancesIn(activeLayout.root), ...activeLayout.floating.map((view) => view.instanceId),
         ...activeLayout.overlays.map((view) => view.instanceId)];
-      if (!compactView || !all.includes(compactView)) compactView = all[0] ?? null;
-      const visible = compact ? new Set(compactView ? [compactView] : []) : visibleInstances(activeLayout);
+      if (hasCustomLayout(activeLayout.root)) compactView = null;
+      else if (!compactView || !all.includes(compactView)) compactView = all[0] ?? null;
+      const compactContent = compact && compactView !== null;
+      const visible = compactContent ? new Set([compactView]) : visibleInstances(activeLayout);
       const visibleCustom = new Set<string>();
       const collectCustom = (node: WorkspaceLayoutNode | null, path: readonly number[]) => {
         if (!node || !current) return;
-        if (node.kind === 'custom') visibleCustom.add(`deviceforge_shell.custom.${identity(`${current.workspaceId}:${path.join('.')}`)}`);
+        if (node.kind === 'custom') {
+          visibleCustom.add(`deviceforge_shell.custom.${identity(`${current.workspaceId}:${path.join('.')}`)}`);
+          return;
+        }
         if (node.kind === 'tabs') {
           const selected = node.items.findIndex((item) => item.id === node.active);
           const at = Math.max(0, selected), child = node.items[at];
           if (child) collectCustom(child.node, [...path, at]);
-        } else if (node.kind !== 'view') (node.children ?? []).forEach((child, at) => collectCustom(child, [...path, at]));
+        } else if (node.kind === 'split') node.children.forEach((child, at) => collectCustom(child, [...path, at]));
       };
-      if (!compact || !compactView) collectCustom(activeLayout.root, []);
-      const managed = new Set([...visited.values()].map((page) => page.workspaceId));
+      if (!compactContent) collectCustom(activeLayout.root, []);
+      const managed = new Map([...visited.values()].map((page) => {
+        const stored = ui.readLayout(page.workspaceId) ?? emptyLayout();
+        return [page.workspaceId, new Set([...directInstancesIn(stored.root),
+          ...stored.floating.map((view) => view.instanceId), ...stored.overlays.map((view) => view.instanceId)])];
+      }));
       for (const instance of ui.snapshot().instances) {
-        if (!managed.has(instance.workspaceId)) continue;
+        const direct = managed.get(instance.workspaceId);
+        const ownedCustom = instance.pluginId === 'deviceforge_shell' &&
+          instance.instanceId.startsWith('deviceforge_shell.custom.');
+        // 外壳只管理布局直接节点；业务子实例的可见性由它自己的父视图负责。
+        if (!direct || !direct.has(instance.instanceId) && !ownedCustom) continue;
         const desired = instance.workspaceId === current?.workspaceId &&
           (visible.has(instance.instanceId) || visibleCustom.has(instance.instanceId));
         if (instance.visible !== desired) ui.setVisible(instance.instanceId, desired);
       }
       state = Object.freeze({
-        model: ui.snapshot(), pages, visited: [...visited.values()], route, current,
+        model: ui.snapshot(), pages, routeConflicts, visited: [...visited.values()], route, current,
         available: !!available, compact, compactView, notice, preparing,
       });
     } finally { refreshing = false; }
@@ -157,7 +182,7 @@ export function createShellController(context: HostContext, pool: MountPool, ini
   return {
     snapshot: (): ShellState => state,
     subscribe(listener: () => void): Dispose { listeners.add(listener); return () => { listeners.delete(listener); }; },
-    navigate(value: string) { route = normalizeRoute(value); notice = null; refresh(); },
+    navigate(value: string) { route = destination(value); notice = null; refresh(); },
     setCompact(value: boolean) { if (compact !== value) { compact = value; refresh(); } },
     selectCompact(instanceId: string) { compactView = instanceId; refresh(); },
     add: (ref: WorkspaceViewRef, placement: Placement, signal?: AbortSignal) => prepared(ref, placement, undefined, signal),
@@ -174,7 +199,12 @@ export function createShellController(context: HostContext, pool: MountPool, ini
       const existing = ui.snapshot().instances.find((instance) => instance.instanceId === instanceId);
       if (!existing || existing.reason === 'owner_inactive')
         ui.open({ instanceId, workspaceId, provider: node.provider, target, visible: true });
-      else if (JSON.stringify(existing.target) !== JSON.stringify(target)) ui.setTarget(instanceId, target);
+      else {
+        // 布局位置身份不变时，提供者仍须跟随当前声明；原实例管线负责撤销旧代挂载。
+        if (existing.provider?.pluginId !== node.provider.pluginId || existing.provider.viewId !== node.provider.viewId)
+          ui.selectProvider(instanceId, node.provider);
+        if (JSON.stringify(existing.target) !== JSON.stringify(target)) ui.setTarget(instanceId, target);
+      }
       return instanceId;
     },
     dispose() { closed = true; unsubscribe(); listeners.clear(); },

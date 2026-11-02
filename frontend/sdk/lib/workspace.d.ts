@@ -31,13 +31,24 @@ export interface WorkspaceViewContext {
 }
 /** 挂载函数只在本地使用，不进入目录或持久布局。 */
 export type WorkspaceMount = (target: HTMLElement, context: HostContext, instance: WorkspaceViewContext) => Promise<Dispose>;
+export interface WorkspaceNavigation {
+    readonly group?: string;
+    readonly order?: number;
+    readonly icon?: string;
+    readonly hidden?: boolean;
+    readonly description?: string;
+}
 export interface WorkspacePageDefinition {
     readonly id: string;
     readonly title: string;
     readonly route: string;
     readonly workspaceId?: string;
     readonly mount?: WorkspaceMount;
+    readonly navigation?: WorkspaceNavigation;
+    readonly operations?: readonly string[];
+    readonly taskPolicy?: 'listed' | 'all';
 }
+export type WorkspacePageUpdate = Partial<Pick<WorkspacePageDefinition, 'title' | 'navigation' | 'operations' | 'taskPolicy'>>;
 export interface WorkspaceDefinition {
     readonly id: string;
     readonly title: string;
@@ -106,6 +117,11 @@ export interface WorkspaceDefinitionInfo {
 export interface WorkspacePageInfo extends WorkspaceDefinitionInfo {
     readonly route: string;
     readonly workspaceId: string | null;
+    /** 带挂载函数的页面派生同标识视图，外壳统一通过公开 mount 渲染。 */
+    readonly viewId?: string | null;
+    readonly navigation?: WorkspaceNavigation;
+    readonly operations?: readonly string[];
+    readonly taskPolicy?: 'listed' | 'all';
 }
 export interface WorkspaceViewInfo extends WorkspaceDefinitionInfo {
     readonly provides: readonly string[];
@@ -139,6 +155,8 @@ export interface UiAccess {
     /** 渲染宿主可挂载已选择提供者的实例；释放句柄仅属于本次挂载，不影响后来新代。 */
     readonly mount?: (instanceId: string, target: HTMLElement, signal: AbortSignal) => Promise<Dispose>;
     register(contributions: WorkspaceContributions): Dispose;
+    /** 原位更新当前作用域登记的页面元数据，不变更路由、挂载或运行代次；旧宿主可省略。 */
+    readonly updatePage?: (pageId: string, changes: WorkspacePageUpdate) => void;
     catalog(): WorkspaceCatalog;
     snapshot(): WorkspaceSnapshot;
     subscribe(listener: () => void): Dispose;

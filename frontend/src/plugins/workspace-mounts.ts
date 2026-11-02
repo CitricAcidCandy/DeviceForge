@@ -1,5 +1,5 @@
 import { HostError } from '../plugin-sdk/models.ts';
-import type { ComponentContribution, Dispose, HostContext, WorkspaceViewContext } from '../plugin-sdk/index.ts';
+import type { ComponentContribution, Dispose, HostContext, WorkspaceMount, WorkspaceViewContext } from '../plugin-sdk/index.ts';
 import { createExtensionMounts } from './extensions/mounts.ts';
 import type { Owned } from './extensions/types.ts';
 import { awaitLifecycle, createKeyedQueue, lifecycleTimeouts } from './lifecycle.ts';
@@ -17,8 +17,9 @@ export interface WorkspaceMountDiagnostic {
 }
 export interface WorkspaceMountOptions {
   readonly registry: ReturnType<typeof createWorkspaceRegistry>;
-  readonly contextFor: (pluginId: string, generation: number) => HostContext | null;
+  readonly contextFor: (pluginId: string, generation: number) => HostContext | null | Promise<HostContext | null>;
   readonly timeouts?: Partial<LifecycleTimeouts>;
+  readonly decorateMount?: (mount: WorkspaceMount) => WorkspaceMount;
 }
 interface Binding {
   readonly instanceId: string;
@@ -78,7 +79,13 @@ export function createWorkspaceMounts(options: WorkspaceMountOptions) {
     const resolved = options.registry.resolveView(instanceId);
     if (!resolved) throw new HostError('protocol', 'workspace_view_unavailable', '工作区视图未选择提供者或当前不可用');
     const snapshot = resolved.instance.snapshot();
-    const providerContext = options.contextFor(resolved.owner.pluginId, resolved.owner.generation);
+    const readinessSignal = AbortSignal.any([
+      lifetime.signal, resolved.owner.signal, resolved.instance.signal, ...(caller ? [caller] : []),
+    ]);
+    const providerContext = await awaitLifecycle<HostContext | null>(
+      () => options.contextFor(resolved.owner.pluginId, resolved.owner.generation),
+      readinessSignal, deadline, '工作区提供者就绪',
+    );
     if (!providerContext || providerContext.signal.aborted)
       throw new HostError('cancelled', 'workspace_provider_revoked', '工作区提供者上下文已撤销');
     const previous = bindings.get(instanceId);
@@ -96,10 +103,12 @@ export function createWorkspaceMounts(options: WorkspaceMountOptions) {
     const contribution: ComponentContribution = {
       id, title: resolved.definition.title, slot: snapshot.workspaceId,
       mount(root, context) {
+        // 中间挂载根也传递可用尺寸，避免百分比高度退回内容高度。
+        root.classList.add('h-full', 'min-h-0', 'min-w-0', 'w-full');
         root.dataset.deviceforgeWorkspaceInstance = instanceId;
         root.dataset.deviceforgeWorkspaceView = resolved.definition.id;
         root.dataset.deviceforgeWorkspaceGeneration = String(snapshot.generation);
-        return resolved.definition.mount(root, context, resolved.instance);
+        return (options.decorateMount?.(resolved.definition.mount) ?? resolved.definition.mount)(root, context, resolved.instance);
       },
     };
     const entry: Owned<ComponentContribution> = {

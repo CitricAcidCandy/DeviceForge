@@ -10,6 +10,22 @@ export function instancesIn(node: WorkspaceLayoutNode | null): readonly string[]
   if (node.kind === 'tabs') return node.items.flatMap((item) => instancesIn(item.node));
   return (node.children ?? []).flatMap(instancesIn);
 }
+/** 自定义布局的children是交给提供者的数据，不属于外壳直接渲染的节点。 */
+export function directInstancesIn(node: WorkspaceLayoutNode | null): readonly string[] {
+  if (!node || node.kind === 'custom') return [];
+  if (node.kind === 'view') return [node.instanceId];
+  return node.kind === 'tabs'
+    ? node.items.flatMap((item) => directInstancesIn(item.node))
+    : node.children.flatMap(directInstancesIn);
+}
+/** 插件布局拥有自己的组合和响应式规则，外壳不能把它的子项直接拆成页签。 */
+export function hasCustomLayout(node: WorkspaceLayoutNode | null): boolean {
+  if (!node || node.kind === 'view') return false;
+  if (node.kind === 'custom') return true;
+  return node.kind === 'tabs'
+    ? node.items.some((item) => hasCustomLayout(item.node))
+    : node.children.some(hasCustomLayout);
+}
 export function visibleInstances(layout: WorkspaceLayout): ReadonlySet<string> {
   const result = new Set<string>();
   const visit = (node: WorkspaceLayoutNode | null) => {
@@ -18,7 +34,7 @@ export function visibleInstances(layout: WorkspaceLayout): ReadonlySet<string> {
     else if (node.kind === 'tabs') {
       const selected = node.items.find((item) => item.id === node.active) ?? node.items[0];
       if (selected) visit(selected.node);
-    } else for (const child of node.children ?? []) visit(child);
+    } else if (node.kind === 'split') for (const child of node.children) visit(child);
   };
   visit(layout.root);
   for (const view of [...layout.floating, ...layout.overlays]) result.add(view.instanceId);

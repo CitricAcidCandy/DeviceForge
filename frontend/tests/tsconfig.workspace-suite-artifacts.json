@@ -1,0 +1,6 @@
+{
+  "extends": "../tsconfig.json",
+  "include": [
+    "./workspace-suite-artifacts.test.ts"
+  ]
+}

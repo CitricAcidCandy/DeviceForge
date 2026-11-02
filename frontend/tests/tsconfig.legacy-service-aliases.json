@@ -1,0 +1,8 @@
+{
+  "extends": "../tsconfig.json",
+  "include": [
+    "../src/app/composition/legacy-service-aliases.ts",
+    "../src/app/composition/legacy-runtime-business.ts",
+    "./composition-legacy-service-aliases.test.ts"
+  ]
+}

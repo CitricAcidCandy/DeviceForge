@@ -16,7 +16,8 @@ export {
 
 export const help = `DeviceForge · 设备工坊
 用法：deviceforge start [--ip 0.0.0.0] [--port 7030] [--mcp-port 7032] [--data-dir 目录] [--marketplace-url 地址 | --marketplace-config 文件]
-      deviceforge plugin pack [manifest.json] [--out 新目录] [--platform win32-x64]
+      deviceforge plugin pack [manifest.json] [--out 新目录] [--platform win32-x64] [--prepare-only true]
+      deviceforge plugin finalize <实际准备回执.json>
       deviceforge plugin plan <打包目录> --server 资源服务地址
       deviceforge plugin publish <打包目录> --server 资源服务地址
       deviceforge plugin install <release.json完整URL|离线ZIP> [--api-url 服务地址] [--release-id ID --release-version 版本 --manifest-sha256 摘要]

@@ -47,6 +47,10 @@ guide-echo/
 
 ## 生成与核对归档
 
+TypeScript前后端配套工程可选用实际本地发行的 `@deviceforge/plugin-tools@0.1.1`。它的 `generatePluginContracts(manifest)` 从唯一清单的 `services.provided` 生成共享类型、Schema、服务引用和薄提交端，不要求宿主源码或内部生成器；部署者须另行交付真实TGZ及依赖，不能假定registry已发布。详细独立工程用法继续查询 `target:'frontend', topic:'packaging'`。
+
+生成的提交端只调用公开服务器服务提交接口一次，原样返回Job回执；受理不等于成功，查询、取消和未知结果仍遵守本主题对应协议。生成类型不替代服务器运行期Schema校验；本工具不生成Rust实现或新服务执行器，Rust组件继续使用原公开SDK。
+
 在 `examples` 主题中提供的完整 Node 示例目录运行：
 
 ```powershell

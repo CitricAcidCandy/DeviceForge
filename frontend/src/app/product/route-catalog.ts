@@ -1,6 +1,6 @@
 import type { Dispose, ModuleInfo, WorkspacePageInfo, WorkspaceSnapshot } from '../../plugin-sdk/index.ts';
-import { localRouteKey, normalizeLocalRoute, pluginRoute } from './routes.ts';
-import type { ProductRoute } from './routes.ts';
+import { localRouteKey, normalizeLocalRoute, pluginRoute, routeHash } from './route-address.ts';
+import type { ProductRoute } from './route-address.ts';
 
 export interface RouteNavigation {
   readonly group?: string;
@@ -93,7 +93,7 @@ function moduleEntry(module: ModuleInfo): RouteCatalogEntry {
     generation: module.generation,
     title: module.title,
     label: module.title,
-    route: `/plugin/${module.pluginId}/${module.route}`,
+    route: `/${routeHash(pluginRoute(module.pluginId, module.route))}`,
     group: '插件',
     order: 0,
     icon: null,
@@ -186,7 +186,11 @@ export function buildRouteCatalog(
       code: 'invalid_route', route: page.route, contributions: Object.freeze([identity(page)]),
     }));
   }
-  candidates.push(...modules.map(moduleEntry));
+  // 同一旧模块已由原注册层派生成工作区页面时只保留一次；不同身份仍报告冲突。
+  candidates.push(...modules.filter((module) => !pages.some((page) =>
+    page.pluginId === module.pluginId && page.id === module.id &&
+    page.generation === module.generation && page.viewId === module.id &&
+    page.route === moduleEntry(module).route)).map(moduleEntry));
   const occupied = new Set(candidates.map((entry) => entry.key));
   for (const page of compatibility) {
     const entry = pageEntry(page, 'compatibility');

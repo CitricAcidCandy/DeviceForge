@@ -1,0 +1,6 @@
+{
+  "extends": "../tsconfig.json",
+  "include": [
+    "./composition-early-startup.test.ts"
+  ]
+}

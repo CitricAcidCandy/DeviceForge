@@ -3,16 +3,19 @@ import { createRoot } from 'react-dom/client';
 import { flushSync } from 'react-dom';
 import './styles.css';
 import './product/layout.css';
-import { App } from './product/App.tsx';
-import { createProductServices } from './product/services.ts';
-import type { ProductServices } from './product/services.ts';
+import { CompositionRoot } from './composition/Root.tsx';
+import { officialSources } from './composition/official-sources.ts';
+import { startWorkspace } from './composition/start-workspace.ts';
+import { legacyRouteSurfaces } from './composition/legacy-route-surfaces.ts';
+import { createProductPlatformServices } from './product/platform-services.ts';
+import type { ProductPlatformServices } from './product/platform-services.ts';
 import { createNamedSlotAdapter } from '../plugins/index.ts';
 import { productServiceOrigin, probeProductConnection } from './product/connection.ts';
 import { createInstalledPackageImporter } from './installed-package-importer.ts';
 import { installPublicUi } from './public-ui.ts';
 import { ApiError } from '../services/api/index.ts';
 import { HOST_SLOTS } from './product/slots.ts';
-import { PRODUCT_ROUTES, parseProductRoute, pluginRoute, routeHash } from './product/routes.ts';
+import { parseProductRoute, routeHash } from './product/route-address.ts';
 
 export async function startFrontendApp(documentRef: Document, windowRef: Window) {
   const target = documentRef.getElementById('app');
@@ -53,7 +56,7 @@ export async function startFrontendApp(documentRef: Document, windowRef: Window)
     },
   ]);
   const root = createRoot(application);
-  let services: ProductServices | null = null;
+  let services: ProductPlatformServices | null = null;
   let closing: Promise<void> | null = null;
   let switching = false;
   const lifetime = new AbortController();
@@ -75,7 +78,7 @@ export async function startFrontendApp(documentRef: Document, windowRef: Window)
         await services.dispose();
       }
       if (lifetime.signal.aborted) throw new Error('页面已关闭');
-      services = createProductServices({
+      services = createProductPlatformServices({
         baseUrl: origin,
         transport: windowRef.fetch.bind(windowRef),
         esmImporter: createInstalledPackageImporter(origin),
@@ -84,18 +87,17 @@ export async function startFrontendApp(documentRef: Document, windowRef: Window)
         componentTarget: () => component,
         moduleTarget: () => module,
         slotAdapter: slots,
+        slotDirectory: slots,
         themeTarget: themeRoot,
+        decorateWorkspaceMount: legacyRouteSurfaces(() => services?.runtime.extensions ?? null),
         debugger: { document: documentRef, slots: HOST_SLOTS,
-          readHostRoutes: () => [
-            ...PRODUCT_ROUTES.map(route => ({ path: `/${route.id}`, label: route.label,
-              slotIds: HOST_SLOTS.filter(slot => slot.route === route.id).map(slot => slot.id) })),
-            ...(services?.runtime.extensions.catalog().modules ?? []).map(module => ({
-              path: `/${routeHash(pluginRoute(module.pluginId, module.route))}`, label: module.title,
-            })),
-          ],
+          readHostRoutes: () => (services?.routeCatalog?.snapshot().entries ?? []).map((route) => ({
+            path: route.route, label: route.label,
+            slotIds: HOST_SLOTS.filter((slot) => slot.route === route.key).map((slot) => slot.id),
+          })),
           navigate(path, signal) {
             signal.throwIfAborted();
-            windowRef.location.hash = routeHash(parseProductRoute(`#${path}`));
+            windowRef.location.hash = routeHash(parseProductRoute(`#${path}`, undefined, true));
           },
         },
         developerTools: true,
@@ -104,9 +106,10 @@ export async function startFrontendApp(documentRef: Document, windowRef: Window)
           load: () => import('@deviceforge/browser-debugger'),
           ...browserPersistence(windowRef),
         },
+        officialPlugins: { sources: officialSources.sources, ...browserPersistence(windowRef) },
         connection: { baseUrl: origin, reconnect: connect },
       });
-      root.render(createElement(App, { services }));
+      root.render(createElement(CompositionRoot, { services }));
       // 登记轻量实例供本机 MCP 发现；失败只影响调试，不影响普通插件与业务。
       void services.runtime.debugger?.start().catch(() => undefined);
       // 产品启动默认启用已安装插件；独立工厂的构造和静态渲染保持无网络副作用。
@@ -121,13 +124,28 @@ export async function startFrontendApp(documentRef: Document, windowRef: Window)
         });
         console.error('默认启用插件失败', error instanceof Error ? error.message : '未知原因');
       });
-      void defaults.then(() => currentServices.bundledDebugger?.start(lifetime.signal)).catch((error: unknown) => {
+      // 随附来源仍各自确认安装目录；不等无关插件启用或兼容桥完成才显示外壳。
+      startWorkspace({
+        services: currentServices,
+        signal: lifetime.signal,
+        officialIds: new Set(officialSources.sources.map((source) => source.id)),
+        selection: { key: `deviceforge.shell.selected:${origin}`, ...browserPersistence(windowRef) },
+        report(label, error) {
+          currentServices.messages.error(label, {
+            description: error instanceof Error ? error.message : '请使用平台恢复入口核对插件状态。',
+            logId: error instanceof ApiError ? error.logId : null,
+          });
+        },
+      });
+      void defaults.catch(() => undefined).then(() => currentServices.bundledDebugger?.start(lifetime.signal)).catch((error: unknown) => {
         if (lifetime.signal.aborted || currentServices.runtime.host.signal.aborted) return;
         currentServices.messages.error('官方调试器暂未启动', {
           description: error instanceof Error ? error.message : '请到资源市场的已安装列表查看调试器状态。',
           logId: error instanceof ApiError ? error.logId : null,
         });
       });
+      for (const diagnostic of officialSources.diagnostics)
+        console.error('随附插件清单未接入', diagnostic.path, diagnostic.message);
     } finally {
       switching = false;
     }

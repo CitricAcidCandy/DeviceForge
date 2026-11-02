@@ -12,9 +12,11 @@ export function mutationGuard(element: Element, node: UiNode, confirmed: boolean
   if (!confirmed) return '变更动作需要调用者显式确认';
   if (element.closest('[aria-invalid="true"]')) return '目标或其容器已声明校验失败';
   if (element.localName === 'a' || element.closest('a[href]')) return '链接请通过白名单导航操作';
-  if ((element.localName === 'button' && (element.getAttribute('type') ?? 'submit') === 'submit') ||
-      (element.localName === 'input' && ['submit', 'image'].includes(element.getAttribute('type') ?? 'text')))
-    return '不自动提交表单，请通过产品校验和确认流程操作';
+  const view = element.ownerDocument.defaultView;
+  // 原生form属性同时覆盖祖先与外部关联；默认submit没有关联表单时只作普通点击。
+  if (view && (element instanceof view.HTMLButtonElement || element instanceof view.HTMLInputElement) &&
+      element.form !== null && ['submit', 'reset', 'image'].includes(element.type))
+    return '不自动提交或重置表单，请通过产品校验和确认流程操作';
   return null;
 }
 

@@ -1,0 +1,19 @@
+{
+  "manifest_version": 1,
+  "id": "deviceforge_settings",
+  "version": "0.1.0",
+  "name": "设置",
+  "description": "通过公开契约管理连接、主题和配置，保留冲突草稿与未确认任务。",
+  "market": {
+    "categories": ["function", "ui"],
+    "visibility": "internal",
+    "supports_mcp": "none",
+    "supports_agent": false,
+    "restart_policy": "none"
+  },
+  "components": [{
+    "kind": "browser",
+    "files": ["dist"],
+    "entrypoints": { "any": { "runtime": "browser", "path": "dist/index.js" } }
+  }]
+}

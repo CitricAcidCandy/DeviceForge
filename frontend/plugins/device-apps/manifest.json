@@ -1,0 +1,27 @@
+{
+  "manifest_version": 1,
+  "id": "deviceforge_device_apps",
+  "version": "0.1.0",
+  "name": "设备应用",
+  "description": "设备应用列表、启动停止、安装与安装包分析",
+  "market": {
+    "summary": "完整设备引用绑定的应用管理与安装包分析视图",
+    "keywords": ["设备", "应用", "APK", "APKS", "HAP"],
+    "categories": ["function", "ui"],
+    "applies_to": ["deviceforge"],
+    "supports_mcp": "none",
+    "supports_agent": true,
+    "restart_policy": "none",
+    "author": "DeviceForge",
+    "visibility": "internal"
+  },
+  "components": [{
+    "kind": "browser",
+    "package_name": "@deviceforge/device-apps",
+    "entrypoints": { "any": { "path": "dist/index.js", "runtime": "browser" } },
+    "files": ["dist"],
+    "plugin": { "api_version": 2 }
+  }],
+  "requirements": [],
+  "dependencies": { "dependencies": [], "format_version": 1 }
+}

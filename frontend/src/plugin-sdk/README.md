@@ -4,7 +4,11 @@
 
 定义满足 WebPlugin 的对象，所有贡献 ID 使用 `<插件ID>.<贡献名>`。面板与组件/模块 mount 接受专属 HTMLElement 和 HostContext，返回 Dispose；异步资源必须处理 context.signal，并用 onDispose 登记事件/定时器等释放逻辑。
 
+可选 `onCleanup` 用于已归属外部资源的释放，提供 `CleanupContext` 的独立信号、绝对截止时间及可选的 `transport.request`。它复用同一客户端与原资源追踪；普通上下文在撤销后仍失效，不能用清理入口发起新业务。回调返回或超时后清理句柄失效，手动释放与卸载只调用一次。失败归最近的登记作用域、保留诊断，不自动重放未知写入；HTTP 成功不自动证明业务资源已回收。
+
 v1 升级：apiVersion 改为 2；所有请求显式传信号，成功从 HostResult.data 读取模型，并保留 logId。HostError 包含错误分类、代码、状态、日志 ID 与限流等待值。Operation.input_schema 可为任意 JSON 模式；任务无结果/无错误映射为 null。
+
+`api-errors.ts` 提供统一的 `ApiError` 与结构化错误字段读取；`job-errors.ts` 提供泛型 `JobFailure/JobWaitFailure`，只保存调用方传入的票据和原因，不依赖 HTTP DTO 或执行任务。宿主 HTTP 和旧任务出口、独立业务基础包都转发同一构造器；HTTP 错误沿既有 API 公开出口接入，不让共享任务层直接依赖宿主上下文。跨窗口或 SDK 副本按 `readHostError` 校验字段，不以构造器身份猜测来源。
 
 主题是可选的 `HostContext.themes` 与 `PluginContributions.themes` 扩展，使用显式选择、运行代次和可释放订阅。变量/CSS 限额、目标节点与基础样式恢复见 [主题插件与宿主样式](../../docs/主题插件与宿主样式.md)。
 

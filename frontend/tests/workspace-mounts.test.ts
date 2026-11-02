@@ -29,6 +29,32 @@ function fixture(mount: WorkspaceMount, timeouts = { mountMs: 100, cleanupMs: 30
   return { registry, provider, ui, bridge, open };
 }
 
+test('工作区挂载根传递容器尺寸，不以内容高度截断外壳或修改外部目标', async () => {
+  const f = fixture(async (root) => {
+    const content = root.ownerDocument.createElement('div');
+    content.className = 'h-full min-h-0 min-w-0 w-full';
+    root.append(content);
+    return () => {};
+  });
+  const target = dom();
+  target.className = 'relative h-full min-h-0 w-full';
+  f.open('plugin.shell');
+  try {
+    await f.bridge.mount('plugin.shell', target);
+    const root = children(target)[0];
+    assert.ok(root);
+    for (const name of ['h-full', 'w-full', 'min-h-0', 'min-w-0']) {
+      assert.equal(root.classList.contains(name), true, `工作区挂载根缺少 ${name}`);
+    }
+    assert.equal(root.style.length, 0);
+    assert.equal(target.className, 'relative h-full min-h-0 w-full');
+  } finally {
+    await f.bridge.dispose();
+    await f.provider.dispose();
+    f.registry.dispose();
+  }
+});
+
 test('同一视图的两个实例独立挂载，保留fallback并标注实例与视图归属', async () => {
   const received: string[] = [];
   const f = fixture(async (root, _context, instance) => {

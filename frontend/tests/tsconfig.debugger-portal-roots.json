@@ -1,0 +1,7 @@
+{
+  "extends": "../tsconfig.json",
+  "include": [
+    "../src/app/debugger-local/ui.ts",
+    "./debugger-portal-roots.test.ts"
+  ]
+}

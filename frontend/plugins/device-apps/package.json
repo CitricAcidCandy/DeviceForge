@@ -1,0 +1,42 @@
+{
+  "name": "@deviceforge/device-apps",
+  "description": "独立设备应用与安装包分析视图",
+  "type": "module",
+  "private": true,
+  "exports": {
+    ".": {
+      "development": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./model": {
+      "development": "./src/model/index.ts",
+      "types": "./dist/model/index.d.ts",
+      "import": "./dist/model/index.js"
+    },
+    "./services": {
+      "development": "./src/services.ts",
+      "types": "./dist/services.d.ts",
+      "import": "./dist/services.js"
+    },
+    "./view": {
+      "development": "./src/view.tsx",
+      "types": "./dist/view.d.ts",
+      "import": "./dist/view.js"
+    }
+  },
+  "dependencies": {
+    "@deviceforge/business-kit": "file:../business-kit",
+    "@deviceforge/devices": "file:../devices",
+    "radix-ui": "1.8.1",
+    "lucide-react": "1.56.0"
+  },
+  "peerDependencies": {
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  },
+  "devDependencies": {
+    "@deviceforge/plugin-sdk": "file:../../sdk/dist/deviceforge-plugin-sdk-0.1.0.tgz",
+    "@deviceforge/contracts": "file:../../contracts"
+  }
+}

@@ -1,0 +1,4 @@
+{
+  "extends": "../tsconfig.json",
+  "include": ["./shell-facts.test.ts", "./shell-render-recovery.test.ts", "../plugins/default-shell/src/mount.tsx"]
+}

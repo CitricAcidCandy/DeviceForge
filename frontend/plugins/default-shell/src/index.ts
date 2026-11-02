@@ -11,7 +11,7 @@ export default function createDefaultShell(identity: PluginIdentity): WebPlugin 
       context.onDispose(ui.register({
         views: [{
           id: `${identity.id}.root`, title: '默认工作区', provides: ['host.shell'],
-          mount: async (target, host) => (await import('./mount.tsx')).mountShell(target, host),
+          mount: async (target, host, instance) => (await import('./mount.tsx')).mountShell(target, host, instance),
         }],
       }));
       const schema = {

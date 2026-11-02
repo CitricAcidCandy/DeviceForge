@@ -1,0 +1,48 @@
+{
+  "manifest_version": 1,
+  "id": "deviceforge_analysis",
+  "version": "0.1.0",
+  "name": "分析与数据",
+  "description": "DEX 与 MessagePack 离线分析",
+  "market": {
+    "summary": "DEX 与 MessagePack 离线分析",
+    "keywords": [
+      "分析与数据"
+    ],
+    "categories": [
+      "function",
+      "ui"
+    ],
+    "applies_to": [
+      "deviceforge"
+    ],
+    "supports_mcp": "none",
+    "supports_agent": true,
+    "restart_policy": "none",
+    "author": "DeviceForge",
+    "visibility": "internal"
+  },
+  "components": [
+    {
+      "kind": "browser",
+      "package_name": "@deviceforge/analysis",
+      "entrypoints": {
+        "any": {
+          "path": "dist/index.js",
+          "runtime": "browser"
+        }
+      },
+      "files": [
+        "dist"
+      ],
+      "plugin": {
+        "api_version": 2
+      }
+    }
+  ],
+  "requirements": [],
+  "dependencies": {
+    "dependencies": [],
+    "format_version": 1
+  }
+}

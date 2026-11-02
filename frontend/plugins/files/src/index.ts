@@ -1,6 +1,8 @@
 import type {
   HostContext, WebPlugin, WorkspaceLayout, WorkspaceLayoutNode,
 } from '@deviceforge/plugin-sdk';
+import { registerFilesTools } from './tools.ts';
+export { FILES_TOOLS_POINT } from './tools.ts';
 
 export const FILES_PLUGIN_ID = 'deviceforge_files';
 export const FILES_WORKSPACE_ID = 'deviceforge_files.workspace';
@@ -44,9 +46,9 @@ return {
         },
       }],
       pages: [{
-        id: 'deviceforge_files.page', title: '文件与产物', route: '/files',
+        id: 'deviceforge_files.page', title: '文件', route: '/files',
         workspaceId: FILES_WORKSPACE_ID,
-        navigation: { group: '工作台', order: 20, icon: 'folder', description: '浏览、预览与下载服务器产物' },
+        navigation: { group: '工作台', order: 20, icon: 'folder', hidden: true, description: '浏览、预览与下载服务器产物' },
       }],
       views: [{
         id: FILES_VIEW_ID, title: '文件浏览器', provides: ['files.browser'], mount,
@@ -58,6 +60,7 @@ return {
         provider: { pluginId: FILES_PLUGIN_ID, viewId: FILES_VIEW_ID },
       }, context.signal);
     }
+    context.onDispose(registerFilesTools(context));
   },
 };
 }

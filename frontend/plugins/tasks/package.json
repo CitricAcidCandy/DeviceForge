@@ -8,6 +8,7 @@
     "./view": "./src/view.tsx"
   },
   "dependencies": {
+    "@deviceforge/business-kit": "0.1.0",
     "@noble/hashes": "2.0.1",
     "lucide-react": "1.56.0"
   },

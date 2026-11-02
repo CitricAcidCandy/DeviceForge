@@ -4,6 +4,7 @@ import { createReadStream } from 'node:fs';
 import { createInflateRaw } from 'node:zlib';
 import { relativePath, RESOURCE_LIMIT, OFFLINE_LIMIT, EXPANDED_LIMIT, MEMBER_LIMIT } from './contract.mjs';
 import { fail, readAt, crcUpdate, memberCollector } from './archive-common.mjs';
+import { closeArchiveInput } from './archive-close.mjs';
 
 export async function zipMembers(path, { collect = true, limit = OFFLINE_LIMIT } = {}) {
   const inputStat = await lstat(path);
@@ -88,7 +89,10 @@ export async function zipMembers(path, { collect = true, limit = OFFLINE_LIMIT }
         }
         fail(bytes === size && ((crc ^ 0xffffffff) >>> 0) === header.readUInt32LE(16) &&
           (!inflate || !input || inflate.bytesWritten === packed), 'ZIP 成员长度或 CRC 不符');
-      } finally { input?.destroy(); inflate?.destroy(); }
+      } finally {
+        inflate?.destroy();
+        await closeArchiveInput(input);
+      }
       if (!directoryMember) collector.add(name, size, chunks);
       cursor += 46 + length + extra + comment;
     }

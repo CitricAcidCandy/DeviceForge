@@ -1,0 +1,7 @@
+{
+  "extends": "../tsconfig.json",
+  "include": [
+    "../plugins/default-shell/src/mount-pool.ts",
+    "./default-shell-react.test.ts"
+  ]
+}

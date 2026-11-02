@@ -1,0 +1,11 @@
+{
+  "extends": "../tsconfig.json",
+  "include": [
+    "../src/app/plugin-cleanup.ts",
+    "../src/app/release-host.ts",
+    "../src/plugins/cleanup-access.ts",
+    "../src/plugins/scope.ts",
+    "plugin-cleanup.test.ts",
+    "plugin-cleanup-runtime.test.ts"
+  ]
+}

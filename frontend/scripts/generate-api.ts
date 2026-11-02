@@ -2,6 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import openapiTS, { astToString } from 'openapi-typescript';
+import { syncPluginContracts } from './sync-plugin-contracts.ts';
 
 const manifest = fileURLToPath(new URL('../../backend/Cargo.toml', import.meta.url));
 const result = spawnSync(
@@ -24,3 +25,4 @@ await writeFile(
   'utf8',
 );
 console.log('公开接口类型已生成');
+await syncPluginContracts(fileURLToPath(new URL('..', import.meta.url)));

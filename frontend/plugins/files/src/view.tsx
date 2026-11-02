@@ -68,17 +68,17 @@ export function FilesView({
   };
   const error: FileFailure | null = snapshot.error?.kind === 'cancelled' ? null : snapshot.error;
   return (
-    <section className="flex min-h-full min-w-0 flex-col gap-4 bg-[#F5F6FB] p-4 text-[#222631]" aria-label="文件与产物">
+    <section className="@container/files flex min-h-full min-w-0 flex-col gap-4 bg-[#F5F6FB] p-6 text-[#222631]" aria-label="文件与产物">
+      <a href="#/settings" className="self-start text-xs text-[#6C4CF5] hover:underline">← 返回设置</a>
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-[10px] tracking-[0.14em] text-[#596479]">服务器产物</p>
-          <h1 className="mt-1 text-xl font-semibold">文件与产物</h1>
-          <p className="mt-1 text-xs text-[#596479]">浏览任务产物和 ZIP 目录。上传文件，或输入任务结果中的产物 ID。</p>
+          <h1 className="mt-1 text-xl font-semibold">文件</h1>
+          <p className="mt-1 text-xs text-[#596479]">浏览服务器任务产物与 ZIP 目录。从任务结果复制产物 ID，或直接上传文件。</p>
         </div>
-        <span className="rounded-full border border-[#E6EAF3] bg-white px-3 py-1 text-xs text-[#596479]">文件插件</span>
       </header>
-      <div className="grid min-w-0 gap-4 xl:grid-cols-[250px_minmax(0,1fr)]">
-        <aside className="flex flex-col gap-4 rounded-xl border border-[#E6EAF3] bg-white p-4" aria-label="选择服务器文件">
+      <div className="grid min-w-0 gap-4 @3xl/files:grid-cols-[250px_minmax(0,1fr)]">
+        <aside className="flex min-w-0 flex-col gap-4 rounded-xl border border-[#E6EAF3] bg-white p-4" aria-label="选择服务器文件">
           <ui.Label htmlFor="artifact-upload">上传文件</ui.Label>
           <ui.Input id="artifact-upload" type="file" disabled={pending} onChange={(event) => {
             const file = event.target.files?.[0];
@@ -117,7 +117,7 @@ export function FilesView({
                 <ui.Button variant="destructive" disabled={pending} onClick={() => setDeletion({ id: metadata.id, filename: metadata.filename })}>删除产物</ui.Button>
               </div>
             </div>
-            <dl className="my-5 grid grid-cols-1 gap-4 rounded-lg bg-[#F8F9FD] p-4 text-xs sm:grid-cols-2">
+            <dl className="my-5 grid grid-cols-1 gap-4 rounded-lg bg-[#F8F9FD] p-4 text-xs @lg/files:grid-cols-2">
               <div><dt className="text-[#596479]">类型</dt><dd className="mt-1 break-all">{metadata.mediaType}</dd></div>
               <div><dt className="text-[#596479]">大小</dt><dd className="mt-1">{metadata.size.toLocaleString()} 字节</dd></div>
               <div><dt className="text-[#596479]">发布于</dt><dd className="mt-1">{new Date(metadata.createdAt).toLocaleString()}</dd></div>
@@ -146,7 +146,7 @@ export function FilesView({
         </main>
       </div>
       {deletion && <div className="fixed inset-0 z-[80] grid place-items-center bg-black/25 p-5">
-        <section role="alertdialog" aria-modal="true" aria-labelledby="files-delete-title" aria-describedby="files-delete-description" className="w-full max-w-md rounded-xl border border-[#E6EAF3] bg-white p-6 shadow-xl">
+        <section role="alertdialog" aria-modal="true" aria-labelledby="files-delete-title" aria-describedby="files-delete-description" className="max-h-[calc(100dvh-2.5rem)] w-full max-w-md overflow-y-auto rounded-xl border border-[#E6EAF3] bg-white p-6 shadow-xl">
           <h2 id="files-delete-title" className="text-base font-semibold">删除服务器产物？</h2>
           <p id="files-delete-description" className="mt-3 break-all text-sm leading-6 text-[#596479]">将删除 {deletion.filename}（{deletion.id}）。正在使用的产物由服务器拒绝删除；此操作不会删除设备文件。</p>
           <div className="mt-5 flex justify-end gap-2"><ui.Button variant="outline" autoFocus onClick={() => setDeletion(null)}>保留文件</ui.Button><ui.Button variant="destructive" disabled={pending} onClick={() => {

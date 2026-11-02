@@ -193,6 +193,9 @@ test('具名槽位和模块有真实挂载/释放行为，发现入口与命令�
     componentTarget: (name) => (name === 'workspace.sidebar' ? slot : null),
     moduleTarget: (route) => (route === '/example' ? moduleRoot : null),
   });
+  const baseline = instance.extensions.catalog();
+  assert.ok(baseline.services.some((entry) => entry.id === 'host.platform.recovery'));
+  assert.ok(baseline.services.some((entry) => entry.id === 'host.workspace.storage'));
   register(instance, 'example', {
     components: [
       {
@@ -266,14 +269,7 @@ test('具名槽位和模块有真实挂载/释放行为，发现入口与命令�
   assert.equal(releases, 2);
   assert.equal(slot.children.length, 0);
   assert.equal(moduleRoot.children.length, 0);
-  assert.deepEqual(instance.extensions.catalog(), {
-    components: [],
-    modules: [],
-    commands: [],
-    services: ['host.ai-sdk', 'host.ai-sdk.stream', 'host.performance', 'host.plugin-dependencies', 'host.mirroring.stream']
-      .map((id) => ({ id, pluginId: 'host', generation: 0, version: '1',
-        inputSchema: true, outputSchema: true, available: true, reason: null })),
-  });
+  assert.deepEqual(instance.extensions.catalog(), baseline);
   assert.throws(
     () => instance.extensions.executeCommand('example.command', null, signal()),
     /撤销/,

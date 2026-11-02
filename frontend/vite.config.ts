@@ -6,13 +6,16 @@ import { generatePublicUi, publicUiEntries } from './scripts/generate-public-ui.
 import { workspacePluginPackages } from './scripts/workspace-plugin-packages.ts';
 
 const frontendRoot = fileURLToPath(new URL('.', import.meta.url));
+// 开发出口属于启动配置；每次解析模块都扫磁盘会阻塞样式和首屏，运行时热装卸不走此目录。
+const workspaceAliases = new Map(workspacePluginPackages(frontendRoot).aliases
+  .map((entry) => [entry.find, entry.replacement]));
 
 export default defineConfig({
   plugins: [
     {
       name: 'deviceforge-workspace-public-packages',
       resolveId(id: string) {
-        return workspacePluginPackages(frontendRoot).aliases.find((entry) => entry.find === id)?.replacement ?? null;
+        return workspaceAliases.get(id) ?? null;
       },
     },
     {

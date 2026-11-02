@@ -53,6 +53,8 @@ export interface WorkspacePageDefinition {
   readonly operations?: readonly string[];
   readonly taskPolicy?: 'listed' | 'all';
 }
+export type WorkspacePageUpdate = Partial<Pick<WorkspacePageDefinition,
+  'title' | 'navigation' | 'operations' | 'taskPolicy'>>;
 export interface WorkspaceDefinition {
   readonly id: string;
   readonly title: string;
@@ -154,6 +156,8 @@ export interface UiAccess {
   /** 渲染宿主可挂载已选择提供者的实例；释放句柄仅属于本次挂载，不影响后来新代。 */
   readonly mount?: (instanceId: string, target: HTMLElement, signal: AbortSignal) => Promise<Dispose>;
   register(contributions: WorkspaceContributions): Dispose;
+  /** 原位更新当前作用域登记的页面元数据，不变更路由、挂载或运行代次；旧宿主可省略。 */
+  readonly updatePage?: (pageId: string, changes: WorkspacePageUpdate) => void;
   catalog(): WorkspaceCatalog;
   snapshot(): WorkspaceSnapshot;
   subscribe(listener: () => void): Dispose;

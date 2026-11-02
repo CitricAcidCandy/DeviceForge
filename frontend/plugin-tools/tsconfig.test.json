@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "..",
+    "outDir": "test-output",
+    "noEmit": true,
+    "allowImportingTsExtensions": true
+  },
+  "include": ["../tests/plugin-build-tools.test.ts"]
+}

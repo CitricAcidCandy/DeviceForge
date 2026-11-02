@@ -6,6 +6,7 @@ import { XIcon } from 'lucide-react';
 import { Dialog as DialogPrimitive } from 'radix-ui';
 
 import { Button } from '../Button/index.tsx';
+import { usePortalContentRef } from '../PortalBoundary/index.tsx';
 
 function Dialog({ ...props }: React.ComponentProps<typeof DialogPrimitive.Root>) {
   return <DialogPrimitive.Root data-slot="dialog" {...props} />;
@@ -43,10 +44,12 @@ function DialogContent({
   className,
   children,
   showCloseButton = true,
+  ref,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean;
 }) {
+  const contentRef = usePortalContentRef(ref);
   return (
     <DialogPortal data-slot="dialog-portal">
       <DialogOverlay />
@@ -57,6 +60,7 @@ function DialogContent({
           className,
         )}
         {...props}
+        ref={contentRef}
       >
         {children}
         {showCloseButton && (

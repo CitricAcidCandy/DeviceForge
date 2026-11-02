@@ -166,6 +166,7 @@ export function createPointRegistry() {
       catalog() { ensure(); return catalog(); },
       list(point) { ensure(); return list(point); },
       selected(point) { ensure(); return selected(point); },
+      selection(point) { ensure(); checkPointRef(point); return selections.get(pointKey(point)) ?? null; },
       select(point, id) { ensure(); select(point, id); },
       subscribe(listener) {
         ensure();

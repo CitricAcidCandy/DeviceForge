@@ -1,6 +1,7 @@
+import './official-business-imports.ts';
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {
+const {
   createAndroidProfile,
   decodeProbe,
   decodeProfileResult,
@@ -11,16 +12,16 @@ import {
   downloadProfileArchive,
   PROFILE_LIMITS,
   JobWaitFailure,
-} from '../src/features/android-profile/index.ts';
+} = await import('@deviceforge/performance/profile');
 import type {
   ProfileHost,
   ProfileResult,
   StackSample,
-} from '../src/features/android-profile/index.ts';
-import { ApiError } from '../src/services/api/index.ts';
-import type { ArtifactDto } from '../src/services/api/index.ts';
-import { requireJson } from '../src/shared/jobs/index.ts';
-import type { Job } from '../src/plugin-sdk/index.ts';
+} from '@deviceforge/performance/profile';
+const { ApiError } = await import('@deviceforge/business-kit/api');
+import type { ArtifactDto } from '@deviceforge/business-kit/api';
+const { requireJson } = await import('@deviceforge/business-kit/jobs');
+import type { Job } from '@deviceforge/plugin-sdk';
 import { deferred, signal } from './fixtures.ts';
 
 const device = 'emulator-5554';
@@ -54,8 +55,8 @@ function artifact(filename: string, size = 1, sha256 = 'a'.repeat(64)): Artifact
     filename,
     size,
     sha256,
-    media_type: filename.endsWith('.json') ? 'application/json' : 'application/zip',
-    created_at: 1,
+    mediaType: filename.endsWith('.json') ? 'application/json' : 'application/zip',
+    createdAt: 1,
   };
 }
 function envelope() {
@@ -442,7 +443,8 @@ function makeHost(
 }
 test('公开设备调用保留完整代次与能力，默认采样画面并传递提交日志', async () => {
   const calls: unknown[] = [];
-  const host = makeHost(
+  let released = 0;
+  const original = makeHost(
     async (action, requestSignal) => {
       assert.equal(requestSignal.aborted, false);
       calls.push(action);
@@ -452,6 +454,10 @@ test('公开设备调用保留完整代次与能力，默认采样画面并传�
       throw new Error('成功终态不查询');
     },
   );
+  const host: ProfileHost = {
+    ...original,
+    onDispose: () => () => { released++; },
+  };
   const factory = createAndroidProfile(host, reference, { pollIntervalMs: 0 });
   try {
     const response = await factory.record(
@@ -478,7 +484,9 @@ test('公开设备调用保留完整代次与能力，默认采样画面并传�
     assert.equal(calls.length, 1);
   } finally {
     factory.dispose();
+    factory.dispose();
   }
+  assert.equal(released, 1, '本地目标作用域结束时撤销宿主回收订阅，重复释放不累积回调');
 });
 
 test('取消等待不重提或自动取消服务器任务，恢复原Job并保留各阶段日志', async () => {

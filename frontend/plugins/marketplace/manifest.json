@@ -1,0 +1,27 @@
+{
+  "manifest_version": 1,
+  "id": "deviceforge_marketplace",
+  "version": "0.1.0",
+  "name": "资源市场",
+  "description": "独立的资源市场工作区，支持安装管理、配置依赖、本地导入、完整发布与导入后调试。",
+  "market": {
+    "summary": "通过公开 SDK 和版本化管理服务组合市场、安装与发布流程，保留修订、摘要和未知结果查询。",
+    "keywords": ["市场", "资源", "插件"],
+    "categories": ["function", "integration"],
+    "applies_to": ["deviceforge"],
+    "supports_mcp": "none",
+    "supports_agent": true,
+    "restart_policy": "none",
+    "author": "DeviceForge",
+    "visibility": "internal"
+  },
+  "components": [{
+    "kind": "browser",
+    "package_name": "@deviceforge/marketplace",
+    "entrypoints": { "any": { "runtime": "browser", "path": "dist/index.js" } },
+    "files": ["dist"],
+    "plugin": { "api_version": 2 }
+  }],
+  "requirements": [],
+  "dependencies": { "format_version": 1, "dependencies": [] }
+}

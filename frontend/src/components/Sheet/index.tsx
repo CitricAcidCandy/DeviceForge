@@ -2,6 +2,7 @@ import * as React from 'react';
 import { cn } from '../../utils/classnames.ts';
 import { XIcon } from 'lucide-react';
 import { Dialog as SheetPrimitive } from 'radix-ui';
+import { usePortalContentRef } from '../PortalBoundary/index.tsx';
 
 function Sheet({ ...props }: React.ComponentProps<typeof SheetPrimitive.Root>) {
   return <SheetPrimitive.Root data-slot="sheet" {...props} />;
@@ -40,11 +41,13 @@ function SheetContent({
   children,
   side = 'right',
   showCloseButton = true,
+  ref,
   ...props
 }: React.ComponentProps<typeof SheetPrimitive.Content> & {
   side?: 'top' | 'right' | 'bottom' | 'left';
   showCloseButton?: boolean;
 }) {
+  const contentRef = usePortalContentRef(ref);
   return (
     <SheetPortal>
       <SheetOverlay />
@@ -63,6 +66,7 @@ function SheetContent({
           className,
         )}
         {...props}
+        ref={contentRef}
       >
         {children}
         {showCloseButton && (

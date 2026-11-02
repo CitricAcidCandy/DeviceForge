@@ -11,6 +11,11 @@ interface MountedView {
   release: Dispose | null;
   state: 'mounting' | 'ready' | 'failed';
   error: string | null;
+  errorCode: string | null;
+}
+interface Attachment {
+  readonly view: MountedView;
+  readonly target: HTMLElement;
 }
 export interface MountStatus {
   readonly state: 'idle' | 'mounting' | 'ready' | 'failed';
@@ -19,6 +24,8 @@ export interface MountStatus {
 /** DOM在布局槽之间移动，隐藏页仅脱离显示位置，不销毁视图自己的草稿。 */
 export function createMountPool(ui: UiAccess, document: Document, signal: AbortSignal, staging?: HTMLElement) {
   const views = new Map<string, MountedView>();
+  const targets = new Map<HTMLElement, Attachment>();
+  const placements = new Map<MountedView, Attachment>();
   const listeners = new Set<() => void>();
   const pending = new Set<Promise<void>>();
   const cleanupErrors: string[] = [];
@@ -26,8 +33,26 @@ export function createMountPool(ui: UiAccess, document: Document, signal: AbortS
   let closed = false, revision = 0;
   let disposal: Promise<void> | null = null;
   const notify = () => { revision++; for (const listener of [...listeners]) listener(); };
+  function detach(attachment: Attachment) {
+    if (targets.get(attachment.target) !== attachment || placements.get(attachment.view) !== attachment) return;
+    targets.delete(attachment.target);
+    placements.delete(attachment.view);
+    if (attachment.view.root.parentNode === attachment.target) attachment.view.root.remove();
+  }
+  function place(view: MountedView, target: HTMLElement): Attachment {
+    const previous = targets.get(target), placement = placements.get(view);
+    if (previous) detach(previous);
+    if (placement) detach(placement);
+    target.append(view.root);
+    const attachment = { view, target };
+    targets.set(target, attachment);
+    placements.set(view, attachment);
+    return attachment;
+  }
   function release(view: MountedView) {
     view.controller.abort();
+    const attachment = placements.get(view);
+    if (attachment) detach(attachment);
     view.root.remove();
     if (views.get(view.instanceId) === view) views.delete(view.instanceId);
     const dispose = view.release;
@@ -60,7 +85,7 @@ export function createMountPool(ui: UiAccess, document: Document, signal: AbortS
     const view: MountedView = {
       instanceId, generation: instance.generation, root, controller, release: null,
       providerId: instance.provider?.pluginId ?? '', loadedEpoch: loadedEpochs.get(instance.provider?.pluginId ?? '') ?? 0,
-      state: 'mounting', error: null,
+      state: 'mounting', error: null, errorCode: null,
       promise: Promise.resolve().then(async () => {
         try {
           const dispose = await mount(instanceId, root, combined);
@@ -75,7 +100,9 @@ export function createMountPool(ui: UiAccess, document: Document, signal: AbortS
           if (combined.aborted || views.get(instanceId) !== view) throw new Error('视图准备已撤销');
           view.state = 'failed';
           view.error = error instanceof Error ? error.message : '视图挂载失败';
-          notify();
+          view.errorCode = error !== null && typeof error === 'object' &&
+            'code' in error && typeof error.code === 'string' ? error.code : null;
+          if (!recoverEarly(view)) notify();
           throw error;
         }
       }),
@@ -83,6 +110,26 @@ export function createMountPool(ui: UiAccess, document: Document, signal: AbortS
     views.set(instanceId, view);
     void view.promise.catch(() => undefined);
     return view;
+  }
+  function restart(instanceId: string): MountedView {
+    const existing = views.get(instanceId);
+    const attachment = existing ? placements.get(existing) : undefined;
+    const parent = existing?.root.parentElement;
+    if (existing) void release(existing);
+    const next = obtain(instanceId);
+    if (attachment) place(next, attachment.target);
+    else parent?.append(next.root);
+    notify();
+    return next;
+  }
+  function recoverEarly(view: MountedView): boolean {
+    // 旧宿主可能在激活完成前拒绝；只补这类未进入视图回调的明确拒绝。
+    if (closed || signal.aborted || views.get(view.instanceId) !== view ||
+        view.state !== 'failed' || view.errorCode !== 'workspace_provider_revoked' ||
+        view.loadedEpoch >= (loadedEpochs.get(view.providerId) ?? 0)) return false;
+    try { void restart(view.instanceId).promise.catch(() => undefined); }
+    catch { notify(); /* 提供者再次撤销时保留模型占位。 */ }
+    return true;
   }
   const unsubscribe = ui.subscribe(() => {
     if (closed) return;
@@ -109,32 +156,19 @@ export function createMountPool(ui: UiAccess, document: Document, signal: AbortS
     prepare(instanceId: string) { return obtain(instanceId).promise; },
     attach(instanceId: string, target: HTMLElement): Dispose {
       const view = obtain(instanceId);
-      target.append(view.root);
-      return () => { if (view.root.parentNode === target) view.root.remove(); };
+      // 位置可以先换实例再收到旧清理；只撤本池拥有的旧根，不清空业务DOM。
+      const attachment = place(view, target);
+      return () => { detach(attachment); };
     },
     retry(instanceId: string) {
-      const existing = views.get(instanceId);
-      const parent = existing?.root.parentElement;
-      if (existing) void release(existing);
-      const next = obtain(instanceId);
-      parent?.append(next.root);
-      notify();
-      return next.promise;
+      return restart(instanceId).promise;
     },
     providerLoaded(pluginId: string) {
       const epoch = (loadedEpochs.get(pluginId) ?? 0) + 1;
       loadedEpochs.set(pluginId, epoch);
       for (const view of [...views.values()]) {
-        if (view.providerId !== pluginId || view.state === 'ready' || view.loadedEpoch >= epoch) continue;
-        const parent = view.root.parentElement;
-        void release(view);
-        try {
-          const next = obtain(view.instanceId);
-          parent?.append(next.root);
-          void next.promise.catch(() => undefined);
-        } catch { /* 提供者再次撤销时保留模型占位。 */ }
+        if (view.providerId === pluginId) recoverEarly(view);
       }
-      notify();
     },
     drop(instanceId: string) {
       const existing = views.get(instanceId);

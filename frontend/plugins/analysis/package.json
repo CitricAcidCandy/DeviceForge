@@ -1,0 +1,44 @@
+{
+  "name": "@deviceforge/analysis",
+  "description": "DEX 与 MessagePack 离线分析",
+  "type": "module",
+  "private": true,
+  "exports": {
+    ".": {
+      "development": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./view": {
+      "development": "./src/view.tsx",
+      "types": "./dist/view.d.ts",
+      "import": "./dist/view.js"
+    },
+    "./services": {
+      "development": "./src/services.ts",
+      "types": "./dist/services.d.ts",
+      "import": "./dist/services.js"
+    },
+    "./dex-analysis": {
+      "development": "./src/dex-analysis/index.ts",
+      "types": "./dist/dex-analysis/index.d.ts",
+      "import": "./dist/dex-analysis/index.js"
+    },
+    "./msgpack": {
+      "development": "./src/msgpack/index.ts",
+      "types": "./dist/msgpack/index.d.ts",
+      "import": "./dist/msgpack/index.js"
+    }
+  },
+  "dependencies": {
+    "lucide-react": "1.56.0",
+    "@deviceforge/business-kit": "file:../business-kit"
+  },
+  "peerDependencies": {
+    "react-dom": "^19.3.0",
+    "react": "^19.3.0"
+  },
+  "devDependencies": {
+    "@deviceforge/plugin-sdk": "file:../../sdk/dist/deviceforge-plugin-sdk-0.1.0.tgz"
+  }
+}

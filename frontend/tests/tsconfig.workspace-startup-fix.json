@@ -1,0 +1,10 @@
+{
+  "extends": "../tsconfig.json",
+  "include": [
+    "../src/app/main.ts",
+    "../vite.config.ts",
+    "./composition-official-recheck.test.ts",
+    "./composition-early-startup.test.ts",
+    "./composition-shell-selection.test.ts"
+  ]
+}

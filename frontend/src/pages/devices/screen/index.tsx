@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { CSSProperties, PointerEvent } from 'react';
+import type { CSSProperties, PointerEvent, ReactNode } from 'react';
 import { Camera, Download, LayoutGrid, Maximize2, Play, SlidersHorizontal } from 'lucide-react';
 import { Button } from '../../../components/Button/index.tsx';
 import {
@@ -74,13 +74,22 @@ export function DeviceScreen({
   active,
   pane = 'params',
   onPaneChange,
+  applicationPane = true,
+  applicationContent,
+  applicationAvailable = true,
 }: {
   services: ProductServices;
   active: boolean;
   /** 右栏当前面；独立挂载（如测试与浏览器夹具）时可以不给，默认停在画面参数。 */
   pane?: WorkbenchPane;
   onPaneChange?(pane: WorkbenchPane): void;
+  /** 独立画面视图关闭应用入口，既有工作台默认保持两个页签。 */
+  applicationPane?: boolean;
+  /** 外部业务实例占据原应用区域，不再经过内置业务或重复消费旧槽位。 */
+  applicationContent?: ReactNode;
+  applicationAvailable?: boolean;
 }) {
+  const displayedPane = applicationPane ? pane : 'params';
   const device = useSnapshot(services.runtime.devices);
   const catalog = useSnapshot(services.runtime.operations);
   const live = services.runtime.mirroringStreaming;
@@ -619,45 +628,47 @@ export function DeviceScreen({
     : '未开始 · 先建立会话';
   const recordLine = recording.pending ? '录制中' : movie ? '已就绪' : '未开始';
   return (
-    <section className="device-workbench" data-pane={pane} data-orientation={orientation}>
+    <div className="@container/device-screen h-full min-h-0 min-w-0">
+    <section className="device-workbench relative grid h-full min-h-0 min-w-0 grid-cols-[minmax(0,1fr)_384px] grid-rows-[minmax(0,1fr)] @max-[1180px]/device-screen:grid-cols-[minmax(0,1fr)_312px] @max-[1024px]/device-screen:grid-cols-[minmax(0,1fr)] @max-[1024px]/device-screen:grid-rows-[minmax(0,1fr)_minmax(0,0.8fr)]" data-pane={displayedPane} data-orientation={orientation}>
       {/* ── 右栏：画面参数 / 应用 ───────────────────────── */}
-      <aside className="workbench-rail" aria-label="画面参数与应用">
+      <aside className="workbench-rail col-start-2 row-start-1 flex min-h-0 min-w-0 flex-col border-l border-[var(--hairline)] bg-[var(--surface-card)] @max-[1024px]/device-screen:col-start-1 @max-[1024px]/device-screen:row-start-2 @max-[1024px]/device-screen:border-l-0 @max-[1024px]/device-screen:border-t" aria-label={applicationPane ? '画面参数与应用' : '画面参数'}>
         <div className="rail-tabs" role="tablist" aria-label="右栏内容">
           <button
             type="button"
             role="tab"
             className="rail-tab"
-            aria-selected={pane === 'params'}
+            aria-selected={displayedPane === 'params'}
             aria-controls="workbench-pane"
             onClick={() => onPaneChange?.('params')}
           >
             <SlidersHorizontal aria-hidden="true" />
             <span>画面参数</span>
           </button>
-          <button
+          {applicationPane && <button
             type="button"
             role="tab"
             className="rail-tab"
-            aria-selected={pane === 'apps'}
+            aria-selected={displayedPane === 'apps'}
             aria-controls="workbench-pane"
-            disabled={!packages.capability}
-            title={packages.reason ?? undefined}
+            disabled={applicationContent === undefined ? !packages.capability : !applicationAvailable}
+            title={applicationContent === undefined ? packages.reason ?? undefined : !applicationAvailable ? '应用插件暂不可用' : undefined}
             onClick={() => onPaneChange?.('apps')}
           >
             <LayoutGrid aria-hidden="true" />
             <span>应用</span>
-          </button>
+          </button>}
         </div>
         <div className="rail-pane" id="workbench-pane" role="tabpanel"
-          aria-label={pane === 'apps' ? '应用' : '画面参数'}>
-          {pane === 'apps' ? (
+          aria-label={displayedPane === 'apps' ? '应用' : '画面参数'}>
+          {applicationContent !== undefined && <div hidden={displayedPane !== 'apps'} inert={displayedPane !== 'apps'} className="h-full min-h-0 min-w-0">{applicationContent}</div>}
+          {displayedPane === 'apps' ? applicationContent === undefined ? (
             /* 「应用」页签整块可被插件接管：宿主列表退成 fallback，插件卸载即自动回来。 */
             <ExtensionSurface
               services={services}
               slot="devices.apps"
-              fallback={<DeviceApps services={services} embedded compact />}
+              fallback={<DeviceApps services={services} embedded compact active={active} />}
             />
-          ) : (
+          ) : null : (
             <>
               {/* ── 画面：先给四条事实，参数折起来 ── */}
               <section className="rail-group">
@@ -912,7 +923,7 @@ export function DeviceScreen({
           <RecoveryPanel state={recovery.state} activeSession={activeSession}
             recover={recovery.recover} refresh={recovery.refresh} cancel={recovery.cancel} />
         </div>
-        {pane === 'params' && (
+        {displayedPane === 'params' && (
           <div className="rail-foot">
             <Button
               disabled={!androidTarget || !liveAvailable || Boolean(activeSession) || reader.pending}
@@ -1082,7 +1093,7 @@ export function DeviceScreen({
                 : '控制就绪后可点击画面使用键盘'}
           </p>
         )}
-        <p className="media-stage-readout mono">{stageReadout}</p>
+        <p className="media-stage-readout pointer-events-none absolute left-5 top-1.5 z-[3] m-0 max-w-[calc(100%-40px)] overflow-hidden text-ellipsis whitespace-nowrap font-mono text-[0.8125rem] tracking-[0.04em] text-[var(--text-ghost)] @max-[1024px]/device-screen:left-[62px] @max-[1024px]/device-screen:max-w-[calc(100%-74px)]">{stageReadout}</p>
         <div className="media-stage-dock">
           <Button size="sm" variant="ghost" disabled={!canScreenshot || action.pending} onClick={shoot}>
             <Camera aria-hidden="true" />
@@ -1188,5 +1199,6 @@ export function DeviceScreen({
         </DialogContent>
       </Dialog>
     </section>
+    </div>
   );
 }

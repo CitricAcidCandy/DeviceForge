@@ -1,0 +1,37 @@
+import { ApiError, applyPluginConfigurationEndpoint, patchPluginConfigurationEndpoint, pluginConfigurationEndpoint, resetPluginConfigurationEndpoint } from './api/index.ts';
+import type { ApiClient, PluginConfigurationDto } from './api/index.ts';
+import { isSchemaValue, mapSchemaSecrets, redactSchemaDefaults } from './schema.ts';
+import type { PluginConfigurationController, PluginConfigurationView } from './configuration.ts';
+
+function view(value: PluginConfigurationDto): PluginConfigurationView {
+  if (!isSchemaValue(value.values)) throw new Error('服务器配置值不是有效 JSON');
+  const definition = value.definition;
+  if (definition && (!isSchemaValue(definition.schema) || !isSchemaValue(definition.defaults))) throw new Error('服务器配置声明不是有效 JSON');
+  return { kind: 'server', id: value.id, values: definition && isSchemaValue(definition.schema) ? mapSchemaSecrets(definition.schema, value.values) : value.values, revision: String(value.revision), appliedRevision: String(value.applied_revision),
+    definition: definition && isSchemaValue(definition.schema) && isSchemaValue(definition.defaults) ? { version: definition.version, schema: redactSchemaDefaults(definition.schema), defaults: mapSchemaSecrets(definition.schema, definition.defaults), apply_policy: definition.apply_policy } : null,
+    compatible: value.compatible, pendingReload: value.pending_reload, fieldErrors: value.field_errors, source: value.source };
+}
+function revision(value: string): number {
+  const result = Number(value);
+  if (!Number.isSafeInteger(result) || result < 0) throw new Error('配置修订号无效，请重新读取');
+  return result;
+}
+
+function configurationFailure(reason: unknown): never {
+  if (reason instanceof ApiError && reason.status === 404 && reason.code === 'not_found' && reason.message === '接口不存在') {
+    const failure = new ApiError(reason.kind, reason.code,
+      '当前服务器不支持插件配置，请更新服务器后重试。服务器返回：接口不存在',
+      reason.status, reason.logId, reason.retryAfter);
+    failure.cause = reason;
+    throw failure;
+  }
+  throw reason;
+}
+export function createServerConfigurations(client: ApiClient): PluginConfigurationController {
+  return {
+    async get(target, signal) { return view((await client.call(pluginConfigurationEndpoint, target.id, signal).catch(configurationFailure)).data); },
+    async save(target, expected, values, signal) { return view((await client.call(patchPluginConfigurationEndpoint, { id: target.id, body: { expected_revision: revision(expected), patch: values } }, signal).catch(configurationFailure)).data); },
+    async reset(target, expected, signal) { return view((await client.call(resetPluginConfigurationEndpoint, { id: target.id, body: { expected_revision: revision(expected) } }, signal).catch(configurationFailure)).data); },
+    async apply(target, expected, signal) { return view((await client.call(applyPluginConfigurationEndpoint, { id: target.id, body: { expected_revision: revision(expected) } }, signal).catch(configurationFailure)).data); },
+  };
+}

@@ -1,0 +1,10 @@
+{
+  "extends": "../tsconfig.json",
+  "include": [
+    "../src/features/frida/**/*.ts",
+    "../src/features/automation/**/*.ts",
+    "./legacy-business-model-contracts.test.ts",
+    "./frida-http-consumption.test.ts",
+    "./automation-http-consumption.test.ts"
+  ]
+}

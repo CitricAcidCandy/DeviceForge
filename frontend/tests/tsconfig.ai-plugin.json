@@ -1,0 +1,8 @@
+{
+  "extends": "../tsconfig.json",
+  "include": [
+    "../plugins/ai/src/**/*.ts",
+    "../plugins/ai/src/**/*.tsx",
+    "./ai-plugin-*.test.ts"
+  ]
+}

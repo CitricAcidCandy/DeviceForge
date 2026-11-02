@@ -2,19 +2,29 @@
 import { resolve } from 'node:path';
 
 export function parseAuthoringOptions(args) {
-  if (args[0] !== 'plugin' || !['pack', 'plan', 'publish'].includes(args[1])) return null;
+  if (args[0] !== 'plugin' || !['pack', 'finalize', 'plan', 'publish'].includes(args[1])) return null;
   const action = args[1], rest = args.slice(2), options = { command: `plugin.${action}` };
   if (action === 'pack') options.source = rest[0] && !rest[0].startsWith('--') ? rest.shift() : 'manifest.json';
+  else if (action === 'finalize') {
+    if (rest.length !== 1 || rest[0].startsWith('-')) throw new Error('提交参数只接受一个实际准备回执');
+    options.receipt = resolve(rest[0]);
+    return options;
+  }
   else {
     if (!rest[0] || rest[0].startsWith('-')) throw new Error('发布要求已有打包输出目录');
     options.directory = resolve(rest.shift());
   }
-  const allowed = action === 'pack' ? ['--out', '--platform'] : ['--server'];
+  const allowed = action === 'pack' ? ['--out', '--platform', '--prepare-only'] : ['--server'];
   const seen = new Set();
   for (let index = 0; index < rest.length; index += 2) {
     const key = rest[index], value = rest[index + 1];
     if (!allowed.includes(key) || seen.has(key) || !value || value.startsWith('-')) throw new Error('开发工具参数无效、重复或缺少值');
     seen.add(key);
+    if (key === '--prepare-only') {
+      if (!['true', 'false'].includes(value)) throw new Error('--prepare-only参数必须为true或false');
+      options.prepareOnly = value === 'true';
+      continue;
+    }
     options[{ '--out': 'destination', '--platform': 'platform', '--server': 'server' }[key]] = value;
   }
   if (action !== 'pack' && !options.server) throw new Error('发布要求 --server 资源服务地址');
@@ -22,6 +32,10 @@ export function parseAuthoringOptions(args) {
 }
 
 export async function runAuthoring(options, { signal, transport = fetch } = {}) {
+  if (options.command === 'plugin.finalize') {
+    const { finalizePreparedPlugin } = await import('./prepared.mjs');
+    return finalizePreparedPlugin(options.receipt, { signal });
+  }
   if (options.command === 'plugin.pack') {
     const { packPlugin } = await import('./pack.mjs');
     return packPlugin(options, { signal });

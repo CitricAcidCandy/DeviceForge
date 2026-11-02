@@ -1,0 +1,25 @@
+{
+  "name": "workspace-suite-development",
+  "private": true,
+  "type": "module",
+  "description": "独立工作区前后端配套开发模板",
+  "engines": { "node": ">=22.18.0" },
+  "scripts": {
+    "generate": "node ./scripts/generate-contracts.ts",
+    "test": "node --import ./tests/public-sdk.ts --test tests/*.test.ts",
+    "check": "tsc --noEmit",
+    "build:server": "node ./scripts/generate-contracts.ts && tsc -p tsconfig.server.json",
+    "build:browser": "node ./scripts/generate-contracts.ts && node ./scripts/build-browser.ts",
+    "build": "node ./scripts/generate-contracts.ts && tsc -p tsconfig.server.json && node ./scripts/build-browser.ts"
+  },
+  "devDependencies": {
+    "@deviceforge/plugin-sdk": "file:./vendor/deviceforge-plugin-sdk-0.1.0.tgz",
+    "@deviceforge/plugin-tools": "file:./vendor/deviceforge-plugin-tools-0.1.1.tgz",
+    "@types/node": "24.19.1",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "clsx": "2.1.1",
+    "radix-ui": "1.8.1",
+    "typescript": "5.9.3"
+  }
+}

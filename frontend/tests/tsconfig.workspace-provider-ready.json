@@ -1,0 +1,6 @@
+{
+  "extends": "../tsconfig.json",
+  "include": [
+    "./workspace-provider-ready.test.ts"
+  ]
+}

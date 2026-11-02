@@ -1,11 +1,12 @@
+import './official-business-imports.ts';
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createMsgpack } from '../src/features/msgpack/index.ts';
-import type { MsgpackFilter } from '../src/features/msgpack/index.ts';
-import { ApiError } from '../src/services/api/index.ts';
-import type { ApiResult } from '../src/services/api/index.ts';
-import { JobWaitFailure } from '../src/shared/jobs/index.ts';
-import type { JobGateway, JsonData, TaskRecord } from '../src/shared/jobs/index.ts';
+const { createMsgpack } = await import('@deviceforge/analysis/msgpack');
+import type { MsgpackFilter } from '@deviceforge/analysis/msgpack';
+const { ApiError } = await import('@deviceforge/business-kit/api');
+import type { ApiResult } from '@deviceforge/business-kit/api';
+const { JobWaitFailure } = await import('@deviceforge/business-kit/jobs');
+import type { JobGateway, JsonData, TaskRecord } from '@deviceforge/business-kit/jobs';
 import { deferred, signal } from './fixtures.ts';
 
 const source = '12345678-1234-1234-1234-123456789abc';
@@ -75,7 +76,7 @@ test('编解码仅提交规范产物ID，接受唯一宿主产物并保留来源
     'converted.msgpack',
   );
   const decoded = await msgpack.decode({ artifact_id: source }, signal());
-  assert.equal(decoded.data.artifacts[0]?.media_type, 'application/json');
+  assert.equal(decoded.data.artifacts[0]?.mediaType, 'application/json');
   assert.equal(decoded.submitLogId, 'submit-log');
   assert.deepEqual(seen, [
     { operation: 'plugin.msgpack.encode', input: { artifact_id: source } },

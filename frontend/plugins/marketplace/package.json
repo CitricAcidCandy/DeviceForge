@@ -1,0 +1,31 @@
+{
+  "name": "@deviceforge/marketplace",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./model": "./src/model/index.ts",
+    "./browser-management": "./src/browser-management.ts",
+    "./view": "./src/view.tsx",
+    "./services": "./src/workbench/services.ts"
+  },
+  "dependencies": {
+    "@noble/hashes": "2.0.1",
+    "@deviceforge/business-kit": "file:../business-kit",
+    "@deviceforge/settings": "file:../settings",
+    "@deviceforge/plugin-manifest": "file:../../sdk/dist/deviceforge-plugin-manifest-0.1.0.tgz",
+    "ajv": "8.20.0",
+    "fflate": "0.8.3",
+    "it-tar": "6.0.6",
+    "lucide-react": "1.56.0"
+  },
+  "peerDependencies": {
+    "@deviceforge/plugin-sdk": "0.1.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  },
+  "devDependencies": {
+    "@deviceforge/contracts": "file:../../contracts",
+    "@deviceforge/plugin-sdk": "file:../../sdk/dist/deviceforge-plugin-sdk-0.1.0.tgz"
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "extends": "../tsconfig.json",
+  "include": [
+    "../plugin-tools/src/contracts/**/*.ts",
+    "./plugin-contract-generation.test.ts"
+  ]
+}

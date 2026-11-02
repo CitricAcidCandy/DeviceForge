@@ -164,14 +164,16 @@ test('MCP 现有 sdk 主题自包含开放组合与本地 SDK 发行边界', asy
   const content = `${primary}\n\n${supplement}`;
   for (const term of ['interface PointAccess', 'interface UiAccess', 'interface PluginTransport', 'interface DataAccess',
     'extensions.points', 'WorkspacePageDefinition', 'WorkspaceViewDefinition', 'expectedRevision', 'persistence',
-    'deviceforge-plugin-sdk-0.1.0.tgz', '尚未发布 npm registry', '跨页面渲染尚未上线', 'source_id']) {
+    'deviceforge-plugin-sdk-0.1.0.tgz', '尚未发布 npm registry', '当前目录和视图提供者', 'source_id',
+    'onCleanup', 'CleanupContext', 'host.shell@1', 'readHostError', 'JobWaitFailure',
+    'updatePage', 'WorkspacePageUpdate', 'selection', 'operations', 'taskPolicy']) {
     assert.ok(content.includes(term), `已嵌入 sdk 正文缺少 ${term}`);
   }
   assert.doesNotMatch(content, /(?:frontend|backend)\/(?:src|crates|scripts|target|docs)\//, '公开拼接正文不能返回宿主源码或文档地址');
   assert.doesNotMatch(content, /\]\((?!https?:\/\/|#)[^)]+\)/, '组合知识不能依赖仓库相对链接');
   for (const topic of ['overview', 'lifecycle', 'packaging']) {
     const guide = await readFile(join(root, `frontend/docs/guides/plugin-development/${topic}.md`), 'utf8');
-    for (const term of ['manifest.json', 'TGZ', 'npm registry', '跨页面渲染尚未上线'])
+    for (const term of ['manifest.json', 'TGZ', 'npm registry', '当前目录和视图提供者'])
       assert.ok(guide.includes(term), `${topic} 缺少实际交付边界 ${term}`);
   }
   const backend = await readFile(join(root, 'backend/docs/guides/plugin-development/sdk.md'), 'utf8');

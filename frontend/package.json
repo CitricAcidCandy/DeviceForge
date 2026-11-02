@@ -19,7 +19,8 @@
     "test": "node scripts/run-tests.ts",
     "prebuild": "node scripts/build-debugger-plugin.ts",
     "build": "vite build",
-    "preview": "vite preview --host 127.0.0.1"
+    "preview": "vite preview --host 127.0.0.1",
+    "pack:workspace-plugins": "node scripts/build-workspace-plugins.ts"
   },
   "dependencies": {
     "@deviceforge/browser-debugger": "file:../examples/browser-debugger",

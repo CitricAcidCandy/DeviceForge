@@ -1,0 +1,12 @@
+{
+  "extends": "../tsconfig.json",
+  "include": [
+    "../plugins/files/src/index.ts",
+    "../plugins/files/src/tools.ts",
+    "../plugins/files/src/tool-layout.ts",
+    "./workspace-suite-auto.test.ts",
+    "./files-tools.test.ts",
+    "../../examples/workspace-suite/browser/index.ts",
+    "../../examples/workspace-suite/tests/composition.test.ts"
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "extends": "../tsconfig.json",
+  "include": [
+    "../src/app/platform-runtime.ts",
+    "../src/app/runtime.ts",
+    "../src/app/composition/legacy-runtime.ts",
+    "../src/app/composition/legacy-runtime-business.ts",
+    "./platform-runtime-boundary.test.ts"
+  ]
+}

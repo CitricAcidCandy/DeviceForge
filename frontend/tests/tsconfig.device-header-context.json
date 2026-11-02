@@ -1,0 +1,10 @@
+{
+  "extends": "../tsconfig.json",
+  "include": [
+    "./device-header-context.test.ts",
+    "./device-header-view.test.ts",
+    "../plugins/devices/src/header-model.ts",
+    "../plugins/devices/src/header-registration.ts",
+    "../plugins/devices/src/contracts.ts"
+  ]
+}

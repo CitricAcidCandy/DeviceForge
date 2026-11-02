@@ -26,10 +26,11 @@ function readStatus(value: unknown): StorageState | null {
     lastError,
   };
 }
-export function StorageStatus({ context }: { readonly context: HostContext }) {
+export function StorageStatus({ context, warningsOnly = false }: { readonly context: HostContext; readonly warningsOnly?: boolean }) {
   const [status, setStatus] = useState<StorageState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [confirmation, setConfirmation] = useState<'retryRead' | 'saveCurrent' | null>(null);
   const lifetime = useRef<AbortController | null>(null);
   const service = { id: 'host.workspace.storage', version: '1' };
   useEffect(() => {
@@ -46,7 +47,7 @@ export function StorageStatus({ context }: { readonly context: HostContext }) {
     const controller = lifetime.current;
     if (!controller || busy || !context.services) return;
     const signal = AbortSignal.any([controller.signal, context.signal]);
-    setBusy(true); setError(null);
+    setBusy(true); setError(null); setConfirmation(null);
     try {
       const result = await context.services.call(service, { action: value }, signal);
       const next = readStatus(result.data);
@@ -55,6 +56,7 @@ export function StorageStatus({ context }: { readonly context: HostContext }) {
     finally { if (!signal.aborted) setBusy(false); }
   }
   const healthy = status?.enabled && status.state === 'ready';
+  if (warningsOnly && !error && (!status?.enabled || healthy)) return null;
   const label = healthy ? status.pending ? '布局正在保存' : '布局自动保存已启用'
     : status?.enabled ? '布局保存受阻' : '布局保存状态未提供';
   return <details className="relative min-w-0">
@@ -64,10 +66,19 @@ export function StorageStatus({ context }: { readonly context: HostContext }) {
       <p className="mt-2 text-[#596479]">{status?.lastError?.message ?? error ?? (healthy
         ? '布局变化由平台保存。页面与插件会话仍各自管理业务数据和草稿。'
         : '当前工作区仍可使用。此处只报告平台实际返回的保存状态。')}</p>
-      {(error || status?.lastError) && <p className="mt-2 text-[#A65D0D]">重新读取不会自动覆盖当前编辑；保存当前布局会替换已存储的布局内容。</p>}
-      {status?.enabled && !healthy && <div className="mt-3 flex gap-2">
-        <button type="button" disabled={busy} className="rounded-lg border border-[#E6EAF3] px-3 py-2 disabled:opacity-40" onClick={() => { void action('retryRead'); }}>重新读取</button>
-        <button type="button" disabled={busy} className="rounded-lg bg-[#6C4CF5] px-3 py-2 text-white disabled:opacity-40" onClick={() => { void action('saveCurrent'); }}>保存当前布局</button>
+      {(error || status?.lastError) && <p className="mt-2 text-[#A65D0D]">重新读取会以保存的内容替换当前布局；保存当前布局会覆盖已存储的布局。两者都不会重放业务操作。</p>}
+      {confirmation && <div className="mt-3 rounded-lg border border-[#F1D8B5] bg-[#FFF7EC] p-3" role="alert">
+        <p>{confirmation === 'retryRead' ? '确认重新读取并替换当前布局？打开的视图可能重建，请先保存需要保留的草稿。'
+          : '确认用当前布局覆盖已保存的内容？原存储内容不会保留为备份。'}</p>
+        <div className="mt-2 flex gap-2">
+          <button type="button" disabled={busy} className="rounded-lg border border-[#E6EAF3] bg-white px-3 py-1.5" onClick={() => setConfirmation(null)}>取消</button>
+          <button type="button" disabled={busy} className="rounded-lg bg-[#6C4CF5] px-3 py-1.5 text-white"
+            onClick={() => { void action(confirmation); }}>{confirmation === 'retryRead' ? '确认重新读取' : '确认保存当前布局'}</button>
+        </div>
+      </div>}
+      {status?.enabled && !healthy && !confirmation && <div className="mt-3 flex gap-2">
+        <button type="button" disabled={busy} className="rounded-lg border border-[#E6EAF3] px-3 py-2 disabled:opacity-40" onClick={() => setConfirmation('retryRead')}>重新读取</button>
+        <button type="button" disabled={busy} className="rounded-lg bg-[#6C4CF5] px-3 py-2 text-white disabled:opacity-40" onClick={() => setConfirmation('saveCurrent')}>保存当前布局</button>
       </div>}
     </div>
   </details>;

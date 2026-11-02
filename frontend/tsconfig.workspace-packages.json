@@ -10,23 +10,188 @@
       "@deviceforge/plugin-sdk": [
         "./src/plugin-sdk/index.ts"
       ],
+      "@deviceforge/plugin-sdk/json": [
+        "./src/plugin-sdk/json.ts"
+      ],
+      "@deviceforge/contracts/api": [
+        "./contracts/api.d.ts"
+      ],
+      "@deviceforge/marketplace/browser-management": [
+        "./plugins/marketplace/src/browser-management.ts"
+      ],
+      "@deviceforge/business-kit/select-field": [
+        "./plugins/business-kit/src/react/select-field.tsx"
+      ],
+      "@deviceforge/business-kit/workspace": [
+        "./plugins/business-kit/src/workspace.ts"
+      ],
+      "@deviceforge/analysis/dex-analysis": [
+        "./plugins/analysis/src/dex-analysis/index.ts"
+      ],
+      "@deviceforge/business-kit/platform": [
+        "./plugins/business-kit/src/platform.ts"
+      ],
+      "@deviceforge/device-apps/services": [
+        "./plugins/device-apps/src/services.ts"
+      ],
+      "@deviceforge/marketplace/services": [
+        "./plugins/marketplace/src/workbench/services.ts"
+      ],
+      "@deviceforge/performance/services": [
+        "./plugins/performance/src/services.ts"
+      ],
+      "@deviceforge/ai/model/cli-stream": [
+        "./plugins/ai/src/model/cli-stream/index.ts"
+      ],
+      "@deviceforge/ai/model/sdk-stream": [
+        "./plugins/ai/src/model/sdk-stream/index.ts"
+      ],
+      "@deviceforge/automation/services": [
+        "./plugins/automation/src/services.ts"
+      ],
+      "@deviceforge/business-kit/device": [
+        "./plugins/business-kit/src/device.ts"
+      ],
+      "@deviceforge/business-kit/dialog": [
+        "./plugins/business-kit/src/react/dialog.tsx"
+      ],
+      "@deviceforge/performance/profile": [
+        "./plugins/performance/src/android-profile/index.ts"
+      ],
+      "@deviceforge/business-kit/react": [
+        "./plugins/business-kit/src/react/index.tsx"
+      ],
+      "@deviceforge/business-kit/sheet": [
+        "./plugins/business-kit/src/react/sheet.tsx"
+      ],
+      "@deviceforge/analysis/services": [
+        "./plugins/analysis/src/services.ts"
+      ],
+      "@deviceforge/business-kit/jobs": [
+        "./plugins/business-kit/src/jobs/index.ts"
+      ],
+      "@deviceforge/device-apps/model": [
+        "./plugins/device-apps/src/model/index.ts"
+      ],
+      "@deviceforge/marketplace/model": [
+        "./plugins/marketplace/src/model/index.ts"
+      ],
+      "@deviceforge/performance/model": [
+        "./plugins/performance/src/performance/index.ts"
+      ],
+      "@deviceforge/terminal/services": [
+        "./plugins/terminal/src/services.ts"
+      ],
+      "@deviceforge/analysis/msgpack": [
+        "./plugins/analysis/src/msgpack/index.ts"
+      ],
+      "@deviceforge/automation/model": [
+        "./plugins/automation/src/model/index.ts"
+      ],
+      "@deviceforge/business-kit/api": [
+        "./plugins/business-kit/src/api/index.ts"
+      ],
+      "@deviceforge/device-apps/view": [
+        "./plugins/device-apps/src/view.tsx"
+      ],
+      "@deviceforge/marketplace/view": [
+        "./plugins/marketplace/src/view.tsx"
+      ],
+      "@deviceforge/performance/view": [
+        "./plugins/performance/src/view.tsx"
+      ],
+      "@deviceforge/automation/view": [
+        "./plugins/automation/src/view.tsx"
+      ],
+      "@deviceforge/frida/services": [
+        "./plugins/frida/src/services.ts"
+      ],
+      "@deviceforge/settings/model": [
+        "./plugins/settings/src/model/index.ts"
+      ],
+      "@deviceforge/terminal/model": [
+        "./plugins/terminal/src/model/index.ts"
+      ],
+      "@deviceforge/analysis/view": [
+        "./plugins/analysis/src/view.tsx"
+      ],
+      "@deviceforge/devices/model": [
+        "./plugins/devices/src/model.ts"
+      ],
+      "@deviceforge/settings/view": [
+        "./plugins/settings/src/view.tsx"
+      ],
+      "@deviceforge/terminal/view": [
+        "./plugins/terminal/src/view.tsx"
+      ],
+      "@deviceforge/ai/model/cli": [
+        "./plugins/ai/src/model/cli/index.ts"
+      ],
+      "@deviceforge/ai/model/sdk": [
+        "./plugins/ai/src/model/sdk/index.ts"
+      ],
+      "@deviceforge/business-kit": [
+        "./plugins/business-kit/src/index.ts"
+      ],
+      "@deviceforge/ai/services": [
+        "./plugins/ai/src/services.ts"
+      ],
+      "@deviceforge/device-apps": [
+        "./plugins/device-apps/src/index.ts"
+      ],
       "@deviceforge/files/model": [
         "./plugins/files/src/model/index.ts"
+      ],
+      "@deviceforge/frida/model": [
+        "./plugins/frida/src/model/index.ts"
+      ],
+      "@deviceforge/marketplace": [
+        "./plugins/marketplace/src/index.ts"
+      ],
+      "@deviceforge/performance": [
+        "./plugins/performance/src/index.ts"
       ],
       "@deviceforge/tasks/model": [
         "./plugins/tasks/src/model/index.ts"
       ],
+      "@deviceforge/automation": [
+        "./plugins/automation/src/index.ts"
+      ],
       "@deviceforge/files/view": [
         "./plugins/files/src/view.tsx"
+      ],
+      "@deviceforge/frida/view": [
+        "./plugins/frida/src/view.tsx"
       ],
       "@deviceforge/tasks/view": [
         "./plugins/tasks/src/view.tsx"
       ],
+      "@deviceforge/analysis": [
+        "./plugins/analysis/src/index.ts"
+      ],
+      "@deviceforge/settings": [
+        "./plugins/settings/src/index.ts"
+      ],
+      "@deviceforge/terminal": [
+        "./plugins/terminal/src/index.ts"
+      ],
+      "@deviceforge/ai/view": [
+        "./plugins/ai/src/view.tsx"
+      ],
+      "@deviceforge/devices": [
+        "./plugins/devices/src/index.ts"
+      ],
       "@deviceforge/files": [
         "./plugins/files/src/index.ts"
       ],
+      "@deviceforge/frida": [
+        "./plugins/frida/src/index.ts"
+      ],
       "@deviceforge/tasks": [
         "./plugins/tasks/src/index.ts"
+      ],
+      "@deviceforge/ai": [
+        "./plugins/ai/src/index.ts"
       ]
     }
   }

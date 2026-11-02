@@ -5,13 +5,22 @@ import type { Tasks } from '../features/tasks/index.ts';
 import type { Devices } from '../features/devices/index.ts';
 import { createDeviceGateway } from './device-gateway.ts';
 import { publicCall, publicJob } from './public-api.ts';
+import { createPluginTransport } from './plugin-transport.ts';
+import { createPluginCleanup } from './plugin-cleanup.ts';
+import { scopedTransportAccess } from '../plugins/transport-access.ts';
 
 export function createReleaseHost(context: HostContext, client: ApiClient,
-  release: PluginReleaseReference, tasks: Tasks, devices: Devices): HostContext {
+  release: PluginReleaseReference, tasks: Tasks, devices: Devices, cleanupMs?: number): HostContext {
   const scopedClient = withPluginRelease(client, release);
+  const transport = createPluginTransport(scopedClient);
   const gateway = createDeviceGateway(scopedClient, context.signal);
   return {
     ...context,
+    transport: scopedTransportAccess(transport, context.signal, context.onDispose),
+    onCleanup: createPluginCleanup({
+      signal: context.signal, onDispose: context.onDispose, transport,
+      ...(cleanupMs === undefined ? {} : { timeoutMs: cleanupMs }),
+    }),
     submit: (operation, input, signal) => publicCall(
       tasks.submit({ operation, input }, signal, scopedClient), publicJob,
     ),

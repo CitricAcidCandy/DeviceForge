@@ -1,5 +1,5 @@
 // 从一份开发清单生成组件、市场资料和完整发布，不修改源工程。
-import { mkdir, mkdtemp, realpath, rename, rm, writeFile, copyFile, lstat } from 'node:fs/promises';
+import { mkdir, mkdtemp, realpath, rm, writeFile, copyFile, lstat } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { inside, readJson, regularFile, packagePath } from '../paths.mjs';
 import { writeTgz, writeZip } from '../../../scripts/plugin-releases/archive.mjs';
@@ -10,8 +10,11 @@ import { jsonBytes, digestBytes, verifyReleaseDirectory } from '../../../scripts
 import { normalizeManifest } from './manifest.mjs';
 import { componentMembers } from './components.mjs';
 import { marketMetadata } from './market.mjs';
+import { finalizePluginDirectory } from './finalize.mjs';
+import { preparePluginReceipt } from './prepared.mjs';
 
-export async function packPlugin({ source = 'manifest.json', destination, platform = `${process.platform}-${process.arch}` }, { signal } = {}) {
+export async function packPlugin({ source = 'manifest.json', destination, platform = `${process.platform}-${process.arch}`, prepareOnly = false }, { signal } = {}) {
+  if (typeof prepareOnly !== 'boolean') throw new Error('prepareOnly必须明确为布尔值');
   if (!/^[a-z0-9]+-[a-z0-9-]+$/.test(platform)) throw new Error('打包平台必须为 os-arch 标识');
   const manifestPath = resolve(source), base = dirname(manifestPath);
   const declaration = normalizeManifest(await readJson(manifestPath, 1024 * 1024));
@@ -27,6 +30,7 @@ export async function packPlugin({ source = 'manifest.json', destination, platfo
       throw new Error('输出目录不能位于 files 选择的构建产物目录内');
   }
   const staging = await mkdtemp(join(parent, '.deviceforge-pack-'));
+  let retained = false;
   try {
     signal?.throwIfAborted();
     const files = new Map();
@@ -76,11 +80,16 @@ export async function packPlugin({ source = 'manifest.json', destination, platfo
       ...(await measureFile(archive)) };
     await writeFile(join(staging, 'pack-report.json'), jsonBytes(report), { flag: 'wx' });
     signal?.throwIfAborted();
-    await rename(staging, target);
+    if (prepareOnly) {
+      const prepared = await preparePluginReceipt(staging, target, report, { signal });
+      retained = true;
+      return prepared;
+    }
+    await finalizePluginDirectory(staging, target, { signal });
     return report;
   } finally {
     // 暂存身份与父目录同时核对；已发布目录不属于清理目标。
-    try {
+    if (!retained) try {
       const checked = await realpath(staging);
       if (!inside(parent, checked) || checked === parent) throw new Error('打包暂存清理路径越界');
       await rm(checked, { recursive: true, force: true });

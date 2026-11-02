@@ -1,0 +1,43 @@
+{
+  "name": "@deviceforge/terminal",
+  "description": "交互终端与独立会话生命周期",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "development": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./model": {
+      "development": "./src/model/index.ts",
+      "types": "./dist/model/index.d.ts",
+      "import": "./dist/model/index.js"
+    },
+    "./services": {
+      "development": "./src/services.ts",
+      "types": "./dist/services.d.ts",
+      "import": "./dist/services.js"
+    },
+    "./view": {
+      "development": "./src/view.tsx",
+      "types": "./dist/view.d.ts",
+      "import": "./dist/view.js"
+    }
+  },
+  "dependencies": {
+    "@deviceforge/business-kit": "file:../business-kit",
+    "@xterm/xterm": "6.0.0",
+    "@xterm/addon-fit": "0.11.0",
+    "radix-ui": "1.8.1",
+    "lucide-react": "1.56.0"
+  },
+  "peerDependencies": {
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  },
+  "devDependencies": {
+    "@deviceforge/plugin-sdk": "file:../../sdk/dist/deviceforge-plugin-sdk-0.1.0.tgz",
+    "@deviceforge/contracts": "file:../../contracts"
+  }
+}

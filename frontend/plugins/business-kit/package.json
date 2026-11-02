@@ -1,0 +1,70 @@
+{
+  "name": "@deviceforge/business-kit",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./select-field": {
+      "development": "./src/react/select-field.tsx",
+      "types": "./dist/react/select-field.d.ts",
+      "import": "./dist/react/select-field.js"
+    },
+    "./device": {
+      "development": "./src/device.ts",
+      "types": "./dist/device.d.ts",
+      "import": "./dist/device.js"
+    },
+    "./sheet": {
+      "development": "./src/react/sheet.tsx",
+      "types": "./dist/react/sheet.d.ts",
+      "import": "./dist/react/sheet.js"
+    },
+    "./dialog": {
+      "development": "./src/react/dialog.tsx",
+      "types": "./dist/react/dialog.d.ts",
+      "import": "./dist/react/dialog.js"
+    },
+    "./workspace": {
+      "development": "./src/workspace.ts",
+      "types": "./dist/workspace.d.ts",
+      "import": "./dist/workspace.js"
+    },
+    ".": {
+      "development": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./api": {
+      "development": "./src/api/index.ts",
+      "types": "./dist/api/index.d.ts",
+      "import": "./dist/api/index.js"
+    },
+    "./jobs": {
+      "development": "./src/jobs/index.ts",
+      "types": "./dist/jobs/index.d.ts",
+      "import": "./dist/jobs/index.js"
+    },
+    "./react": {
+      "development": "./src/react/index.tsx",
+      "types": "./dist/react/index.d.ts",
+      "import": "./dist/react/index.js"
+    },
+    "./platform": {
+      "development": "./src/platform.ts",
+      "types": "./dist/platform.d.ts",
+      "import": "./dist/platform.js"
+    }
+  },
+  "dependencies": {
+    "@noble/hashes": "2.0.1",
+    "radix-ui": "1.8.1",
+    "lucide-react": "1.56.0"
+  },
+  "peerDependencies": {
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  },
+  "devDependencies": {
+    "@deviceforge/plugin-sdk": "file:../../sdk/dist/deviceforge-plugin-sdk-0.1.0.tgz"
+  },
+  "version": "0.1.0"
+}

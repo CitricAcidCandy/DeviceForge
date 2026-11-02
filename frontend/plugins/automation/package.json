@@ -1,0 +1,39 @@
+{
+  "name": "@deviceforge/automation",
+  "description": "设备步骤、桌面操作与输入录制回放",
+  "type": "module",
+  "private": true,
+  "exports": {
+    ".": {
+      "development": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./view": {
+      "development": "./src/view.tsx",
+      "types": "./dist/view.d.ts",
+      "import": "./dist/view.js"
+    },
+    "./services": {
+      "development": "./src/services.ts",
+      "types": "./dist/services.d.ts",
+      "import": "./dist/services.js"
+    },
+    "./model": {
+      "development": "./src/model/index.ts",
+      "types": "./dist/model/index.d.ts",
+      "import": "./dist/model/index.js"
+    }
+  },
+  "dependencies": {
+    "lucide-react": "1.56.0",
+    "@deviceforge/business-kit": "file:../business-kit"
+  },
+  "peerDependencies": {
+    "react-dom": "^19.3.0",
+    "react": "^19.3.0"
+  },
+  "devDependencies": {
+    "@deviceforge/plugin-sdk": "file:../../sdk/dist/deviceforge-plugin-sdk-0.1.0.tgz"
+  }
+}

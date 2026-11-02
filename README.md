@@ -1,57 +1,147 @@
 # DeviceForge · 设备工坊
 
-浏览器 / 服务器架构重写工程。Rust 后端提供公开业务与插件契约；浏览器端已按用户选定的电子设备工坊背景实施 React 产品界面，接入14个业务路由和运行中插件扩展。工程和 SDK 身份为 DeviceForge，展示品牌为 FORGE。
+**面向开发者与测试人员的可扩展设备调试工作台。**
 
-资源中心位于根目录 `resource-server/`，由部署者独立运行 `npm run start:resource-server`，默认地址为 `http://127.0.0.1:7040`。npx 启动参数 `--marketplace-url` 仅指定市场地址，多来源可使用 `--marketplace-config`；资源服务不随 npx 打包或启动。
+DeviceForge 将设备管理、应用分析、性能采集与自动化放进同一个浏览器工作台。设备和外部工具运行在 Rust 服务器一侧，浏览器负责交互；HTTP 与 MCP 客户端复用同一套任务能力。通过服务器插件和浏览器插件，可以同时扩展底层工具与产品界面。
 
-后端入口：backend/README.md。后端文件骨架、开发约束、接口设计、MCP 服务及核心迁移清单全部存放在 backend/docs。
+[快速开始](#快速开始) · [插件扩展](#插件扩展) · [接入 MCP](#接入-mcp) · [开发与文档](#开发与文档) · [参与贡献](#参与贡献)
 
-前端入口：frontend/README.md。前端架构、开发约束和浏览器插件契约独立存放在 frontend/docs。
+> 项目处于活跃开发阶段，接口与插件体系仍在迭代。目前运行包的验证主要覆盖 Windows x64；其他平台、设备型号和具体业务能力需要分别验证。当前使用本地构建的 `.tgz` 包启动，暂不以 `npx @deviceforge/cli` 作为可用安装入口。
 
-独立工程位于 `G:\Rust\DeviceForge`，旧 Electron 工程只作业务行为对照。新架构采用可替换端口和适配器，通过公开操作贡献接入设备工具及独立进程插件，HTTP 和 MCP 共用任务层。内部 apk-* crate 名称暂保留。
+## 核心能力
 
-当前实现与证据以 [当前进度与新会话交接](docs/当前进度与新会话交接.md) 为准。统一功能插件的清单、共享工具、配置持久化、成套前后端安装与分发入口见 [统一安装契约](backend/docs/contracts/统一插件安装v1.md)、[开发者发布工具](scripts/plugin-releases/README.md) 和 [用户安装操作](frontend/docs/implementation/统一插件安装前端接线-20261022.md)。各业务的真机、性能与公开发布分别验收。
+| 方向 | 可以做什么 |
+| --- | --- |
+| 设备调试 | 通过设备提供者接入 Android / HarmonyOS，管理设备与应用，使用截图、输入和视频投屏等能力 |
+| 应用分析 | 查看 APK / AAB / APKS 信息，进行签名检查、反编译与安装包转换 |
+| 性能诊断 | 采集 CPU、内存与 FPS，查看归档、调用栈和火焰图；Root 采集取决于设备资格与工具支持 |
+| 自动化与调试 | 通过相关插件接入设备步骤、桌面操作、终端与 Frida 等工作流 |
+| 插件扩展 | 安装、启停与更新服务器插件和浏览器插件，扩展页面、组件、命令及服务 |
+| 程序化调用 | 通过 HTTP API 或 MCP 调用公开能力，查询任务、事件与产物，并用日志 ID 追踪问题 |
 
-Rust 服务使用 Tokio + Axum 异步架构，线上任务与性能存储通过受限阻塞工作池执行。日志采用有界非阻塞 JSONL、轮转/保留和退出刷新；v2 HTTP、MCP、后台任务与插件调用携带关联日志 ID，v1 保留兼容。公开契约见 [日志与关联契约](backend/docs/contracts/日志与关联契约.md)，前端消费要求独立放在 [日志 ID 与接口消费](frontend/docs/contracts/日志ID与接口消费.md)。通用进程插件支持运行中加载/卸载/重载。公开离散设备提供者、能力路由与前端设备上下文已实现，当前 debug/release 设备、真实浏览器及 npx 分发集成通过；平台实现迁出宿主、常驻连接与真机尚未完成。
+具体可用能力以当前安装的插件、操作目录与设备支持为准，不代表两个设备平台具有相同能力。视频投屏当前不含音频。各模块的迁移与验证状态见[开发进度](docs/当前进度与新会话交接.md)。
 
-本地/同事局域网默认免鉴权，APK_API_TOKEN 可选，配置后执行令牌检查。在线插件按可信代码运行，不要求权限审批或强制隔离。浏览器可在线提交服务器包与浏览器包并热装卸；公开组件、模块、命令、服务、状态和任务提交钩子已接入运行平台。接口与生命周期见[后端在线安装架构](backend/docs/implementation/在线插件安装架构.md)、[前端在线插件与开放扩展](frontend/docs/implementation/在线插件与开放扩展.md)。本轮产品范围和实际证据见[产品实施方案](frontend/docs/implementation/产品界面实施方案.md)及[产品验收](frontend/docs/verification/产品界面验收.md)，真机与正式分发继续独立记录。
+## 快速开始
 
-开发要求分别见 [backend/AGENTS.md](backend/AGENTS.md) 和 [frontend/AGENTS.md](frontend/AGENTS.md)，两份文件独立包含职责、依赖、资源与检查要求。启动器另遵守 [cli/AGENTS.md](cli/AGENTS.md)，根目录只保存共同规则和工程导航。
+### 1. 准备环境
 
-## Windows 预览后端控制台
+- Node.js **22.18 或更高版本**，以及 npm。
+- 从源码构建时，需要支持 Rust 2024 edition 的稳定工具链，以及对应平台的编译工具；Windows 使用 MSVC 工具链时需要 C++ 构建工具。
+- 使用设备能力时，按相关插件要求准备 ADB、HDC 或其他外部工具；启动工作台本身不要求连接设备。
 
-双击根目录的 `启动后端.bat`，启动或连接本仓库编译的后端，并在同一窗口持续显示最近 20 条与后续新增的服务器日志。日志保留北京时间、级别、消息及日志 ID 等排查信息；完整 JSONL 仍保存在窗口显示的服务器日志目录。
+已有可信来源提供的、匹配本机平台的 CLI 运行包时，可以跳过源码构建，直接从第 3 步启动；运行包使用者无需安装 Rust。
 
-- 输入 `stop` 后回车，或按 Ctrl+C：请求后端正常停止并等待退出。
-- 输入 `quit` 后回车：仅退出日志查看，后端继续运行。
-- 输入 `status` 后回车：查看进程与健康状态。
-- 双击 `停止后端.bat`，可独立停止同一预览后端。
+### 2. 从源码构建运行包
 
-命令行还支持 `启动后端.bat --background` 只启动后台服务、`--status` 检查状态、`--stop` 停止、`--help` 查看帮助。PowerShell 兼容入口为 `scripts/start-backend.ps1`，对应 `-NoFollow`、`-Status`、`-Stop`、`-Help`。
-
-此入口使用 `backend/target/debug/apk-server.exe`，后端先在 `backend` 目录执行 `cargo build --locked -p apk-server --bin apk-server`；前端正常执行 `npm run dev` 或 `npm run build`，会自动构建并带上官方调试器。调试器使用说明见[官方插件说明](examples/browser-debugger/README.md)。数据及插件目录沿用 `scripts/backend-console/deployment.mjs` 的原部署，监听 `0.0.0.0:7031`，不迁移到 npx 的用户数据目录。旧固定程序仍运行时先使用原停止入口正常退出，再重新启动。HTTP 与 MCP 在同一个后端进程中启动，MCP 地址为 `http://127.0.0.1:7031/mcp`；该入口不另起 MCP 进程或 7032 监听。普通业务继续支持可信局域网访问，调试功能仅在本机回环连接开放。
-
-停止只接管身份一致的预览服务器，其他程序占用端口时明确拒绝；关闭服务优先通过公开接口完成。若日志确认宿主已成功结束、没有业务子进程或监听，但旧宿主进程仍挂起，才回收同一身份的单个残留进程并说明原因。直接点窗口关闭按钮不能保证正常停止，主动结束服务请用 `stop` 或独立停止入口。
-
-## 本地 npx 启动
-
-构建者执行 `npm run pack:cli` 生成当前平台运行包；使用者只需 Node.js 22.18 或更高版本及 npm。包携带预编译 Rust 后端、离线插件校验器和前端静态资源。在项目根目录执行；如需鉴权再配置 `APK_API_TOKEN`：
-
-```powershell
-npx --yes --package .\artifacts\deviceforge-cli-0.1.0.tgz deviceforge start --ip 0.0.0.0 --port 7030 --mcp-port 7032
-npx --yes --package .\artifacts\deviceforge-cli-0.1.0.tgz deviceforge plugin install .\my-release.zip --api-url http://127.0.0.1:7030
-npx --yes --package .\artifacts\deviceforge-cli-0.1.0.tgz deviceforge plugin list
+```sh
+git clone https://github.com/CitricAcidCandy/DeviceForge.git
+cd DeviceForge
+npm ci
+npm run pack:cli
 ```
 
-默认允许局域网访问，前端/API 使用 7030，独立 MCP 使用 7032；可分别指定 IP 和端口。完整发布安装调用已运行的服务，自动准备服务器组件、可选浏览器组件与必需工具；支持市场清单和完整离线 ZIP。账号、项目、签名等必要输入不足时显示“需要配置”。统一安装的组件、工具与插件配置固定归属 `DEVICEFORGE_USER_DIR`，默认用户目录 `.deviceforge`；`--data-dir` 只改变业务数据与旧兼容部署目录。清除 npm 缓存不删除这些持久内容，但再次 npx 启动可能需要联网获取宿主。包格式与生命周期见 [cli/README.md](cli/README.md)，后端部署说明见 [命令行部署与插件安装](backend/docs/guides/命令行部署与插件安装.md)。
+构建脚本会编译 Rust 后端、安装前端依赖并构建静态资源，随后在 `artifacts/` 下生成 CLI 包。包内包含后端、插件校验器和浏览器资源，**仅适用于构建主机的平台与架构**。
 
-`npm run pack:plugins` 生成原生组件 TGZ，可用 `npm run pack:plugins -- msgpack` 选择插件 ID。完整发布还须通过 `pack:plugin-release` 组合组件与工具，形成用户一次安装的市场条目及离线 ZIP。便携目录、独立 TGZ 和 npm 包保留在 `plugin install-legacy` / `plugin list-legacy`，它们不自动准备工具，不覆盖完整发布拥有的组件。分发说明见 [开发者发布工具](scripts/plugin-releases/README.md) 和 [原生组件分发](backend/docs/implementation/原生插件分发.md)。
+### 3. 启动工作台
 
-当前 Windows x64 release 运行包已重建，真实 npx 验证默认免令牌与可选鉴权、五个原生插件、运行中热装卸、日志关联及正常退出。本阶段增加公开 Node 设备示例的实际安装、HTTP/MCP 发现与能力调用、重载换代、两种传输的旧引用拒绝，以及完整任务和事件历史保留。包内 `runtime/web/assets/plugin-host.js` 导出 `createFrontendRuntime` 与 `createNamedSlotAdapter`，提供可独立导入的生产宿主入口；应用用例与插件 SDK 的具体能力见前端文档。
+在项目根目录执行；使用其他版本或外部提供的运行包时，替换为实际包路径：
 
-协议 2/3 设备插件可通过 `artifacts.input_pointers` 选择嵌套业务参数中的产物 ID，例如 `/input/artifact_id`；宿主提前校验、准备摘要一致的独立副本，并发布输出文件。debug/release 真实服务及同一 tgz 的 npx 两协议安装、HTTP/独立 MCP、副本与输出、在途卸载和历史验收已通过，见 [插件产物协议](backend/docs/contracts/插件产物协议.md)。Android/Harmony 仍待迁出宿主。
+```sh
+npx --yes --package ./artifacts/deviceforge-cli-0.1.0.tgz deviceforge start
+```
 
-平台迁出的首步已交付独立 [异步工具执行库](backend/crates/tool-process/README.md)，提供 argv、环境、字节/文件输出、限额、绝对截止时间和有界直接进程回收。宿主已经回接，非合作插件清理失败或执行 Future 丢弃保留未确认状态。当前后端 248 项测试、debug/release 运行及真实 npx 通过；实际平台插件、旧操作统一准入和性能会话热卸载继续按 [迁出方案](backend/docs/implementation/平台适配器迁出实施.md) 实施。
+首次启动使用以下默认值；已有根配置或命令行参数可以覆盖它们：
 
-尚未发布 npm registry，`npx @deviceforge/cli` 的在线启动仍待公开发布。其他平台、另一台局域网客户端、真机与具体产品视觉需要独立验收；平台适配器迁出、常驻会话、Frida、自动化、投屏等仍按迁移清单推进。
+| 入口 | 默认地址 |
+| --- | --- |
+| 浏览器工作台与 HTTP API | <http://127.0.0.1:7030> |
+| 独立 MCP 端点 | <http://127.0.0.1:7032/mcp> |
 
+默认监听 `0.0.0.0`，同一局域网的同事可通过服务器 IP 访问。只允许本机访问时，在启动命令末尾增加 `--ip 127.0.0.1`；端口可用 `--port` 和 `--mcp-port` 调整。在运行终端按 **Ctrl+C** 请求正常停止。
+
+> DeviceForge 面向个人与可信同事的局域网环境，默认免鉴权。需要令牌时，可在启动前设置 `APK_API_TOKEN`，客户端使用 Bearer 令牌。插件按可信代码运行，不提供强制沙箱隔离；请仅安装可信来源的插件，不要将默认部署直接暴露到公网。
+
+## 插件扩展
+
+DeviceForge 的扩展分为两侧：
+
+- **服务器插件**：提供工具、任务、设备能力或后台服务，由宿主管理进程与生命周期。
+- **浏览器插件**：提供页面、组件、命令与服务，通过公开接口接入工作台，也可以向其他插件的扩展点贡献内容。
+
+同一个功能可以包含配套的服务器与浏览器组件，以完整发布包统一安装。独立插件工程以一份 `manifest.json` 描述功能、组件、依赖和市场资料，由 CLI 生成分发文件，不必重复手写多套清单。
+
+### 安装插件
+
+工作台启动后，可在插件市场使用“从本地导入”导入完整离线 ZIP，也可以在另一个终端调用 CLI。以下以 `my-plugin.zip` 为例，请替换为实际插件包路径：
+
+```sh
+npx --yes --package ./artifacts/deviceforge-cli-0.1.0.tgz deviceforge plugin install ./my-plugin.zip --api-url http://127.0.0.1:7030
+npx --yes --package ./artifacts/deviceforge-cli-0.1.0.tgz deviceforge plugin list --api-url http://127.0.0.1:7030
+```
+
+安装命令连接已经运行的服务，不会启动另一个后端。账号、路径或其他必要输入尚未配置时，需要在市场补齐配置；安装状态与运行状态以服务实际返回为准。更多打包、安装与更新用法见 [CLI 指南](cli/README.md)。
+
+### 自建插件市场（可选）
+
+资源服务负责保存插件包、依赖与市场资料，与工作台独立部署。在源码根目录启动：
+
+```sh
+npm run start:resource-server
+```
+
+默认地址为 <http://127.0.0.1:7040>。启动工作台时可用 `--marketplace-url` 指向其他资源服务，或用 `--marketplace-config` 配置多个来源。资源服务不随 CLI 打包或自动启动，**本地离线插件导入不依赖它**。局域网监听、存储与发布流程见[资源服务指南](resource-server/README.md)。
+
+## 接入 MCP
+
+支持 Streamable HTTP 的 MCP 客户端可以连接启动后的独立端点：
+
+```text
+http://127.0.0.1:7032/mcp
+```
+
+局域网客户端将 `127.0.0.1` 替换为服务器 IP；自定义了 MCP 端口时使用实际端口。如果服务配置了 `APK_API_TOKEN`，客户端需要发送 `Authorization: Bearer <令牌>` 请求头。
+
+MCP 与浏览器共用任务、事件、产物和日志体系，不需要再部署一套设备服务。插件作者还可调用 `get_plugin_development_guide` 获取公开开发指南与示例，无需读取宿主源码。工具说明与接入细节见 [MCP 服务文档](backend/docs/guides/MCP服务.md)。
+
+## 数据与配置
+
+数据保存在服务器一侧，默认用户目录为 `~/.deviceforge`，Windows 对应 `%USERPROFILE%\.deviceforge`。
+
+| 内容 | 配置方式 |
+| --- | --- |
+| 业务数据 | `--data-dir` 或 `DEVICEFORGE_DATA_DIR` |
+| 统一安装的插件、共享工具与插件配置 | `DEVICEFORGE_USER_DIR`，默认使用服务器用户的 `.deviceforge` 目录 |
+| 日志 | 默认位于业务数据目录的 `logs/`，可用 `DEVICEFORGE_LOG_DIR` 调整 |
+| 监听地址与市场来源 | 业务数据目录的 `config.json`；命令行参数只覆盖本次启动 |
+
+`--data-dir` 不改变统一安装的插件、共享工具和插件配置的归属。清理 npm 缓存不会主动删除这些持久内容。完整配置、目录规则与兼容部署说明见 [CLI 指南](cli/README.md)。
+
+## 开发与文档
+
+后端采用 **Rust + Tokio + Axum**，前端采用 **React + TypeScript + Vite + Tailwind CSS**。设备操作与外部进程由服务器执行，浏览器通过公开契约消费能力；资源服务作为独立组件维护。
+
+| 目录 / 入口 | 内容 |
+| --- | --- |
+| [backend/](backend/README.md) | Rust 宿主、HTTP / MCP、任务系统与服务器插件 |
+| [frontend/](frontend/README.md) | 浏览器工作台、界面组件与浏览器插件 |
+| [cli/](cli/README.md) | 运行包启动、插件打包与安装 |
+| [resource-server/](resource-server/README.md) | 独立资源存储与插件市场 |
+| [examples/](examples/) | 插件与集成示例 |
+| [后端文档](backend/docs/README.md) / [前端文档](frontend/docs/README.md) | 所属端的架构、接口、开发与验证说明 |
+| [开发进度](docs/当前进度与新会话交接.md) | 当前实现状态、验证范围与待完成项 |
+
+需要修改源码时，先阅读[共同开发要求](AGENTS.md)，再阅读对应的[后端](backend/AGENTS.md)、[前端](frontend/AGENTS.md)或 [CLI](cli/AGENTS.md) 约束。开发服务的启动方式与热更新说明以各模块文档为准，不与上述 CLI 运行包的端口配置混用。
+
+## 参与贡献
+
+欢迎通过 [Issues](https://github.com/CitricAcidCandy/DeviceForge/issues) 反馈问题、讨论功能，或提交 [Pull Request](https://github.com/CitricAcidCandy/DeviceForge/pulls) 改进代码、文档与示例。
+
+- **反馈问题**：提供版本、操作系统、相关插件与设备信息，附上复现步骤、预期行为及脱敏后的日志 ID 或日志片段。
+- **提交修改**：保持改动聚焦，遵守所属模块的开发约束，并为行为变化补充直接相关的测试。
+- **说明验证**：在 Pull Request 中写清改动动机、影响范围、实际执行的验证与已知限制；未验证的平台或设备不要标为支持。
+
+请勿提交访问令牌、签名密钥、账号凭据或未经脱敏的设备数据。
+
+## 许可证
+
+项目的[包元数据](package.json)声明使用 **MIT** 许可证。当前仓库尚未附带 `LICENSE` 正文，许可文件仍待补齐。

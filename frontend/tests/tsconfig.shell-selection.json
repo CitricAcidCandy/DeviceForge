@@ -1,0 +1,9 @@
+{
+  "extends": "../tsconfig.json",
+  "include": [
+    "../src/plugins/points/index.ts",
+    "./extension-points.test.ts",
+    "./composition-shell-selection.test.ts",
+    "./composition-shell-host.test.ts"
+  ]
+}

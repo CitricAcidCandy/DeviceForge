@@ -1,6 +1,8 @@
 import { pageSlotId } from '../../plugin-sdk/slots.ts';
-import { PRODUCT_ROUTES, isPluginRoute, splitPluginRoute } from './routes.ts';
-import type { HostRoute, ProductRoute } from './routes.ts';
+import { isPluginRoute, splitPluginRoute } from './route-address.ts';
+import type { ProductRoute } from './route-address.ts';
+import { LEGACY_ROUTE_DEFINITIONS } from './legacy-route-definitions.ts';
+import type { HostRoute } from './legacy-route-definitions.ts';
 
 export type SlotModeName = 'append' | 'replace';
 export interface HostSlot {
@@ -27,7 +29,7 @@ export function routeSlotId(route: ProductRoute): string {
   return pageSlotId(pluginId, page);
 }
 
-const routeSlots: readonly HostSlot[] = PRODUCT_ROUTES.map((entry) => ({
+const routeSlots: readonly HostSlot[] = LEGACY_ROUTE_DEFINITIONS.map((entry) => ({
   id: `route.${entry.id}`,
   label: entry.label,
   route: entry.id,
@@ -61,7 +63,7 @@ const areaSlots: readonly HostSlot[] = [
   },
 ];
 
-/** 宿主开放的全部具名槽位；插件写错名字时靠它做静态对账。 */
+/** 历史具名槽位的静态兼容目录；运行期开放目录由实际挂载点另行提供。 */
 export const HOST_SLOTS: readonly HostSlot[] = [...routeSlots, ...areaSlots];
 const index = new Map<string, HostSlot>(HOST_SLOTS.map((slot) => [slot.id, slot]));
 

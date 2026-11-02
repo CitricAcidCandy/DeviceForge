@@ -1,0 +1,7 @@
+{
+  "extends": "../tsconfig.json",
+  "include": [
+    "./workbench-child-ready.test.ts",
+    "../plugins/devices/src/workbench-child.tsx"
+  ]
+}

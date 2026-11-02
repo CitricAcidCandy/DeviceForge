@@ -6,6 +6,7 @@ import type {
   WebPlugin,
   WebPluginRuntimeInfo,
   ConfigurationAccess,
+  WorkspaceMount,
 } from '../plugin-sdk/index.ts';
 import { readPluginModule, validateContributions } from './contracts.ts';
 import { createPluginScope } from './scope.ts';
@@ -41,8 +42,11 @@ interface Runtime {
   plugin: WebPlugin | null;
   activationStarted: boolean;
   state: 'loading' | 'loaded';
+  readonly ready: Promise<void>;
+  readonly notifyReady: () => void;
 }
 export interface ManagerOptions {
+  readonly decorateWorkspaceMount?: (mount: WorkspaceMount) => WorkspaceMount;
   readonly timeouts?: Partial<LifecycleTimeouts>;
   readonly host: HostContext;
   readonly hostForPlugin?: (id: string) => HostContext;
@@ -84,10 +88,14 @@ export function createPluginManager(options: ManagerOptions) {
   const workspaceMounts = createWorkspaceMounts({
     registry: registry.workspaces,
     timeouts,
+    ...(options.decorateWorkspaceMount ? { decorateMount: options.decorateWorkspaceMount } : {}),
     contextFor(pluginId, currentGeneration) {
       const runtime = running.get(pluginId);
-      return runtime?.state === 'loaded' && runtime.generation === currentGeneration &&
-        !runtime.context.signal.aborted ? runtime.context : null;
+      if (!runtime || runtime.generation !== currentGeneration || runtime.context.signal.aborted) return null;
+      const currentContext = () => !closed && running.get(pluginId) === runtime &&
+        runtime.state === 'loaded' && !runtime.context.signal.aborted ? runtime.context : null;
+      // 目录允许激活时登记视图；等待原实例完成激活，不把暂未就绪当作撤销。
+      return runtime.state === 'loaded' ? currentContext() : runtime.ready.then(currentContext);
     },
   });
   const releaseWorkspaceRenderer = registry.workspaceRendering.setRenderer(workspaceMounts.mount);
@@ -154,6 +162,16 @@ export function createPluginManager(options: ManagerOptions) {
     const source = sources.get(id);
     if (!source) throw new Error('插件未经过可信预注册');
     const scope = createPluginScope(options.hostForPlugin?.(id) ?? options.host);
+    let notifyReady = () => {};
+    const ready = new Promise<void>((resolve) => {
+      const settled = () => {
+        scope.context.signal.removeEventListener('abort', settled);
+        resolve();
+      };
+      notifyReady = settled;
+      if (scope.context.signal.aborted) settled();
+      else scope.context.signal.addEventListener('abort', settled, { once: true });
+    });
     const runtime: Runtime = {
       id,
       generation: ++generation,
@@ -163,6 +181,8 @@ export function createPluginManager(options: ManagerOptions) {
       plugin: null,
       activationStarted: false,
       state: 'loading',
+      ready,
+      notifyReady,
     };
     running.set(id, runtime);
     try {
@@ -234,6 +254,7 @@ export function createPluginManager(options: ManagerOptions) {
         }, runtime.scope.context.signal, deadline, '插件配置应用');
       active(runtime);
       runtime.state = 'loaded';
+      runtime.notifyReady();
       registry.publishServices(id, runtime.generation);
       observe(runtime, 'loaded');
       return { id, generation: runtime.generation, state: runtime.state };

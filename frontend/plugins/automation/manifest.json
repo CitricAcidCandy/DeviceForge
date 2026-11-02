@@ -1,0 +1,48 @@
+{
+  "manifest_version": 1,
+  "id": "deviceforge_automation",
+  "version": "0.1.0",
+  "name": "自动化",
+  "description": "设备步骤、桌面操作与输入录制回放",
+  "market": {
+    "summary": "设备步骤、桌面操作与输入录制回放",
+    "keywords": [
+      "自动化"
+    ],
+    "categories": [
+      "function",
+      "ui"
+    ],
+    "applies_to": [
+      "deviceforge"
+    ],
+    "supports_mcp": "none",
+    "supports_agent": true,
+    "restart_policy": "none",
+    "author": "DeviceForge",
+    "visibility": "internal"
+  },
+  "components": [
+    {
+      "kind": "browser",
+      "package_name": "@deviceforge/automation",
+      "entrypoints": {
+        "any": {
+          "path": "dist/index.js",
+          "runtime": "browser"
+        }
+      },
+      "files": [
+        "dist"
+      ],
+      "plugin": {
+        "api_version": 2
+      }
+    }
+  ],
+  "requirements": [],
+  "dependencies": {
+    "dependencies": [],
+    "format_version": 1
+  }
+}

@@ -1,0 +1,261 @@
+import type { MarketplaceServices } from '../services.ts';
+import { ApiError } from '../api/index.ts';
+import { readonlyIssues } from '../schema.ts';
+import { runUploadPreparation } from '../upload-preparation/index.ts';
+import type { PreparationExecutor, UploadSelection } from '../upload-preparation/index.ts';
+import {
+  digestLocalFile,
+  mergeConfigurationPreview,
+  parseLocalConfiguration,
+  readImportJson,
+} from './rules.ts';
+import type { LocalImportKind, LocalImportPreview, LocalToolManifest, LocalImportResult } from './types.ts';
+import { inspectLocalRelease } from './release.ts';
+
+export interface LocalImportPorts {
+  readonly packages: Pick<MarketplaceServices['packages'], 'upload'>;
+  readonly serverPlugins: Pick<MarketplaceServices['serverPlugins'], 'refresh'>;
+  readonly artifacts: Pick<MarketplaceServices['artifacts'], 'upload'>;
+  readonly tools: Pick<MarketplaceServices['toolSupply'], 'importLocal'>;
+  readonly settings: Pick<MarketplaceServices['settings'], 'list' | 'import'>;
+  readonly configurations: Pick<MarketplaceServices['pluginConfigurations'], 'get' | 'save'>;
+  readonly installations?: Pick<MarketplaceServices['installations'], 'install'> & Partial<Pick<MarketplaceServices['installations'], 'refresh' | 'update'>>;
+  readonly installationArtifacts?: Pick<MarketplaceServices['installationArtifacts'], 'upload'>;
+}
+export function localImportPorts(services: MarketplaceServices): LocalImportPorts {
+  return {
+    packages: services.packages,
+    serverPlugins: services.serverPlugins,
+    artifacts: services.artifacts,
+    tools: services.toolSupply,
+    settings: services.settings,
+    configurations: services.pluginConfigurations,
+    installations: services.installations,
+    installationArtifacts: services.installationArtifacts,
+  };
+}
+
+export async function previewLocalImport(
+  ports: LocalImportPorts,
+  input: {
+    readonly kind: LocalImportKind;
+    readonly file: File;
+    readonly manifest: LocalToolManifest | null;
+    readonly moduleId: string;
+    readonly selection?: UploadSelection;
+  },
+  signal: AbortSignal,
+  prepare: PreparationExecutor = runUploadPreparation,
+): Promise<LocalImportPreview> {
+  const { kind } = input;
+  let file = input.file;
+  signal.throwIfAborted();
+  if (kind === 'plugin') {
+    if (!input.selection && !/\.(zip|tgz|tar\.gz)$/i.test(file.name)) throw new Error('插件请选择包含 manifest.json 和构建产物的文件夹，或 ZIP/TGZ 便携包');
+    let release = input.selection?.mode === 'directory' ? null : await inspectLocalRelease(file, signal);
+    let inspection;
+    if (!release) {
+      const prepared = await prepare({ kind: 'plugin', localImport: true,
+        selection: input.selection ?? { mode: 'archive', name: file.name, files: [{ path: file.name, file }] } }, signal);
+      signal.throwIfAborted();
+      inspection = 'inspection' in prepared ? prepared.inspection : prepared;
+      if ('inspection' in prepared) file = prepared.file;
+      release = inspection.release ?? null;
+    }
+    if (release) {
+      // 在用户查看预览时固定修订；提交期间不重新选择更新基线，避免覆盖并行导入。
+      const directory = ports.installations?.refresh ? await ports.installations.refresh(signal) : null;
+      signal.throwIfAborted();
+      const current = directory?.data.find(item => item.id === release.id);
+      return { kind: 'release', file, release, sha256: await digestLocalFile(file, signal),
+        expectedRevision: current?.revision ?? null,
+        target: `${release.name}（${release.id}）`,
+        summary: `版本 ${release.version}，${release.componentCount} 个组件、${release.toolCount} 个工具；目录与资源大小已核对，服务器将继续校验摘要。${current
+          ? `将更新原安装，保留${current.enabled ? '启用' : '停用'}状态；同版本的新内容也按实际构建修订处理。`
+          : '首次安装后自动启用。'}` };
+    }
+    if (!inspection?.identity) throw new Error('插件包缺少有效运行清单');
+    const sha256 = await digestLocalFile(file, signal);
+    return {
+      kind,
+      file,
+      plugin: inspection.identity,
+      sha256,
+      mediaType: /\.(tgz|tar\.gz)$/i.test(file.name) ? 'application/gzip' : 'application/zip',
+      target: `${inspection.identity.kind === 'server' ? '服务器' : '浏览器'}插件 ${inspection.identity.id}`,
+      summary: `版本 ${inspection.identity.version}，${inspection.files.length} 个文件；安装后请到已安装目录显式启用。`,
+    };
+  }
+  if (kind === 'tool') {
+    if (!/\.zip$/i.test(file.name)) throw new Error('工具归档请选择 ZIP 文件');
+    const manifest = input.manifest;
+    const module = manifest?.modules.find((item) => item.id === input.moduleId);
+    if (!manifest || !module) throw new Error('请读取工具清单并选择一个模块');
+    if (file.size !== module.size) throw new Error('ZIP 文件大小与选定工具模块声明不一致');
+    const sha256 = await digestLocalFile(file, signal);
+    if (sha256 !== module.sha256) throw new Error('ZIP 文件 SHA-256 与选定工具模块声明不一致');
+    return {
+      kind,
+      file,
+      manifest,
+      module,
+      sha256,
+      target: `工具模块 ${module.id}`,
+      summary: `版本 ${module.version}；大小与 SHA-256 一致。保留清单中的来源 URL，但导入不下载或执行工具。`,
+    };
+  }
+  const configuration = parseLocalConfiguration(await readImportJson(file, signal));
+  if (configuration.kind === 'settings') {
+    const snapshot = await ports.settings.list(
+      { scope: configuration.scope, owner_id: configuration.owner_id },
+      signal,
+    );
+    signal.throwIfAborted();
+    return {
+      kind,
+      file,
+      configuration,
+      revision: snapshot.data.revision,
+      target: `${configuration.scope === 'user' ? '用户' : '工作区'} ${configuration.owner_id}`,
+      summary: `合并配置区：${Object.keys(configuration.sections).join('、')}；已有同名配置区将更新。`,
+    };
+  }
+  const installed = await ports.serverPlugins.refresh(signal);
+  signal.throwIfAborted();
+  if (!installed.data.some((plugin) => plugin.id === configuration.plugin_id))
+    throw new Error('目标服务器插件尚未安装');
+  const snapshot = await ports.configurations.get(
+    { kind: 'server', id: configuration.plugin_id },
+    signal,
+  );
+  signal.throwIfAborted();
+  if (!snapshot.definition) throw new Error('目标服务器插件没有声明配置能力');
+  if (!snapshot.compatible) throw new Error('目标服务器插件当前配置与声明不兼容，请先在配置页修复');
+  if (
+    readonlyIssues(
+      snapshot.definition.schema,
+      snapshot.values,
+      mergeConfigurationPreview(snapshot.values, configuration.values),
+    ).length
+  )
+    throw new Error('导入值包含只读字段变更');
+  return {
+    kind,
+    file,
+    configuration,
+    revision: snapshot.revision,
+    target: `服务器插件 ${configuration.plugin_id}`,
+    summary: `合并配置字段：${Object.keys(configuration.values).join('、') || '无'}；保存后按插件策略生效，需要重载时请显式应用。`,
+  };
+}
+
+export async function submitLocalImportWithResult(
+  ports: LocalImportPorts,
+  preview: LocalImportPreview,
+  signal: AbortSignal,
+): Promise<LocalImportResult> {
+  signal.throwIfAborted();
+  if (preview.kind === 'release') {
+    if (!ports.installations || !ports.installationArtifacts) throw new Error('当前宿主尚未提供完整功能插件安装能力');
+    const artifact = await ports.installationArtifacts.upload(preview.file.name, preview.file, signal);
+    signal.throwIfAborted();
+    if (artifact.data.sha256 !== preview.sha256 || artifact.data.size !== preview.file.size)
+      throw new ApiError('protocol', 'offline_release_mismatch', '服务器产物摘要或大小不一致，已停止插件安装', null, artifact.logId);
+    const source = { kind: 'offline', artifactId: artifact.data.id } as const;
+    let installed;
+    if (preview.expectedRevision) {
+      if (!ports.installations.update) throw new Error('当前宿主缺少统一更新能力，请升级后重新预览；不会改走覆盖安装');
+      installed = await ports.installations.update(preview.release.id, preview.expectedRevision, source, signal);
+    } else installed = await ports.installations.install(source, signal);
+    signal.throwIfAborted();
+    if (installed.id !== preview.release.id || installed.version !== preview.release.version)
+      throw new Error('服务器安装结果与本地预览不一致，请刷新实际目录');
+    return {
+      message: preview.expectedRevision
+        ? `已更新 ${installed.name} ${installed.version}，${installed.enabled ? '保持启用' : '保持停用'}；请核对当前页面的运行构建，必要时刷新。`
+        : installed.enabled ? `已安装并启用 ${installed.name} ${installed.version}。`
+          : `已安装 ${installed.name} ${installed.version}，当前尚未启用，请到已安装列表查看配置和启用状态。`,
+      debugTarget: { installation: { id: installed.id, revision: installed.revision },
+        candidates: installed.components.map(component => ({ kind: component.kind, id: component.id, version: component.version })) },
+    };
+  }
+  if (preview.kind === 'plugin') {
+    const result = await ports.packages.upload(
+      preview.plugin.kind,
+      preview.file,
+      preview.mediaType,
+      signal,
+      preview.plugin,
+    );
+    signal.throwIfAborted();
+    if (result.data.id !== preview.plugin.id || result.data.version !== preview.plugin.version || result.data.kind !== preview.plugin.kind)
+      throw new ApiError('protocol', 'local_plugin_result_mismatch', '服务器安装结果与本地预览不一致，请刷新实际目录后操作', null, result.logId);
+    return { message: `已安装插件 ${result.data.id} ${result.data.version}，尚未自动启用。`,
+      debugTarget: { installation: null, candidates: [{ kind: result.data.kind, id: result.data.id, version: result.data.version }] } };
+  }
+  if (preview.kind === 'tool') {
+    const artifact = await ports.artifacts.upload(preview.file.name, preview.file, signal);
+    signal.throwIfAborted();
+    if (
+      artifact.data.sha256.toLowerCase() !== preview.sha256 ||
+      artifact.data.size !== preview.file.size
+    )
+      throw new Error('服务器产物摘要或大小不一致，已停止工具导入');
+    const result = await ports.tools.importLocal(
+      {
+        archive_artifact_id: artifact.data.id,
+        module_id: preview.module.id,
+        manifest: preview.manifest.value,
+      },
+      signal,
+    );
+    signal.throwIfAborted();
+    if (
+      result.data.version !== preview.module.version ||
+      result.data.sha256.toLowerCase() !== preview.sha256
+    )
+      throw new ApiError(
+        'protocol',
+        'local_tool_result_mismatch',
+        '工具导入结果与预览版本或摘要不一致，请刷新实际状态',
+        null,
+        result.logId,
+      );
+    const message = result.data.changed
+      ? `已导入工具 ${result.data.module_id} ${result.data.version}，未执行工具。`
+      : `工具 ${result.data.module_id} ${result.data.version} 已是相同内容。`;
+    return { message, debugTarget: null };
+  }
+  const config = preview.configuration;
+  if (config.kind === 'settings') {
+    const result = await ports.settings.import(
+      {
+        scope: config.scope,
+        owner_id: config.owner_id,
+        sections: config.sections,
+        expected_revision: preview.revision,
+      },
+      signal,
+    );
+    signal.throwIfAborted();
+    return { message: `配置已导入，当前修订 ${result.data.revision}。`, debugTarget: null };
+  }
+  const result = await ports.configurations.save(
+    { kind: 'server', id: config.plugin_id },
+    preview.revision,
+    config.values,
+    signal,
+  );
+  signal.throwIfAborted();
+  if (!result.compatible || result.fieldErrors.length)
+    throw new Error('配置校验未通过，原配置未改变');
+  const message = result.pendingReload
+    ? `插件配置已保存，修订 ${result.revision}；请在插件配置中显式应用。`
+    : `插件配置已保存，修订 ${result.revision}，后续调用生效。`;
+  return { message, debugTarget: null };
+}
+
+// 保留既有只消费文案的调用方，调试衔接使用同一次导入的结构化结果。
+export async function submitLocalImport(ports: LocalImportPorts, preview: LocalImportPreview, signal: AbortSignal): Promise<string> {
+  return (await submitLocalImportWithResult(ports, preview, signal)).message;
+}

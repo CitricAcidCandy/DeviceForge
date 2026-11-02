@@ -1,5 +1,5 @@
 import type { Dispose } from '../../plugin-sdk/models.ts';
-import type { PointAccess } from '../../plugin-sdk/points.ts';
+import type { PointAccess, PointRef } from '../../plugin-sdk/points.ts';
 import { current } from './rules.ts';
 
 export interface PointOwner {
@@ -36,6 +36,7 @@ export function scopedPointAccess(upstream: PointAccess | undefined, signal: Abo
 export function scopedPointAccess(upstream: PointAccess | undefined, signal: AbortSignal,
   track: PointOwner['track']): PointAccess | undefined {
   if (!upstream) return undefined;
+  const readSelection = upstream.selection;
   return Object.freeze<PointAccess>({
     define(definition) {
       current(signal);
@@ -62,6 +63,7 @@ export function scopedPointAccess(upstream: PointAccess | undefined, signal: Abo
     catalog() { current(signal); return upstream.catalog(); },
     list(point) { current(signal); return upstream.list(point); },
     selected(point) { current(signal); return upstream.selected(point); },
+    ...(readSelection ? { selection(point: PointRef) { current(signal); return readSelection.call(upstream, point); } } : {}),
     select(point, id) { current(signal); upstream.select(point, id); },
     subscribe(listener) {
       current(signal);

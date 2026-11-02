@@ -1,0 +1,27 @@
+{
+  "manifest_version": 1,
+  "id": "deviceforge_performance",
+  "version": "0.1.0",
+  "name": "性能与调用栈",
+  "description": "实时性能指标、采样画面与 Root 性能归档。",
+  "market": {
+    "summary": "可热拔插的性能工作区，保留原会话、画面采样与归档规则。",
+    "keywords": ["性能", "调用栈", "采样"],
+    "categories": ["function", "ui"],
+    "applies_to": ["deviceforge"],
+    "supports_mcp": "none",
+    "supports_agent": true,
+    "restart_policy": "none",
+    "author": "DeviceForge",
+    "visibility": "internal"
+  },
+  "components": [{
+    "kind": "browser",
+    "package_name": "@deviceforge/performance",
+    "entrypoints": { "any": { "runtime": "browser", "path": "dist/index.js" } },
+    "files": ["dist"],
+    "plugin": { "api_version": 2 }
+  }],
+  "requirements": [],
+  "dependencies": { "format_version": 1, "dependencies": [] }
+}

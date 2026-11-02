@@ -95,12 +95,15 @@ export function DeviceApps({
   services,
   embedded = false,
   compact = false,
+  active = true,
 }: {
   services: ProductServices;
   /** 并入设备工作台后不再重复页面标题。 */
   embedded?: boolean;
   /** 收进工作台右栏：只留设备应用，安装包分析走抽屉，避免窄栏塞两套界面。 */
   compact?: boolean;
+  /** 隐藏时保留组件与草稿；当前读取均由用户显式触发，不撤销已派发任务。 */
+  active?: boolean;
 }) {
   const [analysisOpen, setAnalysisOpen] = useState(false);
   const [artifactId, setArtifactId] = useState('');
@@ -636,6 +639,9 @@ export function DeviceApps({
       className="product-page packages-page"
       data-embedded={embedded ? 'true' : undefined}
       data-compact={compact ? 'true' : undefined}
+      data-active={active ? 'true' : 'false'}
+      hidden={!active}
+      inert={!active}
     >
       {embedded ? null : <PageTitle title="包与应用" />}
       {compact ? (
@@ -646,7 +652,7 @@ export function DeviceApps({
               安装包分析
             </Button>
           </div>
-          <Sheet open={analysisOpen} onOpenChange={setAnalysisOpen}>
+          <Sheet open={active && analysisOpen} onOpenChange={setAnalysisOpen}>
             <SheetContent side="right" className="package-sheet">
               <SheetHeader>
                 <SheetTitle>安装包分析</SheetTitle>

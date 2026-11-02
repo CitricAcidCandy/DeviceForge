@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { HostError } from '../src/plugin-sdk/index.ts';
 import type { Dispose, HostContext, UiAccess, WorkspaceMount } from '../src/plugin-sdk/index.ts';
 import { createWorkspaceRegistry } from '../src/plugins/workspace/index.ts';
 import { createMountPool } from '../plugins/default-shell/src/mount-pool.ts';
@@ -128,11 +129,11 @@ test('窄窗只改变显示与可见性，不新建或重挂实例', async () =>
   await f.cleanup();
 });
 
-test('提供者loaded通知只重试未成功UI挂载，已就绪视图与草稿保持', async () => {
+test('提供者loaded通知只补旧宿主明确的早期拒绝，已就绪视图与草稿保持', async () => {
   let loaded = false, calls = 0, releases = 0;
   const f = fixture(async (_id, target) => {
     calls++;
-    if (!loaded) throw new Error('提供者尚未完成加载');
+    if (!loaded) throw new HostError('cancelled', 'workspace_provider_revoked', '提供者尚未完成加载');
     target.textContent = '真实视图';
     return () => { releases++; target.textContent = ''; };
   });

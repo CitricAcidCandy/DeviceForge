@@ -36,6 +36,7 @@ const actions = [
 
 function runtime(transport: typeof fetch) {
   return createFrontendRuntime({
+    legacyBusinessServices: true,
     baseUrl: 'http://localhost:7031',
     panelTarget: () => null,
     transport,

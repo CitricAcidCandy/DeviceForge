@@ -1,0 +1,50 @@
+{
+  "manifest_version": 1,
+  "id": "deviceforge_ai",
+  "version": "0.1.0",
+  "name": "AI 助手",
+  "description": "SDK 与 CLI 对话、实时会话和实例级资源管理",
+  "market": {
+    "summary": "SDK 与 CLI 对话、实时会话和实例级资源管理",
+    "keywords": [
+      "AI",
+      "SDK",
+      "CLI"
+    ],
+    "categories": [
+      "function",
+      "ui"
+    ],
+    "applies_to": [
+      "deviceforge"
+    ],
+    "supports_mcp": "none",
+    "supports_agent": true,
+    "restart_policy": "none",
+    "author": "DeviceForge",
+    "visibility": "internal"
+  },
+  "components": [
+    {
+      "kind": "browser",
+      "package_name": "@deviceforge/ai",
+      "entrypoints": {
+        "any": {
+          "path": "dist/index.js",
+          "runtime": "browser"
+        }
+      },
+      "files": [
+        "dist"
+      ],
+      "plugin": {
+        "api_version": 2
+      }
+    }
+  ],
+  "requirements": [],
+  "dependencies": {
+    "dependencies": [],
+    "format_version": 1
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "name": "@deviceforge/performance",
+  "description": "实时性能指标、采样画面与 Root 性能归档",
+  "type": "module",
+  "private": true,
+  "exports": {
+    ".": {
+      "development": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./view": {
+      "development": "./src/view.tsx",
+      "types": "./dist/view.d.ts",
+      "import": "./dist/view.js"
+    },
+    "./services": {
+      "development": "./src/services.ts",
+      "types": "./dist/services.d.ts",
+      "import": "./dist/services.js"
+    },
+    "./model": {
+      "development": "./src/performance/index.ts",
+      "types": "./dist/performance/index.d.ts",
+      "import": "./dist/performance/index.js"
+    },
+    "./profile": {
+      "development": "./src/android-profile/index.ts",
+      "types": "./dist/android-profile/index.d.ts",
+      "import": "./dist/android-profile/index.js"
+    }
+  },
+  "dependencies": {
+    "lucide-react": "1.56.0",
+    "@deviceforge/business-kit": "file:../business-kit",
+    "@deviceforge/contracts": "file:../../contracts"
+  },
+  "peerDependencies": {
+    "react-dom": "^19.3.0",
+    "react": "^19.3.0"
+  },
+  "devDependencies": {
+    "@deviceforge/plugin-sdk": "file:../../sdk/dist/deviceforge-plugin-sdk-0.1.0.tgz"
+  }
+}

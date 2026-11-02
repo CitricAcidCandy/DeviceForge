@@ -9,6 +9,7 @@ import { scopedPointAccess } from './points/index.ts';
 import { scopedWorkspaceAccess } from './workspace/index.ts';
 import { scopedTransportAccess } from './transport-access.ts';
 import { scopedDataAccess } from './data-sources/index.ts';
+import { scopedCleanupRegistration } from './cleanup-access.ts';
 
 export interface PluginScope {
   readonly context: HostContext;
@@ -146,6 +147,7 @@ export function createPluginScope(host: HostContext): PluginScope {
   const ui = scopedWorkspaceAccess(host.ui, controller.signal, track);
   const transport = scopedTransportAccess(host.transport, controller.signal, track);
   const data = scopedDataAccess(host.data, controller.signal, track);
+  const onCleanup = scopedCleanupRegistration(host.onCleanup, controller.signal, track);
   const context = Object.freeze<HostContext>({
     apiVersion: 2,
     signal: controller.signal,
@@ -163,6 +165,7 @@ export function createPluginScope(host: HostContext): PluginScope {
       );
     },
     onDispose: track,
+    ...(onCleanup ? { onCleanup } : {}),
     ...(host.services ? { services: {
       catalog: () => { current(); return host.services!.catalog(); },
       ...(host.services.server ? { server: {

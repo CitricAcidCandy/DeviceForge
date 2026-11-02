@@ -5,8 +5,16 @@
   "distribution": "local_tgz_unpublished",
   "sources": [
     {
+      "name": "api-errors.ts",
+      "sha256": "24e502ad8587040c047c546abec8d1e84aed4776d1cf938f80e2d3e29c0ac63d"
+    },
+    {
       "name": "artifacts.ts",
       "sha256": "ccfc935f970301c3c287b165db6ad3b6fb27d2506cd1f2bf9c55ed770a75d51e"
+    },
+    {
+      "name": "cleanup.ts",
+      "sha256": "656d09e4f1be7cf2670c1d816be5fd4d40e1226d84c1d801dcaab2aa8d07bbf6"
     },
     {
       "name": "configuration.ts",
@@ -26,7 +34,11 @@
     },
     {
       "name": "index.ts",
-      "sha256": "95f705dc413170416fc081565e1d3a39957607508e94b1b7a241bd0d3288ab29"
+      "sha256": "5d96410ccb182329895592cbeed8ba85e99d60d394394a7eca26a3e86edb660c"
+    },
+    {
+      "name": "job-errors.ts",
+      "sha256": "92235d648f09d86a1f70f6466f2ab710a31c5327787172413b8047889bac548e"
     },
     {
       "name": "json.ts",
@@ -38,7 +50,7 @@
     },
     {
       "name": "points.ts",
-      "sha256": "41a7a042eacfbb993fad6a28319e5e1b49c0d43d1e697e6dbe7ca456276f5425"
+      "sha256": "d28366264331b26455aeb52e33fc3f5f8feb123f9da6946aa7681075ebc23840"
     },
     {
       "name": "services.ts",
@@ -62,11 +74,11 @@
     },
     {
       "name": "ui.ts",
-      "sha256": "f33b96433745f5d90c8c7f2dd32602726bc87f9e4ced58eaac53cc5fcae36fb6"
+      "sha256": "30f14470c36203507c960a92a72bdfb6cd80b4ffa4532bae8489e4109a4fa013"
     },
     {
       "name": "workspace.ts",
-      "sha256": "53fc03da546c4c7fdb39202d217a2a062c70a648e94cfab11054b8a20a6d50b1"
+      "sha256": "4c0fa61114b573792303b0d7b082fc4ee2da58e96ddccffb9f43bbe1260098b0"
     }
   ],
   "files": [
@@ -81,6 +93,16 @@
       "sha256": "916d44e1125fa0290117f262c55677adf2b664710221bc326892344db9b34940"
     },
     {
+      "name": "lib/api-errors.js",
+      "size": 1410,
+      "sha256": "f3dac1ff4d82f47746ee824f3c9b508bef6b29eff9e9ec19442b0c929d61dd98"
+    },
+    {
+      "name": "lib/api-errors.d.ts",
+      "size": 776,
+      "sha256": "ee71a6049916712ce776f7f4b53eb629b9e10f1d24e84351ad96e9aebace466d"
+    },
+    {
       "name": "lib/artifacts.js",
       "size": 11,
       "sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881"
@@ -89,6 +111,26 @@
       "name": "lib/artifacts.d.ts",
       "size": 486,
       "sha256": "a6ca55f2f78420dbc7a117152814d0d0d1c835a4a6cf69054baf29dcad23ff52"
+    },
+    {
+      "name": "lib/transport.js",
+      "size": 11,
+      "sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881"
+    },
+    {
+      "name": "lib/transport.d.ts",
+      "size": 1126,
+      "sha256": "2e7b3076cbc6b96820b790dffa2ee1164e2f6af47dce73788c0360831e88e9b3"
+    },
+    {
+      "name": "lib/cleanup.js",
+      "size": 11,
+      "sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881"
+    },
+    {
+      "name": "lib/cleanup.d.ts",
+      "size": 684,
+      "sha256": "86c77467997446127a8ef7150e275ac49d598b676f01fa90bd4938e026655f66"
     },
     {
       "name": "lib/configuration.js",
@@ -167,8 +209,8 @@
     },
     {
       "name": "lib/points.d.ts",
-      "size": 2654,
-      "sha256": "34acc0c68ac25ea52409a969d4be17644637a1ceea7cb35480c2c9cae74b7381"
+      "size": 2846,
+      "sha256": "5a8f63e530fac14158f3c2af0d394238cdf1596cf97f3ff09290553f7ce41b96"
     },
     {
       "name": "lib/workspace.js",
@@ -177,18 +219,18 @@
     },
     {
       "name": "lib/workspace.d.ts",
-      "size": 5732,
-      "sha256": "774dbbc47514041741cf4e6dfdcb650cfb1f42b328649a675fb6c81dc0e4029a"
+      "size": 6673,
+      "sha256": "2b8b78eec26b9eb513b8e19b0784515008b8a844965bdc0220e85398e4206fb6"
     },
     {
-      "name": "lib/transport.js",
-      "size": 11,
-      "sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881"
+      "name": "lib/job-errors.js",
+      "size": 839,
+      "sha256": "ade4bb7bf3e7fc9971b7412420cb5dd8f7de0e2c1d6be50887cc573be1761cc9"
     },
     {
-      "name": "lib/transport.d.ts",
-      "size": 1126,
-      "sha256": "2e7b3076cbc6b96820b790dffa2ee1164e2f6af47dce73788c0360831e88e9b3"
+      "name": "lib/job-errors.d.ts",
+      "size": 867,
+      "sha256": "bf98629ee9235f205c9656d8813264e978d68bfda8110a1941ae12c9e2b15566"
     },
     {
       "name": "lib/slots.js",
@@ -207,18 +249,18 @@
     },
     {
       "name": "lib/ui.d.ts",
-      "size": 7278,
-      "sha256": "33c92e4ba787b56bf1ac813b165c48881f636152957f830386fe0c9a9ee3ab4c"
+      "size": 7532,
+      "sha256": "97a4148feba4dfdd8903fe6802dd2190a8678baf5b68772d69c71a6d896d11d1"
     },
     {
       "name": "lib/index.js",
-      "size": 91,
-      "sha256": "f47a8bc3281e570fe04ff9dd74cbe9caf1fd1eca523df3697ee1acfbb01d2136"
+      "size": 157,
+      "sha256": "a10b50f56c9a6fae3bcfbc3b83c6d7cb8cf5a56d287e064e53eff3d0fa514d31"
     },
     {
       "name": "lib/index.d.ts",
-      "size": 8031,
-      "sha256": "2a9dffd1b2abbc96a230966ae7f9e0ca7fc4c5c226370f92cff8ed0c2c1df33d"
+      "size": 8343,
+      "sha256": "ea5894c26648607677011de1c8d5a479c5df906ef1a366d6ca456b04dde6c633"
     },
     {
       "name": "lib/json.js",
@@ -237,8 +279,8 @@
     },
     {
       "name": "README.md",
-      "size": 3153,
-      "sha256": "551f8d7abd9d997893f5f3e7e6eeeec65a85eac882f7147f398d5c9cb834e26d"
+      "size": 4945,
+      "sha256": "16a24dfe75b9fe0e5cbbe3af3998d8df29d313550e9e6e2abc099fed4c29ab0a"
     }
   ]
 }

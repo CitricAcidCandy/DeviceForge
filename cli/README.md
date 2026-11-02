@@ -14,6 +14,16 @@ deviceforge plugin publish dist-plugin --server http://127.0.0.1:7040
 
 使用包含上述命令的 CLI 发行包；也可通过部署者提供的本地 CLI TGZ 用 npx 调用，不假设已公开发布 npm。pack 不构建源码、不运行插件、不启动服务，不改源工程；默认读取当前 manifest.json，输出 dist-plugin，新输出目录的父目录须存在，既有输出不覆盖。组件便携清单、市场资料、依赖、TGZ、release.json、真实摘要和完整离线 ZIP 自动生成。浏览器可导出身份工厂 `({id}) => ({panels:[]})`，包装入口自动注入 id/version/apiVersion。
 
+Windows 下遇到目录占用时，可显式将封口与最终提交分开，让打包进程先退出：
+
+```powershell
+deviceforge plugin pack manifest.json --out dist-plugin --prepare-only true
+# 使用上一步返回的实际 receipt 路径，不以暂存目录作为安装包。
+deviceforge plugin finalize .deviceforge-pack-实际编号.json
+```
+
+准备回执的 `prepared` 仅表示字节已封口，`finalize` 核对原回执和全部文件后才返回 `completed`。失败或结果未知保留回执、暂存与已有目标，不自动覆盖、重打包或重放。再次执行同一回执会先检查实际状态；源已不存在、目标与原字节完全一致时只报告原提交完成。默认 `pack` 流程保持兼容。此命令需要含该功能的 CLI 版本，既有本地 TGZ 不会随源码修改而自动更新。
+
 plan 只读本地闭包，不访问远端。publish 显式写入指定资源服务，先核对能力，再按资源、在线清单、catalog 顺序提交，读取生成 market.json 而无需再传另一份声明。资源摘要只在最终字节确定后计算，不要求手填。旧安装格式及旧发布脚本继续可用；本功能不把现有已安装插件自动迁移或覆盖。
 
 market 可声明 summary、keywords、categories、applies_to、supports_mcp、supports_agent、restart_policy、author、license、homepage、visibility、details；id/version/name/description 从顶层派生。完整字段和示例由 MCP `get_plugin_development_guide` 的 manifest 主题直接提供，打包流程在 packaging 主题提供，不需要开发者获取项目源码。

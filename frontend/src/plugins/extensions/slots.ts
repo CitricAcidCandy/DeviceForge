@@ -14,6 +14,15 @@ import type { LifecycleTimeouts } from '../lifecycle.ts';
 const slotIdPattern = /^[a-z][a-z0-9._-]{0,199}$/;
 const allModes: readonly SlotMode[] = ['append', 'replace'];
 
+export interface SlotDirectoryEntry {
+  readonly id: string;
+  readonly modes: readonly SlotMode[];
+  readonly ready: boolean;
+}
+export interface SlotDirectory {
+  catalog(): readonly SlotDirectoryEntry[];
+  subscribe(listener: () => void): Dispose;
+}
 interface SlotRuntime {
   readonly definition: SlotDefinition;
   readonly modes: readonly SlotMode[];
@@ -24,18 +33,29 @@ interface SlotRuntime {
   // 释放后的槽位立刻停止重建默认渲染，避免连累后续清理。
   released: boolean;
   readonly lifetime: AbortController;
+  ready: boolean;
 }
 
 export async function createNamedSlotAdapter(
   definitions: readonly SlotDefinition[],
   budgets: Partial<LifecycleTimeouts> = {},
-): Promise<SlotAdapter & SlotHost & { dispose: () => Promise<void>; cleanupSnapshot: () => readonly { id: string; error: unknown }[] }> {
+): Promise<SlotAdapter & SlotHost & SlotDirectory & { dispose: () => Promise<void>; cleanupSnapshot: () => readonly { id: string; error: unknown }[] }> {
   const timeouts = lifecycleTimeouts(budgets);
   const slots = new Map<string, SlotRuntime>();
   const lateFailures = new Map<string, unknown>();
   let closed = false;
   let disposal: Promise<void> | null = null;
   const queues = new Map<string, Promise<unknown>>();
+  const listeners = new Set<() => void>();
+  let directory: readonly SlotDirectoryEntry[] = Object.freeze([]);
+  function publish() {
+    directory = Object.freeze([...slots.values()].filter((slot) => !slot.released).map((slot) => Object.freeze({
+      id: slot.definition.id, modes: Object.freeze([...slot.modes]), ready: slot.ready,
+    })).sort((left, right) => left.id.localeCompare(right.id)));
+    for (const listener of [...listeners]) {
+      try { listener(); } catch { /* 目录观察不能阻断槽位登记和清理。 */ }
+    }
+  }
   function serial<T>(id: string, run: () => Promise<T>): Promise<T> {
     const queue = queues.get(id) ?? Promise.resolve();
     const pending = queue.then(run, run);
@@ -105,8 +125,10 @@ export async function createNamedSlotAdapter(
       replacement: null,
       released: false,
       lifetime: new AbortController(),
+      ready: false,
     };
     slots.set(definition.id, slot);
+    publish();
     return slot;
   }
   async function releaseNow(slot: SlotRuntime) {
@@ -114,6 +136,7 @@ export async function createNamedSlotAdapter(
     if (slots.get(slot.definition.id) === slot) slots.delete(slot.definition.id);
     slot.released = true;
     slot.lifetime.abort();
+    publish();
     const failures: unknown[] = [];
     for (const releaseLease of [...slot.leases.values()]) {
       try {
@@ -135,7 +158,8 @@ export async function createNamedSlotAdapter(
     throw new AggregateError([error], '宿主槽位登记失败');
   }
   try {
-    for (const slot of slots.values()) await renderDefault(slot);
+    for (const slot of slots.values()) { await renderDefault(slot); slot.ready = true; }
+    publish();
   } catch (error) {
     closed = true;
     const failures: unknown[] = [error];
@@ -203,6 +227,12 @@ export async function createNamedSlotAdapter(
     return lease;
   }
   return {
+    catalog: () => directory,
+    subscribe(listener) {
+      if (closed) return () => undefined;
+      listeners.add(listener);
+      return () => { listeners.delete(listener); };
+    },
     cleanupSnapshot: () => [...lateFailures].map(([id, error]) => ({ id, error })),
     acquire: (request, signal) => serial(request.slot, () => acquireNow(request, signal)),
     // 晚注册：React 拿到真实节点后才知道挂载点，因此默认渲染不参与首帧。
@@ -212,6 +242,8 @@ export async function createNamedSlotAdapter(
         const slot = add(definition);
         try {
           await renderDefault(slot);
+          slot.ready = true;
+          publish();
         } catch (error) {
           try {
             await releaseNow(slot);
@@ -232,6 +264,8 @@ export async function createNamedSlotAdapter(
         slot.released = true;
         slot.lifetime.abort();
       }
+      publish();
+      listeners.clear();
       const pending = [...slots.values()].reverse().map((slot) =>
         serial(slot.definition.id, () => releaseNow(slot)),
       );

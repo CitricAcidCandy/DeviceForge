@@ -78,6 +78,7 @@ test('公开性能服务保留FPS缺省、null、有效零和毫秒窗口，不�
   const page = { session: current, readings, next_after: readings.length };
   const calls: string[] = [];
   const runtime = createFrontendRuntime({
+    legacyBusinessServices: true,
     baseUrl: 'http://localhost:7031',
     panelTarget: () => null,
     transport: async (input, init) => {

@@ -1,0 +1,30 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "src/app/composition/**/*.ts",
+    "src/app/composition/**/*.tsx",
+    "src/app/main.ts",
+    "src/app/product/legacy-pages.tsx",
+    "tests/composition-shell-host.test.ts",
+    "tests/composition-official-plugins.test.ts",
+    "tests/composition-legacy-compatibility.test.ts",
+    "tests/composition-legacy-adapters.test.ts",
+    "tests/composition-legacy-workspace-slots.test.ts",
+    "tests/composition-shell-selection.test.ts",
+    "tests/composition-page-adoption.test.ts",
+    "tests/composition-product-browser-management.test.ts",
+    "tests/composition-ui-directory.test.ts",
+    "tests/composition-legacy-service-aliases.test.ts",
+    "tests/composition-startup.test.ts",
+    "tests/default-shell-react.test.ts",
+    "tests/product-lazy-resources.test.ts",
+    "tests/product-legacy-business.test.ts",
+    "tests/plugin-contracts-package.test.ts",
+    "tests/plugin-manifest-package.test.ts",
+    "tests/workspace-pages.test.ts",
+    "tests/workspace-pages-runtime.test.ts",
+    "tests/workspace-storage-service.test.ts",
+    "scripts/workspace-plugin-packages.ts",
+    "scripts/generate-workspace-packages.ts"
+  ]
+}

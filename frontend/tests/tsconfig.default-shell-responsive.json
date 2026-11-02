@@ -1,0 +1,10 @@
+{
+  "extends": "../tsconfig.json",
+  "include": [
+    "../plugins/default-shell/src/shell.tsx",
+    "../plugins/default-shell/src/view.tsx",
+    "../plugins/default-shell/src/picker.tsx",
+    "../plugins/default-shell/src/floating.ts",
+    "./default-shell-responsive.test.ts"
+  ]
+}

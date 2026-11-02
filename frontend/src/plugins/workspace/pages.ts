@@ -1,5 +1,18 @@
-import type { WorkspacePageDefinition } from '../../plugin-sdk/workspace.ts';
-import { invalid, record } from './rules.ts';
+import type { WorkspacePageDefinition, WorkspacePageUpdate } from '../../plugin-sdk/workspace.ts';
+import { clone, invalid, record, requireTitle } from './rules.ts';
+
+export function updatedPageMetadata(page: WorkspacePageDefinition, changes: WorkspacePageUpdate): WorkspacePageDefinition {
+  if (!record(changes) || Object.keys(changes).some((key) =>
+    !['title', 'navigation', 'operations', 'taskPolicy'].includes(key)))
+    invalid('仅允许更新页面展示与任务归属元数据');
+  const next = { ...page, ...changes };
+  requireTitle(next.title);
+  validatePageMetadata(next);
+  return Object.freeze({ ...next,
+    ...(next.navigation ? { navigation: clone(next.navigation) } : {}),
+    ...(next.operations ? { operations: clone(next.operations) } : {}),
+  });
+}
 
 /** 页面元数据只表达导航与任务归属，不解释任何业务操作。 */
 export function validatePageMetadata(page: WorkspacePageDefinition): void {

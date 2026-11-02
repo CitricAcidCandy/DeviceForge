@@ -1,0 +1,27 @@
+{
+  "manifest_version": 1,
+  "id": "deviceforge_terminal",
+  "version": "0.1.0",
+  "name": "终端",
+  "description": "交互终端、原始输出与独立会话生命周期",
+  "market": {
+    "summary": "交互终端、原始输出与独立会话生命周期",
+    "keywords": ["终端", "PTY"],
+    "categories": ["function", "ui"],
+    "applies_to": ["deviceforge"],
+    "supports_mcp": "none",
+    "supports_agent": true,
+    "restart_policy": "none",
+    "author": "DeviceForge",
+    "visibility": "internal"
+  },
+  "components": [{
+    "kind": "browser",
+    "package_name": "@deviceforge/terminal",
+    "entrypoints": { "any": { "path": "dist/index.js", "runtime": "browser" } },
+    "files": ["dist"],
+    "plugin": { "api_version": 2 }
+  }],
+  "requirements": [],
+  "dependencies": { "dependencies": [], "format_version": 1 }
+}

@@ -1,0 +1,234 @@
+{
+  "name": "@deviceforge/business-kit",
+  "version": "0.1.0",
+  "distribution": "local_tgz_unpublished",
+  "kind": "development_library",
+  "sources": [
+    {
+      "name": "api/index.ts",
+      "sha256": "dadfbf547caaa323f4cde3c41f1cfe22866fc1c041e1e758df9c3e4df525b669"
+    },
+    {
+      "name": "device.ts",
+      "sha256": "46e7729fbfd25503adf82f1238d79ecd5e40cceacfb72c19386205cb60a5c915"
+    },
+    {
+      "name": "index.ts",
+      "sha256": "2011a00fa1e88684f0540c9e2f4b91623eda652cae6d7ea987f791d3b7c4ac13"
+    },
+    {
+      "name": "jobs/artifacts.ts",
+      "sha256": "354bf5ce27dcc81c360cb8b10a40189beb86a920939b3f43d6906e5f12fc3d3d"
+    },
+    {
+      "name": "jobs/errors.ts",
+      "sha256": "15ac7b1c072bf19c2ef086f7e073c99ad3a33106e316f35d6a5b329a56aa31c3"
+    },
+    {
+      "name": "jobs/index.ts",
+      "sha256": "5654c7cc6711027758aae7ac0df27e5fb114f1a68e39bb1e2fe16b2229033950"
+    },
+    {
+      "name": "jobs/runner.ts",
+      "sha256": "86de7a71c88b63c921e7f264a73a31a82ac7dfa0b6ca0645accb166555f025bf"
+    },
+    {
+      "name": "jobs/types.ts",
+      "sha256": "1eaad79f84a487d2d3bd2a1c29a4f91122607cea8cf434265e8402e9f4ebdb38"
+    },
+    {
+      "name": "jobs/values.ts",
+      "sha256": "522736c9e56eb15535ee982f719005851c6ff8da7fc68fcee832a6936f4b457f"
+    },
+    {
+      "name": "platform.ts",
+      "sha256": "15f2af0a5ff70a3bd38a769be881d96a8f23cbab3d9c64c9e99ddc0361313a36"
+    },
+    {
+      "name": "react/dialog.tsx",
+      "sha256": "2416578359fee52f3d0521fd07c4c5a233a426b4fee3c7636c0bd94b86b05062"
+    },
+    {
+      "name": "react/index.tsx",
+      "sha256": "1a03d9f369c3d2f44bf758591c7936f62fcb400a640637a0d9f801d64596b812"
+    },
+    {
+      "name": "react/select-field.tsx",
+      "sha256": "b0b80aee7c4581c081e4b06dd161c1fa6dbb986ed8c99ded1d9666c06ed2d906"
+    },
+    {
+      "name": "react/sheet.tsx",
+      "sha256": "cb84bf2d95c1164618e91db52a60c04c43149d35c339b10699b9f0a5b701dd32"
+    },
+    {
+      "name": "workspace.ts",
+      "sha256": "3701ebb5724fe687c8eca84dbc52e37067c5059f512416d3346b5a0a7154af11"
+    }
+  ],
+  "dependencies": {
+    "@deviceforge/plugin-sdk": "0.1.0",
+    "@deviceforge/contracts": "0.1.0"
+  },
+  "files": [
+    {
+      "name": "dist/api/index.js",
+      "bytes": 2249,
+      "sha256": "d837ae3945c4ee35dbf7609142af944dea30a75a48999502f267bcf0f19de25e"
+    },
+    {
+      "name": "dist/api/index.d.ts",
+      "bytes": 660,
+      "sha256": "59506371801752b2b420550f4653ae103fa3d863aeb19cdab6ed5876bce64b7e"
+    },
+    {
+      "name": "dist/jobs/values.js",
+      "bytes": 2381,
+      "sha256": "5bdfb4247b76a4875d2d04d32cc3bd0f4d408af97050b744e62e126eda8c54ce"
+    },
+    {
+      "name": "dist/jobs/values.d.ts",
+      "bytes": 789,
+      "sha256": "3135e8747317cdaf6ce19de7ee4576c799a56d94ea2b1b856032a6e11be764e1"
+    },
+    {
+      "name": "dist/jobs/types.js",
+      "bytes": 11,
+      "sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881"
+    },
+    {
+      "name": "dist/jobs/types.d.ts",
+      "bytes": 833,
+      "sha256": "fdd4834a8fbd9cde28359dd1d3df976bad7564dc24ade8194a546c3749670999"
+    },
+    {
+      "name": "dist/jobs/errors.js",
+      "bytes": 214,
+      "sha256": "55136af275ec5c604cfb1415a85d2cf9efd58eb02d41970db969c7a609786491"
+    },
+    {
+      "name": "dist/jobs/errors.d.ts",
+      "bytes": 732,
+      "sha256": "a5f405da82fa1b2bc1cada71f8f4fd9054c6944a56f5d46e48c15b1937851fae"
+    },
+    {
+      "name": "dist/jobs/runner.js",
+      "bytes": 4648,
+      "sha256": "c6ab00ff0dcf755098caccfdeb874134d63fa23ce10a8b4348a1caf460ef0c16"
+    },
+    {
+      "name": "dist/jobs/runner.d.ts",
+      "bytes": 751,
+      "sha256": "a42c363c86c065a3b04b239a455fe837579231cabb50ea6926b25d71d4c15af2"
+    },
+    {
+      "name": "dist/jobs/artifacts.js",
+      "bytes": 3949,
+      "sha256": "3fded7a90c57d712366798d457c04eb9ca812bc0fa665ea2f3785e4f563fdd88"
+    },
+    {
+      "name": "dist/jobs/artifacts.d.ts",
+      "bytes": 1039,
+      "sha256": "e58fba84d2fbe4f42779874ea17f58d52186a0d256643f83fcd9dbe4353009b3"
+    },
+    {
+      "name": "dist/jobs/index.js",
+      "bytes": 166,
+      "sha256": "804cd79eafedea3fd4edf9b1fab2dddefde0129a95496edec5e606ea8252b2a9"
+    },
+    {
+      "name": "dist/jobs/index.d.ts",
+      "bytes": 199,
+      "sha256": "4def1bd4fc53bd1a88232216f4621c96a1f842d996eaf264d54bf1a8e7e62936"
+    },
+    {
+      "name": "dist/platform.js",
+      "bytes": 3672,
+      "sha256": "3dcced99ebd315c64d0c5c42e6a8da16555e2024d6ea0522a8182fa0c82b3160"
+    },
+    {
+      "name": "dist/platform.d.ts",
+      "bytes": 1114,
+      "sha256": "6cd693aefefa90d105012fd0fdcee8e9adafa0b7629b7cfcd503abf28893f219"
+    },
+    {
+      "name": "dist/device.js",
+      "bytes": 10717,
+      "sha256": "889512efc87a1e38d8b50ab8b86822158a0ff42f7f7abb7ba823d03d98c06091"
+    },
+    {
+      "name": "dist/device.d.ts",
+      "bytes": 2251,
+      "sha256": "162de5255646e16dc6b72042124081234a7b76fd67281f4aab24d84f71b5491c"
+    },
+    {
+      "name": "dist/workspace.js",
+      "bytes": 1654,
+      "sha256": "24b65b2e3dc212746e64fe6d2cfc58b1abc91960811a66b026665be59051167d"
+    },
+    {
+      "name": "dist/workspace.d.ts",
+      "bytes": 552,
+      "sha256": "18ff5dcaeb1a74266633c65d266dbc38e451b6f79584b8dad56c0869d1ff65d1"
+    },
+    {
+      "name": "dist/index.js",
+      "bytes": 128,
+      "sha256": "30622221f1f2a6f745ca87c0fba7882fefef4f446ece0242ec623ac2846a85f1"
+    },
+    {
+      "name": "dist/index.d.ts",
+      "bytes": 128,
+      "sha256": "30622221f1f2a6f745ca87c0fba7882fefef4f446ece0242ec623ac2846a85f1"
+    },
+    {
+      "name": "dist/react/dialog.js",
+      "bytes": 3630,
+      "sha256": "a834b74968c3bac23c95616f3c250ee3293f4f73b53b6affbe25bae222cec9fd"
+    },
+    {
+      "name": "dist/react/dialog.d.ts",
+      "bytes": 1558,
+      "sha256": "7ec4020af3b5dd356567614c5e7f57dabaa2552759bd59a8e950c9115321c8b8"
+    },
+    {
+      "name": "dist/react/index.js",
+      "bytes": 4237,
+      "sha256": "b0bee26e95c3feb57decf5fd07ee3233adab993a891b34756ccfa3d2bea31bfa"
+    },
+    {
+      "name": "dist/react/index.d.ts",
+      "bytes": 1353,
+      "sha256": "5072340ac71206c19aa21bb981fbe2da700b9aea98d64361ae00915ba15f5fba"
+    },
+    {
+      "name": "dist/react/select-field.js",
+      "bytes": 1736,
+      "sha256": "1a0ea9e940af60e4a625389d5a0ac66536297bd1679c6060fc001c135b604836"
+    },
+    {
+      "name": "dist/react/select-field.d.ts",
+      "bytes": 1240,
+      "sha256": "e4586b7ae186d4a6f2c49702c44c3eff58b29019d167613bcb90c566de7df445"
+    },
+    {
+      "name": "dist/react/sheet.js",
+      "bytes": 3509,
+      "sha256": "40f42ac22e0bf1a13f1a869bceacbf5f8bb6916c93803144b6069d71ad25f105"
+    },
+    {
+      "name": "dist/react/sheet.d.ts",
+      "bytes": 1249,
+      "sha256": "5ea682ff928d5e9312ffc1134762ee62870d3c0e914bf7a9e0a5dd7bc0e9f123"
+    },
+    {
+      "name": "package.json",
+      "bytes": 1460,
+      "sha256": "e842d5231caaecd00ea3df8a4a6e0b8202f4b5e67354e28965d36e723a67ad4c"
+    },
+    {
+      "name": "README.md",
+      "bytes": 2867,
+      "sha256": "6a2d097c25d6e72fb505924bad41c128ebc521e5075ce1b6b943f60533973ac9"
+    }
+  ]
+}

@@ -10,9 +10,12 @@ import type { PointAccess } from './points.ts';
 import type { UiAccess } from './workspace.ts';
 import type { PluginTransport } from './transport.ts';
 import type { DataAccess } from './data-sources.ts';
+import type { CleanupRegistration } from './cleanup.ts';
 export type { ServiceRef, ServiceContract, ServiceDirectoryEntry, ServerServiceAccess, TypedService, ServiceFeatureDiagnostic } from './services.ts';
 export type ServiceAccess = ScopedServiceAccess<HostContext>;
 export * from './models.ts';
+export * from './api-errors.ts';
+export * from './job-errors.ts';
 export * from './slots.ts';
 export { hostUi } from './ui.ts';
 export type * from './ui.ts';
@@ -26,6 +29,7 @@ export type * from './points.ts';
 export type * from './workspace.ts';
 export type * from './transport.ts';
 export type * from './data-sources.ts';
+export type * from './cleanup.ts';
 export interface HostContext {
   readonly apiVersion: 2;
   readonly signal: AbortSignal;
@@ -40,6 +44,8 @@ export interface HostContext {
   readonly subscribeOperations: (listener: (operations: readonly Operation[]) => void) => Dispose;
   // 用于事件、定时器及插件自有资源；插件必须登记可释放资源。
   readonly onDispose: (dispose: Dispose) => Dispose;
+  /** 已归属资源的有界释放；普通请求在撤销后仍失效，旧宿主可以不提供。 */
+  readonly onCleanup?: CleanupRegistration;
   readonly extensions?: ExtensionAccess;
   readonly devices?: DeviceAccess;
   readonly artifacts?: ArtifactAccess;

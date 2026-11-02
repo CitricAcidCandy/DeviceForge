@@ -1,0 +1,55 @@
+{
+  "name": "@deviceforge/ai",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "development": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./model/sdk": {
+      "development": "./src/model/sdk/index.ts",
+      "types": "./dist/model/sdk/index.d.ts",
+      "import": "./dist/model/sdk/index.js"
+    },
+    "./model/cli": {
+      "development": "./src/model/cli/index.ts",
+      "types": "./dist/model/cli/index.d.ts",
+      "import": "./dist/model/cli/index.js"
+    },
+    "./model/sdk-stream": {
+      "development": "./src/model/sdk-stream/index.ts",
+      "types": "./dist/model/sdk-stream/index.d.ts",
+      "import": "./dist/model/sdk-stream/index.js"
+    },
+    "./model/cli-stream": {
+      "development": "./src/model/cli-stream/index.ts",
+      "types": "./dist/model/cli-stream/index.d.ts",
+      "import": "./dist/model/cli-stream/index.js"
+    },
+    "./services": {
+      "development": "./src/services.ts",
+      "types": "./dist/services.d.ts",
+      "import": "./dist/services.js"
+    },
+    "./view": {
+      "development": "./src/view.tsx",
+      "types": "./dist/view.d.ts",
+      "import": "./dist/view.js"
+    }
+  },
+  "dependencies": {
+    "@deviceforge/business-kit": "file:../business-kit",
+    "lucide-react": "1.56.0",
+    "radix-ui": "1.8.1"
+  },
+  "peerDependencies": {
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  },
+  "devDependencies": {
+    "@deviceforge/plugin-sdk": "file:../../sdk/dist/deviceforge-plugin-sdk-0.1.0.tgz",
+    "@deviceforge/contracts": "file:../../contracts"
+  }
+}

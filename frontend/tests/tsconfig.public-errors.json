@@ -1,0 +1,12 @@
+{
+  "extends": "../tsconfig.json",
+  "include": [
+    "../src/plugin-sdk/api-errors.ts",
+    "../src/plugin-sdk/job-errors.ts",
+    "../src/services/api/errors.ts",
+    "../src/shared/jobs/errors.ts",
+    "../plugins/business-kit/src/api/index.ts",
+    "../plugins/business-kit/src/jobs/errors.ts",
+    "public-business-errors.test.ts"
+  ]
+}

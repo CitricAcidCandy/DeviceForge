@@ -1,4 +1,4 @@
-import type { ComponentProps, ComponentType, ElementType, ReactElement, ReactNode } from 'react';
+import type { ComponentProps, ComponentType, ElementType, ReactElement, ReactNode, Ref, RefCallback } from 'react';
 import type { ClassValue } from 'clsx';
 import type { Checkbox, Label, Progress, Select, Switch, Tabs } from 'radix-ui';
 import type { Dispose } from './models.ts';
@@ -124,6 +124,8 @@ export interface HostUi extends HostUiComponents {
   readonly cn: (...inputs: ClassValue[]) => string;
   /** 把 React 元素挂到宿主分配的 DOM 节点上，返回的释放函数直接交给 mount 返回值。 */
   readonly mountReact: (root: HTMLElement, element: ReactElement) => Dispose;
+  /** 独立弹层在组件渲染时合并Content的ref；旧宿主可省略，不影响原有界面。 */
+  readonly usePortalContentRef?: <Element extends HTMLElement>(forwarded: Ref<Element> | undefined) => RefCallback<Element>;
 }
 
 declare global {

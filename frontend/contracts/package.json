@@ -1,0 +1,13 @@
+{
+  "name": "@deviceforge/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "DeviceForge 公开 HTTP 生成类型，独立插件无需读取宿主源码。",
+  "exports": {
+    "./api": {
+      "types": "./api.d.ts"
+    }
+  },
+  "files": ["api.d.ts", "README.md"]
+}

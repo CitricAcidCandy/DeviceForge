@@ -1,5 +1,11 @@
 # Frida 业务用例
 
+## 2026-10-29 独立模型收敛边界
+
+`types/index.ts` 的领域类型已转发 `@deviceforge/frida/model`，只在独立插件维护。目录快照保留精确宿主适配：生成 HTTP DTO 的 `input_schema` 及蛇形 `execution` 与公开 SDK 的操作元数据不是同一契约，不能直接当成 SDK 目录。旧页面和 HTTP 工厂的入口保持兼容，不读取独立插件私有路径。
+
+运行时模型、规则和结果解码暂未直接改为公开包转发：独立模型与宿主的 `ApiError`、`JobFailure`、`JobWaitFailure` 构造器身份不同，宿主目录异常进入独立模型时还可能丢失原错误码和日志 ID。统一公开错误边界前保留旧实现，不用修改断言掩盖这一差异。类型收敛不代表运行时模型迁移完成，也不代表已构建或发行。
+
 ## 当前目录结构
 
 2026-10-14按用户最新约束采用 Ant Design Pro 风格的功能组织。此前 domain/application/infrastructure/ui 方案已被覆盖，不再作为当前目录约束。根 `index.ts` 保留核心公开API且不加载TSX，目录仅按实际职责创建。

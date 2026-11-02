@@ -1,0 +1,27 @@
+{
+  "manifest_version": 1,
+  "id": "deviceforge_devices",
+  "version": "0.1.0",
+  "name": "设备工作区",
+  "description": "通过公开设备能力与工作区契约组合设备视图和插件功能。",
+  "market": {
+    "summary": "可热拔插的设备工作区，保留设备完整引用与多插件布局。",
+    "keywords": ["设备", "工作区", "扩展"],
+    "categories": ["function", "ui"],
+    "applies_to": ["deviceforge"],
+    "supports_mcp": "none",
+    "supports_agent": true,
+    "restart_policy": "none",
+    "author": "DeviceForge",
+    "visibility": "internal"
+  },
+  "components": [{
+    "kind": "browser",
+    "package_name": "@deviceforge/devices",
+    "entrypoints": { "any": { "runtime": "browser", "path": "dist/index.js" } },
+    "files": ["dist"],
+    "plugin": { "api_version": 2 }
+  }],
+  "requirements": [],
+  "dependencies": { "format_version": 1, "dependencies": [] }
+}

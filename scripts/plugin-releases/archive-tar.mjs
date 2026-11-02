@@ -4,6 +4,7 @@ import { lstat } from 'node:fs/promises';
 import { createGunzip } from 'node:zlib';
 import { relativePath, RESOURCE_LIMIT, EXPANDED_LIMIT, MEMBER_LIMIT } from './contract.mjs';
 import { fail, memberCollector } from './archive-common.mjs';
+import { closeArchiveInput } from './archive-close.mjs';
 
 class Reader {
   constructor(stream) {
@@ -83,5 +84,8 @@ export async function tarMembers(path, { collect = true } = {}) {
     }
     fail(collector.members.size > 0, 'TAR 没有普通文件');
     return collector.members;
-  } finally { input.destroy(); gunzip.destroy(); }
+  } finally {
+    gunzip.destroy();
+    await closeArchiveInput(input);
+  }
 }

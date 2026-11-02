@@ -1,0 +1,9 @@
+{
+  "extends": "../tsconfig.json",
+  "include": [
+    "../src/components/PortalBoundary/index.tsx",
+    "../src/app/portal-ownership.ts",
+    "../src/app/public-ui.ts",
+    "./portal-ownership.test.ts"
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "extends": "../tsconfig.json",
+  "include": [
+    "./business-page-responsive.test.ts",
+    "./tasks-responsive.test.ts",
+    "../plugins/performance/src/view.tsx",
+    "../plugins/terminal/src/view.tsx"
+  ]
+}
