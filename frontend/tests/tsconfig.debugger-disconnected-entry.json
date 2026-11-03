@@ -1,0 +1,7 @@
+{
+  "extends": "../tsconfig.json",
+  "include": [
+    "./debugger-disconnected-entry.test.ts",
+    "../../examples/browser-debugger/src/controller.ts"
+  ]
+}

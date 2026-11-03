@@ -17,11 +17,25 @@ function saveArtifact(content: Blob, filename: string, documentRef: Document): v
   } finally { URL.revokeObjectURL(url); }
 }
 
+/** 文件表单经常处于插件分栏内，字段自身不保留宽页面的固定标签列。 */
+function FileField({ label, value, onChange, type = 'text', min, max, placeholder }: {
+  label: string; value: string; onChange(value: string): void;
+  type?: 'text' | 'number'; min?: number; max?: number; placeholder?: string;
+}) {
+  const ui = hostUi(), id = ui.React.useId();
+  return <div className="flex min-w-0 flex-col gap-1.5">
+    <ui.Label htmlFor={id} className="text-muted-foreground">{label}</ui.Label>
+    <ui.Input id={id} className="min-w-0 w-full" value={value} type={type} min={min} max={max}
+      placeholder={placeholder} onChange={(event) => onChange(event.target.value)} />
+  </div>;
+}
+
 export function FilesView({
   browser, signal, documentRef,
 }: { browser: FileBrowser; signal?: AbortSignal; documentRef?: Document }) {
   const ui = hostUi();
-  const { useEffect, useMemo, useRef, useState, useSyncExternalStore } = ui.React;
+  const { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } = ui.React;
+  const uploadId = useId();
   const snapshotSource = useMemo(() => ({
     subscribe: (notify: () => void) => browser.subscribe(() => notify()),
     read: browser.snapshot,
@@ -79,8 +93,8 @@ export function FilesView({
       </header>
       <div className="grid min-w-0 gap-4 @3xl/files:grid-cols-[250px_minmax(0,1fr)]">
         <aside className="flex min-w-0 flex-col gap-4 rounded-xl border border-[#E6EAF3] bg-white p-4" aria-label="选择服务器文件">
-          <ui.Label htmlFor="artifact-upload">上传文件</ui.Label>
-          <ui.Input id="artifact-upload" type="file" disabled={pending} onChange={(event) => {
+          <ui.Label htmlFor={uploadId}>上传文件</ui.Label>
+          <ui.Input id={uploadId} type="file" disabled={pending} onChange={(event) => {
             const file = event.target.files?.[0];
             if (file) void run(async (current) => {
               const result = await browser.upload(file.name, file, current);
@@ -88,7 +102,7 @@ export function FilesView({
               return result;
             });
           }} />
-          <ui.Field label="产物 ID" value={id} onChange={setId} placeholder="任务结果中的 UUID" />
+          <FileField label="产物 ID" value={id} onChange={setId} placeholder="任务结果中的 UUID" />
           <ui.Button disabled={!id || pending} onClick={() => { void run((current) => browser.select(id, current)); }}>
             打开文件
           </ui.Button>
@@ -126,8 +140,8 @@ export function FilesView({
             {metadata.mediaType === 'application/zip' ? <>
               <h3 className="text-sm font-semibold">ZIP 目录预览</h3>
               <div className="my-4 flex flex-wrap items-end gap-3">
-                <ui.Field label="目录偏移" value={offset} type="number" min={0} onChange={setOffset} />
-                <ui.Field label="每页条目" value={limit} type="number" min={1} max={200} onChange={setLimit} />
+                <FileField label="目录偏移" value={offset} type="number" min={0} onChange={setOffset} />
+                <FileField label="每页条目" value={limit} type="number" min={1} max={200} onChange={setLimit} />
                 <ui.Button variant="outline" disabled={pending} onClick={() => readPage(Number(offset))}>读取目录</ui.Button>
               </div>
               {page && <>

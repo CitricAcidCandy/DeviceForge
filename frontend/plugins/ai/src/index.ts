@@ -1,6 +1,6 @@
 import type { WebPlugin } from '@deviceforge/plugin-sdk';
 import { registerBusinessWorkspace } from '@deviceforge/business-kit/workspace';
-import { createAiInstances } from './instances.ts';
+import type { createAiInstances } from './instances.ts';
 import { registerAiPublicServices } from './public-services/index.ts';
 export { aiPublicServiceRefs } from './public-services/index.ts';
 
@@ -8,7 +8,9 @@ export default function createAiPlugin(identity: Pick<WebPlugin, 'id' | 'version
   return {
     ...identity, panels: [],
     async activate(context) {
-      const instances = createAiInstances(context, identity.id);
+      if (!context.ui || !context.transport || !context.onCleanup)
+        throw new Error('AI需要公开工作区、通信和有界清理能力，不会接管旧AI页面');
+      let instances: ReturnType<typeof createAiInstances> | null = null;
       context.onDispose(registerAiPublicServices(context, identity.id));
       registerBusinessWorkspace(context, {
         pluginId: identity.id, title: 'AI 助手', route: '/ai',
@@ -22,9 +24,11 @@ export default function createAiPlugin(identity: Pick<WebPlugin, 'id' | 'version
         provides: ['ai.workspace'],
         async mount(target, current, instance) {
           current.signal.throwIfAborted();
-          const services = instances.retain(instance.snapshot());
-          const view = await import('./view.tsx');
+          const [view, models] = await Promise.all([import('./view.tsx'), import('./instances.ts')]);
           current.signal.throwIfAborted();
+          context.signal.throwIfAborted();
+          instances ??= models.createAiInstances(context, identity.id);
+          const services = instances.retain(instance.snapshot());
           return view.mountAi(target, services, instance);
         },
       });

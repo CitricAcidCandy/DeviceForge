@@ -1,0 +1,4 @@
+{
+  "extends": "../tsconfig.json",
+  "include": ["./plugin-defaults.test.ts", "./plugin-defaults-package-queues.test.ts"]
+}

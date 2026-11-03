@@ -21,7 +21,7 @@ function fixture() {
     };
   const job = (status: Job['status']): Job => ({
     id: 'original-job', operation: 'plugin.workspace_suite.server.normalize', status,
-    result: status === 'succeeded' ? { result: { message: '规范化结果' }, artifacts: [] } : null,
+    result: status === 'succeeded' ? { message: '规范化结果' } : null,
     error: status === 'failed' ? '本次真实失败' : null,
   });
   const entry = (): ServiceDirectoryEntry => ({
@@ -70,6 +70,17 @@ test('服务提交只派发一次，accepted不是成功，查询原Job终态并
   const f = fixture();
   const result = await normalizeRemote(f.context, { message: '原输入' }, new AbortController().signal);
   assert.deepEqual(result, { data: { message: '规范化结果' }, logId: 'result-log' });
+  assert.deepEqual(f.counts, { submitted: 1, queried: 1, cancelled: 0, listings: 2 });
+});
+
+test('服务器服务结果不能误接收操作产物封套，协议失败保留原成功任务和最终日志', async () => {
+  const f = fixture();
+  const envelope = { result: { message: '规范化结果' }, artifacts: [] };
+  f.setQuery(async () => ({ data: { ...f.job('succeeded'), result: envelope }, logId: 'result-log' }));
+  await assert.rejects(normalizeRemote(f.context, { message: '原输入' }, new AbortController().signal),
+    (error) => error instanceof JobWaitFailure && error.job.id === 'original-job' &&
+      error.job.status === 'succeeded' && error.submitLogId === 'submit-log' &&
+      error.lastKnownLogId === 'result-log' && error.cause instanceof HostError);
   assert.deepEqual(f.counts, { submitted: 1, queried: 1, cancelled: 0, listings: 2 });
 });
 

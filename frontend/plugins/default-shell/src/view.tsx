@@ -113,6 +113,8 @@ export function LayoutNode(props: ViewProps & { readonly node: WorkspaceLayoutNo
   if (node.kind === 'custom') return <CustomLayout {...props} node={node} />;
   if (node.kind === 'tabs') {
     const active = node.items.find((item) => item.id === node.active) ?? node.items[0];
+    // 单项只是保留的组合层；没有切换对象时直接呈现业务，路径仍按原布局寻址。
+    if (node.items.length === 1 && active) return <LayoutNode {...props} node={active.node} path={[...path, 0]} />;
     return <section className="flex h-full min-h-0 min-w-0 flex-col">
       <div role="tablist" aria-label="工作区视图页签" className="mb-3 flex min-w-0 shrink-0 gap-1 overflow-x-auto border-b border-[#E6EAF3]">
         {node.items.map((item) => <button role="tab" aria-selected={item === active} type="button" key={item.id}

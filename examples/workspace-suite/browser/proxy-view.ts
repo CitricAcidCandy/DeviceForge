@@ -46,7 +46,8 @@ export async function mountFileDelegate(context: HostContext, instance: Workspac
     cleanup = (async () => {
       const failures: unknown[] = [];
       try { await stopVisibility(); } catch (error) { failures.push(error); }
-      try { ui.close(delegateId); } catch (error) { failures.push(error); }
+      // 上下文撤销时，open 的所属信号已回收实例，撤销端口不能再次调用。
+      try { if (!context.signal.aborted) ui.close(delegateId); } catch (error) { failures.push(error); }
       try { if (releaseView) await releaseView(); } catch (error) { failures.push(error); }
       if (failures.length) throw new AggregateError(failures, '委托视图回收失败');
     })();

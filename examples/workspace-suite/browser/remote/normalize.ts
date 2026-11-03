@@ -2,7 +2,7 @@ import { HostError, JobFailure, JobWaitFailure, readHostError } from '@devicefor
 import type {
   HostContext, HostResult, Job, ServiceDirectoryEntry, ServiceRef,
 } from '@deviceforge/plugin-sdk';
-import { message, record } from '../domain/message.ts';
+import { message } from '../domain/message.ts';
 import type { MessageValue } from '../domain/message.ts';
 import { normalizeContract, submitNormalize } from '../../shared/service-contracts.ts';
 
@@ -88,11 +88,8 @@ export async function normalizeRemote(context: HostContext, input: unknown,
         latestProvider.operation !== entry.operation)
       throw new HostError('cancelled', 'example_normalize_provider_changed',
         '规范化提供者已换代，旧结果未交付，请查询原任务', current.logId);
-    const envelope = current.data.result;
-    if (!record(envelope) || Object.keys(envelope).length !== 2 ||
-        !Array.isArray(envelope.artifacts) || envelope.artifacts.length !== 0)
-      throw new HostError('protocol', 'example_normalize_result_invalid', '规范化结果封套不符合公开契约', current.logId);
-    return { data: message(envelope.result), logId: current.logId };
+    // 公开服务的 Job 直接保存声明输出，不能按普通操作的产物封套再拆一层。
+    return { data: message(current.data.result), logId: current.logId };
   } catch (error) {
     if (!last || error instanceof JobFailure) throw error;
     throw new JobWaitFailure(last.data, submitLogId, readHostError(error)?.logId ?? null, error, last.logId);

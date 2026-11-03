@@ -42,6 +42,8 @@ interface Runtime {
   plugin: WebPlugin | null;
   activationStarted: boolean;
   state: 'loading' | 'loaded';
+  readonly loadDeadline: number;
+  loadFailure: { readonly reason: unknown } | null;
   readonly ready: Promise<void>;
   readonly notifyReady: () => void;
 }
@@ -181,6 +183,8 @@ export function createPluginManager(options: ManagerOptions) {
       plugin: null,
       activationStarted: false,
       state: 'loading',
+      loadDeadline: Date.now() + timeouts.loadMs,
+      loadFailure: null,
       ready,
       notifyReady,
     };
@@ -190,7 +194,7 @@ export function createPluginManager(options: ManagerOptions) {
       if (debug) runtime.context = { ...runtime.context, debug };
     } catch { /* 调试底座不可用时仍正常加载业务插件。 */ }
     observe(runtime, 'loading');
-    const deadline = Date.now() + timeouts.loadMs;
+    const deadline = runtime.loadDeadline;
     try {
       const plugin = readPluginModule(
         'plugin' in source ? source.plugin : await awaitLifecycle(
@@ -259,6 +263,8 @@ export function createPluginManager(options: ManagerOptions) {
       observe(runtime, 'loaded');
       return { id, generation: runtime.generation, state: runtime.state };
     } catch (error) {
+      // 只读等待者取得本次原错误；资源回收继续沿原流程，不重放激活。
+      runtime.loadFailure = { reason: error };
       observe(runtime, 'failed');
       try {
         await cleanup(runtime);
@@ -431,6 +437,24 @@ export function createPluginManager(options: ManagerOptions) {
     load: (id: string) => {
       const epoch = epochs.get(id) ?? 0;
       return serial(id, () => loadNow(id, epoch));
+    },
+    async waitForLoaded(id: string, generation: number, signal: AbortSignal): Promise<PluginSnapshot> {
+      signal.throwIfAborted();
+      const runtime = running.get(id);
+      if (!runtime || runtime.generation !== generation)
+        throw new HostError('cancelled', 'plugin_load_changed', '原插件加载代次已失效');
+      const check = () => {
+        if (runtime.loadFailure) throw runtime.loadFailure.reason;
+        active(runtime);
+      };
+      check();
+      if (runtime.state !== 'loaded')
+        await awaitLifecycle(() => runtime.ready, signal, runtime.loadDeadline, '已有插件加载确认');
+      signal.throwIfAborted();
+      check();
+      if (runtime.state !== 'loaded')
+        throw new HostError('protocol', 'plugin_not_loaded', '原插件尚未完成激活');
+      return { id: runtime.id, generation: runtime.generation, state: runtime.state };
     },
     mount: (id: string, panelId: string) => {
       const epoch = panelEpochs.get(panelId) ?? 0;

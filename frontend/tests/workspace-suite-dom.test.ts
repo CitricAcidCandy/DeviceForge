@@ -4,6 +4,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { gunzipSync } from 'node:zlib';
+import { inspect } from 'node:util';
 import { extract } from 'it-tar';
 import { unzipSync } from 'fflate';
 import { JSDOM } from 'jsdom';
@@ -11,6 +12,9 @@ import type { Dispose, JsonValue, UiAccess, WebPlugin } from '../src/plugin-sdk/
 import { hash, inside, object } from '../scripts/workspace-release-inputs.ts';
 import { registerCompositionStartupImports } from './composition-startup-imports.ts';
 import { requestUrl, success } from './fixtures.ts';
+import { createNamedSlotAdapter } from '../src/plugins/index.ts';
+import { legacyRouteSurfaces } from '../src/app/composition/legacy-route-surfaces.ts';
+import type { PlatformRuntime } from '../src/app/platform-runtime.ts';
 
 const officialReportFile = process.env['DEVICEFORGE_OFFICIAL_BUILD_REPORT'];
 const suiteReportFile = process.env['DEVICEFORGE_WORKSPACE_SUITE_REPORT'];
@@ -130,7 +134,7 @@ function contributed(ui: UiAccess, workspaceId: string) {
     instance.provider?.pluginId === suiteId);
 }
 
-async function fixture() {
+async function fixture(withLegacyRoutes = false) {
   assert.ok(officialReportFile && suiteReportFile);
   const officialPath = resolve(officialReportFile), suitePath = resolve(suiteReportFile);
   const officialReport = await json(officialPath), suiteReport = await json(suitePath);
@@ -166,10 +170,13 @@ async function fixture() {
   const { createShellHost, SHELL_POINT } = await import('../src/app/composition/shell-host.ts');
   const { readPluginModule } = await import('../src/plugins/contracts.ts');
   let releasePublicUi: Dispose = () => {};
+  const slots = withLegacyRoutes ? await createNamedSlotAdapter([]) : null;
+  let extensionAccess: PlatformRuntime['extensions'] | null = null;
   const requests: string[] = [], unexpected: string[] = [];
   const directoryPaths = ['/api/v2/plugin-packages/browser', '/api/v2/plugin-installations'];
   const services = createProductPlatformServices({
     baseUrl: 'http://workspace-suite-dom.invalid', panelTarget: () => null, workspaceStorage: null,
+    ...(slots ? { slotAdapter: slots, decorateWorkspaceMount: legacyRouteSurfaces(() => extensionAccess) } : {}),
     transport: async (input, init) => {
       const path = requestUrl(input).pathname, method = init?.method ?? 'GET';
       requests.push(`${method} ${path}`);
@@ -182,6 +189,7 @@ async function fixture() {
       throw new Error(`归档 DOM 单元没有授权此业务请求：${method} ${path}`);
     },
   });
+  extensionAccess = services.runtime.extensions;
   const runtime = services.runtime, ui = runtime.host.ui, points = runtime.host.extensions?.points;
   assert.ok(ui && points);
   const shell = createShellHost({
@@ -240,7 +248,10 @@ async function fixture() {
         try { await shell.dispose(); }
         finally {
           try { await services.dispose(); }
-          finally { await releasePublicUi(); }
+          finally {
+            try { await slots?.dispose(); }
+            finally { await releasePublicUi(); }
+          }
         }
       });
     } finally {
@@ -288,6 +299,99 @@ async function fixture() {
     throw error;
   }
 }
+
+test('真实ZIP外壳候选失败保留原界面，完整委托切换及独立恢复只撤自有资格',
+  { skip: requiredReports ? false : '需要明确指定当前官方及示例最终归档', timeout: 25_000 }, async (t) => {
+    const f = await fixture();
+    const shellPoint = { id: 'host.shell', version: '1' };
+    try {
+      const extensions = f.runtime.host.extensions;
+      assert.ok(extensions);
+      await f.load(f.suite.plugin);
+      await f.load({ id: 'shell_region_probe', version: '1', apiVersion: 2, panels: [],
+        async activate(context) {
+          assert.ok(context.ui && context.extensions?.points);
+          for (const region of ['header', 'footer']) {
+            const viewId = `shell_region_probe.${region}`;
+            context.ui.register({ views: [{ id: viewId, title: `外壳${region}单元贡献`,
+              async mount(target) {
+                const node = target.ownerDocument.createElement('span');
+                node.setAttribute('data-shell-region-probe', region);
+                node.textContent = `真实扩展${region}`; target.append(node);
+                return () => { node.remove(); };
+              },
+            }] });
+            context.extensions.points.contribute({ id: `${viewId}.contribution`,
+              point: { id: `deviceforge_shell.${region}`, version: '1' },
+              data: { pluginId: 'shell_region_probe', viewId }, mode: 'append' });
+          }
+        },
+      });
+      await f.until(() => f.target.querySelectorAll('[data-shell-region-probe]').length === 2,
+        '外壳头尾探针必须先由原外壳实际挂载');
+      const original = f.points.selected(shellPoint);
+      assert.ok(original);
+      const originalId = f.shell.snapshot().active?.id;
+      const input = fileInput(f.mounted(originalFileId));
+      await f.type(input, '完整外壳失败前原文件草稿');
+      const start = async (behavior: 'delegate' | 'fail') => {
+        const result = await extensions.executeCommand(`${suiteId}.shell-replacement.start`, {
+          expected: { id: original.id, pluginId: original.provider.pluginId, generation: original.provider.generation },
+          behavior,
+        }, f.runtime.host.signal);
+        assert.ok(object(result.data) && typeof result.data.replacementId === 'string' &&
+          typeof result.data.contributionId === 'string');
+        return result.data;
+      };
+      let failed: Record<string, JsonValue> | null = null;
+      await f.act(async () => { failed = await start('fail'); });
+      assert.ok(failed);
+      const failedReceipt: Record<string, JsonValue> = failed;
+      await f.until(() => f.shell.snapshot().state === 'failed', '外壳候选失败未交给原宿主裁定');
+      assert.equal(f.shell.snapshot().active?.id, originalId);
+      assert.ok(fileInput(f.mounted(originalFileId)) === input, '准备失败不能拆除原文件输入根');
+      assert.equal(input.value, '完整外壳失败前原文件草稿');
+      assert.match(f.shell.snapshot().error ?? '', /示例外壳候选按要求失败/);
+      await f.act(async () => { await extensions.executeCommand(`${suiteId}.shell-replacement.restore`,
+        { replacementId: failedReceipt.replacementId ?? null }, f.runtime.host.signal); });
+      await f.until(() => f.shell.snapshot().state === 'ready' && f.shell.snapshot().active?.id === originalId,
+        '恢复失败候选后原外壳没有保留');
+      let successful: Record<string, JsonValue> | null = null;
+      await f.act(async () => { successful = await start('delegate'); });
+      assert.ok(successful);
+      const successReceipt: Record<string, JsonValue> = successful;
+      await f.until(() => f.shell.snapshot().state === 'ready' &&
+        f.shell.snapshot().active?.id === successReceipt.contributionId, '完整委托外壳未切换成功');
+      await f.until(() => Boolean(f.frame(originalFileId)?.querySelector('input')),
+        '完整候选必须包含真实业务视图，不能只挂空外壳');
+      assert.equal(f.target.querySelectorAll('[aria-label="工作区导航"]').length, 1);
+      await f.until(() => f.target.querySelectorAll('[data-shell-region-probe]').length === 2,
+        '新外壳必须各自挂载真实头尾贡献，不得用旧根或错误提示代替');
+      assert.doesNotMatch(f.target.textContent ?? '', /视图实例标识已经在使用/);
+      const status = await extensions.executeCommand(`${suiteId}.shell-replacement.status`,
+        { replacementId: successReceipt.replacementId ?? null }, f.runtime.host.signal);
+      assert.ok(object(status.data));
+      assert.equal(status.data.mount, 'ready');
+      assert.equal(status.data.selected, true);
+      // 提供者卸载撤资格；恢复入口仍能显式选择原外壳，不要求候选自行写回选择。
+      await f.unload(suiteId);
+      await f.until(() => f.shell.snapshot().state === 'empty', '卸载完整外壳提供者后旧根未撤销');
+      assert.equal(f.target.querySelector('[aria-label="工作区导航"]'), null);
+      assert.deepEqual(f.shell.snapshot().cleanupErrors, [],
+        `撤销委托外壳必须完成本代资源回收：${inspect(f.runtime.webPlugins.workspaceCleanupSnapshot(), { depth: 9 })}`);
+      await f.act(async () => { f.points.select(shellPoint, original.id); f.shell.retry(); });
+      await f.until(() => f.shell.snapshot().state === 'ready' &&
+        Boolean(f.frame(originalFileId)?.querySelector('input')), '独立平台恢复入口未能重新显示官方外壳');
+      assert.equal(f.shell.snapshot().active?.id, originalId);
+      assert.equal(f.target.querySelectorAll('[aria-label="工作区导航"]').length, 1);
+      await f.until(() => f.target.querySelectorAll('[data-shell-region-probe]').length === 2,
+        '独立恢复后头尾贡献必须仍可挂载');
+      assert.doesNotMatch(f.target.textContent ?? '', /视图实例标识已经在使用/);
+      assert.deepEqual(f.unexpected, []);
+      t.diagnostic('实际最终ZIP→公开host.shell贡献→原宿主准备/切换；失败保旧根，成功显示真实文件业务，卸载后显式独立恢复。');
+      t.diagnostic('不承诺外壳卸载后保留已销毁React闭包草稿，不把JSDOM当浏览器视觉或在线安装证据。');
+    } finally { await f.dispose(); }
+  });
 
 test('本批最终ZIP经真实默认外壳自动扩展设备文件页，跨页保留草稿且停用只撤自有贡献',
   { skip: requiredReports ? false : '需要同时指定本批官方与配套发行报告，不以源码或历史包替代',
@@ -428,4 +532,93 @@ test('本批最终ZIP经真实默认外壳自动扩展设备文件页，跨页�
       t.diagnostic('第二插件只声明工具命令元数据；已验证真实扩展点消费和服务调用，未宣称存在可视按钮。');
       t.diagnostic(`只读通信夹具：${f.requests.join('；')}。没有网络、设备、真实浏览器或视觉验收。`);
     } finally { await f.dispose(); }
+  });
+
+test('本批ZIP的公开路由替换完成真实挂载，撤回和候选失败均保留原文件草稿',
+  { skip: requiredReports ? false : '需要明确的官方与配套归档报告，不能用源码替代', timeout: 25_000 }, async (t) => {
+    const f = await fixture(true);
+    const failures: unknown[] = [];
+    try {
+      const original = f.mounted(originalFileId), input = fileInput(original);
+      await f.type(input, '路由替换前尚未提交的原文件草稿');
+      const generation = f.ui.snapshot().instances.find((entry) => entry.instanceId === originalFileId)?.generation;
+      await f.load(f.suite.plugin);
+      const tool = contributed(f.ui, fileWorkspace)[0];
+      assert.ok(tool);
+      await f.until(() => Boolean(f.frame(tool.instanceId)?.querySelector('input')), '普通追加贡献没有完成原视图挂载');
+      const independentInput = fileInput(f.mounted(tool.instanceId));
+      await f.type(independentInput, '与整页替换无关的追加草稿');
+      const extensions = f.runtime.host.extensions;
+      assert.ok(extensions);
+      const started: { value: JsonValue } = { value: null };
+      await f.act(async () => {
+        started.value = (await extensions.executeCommand(`${suiteId}.route-replacement.start`, {
+          slot: 'route.files', expectedReplacement: null, behavior: 'files',
+        }, f.runtime.host.signal)).data;
+      });
+      assert.ok(object(started.value) && typeof started.value.replacementId === 'string');
+      const replacementId = started.value.replacementId;
+      assert.equal(started.value.mount, 'not_observed', '命令登记回执不能预报实际挂载已完成');
+      const candidate = () => f.target.querySelector<HTMLElement>(`[data-deviceforge-extension="${replacementId}"]`);
+      await f.until(() => Boolean(candidate()?.querySelector('[aria-label="文件与产物"]')) &&
+        input.closest('[hidden]') !== null, '真实候选完成后才允许隐藏原内容');
+      const observed = await extensions.executeCommand(`${suiteId}.route-replacement.status`,
+        { replacementId }, f.runtime.host.signal);
+      assert.ok(object(observed.data));
+      assert.equal(observed.data.mount, 'ready');
+      assert.equal(observed.data.mountCount, 1);
+      assert.ok(input.isConnected && f.mounted(originalFileId).contains(input), '成功替换时必须保留原输入节点');
+      assert.equal(input.value, '路由替换前尚未提交的原文件草稿');
+      await f.act(async () => {
+        const restored = await extensions.executeCommand(`${suiteId}.route-replacement.restore`,
+          { replacementId }, f.runtime.host.signal);
+        assert.ok(object(restored.data));
+        assert.equal(restored.data.registration, 'withdrawn');
+      });
+      await f.until(() => candidate() === null && input.closest('[hidden]') === null,
+        '撤回自有替换后没有恢复原文件界面');
+      assert.ok(fileInput(f.mounted(originalFileId)) === input, '撤回后必须复用原输入节点');
+      assert.equal(input.value, '路由替换前尚未提交的原文件草稿');
+      assert.ok(fileInput(f.mounted(tool.instanceId)) === independentInput, '撤回后保留无关追加草稿节点');
+      assert.equal(independentInput.value, '与整页替换无关的追加草稿');
+      const failed: { value: JsonValue } = { value: null };
+      await f.act(async () => {
+        failed.value = (await extensions.executeCommand(`${suiteId}.route-replacement.start`, {
+          slot: 'route.files', expectedReplacement: null, behavior: 'fail',
+        }, f.runtime.host.signal)).data;
+      });
+      assert.ok(object(failed.value) && typeof failed.value.replacementId === 'string');
+      const failedReplacementId = failed.value.replacementId;
+      await f.until(() => Boolean(f.target.textContent?.includes('示例候选视图按要求失败')) &&
+        !f.runtime.webPlugins.diagnosticSnapshot().some((entry) => entry.id === suiteId && entry.state === 'loaded'),
+      '候选真实失败必须保留原错误并由原管理器回滚该示例');
+      assert.equal(input.closest('[hidden]'), null);
+      assert.ok(fileInput(f.mounted(originalFileId)) === input, '候选失败不得重建原输入');
+      assert.equal(input.value, '路由替换前尚未提交的原文件草稿');
+      assert.equal(f.ui.snapshot().instances.find((entry) => entry.instanceId === originalFileId)?.generation, generation);
+      assert.equal(f.target.querySelector(`[data-deviceforge-extension="${failedReplacementId}"]`), null,
+        '失败半成品不得残留在当前页面');
+      await f.act(async () => { await f.runtime.webPlugins.load(suiteId); });
+      assert.equal(f.runtime.webPlugins.diagnosticSnapshot().find((entry) => entry.id === suiteId)?.state, 'loaded',
+        '历史候选失败不能封锁原插件的新代独立加载');
+      assert.ok(fileInput(f.mounted(originalFileId)) === input, '新代示例不得重建原输入');
+      assert.equal(input.value, '路由替换前尚未提交的原文件草稿');
+      assert.deepEqual(f.unexpected, []);
+      t.diagnostic('真实ZIP→原槽位/管理器→文件视图；成功回读ready，撤回保原草稿，真实失败回落且允许新代加载。');
+      t.diagnostic('JSDOM与只读通信夹具，不是在线安装、真实浏览器或视觉通过。');
+    } catch (error) { failures.push(error); }
+    finally {
+      const cleanupLeaves = (error: unknown): readonly unknown[] => error instanceof AggregateError
+        ? error.errors.flatMap(cleanupLeaves) : [error];
+      for (const entry of f.runtime.webPlugins.cleanupSnapshot())
+        t.diagnostic(`管理器原清理诊断：${inspect(cleanupLeaves(entry.error), { depth: 3 })}`);
+      try { await f.dispose(); }
+      catch (error) { failures.push(error); }
+    }
+    if (failures.length) {
+      const leafErrors = (error: unknown): readonly unknown[] => error instanceof AggregateError
+        ? error.errors.flatMap(leafErrors) : [error];
+      t.diagnostic(inspect(failures.flatMap(leafErrors), { depth: 4 }));
+      throw new AggregateError(failures, '路由替换核对或自有夹具回收失败，保留两者原错');
+    }
   });

@@ -237,6 +237,15 @@ export function createDebuggerController(context: Pick<HostContext, 'extensions'
     await run('连接调试桥', async (signal) => {
       const capabilities = await gateway.service('capabilities', {}, signal);
       signal.throwIfAborted(); patch({ capabilities: capabilities.data });
+      const bridge = object(object(capabilities.data).bridge);
+      if (bridge.state === 'disconnected') {
+        // 打开面板只观察旧连接；重建实例必须由现有显式重连入口确认。
+        patch({ instanceId: text(bridge.instanceId) || text(bridge.instance_id) || state.instanceId,
+          connected: false, stale: true, sessionState: 'disconnected',
+          logId: capabilities.logId ?? state.logId,
+          notice: text(bridge.reason, '调试桥已断开，请明确重新连接；不会自动选择目标或重放动作。') });
+        return;
+      }
       const start = await gateway.service('start', {}, signal);
       signal.throwIfAborted();
       const instanceId = text(object(start.data).instance_id);

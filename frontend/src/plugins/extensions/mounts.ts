@@ -35,6 +35,8 @@ export function createExtensionMounts(timeouts: LifecycleTimeouts = defaultTimeo
       signal: AbortSignal.any([entry.owner.context.signal, signal]) });
     if (releaseTarget) scope.track(releaseTarget);
     const root = target.ownerDocument.createElement('div');
+    const fills = 'slot' in entry.contribution ? entry.contribution.mode === 'replace' : true;
+    root.className = fills ? 'h-full min-h-0 min-w-0 flex-1' : 'min-w-0';
     root.dataset.deviceforgeExtension = id;
     root.dataset.deviceforgePlugin = entry.owner.pluginId;
     root.dataset.deviceforgeGeneration = String(entry.owner.generation);

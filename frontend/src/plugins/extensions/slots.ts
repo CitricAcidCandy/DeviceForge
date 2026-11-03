@@ -194,6 +194,10 @@ export async function createNamedSlotAdapter(
     }
     const root = slot.definition.target.ownerDocument.createElement('div');
     root.dataset.deviceforgeSlotOwner = `${request.pluginId}:${request.generation}:${request.componentId}`;
+    root.dataset.deviceforgeSlotMode = request.mode;
+    root.className = request.mode === 'replace'
+      ? 'flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden'
+      : 'min-w-0 shrink-0';
     let leaseDisposal: Promise<void> | null = null;
     let released = false;
     const stop = () => root.remove();

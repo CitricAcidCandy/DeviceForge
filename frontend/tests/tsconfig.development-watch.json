@@ -1,0 +1,4 @@
+{
+  "extends": "../tsconfig.json",
+  "include": ["./development-watch.test.ts", "../vite.config.ts"]
+}

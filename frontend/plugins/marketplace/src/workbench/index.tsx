@@ -101,11 +101,12 @@ export function MarketplacePage({
       cleanupWarning={entry.details['plugin_kind'] === 'server' && market.cleanupWarnings.includes(entry.id)}
       installation={installation}
       clientState={installation ? market.installationClients.find((item) => item.id === installation.id && item.revision === installation.revision) : undefined}
+      browserStatus={installation ? market.installationBrowserStatus(installation) : undefined}
       onSetEnabled={entry.details['bundled'] === true ? (enabled) => market.setBundledEnabled(entry.id, enabled) : installation ? (enabled) => market.setInstallationEnabled(installation.id, installation.revision, enabled) : undefined}
       bundledEnabled={entry.details['bundled'] === true ? market.bundledEnabled(entry.id) : undefined}
       onRetryBrowser={installation ? () => market.retryInstallationBrowser(installation.id, installation.revision) : undefined}
       installedTab={tab === 'installed'}
-      busy={market.action.pending}
+      busy={market.action.pending || market.directoryPending}
       onDetail={() => setSelected(entry)}
       onDownload={() => market.download(entry)}
       onInstall={() => setSelected(entry)}

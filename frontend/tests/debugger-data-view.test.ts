@@ -5,6 +5,7 @@ import { registerHooks } from 'node:module';
 import { JSDOM } from 'jsdom';
 import { act } from 'react';
 import { createElement } from 'react';
+import { createFrontendRuntime } from '../src/app/runtime.ts';
 import type { DebuggerController, DebuggerState } from '../../examples/browser-debugger/src/controller.ts';
 import type { DataSnapshot, DataSourceInfo } from '../../examples/browser-debugger/src/protocol.ts';
 import ts from 'typescript';
@@ -119,6 +120,27 @@ function findButton(root: HTMLElement, label: string) {
   const button = [...root.querySelectorAll('button')].find(item => item.textContent?.trim() === label); assert.ok(button, `应显示按钮：${label}`);
   return button;
 }
+
+test('尚未选择目标时断线也显示显式重连入口，不自动重新连接或采集', async () => {
+  await withEditingDom(async ({ root, render }) => {
+    const runtime = createFrontendRuntime({ baseUrl: 'http://127.0.0.1:7031', workspaceStorage: null,
+      panelTarget: () => null, transport: async () => { throw new Error('显示重连入口不应请求业务'); } });
+    const base = createDebuggerController(runtime.host);
+    const state: DebuggerState = { ...base.snapshot(), open: true, stale: true, sessionState: 'disconnected' };
+    const reconnects: boolean[] = [];
+    const controller: DebuggerController = { ...base, snapshot: () => state,
+      reconnect: async (confirmed) => { reconnects.push(confirmed); } };
+    try {
+      await render(createElement(DebuggerApp, { controller, context: runtime.host }));
+      assert.equal(state.target, null);
+      const button = findButton(root, '重新连接调试器');
+      assert.deepEqual(reconnects, [], '显示过期状态不能自动重建实例');
+      assert.match(root.textContent ?? '', /调试连接已断开/);
+      await act(async () => button.click());
+      assert.deepEqual(reconnects, [true]);
+    } finally { await base.dispose(); await runtime.dispose(); }
+  });
+});
 
 test('调试面板收起再展开保留未保存草稿，初始隐藏不采集数据', async () => {
   await withEditingDom(async ({ dom, root, render }) => {

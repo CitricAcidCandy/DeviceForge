@@ -1,5 +1,9 @@
-@import 'tailwindcss';
+@import 'tailwindcss' source(none);
 @import 'tw-animate-css';
+@source '../**/*.{ts,tsx}';
+@source '../../plugins/*/src/**/*.{ts,tsx}';
+@source '../../../examples/browser-debugger/src/**/*.{ts,tsx}';
+@source '../../scripts/*-harness.{ts,tsx}';
 
 /*
  * 暗色变体只认 .dark 类，不认系统偏好。

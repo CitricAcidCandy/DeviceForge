@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { JSDOM } from 'jsdom';
 import type { Dispose, HostContext, WebPlugin } from '../src/plugin-sdk/index.ts';
 import type { ProductPlatformServices } from '../src/app/product/platform-services.ts';
 import type { OfficialPluginSource } from '../src/app/composition/manifest-sources.ts';
@@ -314,4 +315,50 @@ test('startWorkspace两桥失败仍独立启动官方外壳，不等待慢业务
         } finally { await bounded(services.dispose(), '销毁真实启动服务'); }
       }
     } finally { parser.dispose(); }
+  });
+
+test('真实工作区启动不等待慢默认服务器，随附调试器仍经原管理器独立完成',
+  { timeout: 5000 }, async () => {
+    const parser = registerCompositionStartupImports();
+    const browser = new JSDOM('<body></body>', { url: 'http://localhost:5173' });
+    const response = deferred<Response>(), serverEntered = deferred<void>(), debuggerEntered = deferred<void>();
+    const cancellation = new AbortController();
+    let releaseStartup: Dispose = () => {};
+    try {
+      const { createProductPlatformServices } = await import('../src/app/product/platform-services.ts');
+      const { startWorkspace } = await import('../src/app/composition/start-workspace.ts');
+      const reports: string[] = [], requests: string[] = [];
+      const services = createProductPlatformServices({
+        baseUrl: 'http://localhost:7031', panelTarget: () => null, workspaceStorage: null,
+        debugger: { document: browser.window.document },
+        bundledDebugger: { browserOrigin: 'http://localhost:5173', load: async () => ({
+          id: 'deviceforge_debugger', version: '0.1.0', apiVersion: 2, panels: [],
+          async activate() { debuggerEntered.resolve(); },
+        }) },
+        transport: async (input, init) => {
+          const path = requestUrl(input).pathname; requests.push(path);
+          assert.equal(init?.method ?? 'GET', 'GET', '本单元只允许读取安装和运行目录');
+          if (path === '/api/v2/plugins') { serverEntered.resolve(); return response.promise; }
+          assert.ok(['/api/v2/plugin-packages/server', '/api/v2/plugin-packages/browser', '/api/v2/plugin-installations'].includes(path));
+          return success([]);
+        },
+      });
+      const defaults = services.pluginDefaults.start(cancellation.signal);
+      void defaults.catch(() => undefined);
+      try {
+        await bounded(serverEntered.promise, '默认服务器运行目录开始读取');
+        releaseStartup = startWorkspace({ services, officialIds: new Set(), signal: cancellation.signal,
+          selection: { key }, report: (label) => { reports.push(label); },
+        });
+        await bounded(debuggerEntered.promise, '慢默认启用期间调试器激活');
+        await bounded(services.bundledDebugger?.start(cancellation.signal) ?? Promise.reject(new Error('缺少随附调试器')), '调试器就绪');
+        assert.equal(services.pluginDefaults.snapshot().phase, 'running');
+        assert.equal(services.runtime.webPlugins.snapshot().find((entry) => entry.id === 'deviceforge_debugger')?.state, 'loaded');
+        assert.deepEqual(reports, []);
+        assert.equal(requests.some((path) => /debugger\/|\/jobs/.test(path)), false, '显示入口不创建调试会话或业务任务');
+      } finally {
+        cancellation.abort(); response.resolve(success([]));
+        await releaseStartup(); await defaults.catch(() => undefined); await services.dispose();
+      }
+    } finally { response.resolve(success([])); browser.window.close(); parser.dispose(); }
   });

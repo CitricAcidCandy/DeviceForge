@@ -1,0 +1,4 @@
+{
+  "extends": "../tsconfig.json",
+  "include": ["./plugin-defaults-existing-load.test.ts", "./plugin-manager-existing-load.test.ts"]
+}

@@ -10,6 +10,31 @@ import createDevicesPlugin, {
   screenApplicationsInstance, screenWorkbenchTarget, targetReference, updateDeviceReference,
 } from '../plugins/devices/src/index.ts';
 import { createWorkbenchChildren } from '../plugins/devices/src/workbench-children.ts';
+import { deviceToolLayout } from '../plugins/devices/src/tool-layout.ts';
+
+test('撤销设备工具不留下单项原工作区包装，未改动的插件页签和自定义边界保持', () => {
+  const original: WorkspaceLayout = { version: 1,
+    root: { kind: 'view', instanceId: DEVICE_WORKBENCH_INSTANCE_ID },
+    floating: [{ instanceId: 'other.float', x: 1, y: 2, width: 300, height: 240, z: 1 }], overlays: [],
+  };
+  const withTool: WorkspaceLayout = { ...original, root: { kind: 'tabs', active: 'workbench', items: [
+    { id: 'workbench', title: '原工作区', node: { kind: 'tabs', active: 'main', items: [
+      { id: 'main', node: original.root ?? { kind: 'view', instanceId: DEVICE_WORKBENCH_INSTANCE_ID } },
+      { id: 'tool', node: { kind: 'view', instanceId: 'deviceforge_devices.contribution.1' } },
+    ] } },
+    { id: 'other-tool', node: { kind: 'view', instanceId: 'deviceforge_devices.contribution.2' } },
+  ] } };
+  const removed = new Set(['deviceforge_devices.contribution.1', 'deviceforge_devices.contribution.2']);
+  assert.deepEqual(deviceToolLayout(withTool, removed, []), original);
+  const authored: WorkspaceLayout = { ...original, root: { kind: 'tabs', active: 'authored', items: [
+    { id: 'authored', title: '业务专属页签', node: { kind: 'custom',
+      provider: { pluginId: 'third_party', viewId: 'third_party.layout' }, data: { draft: '保留' },
+      children: [{ kind: 'view', instanceId: 'third_party.document' }],
+    } },
+  ] } };
+  assert.deepEqual(deviceToolLayout(authored, new Set(['unrelated']), []), authored,
+    '只能收拢本次撤销产生的空包装，不改插件原有组合数据');
+});
 
 const first: DeviceRef = { providerId: 'provider', generation: 'one', localId: 'same' };
 const next: DeviceRef = { providerId: 'provider', generation: 'two', localId: 'same' };

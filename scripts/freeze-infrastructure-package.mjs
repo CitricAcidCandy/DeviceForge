@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { copyFile, lstat, mkdir, mkdtemp, readFile, readdir, realpath, writeFile } from 'node:fs/promises';
-import { isAbsolute, join, resolve } from 'node:path';
+import { copyFile, glob, lstat, mkdir, mkdtemp, readFile, readdir, realpath, writeFile } from 'node:fs/promises';
+import { isAbsolute, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { inside, readJson, regularFile } from '../cli/src/paths.mjs';
+import { inside, packagePath, readJson, regularFile } from '../cli/src/paths.mjs';
 import { loadRuntime, sha256 } from '../cli/src/runtime.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
@@ -40,12 +40,13 @@ export async function selectSmokePackageRoot(sourceRoot, environment = process.e
   return realpath(candidate);
 }
 
-async function inventoryInputs(sourceRoot) {
-  const files = [];
+async function inventoryInputs(sourceRoot, profile) {
+  const files = new Map();
   const add = async (source, path) => {
+    if (files.has(path)) return;
     const absolute = await regularFile(sourceRoot, source);
     const info = await lstat(absolute);
-    files.push({ source, path, bytes: info.size, sha256: await sha256(absolute), source_mtime: info.mtime.toISOString() });
+    files.set(path, { source, path, bytes: info.size, sha256: await sha256(absolute), source_mtime: info.mtime.toISOString() });
   };
   const tree = async (source, destination) => {
     const directory = join(sourceRoot, source);
@@ -61,14 +62,32 @@ async function inventoryInputs(sourceRoot) {
       else throw new Error('冻结输入只能包含普通文件和目录');
     }
   };
-  await tree('cli', 'cli');
+  // 复用发行清单，不能另维护一份会漏掉公开命令依赖的文件白名单。
+  const pkg = await readJson(join(sourceRoot, 'package.json'));
+  assert.ok(Array.isArray(pkg.files) && pkg.files.length, '发布清单必须声明 files');
+  for (const pattern of pkg.files) {
+    packagePath(sourceRoot, pattern);
+    // 运行产物由本次指定构建重新装配，不混入根目录的历史 runtime。
+    if (pattern === 'runtime' || pattern.startsWith('runtime/')) continue;
+    let matched = false;
+    for await (const candidate of glob(pattern, { cwd: sourceRoot })) {
+      const path = candidate.split(sep).join('/');
+      const metadata = await lstat(packagePath(sourceRoot, path));
+      if (metadata.isSymbolicLink()) throw new Error('冻结输入不能包含符号链接或目录联接');
+      if (metadata.isDirectory()) await tree(path, path);
+      else if (metadata.isFile()) await add(path, path);
+      else throw new Error('冻结输入只能包含普通文件和目录');
+      matched = true;
+    }
+    assert.ok(matched, `发布清单没有匹配文件：${pattern}`);
+  }
   for (const path of ['README.md', 'package.json', 'scripts/verify-package.mjs']) await add(path, path);
   const platform = `${process.platform}-${process.arch}`;
   for (const name of ['apk-server.exe', 'validate-plugin.exe']) {
-    await add(`backend/target/release/${name}`, `runtime/${platform}/${name}`);
+    await add(`backend/target/${profile}/${name}`, `runtime/${platform}/${name}`);
   }
   await tree('frontend/dist', 'runtime/web');
-  return files.sort((a, b) => a.path.localeCompare(b.path));
+  return [...files.values()].sort((a, b) => a.path.localeCompare(b.path));
 }
 
 async function copyInputs(sourceRoot, packRoot, files, copy) {
@@ -81,14 +100,14 @@ async function copyInputs(sourceRoot, packRoot, files, copy) {
   }
 }
 
-function runtimeManifest(version, files) {
+function runtimeManifest(version, files, profile) {
   const platform = `${process.platform}-${process.arch}`;
   const backend = `runtime/${platform}/apk-server.exe`;
   const validator = `runtime/${platform}/validate-plugin.exe`;
   return {
     format_version: 1,
     version,
-    profile: 'release',
+    profile,
     capabilities: ['plugin_dependencies_v1'],
     web: 'web',
     platforms: [{
@@ -102,11 +121,12 @@ function runtimeManifest(version, files) {
   };
 }
 
-export async function freezeInfrastructurePackage(sourceRoot = root, { copy = copyFile } = {}) {
-  if (process.platform !== 'win32') throw new Error('此冻结入口仅接收当前 Windows release EXE，不构建其他平台');
+export async function freezeInfrastructurePackage(sourceRoot = root, { copy = copyFile, profile = 'release' } = {}) {
+  if (process.platform !== 'win32') throw new Error('此冻结入口仅接收当前 Windows EXE，不构建其他平台');
+  if (profile !== 'release' && profile !== 'debug') throw new Error('冻结构建类型必须为 release 或 debug');
   sourceRoot = absoluteDirectoryPath(sourceRoot);
   await plainDirectory(sourceRoot);
-  const before = await inventoryInputs(sourceRoot);
+  const before = await inventoryInputs(sourceRoot, profile);
   const artifacts = join(sourceRoot, 'artifacts');
   await mkdir(artifacts, { recursive: true });
   await plainDirectory(artifacts);
@@ -119,8 +139,9 @@ export async function freezeInfrastructurePackage(sourceRoot = root, { copy = co
     timestamp: new Date().toISOString(),
     sourceRoot,
     packRoot,
+    profile,
     passed: false,
-    scope: '仅复制当前 CLI、release EXE 与前端 dist 并核对字节；不构建、不打包、不修改根 runtime，不证明新源码构建或服务验收',
+    scope: `仅按发布清单复制当前 CLI、${profile} EXE 与前端 dist 并核对字节；不构建、不打包、不修改根 runtime，不证明新源码构建或服务验收`,
     source_fingerprint: fingerprint(before),
     sources: before,
   };
@@ -130,7 +151,7 @@ export async function freezeInfrastructurePackage(sourceRoot = root, { copy = co
     const pkg = await readJson(join(packRoot, 'package.json'));
     assert.equal(pkg.name, '@deviceforge/cli', '冻结输入不是 DeviceForge CLI 包');
     assert.ok(typeof pkg.version === 'string' && pkg.version, '冻结包版本缺失');
-    const manifest = runtimeManifest(pkg.version, before);
+    const manifest = runtimeManifest(pkg.version, before, profile);
     const manifestPath = join(packRoot, 'runtime/manifest.json');
     await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, { encoding: 'utf8', flag: 'wx' });
     // 不运行 npm 生命周期；直接使用同一运行包加载规则验证副本。
@@ -140,7 +161,7 @@ export async function freezeInfrastructurePackage(sourceRoot = root, { copy = co
     const host = await readFile(join(runtime.web, 'assets/plugin-host.js'), 'utf8');
     assert.ok(host.includes('createFrontendRuntime') && host.includes('createNamedSlotAdapter'), '冻结前端缺少公开浏览器宿主入口');
     assert.equal(await selectSmokePackageRoot(sourceRoot, { [overrideKey]: packRoot }), await realpath(packRoot));
-    const after = await inventoryInputs(sourceRoot);
+    const after = await inventoryInputs(sourceRoot, profile);
     report.source_fingerprint_after = fingerprint(after);
     assert.equal(report.source_fingerprint_after, report.source_fingerprint, '冻结期间源码或构建产物漂移，拒绝交付混合字节');
     report.files = [

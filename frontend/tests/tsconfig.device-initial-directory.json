@@ -1,0 +1,8 @@
+{
+  "extends": "../tsconfig.json",
+  "include": [
+    "./device-initial-directory.test.ts",
+    "../plugins/devices/src/initial-directory.ts",
+    "../plugins/devices/src/index.ts"
+  ]
+}

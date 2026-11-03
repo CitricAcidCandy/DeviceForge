@@ -3,7 +3,7 @@ import type { PlatformRuntime } from '../platform-runtime.ts';
 import { pageSlotId } from '../../plugin-sdk/slots.ts';
 import { hostSlot, slotModes } from '../product/slots.ts';
 import { awaitLifecycle, defaultTimeouts } from '../../plugins/lifecycle.ts';
-import { legacyWorkspaceSlot } from './legacy-workspace-slots.ts';
+import { legacyWorkspacePage, legacyWorkspaceSlot } from './legacy-workspace-slots.ts';
 
 type Extensions = PlatformRuntime['extensions'];
 function slotFor(path: string): string | null {
@@ -17,26 +17,29 @@ function slotFor(path: string): string | null {
 export function legacyRouteSurfaces(resolve: () => Extensions | null, fixedSlot?: string): (mount: WorkspaceMount) => WorkspaceMount {
   return (mount) => async (target, context, instance) => {
     context.signal.throwIfAborted();
-    const provider = instance.snapshot().provider;
-    const page = context.ui?.catalog().pages.find((entry) =>
-      entry.pluginId === provider?.pluginId && entry.viewId === provider?.viewId);
+    const current = instance.snapshot(), ui = context.ui;
+    const provider = current.provider, catalog = ui?.catalog();
+    const page = catalog?.pages.find((entry) =>
+      entry.pluginId === provider?.pluginId && entry.viewId === provider?.viewId) ??
+      (ui ? legacyWorkspacePage(current, ui.snapshot()) : null);
     const slot = fixedSlot ?? (page ? slotFor(page.route)
-      : legacyWorkspaceSlot(instance.snapshot(), context.ui?.catalog().views ?? []));
+      : legacyWorkspaceSlot(current, catalog?.views ?? []));
     const extensions = resolve();
     if (!slot || !extensions?.slots) return mount(target, context, instance);
     const document = target.ownerDocument;
     const outer = document.createElement('section'), banner = document.createElement('div');
     const additions = document.createElement('div'), fallback = document.createElement('div');
-    outer.className = 'flex min-h-full min-w-0 flex-col';
+    outer.className = 'flex h-full min-h-0 min-w-0 flex-col overflow-hidden';
     outer.dataset.deviceforgeSurface = slot;
     banner.className = 'flex shrink-0 items-center justify-between gap-3 border-b border-[#E6EAF3] bg-white px-3 py-2 text-xs text-[#596479]';
     banner.hidden = true;
-    additions.className = 'flex min-h-0 min-w-0 flex-col';
+    additions.className = 'flex min-h-0 min-w-0 shrink-0 flex-col [&>[data-deviceforge-slot-mode=replace]]:hidden';
     additions.dataset.deviceforgeSlot = slot;
     fallback.className = 'min-h-0 min-w-0 flex-1';
     outer.append(banner, additions, fallback); target.append(outer);
     const visibility = new Set<(value: boolean) => void>();
     let replacement = false, ignored = false, closed = false, version = 0;
+    let preparing: { readonly epoch: number } | null = null;
     let selected: string | null = null, releaseSlot: Dispose | null = null, releaseBase: Dispose | null = null;
     let currentAppends = new Set<string>();
     const pending = new Set<Promise<unknown>>();
@@ -55,13 +58,19 @@ export function legacyRouteSurfaces(resolve: () => Extensions | null, fixedSlot?
       subscribeVisibility(listener) { visibility.add(listener); return () => { visibility.delete(listener); }; },
     };
     const unobserveVisibility = instance.subscribeVisibility(notifyVisible);
+    const contentLayout = () => {
+      fallback.hidden = replacement;
+      additions.className = replacement
+        ? 'flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden'
+        : 'flex min-h-0 min-w-0 shrink-0 flex-col [&>[data-deviceforge-slot-mode=replace]]:hidden';
+    };
     function status(text: string, restore: boolean) {
       banner.replaceChildren(); banner.hidden = false;
       const label = document.createElement('span'); label.textContent = text; banner.append(label);
       if (restore) {
         const button = document.createElement('button'); button.type = 'button'; button.textContent = '恢复默认';
         button.className = 'shrink-0 rounded px-2 py-1 text-[#6C4CF5]';
-        button.addEventListener('click', () => { ignored = true; refresh(); }); banner.append(button);
+        button.addEventListener('click', () => { ignored = true; preparing = null; banner.hidden = true; refresh(); }); banner.append(button);
       }
     }
     const unmount = (id: string) => observe(extensions.unmount(id).catch((error: unknown) => {
@@ -73,19 +82,26 @@ export function legacyRouteSurfaces(resolve: () => Extensions | null, fixedSlot?
       const candidate = ignored ? null : rows.find((entry) => entry.mode === 'replace');
       const next = candidate ? `${candidate.pluginId}:${candidate.generation}:${candidate.id}` : null;
       if (selected !== next) {
+        // 贡献回滚可能先于挂载拒绝；保留该次等待以显示原错，新选择或显式恢复才撤销它。
+        if (next !== null || ignored) preparing = null;
         const old = selected?.split(':').slice(2).join(':');
         selected = next; const epoch = ++version;
         if (old) void unmount(old);
-        replacement = false; fallback.hidden = false; notifyVisible(); banner.hidden = true;
+        replacement = false; contentLayout(); notifyVisible(); banner.hidden = true;
         if (candidate) {
+          const attempt = { epoch }; preparing = attempt;
           status(`正在准备来自 ${candidate.pluginId} 的兼容视图，原内容保持可用`, true);
           void observe(extensions?.mountComponent(candidate.id).then(() => {
             if (closed || version !== epoch || context.signal.aborted) return;
-            replacement = true; fallback.hidden = true; notifyVisible();
+            preparing = null;
+            replacement = true; contentLayout(); notifyVisible();
             status(`视图来自 ${candidate.pluginId}`, true);
           }).catch((error: unknown) => {
-            if (!closed && version === epoch) status(error instanceof Error ? error.message : '兼容视图加载失败，已保留原内容', true);
-          }) ?? Promise.resolve());
+            if (closed || context.signal.aborted || ignored || preparing !== attempt) return;
+            preparing = null;
+            if (error !== null && typeof error === 'object' && 'kind' in error && error.kind === 'cancelled') return;
+            status(error instanceof Error ? error.message : '兼容视图加载失败，已保留原内容', true);
+          }).finally(() => { if (preparing === attempt) preparing = null; }) ?? Promise.resolve());
         }
       }
       const appends = new Set(rows.filter((entry) => entry.mode === 'append').map((entry) => entry.id));
@@ -100,7 +116,7 @@ export function legacyRouteSurfaces(resolve: () => Extensions | null, fixedSlot?
     const aborted = () => { void dispose().catch(() => undefined); };
     async function dispose() {
       if (disposal) return disposal;
-      closed = true; version++; outer.remove();
+      closed = true; version++; preparing = null; outer.remove();
       context.signal.removeEventListener('abort', aborted);
       void unsubscribe?.(); void unobserveVisibility(); visibility.clear();
       const owned = selected?.split(':').slice(2).join(':');

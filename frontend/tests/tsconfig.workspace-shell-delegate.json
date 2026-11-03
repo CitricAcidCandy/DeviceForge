@@ -1,0 +1,5 @@
+{
+  "extends": "../tsconfig.json",
+  "include": ["./workspace-shell-delegate.test.ts"],
+  "exclude": []
+}

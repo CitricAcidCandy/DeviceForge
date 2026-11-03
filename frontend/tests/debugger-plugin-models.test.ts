@@ -26,7 +26,19 @@ test('尺寸方向键支持8与32像素，悬浮球吸最近边且限制在视�
   assert.equal(ballPosition(100, 700, viewport, true).x, 16);
   assert.equal(ballPosition(1200, 700, viewport, true).x, 1360);
   const ball = ballPosition(2000, 4000, { width: 390, height: 600 }, true);
-  assert.equal(ball.x, 326); assert.equal(ball.y, 536);
+  assert.equal(ball.x, 326); assert.equal(ball.y, 512);
+});
+
+test('悬浮球在停靠拖动与窗口缩小时避让底部状态区', () => {
+  for (const viewport of [{ width: 1424, height: 805 }, { width: 940, height: 760 }, { width: 390, height: 600 }]) {
+    for (const snap of [true, false]) {
+      const bottom = ballPosition(viewport.width, viewport.height, viewport, snap);
+      assert.ok(bottom.y + 48 <= viewport.height - 40);
+      assert.ok(bottom.x + 48 <= viewport.width);
+      const moved = ballPosition(bottom.x - 20, bottom.y - 100, viewport, snap);
+      assert.equal(moved.y, bottom.y - 100, '状态区以外仍允许正常移动');
+    }
+  }
 });
 
 test('面板拖动吸附四边含24像素阈值，25像素外保持位置且不改尺寸', () => {

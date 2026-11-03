@@ -1,0 +1,9 @@
+{
+  "extends": "../tsconfig.json",
+  "include": [
+    "../src/components/MultiTrackChart/index.tsx",
+    "../src/components/MultiTrackChart/runtime.ts",
+    "./public-ui-deferred-chart.test.ts",
+    "./public-ui-types.test.ts"
+  ]
+}

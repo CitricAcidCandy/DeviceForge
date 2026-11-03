@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { JSDOM } from 'jsdom';
 import { act, createElement, StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import type { Dispose, HostContext, UiAccess, WebPlugin, WorkspaceMount } from '../src/plugin-sdk/index.ts';
+import type { Dispose, HostContext, UiAccess, WebPlugin, WorkspaceLayoutNode, WorkspaceMount } from '../src/plugin-sdk/index.ts';
 import { createWorkspaceRegistry } from '../src/plugins/workspace/index.ts';
 import { createPointRegistry } from '../src/plugins/points/registry.ts';
 import { createMountPool } from '../plugins/default-shell/src/mount-pool.ts';
@@ -19,7 +19,7 @@ import { registerCompositionStartupImports } from './composition-startup-imports
 const loader = registerCompositionStartupImports();
 assert.deepEqual(loader.diagnostics, []);
 const { ChromeAddons } = await import('../plugins/default-shell/src/addons.tsx');
-const { ViewContent, ViewFrame, FloatingView } = await import('../plugins/default-shell/src/view.tsx');
+const { ViewContent, ViewFrame, FloatingView, LayoutNode } = await import('../plugins/default-shell/src/view.tsx');
 const { StorageStatus } = await import('../plugins/default-shell/src/storage.tsx');
 const { Shell } = await import('../plugins/default-shell/src/shell.tsx');
 const { PlatformRecovery, PlatformRecoveryEntry } = await import('../src/app/composition/Recovery.tsx');
@@ -147,6 +147,48 @@ test('同一显示位置先换实例再到旧清理时只显示当前根，返�
     assert.equal(first.input.value, '第一页草稿');
     assert.equal((await show('deviceforge_shell.second')).input, second.input);
     assert.equal(second.input.value, '第二页草稿');
+    assert.equal(f.counts().mounts, 2);
+  } finally { await f.cleanup(); }
+});
+
+test('旧单项原工作区多层包装直接呈现业务，多项页签仍保留实际路径和草稿', async () => {
+  const f = fixture();
+  try {
+    const workspaceId = f.controller.snapshot().current?.workspaceId;
+    assert.ok(workspaceId);
+    for (const instanceId of ['deviceforge_shell.first', 'deviceforge_shell.second']) f.ui.open({
+      instanceId, workspaceId, provider: { pluginId: 'business', viewId: 'business.header' },
+    });
+    const wrap = (node: WorkspaceLayoutNode): WorkspaceLayoutNode => ({ kind: 'tabs', active: 'original',
+      items: [{ id: 'original', title: '原工作区', node }] });
+    const root: WorkspaceLayoutNode = wrap(wrap({ kind: 'view', instanceId: 'deviceforge_shell.first' }));
+    const layout = { version: 1 as const, root, floating: [], overlays: [] };
+    f.ui.writeLayout(workspaceId, layout);
+    const render = () => {
+      const current = f.ui.readLayout(workspaceId)?.root; assert.ok(current);
+      f.root.render(createElement(LayoutNode, { state: f.controller.snapshot(), controller: f.controller,
+        pool: f.pool, editing: false, framed: false, onReplace() {}, onClose() {}, node: current, path: [] }));
+    };
+    await act(async () => { render(); });
+    const main = f.target;
+    assert.equal(main.querySelector('[role="tablist"]') === null, true, '单项包装没有可切换对象，不应占据业务舞台');
+    assert.equal(main.textContent?.includes('原工作区'), false);
+    const first = main.querySelector<HTMLInputElement>('input'); assert.ok(first);
+    first.value = '工作台草稿';
+    assert.deepEqual(f.ui.readLayout(workspaceId), layout, '呈现简化不改插件保存的布局语义');
+    const tabs: WorkspaceLayoutNode = { kind: 'tabs', active: 'first', items: [
+      { id: 'first', title: '当前工具', node: { kind: 'view', instanceId: 'deviceforge_shell.first' } },
+      { id: 'second', title: '第二工具', node: { kind: 'view', instanceId: 'deviceforge_shell.second' } },
+    ] };
+    await act(async () => { f.ui.writeLayout(workspaceId, { ...layout, root: wrap(wrap(tabs)) }); render(); });
+    assert.equal(main.querySelectorAll('[role="tablist"]').length, 1, '真实多项页签保留一层');
+    assert.equal(main.querySelector('input'), first);
+    await act(async () => { buttonNamed(main, '第二工具').click(); render(); });
+    const second = main.querySelector<HTMLInputElement>('input'); assert.ok(second); assert.notEqual(second, first);
+    second.value = '第二草稿';
+    await act(async () => { buttonNamed(main, '当前工具').click(); render(); });
+    assert.equal(main.querySelector('input'), first);
+    assert.equal(first.value, '工作台草稿');
     assert.equal(f.counts().mounts, 2);
   } finally { await f.cleanup(); }
 });
@@ -397,6 +439,35 @@ test('窄窗显示导航文字和下划线页签，切换视图仍复用草稿�
     assert.equal(f.target.querySelector('input[aria-label="插件草稿"]'), draft);
     assert.equal(draft.value, '窄窗切页保留');
   } finally { await f.cleanup(); }
+});
+
+test('两个外壳准备同一顶栏贡献时各有实例，撤销旧壳不关闭新壳扩展', async () => {
+  const f = fixture();
+  const point = { id: 'deviceforge_shell.header', version: '1' };
+  f.pointAccess.define({ ...point, title: '顶栏', modes: ['append'] });
+  f.addonAccess.contribute({ id: 'addon.header', point, data: { pluginId: 'business', viewId: 'business.header' } });
+  const nextPool = createMountPool(f.ui, f.target.ownerDocument, f.owner.signal);
+  const render = (first: boolean) => createElement('div', null,
+    first ? createElement(ChromeAddons, { key: 'old', context: f.context, region: 'header',
+      pool: f.pool, state: f.controller.snapshot() }) : null,
+    createElement(ChromeAddons, { key: 'next', context: f.context, region: 'header',
+      pool: nextPool, state: f.controller.snapshot() }));
+  try {
+    await act(async () => { f.root.render(render(true)); });
+    assert.doesNotMatch(f.target.textContent ?? '', /视图实例标识已经在使用/);
+    const inputs = f.target.querySelectorAll<HTMLInputElement>('input[aria-label="插件草稿"]');
+    assert.equal(inputs.length, 2, '准备区与现用外壳必须分别挂载真实扩展');
+    const next = inputs[1]; assert.ok(next);
+    next.value = '新外壳扩展草稿';
+    const before = f.counts();
+    await act(async () => { f.root.render(render(false)); });
+    assert.ok(f.target.querySelector('input') === next);
+    assert.equal(next.value, '新外壳扩展草稿');
+    assert.equal(f.ui.snapshot().instances.filter((entry) => entry.workspaceId === 'deviceforge_shell.chrome.header').length, 1);
+    assert.equal(f.counts().mounts, before.mounts);
+  } finally {
+    try { await f.cleanup(); } finally { await nextPool.dispose(); }
+  }
 });
 
 test('顶栏目录的无关更新不重挂现有扩展，业务草稿保留', async () => {

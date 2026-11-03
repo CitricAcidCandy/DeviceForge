@@ -29,8 +29,28 @@ export function resizeByKey(rect: Rect, key: string, shift: boolean, viewport: V
   return fit({ ...rect, width: rect.width + (key === 'ArrowRight' ? step : key === 'ArrowLeft' ? -step : 0),
     height: rect.height + (key === 'ArrowDown' ? step : key === 'ArrowUp' ? -step : 0) }, viewport);
 }
-export function ballPosition(x: number, y: number, viewport: Viewport, snap: boolean) {
+export function ballPosition(x: number, y: number, viewport: Viewport, snap: boolean, obstacles: readonly Rect[] = []) {
   const margin = Math.min(16, viewport.width / 20);
-  return { x: snap ? (x + 24 < viewport.width / 2 ? margin : Math.max(margin, viewport.width - 48 - margin))
-    : clamp(x, margin, viewport.width - 48 - margin), y: clamp(y, margin, viewport.height - 48 - margin) };
+  // 停靠和拖动共用底部留白，避免悬浮入口覆盖平台状态与日志。
+  const bottomMargin = Math.max(margin, Math.min(40, viewport.height / 5));
+  const position = { x: snap ? (x + 24 < viewport.width / 2 ? margin : Math.max(margin, viewport.width - 48 - margin))
+    : clamp(x, margin, viewport.width - 48 - margin), y: clamp(y, margin, viewport.height - 48 - bottomMargin) };
+  const blocked = obstacles.filter((rect) => Number.isFinite(rect.x) && Number.isFinite(rect.y)
+    && Number.isFinite(rect.width) && Number.isFinite(rect.height) && rect.width > 0 && rect.height > 0
+    && rect.x < position.x + 56 && rect.x + rect.width + 8 > position.x)
+    .map((rect) => ({ start: rect.y - 56, end: rect.y + rect.height + 8 }))
+    .sort((left, right) => left.start - right.start);
+  const intervals: { start: number; end: number }[] = [];
+  for (const interval of blocked) {
+    const previous = intervals.at(-1);
+    if (previous && interval.start < previous.end) previous.end = Math.max(previous.end, interval.end);
+    else intervals.push({ ...interval });
+  }
+  const conflict = intervals.find((interval) => position.y > interval.start && position.y < interval.end);
+  if (!conflict) return position;
+  // 同一停靠边内找最近安全边界；空间不足时保留可拖动入口，不反复跳边。
+  const candidates = [conflict.start, conflict.end].filter((candidate) => candidate >= margin
+    && candidate <= viewport.height - 48 - bottomMargin)
+    .sort((left, right) => Math.abs(left - position.y) - Math.abs(right - position.y) || left - right);
+  return candidates[0] === undefined ? position : { ...position, y: candidates[0] };
 }

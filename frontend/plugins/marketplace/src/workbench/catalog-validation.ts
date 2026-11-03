@@ -4,6 +4,7 @@ import type { BrowserCatalog } from '../browser-management.ts';
 import type { InstallationClientState, InstallationProgress, PluginInstallation } from './installations.ts';
 import type { PackageInfo } from './api/index.ts';
 import { isPackageInfo, isJobEvent } from './api/validation.ts';
+import type { BrowserRuntime } from './browser-state.ts';
 
 const text = (value: unknown): value is string => typeof value === 'string' && value.length > 0;
 const nullableText = (value: unknown) => value === null || typeof value === 'string';
@@ -22,6 +23,11 @@ function isClient(value: unknown): value is InstallationClientState {
   return isRecord(value) && text(value.id) && text(value.revision) &&
     ['activating', 'enabled', 'disabled', 'failed'].includes(String(value.phase)) &&
     nullableText(value.message) && nullableText(value.logId);
+}
+function isRuntime(value: unknown): value is BrowserRuntime {
+  return isRecord(value) && text(value.id) && typeof value.generation === 'number' &&
+    Number.isSafeInteger(value.generation) && value.generation > 0 &&
+    (value.state === 'loading' || value.state === 'loaded');
 }
 export function isProgress(value: unknown): value is InstallationProgress {
   return isRecord(value) && text(value.jobId) && text(value.operation) && nullableText(value.logId) &&
@@ -54,8 +60,11 @@ export function decodeBrowserCatalog(value: BrowserCatalog, logId: string | null
       value.progress !== null && !isProgress(value.progress)) throw invalid();
   const installedPackages: readonly PackageInfo[] = array(packages.entries, isPackageInfo);
   const installedReleases = array(installations.entries, isInstallation);
+  const runtime = array(value.runtime, isRuntime);
+  if (new Set(runtime.map((entry) => entry.id)).size !== runtime.length) throw invalid();
   return {
     packages: installedPackages, installations: installedReleases, clients: array(value.clients, isClient),
+    runtime,
     progress: value.progress, bundled: array(value.bundled, isBundled),
     known: packages.known && installations.known, pending: packages.pending || installations.pending,
     error: packages.error ?? installations.error ?? null,

@@ -9,6 +9,7 @@ import { clearRetainedDeviceTools, synchronizeDeviceTools } from './tools.ts';
 import { migrateDeviceWorkbenchLayout } from './workbench-layout.ts';
 import { registerDevicePage } from './page-metadata.ts';
 import { registerDeviceHeader } from './header-registration.ts';
+import { startInitialDirectoryRead } from './initial-directory.ts';
 
 export * from './contracts.ts';
 
@@ -89,6 +90,7 @@ export default function createDevicesPlugin(
       context.onDispose(synchronizeDeviceTools(context));
       registerTarget(context);
       context.onDispose(registerDeviceHeader(context));
+      context.onDispose(startInitialDirectoryRead(context));
     },
   };
 }

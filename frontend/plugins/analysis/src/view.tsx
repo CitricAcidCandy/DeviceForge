@@ -1,5 +1,5 @@
 import { hostUi } from '@deviceforge/plugin-sdk';
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import type { HostContext } from '@deviceforge/plugin-sdk';
 import { createAnalysisServices } from './services.ts';
 const { Button } = hostUi();
@@ -27,7 +27,8 @@ import type {
   MsgpackFilter,
   MsgpackPage,
 } from './msgpack/index.ts';
-const { EmptyState, Field, JsonResult, PageTitle } = hostUi();
+const { EmptyState, JsonResult, PageTitle } = hostUi();
+import { AnalysisField as Field } from './field.tsx';
 import { OperationNotice, useOperationAvailable } from '@deviceforge/business-kit/react';
 import { ActionFeedback } from '@deviceforge/business-kit/react';
 import { useAction } from '@deviceforge/business-kit/react';
@@ -378,6 +379,7 @@ function MsgpackSection({
 }
 
 export function AnalysisPage({ services }: { services: AnalysisServices }) {
+  const uploadId = useId();
   useEffect(() => {
     void services.operations.list(services.context.signal).catch(() => undefined);
   }, [services]);
@@ -394,9 +396,9 @@ export function AnalysisPage({ services }: { services: AnalysisServices }) {
       />
       <div className="grid min-h-0 min-w-0 shrink-0 items-start gap-6 @min-[800px]/analysis:grid-cols-[17.5rem_minmax(0,1fr)]">
       <aside className="grid min-w-0 gap-3 border-b border-border pb-6 @min-[800px]/analysis:border-r @min-[800px]/analysis:border-b-0 @min-[800px]/analysis:pr-7" aria-label="分析文件来源">
-        <Label htmlFor="analysis-upload">上传待分析文件</Label>
+        <Label htmlFor={uploadId}>上传待分析文件</Label>
         <Input
-          id="analysis-upload"
+          id={uploadId}
           type="file"
           accept=".dex,.json,.msgpack"
           disabled={upload.pending}

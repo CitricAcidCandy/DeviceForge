@@ -1,0 +1,48 @@
+import type { Rect } from './geometry.ts';
+
+const ownSurface = '[data-deviceforge-debugger]';
+const controls = 'button,input:not([type="hidden"]),select,textarea,a[href],summary,[role="button"],[role="tab"],'
+  + '[role="checkbox"],[role="switch"],[role="combobox"],[contenteditable="true"]';
+
+export function readBallObstacles(document: Document, x: number): readonly Rect[] {
+  const view = document.defaultView;
+  if (!view) return [];
+  const obstacles: Rect[] = [];
+  for (const element of document.querySelectorAll<HTMLElement>(controls)) {
+    if (element.closest(`${ownSurface},[hidden],[inert],[aria-hidden="true"]`)) continue;
+    const rect = element.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0 || rect.right + 8 <= x || rect.left >= x + 56
+      || rect.bottom <= 0 || rect.top >= view.innerHeight) continue;
+    const style = view.getComputedStyle(element);
+    if (style.visibility === 'hidden' || style.visibility === 'collapse' || style.display === 'none') continue;
+    obstacles.push({ x: rect.x, y: rect.y, width: rect.width, height: rect.height });
+  }
+  return obstacles;
+}
+
+export function watchBallObstacles(document: Document, onChange: () => void): () => void {
+  const view = document.defaultView;
+  if (!view) return () => {};
+  let frame: number | null = null, closed = false;
+  const schedule = () => {
+    if (closed || frame !== null) return;
+    frame = view.requestAnimationFrame(() => { frame = null; if (!closed) onChange(); });
+  };
+  const observer = new view.MutationObserver((records) => {
+    if (records.some((record) => !(record.target instanceof view.Element && record.target.closest(ownSurface)))) schedule();
+  });
+  observer.observe(document.documentElement, { childList: true, subtree: true, attributes: true,
+    attributeFilter: ['class', 'style', 'hidden', 'inert', 'aria-hidden', 'data-state'] });
+  document.addEventListener('scroll', schedule, true);
+  view.addEventListener('resize', schedule);
+  schedule();
+  return () => {
+    if (closed) return;
+    closed = true;
+    observer.disconnect();
+    document.removeEventListener('scroll', schedule, true);
+    view.removeEventListener('resize', schedule);
+    if (frame !== null) view.cancelAnimationFrame(frame);
+    frame = null;
+  };
+}

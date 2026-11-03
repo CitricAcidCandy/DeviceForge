@@ -6,6 +6,7 @@ import type { DeviceAction, DeviceCapability, DeviceDirectory, DeviceProviderInf
   HostContext, HostResult, Job, Operation } from '../src/plugin-sdk/index.ts';
 import { registerCompositionStartupImports } from './composition-startup-imports.ts';
 import { deferred } from './fixtures.ts';
+import { createWorkspaceRegistry } from '../src/plugins/workspace/index.ts';
 
 const browser = new JSDOM('<!doctype html><html><body></body></html>', { url: 'http://localhost/', pretendToBeVisual: true });
 const previous = new Map<string, PropertyDescriptor | undefined>();
@@ -24,6 +25,8 @@ const { createRoot } = await import('react-dom/client');
 const { installPublicUi } = await import('../src/app/public-ui.ts');
 const { WorkbenchTools } = await import('../plugins/devices/src/workbench-tools.tsx');
 const { WorkbenchDialog } = await import('../plugins/devices/src/workbench-dialog.tsx');
+const { DeviceWorkbench } = await import('../plugins/devices/src/workbench.tsx');
+const { createWorkbenchChildren } = await import('../plugins/devices/src/workbench-children.ts');
 imports.dispose();
 const publicUi = installPublicUi();
 after(async () => {
@@ -204,4 +207,38 @@ test('受控目录切到连接弹窗时旧close事件不误关新面，抽屉只
     await act(async () => { dialog.dispatchEvent(new browser.window.Event('cancel')); });
     assert.deepEqual(changes, [false]);
   } finally { await f.close(); }
+});
+
+test('无设备工作台直接使用连续舞台，保留单份工具条和明确入口而不添加全屏白卡', async () => {
+  const f = fixture(), registry = createWorkspaceRegistry();
+  const access = registry.access({ pluginId: 'deviceforge_devices', generation: 1, signal: f.owner.signal });
+  let mounted = 0;
+  const ui = { ...access, mount: async () => { mounted++; return () => {}; } };
+  const context: HostContext = { ...f.context, ui };
+  access.register({ workspaces: [{ id: 'deviceforge_devices.workspace', title: '设备' }], views: [{
+    id: 'deviceforge_devices.workbench', title: '设备工作台', mount: async () => () => {},
+  }] });
+  access.open({ instanceId: 'deviceforge_devices.workbench.main', workspaceId: 'deviceforge_devices.workspace',
+    provider: { pluginId: 'deviceforge_devices', viewId: 'deviceforge_devices.workbench' },
+    target: { kind: 'device', reference: null }, visible: true });
+  const resolved = registry.resolveView('deviceforge_devices.workbench.main'); assert.ok(resolved);
+  const children = createWorkbenchChildren(context, resolved.instance);
+  try {
+    f.replaceDevices({ providers: [], directories: [], selected: null, selection: null });
+    await act(async () => { f.root.render(createElement(DeviceWorkbench, { context, instance: resolved.instance, children })); });
+    const stage = f.target.querySelector('[data-product-page="devices"]'); assert.ok(stage);
+    assert.equal(stage.querySelectorAll('nav[aria-label="设备工具"]').length, 1);
+    const status = [...stage.querySelectorAll('h1')].find((entry) => entry.textContent === '还没有可用的设备提供者');
+    assert.ok(status);
+    const wrapper = status.closest('section')?.querySelector(':scope > div'); assert.ok(wrapper);
+    assert.equal(wrapper.classList.contains('bg-white'), false, '空态不能另造白色工作区外壳');
+    assert.equal(wrapper.classList.contains('rounded-2xl'), false);
+    assert.equal(wrapper.classList.contains('border'), false);
+    assert.equal(wrapper.classList.contains('mx-16'), false);
+    assert.ok(wrapper.classList.contains('flex-1'));
+    assert.ok(wrapper.classList.contains('min-h-0'));
+    assert.ok(stage.querySelector('a[href="#/marketplace"]'));
+    assert.ok(button(stage, '连接设备'));
+    assert.equal(f.calls.invoke.length, 0); assert.equal(f.calls.discover, 0); assert.equal(mounted, 0);
+  } finally { children.dispose(); await f.close(); registry.dispose(); }
 });

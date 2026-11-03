@@ -1,10 +1,8 @@
 import { HostError } from '@deviceforge/plugin-sdk';
 import type { Dispose, HostContext } from '@deviceforge/plugin-sdk';
-import { createAiServices } from '../services.ts';
-import type { AiServices } from '../services.ts';
+import { abortable } from '@deviceforge/business-kit/api';
 import { boundedServiceJson, serviceObject, serviceResult } from './contract.ts';
-import { dispatchSdkService } from './sdk.ts';
-import { dispatchStreamService } from './stream.ts';
+import type { createAiServiceRuntime } from './runtime.ts';
 
 export function aiPublicServiceRefs(pluginId: string) {
   return Object.freeze({
@@ -17,27 +15,38 @@ export function aiPublicServiceRefs(pluginId: string) {
 export function registerAiPublicServices(context: HostContext, pluginId: string): Dispose {
   const register = context.extensions?.register;
   if (!register) throw new Error('AI 公开服务需要动态贡献注册能力');
-  let models: AiServices | null = null, closed = false;
-  function model() {
-    if (closed || context.signal.aborted)
+  const lifetime = new AbortController();
+  let runtime: ReturnType<typeof createAiServiceRuntime> | null = null, closed = false;
+  let loading: Promise<typeof import('./runtime.ts')> | null = null;
+  async function current(signal: AbortSignal) {
+    const combined = AbortSignal.any([signal, context.signal, lifetime.signal]);
+    if (closed || combined.aborted)
       throw new HostError('cancelled', 'ai_public_services_closed', 'AI 公开服务已撤销');
-    models ??= createAiServices(context);
-    return models;
+    if (!runtime) {
+      loading ??= import('./runtime.ts');
+      const module = await abortable(loading, combined);
+      combined.throwIfAborted();
+      if (closed) throw new HostError('cancelled', 'ai_public_services_closed', 'AI 公开服务已撤销');
+      runtime ??= module.createAiServiceRuntime(context);
+    }
+    return { runtime, signal: combined };
   }
   const refs = aiPublicServiceRefs(pluginId);
   const unregister = register({ services: [
     {
       ...refs.sdk,
-      invoke(value, _caller, signal) {
+      async invoke(value, _caller, signal) {
         const request = serviceObject(boundedServiceJson(value, 1024 * 1024));
-        return serviceResult(dispatchSdkService(() => model().sdk, request, signal));
+        const call = await current(signal);
+        return serviceResult(call.runtime.sdk(request, call.signal));
       },
     },
     {
       ...refs.stream,
-      invoke(value, _caller, signal) {
+      async invoke(value, _caller, signal) {
         const request = serviceObject(boundedServiceJson(value, 1024 * 1024, null, true), true);
-        return serviceResult(dispatchStreamService(() => model().sdkStreaming, request, signal), true);
+        const call = await current(signal);
+        return serviceResult(call.runtime.stream(request, call.signal), true);
       },
     },
   ] });
@@ -45,8 +54,9 @@ export function registerAiPublicServices(context: HostContext, pluginId: string)
   return () => {
     if (!releasing) {
       closed = true;
-      const current = models;
-      models = null;
+      lifetime.abort();
+      const current = runtime;
+      runtime = null;
       releasing = (async () => {
         const results = await Promise.allSettled([unregister(), current?.dispose()]);
         const failures = results.flatMap((result) => result.status === 'rejected' ? [result.reason] : []);

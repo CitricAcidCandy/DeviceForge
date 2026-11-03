@@ -88,7 +88,10 @@ export function ShellHeader({ state, compact, focused, reduced, connection, onCo
       {children}
     </div>
     <div className="flex min-w-0 max-w-full flex-wrap items-center justify-end gap-2 text-xs text-[#596479]">
-      {!compact && <span aria-hidden="true" className="flex items-center gap-10 rounded-md border border-[#E6EAF3] px-3 py-1.5 text-[10px] text-[#8790A2]">搜索或运行命令<kbd className="font-mono">Ctrl K</kbd></span>}
+      {!compact && <span aria-hidden="true" className="flex h-[30px] w-[232px] max-w-full min-w-0 items-center gap-2 rounded-[7px] border border-[#E6EAF3] bg-white pl-2.5 pr-1.5 text-xs text-[#8790A2]">
+        <span className="min-w-0 truncate">搜索或运行命令</span>
+        <kbd className="ml-auto shrink-0 rounded bg-[#F5F6FB] px-[5px] py-px font-mono text-[12px] font-medium leading-[1.4]">Ctrl K</kbd>
+      </span>}
       <span role="status" title={connection.error ?? undefined} className="flex min-w-0 items-center gap-1.5">
         <span aria-hidden="true" className={`size-1.5 shrink-0 rounded-full ${connection.state === 'connected' ? 'bg-emerald-500' : connection.state === 'failed' ? 'bg-red-500' : 'bg-slate-300'}`} />
         <span className="truncate">{connection.text}</span>

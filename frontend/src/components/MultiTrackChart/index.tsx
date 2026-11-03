@@ -1,13 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import * as echarts from 'echarts/core';
-import { LineChart } from 'echarts/charts';
+import type { ComposeOption, ECharts } from 'echarts/core';
 import type { LineSeriesOption } from 'echarts/charts';
-import {
-  AxisPointerComponent,
-  GridComponent,
-  MarkLineComponent,
-  TooltipComponent,
-} from 'echarts/components';
 import type {
   AxisPointerComponentOption,
   GridComponentOption,
@@ -15,16 +8,11 @@ import type {
   TooltipComponentOption,
 } from 'echarts/components';
 import type { XAXisComponentOption, YAXisComponentOption } from 'echarts';
-import { CanvasRenderer } from 'echarts/renderers';
-
-echarts.use([
-  LineChart, GridComponent, AxisPointerComponent, TooltipComponent, MarkLineComponent, CanvasRenderer,
-]);
-
-type ChartOption = echarts.ComposeOption<
+type ChartOption = ComposeOption<
   LineSeriesOption | GridComponentOption | AxisPointerComponentOption |
   TooltipComponentOption | MarkLineComponentOption
 >;
+type ChartRuntime = typeof import('./runtime.ts');
 
 /** 画布解析不了 CSS 变量，这里的取值与 styles.css 的令牌保持一致。 */
 const COLOR = {
@@ -97,8 +85,33 @@ export function MultiTrackChart({
   className,
 }: MultiTrackChartProps) {
   const host = useRef<HTMLDivElement>(null);
-  const chart = useRef<echarts.ECharts | null>(null);
+  const chart = useRef<ECharts | null>(null);
   const [box, setBox] = useState({ width: 0, height: 0 });
+  const [runtime, setRuntime] = useState<ChartRuntime | null>(null);
+  const [attempt, setAttempt] = useState(0);
+  const [failure, setFailure] = useState<string | null>(null);
+  const drawable = box.width > 0 && box.height > 0;
+
+  useEffect(() => {
+    if (!drawable || runtime) return;
+    let current = true;
+    setFailure(null);
+    const timer = setTimeout(() => {
+      current = false;
+      setFailure('图表组件加载超时');
+    }, 10_000);
+    void import('./runtime.ts').then((loaded) => {
+      if (!current) return;
+      clearTimeout(timer);
+      setRuntime(loaded);
+    }, () => {
+      if (!current) return;
+      clearTimeout(timer);
+      setFailure('图表组件未能加载');
+    });
+    // 原生模块加载无法中止；撤销等待资格，晚到模块不得创建已卸载实例。
+    return () => { current = false; clearTimeout(timer); };
+  }, [drawable, runtime, attempt]);
 
   useEffect(() => {
     const element = host.current;
@@ -230,16 +243,23 @@ export function MultiTrackChart({
 
   useEffect(() => {
     const element = host.current;
-    if (!element || box.width <= 0 || box.height <= 0) return;
+    if (!element || !runtime || box.width <= 0 || box.height <= 0) return;
     // 正尺寸才初始化，并按「尺寸 -> 数据 -> 同步绘制」提交，避免零尺寸和延迟更新互相覆盖。
-    const instance = chart.current ?? echarts.init(element, undefined, {
-      renderer: 'canvas', width: box.width, height: box.height,
-    });
-    chart.current = instance;
-    if (instance.getWidth() !== box.width || instance.getHeight() !== box.height) {
-      instance.resize({ width: box.width, height: box.height });
+    let instance: ECharts;
+    try {
+      instance = chart.current ?? runtime.createChart(element, box.width, box.height);
+      chart.current = instance;
+      if (instance.getWidth() !== box.width || instance.getHeight() !== box.height) {
+        instance.resize({ width: box.width, height: box.height });
+      }
+      instance.setOption(option, { notMerge: true, lazyUpdate: false });
+      setFailure(null);
+    } catch {
+      // 保留本次失败，只有显式重试或新数据/尺寸才重新绘制，不重建整个业务页面。
+      chart.current?.dispose(); chart.current = null;
+      setFailure('图表初始化或绘制失败');
+      return;
     }
-    instance.setOption(option, { notMerge: true, lazyUpdate: false });
     if (!onPickX) return;
     const handler = (event: { offsetX: number; offsetY: number }) => {
       const inside = tracks.some((_, index) =>
@@ -253,14 +273,20 @@ export function MultiTrackChart({
     const zr = instance.getZr();
     zr.on('click', handler);
     return () => zr.off('click', handler);
-  }, [option, box.width, box.height, onPickX, tracks]);
+  }, [runtime, option, box.width, box.height, onPickX, tracks, attempt]);
 
   return (
     <div
       ref={host}
-      className={'h-full min-h-0 w-full min-w-0 ' + (className ?? '')}
+      className={'relative h-full min-h-0 w-full min-w-0 ' + (className ?? '')}
       role="group"
       aria-label={ariaLabel}
-    />
+    >
+      {failure && <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 bg-card p-3 text-center text-xs text-muted-foreground">
+        <p role="alert">{failure}</p>
+        <button type="button" className="rounded border border-border px-3 py-1.5 text-primary"
+          onClick={() => { setFailure(null); setAttempt((value) => value + 1); }}>重新加载图表</button>
+      </div>}
+    </div>
   );
 }

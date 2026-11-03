@@ -228,7 +228,10 @@ test('底栏插件按内容流式展开而非固定八格高或六十四格宽�
 test('外壳头尾按内容换行，嵌套页签和分栏贯通可收缩高度链并在内部滚动', async () => {
   assert.ok(split.root);
   const layout: WorkspaceLayout = {
-    ...split, root: { kind: 'tabs', active: 'main', items: [{ id: 'main', title: '组合视图', node: split.root }] },
+    ...split, root: { kind: 'tabs', active: 'main', items: [
+      { id: 'main', title: '组合视图', node: split.root },
+      { id: 'other', title: '另一业务视图', node: { kind: 'view', instanceId: 'deviceforge_shell.other' } },
+    ] },
   };
   const f = await fixture(1424, layout);
   try {

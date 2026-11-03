@@ -9,7 +9,9 @@ import { release } from './plugin-installations-fixture.ts';
 
 const id = 'deviceforge_debugger';
 const signal = () => new AbortController().signal;
-function fixture(storage = new Map<string, string>(), origin = 'http://localhost:7031') {
+function fixture(storage = new Map<string, string>(), origin = 'http://localhost:7031', gate?: {
+  readonly path: string; readonly response: Promise<Response>; readonly entered: () => void;
+}) {
   const document = new JSDOM('<body></body>', { url: origin }).window.document;
   let calls = 0, loads = 0, releases = 0;
   let packages: ReturnType<typeof installedPackage>[] = [];
@@ -19,6 +21,7 @@ function fixture(storage = new Map<string, string>(), origin = 'http://localhost
     transport: async input => {
       calls++;
       const path = new URL(input instanceof Request ? input.url : String(input)).pathname;
+      if (gate?.path === path) { gate.entered(); return gate.response.then((response) => response.clone()); }
       if (path === '/api/v2/plugin-installations') return success(installations.map(item => ({
         ...item, installed_at: 1, failure: null, requirements: [], tools: [],
         components: item.components.map(component => ({ id: component.id, kind: component.kind,
@@ -140,4 +143,62 @@ test('加载取消不会留下一代随附插件，晚到模块不复活', async
     waiting.resolve({ default: { id, version: '0.1.0', apiVersion: 2, panels: [] } });
     assert.equal(f.runtime.webPlugins.snapshot().length, 0);
   } finally { controller.dispose(); await f.dispose(); }
+});
+
+for (const path of ['/api/v2/plugin-packages/browser', '/api/v2/plugin-installations']) {
+  test(`调试器启动共享已有${path}读取，不撤销原调用或重复加载`, { timeout: 3000 }, async () => {
+    const entered = deferred<void>(), response = deferred<Response>();
+    const f = fixture(new Map(), 'http://localhost:7031', { path, response: response.promise, entered: entered.resolve });
+    let readState = 'pending';
+    const reading = (path.endsWith('/browser')
+      ? f.runtime.pluginPackages.refresh('browser', signal())
+      : f.runtime.pluginInstallations.refresh(signal())).then(
+      () => { readState = 'confirmed'; }, () => { readState = 'failed'; },
+    );
+    let started: Promise<void> | undefined;
+    try {
+      await entered.promise;
+      started = f.controller.start(signal());
+      void started.catch(() => undefined);
+      await new Promise((done) => setImmediate(done));
+      assert.equal(readState, 'pending', '启动确认不能用第二次refresh撤销原读取');
+      assert.equal(f.counts().loads, 0, '目录未知时不抢先装载');
+      response.resolve(success([]));
+      await reading; await started;
+      assert.equal(readState, 'confirmed');
+      assert.deepEqual(f.counts(), { calls: 2, loads: 1, releases: 0 });
+      assert.equal(f.controller.snapshot().phase, 'loaded');
+    } finally {
+      response.resolve(success([]));
+      await Promise.allSettled([reading, started]); await f.dispose();
+    }
+  });
+}
+
+test('调试器目录确认取消不终止别人拥有的读取，晚到目录不装载插件', { timeout: 3000 }, async () => {
+  const entered = deferred<void>(), response = deferred<Response>();
+  const f = fixture(new Map(), 'http://localhost:7031', {
+    path: '/api/v2/plugin-packages/browser', response: response.promise, entered: entered.resolve,
+  });
+  let readState = 'pending';
+  const reading = f.runtime.pluginPackages.refresh('browser', signal()).then(
+    () => { readState = 'confirmed'; }, () => { readState = 'failed'; },
+  );
+  const caller = new AbortController();
+  let started: Promise<void> | undefined;
+  try {
+    await entered.promise;
+    started = f.controller.start(caller.signal);
+    const rejected = assert.rejects(started);
+    await new Promise((done) => setImmediate(done));
+    caller.abort(); await rejected;
+    assert.equal(readState, 'pending', '取消调试器只退出自己的安装确认');
+    response.resolve(success([])); await reading;
+    assert.equal(readState, 'confirmed');
+    assert.equal(f.counts().loads, 0);
+    assert.equal(f.counts().calls, 2);
+  } finally {
+    response.resolve(success([]));
+    await Promise.allSettled([reading, started]); await f.dispose();
+  }
 });

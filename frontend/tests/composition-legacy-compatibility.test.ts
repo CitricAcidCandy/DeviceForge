@@ -92,6 +92,158 @@ test('旧整页替换成功后才隐藏业务视图，恢复默认保留原草�
   } finally { await f.dispose(); }
 });
 
+test('旧整页替换从区域到业务根贯通高度，准备时隐藏候选且追加内容保持自然高度', async () => {
+  const f = await fixture();
+  const entered = deferred<void>(), ready = deferred<void>();
+  try {
+    const release = await f.page(async (target) => {
+      const input = target.ownerDocument.createElement('input'); input.value = '原页面草稿'; target.append(input);
+      return () => { input.remove(); };
+    });
+    const input = f.target.querySelector('input'); assert.ok(input);
+    await f.load({ id: 'height_extension', version: '1.0.0', apiVersion: 2, panels: [], contributions: {
+      components: [
+        { id: 'height_extension.append', title: '局部追加', slot: 'route.devices', mode: 'append', mount: async (target) => {
+          target.textContent = '局部功能'; return () => {};
+        } },
+        { id: 'height_extension.replace', title: '完整替换', slot: 'route.devices', mode: 'replace', mount: async (target) => {
+          const content = target.ownerDocument.createElement('section');
+          content.className = 'h-full min-h-0 overflow-auto'; content.textContent = '整页功能'; target.append(content);
+          entered.resolve(); await ready.promise; return () => { content.remove(); };
+        } },
+      ],
+    } });
+    await entered.promise;
+    const root = f.target.querySelector<HTMLElement>('[data-deviceforge-extension="height_extension.replace"]');
+    assert.ok(root);
+    assert.ok(root.classList.contains('h-full'), '整页扩展根必须传递可用高度');
+    assert.ok(root.classList.contains('min-h-0'));
+    const lease = root.parentElement, region = lease?.parentElement;
+    assert.ok(lease && region);
+    assert.ok(lease.classList.contains('flex-1'), '槽位租约同样参与高度分配');
+    assert.equal(lease.dataset.deviceforgeSlotMode, 'replace');
+    assert.ok(region.classList.contains('[&>[data-deviceforge-slot-mode=replace]]:hidden'), '尚未准备完成的候选不挤占原页面');
+    assert.equal(input.parentElement?.hidden, false);
+    ready.resolve(); await settled(() => input.parentElement?.hidden === true);
+    assert.ok(region.classList.contains('flex-1'), '替换确认后区域填满剩余高度');
+    assert.equal(region.classList.contains('[&>[data-deviceforge-slot-mode=replace]]:hidden'), false);
+    const appended = f.target.querySelector<HTMLElement>('[data-deviceforge-extension="height_extension.append"]');
+    assert.ok(appended);
+    assert.equal(appended.classList.contains('h-full'), false, '普通追加保持原自然高度');
+    assert.equal(appended.parentElement?.classList.contains('flex-1'), false);
+    const restore = [...f.target.querySelectorAll('button')].find((button) => button.textContent === '恢复默认');
+    assert.ok(restore); restore.click();
+    await settled(() => input.parentElement?.hidden === false);
+    assert.equal(region.classList.contains('flex-1'), false);
+    assert.equal(f.target.querySelector('input'), input);
+    assert.equal(input.value, '原页面草稿');
+    assert.ok(f.target.contains(appended), '恢复只撤替换，不拆局部追加');
+    await release();
+  } finally { ready.resolve(); await f.dispose(); }
+});
+
+test('允许替换的页面遇到候选真实失败时保持原区域高度和草稿，不残留半成品', async () => {
+  const f = await fixture();
+  try {
+    const release = await f.page(async (target) => {
+      const input = target.ownerDocument.createElement('input'); input.value = '失败后仍保留'; target.append(input);
+      return () => { input.remove(); };
+    });
+    const input = f.target.querySelector('input'); assert.ok(input);
+    await f.load({ id: 'failed_height', version: '1.0.0', apiVersion: 2, panels: [], contributions: {
+      components: [{ id: 'failed_height.replace', title: '本次失败', slot: 'route.devices', mode: 'replace', mount: async (target) => {
+        target.textContent = '未完成的半成品'; throw new Error('本次候选真实失败');
+      } }],
+    } });
+    await settled(() => f.target.textContent?.includes('本次候选真实失败') === true);
+    const region = f.target.querySelector<HTMLElement>('[data-deviceforge-slot="route.devices"]'); assert.ok(region);
+    assert.equal(region.classList.contains('flex-1'), false);
+    assert.ok(region.classList.contains('[&>[data-deviceforge-slot-mode=replace]]:hidden'));
+    assert.equal(input.parentElement?.hidden, false);
+    assert.equal(input.value, '失败后仍保留');
+    assert.equal(f.target.textContent?.includes('未完成的半成品'), false);
+    await release();
+  } finally { await f.dispose(); }
+});
+
+test('候选准备期间恢复默认后，晚到失败不重新占位或覆盖原页面', async () => {
+  const f = await fixture();
+  const entered = deferred<void>(), late = deferred<void>();
+  try {
+    const release = await f.page(async (target) => {
+      const input = target.ownerDocument.createElement('input'); input.value = '恢复时保留'; target.append(input);
+      return () => { input.remove(); };
+    });
+    const input = f.target.querySelector('input'); assert.ok(input);
+    await f.load({ id: 'late_candidate', version: '1.0.0', apiVersion: 2, panels: [], contributions: {
+      components: [{ id: 'late_candidate.replace', title: '候选', slot: 'route.devices', mode: 'replace', mount: async (target) => {
+        target.textContent = '准备中的候选'; entered.resolve(); await late.promise; return () => {};
+      } }],
+    } });
+    await entered.promise;
+    const restore = [...f.target.querySelectorAll('button')].find((button) => button.textContent === '恢复默认');
+    assert.ok(restore); restore.click();
+    await settled(() => f.target.querySelector('[data-deviceforge-extension="late_candidate.replace"]') === null);
+    late.reject(new Error('已撤销候选的晚到失败'));
+    await new Promise<void>((resolve) => { setImmediate(resolve); });
+    const region = f.target.querySelector<HTMLElement>('[data-deviceforge-slot="route.devices"]'); assert.ok(region);
+    assert.equal(region.classList.contains('flex-1'), false);
+    assert.equal(input.parentElement?.hidden, false);
+    assert.equal(input.value, '恢复时保留');
+    assert.equal(f.target.textContent?.includes('已撤销候选的晚到失败'), false);
+    await release();
+  } finally { late.resolve(); await f.dispose(); }
+});
+
+test('工作区页面主视图接回旧路由槽位，额外实例不重复包装且恢复保留草稿', async () => {
+  const f = await fixture();
+  try {
+    await f.load({ id: 'business', version: '1.0.0', apiVersion: 2, panels: [], async activate(context) {
+      context.ui?.register({
+        workspaces: [{ id: 'business.workspace', title: '业务工作区', defaultLayout: {
+          version: 1, root: { kind: 'tabs', active: 'legacy', items: [{ id: 'legacy', title: '原工作区',
+            node: { kind: 'view', instanceId: 'business.main.default' } }] }, floating: [], overlays: [],
+        } }],
+        pages: [{ id: 'business.page', title: '设备', route: '/devices', workspaceId: 'business.workspace' }],
+        views: [{ id: 'business.main', title: '业务主视图', mount: async (target) => {
+          const input = target.ownerDocument.createElement('input'); input.value = '工作区内的草稿'; target.append(input);
+          return () => { input.remove(); };
+        } }],
+      });
+      for (const instanceId of ['business.main.default', 'business.main.extra']) context.ui?.open({
+        instanceId, workspaceId: 'business.workspace', provider: { pluginId: 'business', viewId: 'business.main' },
+      });
+    } });
+    assert.ok(f.ui.mount);
+    const release = await f.ui.mount('business.main.default', f.target, f.runtime.host.signal);
+    const input = f.target.querySelector('input'); assert.ok(input);
+    assert.equal(f.target.querySelector('[data-deviceforge-surface]')?.getAttribute('data-deviceforge-surface'), 'route.devices');
+    const extra = f.browser.window.document.createElement('aside'); f.target.append(extra);
+    const releaseExtra = await f.ui.mount('business.main.extra', extra, f.runtime.host.signal);
+    assert.equal(extra.querySelector('[data-deviceforge-surface]') === null, true);
+    await f.load({ id: 'old_route', version: '1.0.0', apiVersion: 2, panels: [], contributions: {
+      components: [
+        { id: 'old_route.append', title: '追加功能', slot: 'route.devices', mode: 'append', mount: async (target) => {
+          target.textContent = '旧路由追加内容'; return () => {};
+        } },
+        { id: 'old_route.replace', title: '旧页面替换', slot: 'route.devices', mode: 'replace', mount: async (target) => {
+          target.textContent = '旧路由替换内容'; return () => {};
+        } },
+      ],
+    } });
+    await settled(() => Boolean(input.parentElement?.hidden) && Boolean(f.target.textContent?.includes('旧路由追加内容')));
+    const restore = [...f.target.querySelectorAll('button')].find((item) => item.textContent === '恢复默认');
+    assert.ok(restore); restore.click();
+    await settled(() => !input.parentElement?.hidden);
+    assert.equal(f.target.querySelector('input') === input, true);
+    assert.equal(input.value, '工作区内的草稿');
+    await f.runtime.webPlugins.unload('old_route');
+    await releaseExtra(); await release();
+    const releaseSlot = await f.slots.define({ id: 'route.devices', target: f.target });
+    await releaseSlot();
+  } finally { await f.dispose(); }
+});
+
 test('旧替换失败和受保护页替换不会隐藏原内容', async () => {
   const f = await fixture();
   try {

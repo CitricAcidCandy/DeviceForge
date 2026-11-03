@@ -9,6 +9,7 @@ import type {
   InstallationPlan, InstallationProgress, InstallationSource, PluginInstallation,
 } from '../types/index.ts';
 import { installationCanRun, installationRequiresRecovery } from '../utils/recovery.ts';
+import { restoreInstallationBrowsers } from './restore.ts';
 
 export function createPluginInstallations(gateway: InstallationGateway, browser: InstallationBrowserLifecycle, options: JobOptions = {}) {
   const resource = createLatestResource<readonly PluginInstallation[]>();
@@ -194,14 +195,7 @@ export function createPluginInstallations(gateway: InstallationGateway, browser:
     restore(signal: AbortSignal) {
       return serial(signal, async (active) => {
         const result = await refresh(active);
-        const failures: unknown[] = [];
-        for (const value of result.data) {
-          active.throwIfAborted();
-          if (!installationCanRun(value)) continue;
-          try { await activate(value, active); }
-          catch (reason) { active.throwIfAborted(); failures.push(reason); }
-        }
-        if (failures.length) throw new AggregateError(failures, '部分功能的浏览器组件恢复失败，请在已安装目录重试');
+        await restoreInstallationBrowsers(result.data, active, activate);
       });
     },
     retryBrowser(id: string, revision: string, signal: AbortSignal) {

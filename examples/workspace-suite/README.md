@@ -58,6 +58,12 @@ SDK 通过 `file:./vendor/deviceforge-plugin-sdk-0.1.0.tgz` 使用真实随附�
 | 命令 | `workspace_suite.browser.attach`：显式追加自有视图实例 |
 | 命令 | `workspace_suite.browser.replace-view`：按当前实例观测选择替换提供者 |
 | 命令 | `workspace_suite.browser.restore-view`：核对替换票据与当前观测后显式恢复 |
+| 命令 | `workspace_suite.browser.route-replacement.start`：显式登记文件页替换候选 |
+| 命令 | `workspace_suite.browser.route-replacement.status`：只读查询本代候选的实际挂载状态 |
+| 命令 | `workspace_suite.browser.route-replacement.restore`：撤回本代自有候选，不覆盖其他贡献 |
+| 命令 | `workspace_suite.browser.shell-replacement.start`：核对原选择后显式登记并选择完整外壳委托候选 |
+| 命令 | `workspace_suite.browser.shell-replacement.status`：查询候选登记、实际挂载及是否仍被选中 |
+| 命令 | `workspace_suite.browser.shell-replacement.restore`：原选择未被其他操作取代时，显式恢复原外壳并撤回候选 |
 
 激活登记以上能力和自有页面，并自动向精确版本的 `deviceforge_devices.tools@1` 与 `deviceforge_files.tools@1` 贡献已有文件代理视图。不调用服务器、不发设备动作，不直接改写其他插件布局。页面消费者加载后按各自公开契约自动组合；未出现时贡献等待，不要求用户添加功能。代理通过公开目录选择唯一的 `files.browser` 提供者，再用 `ui.open`、`ui.mount` 创建并挂载自己的委托实例，不选取第一个现存实例。能力缺失或有歧义时明确失败。
 
@@ -100,6 +106,43 @@ SDK 通过 `file:./vendor/deviceforge-plugin-sdk-0.1.0.tgz` 使用真实随附�
 
 恢复输入为 `{replacementId,instanceId,workspaceId,expected}`，其中 `expected` 使用原替换回执的 `current`，并先核对实际当前实例。若目标、代次或选择已变化，保留当前选择并返回冲突；新替换使旧票据失效，成功恢复会消费票据。插件卸载只清本代记录，不自动执行恢复或业务写入。
 
+## 具有准备与失败回落的文件页替换示例
+
+上方 `replace-view` 保留低层选择语义。需要核对真实准备、挂载与失败回落时，调用公开 `workspace_suite.browser.route-replacement.start`：
+
+```json
+{
+  "slot": "route.files",
+  "expectedReplacement": null,
+  "behavior": "files"
+}
+```
+
+此操作显式选择既有兼容路由槽位；要求公开文件页面身份唯一、具备工作区，而且该槽位没有其他替换贡献。页面可以通过工作区布局提供主视图，不要求同时填写页面级 `viewId`。它不会抢占他人的替换，也不会在插件启用时自动执行。`behavior: "files"` 复用真实文件代理视图；`behavior: "fail"` 让候选明确失败，供检查原页面是否保持可用。两种行为都不发起文件、设备或服务器业务操作。
+
+登记回执只确认自有贡献已登记，返回 `replacementId` 和 `mount: "not_observed"`。之后向 `route-replacement.status` 传入 `{ "replacementId": "原回执的标识" }`，只有真实挂载回调完成才显示 `ready`。宿主准备期间保留原页面，成功后才切换显示；失败时原错误与原页面均须可查。当前宿主可能回滚挂载失败的整个示例插件，因此失败后应重新发现插件状态，不能假设原命令仍然存在。
+
+向 `route-replacement.restore` 传入相同票据，仅撤回本代自有贡献。`registration: "withdrawn"` 表示登记撤回已完成，**不等于宿主异步卸载及原页面恢复已经确认**；还须核对候选根消失、原输入节点和草稿恢复。取消、期限或释放异常返回未知结果，先查询原票据，不自动重放。旧代票据不能撤回新代或他人贡献。
+
+此命令链仅验证兼容路由替换。实际归档、浏览器挂载和在线安装分别记录证据。
+
+## 显式完整外壳候选与独立恢复
+
+外壳是精确版本扩展点 `host.shell@1` 的replace贡献。插件激活不会自动选择此外壳。先从公开扩展点目录读取当前所选贡献的完整标识、提供者和代次，再明确调用 `shell-replacement.start`：
+
+```json
+{
+  "expected": { "id": "当前所选贡献的完整标识", "pluginId": "它的提供者标识", "generation": 1 },
+  "behavior": "delegate"
+}
+```
+
+示意值必须替换为当前目录中的真实值。原贡献须指向公开且唯一的、声明提供 `host.shell` 的视图。此示例用 `ui.open/ui.mount` 委托该视图，不导入原外壳源码，也不定义新外观。它把父实例可见性传给委托，准备期间不改地址或主动执行业务。`behavior:"fail"` 用于验证明确准备失败；它在创建子实例之前抛出“示例外壳候选按要求失败”。
+
+开始回执只确认登记/选择。使用 `status` 传入 `{ "replacementId": "原回执的标识" }`，分别读取 `registration`、`mount` 与 `selected`；委托挂载成功不等于宿主已完成最终切换，还须确认当前外壳来源和业务内容。`restore` 使用相同票据，只有候选仍被选中且原提供者代次未变才恢复，不能覆盖后来另一选择；撤回登记成功也不代替异步显示确认。
+
+候选插件被停用或卸载时，只撤回自有贡献与委托，不在已撤销作用域中擅自选择原外壳。通过独立“平台恢复”入口显式选择官方外壳；业务启停意图保持，旧业务写入不重放。完整外壳销毁与普通页面隐藏是不同生命周期：已销毁的私有React闭包不能当作持久数据恢复。准备失败须保留原根和草稿，成功替换及卸载恢复需分别核对，不能只凭命令回执声称通过。
+
 ## 数据冲突与重载
 
 读取服务输入 `{}`，返回 `{ value: { message: string }, revision: string }`。写入服务输入：
@@ -133,8 +176,8 @@ SDK 通过 `file:./vendor/deviceforge-plugin-sdk-0.1.0.tgz` 使用真实随附�
 
 `vendor/deviceforge-plugin-sdk-0.1.0.tgz`：
 
-- 字节数：`18091`。
-- SHA256：`7f58a502a553cadf19f7cf884d987f8d0e5f867af1b77299939ba6ce0db370a5`。
+- 字节数：`18820`。
+- SHA256：`1f239b2dc3d158dab902df94eb36a123bd7579e412deb1344bdc657b3fb94ce8`。
 - 本地真实发行包，未声称 npm registry 已发布。
 
 当前 `vendor/deviceforge-plugin-tools-0.1.1.tgz`：22640 字节，SHA256 `7b0dcc49beab4c5f7f9f3526adae5ec4853dc005bb6730a39e78f4e17fff2b9f`，同样未发布到 registry。它新增单清单契约生成；旧 `0.1.0` 文件保留但不再作为本工程依赖。已有历史制品摘要只代表对应旧输入，不代表当前源码已重新发行。

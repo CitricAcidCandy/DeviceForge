@@ -50,3 +50,35 @@ test('文件业务插件恢复原返回入口与内容，按实际容器而非�
     release();
   }
 });
+
+test('两个文件业务实例的上传与产物标签只指向各自控件', () => {
+  const release = installPublicUi();
+  const browser = createFileBrowser({
+    metadata: async () => { throw new Error('渲染表单不读取产物'); },
+    entries: async () => { throw new Error('渲染表单不读取目录'); },
+    remove: async () => { throw new Error('渲染表单不删除产物'); },
+  });
+  let page: JSDOM | undefined;
+  try {
+    page = new JSDOM(renderToStaticMarkup(createElement('div', null,
+      createElement(FilesView, { browser }), createElement(FilesView, { browser }))));
+    const document = page.window.document;
+    const sections = [...document.querySelectorAll('section[aria-label="文件与产物"]')];
+    assert.equal(sections.length, 2);
+    const ids = [...document.querySelectorAll('input')].map((input) => input.id);
+    assert.equal(ids.length, 4);
+    assert.equal(new Set(ids).size, 4);
+    for (const section of sections) {
+      const labels = [...section.querySelectorAll('label')];
+      assert.equal(labels.length, 2);
+      for (const label of labels) {
+        const control = document.getElementById(label.htmlFor);
+        assert.ok(control && section.contains(control), `${label.textContent}必须关联本实例控件`);
+      }
+    }
+  } finally {
+    page?.window.close();
+    browser.dispose();
+    release();
+  }
+});

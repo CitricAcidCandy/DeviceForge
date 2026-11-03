@@ -137,13 +137,6 @@ export async function startFrontendApp(documentRef: Document, windowRef: Window)
           });
         },
       });
-      void defaults.catch(() => undefined).then(() => currentServices.bundledDebugger?.start(lifetime.signal)).catch((error: unknown) => {
-        if (lifetime.signal.aborted || currentServices.runtime.host.signal.aborted) return;
-        currentServices.messages.error('官方调试器暂未启动', {
-          description: error instanceof Error ? error.message : '请到资源市场的已安装列表查看调试器状态。',
-          logId: error instanceof ApiError ? error.logId : null,
-        });
-      });
       for (const diagnostic of officialSources.diagnostics)
         console.error('随附插件清单未接入', diagnostic.path, diagnostic.message);
     } finally {

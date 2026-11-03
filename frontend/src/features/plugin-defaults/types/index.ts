@@ -7,7 +7,11 @@ import type { PluginInstallations } from '../../plugin-installations/index.ts';
 export interface PluginDefaultsGateway {
   readonly packages: Pick<ReturnType<typeof createPluginPackages>, 'refresh' | 'enable'>;
   readonly serverPlugins: Pick<ReturnType<typeof createServerPlugins>, 'refresh'>;
-  readonly browserPlugins: { snapshot(): readonly WebPluginRuntimeInfo[] };
+  readonly browserPlugins: {
+    snapshot(): readonly WebPluginRuntimeInfo[];
+    /** 只观察指定代现有加载，不发起激活；旧注入端口可以缺省。 */
+    readonly waitForLoaded?: (id: string, generation: number, signal: AbortSignal) => Promise<WebPluginRuntimeInfo>;
+  };
   readonly installations?: Pick<PluginInstallations, 'restore' | 'snapshot'>;
   readonly signal?: AbortSignal;
 }

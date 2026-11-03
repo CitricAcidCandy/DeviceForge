@@ -1,5 +1,6 @@
 import type { PlatformRuntime } from '../platform-runtime.ts';
 import { isLoopbackDebuggerAddress } from '../../features/debugger/index.ts';
+import { createInstallationCatalog } from '../composition/installation-catalog.ts';
 
 export const BUNDLED_DEBUGGER_ID = 'deviceforge_debugger';
 export const BUNDLED_DEBUGGER_VERSION = '0.1.0';
@@ -19,6 +20,7 @@ export interface BundledDebuggerOptions {
 export function createBundledDebugger(options: BundledDebuggerOptions) {
   const { runtime } = options;
   const listeners = new Set<(snapshot: BundledDebuggerSnapshot) => void>();
+  const catalog = createInstallationCatalog(runtime);
   const preferenceKey = `deviceforge.bundled-debugger:${new URL(options.baseUrl).origin}`;
   const local = Boolean(runtime.debugger) && isLoopbackDebuggerAddress(options.baseUrl) &&
     isLoopbackDebuggerAddress(options.browserOrigin);
@@ -42,15 +44,7 @@ export function createBundledDebugger(options: BundledDebuggerOptions) {
     runtime.host.signal.throwIfAborted();
     if (closed) throw new Error('调试器产品装配已关闭');
   }
-  async function installed(signal: AbortSignal) {
-    const packages = runtime.pluginPackages.snapshot('browser').result ??
-      await runtime.pluginPackages.refresh('browser', signal);
-    const installations = runtime.pluginInstallations.snapshot().result ??
-      await runtime.pluginInstallations.refresh(signal);
-    active(signal);
-    return packages.data.some(item => item.id === BUNDLED_DEBUGGER_ID) || installations.data.some(
-      item => item.components.some(component => component.kind === 'browser' && component.id === BUNDLED_DEBUGGER_ID));
-  }
+  const installed = (signal: AbortSignal) => catalog.inspect(BUNDLED_DEBUGGER_ID, signal);
   function remember(enabled: boolean) {
     disabled = !enabled;
     try { options.persistence?.setItem(preferenceKey, enabled ? 'enabled' : 'disabled'); }
@@ -120,6 +114,6 @@ export function createBundledDebugger(options: BundledDebuggerOptions) {
         }
       });
     },
-    dispose() { closed = true; unsubscribe(); listeners.clear(); },
+    dispose() { closed = true; catalog.dispose(); unsubscribe(); listeners.clear(); },
   };
 }

@@ -18,7 +18,7 @@ const { createProductPlatformServices } = await import('../src/app/product/platf
 const { readPluginModule } = await import('../src/plugins/contracts.ts');
 const reportFile = process.env['DEVICEFORGE_OFFICIAL_BUILD_REPORT'];
 
-test('真实官方归档经身份包装装载，停用只撤所属贡献与样式，不访问业务', { skip: !reportFile }, async () => {
+test('真实官方归档经身份包装装载，停用只撤所属贡献与样式，只读取已有目录', { skip: !reportFile }, async () => {
   assert.ok(reportFile, '本单元需要显式指定实际发行报告，不临时重建或使用历史包替代');
   const report: unknown = JSON.parse(await readFile(reportFile, 'utf8'));
   assert.ok(object(report) && Array.isArray(report.releases) && report.releases.length > 0 &&
@@ -43,14 +43,19 @@ test('真实官方归档经身份包装装载，停用只撤所属贡献与样�
   const originals = new Map(['self', 'document'].map((name) => [name, Object.getOwnPropertyDescriptor(globalThis, name)]));
   Object.defineProperty(globalThis, 'self', { configurable: true, writable: true, value: browser.window });
   Object.defineProperty(globalThis, 'document', { configurable: true, writable: true, value: browser.window.document });
-  const network: string[] = [];
+  const network: { path: string; method: string }[] = [];
+  const readOnlyPaths = [
+    '/api/v2/plugin-packages/browser', '/api/v2/plugin-installations',
+    '/api/v2/device-providers', '/api/v2/devices',
+  ];
   const services = createProductPlatformServices({
     baseUrl: 'http://127.0.0.1:7031', panelTarget: () => null, workspaceStorage: null,
     transport: async (input, init) => {
       const path = requestUrl(input).pathname;
-      network.push(path);
-      if (init?.method === 'GET' && ['/api/v2/plugin-packages/browser', '/api/v2/plugin-installations'].includes(path)) return success([]);
-      throw new Error('实际归档单元禁止设备、网络或业务操作');
+      const method = init?.method ?? 'GET';
+      network.push({ path, method });
+      if (method === 'GET' && readOnlyPaths.includes(path)) return success([]);
+      throw new Error('实际归档单元仅允许已有目录读取，禁止自动发现、连接或其他业务操作');
     },
   });
   try {
@@ -152,7 +157,11 @@ test('真实官方归档经身份包装装载，停用只撤所属贡献与样�
     assert.deepEqual(ui.catalog().pages, retained);
     for (const id of ids.filter((id) => id !== 'deviceforge_files')) await services.runtime.webPlugins.unload(id);
     assert.deepEqual(ui.catalog().pages, []);
-    assert.ok(network.every((path) => ['/api/v2/plugin-packages/browser', '/api/v2/plugin-installations'].includes(path)));
+    assert.ok(network.every(({ path, method }) => method === 'GET' && readOnlyPaths.includes(path)),
+      '激活不能派发设备发现、连接、Job或其他业务操作');
+    assert.ok(network.some(({ path }) => path === '/api/v2/device-providers'));
+    assert.ok(network.some(({ path }) => path === '/api/v2/devices'),
+      '当前真实设备插件首次只读观测应贯通聚合目录，不能由失败夹具静默短路');
     assert.equal(browser.window.document.head.querySelectorAll('style,link[rel="stylesheet"]').length, 0,
       '实际包停用后必须撤销自己的样式资源，不能把构建期CSS注入留在页面');
   } finally {

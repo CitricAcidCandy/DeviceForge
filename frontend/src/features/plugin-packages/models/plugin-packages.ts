@@ -30,7 +30,7 @@ export function createPluginPackages(client: ApiClient, actions: PackageActions)
     browser: createLatestResource<PackageInfo[]>(),
   };
   const lifetime = new AbortController();
-  let queue: Promise<unknown> = Promise.resolve();
+  const queues: Record<PackageKind, Promise<unknown>> = { server: Promise.resolve(), browser: Promise.resolve() };
   let closed = false;
   const combined = (signal: AbortSignal) =>
     closed ? AbortSignal.abort() : AbortSignal.any([signal, lifetime.signal]);
@@ -66,8 +66,8 @@ export function createPluginPackages(client: ApiClient, actions: PackageActions)
       if (!lifetime.signal.aborted) await refresh(kind, lifetime.signal);
       return result;
     };
-    const pending = queue.then(execute, execute);
-    queue = pending.catch(() => undefined);
+    const pending = queues[kind].then(execute, execute);
+    queues[kind] = pending.catch(() => undefined);
     return pending;
   }
   return {

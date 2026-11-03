@@ -1,0 +1,8 @@
+{
+  "extends": "../tsconfig.json",
+  "include": [
+    "./debugger-ball-obstacles.test.ts",
+    "../../examples/browser-debugger/src/geometry.ts",
+    "../../examples/browser-debugger/src/ball-obstacles.ts"
+  ]
+}

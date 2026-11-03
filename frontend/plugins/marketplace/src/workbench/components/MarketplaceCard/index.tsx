@@ -12,6 +12,7 @@ import { Button, Badge } from '../../ui.tsx';
 import type { MarketplaceEntry, MarketplaceKind } from '../../../model/index.ts';
 import type { PackageInfo } from '../../api/index.ts';
 import { isReleaseEntry, isLegacyCleanupWarning, installationRequiresRecovery, type InstallationClientState, type PluginInstallation } from '../../installations.ts';
+import type { InstallationBrowserStatus } from '../../browser-state.ts';
 import {
   categoryLabels,
   kindLabels,
@@ -37,6 +38,7 @@ export interface MarketplaceCardProps {
   installedTab?: boolean;
   installation?: PluginInstallation | undefined;
   clientState?: InstallationClientState | undefined;
+  browserStatus?: InstallationBrowserStatus | undefined;
   onSetEnabled?: ((enabled: boolean) => void) | undefined;
   bundledEnabled?: boolean | undefined;
   onRetryBrowser?: (() => void) | undefined;
@@ -60,6 +62,7 @@ export function MarketplaceCard({
   cleanupWarning: serverCleanupWarning = false,
   installation,
   clientState,
+  browserStatus,
   onSetEnabled,
   bundledEnabled,
   onRetryBrowser,
@@ -77,6 +80,10 @@ export function MarketplaceCard({
   const recoveryBlocked = installationRequiresRecovery(installation);
   const cleanupWarning = serverCleanupWarning || isLegacyCleanupWarning(installation);
   const enabled = installation?.enabled ?? bundledEnabled;
+  const hasBrowser = installation?.components.some((component) => component.kind === 'browser') ?? false;
+  const canActivateBrowser = hasBrowser && installation?.enabled &&
+    (installation.status === 'enabled' || installation.status === 'recovery_blocked' && !recoveryBlocked) &&
+    (browserStatus?.canActivate ?? clientState?.phase === 'failed');
   return (
     <article className="marketplace-card flex min-h-44 flex-col gap-2 rounded-xl border border-[color:var(--hairline)] bg-[color:var(--card)] p-3.5">
       <div className="flex items-start gap-2.5">
@@ -114,18 +121,22 @@ export function MarketplaceCard({
         {entry.supports_mcp !== 'none' && <Badge variant="info">{mcpLabels[entry.supports_mcp]}</Badge>}
         {entry.supports_agent && <Badge variant="violet">Agent</Badge>}
         {installation && <Badge variant={recoveryBlocked || installation.status === 'configuration_required' || installation.status === 'dependencies_required' ? 'warning' : 'outline'}>
-          {recoveryBlocked ? '恢复受阻' : installation.status === 'dependencies_required' ? '依赖未就绪' : installation.status === 'configuration_required' ? '需要配置' : installation.enabled ? '已启用' : '已停用'}
+          {recoveryBlocked ? '恢复受阻' : installation.status === 'dependencies_required' ? '依赖未就绪' : installation.status === 'configuration_required' ? '需要配置' : installation.enabled ? hasBrowser ? '服务器已启用' : '已启用' : '已停用'}
         </Badge>}
         {bundledEnabled !== undefined && <Badge variant="outline">{bundledEnabled ? '已启用' : '已停用'}</Badge>}
       </div>
 
       {recoveryBlocked && <p role="alert">安装恢复受阻，请查看服务器恢复日志，完成恢复后刷新目录。</p>}
       {cleanupWarning && <p role="status">上次组件操作告警，可重试：{installation?.failure?.reason || '资源回收未确认'}。</p>}
+      {browserStatus?.phase === 'missing' && <p role="status">本客户端界面未启用</p>}
+      {browserStatus?.phase === 'loading' && <p role="status">本客户端界面正在启用</p>}
+      {browserStatus?.phase === 'ready' && <p role="status">本客户端界面已启用</p>}
+      {browserStatus?.phase === 'unknown' && <p role="status">本客户端运行状态尚未确认，请刷新目录。</p>}
       {clientState?.phase === 'failed' && <p role="alert">本客户端：{clientState.message || '浏览器组件启动失败'}
         {clientState.logId && <> · 日志 ID：<code>{clientState.logId}</code></>}
       </p>}
 
-      <div className="mt-auto flex items-center gap-1.5 border-t border-[color:var(--hairline)] pt-2.5">
+      <div className="mt-auto flex flex-wrap items-center gap-1.5 border-t border-[color:var(--hairline)] pt-2.5">
         <span
           className="min-w-0 flex-1 truncate text-[12px] text-[color:var(--text-faint)]"
           title={entry.author || entry.sourceName}
@@ -140,8 +151,10 @@ export function MarketplaceCard({
               disabled={busy || (recoveryBlocked && !enabled)} onClick={() => onSetEnabled(!enabled)}>
               {enabled ? '停用' : '启用'}
             </Button>}
-            {installation?.enabled && (installation.status === 'enabled' || (installation.status === 'recovery_blocked' && !recoveryBlocked)) && clientState?.phase === 'failed' && onRetryBrowser &&
-              <Button variant="outline" size="sm" disabled={busy} onClick={onRetryBrowser}>重试本客户端</Button>}
+            {canActivateBrowser && onRetryBrowser &&
+              <Button variant="outline" size="sm" disabled={busy} onClick={onRetryBrowser}>
+                {browserStatus?.phase === 'missing' ? '启用本客户端' : '重试本客户端'}
+              </Button>}
             <Button
               variant="outline"
               size="sm"

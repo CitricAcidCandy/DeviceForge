@@ -8,7 +8,7 @@ import { copyText } from '../../shared/clipboard/index.ts';
 
 const emptySources = Object.freeze([]);
 export function PlatformRecoveryEntry({ expanded, onOpen }: { readonly expanded: boolean; readonly onOpen: () => void }) {
-  return <button type="button" className="fixed bottom-3 right-20 z-[700] rounded-lg border border-[#E6EAF3] bg-white px-3 py-2 text-[11px] text-[#596479] shadow-sm"
+  return <button type="button" className="fixed bottom-10 right-20 z-[700] rounded-lg border border-[#E6EAF3] bg-white px-3 py-2 text-[11px] text-[#596479] shadow-sm"
     aria-expanded={expanded} onClick={onOpen}>平台恢复</button>;
 }
 export function PlatformRecovery({ services, shell }: { readonly services: ProductPlatformServices; readonly shell: ShellHost }) {

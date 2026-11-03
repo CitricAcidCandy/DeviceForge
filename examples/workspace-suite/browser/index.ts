@@ -6,6 +6,8 @@ import { attachView } from './workspace.ts';
 import { mountProxy } from './proxy-view.ts';
 import { activationGeneration } from './domain/generation.ts';
 import { createViewReplacement } from './replacement.ts';
+import { createRouteReplacement } from './route-replacement.ts';
+import { createShellReplacement } from './shell-replacement.ts';
 
 function snapshotValue(value: ReturnType<ReturnType<typeof createMessageStore>['read']>): JsonValue {
   return { value: { message: value.value.message }, revision: value.revision };
@@ -23,6 +25,8 @@ export default function createWorkspaceSuite(identity: Pick<WebPlugin, 'id' | 'v
           '示例需要公开工作区渲染、扩展点、服务和数据能力，不会降级为宿主私有调用');
       const prefix = identity.id, point = { id: `${prefix}.tools`, version: '1' };
       const replacement = createViewReplacement(context, prefix);
+      const routeReplacement = createRouteReplacement(context, prefix);
+      const shellReplacement = createShellReplacement(context, prefix);
       const store = createMessageStore(activationGeneration(), context.signal);
       const read = { id: `${prefix}.message.read`, version: '1' };
       const write = { id: `${prefix}.message.write`, version: '1' };
@@ -73,6 +77,34 @@ export default function createWorkspaceSuite(identity: Pick<WebPlugin, 'id' | 'v
           { id: `${prefix}.restore-view`, title: '核对原替换结果后恢复视图提供者',
             async execute(input, _caller, signal) {
               return { data: replacement.restore(input, signal), logId: null };
+            } },
+          { id: `${prefix}.route-replacement.start`, title: '显式准备文件页替换示例',
+            async execute(input, _caller, signal) {
+              signal.throwIfAborted();
+              return { data: { ...routeReplacement.start(input) }, logId: null };
+            } },
+          { id: `${prefix}.route-replacement.status`, title: '查询原票据的实际挂载状态',
+            async execute(input, _caller, signal) {
+              signal.throwIfAborted();
+              return { data: { ...routeReplacement.status(input) }, logId: null };
+            } },
+          { id: `${prefix}.route-replacement.restore`, title: '撤回本代自有文件页替换贡献',
+            async execute(input, _caller, signal) {
+              return { data: { ...await routeReplacement.restore(input, signal) }, logId: null };
+            } },
+          { id: `${prefix}.shell-replacement.start`, title: '显式准备完整外壳委托候选',
+            async execute(input, _caller, signal) {
+              signal.throwIfAborted();
+              return { data: { ...shellReplacement.start(input) }, logId: null };
+            } },
+          { id: `${prefix}.shell-replacement.status`, title: '查询完整外壳候选实际挂载状态',
+            async execute(input, _caller, signal) {
+              signal.throwIfAborted();
+              return { data: { ...shellReplacement.status(input) }, logId: null };
+            } },
+          { id: `${prefix}.shell-replacement.restore`, title: '显式恢复原外壳并撤回本代候选',
+            async execute(input, _caller, signal) {
+              return { data: { ...await shellReplacement.restore(input, signal) }, logId: null };
             } },
         ],
       });

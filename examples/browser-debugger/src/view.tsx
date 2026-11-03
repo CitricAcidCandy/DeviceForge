@@ -3,6 +3,7 @@ import type { HostContext } from '../../../frontend/src/plugin-sdk/index.ts';
 import type { DebuggerController } from './controller.ts';
 import { ballPosition, fit, initialRect, resizeByKey, snapPanel } from './geometry.ts';
 import type { Rect } from './geometry.ts';
+import { readBallObstacles, watchBallObstacles } from './ball-obstacles.ts';
 import { DEBUGGER_STYLE } from './style.ts';
 import { TreeView } from './tree-view.tsx';
 import { TargetsView } from './targets-view.tsx';
@@ -39,6 +40,17 @@ export function DebuggerApp({ controller, context }: { controller: DebuggerContr
     const resize = () => { setRect((current) => fit(current, viewport())); setBall((current) => ballPosition(current.x, current.y, viewport(), true)); };
     view.addEventListener('resize', resize); return () => view.removeEventListener('resize', resize);
   }, []);
+  React.useEffect(() => {
+    const document = ballRef.current?.ownerDocument;
+    if (!document || state.open) return;
+    return watchBallObstacles(document, () => {
+      if (drag.current?.mode === 'ball') return;
+      setBall((current) => {
+        const next = ballPosition(current.x, current.y, viewport(), false, readBallObstacles(document, current.x));
+        return next.x === current.x && next.y === current.y ? current : next;
+      });
+    });
+  }, [state.open]);
   React.useEffect(() => {
     if (!state.open) return;
     const frame = requestAnimationFrame(() => panel.current?.focus());
@@ -88,7 +100,11 @@ export function DebuggerApp({ controller, context }: { controller: DebuggerContr
     if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
     drag.current = null;
     if (current.mode === 'ball' && current.moved) {
-      setBall((position) => ballPosition(position.x, position.y, viewport(), true)); suppressClick.current = true;
+      setBall((position) => {
+        const docked = ballPosition(position.x, position.y, viewport(), true);
+        const document = ballRef.current?.ownerDocument;
+        return document ? ballPosition(docked.x, docked.y, viewport(), false, readBallObstacles(document, docked.x)) : docked;
+      }); suppressClick.current = true;
     } else if (current.mode === 'move' && current.moved) {
       setRect((position) => snapPanel(position, viewport()));
     }
@@ -147,7 +163,7 @@ export function DebuggerApp({ controller, context }: { controller: DebuggerContr
       </div>
       <div className="min-h-0 flex-1 overflow-auto p-6">
         {state.error && <div role="alert" className="mb-3 space-y-2 rounded-md bg-[#FDF6ED] p-3 text-[13px] text-[#8A4D00]"><p>{state.error.message}</p><code className="block break-all text-xs">{state.error.code}</code><CopyId value={state.error.logId} /></div>}
-        {disconnected && state.target && <div className="mb-4 flex flex-wrap items-center gap-3 text-[13px] text-[#8A4D00]"><span className="mr-auto">最后观测已过期；重新连接只恢复观察，不重放先前动作。</span><Button disabled={Boolean(state.busy)} onClick={() => void controller.reconnect(true)}>重新连接并核对目标</Button></div>}
+        {disconnected && <div className="mb-4 flex flex-wrap items-center gap-3 text-[13px] text-[#8A4D00]"><span className="mr-auto">{state.target ? '最后观测已过期；' : '调试连接已断开；'}重新连接只恢复观察，不重放先前动作。</span><Button disabled={Boolean(state.busy)} onClick={() => void controller.reconnect(true)}>{state.target ? '重新连接并核对目标' : '重新连接调试器'}</Button></div>}
         {selecting ? <TargetsView state={state} controller={controller} /> : <>
           {surface === 'process' && <ActivityView state={state} controller={controller} narrow={rect.width < 1040} onData={data} onInspect={() => void pick()} onDetails={() => setSurface('details')} onTargets={() => setSurface('targets')} />}
           {surface === 'tree' && <><p className="mb-4 text-sm text-[#556176]">在页面上选择后查看简短结果；完整树和查询工具可按需展开。</p><ResultView value={state.result} /><details className="mt-4 rounded-xl border border-[#E6EAF3] p-4"><summary className="cursor-pointer text-sm font-medium">节点树、属性与界面检查工具</summary><div className="mt-4"><TreeView state={state} controller={controller} /></div></details></>}

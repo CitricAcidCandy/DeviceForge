@@ -15,6 +15,7 @@ function fixture(installations?: PluginDefaultsGateway['installations']) {
   const requests: string[] = [];
   const failures = new Set<string>();
   let hold: Promise<ApiResult<PluginInfo | WebPluginRuntimeInfo>> | null = null;
+  let holdKind: PackageKind | null = null;
   let directoryFailed = false;
   const feature = createPluginDefaults({
     ...(installations ? { installations } : {}),
@@ -33,7 +34,7 @@ function fixture(installations?: PluginDefaultsGateway['installations']) {
       },
       enable: async (kind, id) => {
         requests.push(`enable:${kind}:${id}`);
-        if (hold) return hold;
+        if (hold && (holdKind === null || kind === holdKind)) return hold;
         if (failures.has(id))
           throw new ApiError('http', 'activation_failed', '受控启用失败', 502, `${id}-failed-log`);
         if (kind === 'server') {
@@ -61,8 +62,9 @@ function fixture(installations?: PluginDefaultsGateway['installations']) {
     browser,
     requests,
     failures,
-    hold(value: Promise<ApiResult<PluginInfo | WebPluginRuntimeInfo>>) {
+    hold(value: Promise<ApiResult<PluginInfo | WebPluginRuntimeInfo>>, kind?: PackageKind) {
       hold = value;
+      holdKind = kind ?? null;
     },
     failDirectory(value: boolean) {
       directoryFailed = value;
@@ -85,8 +87,8 @@ test('默认启用构造零请求，同轮start共用等待，运行代次与CLI
   const result = await first;
   assert.equal(result.phase, 'completed');
   assert.deepEqual(
-    f.requests.filter((item) => item.startsWith('enable:')),
-    ['enable:server:new-server', 'enable:browser:browser-a'],
+    f.requests.filter((item) => item.startsWith('enable:')).sort(),
+    ['enable:browser:browser-a', 'enable:server:new-server'],
   );
   assert.equal(f.server.get('existing')?.generation, 'existing-generation');
   assert.equal(result.results.find((item) => item.id === 'cli-native')?.status, 'already_enabled');
@@ -96,6 +98,89 @@ test('默认启用构造零请求，同轮start共用等待，运行代次与CLI
   await f.feature.start(signal());
   assert.equal(f.requests.length, requests, '当前实例主动停用后不会默认再次恢复');
   f.feature.dispose();
+});
+
+test('慢服务器启用不阻塞独立浏览器插件，服务器失败仍保留浏览器成功和日志', async () => {
+  const f = fixture();
+  const delayed = deferred<ApiResult<PluginInfo | WebPluginRuntimeInfo>>();
+  f.packages.server.push(installedPackage('server', { id: 'slow-server' }));
+  f.packages.browser.push(installedPackage('browser', { id: 'ready-browser' }));
+  f.hold(delayed.promise, 'server');
+  const waiting = f.feature.start(signal());
+  void waiting.catch(() => undefined);
+  try {
+    await new Promise((done) => setImmediate(done));
+    assert.equal(f.requests.includes('enable:server:slow-server'), true);
+    assert.equal(f.browser.has('ready-browser'), true, '浏览器不能等待无关服务器启用完成');
+    assert.equal(f.feature.snapshot().phase, 'running');
+    assert.equal(f.feature.snapshot().results.find((item) => item.id === 'ready-browser')?.logId, 'ready-browser-enable-log');
+    delayed.reject(new ApiError('http', 'slow_server_failed', '服务器本次启用失败', 503, 'slow-server-log'));
+    const result = await waiting;
+    assert.equal(result.phase, 'completed');
+    assert.equal(result.results.find((item) => item.id === 'ready-browser')?.status, 'enabled');
+    assert.equal(result.results.find((item) => item.id === 'slow-server')?.logId, 'slow-server-log');
+  } finally {
+    f.feature.dispose();
+    delayed.resolve({ data: plugin({ id: 'slow-server' }), logId: 'late-log' });
+    await waiting.catch(() => undefined);
+  }
+});
+
+test('两类失败分别重试，慢服务器重试不挡浏览器且不恢复此前成功后主动停用者', async () => {
+  const f = fixture();
+  f.packages.server.push(installedPackage('server', { id: 'retry-server' }));
+  f.packages.browser.push(installedPackage('browser', { id: 'retry-browser' }), installedPackage('browser', { id: 'stopped-browser' }));
+  f.failures.add('retry-server'); f.failures.add('retry-browser');
+  await f.feature.start(signal());
+  f.failures.clear(); f.browser.delete('stopped-browser');
+  const delayed = deferred<ApiResult<PluginInfo | WebPluginRuntimeInfo>>();
+  f.hold(delayed.promise, 'server');
+  const before = f.requests.length;
+  const waiting = f.feature.retryFailures(signal());
+  void waiting.catch(() => undefined);
+  try {
+    await new Promise((done) => setImmediate(done));
+    assert.equal(f.browser.has('retry-browser'), true, '失败重试也不能建立跨类型等待');
+    assert.equal(f.browser.has('stopped-browser'), false);
+    delayed.resolve({ data: plugin({ id: 'retry-server' }), logId: 'retry-server-log' });
+    const result = await waiting;
+    assert.equal(result.results.some((item) => item.status === 'failed'), false);
+    assert.deepEqual(f.requests.slice(before).filter((item) => item.startsWith('enable:')).sort(),
+      ['enable:browser:retry-browser', 'enable:server:retry-server']);
+  } finally {
+    f.feature.dispose();
+    delayed.resolve({ data: plugin({ id: 'retry-server' }), logId: 'late-log' });
+    await waiting.catch(() => undefined);
+  }
+});
+
+test('独立类型并行但组内仍串行，取消收敛两组且晚到结果不复活', async () => {
+  const f = fixture();
+  f.packages.server.push(installedPackage('server', { id: 'server-one' }), installedPackage('server', { id: 'server-two' }));
+  f.packages.browser.push(installedPackage('browser', { id: 'browser-one' }), installedPackage('browser', { id: 'browser-two' }));
+  const delayed = deferred<ApiResult<PluginInfo | WebPluginRuntimeInfo>>();
+  f.hold(delayed.promise, 'browser');
+  const controller = new AbortController();
+  const waiting = f.feature.start(controller.signal);
+  void waiting.catch(() => undefined);
+  try {
+    await new Promise((done) => setImmediate(done));
+    assert.deepEqual(f.requests.filter((item) => item.startsWith('enable:server:')),
+      ['enable:server:server-one', 'enable:server:server-two']);
+    assert.deepEqual(f.requests.filter((item) => item.startsWith('enable:browser:')), ['enable:browser:browser-one']);
+    controller.abort();
+    await assert.rejects(waiting, (error: unknown) => error instanceof ApiError && error.kind === 'cancelled');
+    const cancelled = f.feature.snapshot();
+    delayed.resolve({ data: { id: 'browser-one', generation: 1, state: 'loaded' }, logId: 'late-browser-log' });
+    await new Promise((done) => setImmediate(done));
+    assert.equal(f.feature.snapshot(), cancelled);
+    assert.equal(f.requests.includes('enable:browser:browser-two'), false);
+    assert.equal(cancelled.results.filter((item) => item.status === 'enabled').length, 2);
+  } finally {
+    f.feature.dispose();
+    delayed.resolve({ data: { id: 'browser-one', generation: 1, state: 'loaded' }, logId: 'late-log' });
+    await waiting.catch(() => undefined);
+  }
 });
 
 test('逐包失败隔离并保留日志，显式失败重试不重新启用此前成功后被停用者', async () => {

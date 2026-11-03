@@ -1,0 +1,7 @@
+{
+  "extends": "../tsconfig.json",
+  "include": [
+    "./plugin-installations-restore.test.ts",
+    "./plugin-installations-restore-runtime.test.ts"
+  ]
+}

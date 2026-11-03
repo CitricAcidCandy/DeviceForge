@@ -48,7 +48,7 @@ export function DeviceWorkbench({ context, instance, children }: {
       <span className="my-1 h-px w-4 bg-[#E6EAF3]" aria-hidden="true" />
       <button type="button" title="连接设备" aria-label="连接设备" aria-expanded={panel === 'connection'} onClick={() => setPanel('connection')} className="flex size-[30px] items-center justify-center rounded-[7px] border border-dashed border-[#E6EAF3] text-[#8790A2] hover:bg-[#F0EBFF] hover:text-[#6C4CF5]"><ToolIcon path="M12 5v14 M5 12h14" /></button>
     </nav>
-    {reference ? <WorkbenchChild instanceId={children.screenInstanceId} context={context} ui={children.ui} /> : <div className="relative mx-16 my-3.5 flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-hidden rounded-2xl border border-[#E6EAF3] bg-white @max-[36rem]/device:mx-3 @max-[36rem]/device:ml-16">
+    {reference ? <WorkbenchChild instanceId={children.screenInstanceId} context={context} ui={children.ui} /> : <div className="relative flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-hidden py-3.5 pl-16 pr-3 @min-[36rem]/device:pr-16">
       <div aria-hidden="true" className="pointer-events-none absolute left-1/2 top-1/2 size-[360px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,#6C4CF51c_0%,transparent_70%)]" />
       <div className="relative flex max-h-full w-full max-w-[460px] flex-col items-center gap-5 overflow-y-auto px-4 py-4 text-center">
         <div aria-hidden="true" className="flex aspect-[150/320] h-[min(320px,45dvh)] shrink-0 flex-col rounded-[26px] border border-dashed border-[#C8D0E2] bg-white p-1.5">

@@ -126,10 +126,10 @@ export function createPluginDefaults(gateway: PluginDefaultsGateway) {
           }
         }
         const owned = ownedInstallationComponents(gateway.installations?.snapshot().result?.data ?? []);
-        for (const kind of ['server', 'browser'] as const) {
+        const enableKind = async (kind: PackageKind) => {
           check();
           const targets = failures.filter((item) => item.kind === kind);
-          if (mode === 'retry' && targets.length === 0) continue;
+          if (mode === 'retry' && targets.length === 0) return;
           if (kind === 'server') {
             try {
               const running = await awaitActive(gateway.serverPlugins.refresh(signal), signal);
@@ -162,7 +162,7 @@ export function createPluginDefaults(gateway: PluginDefaultsGateway) {
             } catch (error) {
               check();
               failed(kind, null, error);
-              continue;
+              return;
             }
           }
           let directory;
@@ -171,7 +171,7 @@ export function createPluginDefaults(gateway: PluginDefaultsGateway) {
           } catch (error) {
             check();
             failed(kind, null, error);
-            continue;
+            return;
           }
           check();
           const retryAll = targets.some((item) => item.id === null);
@@ -212,15 +212,19 @@ export function createPluginDefaults(gateway: PluginDefaultsGateway) {
                 const present = gateway.browserPlugins
                   .snapshot()
                   .find((item) => item.id === pkg.id);
-                if (present?.state === 'loading')
-                  throw new ApiError(
-                    'protocol',
-                    'plugin_loading',
-                    '浏览器插件正在启用，请稍后重试',
-                    null,
-                    currentLog,
+                if (present?.state === 'loading') {
+                  const wait = gateway.browserPlugins.waitForLoaded;
+                  if (!wait) throw new ApiError('protocol', 'plugin_loading',
+                    '浏览器插件正在启用，当前端口无法确认本次结果，请稍后查询', null, currentLog);
+                  const loaded = await awaitActive(
+                    wait.call(gateway.browserPlugins, pkg.id, present.generation, signal), signal,
                   );
-                already = present?.state === 'loaded';
+                  check();
+                  if (loaded.id !== pkg.id || loaded.generation !== present.generation || loaded.state !== 'loaded')
+                    throw new ApiError('protocol', 'plugin_load_changed',
+                      '原浏览器插件加载代次或结果已变化，请重新查询', null, currentLog);
+                  already = true;
+                } else already = present?.state === 'loaded';
               }
               if (already)
                 accept({
@@ -253,7 +257,9 @@ export function createPluginDefaults(gateway: PluginDefaultsGateway) {
               failed(kind, pkg.id, error);
             }
           }
-        }
+        };
+        // 统一安装意图已恢复；独立两类包互不等待，组内仍串行，避免一次放开所有激活。
+        await Promise.all([enableKind('server'), enableKind('browser')]);
         check();
         publish({ ...state, phase: 'completed' }, current);
         return state;

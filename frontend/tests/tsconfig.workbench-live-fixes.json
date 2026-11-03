@@ -1,0 +1,8 @@
+{
+  "extends": "../tsconfig.json",
+  "include": [
+    "../src/app/composition/Recovery.tsx",
+    "../../examples/browser-debugger/src/geometry.ts",
+    "./debugger-plugin-models.test.ts"
+  ]
+}

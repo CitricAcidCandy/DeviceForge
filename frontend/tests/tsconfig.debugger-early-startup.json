@@ -1,0 +1,8 @@
+{
+  "extends": "../tsconfig.json",
+  "include": [
+    "../src/app/main.ts",
+    "./bundled-debugger.test.ts",
+    "./composition-early-startup.test.ts"
+  ]
+}

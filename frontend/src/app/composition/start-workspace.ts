@@ -46,6 +46,8 @@ export function startWorkspace(options: WorkspaceStartupOptions): Dispose {
     await runtime.webPlugins.load(plugin.id);
   });
   launch('插件工作区启动未完成', async () => services.officialPlugins?.start(combined));
+  // 安装归属由调试器复用原目录确认；无关默认启用或慢业务不挡住全局入口。
+  launch('官方调试器暂未启动', async () => services.bundledDebugger?.start(combined));
   let closing: Promise<void> | null = null;
   function dispose(): Promise<void> {
     closing ??= (async () => {

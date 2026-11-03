@@ -1,0 +1,5 @@
+{
+  "extends": "../tsconfig.json",
+  "include": ["./marketplace-client-status.test.ts"],
+  "exclude": []
+}

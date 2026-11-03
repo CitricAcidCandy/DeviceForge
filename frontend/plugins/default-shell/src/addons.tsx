@@ -1,8 +1,7 @@
-import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 import type { HostContext, LocalPointContribution, WorkspaceViewRef } from '@deviceforge/plugin-sdk';
 import type { MountPool } from './mount-pool.ts';
 import type { ShellState } from './controller.ts';
-import { identity } from './controller.ts';
 
 export function viewReference(value: unknown): WorkspaceViewRef | null {
   return value !== null && typeof value === 'object' && !Array.isArray(value) &&
@@ -26,6 +25,9 @@ function ChromeAddon({ context, entry, region, pool, state }: {
   readonly region: string; readonly pool: MountPool; readonly state: ShellState;
 }) {
   const [id, setId] = useState<string | null>(null);
+  const renderId = useId();
+  // 准备中的候选与现用外壳可同时消费同一贡献，实例必须归各自渲染位置所有。
+  const instanceId = `deviceforge_shell.addon.${renderId.replace(/[^a-z0-9._-]/giu, '-').toLowerCase()}`;
   const [error, setError] = useState<string | null>(null);
   const target = useRef<HTMLDivElement>(null);
   useSyncExternalStore(pool.subscribe, pool.revision, pool.revision);
@@ -37,14 +39,13 @@ function ChromeAddon({ context, entry, region, pool, state }: {
   useEffect(() => {
     const ui = context.ui;
     if (!ui || !providerId || !viewId) { setError('扩展视图引用无效'); return; }
-    const instanceId = `deviceforge_shell.addon.${identity(`${region}:${entry.provider.pluginId}:${entry.id}:${entry.provider.generation}`)}`;
     try {
       ui.open({ instanceId, workspaceId: `deviceforge_shell.chrome.${region}`,
         provider: { pluginId: providerId, viewId }, visible: true });
       setId(instanceId); setError(null);
     } catch (failure) { setError(failure instanceof Error ? failure.message : '扩展暂时无法显示'); }
     return () => { if (!context.signal.aborted) ui.close(instanceId); };
-  }, [context, entry.id, entry.provider.pluginId, entry.provider.generation, providerId, viewId, region]);
+  }, [context, entry.id, entry.provider.pluginId, entry.provider.generation, providerId, viewId, region, instanceId]);
   useLayoutEffect(() => {
     if (!id || !target.current) return;
     try {

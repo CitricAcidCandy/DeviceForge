@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { copyFile, lstat, mkdir, mkdtemp, readFile, readdir, realpath, rm, symlink, writeFile } from 'node:fs/promises';
 import { basename, join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
+import { pathToFileURL } from 'node:url';
 import test from 'node:test';
 import { freezeInfrastructurePackage, selectSmokePackageRoot } from '../freeze-infrastructure-package.mjs';
 import { inside } from '../../cli/src/paths.mjs';
@@ -12,7 +13,7 @@ const windows = { skip: process.platform !== 'win32' };
 const pkg = {
   name: '@deviceforge/cli', version: '0.1.0', type: 'module',
   bin: { deviceforge: 'cli/bin/deviceforge.mjs' },
-  files: ['cli/bin', 'cli/src', 'cli/README.md', 'runtime', 'README.md'],
+  files: ['cli/bin', 'cli/src', 'cli/README.md', 'runtime', 'README.md', 'scripts/plugin-releases/archive*.mjs'],
   scripts: { prepack: 'node scripts/verify-package.mjs' },
 };
 
@@ -35,7 +36,12 @@ async function fixture(t) {
     'README.md': '单元测试根说明，不代表真实构建。',
     'cli/README.md': '单元测试 CLI 说明。',
     'cli/bin/deviceforge.mjs': '// 不执行的单元测试入口\n',
-    'cli/src/entry.mjs': '// 不执行的单元测试依赖\n',
+    'cli/src/entry.mjs': [
+      "import { archiveReleaseLabel } from '../../scripts/plugin-releases/archive-public.mjs';",
+      'export function publicReleaseLabel() { return archiveReleaseLabel(); }',
+      '',
+    ].join('\n'),
+    'scripts/plugin-releases/archive-public.mjs': "export function archiveReleaseLabel() { return '公开发布归档夹具'; }\n",
     'scripts/verify-package.mjs': '// 仅检验原字节复制，不启动子进程\n',
     'backend/target/release/apk-server.exe': '单元测试后端字节，不是真实 EXE',
     'backend/target/release/validate-plugin.exe': '单元测试校验器字节，不是真实 EXE',
@@ -146,6 +152,50 @@ test('冻结当前指定输入、原格式清单与能力，根 runtime 和历�
   }
   await assert.rejects(lstat(join(packRoot, 'backend')), { code: 'ENOENT' });
   await assert.rejects(lstat(join(packRoot, 'frontend')), { code: 'ENOENT' });
+});
+
+test('发布文件清单中的脚本通配可供冻结后的CLI真实导入，不混入未声明文件', windows, async (t) => {
+  const root = await fixture(t);
+  await write(root, 'scripts/plugin-releases/private.mjs', "export const secret = '不能发布';\n");
+  await write(root, 'scripts/plugin-releases/archive-secret.txt', '通配后缀外的秘密材料');
+  const { packRoot } = await freezeInfrastructurePackage(root);
+
+  const entry = await import(pathToFileURL(join(packRoot, 'cli/src/entry.mjs')).href);
+  assert.equal(typeof entry.publicReleaseLabel, 'function');
+  assert.equal(entry.publicReleaseLabel(), '公开发布归档夹具');
+  assert.deepEqual(
+    await readFile(join(packRoot, 'scripts/plugin-releases/archive-public.mjs')),
+    await readFile(join(root, 'scripts/plugin-releases/archive-public.mjs')),
+  );
+  for (const path of ['scripts/plugin-releases/private.mjs', 'scripts/plugin-releases/archive-secret.txt']) {
+    await assert.rejects(lstat(join(packRoot, path)), { code: 'ENOENT' });
+  }
+});
+
+test('显式debug冻结只使用指定调试构建并保留原根runtime字节', windows, async (t) => {
+  const root = await fixture(t);
+  const protectedFiles = ['runtime/manifest.json', 'runtime/old.exe'];
+  const original = await Promise.all(protectedFiles.map((path) => readFile(join(root, path))));
+  const binaries = ['apk-server.exe', 'validate-plugin.exe'];
+  for (const binary of binaries) {
+    await write(root, `backend/target/debug/${binary}`, `仅单元夹具的debug字节：${binary}，不得执行`);
+    await rm(join(root, 'backend/target/release', binary));
+  }
+
+  const { packRoot, report } = await freezeInfrastructurePackage(root, { profile: 'debug' });
+  const manifest = JSON.parse(await readFile(join(packRoot, 'runtime/manifest.json'), 'utf8'));
+  assert.equal(manifest.profile, 'debug');
+  assert.equal(report.passed, true);
+  for (const binary of binaries) {
+    const path = `runtime/${process.platform}-${process.arch}/${binary}`;
+    const source = report.sources.find((file) => file.path === path);
+    assert.ok(source, `冻结来源须包含${binary}`);
+    assert.equal(source.source, `backend/target/debug/${binary}`);
+    assert.deepEqual(await readFile(join(packRoot, path)), await readFile(join(root, source.source)));
+  }
+  for (let i = 0; i < protectedFiles.length; i += 1) {
+    assert.deepEqual(await readFile(join(root, protectedFiles[i])), original[i]);
+  }
 });
 
 test('连续冻结产生不同 stage，不能覆盖或删除前一次候选', windows, async (t) => {

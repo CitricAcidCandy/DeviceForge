@@ -1,0 +1,9 @@
+{
+  "extends": "../tsconfig.json",
+  "include": [
+    "./workspace-module-resolution.test.ts",
+    "./host-style-sources.test.ts",
+    "../scripts/workspace-module-resolution.ts",
+    "../vite.config.ts"
+  ]
+}

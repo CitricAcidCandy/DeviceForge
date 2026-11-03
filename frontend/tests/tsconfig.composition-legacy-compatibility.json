@@ -1,0 +1,7 @@
+{
+  "extends": "../tsconfig.json",
+  "include": [
+    "./composition-legacy-compatibility.test.ts",
+    "./composition-legacy-workspace-slots.test.ts"
+  ]
+}

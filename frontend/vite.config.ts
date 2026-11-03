@@ -4,20 +4,18 @@ import tailwindcss from '@tailwindcss/vite';
 import { fileURLToPath } from 'node:url';
 import { generatePublicUi, publicUiEntries } from './scripts/generate-public-ui.ts';
 import { workspacePluginPackages } from './scripts/workspace-plugin-packages.ts';
+import { developmentWatch } from './scripts/development-watch.ts';
+import { workspaceModuleResolution } from './scripts/workspace-module-resolution.ts';
 
 const frontendRoot = fileURLToPath(new URL('.', import.meta.url));
 // 开发出口属于启动配置；每次解析模块都扫磁盘会阻塞样式和首屏，运行时热装卸不走此目录。
 const workspaceAliases = new Map(workspacePluginPackages(frontendRoot).aliases
   .map((entry) => [entry.find, entry.replacement]));
+const workspaceModules = workspaceModuleResolution(workspaceAliases);
 
 export default defineConfig({
   plugins: [
-    {
-      name: 'deviceforge-workspace-public-packages',
-      resolveId(id: string) {
-        return workspaceAliases.get(id) ?? null;
-      },
-    },
+    ...workspaceModules.plugins,
     {
       name: 'deviceforge-public-ui',
       async configResolved(config) { await generatePublicUi(config.root); },
@@ -39,6 +37,8 @@ export default defineConfig({
     dedupe: ['react', 'react-dom'],
   },
   ssr: { noExternal: ['@deviceforge/browser-debugger'] },
+  worker: workspaceModules.worker,
+  server: { watch: developmentWatch(frontendRoot) },
   define: { 'import.meta.env.VITE_API_BASE_URL': JSON.stringify(process.env['VITE_API_BASE_URL'] ?? '') },
   build: {
     sourcemap: true,

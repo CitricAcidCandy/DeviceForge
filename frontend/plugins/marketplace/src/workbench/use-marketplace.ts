@@ -6,8 +6,9 @@ import type { PackageMediaType } from './api/index.ts';
 import {
   installBlock, installedPackage, localInstallationEntry, localPackageEntry, localServerEntry, newerVersion, pluginKind,
 } from './presentation.ts';
-import { isReleaseEntry, marketInstallationSource, ownedInstallationComponents } from './installations.ts';
+import { isReleaseEntry, marketInstallationSource, ownedInstallationComponents, type PluginInstallation } from './installations.ts';
 import { useInstalledMetadata } from './use-installed-metadata.ts';
+import { installationBrowserStatus } from './browser-state.ts';
 
 export function useMarketplace(services: MarketplaceServices, active: boolean, installedTab: boolean) {
   const [query, setQuery] = useState<MarketplaceQuery>({ limit: 24 });
@@ -119,6 +120,11 @@ export function useMarketplace(services: MarketplaceServices, active: boolean, i
     installationProgress,
     installedEntries: [...bundledEntries, ...releaseEntries, ...localEntries, ...builtinEntries],
     directoryKnown: state.known, directoryPending: state.pending,
+    installationBrowserStatus(installation: PluginInstallation) {
+      return installationBrowserStatus(installation,
+        clients.find((item) => item.id === installation.id && item.revision === installation.revision),
+        state.browser?.known && !state.browser.pending ? state.browser.runtime : null);
+    },
     cleanupWarnings: state.serverPlugins.filter((entry) => entry.cleanup_failed).map((entry) => entry.id),
     bundledEnabled: (id: string) => state.browser?.bundled.find((entry) => entry.id === id)?.phase === 'loaded',
     setBundledEnabled(id: string, enabled: boolean) {

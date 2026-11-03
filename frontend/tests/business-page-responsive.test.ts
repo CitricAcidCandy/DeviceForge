@@ -238,6 +238,30 @@ test('分析原上传与DEX工具由独立插件接回，来源分栏和字段�
   } finally { page?.window.close(); services.dispose(); await f.close(); }
 });
 
+test('分析窄栏标签与输入纵向排列，完整标识输入不再被固定标签列挤占', async () => {
+  const f = fixture(), services = createAnalysisServices(f.context);
+  let page: JSDOM | undefined;
+  try {
+    page = new JSDOM(renderToStaticMarkup(createElement('div', null,
+      createElement(AnalysisPage, { services }), createElement(AnalysisPage, { services }))));
+    const document = page.window.document;
+    const inputs = [...document.querySelectorAll('input')];
+    assert.equal(new Set(inputs.map((input) => input.id)).size, inputs.length, '多实例输入标识必须各自归属');
+    for (const section of document.querySelectorAll('[data-product-page="analysis"]')) {
+      for (const text of ['产物 ID', 'DEX 规则名称', 'DEX 包路径', 'DEX 类名（可选）']) {
+        const label = [...section.querySelectorAll('label')].find((element) => element.textContent === text);
+        assert.ok(label);
+        const input = document.getElementById(label.htmlFor);
+        assert.ok(input && section.contains(input));
+        assert.equal(input.parentElement, label.parentElement, '标签不能占用另一固定宽列');
+        requireClasses(label.parentElement, ['grid', 'grid-cols-1', 'min-w-0', 'gap-1.5']);
+        assert.equal(label.closest('.form-item'), null, '不再依赖有144像素标签列的旧表单规则');
+      }
+    }
+    assert.equal(f.calls(), 0);
+  } finally { page?.window.close(); services.dispose(); await f.close(); }
+});
+
 test('自动化原三工作区和真实操作保留，页签内容局部滚动且桌面输入分栏只按本容器响应', async () => {
   const f = fixture(), services = createAutomationServices(f.context);
   let page: JSDOM | undefined;
