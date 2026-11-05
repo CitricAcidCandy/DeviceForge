@@ -138,12 +138,12 @@ export function DeviceAutomation({ services }: { services: AutomationServices })
   const stepForm = (
     <div
       ref={formRef}
-      className="rounded-xl border border-border bg-surface-elevated p-4"
+      className="min-w-0 rounded-xl border border-border bg-surface-elevated p-4"
       aria-label="添加步骤表单"
     >
       <div className="grid gap-3">
         <div className="flex items-center gap-3">
-          <div className="grid flex-1 grid-cols-2 gap-2 @lg/automation:grid-cols-4" role="group" aria-label="步骤类型">
+          <div className="grid min-w-0 flex-1 grid-cols-2 gap-2 @lg/automation:grid-cols-4" role="group" aria-label="步骤类型">
             {actionTypes.map((entry) => (
               <Button
                 key={entry.kind}
@@ -162,8 +162,8 @@ export function DeviceAutomation({ services }: { services: AutomationServices })
             {String(steps.length + 1).padStart(2, '0')}
           </span>
         </div>
-        <div className="flex flex-wrap items-start gap-3">
-          <div className="min-w-[8rem] flex-1">
+        <div className="flex min-w-0 flex-wrap items-start gap-3">
+          <div className="min-w-[min(8rem,100%)] flex-1">
             <Field
               label="执行时间（ms）"
               value={at}
@@ -175,7 +175,7 @@ export function DeviceAutomation({ services }: { services: AutomationServices })
             />
           </div>
           {kind === 'text' ? (
-            <div className="min-w-[12rem] flex-[2]">
+            <div className="min-w-[min(12rem,100%)] flex-[2]">
               <Field
                 label="设备输入文本"
                 value={text}
@@ -184,26 +184,26 @@ export function DeviceAutomation({ services }: { services: AutomationServices })
               />
             </div>
           ) : kind === 'key' ? (
-            <div className="min-w-[8rem] flex-1">
+            <div className="min-w-[min(8rem,100%)] flex-1">
               <Field label="按键码" value={key} onChange={setKey} type="number" min={0} max={288} />
             </div>
           ) : (
             <>
-              <div className="min-w-[7rem] flex-1">
+              <div className="min-w-[min(7rem,100%)] flex-1">
                 <Field label="X 坐标" value={x} onChange={setX} type="number" min={0} max={65535} />
               </div>
-              <div className="min-w-[7rem] flex-1">
+              <div className="min-w-[min(7rem,100%)] flex-1">
                 <Field label="Y 坐标" value={y} onChange={setY} type="number" min={0} max={65535} />
               </div>
               {kind === 'swipe' && (
                 <>
-                  <div className="min-w-[7rem] flex-1">
+                  <div className="min-w-[min(7rem,100%)] flex-1">
                     <Field label="终点 X" value={x2} onChange={setX2} type="number" min={0} max={65535} />
                   </div>
-                  <div className="min-w-[7rem] flex-1">
+                  <div className="min-w-[min(7rem,100%)] flex-1">
                     <Field label="终点 Y" value={y2} onChange={setY2} type="number" min={0} max={65535} />
                   </div>
-                  <div className="min-w-[8rem] flex-1">
+                  <div className="min-w-[min(8rem,100%)] flex-1">
                     <Field
                       label="滑动持续（ms）"
                       value={duration}
@@ -222,7 +222,7 @@ export function DeviceAutomation({ services }: { services: AutomationServices })
           <span className="text-xs text-faint">
             {kind === 'tap' || kind === 'swipe' ? '坐标使用设备像素' : kind === 'key' ? '按键码 0–288' : '不支持中文输入'}
           </span>
-          <div className="flex items-center gap-2">
+          <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
             <Button variant="ghost" onClick={() => setAddOpen(false)}>
               取消
             </Button>

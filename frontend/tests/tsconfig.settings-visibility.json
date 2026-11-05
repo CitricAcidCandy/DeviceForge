@@ -1,0 +1,10 @@
+{
+  "extends": "../tsconfig.json",
+  "include": [
+    "./settings-visibility.test.ts",
+    "../plugins/settings/src/index.ts",
+    "../plugins/settings/src/view.tsx",
+    "../plugins/settings/src/view/ToolSettings.tsx",
+    "../plugins/settings/src/view/SettingsTransfers.tsx"
+  ]
+}

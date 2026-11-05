@@ -19,6 +19,9 @@
       "@deviceforge/marketplace/browser-management": [
         "./plugins/marketplace/src/browser-management.ts"
       ],
+      "@deviceforge/business-kit/dropdown-menu": [
+        "./plugins/business-kit/src/react/dropdown-menu.tsx"
+      ],
       "@deviceforge/business-kit/select-field": [
         "./plugins/business-kit/src/react/select-field.tsx"
       ],

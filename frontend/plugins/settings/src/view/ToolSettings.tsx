@@ -1,5 +1,5 @@
 import { Button, Input, Label, Textarea, Switch, Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '../view-support.tsx';
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { RefreshCw, Save } from 'lucide-react';
 
 
@@ -15,7 +15,8 @@ import { SettingsTransfers } from './SettingsTransfers.tsx';
 import { settingsButtonClass, settingsCodeClass, settingsInputClass, SettingsFailure, SettingsGroup } from './primitives.tsx';
 import { UnknownSettingsTask } from './unknown-task.tsx';
 
-export function ToolSettings({ services }: { services: SettingsServices }) {
+export function ToolSettings({ services, visible = true }: { services: SettingsServices; visible?: boolean }) {
+  const formId = useId();
   const [scope, setScope] = useState<'user' | 'workspace'>('user');
   const [owner, setOwner] = useState('local');
   const [section, setSection] = useState('general');
@@ -30,7 +31,7 @@ export function ToolSettings({ services }: { services: SettingsServices }) {
       <div className="flex flex-col gap-6 [&>button]:self-start">
         <div className="grid gap-4 @lg/settings-content:grid-cols-2">
           <div className="space-y-2">
-            <Label htmlFor="settings-scope" className="text-[13px] font-normal text-body">配置归属</Label>
+            <Label htmlFor={`${formId}-scope`} className="text-[13px] font-normal text-body">配置归属</Label>
             <Select value={scope} onValueChange={(value) => {
               if (value === 'user' || value === 'workspace') {
                 action.cancel();
@@ -38,7 +39,7 @@ export function ToolSettings({ services }: { services: SettingsServices }) {
                 setConfiguration(null);
               }
             }}>
-              <SelectTrigger id="settings-scope" className={`${settingsInputClass} w-full`}><SelectValue /></SelectTrigger>
+              <SelectTrigger id={`${formId}-scope`} className={`${settingsInputClass} w-full`}><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="user">用户配置</SelectItem>
                 <SelectItem value="workspace">工作区配置</SelectItem>
@@ -46,8 +47,8 @@ export function ToolSettings({ services }: { services: SettingsServices }) {
             </Select>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="settings-owner" className="text-[13px] font-normal text-body">归属 ID</Label>
-            <Input id="settings-owner" className={settingsInputClass} value={owner} onChange={(event) => {
+            <Label htmlFor={`${formId}-owner`} className="text-[13px] font-normal text-body">归属 ID</Label>
+            <Input id={`${formId}-owner`} className={settingsInputClass} value={owner} onChange={(event) => {
               action.cancel();
               setOwner(event.target.value);
               setConfiguration(null);
@@ -71,8 +72,8 @@ export function ToolSettings({ services }: { services: SettingsServices }) {
         )}
         <div className="flex flex-wrap items-end gap-3">
           <div className="min-w-0 flex-1 space-y-2 @lg/settings-content:max-w-[360px]">
-            <Label htmlFor="settings-section" className="text-[13px] font-normal text-body">配置区</Label>
-            <Input id="settings-section" className={settingsInputClass} value={section} onChange={(event) => {
+            <Label htmlFor={`${formId}-section`} className="text-[13px] font-normal text-body">配置区</Label>
+            <Input id={`${formId}-section`} className={settingsInputClass} value={section} onChange={(event) => {
               action.cancel();
               setSection(event.target.value);
             }} />
@@ -89,8 +90,8 @@ export function ToolSettings({ services }: { services: SettingsServices }) {
           }}>读取此区</Button>
         </div>
         <div className="flex flex-col gap-2">
-          <Label htmlFor="settings-content" className="text-[13px] font-normal text-body">配置内容 · JSON</Label>
-          <Textarea id="settings-content" className={settingsCodeClass} value={draft} onChange={(event) => setDraft(event.target.value)} rows={9} />
+          <Label htmlFor={`${formId}-content`} className="text-[13px] font-normal text-body">配置内容 · JSON</Label>
+          <Textarea id={`${formId}-content`} className={settingsCodeClass} value={draft} onChange={(event) => setDraft(event.target.value)} rows={9} />
           <p className="text-[12px] leading-6 text-muted-foreground">写入使用已读取的修订；出现冲突时重新读取，不会自动覆盖。</p>
         </div>
         <Button className={settingsButtonClass} disabled={!configuration || !canWrite || action.pending} onClick={() => {
@@ -109,7 +110,7 @@ export function ToolSettings({ services }: { services: SettingsServices }) {
       <details className="border-t border-hairline pt-5">
         <summary className="text-[14px]! font-medium! text-body">导入与远端配置</summary>
         <div className="pt-5">
-          <SettingsTransfers key={`${scope}:${owner}`} services={services} owner={{ scope, owner_id: owner }} section={section} configuration={configuration} onUpdated={setConfiguration} />
+          <SettingsTransfers key={`${scope}:${owner}`} services={services} owner={{ scope, owner_id: owner }} section={section} configuration={configuration} onUpdated={setConfiguration} visible={visible} />
         </div>
       </details>
       <SettingsGroup title="服务器产物">

@@ -1,0 +1,9 @@
+{
+  "extends": "../tsconfig.json",
+  "include": [
+    "./device-directory-restoration.test.ts",
+    "./official-devices-plugin.test.ts",
+    "../plugins/devices/src/view.tsx",
+    "../plugins/devices/src/directory.ts"
+  ]
+}

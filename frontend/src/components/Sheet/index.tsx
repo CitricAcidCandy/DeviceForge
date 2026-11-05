@@ -54,7 +54,10 @@ function SheetContent({
       <SheetPrimitive.Content
         data-slot="sheet-content"
         className={cn(
-          'fixed z-50 flex flex-col gap-4 bg-background shadow-lg transition ease-in-out data-[state=closed]:animate-out data-[state=closed]:duration-300 data-[state=open]:animate-in data-[state=open]:duration-500',
+          '@container fixed z-50 flex flex-col gap-4 bg-background shadow-lg transition ease-in-out data-[state=closed]:animate-out data-[state=closed]:duration-300 data-[state=open]:animate-in data-[state=open]:duration-500',
+          '@max-[768px]:[:where(&_button)]:min-h-[44px]',
+          '@max-[768px]:[:where(&_[data-slot=sheet-close])]:min-w-[44px] @max-[768px]:[:where(&_[data-slot=sheet-close])]:min-h-[44px] @max-[768px]:[:where(&_[data-slot=sheet-close])]:inline-flex @max-[768px]:[:where(&_[data-slot=sheet-close])]:items-center @max-[768px]:[:where(&_[data-slot=sheet-close])]:justify-center',
+          '@max-[768px]:[:where(&_[data-slot=sheet-header])]:[--sheet-header-padding-right:36px]',
           side === 'right' &&
             'inset-y-0 right-0 h-full w-3/4 border-l data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right sm:max-w-sm',
           side === 'left' &&
@@ -70,7 +73,7 @@ function SheetContent({
       >
         {children}
         {showCloseButton && (
-          <SheetPrimitive.Close className="absolute top-4 right-4 rounded-xs opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none data-[state=open]:bg-secondary">
+          <SheetPrimitive.Close data-slot="sheet-close" className="absolute top-4 right-4 rounded-xs opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none data-[state=open]:bg-secondary">
             <XIcon className="size-4" />
             <span className="sr-only">关闭</span>
           </SheetPrimitive.Close>
@@ -84,7 +87,7 @@ function SheetHeader({ className, ...props }: React.ComponentProps<'div'>) {
   return (
     <div
       data-slot="sheet-header"
-      className={cn('flex flex-col gap-1.5 p-4', className)}
+      className={cn('flex flex-col gap-1.5 p-4 pr-[var(--sheet-header-padding-right,1rem)]', className)}
       {...props}
     />
   );
@@ -104,7 +107,7 @@ function SheetTitle({ className, ...props }: React.ComponentProps<typeof SheetPr
   return (
     <SheetPrimitive.Title
       data-slot="sheet-title"
-      className={cn('font-semibold text-foreground', className)}
+      className={cn('text-[17px] font-semibold text-foreground', className)}
       {...props}
     />
   );

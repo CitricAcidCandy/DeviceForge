@@ -1,0 +1,8 @@
+{
+  "extends": "../tsconfig.json",
+  "include": [
+    "./files-responsive.test.ts",
+    "./files-restoration.test.ts",
+    "../plugins/files/src/view.tsx"
+  ]
+}

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { JobDto } from '../../services/api/index.ts';
+import { createTaskListRefresh } from '../../features/tasks/index.ts';
 import type { ProductServices } from './services.ts';
 
 export const PAGE_TASK_LIMIT = 200;
@@ -9,43 +10,43 @@ export function usePageTasks(services: ProductServices, expanded: boolean) {
   const [pending, setPending] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<unknown>(null);
-  const active = useRef<AbortController | null>(null);
-  const refresh = useCallback(async () => {
-    if (active.current) return;
-    const controller = new AbortController();
-    active.current = controller;
-    setPending(true);
-    try {
-      const response = await services.runtime.tasks.list({ limit: PAGE_TASK_LIMIT }, controller.signal);
-      if (!controller.signal.aborted) {
-        setJobs(response.data);
-        setLoaded(true);
-        setError(null);
-      }
-    } catch (failure) {
-      if (!controller.signal.aborted) setError((current: unknown) => current ?? failure);
-    } finally {
-      if (active.current === controller) {
-        active.current = null;
-        if (!controller.signal.aborted) setPending(false);
-      }
-    }
-  }, [services]);
+  const active = useRef<ReturnType<typeof createTaskListRefresh> | null>(null);
+  const expandedRef = useRef(expanded);
+  expandedRef.current = expanded;
+  const refresh = useCallback(() => active.current?.refresh() ?? Promise.resolve(), []);
   useEffect(() => {
-    void refresh();
+    const tasks = services.runtime.tasks;
+    const subscribeChanges = tasks.subscribeChanges;
+    let live = true;
+    const next = createTaskListRefresh({
+      intervalMs: expandedRef.current ? 5_000 : 15_000,
+      ...(subscribeChanges ? { subscribeChanges: (listener) => subscribeChanges(listener) } : {}),
+      canPoll: () => document.visibilityState === 'visible',
+      read: async (signal) => {
+        if (live) setPending(true);
+        try {
+          const response = await tasks.list({ limit: PAGE_TASK_LIMIT }, signal);
+          if (!live || signal.aborted) return;
+          setJobs(response.data);
+          setLoaded(true);
+          setError(null);
+        } finally { if (live && !signal.aborted) setPending(false); }
+      },
+      onError: (failure) => { if (live) { setPending(false); setError((current: unknown) => current ?? failure); } },
+    });
+    active.current = next;
+    next.start();
     const visible = () => {
-      if (document.visibilityState === 'visible') void refresh();
+      if (document.visibilityState === 'visible') void next.refresh();
     };
-    const timer = window.setInterval(visible, expanded ? 5000 : 15000);
     document.addEventListener('visibilitychange', visible);
     return () => {
-      window.clearInterval(timer);
+      live = false;
       document.removeEventListener('visibilitychange', visible);
+      next.dispose();
+      if (active.current === next) active.current = null;
     };
-  }, [expanded, refresh]);
-  useEffect(() => () => {
-    active.current?.abort();
-    active.current = null;
   }, [services]);
+  useEffect(() => active.current?.setIntervalMs(expanded ? 5_000 : 15_000), [expanded]);
   return { jobs, loaded, pending, error, refresh };
 }

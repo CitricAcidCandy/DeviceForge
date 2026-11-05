@@ -1,0 +1,15 @@
+{
+  "extends": "../tsconfig.json",
+  "include": [
+    "../src/services/realtime/**/*.ts",
+    "../src/features/debugger/**/*.ts",
+    "../src/features/tasks/**/*.ts",
+    "../src/app/debugger-runtime.ts",
+    "../src/app/platform-runtime.ts",
+    "../src/app/task-history-gateway.ts",
+    "realtime-client.test.ts",
+    "realtime-socket-bridge.test.ts",
+    "task-change-scope.test.ts",
+    "task-change-consumption.test.ts"
+  ]
+}

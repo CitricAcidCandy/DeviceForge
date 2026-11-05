@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { registerHooks } from 'node:module';
-import type { Dispose, HistoricalJob, HostContext, HostResult } from '@deviceforge/plugin-sdk';
+import type { Dispose, HistoricalJob, HostContext, HostResult, TaskHistoryAccess, TaskHistoryChange } from '@deviceforge/plugin-sdk';
 registerHooks({
   resolve(specifier, context, next) {
     return specifier === '@deviceforge/plugin-sdk'
@@ -16,7 +16,11 @@ const { createPointRegistry } = await import('../../../src/plugins/points/index.
 function job(status: HistoricalJob['status']): HistoricalJob {
   return { id: `job-${status}`, operation: 'plugin.sample.run', status, result: null, error: null, input: {}, createdAt: 1 };
 }
-function fixture(list: (signal: AbortSignal) => Promise<HostResult<readonly HistoricalJob[]>>) {
+const flush = () => new Promise<void>((resolve) => setImmediate(resolve));
+function fixture(
+  list: (signal: AbortSignal) => Promise<HostResult<readonly HistoricalJob[]>>,
+  subscribeChanges?: NonNullable<TaskHistoryAccess['subscribeChanges']>,
+) {
   const lifetime = new AbortController();
   const context: HostContext = {
     apiVersion: 2, signal: lifetime.signal, onDispose: (release) => release,
@@ -25,6 +29,7 @@ function fixture(list: (signal: AbortSignal) => Promise<HostResult<readonly Hist
     cancelJob: async () => { throw new Error('不应取消任务'); },
     getJob: async () => { throw new Error('不应查询单个任务'); },
     taskHistory: {
+      ...(subscribeChanges ? { subscribeChanges } : {}),
       list: async (query, signal) => { assert.equal(query.limit, 200); return list(signal); },
       get: async () => { throw new Error('不应查询单个任务'); },
       events: async () => { throw new Error('不应请求事件'); },
@@ -60,24 +65,22 @@ test('任务状态读取失败保留旧观测，超时不把后台任务标成�
   assert.equal(model.snapshot().pending, false);
   model.dispose();
 });
-test('新读取撤销旧等待，晚到旧结果不覆盖新观测，卸载不残留刷新', async () => {
-  let finish: ((value: HostResult<readonly HistoricalJob[]>) => void) | null = null;
+test('并发刷新合并补读不取消当前请求，卸载不残留刷新', async () => {
+  let finish: (value: HostResult<readonly HistoricalJob[]>) => void = () => undefined;
   let calls = 0;
-  const value = fixture(async () => {
+  let firstSignal: AbortSignal | undefined;
+  const value = fixture(async (signal) => {
     calls++;
-    if (calls === 1) return new Promise((resolve) => { finish = resolve; });
+    if (calls === 1) { firstSignal = signal; return new Promise((resolve) => { finish = resolve; }); }
     return { data: [job('succeeded')], logId: 'new-log' };
   });
   const model = createTaskFooterModel(value.context, { intervalMs: 10 });
   const first = model.refresh();
-  await model.refresh(); await first;
-  const resolveOld = finish;
-  if (resolveOld) {
-    // 回调由请求实现设置，显式经局部容器保留实际类型。
-    const invoke: (value: HostResult<readonly HistoricalJob[]>) => void = resolveOld;
-    invoke({ data: [job('running')], logId: 'old-log' });
-  }
-  await new Promise((resolve) => setTimeout(resolve, 0));
+  await flush();
+  const second = model.refresh();
+  assert.equal(calls, 1); assert.equal(firstSignal?.aborted, false);
+  finish({ data: [job('running')], logId: 'old-log' });
+  await Promise.all([first, second]);
   assert.equal(model.snapshot().logId, 'new-log');
   value.lifetime.abort(); await model.refresh();
   assert.equal(calls, 2);
@@ -106,4 +109,126 @@ test('底栏通过公开视图贡献，外壳稍后出现才变为可用，卸�
   value.lifetime.abort();
   assert.equal(points.list(ref).length, 0);
   workspace.dispose(); points.dispose();
+});
+
+function notifications() {
+  const listeners = new Set<(change: TaskHistoryChange) => void>();
+  let starts = 0, stops = 0;
+  return {
+    subscribeChanges(listener: (change: TaskHistoryChange) => void) {
+      starts++; listeners.add(listener);
+      listener({ state: 'ready', revision: '1', reset: true });
+      return () => { stops++; listeners.delete(listener); };
+    },
+    emit(change: TaskHistoryChange) { for (const listener of [...listeners]) listener(change); },
+    counts: () => ({ starts, stops, listeners: listeners.size }),
+  };
+}
+
+test('底栏先订阅后读取，同步 ready 与重复 start 只首次读取，健康空闲一分钟无轮询', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'], now: 0 });
+  const source = notifications(), order: string[] = [];
+  const value = fixture(async () => { order.push('list'); return { data: [job('running')], logId: 'first' }; },
+    (listener) => { order.push('subscribe'); return source.subscribeChanges(listener); });
+  const model = createTaskFooterModel(value.context);
+  t.after(() => model.dispose());
+  model.start(); model.start(); await flush();
+  t.mock.timers.tick(60_000); await flush();
+  assert.deepEqual(order, ['subscribe', 'list']);
+  assert.equal(source.counts().starts, 1);
+  assert.equal(model.snapshot().pending, false);
+});
+
+test('底栏刷新期间 changed 合并补读一次，不取消请求也不丢最终快照', async (t) => {
+  const source = notifications(); let calls = 0;
+  let finish: () => void = () => undefined;
+  let signal: AbortSignal | undefined;
+  const value = fixture(async (current) => {
+    if (++calls === 1) {
+      signal = current;
+      await new Promise<void>((resolve) => { finish = resolve; });
+      return { data: [job('running')], logId: 'old' };
+    }
+    return { data: [job('succeeded')], logId: 'new' };
+  }, source.subscribeChanges);
+  const model = createTaskFooterModel(value.context);
+  t.after(() => model.dispose());
+  model.start(); await flush();
+  source.emit({ state: 'changed', revision: '2', reset: false });
+  source.emit({ state: 'changed', revision: '3', reset: false });
+  assert.equal(calls, 1); assert.equal(signal?.aborted, false);
+  finish(); await flush();
+  assert.equal(calls, 2); assert.equal(model.snapshot().logId, 'new');
+});
+
+test('底栏断线按三秒降级，恢复重读后停止轮询，缺订阅仍按旧节奏刷新', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'], now: 0 });
+  const source = notifications(); let calls = 0, oldCalls = 0;
+  const value = fixture(async () => { calls++; return { data: [], logId: null }; }, source.subscribeChanges);
+  const legacy = fixture(async () => { oldCalls++; return { data: [], logId: null }; });
+  const model = createTaskFooterModel(value.context), old = createTaskFooterModel(legacy.context);
+  t.after(() => { model.dispose(); old.dispose(); });
+  model.start(); old.start(); await flush();
+  source.emit({ state: 'unavailable', revision: '1', reset: false });
+  t.mock.timers.tick(3_000); await flush();
+  assert.equal(calls, 2); assert.equal(oldCalls, 2);
+  source.emit({ state: 'ready', revision: '8', reset: true }); await flush();
+  assert.equal(calls, 3);
+  old.dispose();
+  t.mock.timers.tick(60_000); await flush();
+  assert.equal(calls, 3); assert.equal(oldCalls, 2);
+});
+
+test('底栏释放同时取消在途请求、通知和定时器，晚结果不覆盖旧观测', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'], now: 0 });
+  const source = notifications(); let calls = 0, aborted = false;
+  let finish: (result: HostResult<readonly HistoricalJob[]>) => void = () => undefined;
+  const value = fixture(async (signal) => {
+    if (++calls === 1) return { data: [job('running')], logId: 'last' };
+    signal.addEventListener('abort', () => { aborted = true; }, { once: true });
+    return new Promise((resolve) => { finish = resolve; });
+  }, source.subscribeChanges);
+  const model = createTaskFooterModel(value.context);
+  model.start(); await flush();
+  source.emit({ state: 'changed', revision: '2', reset: false }); await flush();
+  value.lifetime.abort(); model.dispose();
+  finish({ data: [job('succeeded')], logId: 'late' }); await flush();
+  source.emit({ state: 'ready', revision: '3', reset: true });
+  model.start(); await model.refresh(); t.mock.timers.tick(60_000); await flush();
+  assert.equal(calls, 2); assert.equal(aborted, true);
+  assert.equal(model.snapshot().logId, 'last');
+  assert.deepEqual(source.counts(), { starts: 1, stops: 1, listeners: 0 });
+});
+
+test('底栏订阅者抛错不阻断其他消费者，读取失败保留数据与日志且可继续刷新', async (t) => {
+  const source = notifications(); let calls = 0, notices = 0;
+  const value = fixture(async () => {
+    if (++calls === 2) throw new Error('临时读取失败');
+    return { data: [job('running')], logId: 'existing-log' };
+  }, source.subscribeChanges);
+  const model = createTaskFooterModel(value.context);
+  t.after(() => model.dispose());
+  model.subscribe(() => { throw new Error('单个视图错误'); });
+  model.subscribe(() => { notices++; });
+  model.start(); await flush();
+  source.emit({ state: 'changed', revision: '2', reset: false }); await flush();
+  assert.ok(model.snapshot().error); assert.equal(model.snapshot().logId, 'existing-log');
+  assert.equal(model.snapshot().jobs[0]?.status, 'running');
+  source.emit({ state: 'changed', revision: '3', reset: false }); await flush();
+  assert.equal(model.snapshot().error, null); assert.equal(calls, 3); assert.ok(notices > 0);
+});
+
+test('底栏 ready 后快照失败保留降级刷新，成功后才停止轮询', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'], now: 0 });
+  const source = notifications(); let calls = 0;
+  const value = fixture(async () => {
+    if (++calls === 1) throw new Error('快照尚未恢复');
+    return { data: [job('running')], logId: 'recovered' };
+  }, source.subscribeChanges);
+  const model = createTaskFooterModel(value.context);
+  t.after(() => model.dispose());
+  model.start(); await flush(); assert.ok(model.snapshot().error);
+  t.mock.timers.tick(3_000); await flush();
+  assert.equal(calls, 2); assert.equal(model.snapshot().error, null);
+  t.mock.timers.tick(60_000); await flush(); assert.equal(calls, 2);
 });

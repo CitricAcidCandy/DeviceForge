@@ -72,7 +72,10 @@ function DialogContentBody({
       <DialogPrimitive.Content
         data-slot="dialog-content"
         className={cn(
-          'fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border bg-[var(--surface-elevated)] p-6 shadow-lg duration-200 outline-none data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 sm:max-w-lg',
+          '@container fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border bg-[var(--surface-elevated)] p-6 shadow-lg duration-200 outline-none data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 sm:max-w-lg',
+          '@max-[768px]:[:where(&_button)]:min-h-[44px] @max-[768px]:[:where(&_[data-slot=input])]:min-h-[44px] @max-[768px]:[:where(&_[data-slot=select-trigger])]:min-h-[44px]',
+          '@max-[768px]:[:where(&_[data-slot=dialog-close])]:min-w-[44px] @max-[768px]:[:where(&_[data-slot=dialog-close])]:min-h-[44px] @max-[768px]:[:where(&_[data-slot=dialog-close])]:inline-flex @max-[768px]:[:where(&_[data-slot=dialog-close])]:items-center @max-[768px]:[:where(&_[data-slot=dialog-close])]:justify-center',
+          '@max-[768px]:[:where(&_[data-slot=dialog-header])]:[--dialog-header-padding-right:36px]',
           className,
         )}
         {...props}
@@ -96,7 +99,7 @@ function DialogHeader({ className, ...props }: React.ComponentProps<'div'>) {
   return (
     <div
       data-slot="dialog-header"
-      className={cn('flex flex-col gap-2 text-center sm:text-left', className)}
+      className={cn('flex flex-col gap-2 pr-[var(--dialog-header-padding-right,0px)] text-center sm:text-left', className)}
       {...props}
     />
   );
@@ -130,7 +133,7 @@ function DialogTitle({ className, ...props }: React.ComponentProps<typeof Dialog
   return (
     <DialogPrimitive.Title
       data-slot="dialog-title"
-      className={cn('text-lg leading-none font-semibold', className)}
+      className={cn('text-[17px] leading-none font-semibold', className)}
       {...props}
     />
   );

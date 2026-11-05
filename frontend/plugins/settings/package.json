@@ -7,7 +7,11 @@
     "./model": "./src/model/index.ts",
     "./view": "./src/view.tsx"
   },
-  "dependencies": { "lucide-react": "1.56.0", "radix-ui": "1.8.1" },
+  "dependencies": {
+    "@deviceforge/business-kit": "file:../business-kit",
+    "lucide-react": "1.56.0",
+    "radix-ui": "1.8.1"
+  },
   "peerDependencies": {
     "@deviceforge/plugin-sdk": "0.1.0",
     "react": "19.3.0",

@@ -1,0 +1,7 @@
+{
+  "extends": "../tsconfig.json",
+  "include": [
+    "./performance-forms.test.ts",
+    "../plugins/performance/src/view.tsx"
+  ]
+}

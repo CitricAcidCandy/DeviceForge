@@ -2,8 +2,9 @@ import { HostError } from '../../plugin-sdk/index.ts';
 import type { JsonValue } from '../../plugin-sdk/index.ts';
 import { bounded, fail, json } from '../debugger-local/validation.ts';
 import { mutationTools, parsePlan } from './parameters.ts';
-import { bindParameters, bindingEvidence, logId, publicError, publicEvidence, resultState } from './evidence.ts';
+import { bindParameters, bindingEvidence, logId, publicError, publicEvidence, resultState, verificationEvidence } from './evidence.ts';
 import type { BindingEvidence, StepState } from './evidence.ts';
+import type { DebugActionVerification } from '../../plugins/debugger/index.ts';
 
 interface Target { readonly plugin_id: string; readonly generation: string | null }
 type Execute = (tool: string, target: Target, parameters: JsonValue, signal: AbortSignal) => Promise<JsonValue>;
@@ -28,7 +29,7 @@ export async function runDebuggerAutomation(parameters: JsonValue, target: Targe
   const steps: JsonValue[] = [];
   const started = performance.now();
   let status: 'completed' | 'failed' | 'indeterminate' | 'cancelled' = 'completed';
-  let stopped = false, unverifiedUi = false, otherMutation = false, assertions = 0;
+  let stopped = false, otherMutation = false, assertions = 0, uiMutations = 0, verifiedMutations = 0;
   let evidenceBytes = 0;
   try {
     for (const step of plan.steps) {
@@ -48,6 +49,7 @@ export async function runDebuggerAutomation(parameters: JsonValue, target: Targe
       let error: { code: string; message: string } | null = null;
       let stepLogId: string | null = null;
       let stepExpired = false;
+      let verification: DebugActionVerification | undefined;
       let bytes = 0, included = false;
       try {
         const resolved = bindParameters(step, bindings);
@@ -59,6 +61,7 @@ export async function runDebuggerAutomation(parameters: JsonValue, target: Targe
         try { raw = json(await bounded(() => execute(step.tool, target, resolved, stepSignal), stepSignal, mutation, remaining)); }
         finally { clearTimeout(stepTimer); }
         current.throwIfAborted();
+        verification = step.tool === 'ui_action' ? verificationEvidence(raw) : undefined;
         state = resultState(raw);
         if (raw && typeof raw === 'object' && !Array.isArray(raw)) stepLogId = logId(raw.logId ?? raw.log_id);
         if (state === 'succeeded') bindings.set(step.id, bindingEvidence(step.tool, raw, resolved));
@@ -67,12 +70,20 @@ export async function runDebuggerAutomation(parameters: JsonValue, target: Targe
         included = bytes <= 16384 && evidenceBytes + bytes <= 768 * 1024;
         if (included) { result = evidence; evidenceBytes += bytes; }
         if (mutation) {
-          if (step.tool === 'ui_action') unverifiedUi = true;
+          if (step.tool === 'ui_action') {
+            const action = resolved !== null && typeof resolved === 'object' && !Array.isArray(resolved) ? resolved.action : undefined;
+            const readOnly = action !== null && typeof action === 'object' && !Array.isArray(action) &&
+              (action.type === 'wait' || action.type === 'highlight');
+            if (!readOnly) {
+              uiMutations++;
+              if (state === 'succeeded' && verification?.status === 'passed') verifiedMutations++;
+            }
+          }
           else otherMutation = true;
         }
         if (step.tool === 'ui_assert' && state === 'succeeded') {
           if (raw && typeof raw === 'object' && !Array.isArray(raw) && raw.status === 'passed') {
-            assertions++; unverifiedUi = false;
+            assertions++;
           } else state = 'indeterminate';
         }
       } catch (caught) {
@@ -84,6 +95,7 @@ export async function runDebuggerAutomation(parameters: JsonValue, target: Targe
           : mutation && !definite ? 'indeterminate' : caught instanceof HostError && caught.code === 'debugger_timeout' ? 'indeterminate' : 'failed';
       }
       steps.push({ ...base, status: state, result, error, log_id: stepLogId,
+        ...(verification ? { verification: { ...verification } } : {}),
         elapsed_ms: Math.max(0, Math.round(performance.now() - begin)),
         business_outcome: mutation ? 'unknown' : null,
         result_metadata: { included, bytes, reason: included ? null : '结果未取得或超过单步16KiB／总768KiB证据预算' } });
@@ -94,8 +106,9 @@ export async function runDebuggerAutomation(parameters: JsonValue, target: Targe
       }
     }
     return json({ status, target_generation: target.generation, steps,
-      verified: status === 'completed' && assertions > 0 && !unverifiedUi && !otherMutation,
-      assertions_passed: assertions, business_outcome: '仅由显式断言验证对应界面检查点；派发和保存不代表完整业务成功',
+      verified: status === 'completed' && uiMutations > 0 && uiMutations === verifiedMutations && !otherMutation,
+      assertions_passed: assertions, business_outcome: 'unknown',
+      verification_coverage: '仅汇总本步骤动作的检查点；独立只读断言不验证其他动作，控件和界面通过不代表完整业务成功',
       elapsed_ms: Math.max(0, Math.round(performance.now() - started)), replayed: false });
   } finally { clearTimeout(timer); lifetime.abort(); }
 }

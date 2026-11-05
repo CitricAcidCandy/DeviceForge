@@ -128,6 +128,58 @@ pub struct BridgeStatus {
     pub targets: Vec<DebugTarget>,
 }
 
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct BridgeOpen {
+    #[serde(default)]
+    pub instance_id: Option<String>,
+    #[serde(default)]
+    pub resume_key: Option<String>,
+    #[serde(default)]
+    pub plugins: Vec<BridgePlugin>,
+    #[serde(default)]
+    pub inflight: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct BridgeOpened {
+    pub instance_id: String,
+    pub resume_key: String,
+    pub status: BridgeStatus,
+    pub commands: Vec<DebugCommandResult>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct BridgeDirectory {
+    pub instance_id: String,
+    pub plugins: Vec<BridgePlugin>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct BridgeReady {
+    pub instance_id: String,
+    /// 当前空槽总数，后到声明覆盖前值，不累加配额。
+    pub limit: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct BridgeClose {
+    pub instance_id: String,
+}
+
+/// 仅宿主传输适配器持有的归属凭证，不写入公开消息或日志。
+#[derive(Clone)]
+pub struct BridgeLease {
+    pub instance_id: String,
+    pub(crate) owner: String,
+    pub(crate) generation: u64,
+    pub(crate) online: std::sync::Arc<std::sync::atomic::AtomicBool>,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum DebugTool {

@@ -1,5 +1,4 @@
-import { createRoot } from 'react-dom/client';
-import { flushSync } from 'react-dom';
+import { hostUi } from '@deviceforge/plugin-sdk';
 import type { Dispose, HostContext, WorkspaceViewContext } from '@deviceforge/plugin-sdk';
 import { createMountPool } from './mount-pool.ts';
 import { createShellController, normalizeRoute } from './controller.ts';
@@ -48,10 +47,7 @@ export async function mountShell(target: HTMLElement, context: HostContext, inst
     try { context.debug?.emit({ name: 'shell.render.failed', metadata: { message: error.message } }); }
     catch { /* 调试订阅失效不应使故障回退本身再次崩溃。 */ }
   };
-  const root = createRoot(content, {
-    onUncaughtError(error) { renderError = error; },
-    onCaughtError() { /* 错误边界负责展示并写入当前插件的调试事件。 */ },
-  });
+  let releaseRender: Dispose = () => {};
   let released = false;
   const dispose = async () => {
     if (released) return;
@@ -61,14 +57,14 @@ export async function mountShell(target: HTMLElement, context: HostContext, inst
     await releaseVisibility();
     await lifecycle?.();
     controller.dispose();
-    root.unmount();
+    await releaseRender();
     await pool.dispose();
     container.remove();
   };
   try {
-    flushSync(() => root.render(<ShellRenderBoundary onFailure={report}>
+    releaseRender = hostUi().mountReact(content, <ShellRenderBoundary onFailure={report}>
       <Shell context={context} controller={controller} pool={pool} />
-    </ShellRenderBoundary>));
+    </ShellRenderBoundary>);
     if (renderError) throw renderError;
     releaseAddress = controller.subscribe(alignHomeAddress);
     releaseVisibility = instance?.subscribeVisibility(alignHomeAddress) ?? (() => {});

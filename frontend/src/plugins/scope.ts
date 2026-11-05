@@ -141,7 +141,7 @@ export function createPluginScope(host: HostContext): PluginScope {
     : undefined;
   const devices = scopedDeviceAccess(host.devices, call, current, controller.signal, track);
   const artifacts = scopedArtifactAccess(host.artifacts, call);
-  const taskHistory = scopedTaskHistoryAccess(host.taskHistory, call);
+  const taskHistory = scopedTaskHistoryAccess(host.taskHistory, call, current, controller.signal, track);
   const themes = scopedThemeAccess(host.themes, current, controller.signal, track);
   const debug = scopedDebugAccess(host.debug, controller.signal, track);
   const ui = scopedWorkspaceAccess(host.ui, controller.signal, track);

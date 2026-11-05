@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { hostUi } from '@deviceforge/plugin-sdk';
+import { DropdownMenuContent as OwnedMenuContent } from '@deviceforge/business-kit/dropdown-menu';
 const cn: ReturnType<typeof hostUi>['cn'] = (...inputs) => hostUi().cn(...inputs);
 import { CheckIcon, ChevronRightIcon, CircleIcon } from 'lucide-react';
 import { DropdownMenu as DropdownMenuPrimitive } from 'radix-ui';
@@ -22,14 +23,14 @@ function DropdownMenuTrigger({
   return <DropdownMenuPrimitive.Trigger data-slot="dropdown-menu-trigger" {...props} />;
 }
 
+/** 保留原应用行菜单外观，由公开适配登记当前实例的弹层归属。 */
 function DropdownMenuContent({
   className,
   sideOffset = 4,
   ...props
 }: React.ComponentProps<typeof DropdownMenuPrimitive.Content>) {
   return (
-    <DropdownMenuPrimitive.Portal>
-      <DropdownMenuPrimitive.Content
+      <OwnedMenuContent
         data-slot="dropdown-menu-content"
         sideOffset={sideOffset}
         className={cn(
@@ -38,7 +39,6 @@ function DropdownMenuContent({
         )}
         {...props}
       />
-    </DropdownMenuPrimitive.Portal>
   );
 }
 

@@ -74,6 +74,13 @@ export function TerminalPage({ services, instance }: { services: TerminalService
   useEffect(() => {
     if (!instance) return;
     const release = instance.subscribeVisibility(setVisible);
+    try {
+      // 订阅后校准一次，接住首次渲染与监听登记之间的父可见性变化。
+      setVisible(instance.snapshot().visible);
+    } catch (error) {
+      void Promise.resolve().then(release).catch(() => undefined);
+      throw error;
+    }
     return () => { void release(); };
   }, [instance]);
   const [profiles, setProfiles] = useState<TerminalProfile[]>([]);
@@ -160,8 +167,9 @@ export function TerminalPage({ services, instance }: { services: TerminalService
   };
 
   return (
+    <div className="@container/terminal-page h-full min-h-0 min-w-0 w-full overflow-hidden">
     <section
-      className="terminal-page @container/terminal flex h-full min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain text-[15px]"
+      className="terminal-page @container/terminal flex h-full min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain text-[15px] w-full px-6 pb-7 pt-[22px] @max-[900px]/terminal-page:px-4 @max-[900px]/terminal-page:pb-6 @max-[900px]/terminal-page:pt-4"
       data-product-page="terminal"
       aria-label="终端"
     >
@@ -432,6 +440,7 @@ export function TerminalPage({ services, instance }: { services: TerminalService
         </div>
       )}
     </section>
+    </div>
   );
 }
 

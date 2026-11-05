@@ -57,7 +57,7 @@ export function MarketplaceUploadReviewStep({
     <section className="grid gap-4 [&_dl]:m-0 [&_dl]:grid [&_dl]:grid-cols-[7rem_minmax(0,1fr)] [&_dl]:gap-x-3 [&_dl]:gap-y-2 [&_dt]:text-muted-foreground [&_dd]:m-0 [&_dd]:min-w-0 [&_dd]:[overflow-wrap:anywhere] max-[900px]:[&_dl]:grid-cols-[6rem_minmax(0,1fr)]" aria-label="发布确认">
       <div className="flex items-start justify-between gap-4 [&_h3]:m-0">
         <div>
-          <h3>确认发布内容</h3>
+          <h3 className="text-[15px] font-semibold">确认发布内容</h3>
           <p className="text-sm text-muted-foreground">市场描述已同步至待发布归档。确认后上传最终文件并核对 SHA-256。</p>
         </div>
         <span className="shrink-0 rounded-full border px-2.5 py-1 text-[13px] text-muted-foreground">{kindLabels[draft.kind]}</span>
@@ -95,7 +95,7 @@ export function MarketplaceUploadReviewStep({
       {inspection && inspection.excluded.length > 0 && <details><summary>已排除 {inspection.excluded.length} 项</summary><ul className="max-h-64 overflow-auto rounded-lg bg-muted p-3 [&_li]:flex [&_li]:min-w-0 [&_li]:justify-between [&_li]:gap-4 [&_li]:text-[13px] [&_code]:[overflow-wrap:anywhere] [&_span]:shrink-0">{inspection.excluded.map(path => <li key={path}>{path}</li>)}</ul></details>}
       <div className="grid gap-2 [&_span]:text-sm [&_span]:text-muted-foreground [&_pre]:m-0 [&_pre]:max-h-32 [&_pre]:overflow-auto [&_pre]:rounded-lg [&_pre]:border [&_pre]:bg-muted [&_pre]:p-3 [&_pre]:whitespace-pre-wrap [&_pre]:[overflow-wrap:anywhere]">
         <span>类型专属描述</span>
-        <pre>{draft.details || '{}'}</pre>
+        <pre className="my-3 min-w-0 max-w-full max-h-[360px] overflow-auto rounded-[4px] bg-muted px-4 py-[14px] font-[Consolas,monospace] text-[13px] leading-[1.65]">{draft.details || '{}'}</pre>
       </div>
     </section>
   );

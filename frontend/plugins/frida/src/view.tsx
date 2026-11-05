@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useId } from 'react';
 import { hostUi } from '@deviceforge/plugin-sdk';
 import type { HostContext } from '@deviceforge/plugin-sdk';
 import { createFridaServices } from './services.ts';
@@ -21,7 +21,8 @@ const {
   TableRow,
 } = hostUi();
 import { RefreshCw, Download, FileCode2, Play } from 'lucide-react';
-const { Field, PageTitle, EmptyState, JsonResult } = hostUi();
+const { PageTitle, EmptyState, JsonResult } = hostUi();
+import { FridaField as Field } from './field.tsx';
 import { useOperationAvailable } from '@deviceforge/business-kit/react';
 import { ActionFeedback } from '@deviceforge/business-kit/react';
 import { useAction, useSnapshot } from '@deviceforge/business-kit/react';
@@ -39,6 +40,8 @@ import type { DeviceRef } from '@deviceforge/plugin-sdk';
 import { withSelectedDevice } from '@deviceforge/business-kit/platform';
 const { BlobDownload } = hostUi();
 
+const actionClass = 'justify-self-start @min-[641px]/frida:mt-[27px] @min-[900px]/frida:mt-0';
+const metadataClass = 'my-3 grid min-w-0 grid-cols-[auto_minmax(0,1fr)] gap-x-5 gap-y-2 [&_dt]:text-muted-foreground [&_dd]:min-w-0 [&_dd]:wrap-anywhere @max-[640px]/frida-result:grid-cols-1 @max-[640px]/frida-result:gap-y-1 @max-[640px]/frida-result:[&_dd]:mb-3';
 
 type FridaView =
   | FridaDeployment
@@ -52,6 +55,7 @@ interface FridaOutput {
 }
 
 export function FridaPage({ services }: { services: FridaServices }) {
+  const id = useId(), modeId = `${id}-mode`, serverId = `${id}-server`, scriptId = `${id}-script`;
   useEffect(() => {
     void services.operations.list(services.context.signal).catch(() => undefined);
   }, [services]);
@@ -112,7 +116,8 @@ export function FridaPage({ services }: { services: FridaServices }) {
       return result.outcome;
     });
   return (
-    <section className="@container/frida flex h-full min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-contain p-4" data-product-page="frida">
+    <div className="@container/frida-page h-full min-h-0 min-w-0 w-full overflow-hidden">
+    <section className="@container/frida mx-auto flex h-full min-h-0 min-w-0 w-full max-w-[1648px] flex-1 flex-col overflow-y-auto overscroll-contain px-6 pb-7 pt-[22px] text-[15px] @max-[900px]/frida-page:px-4 @max-[900px]/frida-page:pb-6 @max-[900px]/frida-page:pt-4" data-product-page="frida">
       <PageTitle
         eyebrow="深度调试"
         title="Frida"
@@ -133,10 +138,10 @@ export function FridaPage({ services }: { services: FridaServices }) {
           description="注入与部署需要相应设备权限。"
         />
       )}
-      <div className="grid min-h-0 min-w-0 shrink-0 gap-4 @min-[900px]/frida:grid-cols-[20rem_minmax(0,1fr)]">
-      <aside className="flex min-w-0 flex-col gap-4 rounded-xl border border-border bg-card p-4" aria-label="Frida 执行配置">
-      <h2>脚本与目标</h2>
-      <div className="flex flex-wrap items-end gap-3">
+      <div className="grid min-h-0 min-w-0 shrink-0 items-start gap-x-8 gap-y-6 @min-[900px]/frida:grid-cols-[minmax(16.25rem,18.75rem)_minmax(0,1fr)]">
+      <aside className="min-w-0 border-b border-border pb-6 @min-[900px]/frida:border-r @min-[900px]/frida:border-b-0 @min-[900px]/frida:pb-0 @min-[900px]/frida:pr-7" aria-label="Frida 执行配置">
+      <h2 className="text-base font-semibold">脚本与目标</h2>
+      <div className="my-4 grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(12.5rem,100%),1fr))] items-start gap-4 @min-[900px]/frida:grid-cols-1">
         <Field label="应用包名" value={packageId} onChange={setPackageId} />
         <Field
           label="执行时长（毫秒）"
@@ -146,15 +151,15 @@ export function FridaPage({ services }: { services: FridaServices }) {
           min={1000}
           max={120000}
         />
-        <div className="flex min-w-0 flex-col gap-1.5">
-        <Label htmlFor="frida-mode">注入模式</Label>
+        <div className="flex min-w-0 flex-col gap-[7px]">
+        <Label htmlFor={modeId}>注入模式</Label>
         <Select
           value={mode}
           onValueChange={(value) => {
             if (value === 'attach' || value === 'spawn') setMode(value);
           }}
         >
-          <SelectTrigger id="frida-mode">
+          <SelectTrigger id={modeId} className="w-full">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -164,16 +169,17 @@ export function FridaPage({ services }: { services: FridaServices }) {
         </Select>
         </div>
       </div>
-      <details className="space-y-3 rounded-lg border border-border p-3"><summary>服务器部署与进程</summary><div className="flex flex-wrap items-end gap-3">
-        <div className="flex min-w-0 flex-col gap-1.5">
-          <Label htmlFor="frida-server-file">Frida 服务器文件</Label>
+      <details className="my-5 border-y border-border py-3 text-sm"><summary>服务器部署与进程</summary><div className="my-4 grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(12.5rem,100%),1fr))] items-start gap-4 @min-[900px]/frida:grid-cols-1">
+        <div className="flex min-w-0 flex-col gap-[7px]">
+          <Label htmlFor={serverId}>Frida 服务器文件</Label>
           <Input
-            id="frida-server-file"
+            id={serverId}
             type="file"
             onChange={(event) => setServer(event.target.files?.[0] ?? null)}
           />
         </div>
         <Button
+          className={actionClass}
           variant="outline"
           disabled={!ready || !deployAvailable || !server || action.pending}
           onClick={() =>
@@ -187,6 +193,7 @@ export function FridaPage({ services }: { services: FridaServices }) {
           上传并部署
         </Button>
         <Button
+          className={actionClass}
           variant="outline"
           disabled={!ready || !processesAvailable || action.pending}
           onClick={() => void run((target, signal) => services.frida.processes(target, signal))}
@@ -194,6 +201,7 @@ export function FridaPage({ services }: { services: FridaServices }) {
           读取进程
         </Button>
         <Button
+          className={actionClass}
           variant="outline"
           disabled={!ready || !runAvailable || action.pending}
           onClick={() =>
@@ -204,17 +212,18 @@ export function FridaPage({ services }: { services: FridaServices }) {
           限时运行服务器
         </Button>
       </div></details>
-      <div className="flex flex-wrap items-end gap-3">
-        <div className="flex min-w-0 flex-col gap-1.5">
-          <Label htmlFor="frida-script-file">UTF-8 脚本</Label>
+      <div className="my-4 grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(12.5rem,100%),1fr))] items-start gap-4 @min-[900px]/frida:grid-cols-1">
+        <div className="flex min-w-0 flex-col gap-[7px]">
+          <Label htmlFor={scriptId}>UTF-8 脚本</Label>
           <Input
-            id="frida-script-file"
+            id={scriptId}
             type="file"
             accept=".js,text/javascript"
             onChange={(event) => setScript(event.target.files?.[0] ?? null)}
           />
         </div>
         <Button
+          className={actionClass}
           disabled={!ready || !scriptAvailable || !script || !packageId || action.pending}
           onClick={() =>
             void run(async (target, signal) => {
@@ -237,6 +246,7 @@ export function FridaPage({ services }: { services: FridaServices }) {
           运行脚本
         </Button>
         <Button
+          className={actionClass}
           variant="outline"
           disabled={!ready || !permissionsAvailable || !packageId || action.pending}
           onClick={() =>
@@ -254,16 +264,16 @@ export function FridaPage({ services }: { services: FridaServices }) {
       </div>
       <ActionFeedback {...action} />
       </aside>
-      <div className="min-h-0 min-w-0 space-y-3 overflow-auto rounded-xl border border-border bg-card p-4">
+      <div className="@container/frida-result min-h-60 min-w-0 space-y-3 @min-[900px]/frida:min-h-[440px]" aria-label="Frida 执行输出">
       {output ? (
         <section>
-          <h2>执行结果</h2>
-          <p className="break-all text-xs text-muted-foreground">来源 {output.reference.localId} · 任务 {output.outcome.job.id}</p>
+          <h2 className="text-[17px] font-semibold">执行结果</h2>
+          <p className="mb-5 mt-2 break-all text-xs text-muted-foreground">来源 {output.reference.localId} · 任务 {output.outcome.job.id}</p>
           {JSON.stringify(output.reference) !== JSON.stringify(device.selection) && (
             <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">以下属于先前设备的历史结果，不是当前设备状态。</p>
           )}
           <FridaResultView result={output.outcome.data.result} />
-          <div className="flex flex-wrap gap-2">
+          <div className="my-5 flex flex-wrap gap-2">
             <Button
               variant="outline"
               disabled={download.pending}
@@ -315,10 +325,11 @@ export function FridaPage({ services }: { services: FridaServices }) {
           )}
           <JsonResult value={output.outcome} />
         </section>
-      ) : <EmptyState title="尚无执行结果" description="选择脚本并运行，输出会显示在这里。" />}
+      ) : <div className="mb-2 pb-6 text-left"><h3 className="mb-2 text-[15px] font-semibold">尚无执行结果</h3><p className="max-w-[490px] text-sm text-muted-foreground">选择脚本并运行，输出会显示在这里。</p></div>}
       </div>
       </div>
     </section>
+    </div>
   );
 }
 
@@ -333,7 +344,7 @@ export function mountFrida(target: HTMLElement, context: HostContext) {
 function FridaResultView({ result }: { result: FridaView }) {
   if ('installed' in result)
     return (
-      <dl className="grid grid-cols-[minmax(6rem,auto)_minmax(0,1fr)] gap-x-4 gap-y-2 text-xs [&_dt]:text-muted-foreground [&_dd]:min-w-0 [&_dd]:break-words">
+      <dl className={metadataClass}>
         <dt>服务器文件</dt>
         <dd>{result.installed ? '已部署' : '未部署'}</dd>
         <dt>当前观测</dt>
@@ -347,7 +358,7 @@ function FridaResultView({ result }: { result: FridaView }) {
   if ('processes' in result)
     return (
       <>
-        <h2>设备进程 · {result.processes.length}</h2>
+        <h2 className="text-[17px] font-semibold">设备进程 · {result.processes.length}</h2>
         <Table>
           <TableHeader>
             <TableRow>
@@ -372,14 +383,14 @@ function FridaResultView({ result }: { result: FridaView }) {
   if ('deployed' in result)
     return (
       <>
-        <h2>服务器部署完成</h2>
+        <h2 className="text-[17px] font-semibold">服务器部署完成</h2>
         <p className="text-xs text-muted-foreground">部署要求 Root；版本回执：</p>
-        <pre>{result.version_output}</pre>
+        <pre className="my-3 min-w-0 max-w-full max-h-[360px] overflow-auto rounded-[4px] bg-muted px-4 py-[14px] font-[Consolas,monospace] text-[13px] leading-[1.65]">{result.version_output}</pre>
       </>
     );
   if ('process_start_ticks' in result)
     return (
-      <dl className="grid grid-cols-[minmax(6rem,auto)_minmax(0,1fr)] gap-x-4 gap-y-2 text-xs [&_dt]:text-muted-foreground [&_dd]:min-w-0 [&_dd]:break-words">
+      <dl className={metadataClass}>
         <dt>本次服务器进程</dt>
         <dd>
           PID {result.pid} · 创建标识 {result.process_start_ticks}
@@ -392,7 +403,7 @@ function FridaResultView({ result }: { result: FridaView }) {
     );
   return (
     <>
-      <dl className="grid grid-cols-[minmax(6rem,auto)_minmax(0,1fr)] gap-x-4 gap-y-2 text-xs [&_dt]:text-muted-foreground [&_dd]:min-w-0 [&_dd]:break-words">
+      <dl className={metadataClass}>
         <dt>脚本目标</dt>
         <dd>
           {result.package} · {result.mode === 'attach' ? '附加进程' : '启动进程'}
@@ -407,7 +418,7 @@ function FridaResultView({ result }: { result: FridaView }) {
       {result.hook_summary.length > 0 && (
         <details open>
           <summary>钩子执行摘要</summary>
-          <pre>{JSON.stringify(result.hook_summary, null, 2)}</pre>
+          <pre className="my-3 min-w-0 max-w-full max-h-[360px] overflow-auto rounded-[4px] bg-muted px-4 py-[14px] font-[Consolas,monospace] text-[13px] leading-[1.65]">{JSON.stringify(result.hook_summary, null, 2)}</pre>
         </details>
       )}
     </>

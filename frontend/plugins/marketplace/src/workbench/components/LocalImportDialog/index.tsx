@@ -334,7 +334,7 @@ export function LocalImportDialog({
         )}
         {preview && (
           <div className="space-y-2 rounded-lg border p-4 [overflow-wrap:anywhere]" role="status">
-            <h3>目标：{preview.target}</h3>
+            <h3 className="text-[15px] font-semibold">目标：{preview.target}</h3>
             <p>{preview.summary}</p>
             <p>
               文件：{preview.file.name} · {preview.file.size.toLocaleString('zh-CN')} 字节

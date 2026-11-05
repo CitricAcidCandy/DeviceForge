@@ -1,0 +1,7 @@
+{
+  "extends": "../tsconfig.json",
+  "include": [
+    "./terminal-menu-ownership.test.ts",
+    "../plugins/terminal/src/view/DropdownMenu.tsx"
+  ]
+}

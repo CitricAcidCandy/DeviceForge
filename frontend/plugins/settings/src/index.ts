@@ -1,4 +1,4 @@
-import type { HostContext, WebPlugin, WorkspaceLayoutNode } from '@deviceforge/plugin-sdk';
+import type { HostContext, WebPlugin, WorkspaceLayoutNode, WorkspaceViewContext } from '@deviceforge/plugin-sdk';
 
 export interface SettingsPluginIdentity { readonly id: string; readonly version: string; readonly apiVersion?: 2 }
 function includes(node: WorkspaceLayoutNode | null, id: string): boolean {
@@ -11,10 +11,10 @@ function includes(node: WorkspaceLayoutNode | null, id: string): boolean {
 export function createSettingsPlugin(identity: SettingsPluginIdentity): WebPlugin {
   const workspaceId = `${identity.id}.workspace`, viewId = `${identity.id}.editor`;
   const instanceId = `${identity.id}.editor.main`, sectionsId = `${identity.id}.sections`;
-  async function mount(target: HTMLElement, context: HostContext) {
+  async function mount(target: HTMLElement, context: HostContext, instance: WorkspaceViewContext) {
     const view = await import('./view.tsx');
     context.signal.throwIfAborted();
-    return view.mountSettings(target, context, sectionsId, workspaceId);
+    return view.mountSettings(target, context, sectionsId, workspaceId, instance);
   }
   return {
     id: identity.id, version: identity.version, apiVersion: 2, panels: [],

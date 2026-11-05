@@ -23,6 +23,7 @@ impl DebuggerService {
                     touched: now,
                     pending: VecDeque::new(),
                     poll_slots: std::sync::Arc::new(tokio::sync::Semaphore::new(4)),
+                    transport: None,
                 },
             );
             state.emit(
@@ -58,51 +59,15 @@ impl DebuggerService {
                 .instances
                 .get_mut(&input.instance_id)
                 .ok_or_else(|| error(ErrorCode::NotFound, "浏览器实例不存在或已到期"))?;
+            if instance.transport.is_some() {
+                return Err(error(
+                    ErrorCode::WrongInstance,
+                    "实时实例只能由当前实时传输更新",
+                ));
+            }
             instance.touched = now;
             if let Some(plugins) = input.plugins {
-                instance.plugins = plugins;
-                let obsolete: Vec<_> = state
-                    .sessions
-                    .iter()
-                    .filter(|(_, entry)| {
-                        entry.value.state == SessionState::Active
-                            && entry.value.target.instance_id.as_deref()
-                                == Some(input.instance_id.as_str())
-                            && state.resolve_target(&entry.value.target).is_err()
-                    })
-                    .map(|(id, _)| id.clone())
-                    .collect();
-                for session in obsolete {
-                    let reloading = state.commands.values().any(|command| {
-                        command.result.session_id == session
-                            && command.tool == DebugTool::Reload
-                            && command.result.state == CommandState::Delivered
-                    });
-                    if reloading {
-                        // 重载的卸载与加载间隙可先到心跳；只保留这次重载的回执通道。
-                        let obsolete: Vec<_> = state
-                            .commands
-                            .iter()
-                            .filter(|(_, command)| {
-                                command.result.session_id == session
-                                    && !(command.tool == DebugTool::Reload
-                                        && command.result.state == CommandState::Delivered)
-                                    && !command.result.state.terminal()
-                            })
-                            .map(|(id, _)| id.clone())
-                            .collect();
-                        for command in obsolete {
-                            state.finish_command(
-                                &command,
-                                CommandState::CancelledUnconfirmed,
-                                None,
-                                config,
-                            );
-                        }
-                    } else {
-                        state.end_session(&session, SessionState::TargetChanged, config);
-                    }
-                }
+                update_plugins(state, &input.instance_id, plugins, config)?;
             }
             state.status(&input.instance_id)
         })
@@ -316,10 +281,74 @@ impl DebuggerService {
             if !state.instances.contains_key(instance_id) {
                 return Err(error(ErrorCode::NotFound, "浏览器实例不存在或已到期"));
             }
+            if state
+                .instances
+                .get(instance_id)
+                .is_some_and(|entry| entry.transport.is_some())
+            {
+                return Err(error(
+                    ErrorCode::WrongInstance,
+                    "实时实例只能由当前连接显式关闭",
+                ));
+            }
             state.remove_instance(instance_id, config);
             Ok(())
         })
     }
+}
+
+pub(super) fn update_plugins(
+    state: &mut super::state::State,
+    instance_id: &str,
+    plugins: Vec<BridgePlugin>,
+    config: &DebuggerConfig,
+) -> Result<()> {
+    let instance = state
+        .instances
+        .get_mut(instance_id)
+        .ok_or_else(|| error(ErrorCode::NotFound, "浏览器实例不存在或已到期"))?;
+    if instance.plugins == plugins {
+        return Ok(());
+    }
+    instance.plugins = plugins;
+    state.revision = state.revision.wrapping_add(1);
+    let obsolete: Vec<_> = state
+        .sessions
+        .iter()
+        .filter(|(_, entry)| {
+            entry.value.state == SessionState::Active
+                && entry.value.target.instance_id.as_deref() == Some(instance_id)
+                && state.resolve_target(&entry.value.target).is_err()
+        })
+        .map(|(id, _)| id.clone())
+        .collect();
+    for session in obsolete {
+        let reloading = state.commands.values().any(|command| {
+            command.result.session_id == session
+                && command.tool == DebugTool::Reload
+                && command.result.state == CommandState::Delivered
+        });
+        if reloading {
+            // 目录换代期间只保留已交付重载的回执通道。
+            let commands: Vec<_> = state
+                .commands
+                .iter()
+                .filter(|(_, command)| {
+                    command.result.session_id == session
+                        && !(command.tool == DebugTool::Reload
+                            && command.result.state == CommandState::Delivered)
+                        && !command.result.state.terminal()
+                })
+                .map(|(id, _)| id.clone())
+                .collect();
+            for command in commands {
+                state.finish_command(&command, CommandState::CancelledUnconfirmed, None, config);
+            }
+        } else {
+            state.end_session(&session, SessionState::TargetChanged, config);
+        }
+    }
+    Ok(())
 }
 
 fn selectable(

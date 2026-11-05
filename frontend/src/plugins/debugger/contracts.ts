@@ -93,7 +93,10 @@ export interface TreeQueryResult {
 export type TreeAssertion =
   | { readonly query: TreeQuery; readonly condition: 'exists' | 'absent' }
   | { readonly query: TreeQuery; readonly condition: 'count'; readonly expected: number }
+  | { readonly query: TreeQuery; readonly condition: 'value_equals'; readonly expected: string }
+  | { readonly query: TreeQuery; readonly condition: 'selected_equals'; readonly expected: readonly string[] }
   | { readonly query: TreeQuery; readonly condition: 'enabled' | 'visible' | 'valid' | 'in_viewport' | 'within_root' | 'unclipped' | 'nonzero_size' };
+export type ControlAssertion = Extract<TreeAssertion, { readonly condition: 'value_equals' | 'selected_equals' }>;
 export interface TreeAssertionResult {
   readonly status: 'passed' | 'failed' | 'indeterminate';
   readonly reason: string;
@@ -118,4 +121,10 @@ export interface DebugActionResult {
   readonly reason: string;
   readonly target: UiNodeRef | null;
   readonly businessOutcome: 'unknown';
+  readonly verification?: DebugActionVerification;
+}
+export interface DebugActionVerification {
+  readonly status: 'passed' | 'failed' | 'unavailable' | 'timed_out';
+  readonly scope: 'control' | 'ui' | 'business';
+  readonly reason: string;
 }

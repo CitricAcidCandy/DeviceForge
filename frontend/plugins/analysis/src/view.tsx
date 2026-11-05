@@ -57,7 +57,7 @@ function DexSection({ services, artifactId }: { services: AnalysisServices; arti
   }, [artifactId, action.cancel]);
   return (
     <div className="mt-4 min-w-0 space-y-4">
-      <h2>DEX 直接分析</h2>
+      <h2 className="hidden">DEX 直接分析</h2>
       <details className="mb-4 text-xs text-muted-foreground"><summary>分析范围</summary><p className="text-xs text-muted-foreground">统计定义类与文件完整性，SDK 命中只表示静态定义类证据。</p></details>
       <OperationNotice services={services} operation="plugin.dex-analysis.inspect" />
       <Button
@@ -107,7 +107,7 @@ function DexSection({ services, artifactId }: { services: AnalysisServices; arti
       <ActionFeedback {...action} />
       {result && (
         <>
-          <dl className="grid grid-cols-[minmax(6rem,auto)_minmax(0,1fr)] gap-x-4 gap-y-2 text-xs [&_dt]:text-muted-foreground [&_dd]:min-w-0 [&_dd]:break-words">
+          <dl className="my-3 grid min-w-0 grid-cols-[auto_minmax(0,1fr)] gap-x-5 gap-y-2 [&_dt]:text-muted-foreground [&_dd]:min-w-0 [&_dd]:wrap-anywhere @max-[640px]/analysis-tool:grid-cols-1 @max-[640px]/analysis-tool:gap-y-1 @max-[640px]/analysis-tool:[&_dd]:mb-3">
             <div>
               <dt>DEX 版本</dt>
               <dd>{result.version}</dd>
@@ -126,7 +126,7 @@ function DexSection({ services, artifactId }: { services: AnalysisServices; arti
           {'findings' in result &&
             result.findings.map((finding) => (
               <div className="space-y-2 rounded-lg border border-border p-3" key={finding.rule.name}>
-                <h3>{finding.rule.name}</h3>
+                <h3 className="text-[15px] font-semibold">{finding.rule.name}</h3>
                 <p>
                   包证据：{finding.package_found ? '命中' : '未命中'} · 类证据：
                   {finding.class_found === null
@@ -203,7 +203,7 @@ function MsgpackSection({
   };
   return (
     <div className="mt-4 min-w-0 space-y-4">
-      <h2>MessagePack</h2>
+      <h2 className="hidden">MessagePack</h2>
       <details className="mb-4 text-xs text-muted-foreground"><summary>格式与精度</summary><p className="text-xs text-muted-foreground">
         标准格式转换与服务器分页；宽整数查询会按现有精度规则拒绝，旧私有 DLL 格式没有兼容保证。
       </p></details>
@@ -269,7 +269,7 @@ function MsgpackSection({
           <ActionFeedback {...download} />
         </div>
       )}
-      <h3>分页与筛选</h3>
+      <h3 className="text-[15px] font-semibold">分页与筛选</h3>
       <div className="grid grid-cols-1 items-start gap-4 @md/analysis-tool:grid-cols-2">
         <Field label="记录偏移" type="number" min={0} value={offset} onChange={setOffset} />
         <Field label="记录页长" type="number" min={1} max={100} value={limit} onChange={setLimit} />
@@ -388,13 +388,14 @@ export function AnalysisPage({ services }: { services: AnalysisServices }) {
   const [tool, setTool] = useState('dex');
   const upload = useAction();
   return (
-    <section className="@container/analysis flex h-full min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-contain p-4" data-product-page="analysis">
+    <div className="@container/analysis-page h-full min-h-0 min-w-0 w-full overflow-hidden">
+    <section className="@container/analysis mx-auto flex h-full min-h-0 min-w-0 w-full max-w-[1648px] flex-1 flex-col gap-4 overflow-y-auto overscroll-contain px-6 pb-7 pt-[22px] text-[15px] @max-[900px]/analysis-page:px-4 @max-[900px]/analysis-page:pb-6 @max-[900px]/analysis-page:pt-4" data-product-page="analysis">
       <PageTitle
         eyebrow="离线文件工具"
         title="分析与数据"
         description="DEX 与 MessagePack 使用服务器产物，本页面不使用所选设备。"
       />
-      <div className="grid min-h-0 min-w-0 shrink-0 items-start gap-6 @min-[800px]/analysis:grid-cols-[17.5rem_minmax(0,1fr)]">
+      <div className="grid min-h-0 min-w-0 shrink-0 items-start gap-x-8 gap-y-6 @min-[800px]/analysis:grid-cols-[17.5rem_minmax(0,1fr)]">
       <aside className="grid min-w-0 gap-3 border-b border-border pb-6 @min-[800px]/analysis:border-r @min-[800px]/analysis:border-b-0 @min-[800px]/analysis:pr-7" aria-label="分析文件来源">
         <Label htmlFor={uploadId}>上传待分析文件</Label>
         <Input
@@ -437,6 +438,7 @@ export function AnalysisPage({ services }: { services: AnalysisServices }) {
       </div>
       </div>
     </section>
+    </div>
   );
 }
 

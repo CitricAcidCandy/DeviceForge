@@ -1,8 +1,10 @@
 import { createUiCollector, createDebugActions, pickDocumentOnce } from '../../plugins/debugger/index.ts';
-import type { DebugSurface } from '../../plugins/debugger/index.ts';
+import type { DebugSurface, UiCollector } from '../../plugins/debugger/index.ts';
+import type { JsonValue } from '../../plugin-sdk/index.ts';
 import { pageSlotId } from '../../plugin-sdk/index.ts';
 import type { AttachedDebug, LocalDebuggerOptions, ResolvedTarget } from './types.ts';
-import { action, assertion, query } from './ui-parameters.ts';
+import { action, assertion, expectation, query } from './ui-parameters.ts';
+import { verifyAction } from './verification.ts';
 import { fail, integer, json, keys, object, text } from './validation.ts';
 import { publicOverview } from './overview.ts';
 import { navigate } from './navigation.ts';
@@ -17,7 +19,8 @@ export function clearCollectors(entry: AttachedDebug): void {
   entry.collectors.clear();
 }
 
-export function createLocalUi(options: LocalDebuggerOptions, entries: () => Iterable<AttachedDebug>) {
+export function createLocalUi(options: LocalDebuggerOptions, entries: () => Iterable<AttachedDebug>,
+  readData?: (entry: AttachedDebug | undefined, input: Record<string, unknown>, signal: AbortSignal) => Promise<JsonValue>) {
   const ids = new WeakMap<Element, string>();
   let sequence = 0;
   let picking = false;
@@ -137,18 +140,29 @@ export function createLocalUi(options: LocalDebuggerOptions, entries: () => Iter
   async function execute(tool: string, target: ResolvedTarget, entry: AttachedDebug | undefined, input: Record<string, unknown>, signal: AbortSignal) {
     if (tool === 'ui_tree' && input.view === 'overview') return json(publicOverview(options, target, slots(target), mountCatalog(target), input));
     const allowed = tool === 'ui_query' ? ['root_id', 'query'] : tool === 'ui_assert' ? ['root_id', 'assertion']
-      : tool === 'ui_diff' ? ['root_id', 'before_id', 'after_id'] : tool === 'ui_action' ? ['root_id', 'action'] : ['root_id', 'snapshot_id', 'offset', 'limit'];
+      : tool === 'ui_diff' ? ['root_id', 'before_id', 'after_id'] : tool === 'ui_action' ? ['root_id', 'action', 'expect'] : ['root_id', 'snapshot_id', 'offset', 'limit'];
     keys(input, allowed);
     const request = tool === 'ui_action' ? object(input.action) : null;
+    const expected = tool === 'ui_action' && input.expect !== undefined ? expectation(input.expect) : undefined;
+    const withVerification = async <T extends { readonly status: string }>(result: T, collector?: UiCollector) => {
+      if (!expected || !['applied', 'dispatched', 'passed'].includes(result.status)) return result;
+      const verification = await verifyAction(expected, {
+        ...(collector ? { assert: (value) => collector.assert(value) } : {}),
+        ...(readData ? { readData: (sourceId, query, current) => readData(entry,
+          { source_id: sourceId, ...(query === undefined ? {} : { query }) }, current) } : {}),
+      }, AbortSignal.any([signal, options.signal, ...(entry ? [entry.session.signal, entry.lifetime.signal] : [])]));
+      return { ...result, verification };
+    };
     if (request?.type === 'navigate') {
       if (input.root_id !== undefined) return fail('invalid_parameters', '导航不接受挂载根');
       const parsed = action(request);
-      if (parsed.type === 'navigate') return json(await navigate(options, parsed.path, parsed.confirmed === true, signal));
+      if (parsed.type === 'navigate') return json(await withVerification(await navigate(options, parsed.path, parsed.confirmed === true, signal)));
     }
     if (!entry) return fail('capability_unavailable', '所选代次未绑定调试登记表，无法创建本代UI观测器');
     const rootId = input.root_id === undefined ? undefined : text(input.root_id, '挂载根标识');
     const found = prune(target, entry);
     if (request?.type === 'pick') {
+      if (expected) return fail('invalid_parameters', '拾取不接受expect检查，不派发业务动作');
       keys(request, ['type']);
       if (rootId && !found.some((root) => root.id === rootId)) return fail('root_unavailable', '指定挂载根不存在');
       if (picking) return fail('pick_in_progress', '已有一次拾取正在等待');
@@ -205,7 +219,7 @@ export function createLocalUi(options: LocalDebuggerOptions, entries: () => Iter
         if (!diff) return fail('snapshot_unavailable', '快照不在同一挂载根观测器的最近缓存中');
         return json(diff);
       }
-      case 'ui_action': return json(await actions.execute(action(input.action), signal));
+      case 'ui_action': return json(await withVerification(await actions.execute(action(input.action), signal), collector));
       default: return fail('capability_unavailable', '未知UI工具');
     }
   }

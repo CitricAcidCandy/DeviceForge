@@ -147,9 +147,10 @@ export function MarketplacePage({
   ].filter((value) => value !== undefined).length;
 
   return (
+    <div className="@container/marketplace-page h-full min-h-0 min-w-0 w-full overflow-hidden">
     <section
       hidden={!active}
-      className={`${active ? 'flex' : 'hidden'} @container/marketplace h-full min-h-0 min-w-0 w-full flex-1 flex-col gap-3.5 overflow-y-auto overscroll-contain p-6`}
+      className={`${active ? 'flex' : 'hidden'} @container/marketplace h-full min-h-0 min-w-0 w-full flex-1 flex-col gap-3.5 overflow-y-auto overscroll-contain text-[15px] px-6 pb-7 pt-[22px] @max-[900px]/marketplace-page:px-4 @max-[900px]/marketplace-page:pb-6 @max-[900px]/marketplace-page:pt-4`}
       data-product-page="marketplace"
     >
       <header className="flex min-w-0 shrink-0 flex-wrap items-center gap-3">
@@ -506,5 +507,6 @@ export function MarketplacePage({
         }
       />
     </section>
+    </div>
   );
 }

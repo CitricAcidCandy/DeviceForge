@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import type { HostContext } from '@deviceforge/plugin-sdk';
 import {
   SETTINGS_CONNECTION_SERVICE, SETTINGS_MCP_SERVICE, MARKETPLACE_PREFERENCES_SERVICE,
@@ -10,6 +10,7 @@ import { SettingsFailure, settingsButtonClass, settingsInputClass } from './prim
 import { usePlatformFeature } from './platform-feature.ts';
 
 export function ConnectionSettings({ context }: { context: HostContext }) {
+  const formId = useId();
   const [state, setState] = useState<ConnectionState | null>(null);
   const [readError, setReadError] = useState<unknown>(null);
   const [baseUrl, setBaseUrl] = useState(''), [token, setToken] = useState(''), [showToken, setShowToken] = useState(false);
@@ -44,14 +45,14 @@ export function ConnectionSettings({ context }: { context: HostContext }) {
       });
     }}>
       <div className="grid gap-x-6 gap-y-3 @lg/settings-content:grid-cols-[104px_minmax(0,520px)] @lg/settings-content:gap-y-6">
-        <Label htmlFor="settings-server-url" className="min-h-9 text-sm font-normal text-body">服务地址</Label>
-        <Input id="settings-server-url" className={`${settingsInputClass} font-mono`} value={baseUrl}
+        <Label htmlFor={`${formId}-server-url`} className="min-h-9 text-sm font-normal text-body">服务地址</Label>
+        <Input id={`${formId}-server-url`} className={`${settingsInputClass} font-mono`} value={baseUrl}
           disabled={!state?.canReconnect} onChange={(event) => setBaseUrl(event.target.value)}
           placeholder="http://127.0.0.1:7031" autoComplete="url" spellCheck={false} />
-        <Label htmlFor="settings-server-token" className="min-h-9 text-sm font-normal text-body">可选令牌</Label>
+        <Label htmlFor={`${formId}-server-token`} className="min-h-9 text-sm font-normal text-body">可选令牌</Label>
         <div className="min-w-0">
           <div className="relative">
-            <Input id="settings-server-token" className={`${settingsInputClass} pr-16`} value={token}
+            <Input id={`${formId}-server-token`} className={`${settingsInputClass} pr-16`} value={token}
               disabled={!state?.canReconnect} onChange={(event) => setToken(event.target.value)}
               type={showToken ? 'text' : 'password'} placeholder="留空即免鉴权" autoComplete="off" />
             <Button type="button" variant="ghost" className="absolute right-1 top-1 h-7 px-2 text-xs"
@@ -78,6 +79,7 @@ export function ConnectionSettings({ context }: { context: HostContext }) {
   </>;
 }
 function MarketplaceSettings({ context }: { context: HostContext }) {
+  const formId = useId();
   const [draft, setDraft] = useState(''), [ready, setReady] = useState(false);
   const [readError, setReadError] = useState<unknown>(null);
   const action = useAction();
@@ -106,8 +108,8 @@ function MarketplaceSettings({ context }: { context: HostContext }) {
     <form className="mt-4 flex flex-wrap items-center gap-3" onSubmit={(event) => {
       event.preventDefault(); if (ready) void action.run((signal) => change('set', signal));
     }}>
-      <Label htmlFor="settings-marketplace-url">市场地址</Label>
-      <Input id="settings-marketplace-url" className={`${settingsInputClass} max-w-[360px] font-mono`} value={draft}
+      <Label htmlFor={`${formId}-marketplace-url`}>市场地址</Label>
+      <Input id={`${formId}-marketplace-url`} className={`${settingsInputClass} max-w-[360px] font-mono`} value={draft}
         disabled={!ready || action.pending} onChange={(event) => setDraft(event.target.value)} placeholder="http://127.0.0.1:7040" />
       <Button type="submit" variant="outline" disabled={!ready || action.pending}>保存地址</Button>
       <Button type="button" variant="ghost" disabled={!ready || action.pending} onClick={() => { void action.run((signal) => change('reset', signal)); }}>恢复默认</Button>

@@ -57,6 +57,15 @@ impl Drop for Tracked {
 pub(crate) fn track(response: Response, span: tracing::Span, started: Instant) -> Response {
     let (mut parts, body) = response.into_parts();
     let permit = parts.extensions.remove::<RequestPermit>();
+    if parts.status.is_informational()
+        || parts.status == axum::http::StatusCode::NO_CONTENT
+        || parts.status == axum::http::StatusCode::NOT_MODIFIED
+    {
+        // 升级与无正文响应不要求 HTTP 层再次拉取 EOF，建立后即完成。
+        drop(permit);
+        tracing::info!(parent: &span, response_bytes = 0, elapsed_us = started.elapsed().as_micros() as u64, "响应流已结束");
+        return Response::from_parts(parts, body);
+    }
     Response::from_parts(
         parts,
         Body::from_stream(Tracked {
@@ -74,6 +83,30 @@ pub(crate) fn track(response: Response, span: tracing::Span, started: Instant) -
 mod tests {
     use super::*;
     use tokio::sync::Semaphore;
+
+    #[tokio::test]
+    async fn upgrade_and_empty_responses_release_slot_without_polling_body() {
+        let slots = Arc::new(Semaphore::new(1));
+        for status in [
+            axum::http::StatusCode::SWITCHING_PROTOCOLS,
+            axum::http::StatusCode::NO_CONTENT,
+            axum::http::StatusCode::NOT_MODIFIED,
+        ] {
+            let mut response = Response::new(Body::empty());
+            *response.status_mut() = status;
+            response.extensions_mut().insert(RequestPermit {
+                _permit: Arc::new(slots.clone().acquire_owned().await.unwrap()),
+            });
+            let response = track(response, tracing::Span::none(), Instant::now());
+            // 客户端不会为这些响应拉取正文；HTTP 许可必须在连接仍存在时归还。
+            assert_eq!(
+                slots.available_permits(),
+                1,
+                "状态 {status} 不应保留普通请求许可"
+            );
+            drop(response);
+        }
+    }
 
     async fn guarded(body: Body, slots: &Arc<Semaphore>) -> Body {
         let mut response = Response::new(body);

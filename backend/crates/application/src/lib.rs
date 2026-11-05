@@ -16,6 +16,7 @@ pub mod devices;
 mod execution;
 pub mod installation_operations;
 pub mod interactive;
+mod job_notifications;
 mod job_progress;
 pub mod operation_aliases;
 mod operation_budget;
@@ -43,6 +44,7 @@ struct Active {
 }
 pub struct Application {
     store: Arc<dyn JobStore>,
+    job_changes: Arc<job_notifications::NotifyingJobStore>,
     registry: registry::Registry,
     active: Arc<Mutex<Active>>,
     storage_workers: Arc<Semaphore>,
@@ -77,9 +79,11 @@ impl Application {
             return Err(Error::Invalid("并发数必须大于零且不超过任务容量".into()));
         }
         let registry = registry::Registry::new_with_bindings(executors, bindings)?;
-        store.recover()?;
+        let job_changes = Arc::new(job_notifications::NotifyingJobStore::new(store));
+        job_changes.recover()?;
         Ok(Arc::new(Self {
-            store,
+            store: job_changes.clone(),
+            job_changes,
             registry,
             active: Arc::new(Mutex::new(Active {
                 accepting: true,
@@ -107,6 +111,31 @@ impl Application {
     }
     pub fn subscribe_contributions(&self) -> tokio::sync::watch::Receiver<u64> {
         self.registry.subscribe()
+    }
+    /// 先订阅再读取任务快照；期间发生的持久化会保留为未读修订。
+    pub fn subscribe_job_changes(&self) -> tokio::sync::watch::Receiver<u64> {
+        self.job_changes.subscribe()
+    }
+    /// 实时订阅等宿主资源随应用停止退出，不另建服务生命周期。
+    pub fn subscribe_shutdown(&self) -> CancellationToken {
+        self.recovery_cancel.clone()
+    }
+    /// 宿主常驻资源随应用退出收尾，并纳入原任务跟踪器的有界排空。
+    pub fn track_shutdown_task(
+        &self,
+        cleanup: impl std::future::Future<Output = ()> + Send + 'static,
+    ) {
+        let shutdown = self.recovery_cancel.child_token();
+        self.tracker.spawn(async move {
+            shutdown.cancelled().await;
+            // 包含物理关闭与所属任务排空；超时只记录未确认，不阻塞应用无限退出。
+            if tokio::time::timeout(std::time::Duration::from_secs(12), cleanup)
+                .await
+                .is_err()
+            {
+                tracing::warn!(code = "host_shutdown_unconfirmed", "宿主常驻资源退出未确认");
+            }
+        });
     }
     pub fn operation(&self, id: &str) -> Option<Operation> {
         self.registry
@@ -250,3 +279,6 @@ pub mod performance;
 pub mod bundles;
 
 pub mod splits;
+
+#[cfg(test)]
+mod job_notifications_tests;

@@ -1,6 +1,6 @@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from './dialogs.tsx';
 import { Button, Input, Label, Textarea, Switch, Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '../view-support.tsx';
-import { useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { CloudDownload, CloudUpload, Trash2, Upload } from 'lucide-react';
 
 
@@ -18,16 +18,21 @@ import type { SettingsServices } from '../services.ts';
 import { settingsButtonClass, settingsCodeClass, settingsInputClass, SettingsFailure, SettingsGroup } from './primitives.tsx';
 import { UnknownSettingsTask } from './unknown-task.tsx';
 
-export function SettingsTransfers({ services, owner, section, configuration, onUpdated }: {
+export function SettingsTransfers({ services, owner, section, configuration, onUpdated, visible = true }: {
   services: SettingsServices;
   owner: SettingsOwner;
   section: string;
   configuration: SettingsResult | null;
   onUpdated(value: SettingsResult | null): void;
+  visible?: boolean;
 }) {
+  const formId = useId();
   const [sections, setSections] = useState('{}');
   const [legacyFiles, setLegacyFiles] = useState<readonly File[]>([]);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const visibleRef = useRef(visible);
+  visibleRef.current = visible;
+  useEffect(() => { if (!visible) setDeleteOpen(false); }, [visible]);
   const [remoteSection, setRemoteSection] = useState('deviceInfo');
   const [remoteDraft, setRemoteDraft] = useState('{}');
   const [backup, setBackup] = useState(true);
@@ -40,13 +45,14 @@ export function SettingsTransfers({ services, owner, section, configuration, onU
   return (
     <div className="space-y-7">
       <div className="flex flex-col gap-3 [&>button]:self-start">
-        <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <Dialog open={visible && deleteOpen} onOpenChange={(open) => setDeleteOpen(open && visibleRef.current)}>
           <DialogTrigger asChild>
             <Button variant="outline" className={settingsButtonClass} disabled={!configuration || !canDelete || action.pending}>
               <Trash2 aria-hidden="true" />删除此配置区
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto"
+            onCloseAutoFocus={(event) => { if (!visibleRef.current) event.preventDefault(); }}>
             <DialogHeader>
               <DialogTitle>删除配置区 {section}</DialogTitle>
               <DialogDescription>
@@ -56,7 +62,7 @@ export function SettingsTransfers({ services, owner, section, configuration, onU
             <DialogFooter>
               <Button variant="outline" onClick={() => setDeleteOpen(false)}>保留配置</Button>
               <Button variant="destructive" disabled={!configuration || action.pending} onClick={() => {
-                if (!configuration) return;
+                if (!configuration || !visibleRef.current) return;
                 void action.run(async (signal) => {
                   const result = await services.settings.delete({ ...owner, section, expected_revision: configuration.revision }, signal);
                   if (!signal.aborted) {
@@ -75,8 +81,8 @@ export function SettingsTransfers({ services, owner, section, configuration, onU
       <SettingsGroup title="导入配置">
         <p className="text-[12px] leading-6 text-muted-foreground">以配置区名为键的 JSON 对象；整批校验成功后提交一次，冲突时不会覆盖。</p>
         <div className="space-y-2">
-          <Label htmlFor="settings-import" className="text-[13px] font-normal text-body">配置区集合 · JSON</Label>
-          <Textarea id="settings-import" className={settingsCodeClass} value={sections} onChange={(event) => setSections(event.target.value)} rows={6} />
+          <Label htmlFor={`${formId}-import`} className="text-[13px] font-normal text-body">配置区集合 · JSON</Label>
+          <Textarea id={`${formId}-import`} className={settingsCodeClass} value={sections} onChange={(event) => setSections(event.target.value)} rows={6} />
         </div>
         <Button variant="outline" className={settingsButtonClass} disabled={!configuration || !canImport || action.pending} onClick={() => {
           if (!configuration) return;
@@ -89,8 +95,8 @@ export function SettingsTransfers({ services, owner, section, configuration, onU
           }, { success: '配置区已导入' });
         }}><Upload aria-hidden="true" />导入配置区</Button>
         <div className="flex flex-col gap-2">
-          <Label htmlFor="settings-legacy" className="text-[13px] font-normal text-body">旧工程备份 · 可选择多个 JSON 文件</Label>
-          <Input id="settings-legacy" className={settingsInputClass} type="file" accept=".json" multiple onChange={(event) => setLegacyFiles(Array.from(event.target.files ?? []))} />
+          <Label htmlFor={`${formId}-legacy`} className="text-[13px] font-normal text-body">旧工程备份 · 可选择多个 JSON 文件</Label>
+          <Input id={`${formId}-legacy`} className={settingsInputClass} type="file" accept=".json" multiple onChange={(event) => setLegacyFiles(Array.from(event.target.files ?? []))} />
           <p className="break-words text-[12px] leading-6 text-muted-foreground">
             支持 deviceInfo、packageInfo、iframePageUrl、permissions、luaCommand、dynamicSnalysisHooks 和 packageSdk 的原文件名。
           </p>
@@ -110,13 +116,13 @@ export function SettingsTransfers({ services, owner, section, configuration, onU
         <p className="text-[12px] leading-6 text-muted-foreground">远端服务由服务器部署配置提供。读取可能返回本地备份；保存成功与本地备份成功分别展示。</p>
         <div className="flex flex-wrap items-end gap-3">
           <div className="min-w-0 flex-1 space-y-2 @lg/settings-content:max-w-[360px]">
-            <Label htmlFor="remote-section" className="text-[13px] font-normal text-body">兼容配置区</Label>
+            <Label htmlFor={`${formId}-remote-section`} className="text-[13px] font-normal text-body">兼容配置区</Label>
             <Select value={remoteSection} onValueChange={(value) => {
               action.cancel();
               setRemoteSection(value);
               setRemoteResult(null);
             }}>
-              <SelectTrigger id="remote-section" className={`${settingsInputClass} w-full`}><SelectValue /></SelectTrigger>
+              <SelectTrigger id={`${formId}-remote-section`} className={`${settingsInputClass} w-full`}><SelectValue /></SelectTrigger>
               <SelectContent>{remoteSettingSections.map((entry) => <SelectItem key={entry} value={entry}>{entry}</SelectItem>)}</SelectContent>
             </Select>
           </div>
@@ -134,12 +140,12 @@ export function SettingsTransfers({ services, owner, section, configuration, onU
           }}><CloudDownload aria-hidden="true" />读取远端</Button>
         </div>
         <div className="space-y-2">
-          <Label htmlFor="remote-content" className="text-[13px] font-normal text-body">远端内容 · JSON 原值</Label>
-          <Textarea id="remote-content" className={settingsCodeClass} value={remoteDraft} onChange={(event) => setRemoteDraft(event.target.value)} rows={7} />
+          <Label htmlFor={`${formId}-remote-content`} className="text-[13px] font-normal text-body">远端内容 · JSON 原值</Label>
+          <Textarea id={`${formId}-remote-content`} className={settingsCodeClass} value={remoteDraft} onChange={(event) => setRemoteDraft(event.target.value)} rows={7} />
         </div>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <Label htmlFor="remote-backup" className="text-[13px] font-normal text-body">保存远端时更新本地备份</Label>
-          <Switch id="remote-backup" checked={backup} onCheckedChange={setBackup} />
+          <Label htmlFor={`${formId}-remote-backup`} className="text-[13px] font-normal text-body">保存远端时更新本地备份</Label>
+          <Switch id={`${formId}-remote-backup`} checked={backup} onCheckedChange={setBackup} />
         </div>
         <Button className={settingsButtonClass} disabled={!configuration || !canSaveRemote || action.pending} onClick={() => {
           if (!configuration) return;

@@ -204,7 +204,7 @@ export function AppsPage({
     ? capabilityGate(snapshot, operations, confirmation.capability, null, confirmation.reference)
     : null;
   return (
-    <div className="flex min-w-0 flex-col gap-2.5 pt-3 [&_label]:text-xs [&_label]:font-normal [&_label]:text-[var(--text-faint)] [&_.empty-state]:my-0.5 [&_.empty-state]:px-0 [&_.empty-state]:py-3 [&_.empty-state_h3]:mb-1 [&_.empty-state_h3]:text-sm [&_.empty-state_p]:text-xs [&_.empty-state_p]:leading-[1.6]" data-compact={compact ? 'true' : undefined} data-product-section="apps">
+    <div className="flex min-w-0 flex-col gap-2.5 pt-3 [&_label]:text-[12px] [&_label]:font-normal [&_label]:text-[var(--text-faint)] [&_.empty-state]:my-0.5 [&_.empty-state]:px-0 [&_.empty-state]:py-3 [&_.empty-state_h3]:mb-1 [&_.empty-state_h3]:text-sm [&_.empty-state_p]:text-xs [&_.empty-state_p]:leading-[1.6]" data-compact={compact ? 'true' : undefined} data-product-section="apps">
       {/* ── 工具行：搜索框吃满宽度，读取退成一个图标 ── */}
       <div className="flex min-w-0 items-center gap-1.5">
         <div className="flex h-8 min-w-0 flex-auto items-center gap-[7px] rounded-[7px] border border-[var(--border)] bg-[var(--surface-card)] px-[9px] text-[var(--text-faint)] focus-within:border-[var(--primary)] focus-within:ring-3 focus-within:ring-[color-mix(in_srgb,var(--primary)_16%,transparent)] [&>svg]:size-3.5 [&>svg]:shrink-0">
@@ -250,7 +250,7 @@ export function AppsPage({
       </div>
       {listing.reason && <p className="m-0 text-[13px] leading-[1.6] text-[var(--text-faint)]">{listing.reason}</p>}
       {'ability' in (start.fields ?? {}) && (
-        <details className="border-t border-[var(--hairline)] pt-2 [&>summary]:flex [&>summary]:min-h-6 [&>summary]:list-none [&>summary]:items-center [&>summary]:justify-between [&>summary]:gap-2 [&>summary]:py-0.5 [&>summary]:text-xs [&>summary]:font-medium [&>summary]:text-[var(--text-muted)] [&>summary::-webkit-details-marker]:hidden [&>summary]:after:text-[var(--text-ghost)] [&>summary]:after:transition-transform [&>summary]:after:duration-[120ms] [&>summary]:after:content-['›'] [&[open]>summary]:mb-2 [&[open]>summary]:after:rotate-90 [&>*+*]:mt-2">
+        <details className="border-t border-[var(--hairline)] pt-2 [&>summary]:flex [&>summary]:min-h-6 [&>summary]:list-none [&>summary]:items-center [&>summary]:justify-between [&>summary]:gap-2 [&>summary]:py-0.5 [&>summary]:text-[12px] [&>summary]:font-medium [&>summary]:text-[var(--text-muted)] [&>summary::-webkit-details-marker]:hidden [&>summary]:after:text-[var(--text-ghost)] [&>summary]:after:transition-transform [&>summary]:after:duration-[120ms] [&>summary]:after:content-['›'] [&[open]>summary]:mb-2 [&[open]>summary]:after:rotate-90 [&>*+*]:mt-2">
           <summary>启动 Ability（可选）</summary>
           <Field
             label="Ability"
@@ -361,7 +361,7 @@ export function AppsPage({
         />
       )}
       {currentList && (
-        <details className="border-t border-[var(--hairline)] pt-2 [&>summary]:flex [&>summary]:min-h-6 [&>summary]:list-none [&>summary]:items-center [&>summary]:justify-between [&>summary]:gap-2 [&>summary]:py-0.5 [&>summary]:text-xs [&>summary]:font-medium [&>summary]:text-[var(--text-muted)] [&>summary::-webkit-details-marker]:hidden [&>summary]:after:text-[var(--text-ghost)] [&>summary]:after:transition-transform [&>summary]:after:duration-[120ms] [&>summary]:after:content-['›'] [&[open]>summary]:mb-2 [&[open]>summary]:after:rotate-90 [&>*+*]:mt-2">
+        <details className="border-t border-[var(--hairline)] pt-2 [&>summary]:flex [&>summary]:min-h-6 [&>summary]:list-none [&>summary]:items-center [&>summary]:justify-between [&>summary]:gap-2 [&>summary]:py-0.5 [&>summary]:text-[12px] [&>summary]:font-medium [&>summary]:text-[var(--text-muted)] [&>summary::-webkit-details-marker]:hidden [&>summary]:after:text-[var(--text-ghost)] [&>summary]:after:transition-transform [&>summary]:after:duration-[120ms] [&>summary]:after:content-['›'] [&[open]>summary]:mb-2 [&[open]>summary]:after:rotate-90 [&>*+*]:mt-2">
           <summary>原始输出</summary>
           <pre className="max-h-[180px] overflow-auto rounded-md bg-[var(--surface-sunken)] p-3 font-mono text-xs leading-relaxed whitespace-pre-wrap [overflow-wrap:anywhere]">{currentList.output || '（空文本）'}</pre>
         </details>
@@ -369,13 +369,13 @@ export function AppsPage({
 
       {/* ── 安装：平时收起来，别把列表挤到看不见 ── */}
       <details
-        className="border-t border-[var(--hairline)] pt-2 [&>summary]:flex [&>summary]:min-h-6 [&>summary]:list-none [&>summary]:items-center [&>summary]:justify-between [&>summary]:gap-2 [&>summary]:py-0.5 [&>summary]:text-xs [&>summary]:font-medium [&>summary]:text-[var(--text-muted)] [&>summary::-webkit-details-marker]:hidden [&>summary]:after:text-[var(--text-ghost)] [&>summary]:after:transition-transform [&>summary]:after:duration-[120ms] [&>summary]:after:content-['›'] [&[open]>summary]:mb-2 [&[open]>summary]:after:rotate-90 [&>*+*]:mt-2 "
+        className="border-t border-[var(--hairline)] pt-2 [&>summary]:flex [&>summary]:min-h-6 [&>summary]:list-none [&>summary]:items-center [&>summary]:justify-between [&>summary]:gap-2 [&>summary]:py-0.5 [&>summary]:text-[12px] [&>summary]:font-medium [&>summary]:text-[var(--text-muted)] [&>summary::-webkit-details-marker]:hidden [&>summary]:after:text-[var(--text-ghost)] [&>summary]:after:transition-transform [&>summary]:after:duration-[120ms] [&>summary]:after:content-['›'] [&[open]>summary]:mb-2 [&[open]>summary]:after:rotate-90 [&>*+*]:mt-2 "
         open={installOpen}
         onToggle={(event) => setInstallOpen(event.currentTarget.open)}
       >
         <summary>
           安装到当前设备
-          {filename && <span className="min-w-0 flex-auto truncate text-right text-xs font-normal text-[var(--text-ghost)] font-mono">{filename}</span>}
+          {filename && <span className="min-w-0 flex-auto truncate text-right text-[12px] font-normal text-[var(--text-ghost)] font-mono">{filename}</span>}
         </summary>
         <Label htmlFor={uploadId}>上传 APK / APKS / HAP</Label>
         <Input
@@ -436,7 +436,7 @@ export function AppsPage({
 
       <ActionFeedback {...action} />
       {currentReport && (
-        <div className="flex flex-col gap-1.5 border-t border-[var(--hairline)] pt-2.5 [&>h3]:m-0 [&>h3]:text-[13px] [&>h3]:font-semibold [&>h3]:text-[var(--text-strong)]">
+        <div className="flex flex-col gap-1.5 border-t border-[var(--hairline)] pt-2.5 [&>h3]:m-0 [&>h3]:text-[13px] [&>h3]:font-semibold [&>h3]:text-[var(--text-strong)] [&_pre]:max-h-[180px]">
           <h3>
             {currentReport.capability === 'app.install' ||
             currentReport.capability === 'app.install_apks'

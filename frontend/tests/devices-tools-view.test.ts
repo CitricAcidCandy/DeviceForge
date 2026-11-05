@@ -228,7 +228,7 @@ test('无设备工作台直接使用连续舞台，保留单份工具条和明�
     await act(async () => { f.root.render(createElement(DeviceWorkbench, { context, instance: resolved.instance, children })); });
     const stage = f.target.querySelector('[data-product-page="devices"]'); assert.ok(stage);
     assert.equal(stage.querySelectorAll('nav[aria-label="设备工具"]').length, 1);
-    const status = [...stage.querySelectorAll('h1')].find((entry) => entry.textContent === '还没有可用的设备提供者');
+    const status = [...stage.querySelectorAll('h1')].find((entry) => entry.textContent === '设备目录尚未确认');
     assert.ok(status);
     const wrapper = status.closest('section')?.querySelector(':scope > div'); assert.ok(wrapper);
     assert.equal(wrapper.classList.contains('bg-white'), false, '空态不能另造白色工作区外壳');
@@ -237,7 +237,9 @@ test('无设备工作台直接使用连续舞台，保留单份工具条和明�
     assert.equal(wrapper.classList.contains('mx-16'), false);
     assert.ok(wrapper.classList.contains('flex-1'));
     assert.ok(wrapper.classList.contains('min-h-0'));
-    assert.ok(stage.querySelector('a[href="#/marketplace"]'));
+    assert.ok(button(stage, '打开设备目录'));
+    assert.doesNotMatch(stage.textContent ?? '', /还没有可用的设备提供者/,
+      '旧宿主未提供读取事实时不能凭空数组报没有提供者；真空目录的市场入口由真实读取单元覆盖');
     assert.ok(button(stage, '连接设备'));
     assert.equal(f.calls.invoke.length, 0); assert.equal(f.calls.discover, 0); assert.equal(mounted, 0);
   } finally { children.dispose(); await f.close(); registry.dispose(); }

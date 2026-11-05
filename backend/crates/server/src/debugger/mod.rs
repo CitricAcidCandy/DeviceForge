@@ -77,6 +77,8 @@ pub(crate) fn router() -> Router<ApiState> {
 
 async fn capabilities(State(state): State<ApiState>) -> Json<Value> {
     Json(json!({"protocol_version":1,"local_only":true,
+        "ui_contract_revision":apk_application::debugger::ui_contract::UI_CONTRACT_REVISION,
+        "bridge_transports":["websocket","http"],"realtime_path":"/api/v2/realtime/socket.io",
         "stage":"integration","tools":tools().into_iter().map(|tool| tool.name).collect::<Vec<_>>(),
         "source_breakpoints":false,"arbitrary_evaluation":false,
         "reload_timeout_ms":30000,"automation_timeout_ms":30000,"automation_max_steps":32,

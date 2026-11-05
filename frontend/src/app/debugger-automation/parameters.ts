@@ -1,6 +1,6 @@
 import type { JsonValue } from '../../plugin-sdk/index.ts';
 import { fail, json, keys, object, text } from '../debugger-local/validation.ts';
-import { action, assertion, query } from '../debugger-local/ui-parameters.ts';
+import { action, assertion, expectation, query } from '../debugger-local/ui-parameters.ts';
 
 export interface AutomationStep {
   readonly id: string;
@@ -36,11 +36,12 @@ function preflight(tool: string, value: JsonValue, targetBinding: boolean, revis
     if (tool === 'ui_query') { keys(input, ['root_id', 'query']); query(input.query); }
     else if (tool === 'ui_assert') { keys(input, ['root_id', 'assertion']); assertion(input.assertion); }
     else if (tool === 'ui_action') {
-      keys(input, ['root_id', 'action']);
+      keys(input, ['root_id', 'action', 'expect']);
       const request = object(input.action);
       if (targetBinding && (request.target !== undefined || ['wait', 'navigate', 'pick'].includes(String(request.type))))
         return fail('invalid_parameters', '节点绑定不能与固定节点、导航或等待并存');
       action(targetBinding ? { ...request, target: { id: 'pending', generation: 0, revision: 0 } } : request);
+      if (input.expect !== undefined) expectation(input.expect);
     } else {
       keys(input, ['root_id', 'view', 'snapshot_id', 'offset', 'limit']);
       if (input.view !== undefined && input.view !== 'overview') return fail('invalid_parameters', '不支持的界面树视图');

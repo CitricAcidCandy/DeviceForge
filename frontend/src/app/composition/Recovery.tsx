@@ -7,8 +7,10 @@ import type { RecoveryFailure } from './recovery-state.ts';
 import { copyText } from '../../shared/clipboard/index.ts';
 
 const emptySources = Object.freeze([]);
-export function PlatformRecoveryEntry({ expanded, onOpen }: { readonly expanded: boolean; readonly onOpen: () => void }) {
-  return <button type="button" className="fixed bottom-10 right-20 z-[700] rounded-lg border border-[#E6EAF3] bg-white px-3 py-2 text-[11px] text-[#596479] shadow-sm"
+export function PlatformRecoveryEntry({ expanded, onOpen, elevated = expanded }: {
+  readonly expanded: boolean; readonly onOpen: () => void; readonly elevated?: boolean;
+}) {
+  return <button type="button" className={`fixed bottom-10 right-20 rounded-lg border border-[#E6EAF3] bg-white px-3 py-2 text-[11px] text-[#596479] shadow-sm ${elevated ? 'z-[700]' : 'z-40'}`}
     aria-expanded={expanded} onClick={onOpen}>平台恢复</button>;
 }
 export function PlatformRecovery({ services, shell }: { readonly services: ProductPlatformServices; readonly shell: ShellHost }) {
@@ -144,7 +146,7 @@ export function PlatformRecovery({ services, shell }: { readonly services: Produ
     <div className="mt-auto flex justify-end pt-7"><button type="button" aria-label="收起平台恢复" className="text-xs text-[#6C4CF5]" onClick={() => { setDismissed(true); runtime.recovery.close(); }}>收起面板</button></div>
   </section>;
   return <>
-    <PlatformRecoveryEntry expanded={expanded} onOpen={runtime.recovery.open} />
+    <PlatformRecoveryEntry expanded={expanded} elevated={!state.active || expanded} onOpen={runtime.recovery.open} />
     {state.active ? expanded && <div className="fixed inset-0 z-[690] flex items-center justify-center overflow-y-auto bg-[#22263130] p-6">{panel}</div>
       : <div role="region" aria-label="平台恢复独立界面" className="fixed inset-0 z-[680] grid grid-rows-[56px_minmax(0,1fr)_48px] bg-[#F5F6FB] text-[#222631]">
         <header className="flex h-14 min-w-0 items-center justify-between gap-4 border-b border-[#E6EAF3] bg-white px-6">

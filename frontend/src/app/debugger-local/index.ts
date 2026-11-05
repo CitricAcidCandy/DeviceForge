@@ -12,7 +12,8 @@ export function createLocalDebugger(options: LocalDebuggerOptions): LocalDebugge
   const attachments = new Map<string, AttachedDebug>();
   const selected = new Map<string, string>();
   const sessions = new Map<string, AbortController>();
-  const ui = createLocalUi(options, () => attachments.values());
+  const ui = createLocalUi(options, () => attachments.values(),
+    (entry, input, signal) => executeData('data_read', entry, input, signal));
   const lifetime = new AbortController();
   const reloading = new Set<string>();
   let disposed = false;

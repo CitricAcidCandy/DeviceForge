@@ -234,16 +234,18 @@ test('节点绑定继承查询的挂载根，报告裁剪不丢失小引用', as
   assert.equal(fields(reportSteps(result)[0]?.result_metadata).included, false);
 });
 
-test('只有变更后的明确界面断言可形成验证证据，后续变更撤销已验证结论', async () => {
+test('独立界面断言保留计数，但无论位于动作前后都不能替动作形成验证证据', async () => {
   const click = step('点击', 'ui_action', { action: { type: 'click', target: node, confirmed: true } });
   const assertion = step('验证', 'ui_assert', { assertion: { condition: 'exists', query: { name: '已保存' } } });
   const execute: Execute = async (tool) => tool === 'ui_assert'
     ? { status: 'passed', matched: 1, reason: '已找到提示' }
     : { status: 'dispatched', businessOutcome: 'unknown' };
   const verified = await runDebuggerAutomation(plan([click, assertion], true), target, new AbortController().signal, execute);
-  assert.equal(fields(verified).verified, true);
+  assert.equal(fields(verified).verified, false);
+  assert.equal(fields(verified).assertions_passed, 1);
   const unverified = await runDebuggerAutomation(plan([assertion, click], true), target, new AbortController().signal, execute);
   assert.equal(fields(unverified).verified, false);
+  assert.equal(fields(unverified).assertions_passed, 1);
 });
 
 test('数据修改或公开调用有真实回执也不冒充界面断言覆盖业务结果', async () => {

@@ -68,7 +68,7 @@ export function ProfileStackList({
                       <TableCell>{depth}</TableCell>
                       <TableCell>
                         <code>{frame.symbol ?? '未提供符号'}</code>
-                        <small className="block">
+                        <small className="block text-[13px]">
                           <code>{frame.address}</code>
                         </small>
                       </TableCell>

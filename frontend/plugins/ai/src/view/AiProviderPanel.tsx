@@ -212,14 +212,14 @@ export function AiProviderPanel({
           aria-label={`${provider} 助手回答`}
         >
           {lastPrompt && (
-            <div className="flex justify-end">
-              <p className="max-w-[36rem] whitespace-pre-wrap rounded-[10px] bg-[color:var(--surface-sunken)] px-3.5 py-2.5 text-[14px] leading-[1.6] text-[color:var(--text-strong)]">
+            <div className="flex min-w-0 justify-end">
+              <p className="min-w-0 max-w-[min(36rem,100%)] wrap-anywhere whitespace-pre-wrap rounded-[10px] bg-[color:var(--surface-sunken)] px-3.5 py-2.5 text-[14px] leading-[1.6] text-[color:var(--text-strong)]">
                 {lastPrompt}
               </p>
             </div>
           )}
           {answerText ? (
-            <div className="flex flex-col gap-2">
+            <div className="flex min-w-0 flex-col gap-2">
               <div className="flex items-center gap-2">
                 <span
                   className={cn(
@@ -235,7 +235,7 @@ export function AiProviderPanel({
                   {statusLabel}
                 </span>
               </div>
-              <p className="whitespace-pre-wrap text-[14px] leading-[1.75] text-[color:var(--text-body)]">
+              <p className="wrap-anywhere whitespace-pre-wrap text-[14px] leading-[1.75] text-[color:var(--text-body)]">
                 {answerText}
               </p>
               {items.length > 0 && (

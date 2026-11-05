@@ -1,4 +1,4 @@
-import type { HostResult, Job, JsonValue } from './models.ts';
+import type { Dispose, HostResult, Job, JsonValue } from './models.ts';
 
 // 只公开持久化任务记录，不从当前操作或设备目录补写元数据。
 export interface HistoricalJob extends Job {
@@ -17,7 +17,14 @@ export interface TaskHistoryQuery {
 export interface TaskEventQuery {
   readonly after?: number;
 }
+/** 仅通知历史快照可能变化；不携带连接、凭据或任务正文。 */
+export interface TaskHistoryChange {
+  readonly state: 'ready' | 'changed' | 'unavailable';
+  readonly revision: string | null;
+  readonly reset: boolean;
+}
 export interface TaskHistoryAccess {
+  readonly subscribeChanges?: (listener: (change: TaskHistoryChange) => void) => Dispose;
   readonly list: (
     query: TaskHistoryQuery,
     signal: AbortSignal,

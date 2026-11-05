@@ -1,5 +1,5 @@
 import { HostError } from '@deviceforge/plugin-sdk';
-import type { HistoricalJob, HostContext, HostResult } from '@deviceforge/plugin-sdk';
+import type { Dispose, HistoricalJob, HostContext, HostResult, TaskHistoryChange } from '@deviceforge/plugin-sdk';
 import { decodeEvents, decodeLogs, identifier, invalid } from './rules.ts';
 import type { LogOrder, TaskEvent, TaskLookup, TaskSelection } from './types.ts';
 export type * from './types.ts';
@@ -16,6 +16,7 @@ function active(signal: AbortSignal): void {
 export function createTasksModel(context: HostContext) {
   const lifetime = new AbortController();
   const listeners = new Set<(selection: TaskSelection) => void>();
+  const subscriptions = new Set<Dispose>();
   let selected: TaskSelection = Object.freeze({ result: null, cancellation: null });
   let selectionRevision = 0;
   let cancellationRevision = 0;
@@ -42,6 +43,32 @@ export function createTasksModel(context: HostContext) {
     return response;
   };
   const model = {
+    ...(context.taskHistory?.subscribeChanges ? {
+      subscribeChanges(listener: (change: TaskHistoryChange) => void): Dispose {
+        if (lifetime.signal.aborted || context.signal.aborted) return () => undefined;
+        let live = true;
+        let upstream: Dispose | undefined;
+        const notify = (change: TaskHistoryChange) => {
+          if (!live || lifetime.signal.aborted || context.signal.aborted) return;
+          try { listener(change); } catch { /* 单个视图不能阻断其他变更消费者。 */ }
+        };
+        const release = () => {
+          if (!live) return;
+          live = false;
+          subscriptions.delete(release);
+          try { void Promise.resolve(upstream?.()).catch(() => undefined); }
+          catch { /* 释放错误不能中断其他订阅清理。 */ }
+        };
+        subscriptions.add(release);
+        try { upstream = context.taskHistory?.subscribeChanges?.(notify); }
+        catch { notify({ state: 'unavailable', revision: null, reset: true }); }
+        if (!live) {
+          try { void Promise.resolve(upstream?.()).catch(() => undefined); }
+          catch { /* 同步通知中销毁时也回收刚返回的上游句柄。 */ }
+        }
+        return release;
+      },
+    } : {}),
     snapshot: () => selected,
     subscribe(listener: (selection: TaskSelection) => void) {
       listeners.add(listener);
@@ -142,6 +169,7 @@ export function createTasksModel(context: HostContext) {
     dispose() {
       if (lifetime.signal.aborted) return;
       lifetime.abort();
+      for (const release of [...subscriptions]) void release();
       context.signal.removeEventListener('abort', model.dispose);
       selectionRevision++;
       cancellationRevision++;

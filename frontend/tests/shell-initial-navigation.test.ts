@@ -10,6 +10,7 @@ import { registerCompositionStartupImports } from './composition-startup-imports
 const imports = registerCompositionStartupImports();
 assert.deepEqual(imports.diagnostics, []);
 const { mountShell } = await import('../plugins/default-shell/src/mount.tsx');
+const { installPublicUi } = await import('../src/app/public-ui.ts');
 const { resolveTaskPage } = await import('../plugins/tasks/src/drawer-rules.ts');
 imports.dispose();
 
@@ -27,6 +28,7 @@ function fixture(hash: string) {
   const document = browser.window.document, element = document.getElementById('shell');
   assert.ok(element);
   const target = element;
+  const releasePublicUi = installPublicUi();
   const descriptors = new Map<string, PropertyDescriptor | undefined>();
   const owner = new AbortController(), providers = new Set<AbortController>();
   const registry = createWorkspaceRegistry(), points = createPointRegistry();
@@ -143,6 +145,7 @@ function fixture(hash: string) {
       for (const provider of providers) provider.abort();
       points.dispose();
       registry.dispose();
+      await releasePublicUi();
       browser.window.close();
       for (const [name, descriptor] of descriptors) {
         if (descriptor) Object.defineProperty(globalThis, name, descriptor);

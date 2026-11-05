@@ -179,6 +179,10 @@ async fn debugger_read_action_deadlines_start_at_enqueue_and_late_ack_is_rejecte
     let read = service.enqueue(request(&session)).unwrap();
     let mut action_input = request(&session);
     action_input.tool = DebugTool::UiAction;
+    action_input.parameters = json!({"action":{
+        "type":"click","target":{"id":"node-1","generation":1,"revision":1},
+        "confirmed":true,"allowUnknownSideEffects":true
+    }});
     let action = service.enqueue(action_input).unwrap();
     assert_eq!(read.timeout_ms, 5_000);
     assert_eq!(action.timeout_ms, 10_000);

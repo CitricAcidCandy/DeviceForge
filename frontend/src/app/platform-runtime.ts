@@ -1,3 +1,4 @@
+import { createRealtimeClient } from '../services/realtime/index.ts';
 import {
   browserPackageEntryUrl,
   createApiClient,
@@ -94,6 +95,7 @@ export function createPlatformRuntime(options: PlatformRuntimeOptions) {
       ? (options.slotAdapter as SlotAdapter & SlotHost)
       : undefined;
   const rawClient = createApiClient(options);
+  const realtime = createRealtimeClient({ ...options, client: rawClient, signal: lifetime.signal });
   const client = createReleaseRequestClient(rawClient, {
     installations: async () => pluginInstallations.snapshot().result?.data ?? [],
     plugins: () => serverPlugins.snapshot().result?.data ?? [],
@@ -107,7 +109,7 @@ export function createPlatformRuntime(options: PlatformRuntimeOptions) {
   const extensions = createExtensionRegistry(
     options.themeTarget ? createDomThemeAdapter(options.themeTarget) : undefined,
   );
-  const tasks = createTasks(client, extensions.beforeTaskSubmit);
+  const tasks = createTasks(client, extensions.beforeTaskSubmit, { subscribeChanges: realtime.subscribeTasks });
   const devices = createDevices(createDeviceGateway(client, lifetime.signal));
   const artifacts = {
     upload: (filename: string, content: Blob, signal: AbortSignal) =>
@@ -186,13 +188,14 @@ export function createPlatformRuntime(options: PlatformRuntimeOptions) {
   const releaseSources = new Map<string, { id: string; revision: string; url: string }>();
   const debuggerBuilds = new Map<string, DebuggerRunningBuild>();
   const debuggerRuntime: ReturnType<typeof createRuntimeDebugger> | null = options.debugger && isLoopbackDebuggerAddress(options.baseUrl)
-    ? createRuntimeDebugger({ ...options.debugger, client, context, extensions, manager: () => webPlugins,
+    ? createRuntimeDebugger({ ...options.debugger, client, context, extensions, realtime, manager: () => webPlugins,
         installation: createDebuggerBuildDirectory(client, () => [...debuggerBuilds.values()]),
         reloadPlugin: createDebuggerReload({ client, manager: () => webPlugins,
           packages: () => pluginPackages, browser: () => browserPackages, installations: () => pluginInstallations,
           forgetReleaseSource: id => { releaseSources.delete(id); } }) })
     : null;
   if (debuggerRuntime) host.context.onDispose(() => debuggerRuntime.dispose());
+  host.context.onDispose(realtime.dispose);
   let developerTools: ReturnType<typeof createDeveloperToolsHost> | null = null;
   const webPlugins = createPluginManager({
     host: context,

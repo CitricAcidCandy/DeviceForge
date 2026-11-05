@@ -1,0 +1,10 @@
+{
+  "extends": "../tsconfig.json",
+  "include": [
+    "../src/app/public-ui.ts",
+    "./shell-mobile-navigation.test.ts",
+    "./shell-initial-navigation.test.ts",
+    "./shell-render-recovery.test.ts",
+    "./default-shell-responsive.test.ts"
+  ]
+}

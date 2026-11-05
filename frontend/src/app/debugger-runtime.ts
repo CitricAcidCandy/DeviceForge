@@ -9,6 +9,7 @@ import type { LocalDebuggerOptions } from './debugger-local/index.ts';
 import { debuggerInputSchema, invokeDebuggerPublic } from './debugger-service.ts';
 import type { DebuggerPublicOptions } from './debugger-service.ts';
 import { runDebuggerAutomation } from './debugger-automation/index.ts';
+import type { RealtimeClient } from '../services/realtime/index.ts';
 
 export type RuntimeDebuggerOptions = Pick<LocalDebuggerOptions, 'document' | 'slots' | 'readHostRoutes' | 'navigate'>;
 export function createRuntimeDebugger(options: RuntimeDebuggerOptions & {
@@ -18,6 +19,7 @@ export function createRuntimeDebugger(options: RuntimeDebuggerOptions & {
   readonly extensions: LocalDebuggerOptions['extensions'];
   readonly installation?: DebuggerPublicOptions['installation'];
   readonly reloadPlugin?: LocalDebuggerOptions['reloadPlugin'];
+  readonly realtime?: RealtimeClient;
 }) {
   const gateway = createDebuggerGateway(options.client);
   const local = createLocalDebugger({ document: options.document, signal: options.context.signal,
@@ -29,6 +31,7 @@ export function createRuntimeDebugger(options: RuntimeDebuggerOptions & {
     ...(options.readHostRoutes ? { readHostRoutes: options.readHostRoutes } : {}),
     ...(options.reloadPlugin ? { reloadPlugin: options.reloadPlugin } : {}) });
   const makeBridge = () => createDebuggerBridge({ gateway, signal: options.context.signal, directory: local.directory,
+    ...(options.realtime ? { realtime: options.realtime } : {}),
     select: local.select,
     async execute(command, signal) {
       if (!isJsonData(command.parameters)) throw new HostError('protocol', 'debugger_invalid_input', '调试命令参数不是有限 JSON');
@@ -64,7 +67,10 @@ export function createRuntimeDebugger(options: RuntimeDebuggerOptions & {
   let disposal: Promise<void> | null = null;
   return {
     attach: local.attach,
-    observe: local.observe,
+    observe(event: Parameters<typeof local.observe>[0]) {
+      local.observe(event);
+      if (event.stage === 'loaded' || event.stage === 'unloaded') bridge.directoryChanged();
+    },
     start: () => bridge.start(),
     snapshot: () => bridge.snapshot(),
     dispose() {

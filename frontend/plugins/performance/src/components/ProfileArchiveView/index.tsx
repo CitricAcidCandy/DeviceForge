@@ -97,7 +97,7 @@ export function ProfileArchiveView({ archive }: { archive: OpenedProfileArchive 
           : selected?.stacks;
   return (
     <section className="profile-archive" aria-label="已验证性能归档">
-      <h3>采样报告 · {archive.index.package}</h3>
+      <h3 className="text-[15px] font-semibold">采样报告 · {archive.index.package}</h3>
       <p className="text-xs text-muted-foreground">
         设备 {archive.index.device_id} · PID {archive.index.pid} · 进程开始标识{' '}
         {archive.index.process_start_ticks} · Root {archive.timeline.rootAccess} · 丢失计数{' '}
@@ -145,7 +145,7 @@ export function ProfileArchiveView({ archive }: { archive: OpenedProfileArchive 
                   >
                     采样点 {item.sample.index}
                   </Button>
-                  <small className="block">
+                  <small className="block text-[13px]">
                     {item.sample.begin_ns}–{item.sample.end_ns}
                   </small>
                 </TableCell>
@@ -182,7 +182,7 @@ export function ProfileArchiveView({ archive }: { archive: OpenedProfileArchive 
                     unit="KiB"
                     reason={item.sample.metrics.metric_missing?.memory?.reason}
                   />
-                  <small className="block">
+                  <small className="block text-[13px]">
                     RSS {metricText(item.sample.metrics.rss_kib, 'KiB')}
                   </small>
                 </TableCell>
@@ -195,7 +195,7 @@ export function ProfileArchiveView({ archive }: { archive: OpenedProfileArchive 
                 </TableCell>
                 <TableCell>
                   {item.sample.frame ? item.sample.frame.filename : '没有画面'}
-                  <small className="block">
+                  <small className="block text-[13px]">
                     指标区间 {item.stacks.length} 栈 · 画面区间 {item.frameStacks.length} 栈
                   </small>
                 </TableCell>

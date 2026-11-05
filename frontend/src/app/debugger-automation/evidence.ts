@@ -3,6 +3,7 @@ import { HostError } from '../../plugin-sdk/index.ts';
 import { isDataSecretKey, redactText } from '../../plugins/debugger/index.ts';
 import { fail, json, object } from '../debugger-local/validation.ts';
 import type { AutomationStep } from './parameters.ts';
+import type { DebugActionVerification } from '../../plugins/debugger/index.ts';
 
 export type StepState = 'succeeded' | 'failed' | 'indeterminate' | 'cancelled' | 'skipped';
 export interface BindingEvidence {
@@ -49,7 +50,19 @@ export function resultState(value: JsonValue): StepState {
   if (value.error !== undefined || ['failed', 'rejected', 'root_required', 'not_instantiated'].includes(String(value.status))) return 'failed';
   if (['indeterminate', 'timed_out_unconfirmed', 'cancelled_unconfirmed'].includes(String(value.status))) return 'indeterminate';
   if (value.status === 'cancelled') return 'cancelled';
+  const verification = verificationEvidence(value);
+  if (verification?.status === 'failed') return 'failed';
+  if (verification?.status === 'unavailable' || verification?.status === 'timed_out') return 'indeterminate';
   return 'succeeded';
+}
+export function verificationEvidence(value: JsonValue): DebugActionVerification | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
+  const verification = value.verification;
+  if (!verification || typeof verification !== 'object' || Array.isArray(verification)) return undefined;
+  const { status, scope, reason } = verification;
+  if ((status !== 'passed' && status !== 'failed' && status !== 'unavailable' && status !== 'timed_out') ||
+      (scope !== 'control' && scope !== 'ui' && scope !== 'business') || typeof reason !== 'string') return undefined;
+  return { status, scope, reason: redactText(reason).slice(0, 512) };
 }
 export function publicError(error: unknown): { code: string; message: string } {
   return error instanceof HostError && error.code.startsWith('debugger_')

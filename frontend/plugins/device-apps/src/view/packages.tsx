@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { Button, Input, Label, Tabs, TabsContent, TabsList, TabsTrigger, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Checkbox, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, EmptyState, Field, JsonResult, PageTitle } from './ui.tsx';
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@deviceforge/business-kit/sheet';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@deviceforge/business-kit/sheet';
 import { OperationNotice, useOperationAvailable, useSnapshot, ActionFeedback, useAction } from '@deviceforge/business-kit/react';
 import { ApiError } from '@deviceforge/business-kit/api';
 import type { DeviceAppsServices } from '../services.ts';
@@ -36,7 +36,7 @@ function saveFile(content: Blob, filename: string): void {
 }
 function Summary({ rows }: { rows: readonly (readonly [string, ReactNode])[] }) {
   return (
-    <dl className="grid min-w-0 grid-cols-2 gap-x-6 gap-y-3 max-[640px]:grid-cols-1 [&_dt]:text-xs [&_dt]:text-[var(--text-faint)] [&_dd]:m-0 [&_dd]:mt-1 [&_dd]:text-[13px] [&_dd]:[overflow-wrap:anywhere]">
+    <dl className="grid min-w-0 grid-cols-2 gap-x-6 gap-y-3 @max-[640px]/package-analysis:grid-cols-1 [&_dt]:text-xs [&_dt]:text-[var(--text-faint)] [&_dd]:m-0 [&_dd]:mt-1 [&_dd]:text-[13px] [&_dd]:[overflow-wrap:anywhere]">
       {rows.map(([label, value]) => (
         <div key={label}>
           <dt>{label}</dt>
@@ -138,7 +138,7 @@ export function DeviceApps({
                     ['可调试', item.debuggable === null ? '未知' : item.debuggable ? '是' : '否'],
                   ]}
                 />
-                <h3>声明权限 · {item.permissions.length}</h3>
+                <h3 className="text-[15px] font-semibold">声明权限 · {item.permissions.length}</h3>
                 <ul className="grid gap-1 pl-5 text-[13px]">
                   {item.permissions.map((permission) => (
                     <li key={permission}>{permission}</li>
@@ -179,7 +179,7 @@ export function DeviceApps({
                     ))}
                   </TableBody>
                 </Table>
-                <h3>签名者</h3>
+                <h3 className="text-[15px] font-semibold">签名者</h3>
                 {item.signers.map((signer) => (
                   <Summary
                     key={signer.number}
@@ -281,7 +281,7 @@ export function DeviceApps({
                       <TableRow key={finding.rule.name}>
                         <TableCell>{finding.rule.name}</TableCell>
                         <TableCell>
-                          <pre>{JSON.stringify(finding, null, 2)}</pre>
+                          <pre className="my-3 min-w-0 max-w-full max-h-[360px] overflow-auto rounded-[4px] bg-muted px-4 py-[14px] font-[Consolas,monospace] text-[13px] leading-[1.65]">{JSON.stringify(finding, null, 2)}</pre>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -335,7 +335,7 @@ export function DeviceApps({
     });
   };
   const workspace = (
-    <Tabs defaultValue="analysis" className="min-w-0">
+    <Tabs defaultValue="analysis" className="@container/package-analysis min-w-0">
       {compact ? null : (
         <TabsList aria-label="包与应用工作范围">
           <TabsTrigger value="analysis">安装包分析</TabsTrigger>
@@ -346,8 +346,8 @@ export function DeviceApps({
         <AppsPage services={services} compact={compact} active={active} />
       </TabsContent>
       <TabsContent value="analysis">
-          <div className={compact ? "grid min-w-0 grid-cols-1 items-start gap-[22px] pt-2" : "grid min-w-0 grid-cols-[minmax(260px,320px)_minmax(0,1fr)] items-start gap-8 pt-4 max-[1100px]:grid-cols-1 max-[1100px]:gap-7"}>
-            <aside className={compact ? "grid min-w-0 grid-cols-1 gap-7 border-b border-[var(--border)] pb-[18px] [&_.form-item]:my-0 [&_.form-item]:grid-cols-1 [&_.form-item]:gap-[7px] [&_.form-item>label]:pt-0" : "grid min-w-0 gap-7 border-r border-[var(--border)] pr-7 max-[1100px]:grid-cols-2 max-[1100px]:border-r-0 max-[1100px]:border-b max-[1100px]:pr-0 max-[1100px]:pb-6 max-[640px]:grid-cols-1 [&_.form-item]:my-0 [&_.form-item]:grid-cols-1 [&_.form-item]:gap-[7px] [&_.form-item>label]:pt-0"} aria-label="安装包与处理参数">
+          <div className={compact ? "grid min-w-0 grid-cols-1 items-start gap-[22px] pt-2" : "grid min-w-0 grid-cols-[minmax(260px,320px)_minmax(0,1fr)] items-start gap-8 pt-4 @max-[1100px]/package-analysis:grid-cols-1 @max-[1100px]/package-analysis:gap-7"}>
+            <aside className={compact ? "grid min-w-0 grid-cols-1 gap-7 border-b border-[var(--border)] pb-[18px] [&_.form-item]:my-0 [&_.form-item]:grid-cols-1 [&_.form-item]:gap-[7px] [&_.form-item>label]:pt-0" : "grid min-w-0 gap-7 border-r border-[var(--border)] pr-7 @max-[1100px]/package-analysis:grid-cols-2 @max-[1100px]/package-analysis:border-r-0 @max-[1100px]/package-analysis:border-b @max-[1100px]/package-analysis:pr-0 @max-[1100px]/package-analysis:pb-6 @max-[640px]/package-analysis:grid-cols-1 [&_.form-item]:my-0 [&_.form-item]:grid-cols-1 [&_.form-item]:gap-[7px] [&_.form-item>label]:pt-0"} aria-label="安装包与处理参数">
       <section className="grid min-w-0 gap-3.5 [&>h2]:m-0 [&>h2]:text-base [&>h2]:font-semibold">
         <h2>安装包</h2>
         <Label htmlFor={packageUploadId}>上传安装包</Label>
@@ -564,7 +564,7 @@ export function DeviceApps({
       </div>
       </section>
             </aside>
-            <section className="min-h-[440px] min-w-0 max-[640px]:min-h-[240px] [&_.empty-state]:min-h-[320px]" aria-label="安装包处理结果">
+            <section className="min-h-[440px] min-w-0 @max-[640px]/package-analysis:min-h-[240px] [&_.empty-state]:min-h-[320px]" aria-label="安装包处理结果">
       {report ? (
         <div className="grid min-w-0 gap-3.5 [&>h2]:m-0 [&>h2]:text-base [&>h2]:font-semibold">
           <h2>{report.title}</h2>
@@ -613,12 +613,14 @@ export function DeviceApps({
       {compact ? (
         <>
           <AppsPage services={services} compact={compact} active={active} />
-          <div className="flex justify-start gap-1.5 [&_[data-slot=button]]:h-[30px] [&_[data-slot=button]]:text-[13px]">
-            <Button variant="ghost" size="sm" onClick={() => setAnalysisOpen(true)}>
-              安装包分析
-            </Button>
-          </div>
           <Sheet open={active && analysisOpen} onOpenChange={setAnalysisOpen}>
+            <div className="flex justify-start gap-1.5">
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-[30px] text-[13px]">
+                  安装包分析
+                </Button>
+              </SheetTrigger>
+            </div>
             <SheetContent side="right" className="w-[min(760px,94vw)] max-w-none overflow-y-auto px-5 pt-4 pb-6 sm:max-w-none">
               <SheetHeader>
                 <SheetTitle>安装包分析</SheetTitle>

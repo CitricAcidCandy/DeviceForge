@@ -249,7 +249,7 @@ export function AiSettingsSheet({
               </Button>
             </div>
             {qualification && (
-              <p className="text-[12px] leading-[1.6] text-[color:var(--text-muted)]">
+              <p className="wrap-anywhere text-[12px] leading-[1.6] text-[color:var(--text-muted)]">
                 <span
                   className={cn(
                     'mr-1',
@@ -265,7 +265,7 @@ export function AiSettingsSheet({
               </p>
             )}
             {qualification && qualification.projects.length > 0 && (
-              <p className="font-mono text-[11px] leading-[1.6] text-[color:var(--text-ghost)]">
+              <p className="wrap-anywhere font-mono text-[11px] leading-[1.6] text-[color:var(--text-ghost)]">
                 可用项目：{qualification.projects.join('、')}
               </p>
             )}

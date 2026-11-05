@@ -1,5 +1,5 @@
 import { hostUi } from '@deviceforge/plugin-sdk';
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { Mic, Monitor, Play } from 'lucide-react';
 const { Button } = hostUi();
 const { Label } = hostUi();
@@ -41,6 +41,7 @@ const eventLabels = { 0: '全部输入', 1: '键盘输入', 2: '鼠标输入' };
 const artifactNames = ['recording.msgpack', 'operation.json', 'input-trace.log'] as const;
 
 export function InputTraceAutomation({ services }: { services: AutomationServices }) {
+  const eventsId = useId();
   const action = useAction();
   const download = useAction();
   const [events, setEvents] = useState<InputTraceRecord['event_type']>(0);
@@ -109,7 +110,7 @@ export function InputTraceAutomation({ services }: { services: AutomationService
             </h3>
             <div className="mt-6 grid gap-4">
               <div className="grid min-w-0 gap-2">
-                <Label htmlFor="trace-events" className="text-xs text-muted-foreground">
+                <Label htmlFor={eventsId} className="text-xs text-muted-foreground">
                   事件范围
                 </Label>
                 <Select
@@ -119,7 +120,7 @@ export function InputTraceAutomation({ services }: { services: AutomationService
                       setEvents(Number(value) === 0 ? 0 : Number(value) === 1 ? 1 : 2);
                   }}
                 >
-                  <SelectTrigger id="trace-events" className="w-full" aria-label="轨迹事件类型">
+                  <SelectTrigger id={eventsId} className="w-full" aria-label="轨迹事件类型">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>

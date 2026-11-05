@@ -59,8 +59,10 @@ export function createWorkbenchChildren(context: HostContext, parent: WorkspaceV
     const instance = ui.snapshot().instances.find((item) => item.instanceId === instanceId);
     if (instance && instance.visible !== next) ui.setVisible(instanceId, next);
   };
+  let directoryVisible = false;
   const synchronize = (next: boolean) => {
-    visible(screenInstanceId, next);
+    visible(screenInstanceId, next && !directoryVisible);
+    visible(directoryInstanceId, next && directoryVisible);
     if (!next) {
       visible(applicationsInstanceId, false);
       visible(directoryInstanceId, false);
@@ -71,7 +73,7 @@ export function createWorkbenchChildren(context: HostContext, parent: WorkspaceV
   return {
     ui,
     screenInstanceId, applicationsInstanceId, directoryInstanceId,
-    setDirectoryVisible: (next: boolean) => visible(directoryInstanceId, next && parent.snapshot().visible),
+    setDirectoryVisible: (next: boolean) => { directoryVisible = next; synchronize(parent.snapshot().visible); },
     dispose() { void unsubscribe(); },
     owned: () => opened,
   };

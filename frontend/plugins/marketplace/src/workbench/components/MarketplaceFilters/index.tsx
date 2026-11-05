@@ -21,8 +21,8 @@ export function MarketplaceAdvancedFilters({
     onChange(next);
   };
   return (
-    <div className="flex flex-col gap-3">
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+    <div className="@container/marketplace-filters flex min-w-0 flex-col gap-3">
+      <div className="grid min-w-0 grid-cols-1 gap-3 @min-[640px]/marketplace-filters:grid-cols-2">
         <SelectField
           label="MCP"
           value={query.supports_mcp ?? 'all'}

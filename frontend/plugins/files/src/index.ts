@@ -1,5 +1,5 @@
 import type {
-  HostContext, WebPlugin, WorkspaceLayout, WorkspaceLayoutNode,
+  HostContext, WebPlugin, WorkspaceLayout, WorkspaceLayoutNode, WorkspaceViewContext,
 } from '@deviceforge/plugin-sdk';
 import { registerFilesTools } from './tools.ts';
 export { FILES_TOOLS_POINT } from './tools.ts';
@@ -20,10 +20,10 @@ function references(layout: WorkspaceLayout | null, instanceId: string) {
   return Boolean(layout && (includes(layout.root, instanceId) ||
     [...layout.floating, ...layout.overlays].some((item) => item.instanceId === instanceId)));
 }
-async function mount(target: HTMLElement, context: HostContext) {
+async function mount(target: HTMLElement, context: HostContext, instance: WorkspaceViewContext) {
   const view = await import('./view.tsx');
   context.signal.throwIfAborted();
-  return view.mountFiles(target, context);
+  return view.mountFiles(target, context, instance);
 }
 
 /** 发布包装与本地装载器均从唯一 manifest 传入身份，不在源码维护第二份版本。 */

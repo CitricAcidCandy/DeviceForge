@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { JSDOM } from 'jsdom';
 import { act, createElement, StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
+import { compile } from 'tailwindcss';
 import type { Dispose, HostContext, UiAccess, WebPlugin, WorkspaceLayoutNode, WorkspaceMount } from '../src/plugin-sdk/index.ts';
 import { createWorkspaceRegistry } from '../src/plugins/workspace/index.ts';
 import { createPointRegistry } from '../src/plugins/points/registry.ts';
@@ -379,6 +380,12 @@ test('独立平台恢复入口只渲染一次，打开不卸载外壳或重挂�
     const button = [...f.target.querySelectorAll('button')].find((item) => item.textContent === '平台恢复');
     assert.ok(button);
     assert.equal([...f.target.querySelectorAll('button')].filter((item) => item.textContent === '平台恢复').length, 1);
+    const compiler = await compile('@tailwind utilities;');
+    const style = f.target.ownerDocument.createElement('style');
+    style.textContent = compiler.build([...button.classList]);
+    f.target.ownerDocument.head.append(style);
+    assert.equal(f.target.ownerDocument.defaultView?.getComputedStyle(button).zIndex, '40',
+      '正常工作区的收起入口应在标准模态层下，不能覆盖任务结果');
     await act(async () => { button.click(); });
     assert.equal(runtime.recovery.snapshot().open, true);
     assert.equal(f.target.querySelector('[data-workspace-canvas]'), canvas);
@@ -403,9 +410,37 @@ test('无可用外壳时恢复面板仍可收起，独立入口可以重新打�
     assert.equal(f.target.querySelector('[role="dialog"]'), null);
     const open = [...f.target.querySelectorAll('button')].find((button) => button.textContent === '平台恢复');
     assert.ok(open);
+    const compiler = await compile('@tailwind utilities;');
+    const style = f.target.ownerDocument.createElement('style');
+    style.textContent = compiler.build([...open.classList]);
+    f.target.ownerDocument.head.append(style);
+    assert.equal(f.target.ownerDocument.defaultView?.getComputedStyle(open).zIndex, '700',
+      '没有外壳时即使收起面板，独立入口仍须高于恢复界面');
     await act(async () => { open.click(); });
     assert.ok(f.target.querySelector('[role="dialog"]'));
   } finally { await f.cleanup(); await services.dispose(); }
+});
+
+test('正常外壳收起的恢复入口不盖住业务弹层，恢复面板展开时仍可操作', async () => {
+  const f = recoveryFixture({ state: 'ready', active: {
+    id: 'deviceforge_shell.shell', pluginId: 'deviceforge_shell', viewId: 'deviceforge_shell.main',
+  }, requested: 'deviceforge_shell.shell', error: null, errorLogId: null, cleanupErrors: [] });
+  try {
+    await act(async () => { f.root.render(createElement(PlatformRecovery, { services: f.services, shell: f.shell })); });
+    const entry = buttonNamed(f.target, '平台恢复');
+    const compiler = await compile('@tailwind utilities;');
+    const style = f.target.ownerDocument.createElement('style');
+    style.textContent = compiler.build(['z-40', 'z-[700]']);
+    f.target.ownerDocument.head.append(style);
+    const layer = () => f.target.ownerDocument.defaultView?.getComputedStyle(entry).zIndex;
+    assert.equal(layer(), '40');
+    await act(async () => { entry.click(); });
+    assert.equal(layer(), '700');
+    assert.equal(entry.getAttribute('aria-expanded'), 'true');
+    await act(async () => { buttonNamed(f.target, '收起面板').click(); });
+    assert.equal(layer(), '40');
+    assert.equal(entry.getAttribute('aria-expanded'), 'false');
+  } finally { await f.cleanup(); }
 });
 
 test('窄窗显示导航文字和下划线页签，切换视图仍复用草稿实例', async () => {

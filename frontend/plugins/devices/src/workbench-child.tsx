@@ -79,8 +79,8 @@ export function WorkbenchChild({ instanceId, context, ui }: {
       if (release) void Promise.resolve().then(release).catch(() => {});
     };
   }, [context, ui, instanceId, instance?.generation, instance?.state, retry]);
-  return <div className="relative h-full min-h-0 min-w-0">
-    <div ref={target} className="h-full min-h-0 min-w-0" />
+  return <div className="relative h-full min-h-0 min-w-0 w-full flex-1">
+    <div ref={target} className="h-full min-h-0 min-w-0 w-full" />
     {(!ready || instance?.state !== 'ready') && <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 overflow-auto bg-[#F5F6FB] p-6 text-center text-xs leading-6 text-[#596479]">
       <p role={error ? 'alert' : 'status'}>{error ?? (instance?.state === 'ready' ? '正在打开插件视图' : '相应插件暂不可用，其他功能仍可使用')}</p>
       {error && <button type="button" className="rounded-md border border-[#E6EAF3] bg-white px-3 py-1.5 text-[#6C4CF5]" onClick={() => setRetry((value) => value + 1)}>重新打开</button>}

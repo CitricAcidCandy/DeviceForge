@@ -13,6 +13,12 @@ export function DeviceAppsView({ services, instance }: {
   const [visible, setVisible] = useState(instance.snapshot().visible);
   useEffect(() => {
     const release = instance.subscribeVisibility(setVisible);
+    // 父视图可能在首次读取后、监听建立前切面，订阅后再核对当前事实。
+    try { setVisible(instance.snapshot().visible); }
+    catch (error) {
+      void Promise.resolve().then(release).catch(() => {});
+      throw error;
+    }
     return () => { void release(); };
   }, [instance]);
   const matches = services.matchesTarget();
@@ -47,6 +53,13 @@ export function mountDeviceApps(target: HTMLElement, services: DeviceAppsService
   let disposed = false;
   const unsubscribeDevices = services.devices.subscribe(refreshInert);
   const unsubscribeVisibility = instance.subscribeVisibility(refreshInert);
+  try { refreshInert(); }
+  catch (error) {
+    target.inert = true;
+    for (const release of [unsubscribeVisibility, unsubscribeDevices, releaseReact])
+      void Promise.resolve().then(release).catch(() => {});
+    throw error;
+  }
   const dispose: Dispose = () => {
     if (disposed) return;
     disposed = true;

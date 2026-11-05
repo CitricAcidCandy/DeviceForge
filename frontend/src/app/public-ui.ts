@@ -18,10 +18,12 @@ function mountReact(root: HTMLElement, element: React.ReactElement): Dispose {
   const portals = createPortalOwnership(root);
   let initial = true;
   const initialResult: { failure: { readonly error: unknown } | null } = { failure: null };
+  let unmountFailures: unknown[] | null = null;
   const instance = ReactDOMClient.createRoot(root, {
     onUncaughtError(error) {
       // React 19通过回调报告提交错误，flushSync返回本身不代表首次渲染成功。
       if (initial) { initialResult.failure = { error }; return; }
+      if (unmountFailures !== null) { unmountFailures.push(error); return; }
       const window = root.ownerDocument.defaultView;
       if (window?.reportError) window.reportError(error);
       else console.error('插件React视图发生未捕获错误', error);
@@ -44,16 +46,22 @@ function mountReact(root: HTMLElement, element: React.ReactElement): Dispose {
     throw error;
   }
   initial = false;
-  let released = false;
+  let disposal: Promise<void> | null = null;
   return () => {
-    if (released) return;
-    released = true;
+    if (disposal) return disposal;
+    const failures: unknown[] = [];
     // 先同步撤销归属，React卸载失败或用户ref晚到均不能重新登记旧弹层。
-    portals.dispose();
-    // 卸载若发生在别的 React 树提交期间，React 会报同步更新冲突，统一走 flushSync。
-    ReactDOM.flushSync(() => {
-      instance.unmount();
+    try { portals.dispose(); } catch (error) { failures.push(error); }
+    // 等当前提交退出后再卸载独立根；重复释放共享同一个可等待回执。
+    disposal = Promise.resolve().then(() => {
+      unmountFailures = failures;
+      try { instance.unmount(); }
+      catch (error) { failures.push(error); }
+      finally { unmountFailures = null; }
+      if (failures.length === 1) throw failures[0];
+      if (failures.length > 1) throw new AggregateError(failures, 'React根释放失败');
     });
+    return disposal;
   };
 }
 

@@ -1,0 +1,8 @@
+{
+  "extends": "../tsconfig.json",
+  "include": [
+    "../src/app/public-ui.ts",
+    "./public-ui-nested-cleanup.test.ts",
+    "./public-ui-initial-failure.test.ts"
+  ]
+}

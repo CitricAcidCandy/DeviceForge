@@ -6,6 +6,7 @@ use apk_application::{
         ActivityQuery, AutomationInput, DataCatalogInput, DataReadInput, DataWriteInput,
         DebugCommandRequest, DebugTarget, DebugTool, DebuggerService, EventQuery, SessionRequest,
         TargetKind,
+        ui_contract::{UiActionInput, UiAssertInput, UiDiffInput, UiQueryInput, UiTreeInput},
     },
     plugin_lifecycle::PluginService,
 };
@@ -19,6 +20,10 @@ mod activity;
 mod command_query;
 mod diagnostics;
 mod diagnostics_adapter;
+pub(super) mod guide;
+mod ui_tools;
+#[cfg(test)]
+mod guide_contract_tests;
 pub(crate) use diagnostics_adapter::PersistentDiagnostics;
 mod reload;
 mod report;
@@ -77,6 +82,7 @@ pub(super) struct CommandInput {
 
 #[derive(schemars::JsonSchema)]
 #[allow(dead_code)] // 仅用于公开工具输入模式，执行入口继续复用 CommandInput。
+#[serde(deny_unknown_fields)]
 struct TypedCommandInput<T: schemars::JsonSchema> {
     session_id: String,
     parameters: T,
@@ -103,6 +109,7 @@ pub(crate) fn manages(name: &str) -> bool {
     matches!(
         name,
         "deviceforge.debug_session"
+            | "deviceforge.debug_guide"
             | "deviceforge.debug_targets"
             | "deviceforge.debug_inspect"
             | "deviceforge.debug_events"
@@ -125,6 +132,12 @@ pub(crate) fn manages(name: &str) -> bool {
 
 pub(crate) fn tools() -> Vec<Tool> {
     [
+        (
+            "debug_guide",
+            "只读调试指南：quickstart/ui/automation；返回契约修订、完整参数与可复制案例，不创建会话或执行动作",
+            crate::openapi::schema::<guide::GuideInput>(),
+            true,
+        ),
         (
             "debug_session",
             "打开、明确选择、续期、读取或关闭本机插件调试会话",
@@ -181,38 +194,38 @@ pub(crate) fn tools() -> Vec<Tool> {
         ),
         (
             "debug_automation_run",
-            "在选定浏览器连续执行1至32步，总预算30秒；绑定只引用先前唯一查询节点或数据修订，禁止嵌套、重载和自动重放",
+            "在选定浏览器连续执行1至32步，总预算30秒；每步parameters按tool校验，bind.target_from_step与action.target互斥；整计划预检，每个变更仍需确认，禁止重放",
             crate::openapi::schema::<TypedCommandInput<AutomationInput>>(),
             false,
         ),
         (
             "debug_ui_tree",
-            "读取选定浏览器目标的基础结构树与覆盖范围，不把可观察节点当作扩展点",
-            crate::openapi::schema::<CommandInput>(),
+            "读取基础结构树：parameters.root_id选择挂载根；view=overview查询公开目录，续页携带snapshot_id；观察节点不代表扩展点",
+            crate::openapi::schema::<TypedCommandInput<UiTreeInput>>(),
             true,
         ),
         (
             "debug_ui_query",
-            "按语义查找当前目标节点；返回稳定节点引用和修订",
-            crate::openapi::schema::<CommandInput>(),
+            "按parameters.query查找当前目标节点，parameters.root_id选择挂载根；复用节点引用，修订失效时定点重查",
+            crate::openapi::schema::<TypedCommandInput<UiQueryInput>>(),
             true,
         ),
         (
             "debug_ui_diff",
             "比较本实例目标的内存快照，不完整采集不能证明节点不存在",
-            crate::openapi::schema::<CommandInput>(),
+            crate::openapi::schema::<TypedCommandInput<UiDiffInput>>(),
             true,
         ),
         (
             "debug_ui_assert",
-            "执行结构断言，分别报告通过、失败或无法判定",
-            crate::openapi::schema::<CommandInput>(),
+            "执行parameters.assertion，分别报告通过、失败或无法判定；value_equals/selected_equals只检查普通非敏感控件，不公开原值",
+            crate::openapi::schema::<TypedCommandInput<UiAssertInput>>(),
             true,
         ),
         (
             "debug_ui_action",
-            "在选定实例高亮或交互；按目标能力选择动作，保留原禁用、校验和确认，不自动重放",
-            crate::openapi::schema::<CommandInput>(),
+            "动作放在parameters.action，root_id与可选expect放parameters；变更confirmed=true，未知副作用另需allowUnknownSideEffects；dispatched不代表成功，未知结果不重放",
+            crate::openapi::schema::<TypedCommandInput<UiActionInput>>(),
             false,
         ),
         (
@@ -312,6 +325,7 @@ pub(crate) async fn invoke_with_ports(
         ));
     }
     match name {
+        "deviceforge.debug_guide" => guide::read(input),
         "deviceforge.debug_targets" => {
             if input != json!({}) {
                 return Err(ApiError::new(
@@ -357,7 +371,11 @@ pub(crate) async fn invoke_with_ports(
         "deviceforge.debug_command" => command_query::query(debugger, input),
         "deviceforge.debug_activity" => activity::query(debugger, input),
         _ => {
-            let input: CommandInput = decode(input)?;
+            let input: CommandInput = if let Some(tool) = ui_tools::tool(name) {
+                ui_tools::decode(tool, input)?
+            } else {
+                decode(input)?
+            };
             if let Some(suffix) = name.strip_prefix("deviceforge.debug_") {
                 if matches!(
                     suffix,
@@ -440,7 +458,7 @@ mod tests {
     #[test]
     fn debugger_tools_are_unique_and_mutations_are_not_marked_read_only() {
         let tools = tools();
-        assert_eq!(tools.len(), 18);
+        assert_eq!(tools.len(), 19);
         let names = tools
             .iter()
             .map(|tool| tool.name.as_ref())

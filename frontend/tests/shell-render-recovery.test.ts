@@ -44,6 +44,8 @@ test('外壳挂载后的渲染异常可见且可显式恢复，同一业务DOM�
       registerResource: (_definition, release) => release },
   };
   const { mountShell } = await import('../plugins/default-shell/src/mount.tsx');
+  const { installPublicUi } = await import('../src/app/public-ui.ts');
+  const releasePublicUi = installPublicUi();
   let release: Dispose | undefined;
   try {
     await act(async () => { release = await mountShell(target, context); });
@@ -61,7 +63,8 @@ test('外壳挂载后的渲染异常可见且可显式恢复，同一业务DOM�
     assert.equal(target.querySelector('[aria-label="业务草稿"]'), input); assert.equal(input.value, '不可丢失的原草稿');
     assert.equal(renders, 1); assert.match(target.textContent ?? '', /显示故障历史 1/);
   } finally {
-    await act(async () => { await release?.(); }); owner.abort(); registry.dispose(); points.dispose(); imports.dispose(); page.window.close();
+    await act(async () => { await release?.(); }); owner.abort(); registry.dispose(); points.dispose();
+    await releasePublicUi(); imports.dispose(); page.window.close();
     for (const [name, descriptor] of previous) {
       if (descriptor) Object.defineProperty(globalThis, name, descriptor); else Reflect.deleteProperty(globalThis, name);
     }

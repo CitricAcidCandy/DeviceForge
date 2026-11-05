@@ -91,14 +91,15 @@ impl DebuggerService {
             let notified = self.changed.notified();
             tokio::pin!(notified);
             notified.as_mut().enable();
-            let (batch, remaining) = self.poll_batch(&input)?;
+            let (batch, remaining) = self.poll_batch(&input, None)?;
             if !batch.commands.is_empty()
                 || batch.active_sessions.is_empty()
                 || tokio::time::Instant::now() >= deadline
             {
                 return Ok(batch);
             }
-            let wake = deadline.min(tokio::time::Instant::now() + remaining);
+            let wake =
+                deadline.min(tokio::time::Instant::now() + remaining.min(Duration::from_secs(2)));
             tokio::select! {
                 _ = notified => {},
                 _ = tokio::time::sleep_until(wake) => {},
@@ -106,14 +107,45 @@ impl DebuggerService {
         }
     }
 
-    fn poll_batch(&self, input: &BridgePoll) -> Result<(BridgeBatch, Duration)> {
+    pub(super) fn poll_batch(
+        &self,
+        input: &BridgePoll,
+        lease: Option<&BridgeLease>,
+    ) -> Result<(BridgeBatch, Duration)> {
         self.with_state(|state, now, config| {
+            if let Some(lease) = lease {
+                super::realtime::owned(state, lease)?;
+            } else if state
+                .instances
+                .get(&input.instance_id)
+                .is_some_and(|instance| instance.transport.is_some())
+            {
+                return Err(error(
+                    ErrorCode::WrongInstance,
+                    "实时实例不能使用 HTTP 轮询领取命令",
+                ));
+            }
             let status = state.status(&input.instance_id)?;
             state
                 .instances
                 .get_mut(&input.instance_id)
                 .expect("已验证实例")
                 .touched = now;
+            // 客户端空槽是可能晚到的绝对值；实时总并发必须由服务内的交付状态裁定。
+            let limit = if lease.is_some() {
+                let delivered = state
+                    .commands
+                    .values()
+                    .filter(|entry| {
+                        entry.target.instance_id.as_deref() == Some(input.instance_id.as_str())
+                            && entry.phase == Phase::Delivered
+                            && !entry.result.state.terminal()
+                    })
+                    .count();
+                input.limit.min(4usize.saturating_sub(delivered))
+            } else {
+                input.limit
+            };
             let selected: Vec<_> = state
                 .instances
                 .get(&input.instance_id)
@@ -125,23 +157,63 @@ impl DebuggerService {
                         entry.phase == Phase::Ready && !entry.result.state.terminal()
                     })
                 })
-                .take(input.limit)
+                .take(limit)
                 .cloned()
                 .collect();
-            let mut commands = Vec::with_capacity(selected.len());
+            let mut batch = BridgeBatch {
+                instance_id: status.instance_id,
+                active_sessions: status.active_sessions,
+                targets: status.targets,
+                commands: Vec::with_capacity(selected.len()),
+            };
+            if lease.is_some() {
+                validation::encoded_size(
+                    &serde_json::to_value(&batch)
+                        .map_err(|_| error(ErrorCode::Internal, "实时调试批次无法编码"))?,
+                    realtime::BATCH_BODY_BYTES,
+                )?;
+            }
+            // 先完整构造并计量，再变更交付状态；超限命令继续保留原参数、顺序和期限。
             for id in selected {
-                let entry = state.commands.get_mut(&id).expect("命令仍在锁内");
-                entry.phase = Phase::Delivered;
-                entry.result.state = CommandState::Delivered;
-                let session_id = entry.result.session_id.clone();
-                commands.push(BridgeCommand {
+                let entry = state.commands.get(&id).expect("命令仍在锁内");
+                batch.commands.push(BridgeCommand {
                     command_id: id.clone(),
-                    session_id: session_id.clone(),
+                    session_id: entry.result.session_id.clone(),
                     target: entry.target.clone(),
                     tool: entry.tool,
                     parameters: entry.parameters.clone(),
                     remaining_ms: millis(entry.deadline.saturating_sub(now)),
                 });
+                if lease.is_some()
+                    && validation::encoded_size(
+                        &serde_json::to_value(&batch)
+                            .map_err(|_| error(ErrorCode::Internal, "实时调试批次无法编码"))?,
+                        realtime::BATCH_BODY_BYTES,
+                    )
+                    .is_err()
+                {
+                    batch.commands.pop();
+                    if batch.commands.is_empty() {
+                        // 目录可能在准入后增长；明确失败原命令，不把业务容量变化升级为传输故障。
+                        state.finish_command(
+                            &id,
+                            CommandState::Failed,
+                            Some(serde_json::json!({"error":{
+                                "code":"debugger_capacity",
+                                "message":"当前目标目录与命令总大小超过实时消息预算，动作未交付"
+                            }})),
+                            config,
+                        );
+                        continue;
+                    }
+                    break;
+                }
+            }
+            for command in &batch.commands {
+                let id = &command.command_id;
+                let entry = state.commands.get_mut(id).expect("命令仍在锁内");
+                entry.phase = Phase::Delivered;
+                entry.result.state = CommandState::Delivered;
                 // 已交付参数不再在宿主保留；回执与历史只需要标识和有限结果。
                 entry.parameters = serde_json::Value::Null;
                 state
@@ -149,12 +221,12 @@ impl DebuggerService {
                     .get_mut(&input.instance_id)
                     .expect("已验证实例")
                     .pending
-                    .retain(|pending| pending != &id);
+                    .retain(|pending| pending != id);
                 state.emit(
                     EventKind::CommandDelivered,
                     Some(input.instance_id.clone()),
-                    Some(session_id),
-                    Some(id),
+                    Some(command.session_id.clone()),
+                    Some(id.clone()),
                     None,
                     Some(CommandState::Delivered),
                     config,
@@ -186,21 +258,20 @@ impl DebuggerService {
                         .map(|entry| entry.deadline.saturating_sub(now)),
                 )
                 .min()
-                .unwrap_or(Duration::from_secs(2))
-                .min(Duration::from_secs(2));
-            Ok((
-                BridgeBatch {
-                    instance_id: status.instance_id,
-                    active_sessions: status.active_sessions,
-                    targets: status.targets,
-                    commands,
-                },
-                remaining,
-            ))
+                .unwrap_or(Duration::MAX);
+            Ok((batch, remaining))
         })
     }
 
     pub fn acknowledge(&self, input: BridgeAck) -> Result<DebugCommandReceipt> {
+        self.acknowledge_inner(input, None)
+    }
+
+    pub(super) fn acknowledge_inner(
+        &self,
+        input: BridgeAck,
+        lease: Option<&BridgeLease>,
+    ) -> Result<DebugCommandReceipt> {
         validation::instance_id(&input.instance_id)?;
         // 大正文校验留在锁外；数据投影按原命令工具识别，不信任回执自报种类。
         let tool = self.with_state(|state, _, _| {
@@ -212,6 +283,18 @@ impl DebuggerService {
         })?;
         validation::response_for(tool, &input.response)?;
         self.with_state(|state, _, config| {
+            if let Some(lease) = lease {
+                super::realtime::owned(state, lease)?;
+            } else if state
+                .instances
+                .get(&input.instance_id)
+                .is_some_and(|instance| instance.transport.is_some())
+            {
+                return Err(error(
+                    ErrorCode::WrongInstance,
+                    "实时实例的回执必须来自当前实时传输",
+                ));
+            }
             let command = state
                 .commands
                 .get(&input.command_id)
@@ -226,6 +309,17 @@ impl DebuggerService {
             }
             match command.result.state {
                 CommandState::Succeeded | CommandState::Failed => {
+                    if lease.is_some()
+                        && input.success == (command.result.state == CommandState::Succeeded)
+                        && command.result.response.as_ref() == Some(&input.response)
+                    {
+                        return Ok(DebugCommandReceipt {
+                            command_id: input.command_id.clone(),
+                            session_id: command.result.session_id.clone(),
+                            state: command.result.state,
+                            timeout_ms: command.timeout_ms,
+                        });
+                    }
                     return Err(error(
                         ErrorCode::DuplicateReceipt,
                         "命令回执已确认，不能重复确认",
@@ -340,6 +434,37 @@ fn admit(
         .checked_add(budget)
         .ok_or_else(|| error(ErrorCode::InvalidInput, "调试时钟超出支持范围"))?;
     let id = uuid::Uuid::new_v4().to_string();
+    if state
+        .instances
+        .get(instance_id)
+        .is_some_and(|entry| entry.transport.is_some())
+    {
+        let status = state.status(instance_id)?;
+        let candidate = BridgeBatch {
+            instance_id: status.instance_id,
+            active_sessions: status.active_sessions,
+            targets: status.targets,
+            commands: vec![BridgeCommand {
+                command_id: id.clone(),
+                session_id: session.session_id.clone(),
+                target: target.clone(),
+                tool: input.tool,
+                parameters: input.parameters.clone(),
+                remaining_ms: millis(budget),
+            }],
+        };
+        validation::encoded_size(
+            &serde_json::to_value(candidate)
+                .map_err(|_| error(ErrorCode::Internal, "实时命令无法编码"))?,
+            realtime::BATCH_BODY_BYTES,
+        )
+        .map_err(|_| {
+            error(
+                ErrorCode::Capacity,
+                "单条命令连同当前目标目录超过实时消息预算，命令未入队",
+            )
+        })?;
+    }
     let receipt = DebugCommandReceipt {
         command_id: id.clone(),
         session_id: session.session_id.clone(),

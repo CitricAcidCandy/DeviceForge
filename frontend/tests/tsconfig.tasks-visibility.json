@@ -1,0 +1,8 @@
+{
+  "extends": "../tsconfig.json",
+  "include": [
+    "../plugins/tasks/src/index.ts",
+    "../plugins/tasks/src/view.tsx",
+    "./tasks-visibility.test.ts"
+  ]
+}

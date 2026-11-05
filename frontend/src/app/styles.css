@@ -1,5 +1,6 @@
 @import 'tailwindcss' source(none);
 @import 'tw-animate-css';
+@source '../../index.html';
 @source '../**/*.{ts,tsx}';
 @source '../../plugins/*/src/**/*.{ts,tsx}';
 @source '../../../examples/browser-debugger/src/**/*.{ts,tsx}';
@@ -606,18 +607,6 @@ summary {
 .product-page {
   font-size: 0.9375rem;
 }
-.page-heading {
-  display: flex;
-  gap: 20px;
-  justify-content: space-between;
-  align-items: start;
-  margin-bottom: 24px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid var(--border);
-}
-.page-help { margin-top: 6px; max-width: 680px; font-size: 0.8125rem; color: var(--muted-foreground); }
-.page-help > summary { width: fit-content; min-height: 24px; }
-.page-help .page-description { margin-top: 8px; line-height: 1.7; }
 .eyebrow {
   font:
     0.6875rem/1.5 Consolas,
@@ -677,19 +666,6 @@ summary {
   gap: 16px 24px;
   margin: 16px 0;
   align-items: start;
-}
-.empty-state {
-  padding: 24px 0;
-  text-align: left;
-  margin: 8px 0;
-}
-.empty-state h3 {
-  margin-bottom: 8px;
-}
-.empty-state p {
-  color: var(--muted-foreground);
-  max-width: 490px;
-  font-size: 0.875rem;
 }
 .inline-spinner {
   display: inline-block;
@@ -807,9 +783,6 @@ summary {
 .capability-details {
   margin-top: 20px;
 }
-details > summary { min-height: 32px; padding-block: 4px; }
-details > summary:focus-visible { outline: 2px solid var(--ring); outline-offset: 3px; }
-details[open] > summary { margin-bottom: 12px; }
 .plugin-upload {
   padding: 16px 0;
   border-block: 1px solid var(--border);
@@ -1077,47 +1050,12 @@ details[open] > summary { margin-bottom: 12px; }
   .product-shell button,
   .product-shell [data-slot='button'],
   .product-shell [data-slot='select-trigger'],
-  .product-shell [data-slot='input'],
-  [data-slot='dropdown-menu-item'] {
+  .product-shell [data-slot='input'] {
     min-height: 44px;
-  }
-  [data-slot='dialog-content'] button,
-  [data-slot='sheet-content'] button,
-  [data-slot='dialog-content'] [data-slot='select-trigger'],
-  [data-slot='dialog-content'] [data-slot='input'] {
-    min-height: 44px;
-  }
-  [data-size^='icon'] {
-    min-width: 44px;
-    flex-shrink: 0;
   }
   .global-actions > button {
     flex-shrink: 0;
     min-width: 44px;
-  }
-  [data-slot='dialog-close'],
-  [data-slot='sheet-close'] {
-    min-width: 44px;
-    min-height: 44px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-  }
-  [data-slot='dialog-header'],
-  [data-slot='sheet-header'] {
-    padding-right: 36px;
-  }
-  .page-heading {
-    align-items: start;
-    flex-direction: column;
-    gap: 16px;
-    margin-bottom: 24px;
-  }
-  .page-heading .page-actions {
-    width: 100%;
-  }
-  .page-heading .page-actions > [data-slot='button'] {
-    min-height: 44px;
   }
   .page-description {
     font-size: 0.8125rem;
@@ -1387,7 +1325,4 @@ details[open] > summary { margin-bottom: 12px; }
   animation-duration: 0.01ms !important;
   animation-iteration-count: 1 !important;
   transition-duration: 0.01ms !important;
-}
-@media (max-width: 640px) {
-  [data-slot='checkbox'] { min-width: 44px; min-height: 44px; }
 }

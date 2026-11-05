@@ -12318,6 +12318,189 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v2/realtime/capabilities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+
+                200: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            data: {
+                                limits: {
+
+                                    buffer_packets: number;
+
+                                    connect_timeout_ms: number;
+
+                                    connections: number;
+
+                                    debugger_concurrency: number;
+
+                                    frame_bytes: number;
+
+                                    message_bytes: number;
+
+                                    pending_bytes: number;
+
+                                    ping_interval_ms: number;
+
+                                    ping_timeout_ms: number;
+
+                                    resume_window_ms: number;
+
+                                    task_coalesce_ms: number;
+                                };
+                                namespaces: {
+                                    local_only: boolean;
+                                    name: string;
+                                }[];
+                                path: string;
+
+                                protocol_version: number;
+                                transports: string[];
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                400: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                401: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                404: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                409: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                429: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+
+                500: {
+                    headers: {
+                        "x-deviceforge-log-id"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+
+                            log_id: string;
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v2/services": {
         parameters: {
             query?: never;
@@ -14706,21 +14889,1366 @@ export interface components {
 
         DebuggerAutomationInput: {
             confirmed: boolean;
-            steps: {
-
-                bind: {
-
-                    revision_from_step: string | null;
-
-                    target_from_step: string | null;
-                } | null;
+            steps: ({
+                bind?: null;
                 id: string;
-
                 label?: string;
-                parameters: unknown;
+                parameters: Record<string, never>;
 
-                tool: "inspect" | "data_catalog" | "data_read" | "ui_tree" | "ui_query" | "ui_assert" | "ui_action" | "data_write" | "invoke";
-            }[];
+                tool: "inspect";
+            } | {
+                bind?: null;
+                id: string;
+                label?: string;
+                parameters: Record<string, never>;
+
+                tool: "data_catalog";
+            } | {
+                bind?: null;
+                id: string;
+                label?: string;
+                parameters: {
+
+                    query?: unknown;
+                    source_id: string;
+                };
+
+                tool: "data_read";
+            } | {
+                bind?: null;
+                id: string;
+                label?: string;
+                parameters: {
+
+                    limit?: number;
+
+                    offset?: number;
+
+                    view: "overview";
+                } | ({
+
+                    limit?: number;
+
+                    offset?: number;
+
+                    root_id?: string;
+
+                    snapshot_id?: string;
+                } & unknown);
+
+                tool: "ui_tree";
+            } | {
+                bind?: null;
+                id: string;
+                label?: string;
+                parameters: {
+
+                    query?: {
+
+                        descendantOf?: string;
+
+                        disabled?: "yes" | "no" | "unknown";
+
+                        hidden?: "yes" | "no" | "unknown";
+
+                        id?: string;
+
+                        limit?: number;
+
+                        name?: string;
+
+                        role?: string;
+
+                        surfaceId?: string;
+                    };
+
+                    root_id?: string;
+                };
+
+                tool: "ui_query";
+            } | {
+                bind?: null;
+                id: string;
+                label?: string;
+                parameters: {
+                    assertion: {
+
+                        condition: "exists";
+                        query: {
+
+                            descendantOf?: string;
+
+                            disabled?: "yes" | "no" | "unknown";
+
+                            hidden?: "yes" | "no" | "unknown";
+
+                            id?: string;
+
+                            limit?: number;
+
+                            name?: string;
+
+                            role?: string;
+
+                            surfaceId?: string;
+                        };
+                    } | {
+
+                        condition: "absent";
+                        query: {
+
+                            descendantOf?: string;
+
+                            disabled?: "yes" | "no" | "unknown";
+
+                            hidden?: "yes" | "no" | "unknown";
+
+                            id?: string;
+
+                            limit?: number;
+
+                            name?: string;
+
+                            role?: string;
+
+                            surfaceId?: string;
+                        };
+                    } | {
+
+                        condition: "count";
+
+                        expected: number;
+                        query: {
+
+                            descendantOf?: string;
+
+                            disabled?: "yes" | "no" | "unknown";
+
+                            hidden?: "yes" | "no" | "unknown";
+
+                            id?: string;
+
+                            limit?: number;
+
+                            name?: string;
+
+                            role?: string;
+
+                            surfaceId?: string;
+                        };
+                    } | {
+
+                        condition: "enabled";
+                        query: {
+
+                            descendantOf?: string;
+
+                            disabled?: "yes" | "no" | "unknown";
+
+                            hidden?: "yes" | "no" | "unknown";
+
+                            id?: string;
+
+                            limit?: number;
+
+                            name?: string;
+
+                            role?: string;
+
+                            surfaceId?: string;
+                        };
+                    } | {
+
+                        condition: "visible";
+                        query: {
+
+                            descendantOf?: string;
+
+                            disabled?: "yes" | "no" | "unknown";
+
+                            hidden?: "yes" | "no" | "unknown";
+
+                            id?: string;
+
+                            limit?: number;
+
+                            name?: string;
+
+                            role?: string;
+
+                            surfaceId?: string;
+                        };
+                    } | {
+
+                        condition: "valid";
+                        query: {
+
+                            descendantOf?: string;
+
+                            disabled?: "yes" | "no" | "unknown";
+
+                            hidden?: "yes" | "no" | "unknown";
+
+                            id?: string;
+
+                            limit?: number;
+
+                            name?: string;
+
+                            role?: string;
+
+                            surfaceId?: string;
+                        };
+                    } | {
+
+                        condition: "in_viewport";
+                        query: {
+
+                            descendantOf?: string;
+
+                            disabled?: "yes" | "no" | "unknown";
+
+                            hidden?: "yes" | "no" | "unknown";
+
+                            id?: string;
+
+                            limit?: number;
+
+                            name?: string;
+
+                            role?: string;
+
+                            surfaceId?: string;
+                        };
+                    } | {
+
+                        condition: "within_root";
+                        query: {
+
+                            descendantOf?: string;
+
+                            disabled?: "yes" | "no" | "unknown";
+
+                            hidden?: "yes" | "no" | "unknown";
+
+                            id?: string;
+
+                            limit?: number;
+
+                            name?: string;
+
+                            role?: string;
+
+                            surfaceId?: string;
+                        };
+                    } | {
+
+                        condition: "unclipped";
+                        query: {
+
+                            descendantOf?: string;
+
+                            disabled?: "yes" | "no" | "unknown";
+
+                            hidden?: "yes" | "no" | "unknown";
+
+                            id?: string;
+
+                            limit?: number;
+
+                            name?: string;
+
+                            role?: string;
+
+                            surfaceId?: string;
+                        };
+                    } | {
+
+                        condition: "nonzero_size";
+                        query: {
+
+                            descendantOf?: string;
+
+                            disabled?: "yes" | "no" | "unknown";
+
+                            hidden?: "yes" | "no" | "unknown";
+
+                            id?: string;
+
+                            limit?: number;
+
+                            name?: string;
+
+                            role?: string;
+
+                            surfaceId?: string;
+                        };
+                    } | {
+
+                        condition: "value_equals";
+                        expected: string;
+                        query: {
+
+                            descendantOf?: string;
+
+                            disabled?: "yes" | "no" | "unknown";
+
+                            hidden?: "yes" | "no" | "unknown";
+
+                            id?: string;
+
+                            limit?: number;
+
+                            name?: string;
+
+                            role?: string;
+
+                            surfaceId?: string;
+                        };
+                    } | {
+
+                        condition: "selected_equals";
+                        expected: string[];
+                        query: {
+
+                            descendantOf?: string;
+
+                            disabled?: "yes" | "no" | "unknown";
+
+                            hidden?: "yes" | "no" | "unknown";
+
+                            id?: string;
+
+                            limit?: number;
+
+                            name?: string;
+
+                            role?: string;
+
+                            surfaceId?: string;
+                        };
+                    };
+
+                    root_id?: string;
+                };
+
+                tool: "ui_assert";
+            } | {
+                bind?: null;
+                id: string;
+                label?: string;
+                parameters: {
+                    action: {
+
+                        allowUnknownSideEffects?: boolean;
+
+                        confirmed?: boolean;
+                        target: {
+
+                            generation: number;
+
+                            id: string;
+
+                            revision: number;
+                        };
+
+                        type: "highlight";
+                    } | {
+
+                        allowUnknownSideEffects?: boolean;
+
+                        confirmed: true;
+                        target: {
+
+                            generation: number;
+
+                            id: string;
+
+                            revision: number;
+                        };
+
+                        type: "click";
+                    } | {
+
+                        allowUnknownSideEffects?: boolean;
+
+                        confirmed: true;
+                        target: {
+
+                            generation: number;
+
+                            id: string;
+
+                            revision: number;
+                        };
+
+                        type: "scroll";
+                    } | {
+
+                        allowUnknownSideEffects?: boolean;
+
+                        confirmed: true;
+                        target: {
+
+                            generation: number;
+
+                            id: string;
+
+                            revision: number;
+                        };
+
+                        type: "fill";
+                        value: string;
+                    } | {
+
+                        allowUnknownSideEffects?: boolean;
+
+                        confirmed: true;
+                        target: {
+
+                            generation: number;
+
+                            id: string;
+
+                            revision: number;
+                        };
+
+                        type: "select";
+                        values: string[];
+                    } | {
+                        assertion: {
+
+                            condition: "exists";
+                            query: {
+
+                                descendantOf?: string;
+
+                                disabled?: "yes" | "no" | "unknown";
+
+                                hidden?: "yes" | "no" | "unknown";
+
+                                id?: string;
+
+                                limit?: number;
+
+                                name?: string;
+
+                                role?: string;
+
+                                surfaceId?: string;
+                            };
+                        } | {
+
+                            condition: "absent";
+                            query: {
+
+                                descendantOf?: string;
+
+                                disabled?: "yes" | "no" | "unknown";
+
+                                hidden?: "yes" | "no" | "unknown";
+
+                                id?: string;
+
+                                limit?: number;
+
+                                name?: string;
+
+                                role?: string;
+
+                                surfaceId?: string;
+                            };
+                        } | {
+
+                            condition: "count";
+
+                            expected: number;
+                            query: {
+
+                                descendantOf?: string;
+
+                                disabled?: "yes" | "no" | "unknown";
+
+                                hidden?: "yes" | "no" | "unknown";
+
+                                id?: string;
+
+                                limit?: number;
+
+                                name?: string;
+
+                                role?: string;
+
+                                surfaceId?: string;
+                            };
+                        } | {
+
+                            condition: "enabled";
+                            query: {
+
+                                descendantOf?: string;
+
+                                disabled?: "yes" | "no" | "unknown";
+
+                                hidden?: "yes" | "no" | "unknown";
+
+                                id?: string;
+
+                                limit?: number;
+
+                                name?: string;
+
+                                role?: string;
+
+                                surfaceId?: string;
+                            };
+                        } | {
+
+                            condition: "visible";
+                            query: {
+
+                                descendantOf?: string;
+
+                                disabled?: "yes" | "no" | "unknown";
+
+                                hidden?: "yes" | "no" | "unknown";
+
+                                id?: string;
+
+                                limit?: number;
+
+                                name?: string;
+
+                                role?: string;
+
+                                surfaceId?: string;
+                            };
+                        } | {
+
+                            condition: "valid";
+                            query: {
+
+                                descendantOf?: string;
+
+                                disabled?: "yes" | "no" | "unknown";
+
+                                hidden?: "yes" | "no" | "unknown";
+
+                                id?: string;
+
+                                limit?: number;
+
+                                name?: string;
+
+                                role?: string;
+
+                                surfaceId?: string;
+                            };
+                        } | {
+
+                            condition: "in_viewport";
+                            query: {
+
+                                descendantOf?: string;
+
+                                disabled?: "yes" | "no" | "unknown";
+
+                                hidden?: "yes" | "no" | "unknown";
+
+                                id?: string;
+
+                                limit?: number;
+
+                                name?: string;
+
+                                role?: string;
+
+                                surfaceId?: string;
+                            };
+                        } | {
+
+                            condition: "within_root";
+                            query: {
+
+                                descendantOf?: string;
+
+                                disabled?: "yes" | "no" | "unknown";
+
+                                hidden?: "yes" | "no" | "unknown";
+
+                                id?: string;
+
+                                limit?: number;
+
+                                name?: string;
+
+                                role?: string;
+
+                                surfaceId?: string;
+                            };
+                        } | {
+
+                            condition: "unclipped";
+                            query: {
+
+                                descendantOf?: string;
+
+                                disabled?: "yes" | "no" | "unknown";
+
+                                hidden?: "yes" | "no" | "unknown";
+
+                                id?: string;
+
+                                limit?: number;
+
+                                name?: string;
+
+                                role?: string;
+
+                                surfaceId?: string;
+                            };
+                        } | {
+
+                            condition: "nonzero_size";
+                            query: {
+
+                                descendantOf?: string;
+
+                                disabled?: "yes" | "no" | "unknown";
+
+                                hidden?: "yes" | "no" | "unknown";
+
+                                id?: string;
+
+                                limit?: number;
+
+                                name?: string;
+
+                                role?: string;
+
+                                surfaceId?: string;
+                            };
+                        } | {
+
+                            condition: "value_equals";
+                            expected: string;
+                            query: {
+
+                                descendantOf?: string;
+
+                                disabled?: "yes" | "no" | "unknown";
+
+                                hidden?: "yes" | "no" | "unknown";
+
+                                id?: string;
+
+                                limit?: number;
+
+                                name?: string;
+
+                                role?: string;
+
+                                surfaceId?: string;
+                            };
+                        } | {
+
+                            condition: "selected_equals";
+                            expected: string[];
+                            query: {
+
+                                descendantOf?: string;
+
+                                disabled?: "yes" | "no" | "unknown";
+
+                                hidden?: "yes" | "no" | "unknown";
+
+                                id?: string;
+
+                                limit?: number;
+
+                                name?: string;
+
+                                role?: string;
+
+                                surfaceId?: string;
+                            };
+                        };
+
+                        timeoutMs?: number;
+
+                        type: "wait";
+                    } | {
+
+                        confirmed: true;
+
+                        path: string;
+
+                        type: "navigate";
+                    };
+                    expect?: {
+                        assertion: {
+
+                            condition: "exists";
+                            query: {
+
+                                descendantOf?: string;
+
+                                disabled?: "yes" | "no" | "unknown";
+
+                                hidden?: "yes" | "no" | "unknown";
+
+                                id?: string;
+
+                                limit?: number;
+
+                                name?: string;
+
+                                role?: string;
+
+                                surfaceId?: string;
+                            };
+                        } | {
+
+                            condition: "absent";
+                            query: {
+
+                                descendantOf?: string;
+
+                                disabled?: "yes" | "no" | "unknown";
+
+                                hidden?: "yes" | "no" | "unknown";
+
+                                id?: string;
+
+                                limit?: number;
+
+                                name?: string;
+
+                                role?: string;
+
+                                surfaceId?: string;
+                            };
+                        } | {
+
+                            condition: "count";
+
+                            expected: number;
+                            query: {
+
+                                descendantOf?: string;
+
+                                disabled?: "yes" | "no" | "unknown";
+
+                                hidden?: "yes" | "no" | "unknown";
+
+                                id?: string;
+
+                                limit?: number;
+
+                                name?: string;
+
+                                role?: string;
+
+                                surfaceId?: string;
+                            };
+                        } | {
+
+                            condition: "enabled";
+                            query: {
+
+                                descendantOf?: string;
+
+                                disabled?: "yes" | "no" | "unknown";
+
+                                hidden?: "yes" | "no" | "unknown";
+
+                                id?: string;
+
+                                limit?: number;
+
+                                name?: string;
+
+                                role?: string;
+
+                                surfaceId?: string;
+                            };
+                        } | {
+
+                            condition: "visible";
+                            query: {
+
+                                descendantOf?: string;
+
+                                disabled?: "yes" | "no" | "unknown";
+
+                                hidden?: "yes" | "no" | "unknown";
+
+                                id?: string;
+
+                                limit?: number;
+
+                                name?: string;
+
+                                role?: string;
+
+                                surfaceId?: string;
+                            };
+                        } | {
+
+                            condition: "valid";
+                            query: {
+
+                                descendantOf?: string;
+
+                                disabled?: "yes" | "no" | "unknown";
+
+                                hidden?: "yes" | "no" | "unknown";
+
+                                id?: string;
+
+                                limit?: number;
+
+                                name?: string;
+
+                                role?: string;
+
+                                surfaceId?: string;
+                            };
+                        } | {
+
+                            condition: "in_viewport";
+                            query: {
+
+                                descendantOf?: string;
+
+                                disabled?: "yes" | "no" | "unknown";
+
+                                hidden?: "yes" | "no" | "unknown";
+
+                                id?: string;
+
+                                limit?: number;
+
+                                name?: string;
+
+                                role?: string;
+
+                                surfaceId?: string;
+                            };
+                        } | {
+
+                            condition: "within_root";
+                            query: {
+
+                                descendantOf?: string;
+
+                                disabled?: "yes" | "no" | "unknown";
+
+                                hidden?: "yes" | "no" | "unknown";
+
+                                id?: string;
+
+                                limit?: number;
+
+                                name?: string;
+
+                                role?: string;
+
+                                surfaceId?: string;
+                            };
+                        } | {
+
+                            condition: "unclipped";
+                            query: {
+
+                                descendantOf?: string;
+
+                                disabled?: "yes" | "no" | "unknown";
+
+                                hidden?: "yes" | "no" | "unknown";
+
+                                id?: string;
+
+                                limit?: number;
+
+                                name?: string;
+
+                                role?: string;
+
+                                surfaceId?: string;
+                            };
+                        } | {
+
+                            condition: "nonzero_size";
+                            query: {
+
+                                descendantOf?: string;
+
+                                disabled?: "yes" | "no" | "unknown";
+
+                                hidden?: "yes" | "no" | "unknown";
+
+                                id?: string;
+
+                                limit?: number;
+
+                                name?: string;
+
+                                role?: string;
+
+                                surfaceId?: string;
+                            };
+                        } | {
+
+                            condition: "value_equals";
+                            expected: string;
+                            query: {
+
+                                descendantOf?: string;
+
+                                disabled?: "yes" | "no" | "unknown";
+
+                                hidden?: "yes" | "no" | "unknown";
+
+                                id?: string;
+
+                                limit?: number;
+
+                                name?: string;
+
+                                role?: string;
+
+                                surfaceId?: string;
+                            };
+                        } | {
+
+                            condition: "selected_equals";
+                            expected: string[];
+                            query: {
+
+                                descendantOf?: string;
+
+                                disabled?: "yes" | "no" | "unknown";
+
+                                hidden?: "yes" | "no" | "unknown";
+
+                                id?: string;
+
+                                limit?: number;
+
+                                name?: string;
+
+                                role?: string;
+
+                                surfaceId?: string;
+                            };
+                        };
+
+                        kind: "ui";
+
+                        timeout_ms?: number;
+                    } | {
+                        checks: {
+                            equals: unknown;
+
+                            pointer: string;
+                        }[];
+
+                        kind: "data";
+                        query?: unknown;
+                        source_id: string;
+
+                        timeout_ms?: number;
+                    };
+
+                    root_id?: string;
+                } & unknown;
+
+                tool: "ui_action";
+            } | {
+                bind?: null;
+                id: string;
+                label?: string;
+                parameters: {
+                    confirmed: boolean;
+                    expected_revision: string;
+                    source_id: string;
+                    value: unknown;
+                };
+
+                tool: "data_write";
+            } | {
+                bind?: null;
+                id: string;
+                label?: string;
+                parameters: {
+
+                    allow_unknown_side_effects: true;
+
+                    confirmed: true;
+
+                    id: string;
+
+                    include_result?: boolean;
+                    input: unknown;
+
+                    kind: "command";
+                } | {
+
+                    allow_unknown_side_effects: true;
+
+                    confirmed: true;
+
+                    id: string;
+
+                    include_result?: boolean;
+                    input: unknown;
+
+                    kind: "service";
+
+                    version: string;
+                };
+
+                tool: "invoke";
+            } | {
+                bind: {
+                    target_from_step: string;
+                };
+                id: string;
+                label?: string;
+                parameters: {
+                    action: {
+
+                        allowUnknownSideEffects?: boolean;
+
+                        confirmed?: boolean;
+
+                        type: "highlight";
+                    } | {
+
+                        allowUnknownSideEffects?: boolean;
+
+                        confirmed: true;
+
+                        type: "click";
+                    } | {
+
+                        allowUnknownSideEffects?: boolean;
+
+                        confirmed: true;
+
+                        type: "scroll";
+                    } | {
+
+                        allowUnknownSideEffects?: boolean;
+
+                        confirmed: true;
+
+                        type: "fill";
+                        value: string;
+                    } | {
+
+                        allowUnknownSideEffects?: boolean;
+
+                        confirmed: true;
+
+                        type: "select";
+                        values: string[];
+                    };
+                    expect?: {
+                        assertion: {
+
+                            condition: "exists";
+                            query: {
+
+                                descendantOf?: string;
+
+                                disabled?: "yes" | "no" | "unknown";
+
+                                hidden?: "yes" | "no" | "unknown";
+
+                                id?: string;
+
+                                limit?: number;
+
+                                name?: string;
+
+                                role?: string;
+
+                                surfaceId?: string;
+                            };
+                        } | {
+
+                            condition: "absent";
+                            query: {
+
+                                descendantOf?: string;
+
+                                disabled?: "yes" | "no" | "unknown";
+
+                                hidden?: "yes" | "no" | "unknown";
+
+                                id?: string;
+
+                                limit?: number;
+
+                                name?: string;
+
+                                role?: string;
+
+                                surfaceId?: string;
+                            };
+                        } | {
+
+                            condition: "count";
+
+                            expected: number;
+                            query: {
+
+                                descendantOf?: string;
+
+                                disabled?: "yes" | "no" | "unknown";
+
+                                hidden?: "yes" | "no" | "unknown";
+
+                                id?: string;
+
+                                limit?: number;
+
+                                name?: string;
+
+                                role?: string;
+
+                                surfaceId?: string;
+                            };
+                        } | {
+
+                            condition: "enabled";
+                            query: {
+
+                                descendantOf?: string;
+
+                                disabled?: "yes" | "no" | "unknown";
+
+                                hidden?: "yes" | "no" | "unknown";
+
+                                id?: string;
+
+                                limit?: number;
+
+                                name?: string;
+
+                                role?: string;
+
+                                surfaceId?: string;
+                            };
+                        } | {
+
+                            condition: "visible";
+                            query: {
+
+                                descendantOf?: string;
+
+                                disabled?: "yes" | "no" | "unknown";
+
+                                hidden?: "yes" | "no" | "unknown";
+
+                                id?: string;
+
+                                limit?: number;
+
+                                name?: string;
+
+                                role?: string;
+
+                                surfaceId?: string;
+                            };
+                        } | {
+
+                            condition: "valid";
+                            query: {
+
+                                descendantOf?: string;
+
+                                disabled?: "yes" | "no" | "unknown";
+
+                                hidden?: "yes" | "no" | "unknown";
+
+                                id?: string;
+
+                                limit?: number;
+
+                                name?: string;
+
+                                role?: string;
+
+                                surfaceId?: string;
+                            };
+                        } | {
+
+                            condition: "in_viewport";
+                            query: {
+
+                                descendantOf?: string;
+
+                                disabled?: "yes" | "no" | "unknown";
+
+                                hidden?: "yes" | "no" | "unknown";
+
+                                id?: string;
+
+                                limit?: number;
+
+                                name?: string;
+
+                                role?: string;
+
+                                surfaceId?: string;
+                            };
+                        } | {
+
+                            condition: "within_root";
+                            query: {
+
+                                descendantOf?: string;
+
+                                disabled?: "yes" | "no" | "unknown";
+
+                                hidden?: "yes" | "no" | "unknown";
+
+                                id?: string;
+
+                                limit?: number;
+
+                                name?: string;
+
+                                role?: string;
+
+                                surfaceId?: string;
+                            };
+                        } | {
+
+                            condition: "unclipped";
+                            query: {
+
+                                descendantOf?: string;
+
+                                disabled?: "yes" | "no" | "unknown";
+
+                                hidden?: "yes" | "no" | "unknown";
+
+                                id?: string;
+
+                                limit?: number;
+
+                                name?: string;
+
+                                role?: string;
+
+                                surfaceId?: string;
+                            };
+                        } | {
+
+                            condition: "nonzero_size";
+                            query: {
+
+                                descendantOf?: string;
+
+                                disabled?: "yes" | "no" | "unknown";
+
+                                hidden?: "yes" | "no" | "unknown";
+
+                                id?: string;
+
+                                limit?: number;
+
+                                name?: string;
+
+                                role?: string;
+
+                                surfaceId?: string;
+                            };
+                        } | {
+
+                            condition: "value_equals";
+                            expected: string;
+                            query: {
+
+                                descendantOf?: string;
+
+                                disabled?: "yes" | "no" | "unknown";
+
+                                hidden?: "yes" | "no" | "unknown";
+
+                                id?: string;
+
+                                limit?: number;
+
+                                name?: string;
+
+                                role?: string;
+
+                                surfaceId?: string;
+                            };
+                        } | {
+
+                            condition: "selected_equals";
+                            expected: string[];
+                            query: {
+
+                                descendantOf?: string;
+
+                                disabled?: "yes" | "no" | "unknown";
+
+                                hidden?: "yes" | "no" | "unknown";
+
+                                id?: string;
+
+                                limit?: number;
+
+                                name?: string;
+
+                                role?: string;
+
+                                surfaceId?: string;
+                            };
+                        };
+
+                        kind: "ui";
+
+                        timeout_ms?: number;
+                    } | {
+                        checks: {
+                            equals: unknown;
+
+                            pointer: string;
+                        }[];
+
+                        kind: "data";
+                        query?: unknown;
+                        source_id: string;
+
+                        timeout_ms?: number;
+                    };
+
+                    root_id?: string;
+                } & unknown;
+
+                tool: "ui_action";
+            } | {
+                bind: {
+                    revision_from_step: string;
+                };
+                id: string;
+                label?: string;
+                parameters: {
+                    confirmed: boolean;
+                    source_id: string;
+                    value: unknown;
+                };
+
+                tool: "data_write";
+            })[];
 
             stop_on_failure: boolean;
         };
@@ -14789,6 +16317,21 @@ export interface components {
             }[];
         };
 
+        DebuggerBridgeClose: {
+            instance_id: string;
+        };
+
+        DebuggerBridgeDirectory: {
+            instance_id: string;
+            plugins: {
+
+                generation: string | null;
+                plugin_id: string;
+
+                version: string | null;
+            }[];
+        };
+
         DebuggerBridgeHeartbeat: {
             instance_id: string;
 
@@ -14801,6 +16344,66 @@ export interface components {
             }[] | null;
         };
 
+        DebuggerBridgeOpen: {
+
+            inflight: string[];
+
+            instance_id: string | null;
+
+            plugins: {
+
+                generation: string | null;
+                plugin_id: string;
+
+                version: string | null;
+            }[];
+
+            resume_key: string | null;
+        };
+
+        DebuggerBridgeOpened: {
+            commands: {
+                command_id: string;
+                response?: unknown;
+                session_id: string;
+                state: ("queued" | "delivered" | "succeeded" | "failed" | "cancelled_unconfirmed") | "timed_out_unconfirmed";
+            }[];
+            instance_id: string;
+            resume_key: string;
+            status: {
+                active_sessions: {
+
+                    idle_ttl_ms: number;
+                    session_id: string;
+
+                    state: "active" | "closed" | "expired" | "disconnected" | "target_changed";
+                    target: {
+
+                        generation: string | null;
+
+                        instance_id: string | null;
+                        plugin_id: string;
+
+                        target_kind: "browser" | "server";
+
+                        version: string | null;
+                    };
+                }[];
+                instance_id: string;
+                targets: {
+
+                    generation: string | null;
+
+                    instance_id: string | null;
+                    plugin_id: string;
+
+                    target_kind: "browser" | "server";
+
+                    version: string | null;
+                }[];
+            };
+        };
+
         DebuggerBridgePlugin: {
 
             generation: string | null;
@@ -14810,6 +16413,12 @@ export interface components {
         };
 
         DebuggerBridgePoll: {
+            instance_id: string;
+
+            limit: number;
+        };
+
+        DebuggerBridgeReady: {
             instance_id: string;
 
             limit: number;
@@ -14973,6 +16582,1840 @@ export interface components {
         DebuggerToolCall: {
             input: unknown;
             name: string;
+        };
+
+        DebuggerTreeAssertion: {
+
+            condition: "exists";
+            query: {
+
+                descendantOf?: string;
+
+                disabled?: "yes" | "no" | "unknown";
+
+                hidden?: "yes" | "no" | "unknown";
+
+                id?: string;
+
+                limit?: number;
+
+                name?: string;
+
+                role?: string;
+
+                surfaceId?: string;
+            };
+        } | {
+
+            condition: "absent";
+            query: {
+
+                descendantOf?: string;
+
+                disabled?: "yes" | "no" | "unknown";
+
+                hidden?: "yes" | "no" | "unknown";
+
+                id?: string;
+
+                limit?: number;
+
+                name?: string;
+
+                role?: string;
+
+                surfaceId?: string;
+            };
+        } | {
+
+            condition: "count";
+
+            expected: number;
+            query: {
+
+                descendantOf?: string;
+
+                disabled?: "yes" | "no" | "unknown";
+
+                hidden?: "yes" | "no" | "unknown";
+
+                id?: string;
+
+                limit?: number;
+
+                name?: string;
+
+                role?: string;
+
+                surfaceId?: string;
+            };
+        } | {
+
+            condition: "enabled";
+            query: {
+
+                descendantOf?: string;
+
+                disabled?: "yes" | "no" | "unknown";
+
+                hidden?: "yes" | "no" | "unknown";
+
+                id?: string;
+
+                limit?: number;
+
+                name?: string;
+
+                role?: string;
+
+                surfaceId?: string;
+            };
+        } | {
+
+            condition: "visible";
+            query: {
+
+                descendantOf?: string;
+
+                disabled?: "yes" | "no" | "unknown";
+
+                hidden?: "yes" | "no" | "unknown";
+
+                id?: string;
+
+                limit?: number;
+
+                name?: string;
+
+                role?: string;
+
+                surfaceId?: string;
+            };
+        } | {
+
+            condition: "valid";
+            query: {
+
+                descendantOf?: string;
+
+                disabled?: "yes" | "no" | "unknown";
+
+                hidden?: "yes" | "no" | "unknown";
+
+                id?: string;
+
+                limit?: number;
+
+                name?: string;
+
+                role?: string;
+
+                surfaceId?: string;
+            };
+        } | {
+
+            condition: "in_viewport";
+            query: {
+
+                descendantOf?: string;
+
+                disabled?: "yes" | "no" | "unknown";
+
+                hidden?: "yes" | "no" | "unknown";
+
+                id?: string;
+
+                limit?: number;
+
+                name?: string;
+
+                role?: string;
+
+                surfaceId?: string;
+            };
+        } | {
+
+            condition: "within_root";
+            query: {
+
+                descendantOf?: string;
+
+                disabled?: "yes" | "no" | "unknown";
+
+                hidden?: "yes" | "no" | "unknown";
+
+                id?: string;
+
+                limit?: number;
+
+                name?: string;
+
+                role?: string;
+
+                surfaceId?: string;
+            };
+        } | {
+
+            condition: "unclipped";
+            query: {
+
+                descendantOf?: string;
+
+                disabled?: "yes" | "no" | "unknown";
+
+                hidden?: "yes" | "no" | "unknown";
+
+                id?: string;
+
+                limit?: number;
+
+                name?: string;
+
+                role?: string;
+
+                surfaceId?: string;
+            };
+        } | {
+
+            condition: "nonzero_size";
+            query: {
+
+                descendantOf?: string;
+
+                disabled?: "yes" | "no" | "unknown";
+
+                hidden?: "yes" | "no" | "unknown";
+
+                id?: string;
+
+                limit?: number;
+
+                name?: string;
+
+                role?: string;
+
+                surfaceId?: string;
+            };
+        } | {
+
+            condition: "value_equals";
+            expected: string;
+            query: {
+
+                descendantOf?: string;
+
+                disabled?: "yes" | "no" | "unknown";
+
+                hidden?: "yes" | "no" | "unknown";
+
+                id?: string;
+
+                limit?: number;
+
+                name?: string;
+
+                role?: string;
+
+                surfaceId?: string;
+            };
+        } | {
+
+            condition: "selected_equals";
+            expected: string[];
+            query: {
+
+                descendantOf?: string;
+
+                disabled?: "yes" | "no" | "unknown";
+
+                hidden?: "yes" | "no" | "unknown";
+
+                id?: string;
+
+                limit?: number;
+
+                name?: string;
+
+                role?: string;
+
+                surfaceId?: string;
+            };
+        };
+
+        DebuggerUiAction: {
+
+            allowUnknownSideEffects: boolean;
+
+            confirmed: boolean;
+            target: {
+
+                generation: number;
+
+                id: string;
+
+                revision: number;
+            };
+
+            type: "highlight";
+        } | {
+
+            allowUnknownSideEffects: boolean;
+
+            confirmed: true;
+            target: {
+
+                generation: number;
+
+                id: string;
+
+                revision: number;
+            };
+
+            type: "click";
+        } | {
+
+            allowUnknownSideEffects: boolean;
+
+            confirmed: true;
+            target: {
+
+                generation: number;
+
+                id: string;
+
+                revision: number;
+            };
+
+            type: "scroll";
+        } | {
+
+            allowUnknownSideEffects: boolean;
+
+            confirmed: true;
+            target: {
+
+                generation: number;
+
+                id: string;
+
+                revision: number;
+            };
+
+            type: "fill";
+            value: string;
+        } | {
+
+            allowUnknownSideEffects: boolean;
+
+            confirmed: true;
+            target: {
+
+                generation: number;
+
+                id: string;
+
+                revision: number;
+            };
+
+            type: "select";
+            values: string[];
+        } | {
+            assertion: {
+
+                condition: "exists";
+                query: {
+
+                    descendantOf?: string;
+
+                    disabled?: "yes" | "no" | "unknown";
+
+                    hidden?: "yes" | "no" | "unknown";
+
+                    id?: string;
+
+                    limit?: number;
+
+                    name?: string;
+
+                    role?: string;
+
+                    surfaceId?: string;
+                };
+            } | {
+
+                condition: "absent";
+                query: {
+
+                    descendantOf?: string;
+
+                    disabled?: "yes" | "no" | "unknown";
+
+                    hidden?: "yes" | "no" | "unknown";
+
+                    id?: string;
+
+                    limit?: number;
+
+                    name?: string;
+
+                    role?: string;
+
+                    surfaceId?: string;
+                };
+            } | {
+
+                condition: "count";
+
+                expected: number;
+                query: {
+
+                    descendantOf?: string;
+
+                    disabled?: "yes" | "no" | "unknown";
+
+                    hidden?: "yes" | "no" | "unknown";
+
+                    id?: string;
+
+                    limit?: number;
+
+                    name?: string;
+
+                    role?: string;
+
+                    surfaceId?: string;
+                };
+            } | {
+
+                condition: "enabled";
+                query: {
+
+                    descendantOf?: string;
+
+                    disabled?: "yes" | "no" | "unknown";
+
+                    hidden?: "yes" | "no" | "unknown";
+
+                    id?: string;
+
+                    limit?: number;
+
+                    name?: string;
+
+                    role?: string;
+
+                    surfaceId?: string;
+                };
+            } | {
+
+                condition: "visible";
+                query: {
+
+                    descendantOf?: string;
+
+                    disabled?: "yes" | "no" | "unknown";
+
+                    hidden?: "yes" | "no" | "unknown";
+
+                    id?: string;
+
+                    limit?: number;
+
+                    name?: string;
+
+                    role?: string;
+
+                    surfaceId?: string;
+                };
+            } | {
+
+                condition: "valid";
+                query: {
+
+                    descendantOf?: string;
+
+                    disabled?: "yes" | "no" | "unknown";
+
+                    hidden?: "yes" | "no" | "unknown";
+
+                    id?: string;
+
+                    limit?: number;
+
+                    name?: string;
+
+                    role?: string;
+
+                    surfaceId?: string;
+                };
+            } | {
+
+                condition: "in_viewport";
+                query: {
+
+                    descendantOf?: string;
+
+                    disabled?: "yes" | "no" | "unknown";
+
+                    hidden?: "yes" | "no" | "unknown";
+
+                    id?: string;
+
+                    limit?: number;
+
+                    name?: string;
+
+                    role?: string;
+
+                    surfaceId?: string;
+                };
+            } | {
+
+                condition: "within_root";
+                query: {
+
+                    descendantOf?: string;
+
+                    disabled?: "yes" | "no" | "unknown";
+
+                    hidden?: "yes" | "no" | "unknown";
+
+                    id?: string;
+
+                    limit?: number;
+
+                    name?: string;
+
+                    role?: string;
+
+                    surfaceId?: string;
+                };
+            } | {
+
+                condition: "unclipped";
+                query: {
+
+                    descendantOf?: string;
+
+                    disabled?: "yes" | "no" | "unknown";
+
+                    hidden?: "yes" | "no" | "unknown";
+
+                    id?: string;
+
+                    limit?: number;
+
+                    name?: string;
+
+                    role?: string;
+
+                    surfaceId?: string;
+                };
+            } | {
+
+                condition: "nonzero_size";
+                query: {
+
+                    descendantOf?: string;
+
+                    disabled?: "yes" | "no" | "unknown";
+
+                    hidden?: "yes" | "no" | "unknown";
+
+                    id?: string;
+
+                    limit?: number;
+
+                    name?: string;
+
+                    role?: string;
+
+                    surfaceId?: string;
+                };
+            } | {
+
+                condition: "value_equals";
+                expected: string;
+                query: {
+
+                    descendantOf?: string;
+
+                    disabled?: "yes" | "no" | "unknown";
+
+                    hidden?: "yes" | "no" | "unknown";
+
+                    id?: string;
+
+                    limit?: number;
+
+                    name?: string;
+
+                    role?: string;
+
+                    surfaceId?: string;
+                };
+            } | {
+
+                condition: "selected_equals";
+                expected: string[];
+                query: {
+
+                    descendantOf?: string;
+
+                    disabled?: "yes" | "no" | "unknown";
+
+                    hidden?: "yes" | "no" | "unknown";
+
+                    id?: string;
+
+                    limit?: number;
+
+                    name?: string;
+
+                    role?: string;
+
+                    surfaceId?: string;
+                };
+            };
+
+            timeoutMs?: number;
+
+            type: "wait";
+        } | {
+
+            confirmed: true;
+
+            path: string;
+
+            type: "navigate";
+        } | {
+
+            type: "pick";
+        };
+
+        DebuggerUiActionExpectation: {
+            assertion: {
+
+                condition: "exists";
+                query: {
+
+                    descendantOf?: string;
+
+                    disabled?: "yes" | "no" | "unknown";
+
+                    hidden?: "yes" | "no" | "unknown";
+
+                    id?: string;
+
+                    limit?: number;
+
+                    name?: string;
+
+                    role?: string;
+
+                    surfaceId?: string;
+                };
+            } | {
+
+                condition: "absent";
+                query: {
+
+                    descendantOf?: string;
+
+                    disabled?: "yes" | "no" | "unknown";
+
+                    hidden?: "yes" | "no" | "unknown";
+
+                    id?: string;
+
+                    limit?: number;
+
+                    name?: string;
+
+                    role?: string;
+
+                    surfaceId?: string;
+                };
+            } | {
+
+                condition: "count";
+
+                expected: number;
+                query: {
+
+                    descendantOf?: string;
+
+                    disabled?: "yes" | "no" | "unknown";
+
+                    hidden?: "yes" | "no" | "unknown";
+
+                    id?: string;
+
+                    limit?: number;
+
+                    name?: string;
+
+                    role?: string;
+
+                    surfaceId?: string;
+                };
+            } | {
+
+                condition: "enabled";
+                query: {
+
+                    descendantOf?: string;
+
+                    disabled?: "yes" | "no" | "unknown";
+
+                    hidden?: "yes" | "no" | "unknown";
+
+                    id?: string;
+
+                    limit?: number;
+
+                    name?: string;
+
+                    role?: string;
+
+                    surfaceId?: string;
+                };
+            } | {
+
+                condition: "visible";
+                query: {
+
+                    descendantOf?: string;
+
+                    disabled?: "yes" | "no" | "unknown";
+
+                    hidden?: "yes" | "no" | "unknown";
+
+                    id?: string;
+
+                    limit?: number;
+
+                    name?: string;
+
+                    role?: string;
+
+                    surfaceId?: string;
+                };
+            } | {
+
+                condition: "valid";
+                query: {
+
+                    descendantOf?: string;
+
+                    disabled?: "yes" | "no" | "unknown";
+
+                    hidden?: "yes" | "no" | "unknown";
+
+                    id?: string;
+
+                    limit?: number;
+
+                    name?: string;
+
+                    role?: string;
+
+                    surfaceId?: string;
+                };
+            } | {
+
+                condition: "in_viewport";
+                query: {
+
+                    descendantOf?: string;
+
+                    disabled?: "yes" | "no" | "unknown";
+
+                    hidden?: "yes" | "no" | "unknown";
+
+                    id?: string;
+
+                    limit?: number;
+
+                    name?: string;
+
+                    role?: string;
+
+                    surfaceId?: string;
+                };
+            } | {
+
+                condition: "within_root";
+                query: {
+
+                    descendantOf?: string;
+
+                    disabled?: "yes" | "no" | "unknown";
+
+                    hidden?: "yes" | "no" | "unknown";
+
+                    id?: string;
+
+                    limit?: number;
+
+                    name?: string;
+
+                    role?: string;
+
+                    surfaceId?: string;
+                };
+            } | {
+
+                condition: "unclipped";
+                query: {
+
+                    descendantOf?: string;
+
+                    disabled?: "yes" | "no" | "unknown";
+
+                    hidden?: "yes" | "no" | "unknown";
+
+                    id?: string;
+
+                    limit?: number;
+
+                    name?: string;
+
+                    role?: string;
+
+                    surfaceId?: string;
+                };
+            } | {
+
+                condition: "nonzero_size";
+                query: {
+
+                    descendantOf?: string;
+
+                    disabled?: "yes" | "no" | "unknown";
+
+                    hidden?: "yes" | "no" | "unknown";
+
+                    id?: string;
+
+                    limit?: number;
+
+                    name?: string;
+
+                    role?: string;
+
+                    surfaceId?: string;
+                };
+            } | {
+
+                condition: "value_equals";
+                expected: string;
+                query: {
+
+                    descendantOf?: string;
+
+                    disabled?: "yes" | "no" | "unknown";
+
+                    hidden?: "yes" | "no" | "unknown";
+
+                    id?: string;
+
+                    limit?: number;
+
+                    name?: string;
+
+                    role?: string;
+
+                    surfaceId?: string;
+                };
+            } | {
+
+                condition: "selected_equals";
+                expected: string[];
+                query: {
+
+                    descendantOf?: string;
+
+                    disabled?: "yes" | "no" | "unknown";
+
+                    hidden?: "yes" | "no" | "unknown";
+
+                    id?: string;
+
+                    limit?: number;
+
+                    name?: string;
+
+                    role?: string;
+
+                    surfaceId?: string;
+                };
+            };
+
+            kind: "ui";
+
+            timeout_ms: number;
+        } | {
+            checks: {
+                equals: unknown;
+
+                pointer: string;
+            }[];
+
+            kind: "data";
+            query?: unknown;
+            source_id: string;
+
+            timeout_ms: number;
+        };
+
+        DebuggerUiActionInput: {
+            action: {
+
+                allowUnknownSideEffects: boolean;
+
+                confirmed: boolean;
+                target: {
+
+                    generation: number;
+
+                    id: string;
+
+                    revision: number;
+                };
+
+                type: "highlight";
+            } | {
+
+                allowUnknownSideEffects: boolean;
+
+                confirmed: true;
+                target: {
+
+                    generation: number;
+
+                    id: string;
+
+                    revision: number;
+                };
+
+                type: "click";
+            } | {
+
+                allowUnknownSideEffects: boolean;
+
+                confirmed: true;
+                target: {
+
+                    generation: number;
+
+                    id: string;
+
+                    revision: number;
+                };
+
+                type: "scroll";
+            } | {
+
+                allowUnknownSideEffects: boolean;
+
+                confirmed: true;
+                target: {
+
+                    generation: number;
+
+                    id: string;
+
+                    revision: number;
+                };
+
+                type: "fill";
+                value: string;
+            } | {
+
+                allowUnknownSideEffects: boolean;
+
+                confirmed: true;
+                target: {
+
+                    generation: number;
+
+                    id: string;
+
+                    revision: number;
+                };
+
+                type: "select";
+                values: string[];
+            } | {
+                assertion: {
+
+                    condition: "exists";
+                    query: {
+
+                        descendantOf?: string;
+
+                        disabled?: "yes" | "no" | "unknown";
+
+                        hidden?: "yes" | "no" | "unknown";
+
+                        id?: string;
+
+                        limit?: number;
+
+                        name?: string;
+
+                        role?: string;
+
+                        surfaceId?: string;
+                    };
+                } | {
+
+                    condition: "absent";
+                    query: {
+
+                        descendantOf?: string;
+
+                        disabled?: "yes" | "no" | "unknown";
+
+                        hidden?: "yes" | "no" | "unknown";
+
+                        id?: string;
+
+                        limit?: number;
+
+                        name?: string;
+
+                        role?: string;
+
+                        surfaceId?: string;
+                    };
+                } | {
+
+                    condition: "count";
+
+                    expected: number;
+                    query: {
+
+                        descendantOf?: string;
+
+                        disabled?: "yes" | "no" | "unknown";
+
+                        hidden?: "yes" | "no" | "unknown";
+
+                        id?: string;
+
+                        limit?: number;
+
+                        name?: string;
+
+                        role?: string;
+
+                        surfaceId?: string;
+                    };
+                } | {
+
+                    condition: "enabled";
+                    query: {
+
+                        descendantOf?: string;
+
+                        disabled?: "yes" | "no" | "unknown";
+
+                        hidden?: "yes" | "no" | "unknown";
+
+                        id?: string;
+
+                        limit?: number;
+
+                        name?: string;
+
+                        role?: string;
+
+                        surfaceId?: string;
+                    };
+                } | {
+
+                    condition: "visible";
+                    query: {
+
+                        descendantOf?: string;
+
+                        disabled?: "yes" | "no" | "unknown";
+
+                        hidden?: "yes" | "no" | "unknown";
+
+                        id?: string;
+
+                        limit?: number;
+
+                        name?: string;
+
+                        role?: string;
+
+                        surfaceId?: string;
+                    };
+                } | {
+
+                    condition: "valid";
+                    query: {
+
+                        descendantOf?: string;
+
+                        disabled?: "yes" | "no" | "unknown";
+
+                        hidden?: "yes" | "no" | "unknown";
+
+                        id?: string;
+
+                        limit?: number;
+
+                        name?: string;
+
+                        role?: string;
+
+                        surfaceId?: string;
+                    };
+                } | {
+
+                    condition: "in_viewport";
+                    query: {
+
+                        descendantOf?: string;
+
+                        disabled?: "yes" | "no" | "unknown";
+
+                        hidden?: "yes" | "no" | "unknown";
+
+                        id?: string;
+
+                        limit?: number;
+
+                        name?: string;
+
+                        role?: string;
+
+                        surfaceId?: string;
+                    };
+                } | {
+
+                    condition: "within_root";
+                    query: {
+
+                        descendantOf?: string;
+
+                        disabled?: "yes" | "no" | "unknown";
+
+                        hidden?: "yes" | "no" | "unknown";
+
+                        id?: string;
+
+                        limit?: number;
+
+                        name?: string;
+
+                        role?: string;
+
+                        surfaceId?: string;
+                    };
+                } | {
+
+                    condition: "unclipped";
+                    query: {
+
+                        descendantOf?: string;
+
+                        disabled?: "yes" | "no" | "unknown";
+
+                        hidden?: "yes" | "no" | "unknown";
+
+                        id?: string;
+
+                        limit?: number;
+
+                        name?: string;
+
+                        role?: string;
+
+                        surfaceId?: string;
+                    };
+                } | {
+
+                    condition: "nonzero_size";
+                    query: {
+
+                        descendantOf?: string;
+
+                        disabled?: "yes" | "no" | "unknown";
+
+                        hidden?: "yes" | "no" | "unknown";
+
+                        id?: string;
+
+                        limit?: number;
+
+                        name?: string;
+
+                        role?: string;
+
+                        surfaceId?: string;
+                    };
+                } | {
+
+                    condition: "value_equals";
+                    expected: string;
+                    query: {
+
+                        descendantOf?: string;
+
+                        disabled?: "yes" | "no" | "unknown";
+
+                        hidden?: "yes" | "no" | "unknown";
+
+                        id?: string;
+
+                        limit?: number;
+
+                        name?: string;
+
+                        role?: string;
+
+                        surfaceId?: string;
+                    };
+                } | {
+
+                    condition: "selected_equals";
+                    expected: string[];
+                    query: {
+
+                        descendantOf?: string;
+
+                        disabled?: "yes" | "no" | "unknown";
+
+                        hidden?: "yes" | "no" | "unknown";
+
+                        id?: string;
+
+                        limit?: number;
+
+                        name?: string;
+
+                        role?: string;
+
+                        surfaceId?: string;
+                    };
+                };
+
+                timeoutMs?: number;
+
+                type: "wait";
+            } | {
+
+                confirmed: true;
+
+                path: string;
+
+                type: "navigate";
+            } | {
+
+                type: "pick";
+            };
+            expect?: {
+                assertion: {
+
+                    condition: "exists";
+                    query: {
+
+                        descendantOf?: string;
+
+                        disabled?: "yes" | "no" | "unknown";
+
+                        hidden?: "yes" | "no" | "unknown";
+
+                        id?: string;
+
+                        limit?: number;
+
+                        name?: string;
+
+                        role?: string;
+
+                        surfaceId?: string;
+                    };
+                } | {
+
+                    condition: "absent";
+                    query: {
+
+                        descendantOf?: string;
+
+                        disabled?: "yes" | "no" | "unknown";
+
+                        hidden?: "yes" | "no" | "unknown";
+
+                        id?: string;
+
+                        limit?: number;
+
+                        name?: string;
+
+                        role?: string;
+
+                        surfaceId?: string;
+                    };
+                } | {
+
+                    condition: "count";
+
+                    expected: number;
+                    query: {
+
+                        descendantOf?: string;
+
+                        disabled?: "yes" | "no" | "unknown";
+
+                        hidden?: "yes" | "no" | "unknown";
+
+                        id?: string;
+
+                        limit?: number;
+
+                        name?: string;
+
+                        role?: string;
+
+                        surfaceId?: string;
+                    };
+                } | {
+
+                    condition: "enabled";
+                    query: {
+
+                        descendantOf?: string;
+
+                        disabled?: "yes" | "no" | "unknown";
+
+                        hidden?: "yes" | "no" | "unknown";
+
+                        id?: string;
+
+                        limit?: number;
+
+                        name?: string;
+
+                        role?: string;
+
+                        surfaceId?: string;
+                    };
+                } | {
+
+                    condition: "visible";
+                    query: {
+
+                        descendantOf?: string;
+
+                        disabled?: "yes" | "no" | "unknown";
+
+                        hidden?: "yes" | "no" | "unknown";
+
+                        id?: string;
+
+                        limit?: number;
+
+                        name?: string;
+
+                        role?: string;
+
+                        surfaceId?: string;
+                    };
+                } | {
+
+                    condition: "valid";
+                    query: {
+
+                        descendantOf?: string;
+
+                        disabled?: "yes" | "no" | "unknown";
+
+                        hidden?: "yes" | "no" | "unknown";
+
+                        id?: string;
+
+                        limit?: number;
+
+                        name?: string;
+
+                        role?: string;
+
+                        surfaceId?: string;
+                    };
+                } | {
+
+                    condition: "in_viewport";
+                    query: {
+
+                        descendantOf?: string;
+
+                        disabled?: "yes" | "no" | "unknown";
+
+                        hidden?: "yes" | "no" | "unknown";
+
+                        id?: string;
+
+                        limit?: number;
+
+                        name?: string;
+
+                        role?: string;
+
+                        surfaceId?: string;
+                    };
+                } | {
+
+                    condition: "within_root";
+                    query: {
+
+                        descendantOf?: string;
+
+                        disabled?: "yes" | "no" | "unknown";
+
+                        hidden?: "yes" | "no" | "unknown";
+
+                        id?: string;
+
+                        limit?: number;
+
+                        name?: string;
+
+                        role?: string;
+
+                        surfaceId?: string;
+                    };
+                } | {
+
+                    condition: "unclipped";
+                    query: {
+
+                        descendantOf?: string;
+
+                        disabled?: "yes" | "no" | "unknown";
+
+                        hidden?: "yes" | "no" | "unknown";
+
+                        id?: string;
+
+                        limit?: number;
+
+                        name?: string;
+
+                        role?: string;
+
+                        surfaceId?: string;
+                    };
+                } | {
+
+                    condition: "nonzero_size";
+                    query: {
+
+                        descendantOf?: string;
+
+                        disabled?: "yes" | "no" | "unknown";
+
+                        hidden?: "yes" | "no" | "unknown";
+
+                        id?: string;
+
+                        limit?: number;
+
+                        name?: string;
+
+                        role?: string;
+
+                        surfaceId?: string;
+                    };
+                } | {
+
+                    condition: "value_equals";
+                    expected: string;
+                    query: {
+
+                        descendantOf?: string;
+
+                        disabled?: "yes" | "no" | "unknown";
+
+                        hidden?: "yes" | "no" | "unknown";
+
+                        id?: string;
+
+                        limit?: number;
+
+                        name?: string;
+
+                        role?: string;
+
+                        surfaceId?: string;
+                    };
+                } | {
+
+                    condition: "selected_equals";
+                    expected: string[];
+                    query: {
+
+                        descendantOf?: string;
+
+                        disabled?: "yes" | "no" | "unknown";
+
+                        hidden?: "yes" | "no" | "unknown";
+
+                        id?: string;
+
+                        limit?: number;
+
+                        name?: string;
+
+                        role?: string;
+
+                        surfaceId?: string;
+                    };
+                };
+
+                kind: "ui";
+
+                timeout_ms: number;
+            } | {
+                checks: {
+                    equals: unknown;
+
+                    pointer: string;
+                }[];
+
+                kind: "data";
+                query?: unknown;
+                source_id: string;
+
+                timeout_ms: number;
+            };
+
+            root_id?: string;
+        } & unknown;
+
+        DebuggerUiAssertInput: {
+            assertion: {
+
+                condition: "exists";
+                query: {
+
+                    descendantOf?: string;
+
+                    disabled?: "yes" | "no" | "unknown";
+
+                    hidden?: "yes" | "no" | "unknown";
+
+                    id?: string;
+
+                    limit?: number;
+
+                    name?: string;
+
+                    role?: string;
+
+                    surfaceId?: string;
+                };
+            } | {
+
+                condition: "absent";
+                query: {
+
+                    descendantOf?: string;
+
+                    disabled?: "yes" | "no" | "unknown";
+
+                    hidden?: "yes" | "no" | "unknown";
+
+                    id?: string;
+
+                    limit?: number;
+
+                    name?: string;
+
+                    role?: string;
+
+                    surfaceId?: string;
+                };
+            } | {
+
+                condition: "count";
+
+                expected: number;
+                query: {
+
+                    descendantOf?: string;
+
+                    disabled?: "yes" | "no" | "unknown";
+
+                    hidden?: "yes" | "no" | "unknown";
+
+                    id?: string;
+
+                    limit?: number;
+
+                    name?: string;
+
+                    role?: string;
+
+                    surfaceId?: string;
+                };
+            } | {
+
+                condition: "enabled";
+                query: {
+
+                    descendantOf?: string;
+
+                    disabled?: "yes" | "no" | "unknown";
+
+                    hidden?: "yes" | "no" | "unknown";
+
+                    id?: string;
+
+                    limit?: number;
+
+                    name?: string;
+
+                    role?: string;
+
+                    surfaceId?: string;
+                };
+            } | {
+
+                condition: "visible";
+                query: {
+
+                    descendantOf?: string;
+
+                    disabled?: "yes" | "no" | "unknown";
+
+                    hidden?: "yes" | "no" | "unknown";
+
+                    id?: string;
+
+                    limit?: number;
+
+                    name?: string;
+
+                    role?: string;
+
+                    surfaceId?: string;
+                };
+            } | {
+
+                condition: "valid";
+                query: {
+
+                    descendantOf?: string;
+
+                    disabled?: "yes" | "no" | "unknown";
+
+                    hidden?: "yes" | "no" | "unknown";
+
+                    id?: string;
+
+                    limit?: number;
+
+                    name?: string;
+
+                    role?: string;
+
+                    surfaceId?: string;
+                };
+            } | {
+
+                condition: "in_viewport";
+                query: {
+
+                    descendantOf?: string;
+
+                    disabled?: "yes" | "no" | "unknown";
+
+                    hidden?: "yes" | "no" | "unknown";
+
+                    id?: string;
+
+                    limit?: number;
+
+                    name?: string;
+
+                    role?: string;
+
+                    surfaceId?: string;
+                };
+            } | {
+
+                condition: "within_root";
+                query: {
+
+                    descendantOf?: string;
+
+                    disabled?: "yes" | "no" | "unknown";
+
+                    hidden?: "yes" | "no" | "unknown";
+
+                    id?: string;
+
+                    limit?: number;
+
+                    name?: string;
+
+                    role?: string;
+
+                    surfaceId?: string;
+                };
+            } | {
+
+                condition: "unclipped";
+                query: {
+
+                    descendantOf?: string;
+
+                    disabled?: "yes" | "no" | "unknown";
+
+                    hidden?: "yes" | "no" | "unknown";
+
+                    id?: string;
+
+                    limit?: number;
+
+                    name?: string;
+
+                    role?: string;
+
+                    surfaceId?: string;
+                };
+            } | {
+
+                condition: "nonzero_size";
+                query: {
+
+                    descendantOf?: string;
+
+                    disabled?: "yes" | "no" | "unknown";
+
+                    hidden?: "yes" | "no" | "unknown";
+
+                    id?: string;
+
+                    limit?: number;
+
+                    name?: string;
+
+                    role?: string;
+
+                    surfaceId?: string;
+                };
+            } | {
+
+                condition: "value_equals";
+                expected: string;
+                query: {
+
+                    descendantOf?: string;
+
+                    disabled?: "yes" | "no" | "unknown";
+
+                    hidden?: "yes" | "no" | "unknown";
+
+                    id?: string;
+
+                    limit?: number;
+
+                    name?: string;
+
+                    role?: string;
+
+                    surfaceId?: string;
+                };
+            } | {
+
+                condition: "selected_equals";
+                expected: string[];
+                query: {
+
+                    descendantOf?: string;
+
+                    disabled?: "yes" | "no" | "unknown";
+
+                    hidden?: "yes" | "no" | "unknown";
+
+                    id?: string;
+
+                    limit?: number;
+
+                    name?: string;
+
+                    role?: string;
+
+                    surfaceId?: string;
+                };
+            };
+
+            root_id?: string;
+        };
+
+        DebuggerUiDiffInput: {
+
+            after_id: string;
+
+            before_id: string;
+
+            root_id?: string;
+        };
+
+        DebuggerUiQueryInput: {
+
+            query: {
+
+                descendantOf?: string;
+
+                disabled?: "yes" | "no" | "unknown";
+
+                hidden?: "yes" | "no" | "unknown";
+
+                id?: string;
+
+                limit?: number;
+
+                name?: string;
+
+                role?: string;
+
+                surfaceId?: string;
+            };
+
+            root_id?: string;
+        };
+
+        DebuggerUiTreeInput: {
+
+            limit: number;
+
+            offset: number;
+
+            view: "overview";
+        } | ({
+
+            limit: number;
+
+            offset: number;
+
+            root_id?: string;
+
+            snapshot_id?: string;
+        } & unknown);
+
+        DebuggerUiValidationDetails: {
+            example: unknown;
+            expected: string;
+            path: string;
         };
 
         DecodedPackage: {
@@ -15821,6 +19264,47 @@ export interface components {
         ProviderInput: {
             generation: string;
             id: string;
+        };
+
+        RealtimeCapabilities: {
+            limits: {
+
+                buffer_packets: number;
+
+                connect_timeout_ms: number;
+
+                connections: number;
+
+                debugger_concurrency: number;
+
+                frame_bytes: number;
+
+                message_bytes: number;
+
+                pending_bytes: number;
+
+                ping_interval_ms: number;
+
+                ping_timeout_ms: number;
+
+                resume_window_ms: number;
+
+                task_coalesce_ms: number;
+            };
+            namespaces: {
+                local_only: boolean;
+                name: string;
+            }[];
+            path: string;
+
+            protocol_version: number;
+            transports: string[];
+        };
+
+        RealtimeTasksChanged: {
+            reset: boolean;
+
+            revision: string;
         };
 
         RecoveryInput: {

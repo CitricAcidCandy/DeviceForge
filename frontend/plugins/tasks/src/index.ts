@@ -1,4 +1,4 @@
-import type { HostContext, WebPlugin, WorkspaceLayoutNode } from '@deviceforge/plugin-sdk';
+import type { HostContext, WebPlugin, WorkspaceLayoutNode, WorkspaceViewContext } from '@deviceforge/plugin-sdk';
 
 export interface TasksPluginIdentity { readonly id: string; readonly version: string }
 
@@ -14,10 +14,10 @@ export function createTasksPlugin(identity: TasksPluginIdentity): WebPlugin {
   const viewId = `${identity.id}.list`;
   const instanceId = `${identity.id}.list.main`;
   const pointId = `${identity.id}.toolbar`;
-  async function mount(target: HTMLElement, context: HostContext) {
+  async function mount(target: HTMLElement, context: HostContext, instance: WorkspaceViewContext) {
     const view = await import('./view.tsx');
     context.signal.throwIfAborted();
-    return view.mountTasks(target, context, pointId);
+    return view.mountTasks(target, context, pointId, instance);
   }
   return {
     ...identity, apiVersion: 2, panels: [],

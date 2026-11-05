@@ -23,7 +23,10 @@
       }
     </script>
   </head>
-  <body>
+  <!-- 原生披露和窄窗触控默认保持原尺寸；零特异性让插件工具类与已有局部样式优先。 -->
+  <body
+    class="[:where(&_details>summary)]:min-h-[32px] [:where(&_details>summary)]:py-[4px] [:where(&_details>summary)]:text-[14px] [:where(&_details>summary)]:font-[550] [:where(&_details[open]>summary)]:mb-[12px] [:where(&_details>summary:focus-visible)]:outline-2 [:where(&_details>summary:focus-visible)]:outline-solid [:where(&_details>summary:focus-visible)]:outline-ring [:where(&_details>summary:focus-visible)]:outline-offset-3 max-[768px]:[:where(&_[data-slot=dropdown-menu-item])]:min-h-[44px] max-[768px]:[:where(&_[data-size^=icon])]:min-w-[44px] max-[768px]:[:where(&_[data-size^=icon])]:shrink-0"
+  >
     <div id="app"></div>
     <script type="module" src="/src/app/main.ts"></script>
   </body>

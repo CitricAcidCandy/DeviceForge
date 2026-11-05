@@ -6,6 +6,7 @@ import { measureLayout } from './layout.ts';
 import { redactText, sensitiveControl } from './privacy.ts';
 import { queryTree } from './query.ts';
 import { assertTree } from './assert.ts';
+import { verifyControl } from './control-verification.ts';
 import { diffTrees } from './diff.ts';
 
 // 下列契约仅留在宿主本地，不能经 JSON bridge 传输 DOM 或回调。
@@ -208,7 +209,12 @@ export function createUiCollector(root: Element, options: UiCollectorOptions): U
       snapshot();
       const latest = history.at(-1);
       if (!latest) throw new Error('缺少当前树证据');
-      return assertTree(latest, assertion);
+      return assertTree(latest, assertion, (reference, expected) => {
+        const element = currentElements.get(reference.id);
+        if (!element || !root.isConnected || !element.isConnected || !root.contains(element))
+          return { status: 'unavailable', scope: 'control', reason: '目标控件已撤销' };
+        return verifyControl(element, expected);
+      });
     },
     diff(beforeId, afterId) {
       const before = history.find((value) => value.id === beforeId), after = history.find((value) => value.id === afterId);

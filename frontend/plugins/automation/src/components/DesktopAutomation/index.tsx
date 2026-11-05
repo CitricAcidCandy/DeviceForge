@@ -1,5 +1,5 @@
 import { hostUi } from '@deviceforge/plugin-sdk';
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { Crosshair, Monitor, MousePointer2, Play } from 'lucide-react';
 const { Button } = hostUi();
 const { Label } = hostUi();
@@ -48,6 +48,7 @@ const stopReasons = {
 };
 
 export function DesktopAutomation({ services }: { services: AutomationServices }) {
+  const id = useId();
   const action = useAction();
   const [button, setButton] = useState<DesktopClick['button']>('left');
   const [click, setClick] = useState<DesktopClick['click']>('single');
@@ -122,8 +123,8 @@ export function DesktopAutomation({ services }: { services: AutomationServices }
             </div>
             <div className="border-t border-border pt-5">
               <div className="mb-5 flex items-center justify-between gap-3">
-                <Label htmlFor="desktop-fixed-position">使用指定坐标</Label>
-                <Switch id="desktop-fixed-position" checked={fixed} onCheckedChange={setFixed} />
+                <Label htmlFor={`${id}-fixed-position`}>使用指定坐标</Label>
+                <Switch id={`${id}-fixed-position`} checked={fixed} onCheckedChange={setFixed} />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <Field label="桌面 X 坐标" value={x} onChange={setX} type="number" min={-2147483648} max={2147483647} disabled={!fixed} />
@@ -136,18 +137,18 @@ export function DesktopAutomation({ services }: { services: AutomationServices }
             <h3 className="text-base font-semibold">点击方式</h3>
             <div className="mt-5 mb-5 grid gap-4 @lg/automation:grid-cols-2">
               <div className="grid min-w-0 gap-2">
-                <Label htmlFor="desktop-mouse-button" className="text-xs text-muted-foreground">鼠标按键</Label>
+                <Label htmlFor={`${id}-mouse-button`} className="text-xs text-muted-foreground">鼠标按键</Label>
                 <Select value={button} onValueChange={(value) => { if (value === 'left' || value === 'right' || value === 'middle') setButton(value); }}>
-                  <SelectTrigger id="desktop-mouse-button" className="w-full" aria-label="桌面鼠标按键"><SelectValue /></SelectTrigger>
+                  <SelectTrigger id={`${id}-mouse-button`} className="w-full" aria-label="桌面鼠标按键"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {Object.entries(buttons).map(([value, label]) => <SelectItem value={value} key={value}>{label}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
               <div className="grid min-w-0 gap-2">
-                <Label htmlFor="desktop-click-kind" className="text-xs text-muted-foreground">点击类型</Label>
+                <Label htmlFor={`${id}-click-kind`} className="text-xs text-muted-foreground">点击类型</Label>
                 <Select value={click} onValueChange={(value) => { if (value === 'single' || value === 'double') setClick(value); }}>
-                  <SelectTrigger id="desktop-click-kind" className="w-full" aria-label="桌面点击方式"><SelectValue /></SelectTrigger>
+                  <SelectTrigger id={`${id}-click-kind`} className="w-full" aria-label="桌面点击方式"><SelectValue /></SelectTrigger>
                   <SelectContent><SelectItem value="single">单击</SelectItem><SelectItem value="double">双击</SelectItem></SelectContent>
                 </Select>
               </div>
@@ -160,9 +161,9 @@ export function DesktopAutomation({ services }: { services: AutomationServices }
               <div className="mt-5 grid gap-4 @lg/automation:grid-cols-2">
                 <Field label="点击间隔（ms）" value={interval} onChange={setInterval} type="number" min={10} max={60000} />
                 <div className="grid min-w-0 gap-2">
-                  <Label htmlFor="desktop-repeat-limit" className="text-xs text-muted-foreground">停止方式</Label>
+                  <Label htmlFor={`${id}-repeat-limit`} className="text-xs text-muted-foreground">停止方式</Label>
                   <Select value={limit} onValueChange={(value) => { if (value === 'count' || value === 'duration' || value === 'manual') setLimit(value); }}>
-                    <SelectTrigger id="desktop-repeat-limit" className="w-full" aria-label="桌面停止条件"><SelectValue /></SelectTrigger>
+                    <SelectTrigger id={`${id}-repeat-limit`} className="w-full" aria-label="桌面停止条件"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="count">按次数停止</SelectItem>
                       <SelectItem value="duration">按时长停止</SelectItem>
@@ -177,8 +178,8 @@ export function DesktopAutomation({ services }: { services: AutomationServices }
                 )}
               </div>
               <div className="mt-5 flex items-center justify-between gap-3">
-                <Label htmlFor="desktop-stop-f9" className="text-sm text-muted-foreground">允许 <kbd className="mx-1 rounded border border-border bg-surface-elevated px-1.5 py-0.5 font-mono text-xs">F9</kbd> 停止</Label>
-                <Switch id="desktop-stop-f9" checked={f9} onCheckedChange={setF9} />
+                <Label htmlFor={`${id}-stop-f9`} className="text-sm text-muted-foreground">允许 <kbd className="mx-1 rounded border border-border bg-surface-elevated px-1.5 py-0.5 font-mono text-xs">F9</kbd> 停止</Label>
+                <Switch id={`${id}-stop-f9`} checked={f9} onCheckedChange={setF9} />
               </div>
             </div>
             <p className="mt-auto pt-6 text-xs leading-relaxed text-faint">次数模式总等待及各模式时限最多 10 分钟。</p>

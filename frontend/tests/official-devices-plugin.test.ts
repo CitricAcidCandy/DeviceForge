@@ -463,11 +463,11 @@ test('设备目录显式刷新与发现才读取后端，不在实例创建时�
   const model = createDeviceDirectory(context.host);
   assert.deepEqual(devices.calls, []);
   await model.refresh();
-  assert.deepEqual(devices.calls, ['providers', 'directories']);
+  assert.deepEqual(devices.calls, ['directories'], '公开聚合目录自行读取提供者，模型不能额外重复读取');
   assert.equal(model.snapshot().feedback?.message, '读取设备目录已完成');
   assert.equal(model.snapshot().feedback?.logId, 'directory-log');
   await model.discover(provider);
-  assert.deepEqual(devices.calls, ['providers', 'directories', 'discover']);
+  assert.deepEqual(devices.calls, ['directories', 'discover']);
   assert.equal(model.snapshot().feedback?.logId, 'discovery-log');
   await model.dispose();
   assert.equal(devices.count(), 0);
@@ -544,4 +544,31 @@ test('单个目录订阅抛错不阻断其他视图或下一次独立请求', as
   assert.equal(observations, 4);
   await model.dispose();
   await context.dispose();
+});
+
+test('全量发现忽略取消仍按期限结束等待，独立读取与旧结果隔离保持', async () => {
+  const devices = deviceFixture(), late = deferred<HostResult<DeviceDirectory>>();
+  const observed: AbortSignal[] = [];
+  const context = fixture({ devices: { ...devices.devices,
+    refreshProvider: async (_id, _generation, signal) => { observed.push(signal); return late.promise; },
+  } });
+  const model = createDeviceDirectory(context.host, 20);
+  try {
+    await model.discoverAll();
+    assert.equal(observed.length, 1);
+    assert.equal(observed[0]?.aborted, true);
+    assert.equal(model.snapshot().pending, null);
+    assert.equal(model.snapshot().feedback?.outcome, 'failed');
+    assert.match(model.snapshot().feedback?.message ?? '', /等待超时.*结果未确认/);
+    assert.equal(model.snapshot().feedback?.logId, null, '未知发现结果不借用提供者读取成功的日志冒充执行结果');
+    await model.refresh();
+    assert.equal(model.snapshot().feedback?.logId, 'directory-log');
+    late.resolve({ data: directory, logId: 'late-discovery-log' });
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    assert.equal(model.snapshot().feedback?.logId, 'directory-log');
+    assert.deepEqual(devices.calls, ['providers', 'directories']);
+  } finally {
+    late.resolve({ data: directory, logId: 'cleanup-log' });
+    await model.dispose(); await context.dispose();
+  }
 });

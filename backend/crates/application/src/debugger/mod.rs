@@ -1,14 +1,16 @@
 //! 有界调试会话与浏览器桥接；不执行浏览器脚本或服务器业务。
 
-mod bridge;
 mod activity;
+mod bridge;
 mod commands;
 mod config;
 mod events;
+mod realtime;
 mod server_operations;
 mod sessions;
 mod state;
 mod types;
+pub mod ui_contract;
 mod validation;
 
 pub use commands::{
@@ -38,6 +40,7 @@ pub struct DebuggerService {
     clock: Arc<dyn DebuggerClock>,
     state: Mutex<state::State>,
     changed: tokio::sync::Notify,
+    unlocked: tokio::sync::Notify,
 }
 
 impl Default for DebuggerService {
@@ -62,6 +65,7 @@ impl DebuggerService {
             clock,
             state: Mutex::new(state::State::default()),
             changed: tokio::sync::Notify::new(),
+            unlocked: tokio::sync::Notify::new(),
         })
     }
 
@@ -82,6 +86,8 @@ impl DebuggerService {
         let result = operation(&mut state, now, &self.config);
         let changed = state.revision != revision;
         drop(state);
+        // 只读调用也能解除竞争；与业务修订通知分开，健康空闲不因此自唤醒。
+        self.unlocked.notify_waiters();
         if changed {
             self.changed.notify_waiters();
         }
@@ -91,3 +97,9 @@ impl DebuggerService {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod realtime_tests;
+
+#[cfg(test)]
+mod ui_contract_tests;

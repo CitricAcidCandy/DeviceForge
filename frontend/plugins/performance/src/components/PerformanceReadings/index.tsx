@@ -71,7 +71,7 @@ export function PerformanceReadings({ readings }: { readings: readonly Performan
             <TableRow key={reading.sequence}>
               <TableCell>
                 {reading.sequence}
-                <small className="block">
+                <small className="block text-[13px]">
                   {new Date(reading.captured_at).toLocaleString()} · PID {reading.pid}
                 </small>
                 <JsonResult value={reading} />
@@ -93,7 +93,7 @@ export function PerformanceReadings({ readings }: { readings: readonly Performan
               <TableCell>
                 <Metric value={reading.fps} unit="帧/秒" reason="本点未返回有效 FPS 或展示窗口" />
                 {reading.frame_window && (
-                  <small className="block">
+                  <small className="block text-[13px]">
                     {reading.frame_window.frames} 帧 / {reading.frame_window.duration_ms} ms ·{' '}
                     {reading.frame_window.source}
                   </small>
@@ -120,7 +120,7 @@ export function PerformanceReadings({ readings }: { readings: readonly Performan
                   reason="缺少合法电流或已知极性"
                 />
                 {reading.device_observation?.battery && (
-                  <small className="block">
+                  <small className="block text-[13px]">
                     {reading.device_observation.battery.source} ·{' '}
                     {reading.device_observation.battery.supply_state}
                   </small>

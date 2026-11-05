@@ -1,0 +1,10 @@
+{
+  "extends": "../tsconfig.json",
+  "include": [
+    "../plugins/tasks/src/footer.tsx",
+    "../plugins/tasks/src/task-drawer.tsx",
+    "../src/app/composition/Recovery.tsx",
+    "./task-drawer-view.test.ts",
+    "./default-shell-react.test.ts"
+  ]
+}

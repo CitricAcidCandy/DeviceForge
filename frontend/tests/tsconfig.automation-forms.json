@@ -1,0 +1,7 @@
+{
+  "extends": "../tsconfig.json",
+  "include": [
+    "./automation-forms.test.ts",
+    "../plugins/automation/src/view.tsx"
+  ]
+}

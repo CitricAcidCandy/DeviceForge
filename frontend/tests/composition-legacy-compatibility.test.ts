@@ -351,3 +351,48 @@ test('独立应用主实例保留旧devices.apps追加与替换，额外实例�
     await releaseExtra(); await release();
   } finally { await f.dispose(); }
 });
+
+test('自然高度的旧替换内容由所属租约滚动，恢复默认不丢草稿或重挂', async () => {
+  const f = await fixture();
+  const { compile } = await import('@tailwindcss/node');
+  let mounts = 0, releases = 0;
+  try {
+    const release = await f.page(async (target) => {
+      const input = target.ownerDocument.createElement('input'); input.value = '滚动后保留的草稿'; target.append(input);
+      return () => { input.remove(); };
+    });
+    const input = f.target.querySelector('input'); assert.ok(input);
+    await f.load({ id: 'natural_content', version: '0.1.0', apiVersion: 2, panels: [], contributions: {
+      components: [{ id: 'natural_content.main', title: '自然高度的旧视图', slot: 'route.devices', mode: 'replace',
+        mount: async (target) => {
+          mounts++;
+          const content = target.ownerDocument.createElement('section');
+          content.className = 'h-[725px]';
+          const lower = target.ownerDocument.createElement('button'); lower.textContent = '下方功能';
+          content.append(lower); target.append(content);
+          return () => { releases++; content.remove(); };
+        },
+      }],
+    } });
+    await settled(() => input.parentElement?.hidden === true);
+    const root = f.target.querySelector('[data-deviceforge-extension="natural_content.main"]'); assert.ok(root);
+    const lease = root.parentElement; assert.ok(lease);
+    const css = await compile('@tailwind utilities;', { base: process.cwd(), onDependency() {} });
+    const style = f.browser.window.document.createElement('style');
+    style.textContent = css.build([...lease.classList]);
+    f.browser.window.document.head.append(style);
+    // DOM单元只核对真实工具类的溢出语义；实际尺寸和滚动可达性另由浏览器取证。
+    assert.equal(f.browser.window.getComputedStyle(lease).overflow, 'auto', '宿主不能裁掉旧插件自然高度的下方内容');
+    assert.ok(lease.classList.contains('min-h-0'));
+    assert.ok(lease.classList.contains('flex-1'));
+    assert.equal(root.querySelector('section')?.className, 'h-[725px]', '不要求业务为兼容宿主补滚动样式');
+    const restore = [...f.target.querySelectorAll('button')].find((button) => button.textContent === '恢复默认'); assert.ok(restore);
+    restore.click();
+    await settled(() => input.parentElement?.hidden === false && releases === 1);
+    assert.equal(f.target.querySelector('input'), input);
+    assert.equal(input.value, '滚动后保留的草稿');
+    assert.equal(mounts, 1);
+    await release();
+    assert.equal(releases, 1);
+  } finally { await f.dispose(); }
+});

@@ -205,12 +205,40 @@ test('Frida原脚本配置与输出由独立插件呈现，分栏按挂载容器
     const configuration = root?.querySelector('[aria-label="Frida 执行配置"]');
     assert.ok(configuration); assert.match(root?.textContent ?? '', /检查状态/);
     assert.match(root?.textContent ?? '', /脚本与目标/); assert.match(root?.textContent ?? '', /尚无执行结果/);
-    requireClasses(configuration.parentElement, ['min-w-0', '@min-[900px]/frida:grid-cols-[20rem_minmax(0,1fr)]']);
+    requireClasses(configuration.parentElement, ['min-w-0', 'gap-x-8', 'gap-y-6', '@min-[900px]/frida:grid-cols-[minmax(16.25rem,18.75rem)_minmax(0,1fr)]']);
+    requireClasses(configuration, ['border-b', '@min-[900px]/frida:border-r', '@min-[900px]/frida:border-b-0']);
+    assert.equal(configuration.classList.contains('rounded-xl'), false, '原配置区是连续分隔，不套白卡');
+    const output = root?.querySelector('[aria-label="Frida 执行输出"]');
+    requireClasses(output ?? null, ['min-w-0', 'min-h-60', '@min-[900px]/frida:min-h-[440px]']);
+    assert.equal(output?.classList.contains('rounded-xl'), false, '原结果区不套白卡');
     assert.equal(configuration.parentElement?.classList.contains('lg:grid-cols-[20rem_minmax(0,1fr)]'), false);
     const compiler = await compile('@theme { --spacing: 0.25rem; } @tailwind utilities;');
     const css = compiler.build([...configuration.parentElement?.classList ?? []]);
     assert.match(css, /@container frida \(width >= 900px\)/); assert.doesNotMatch(css, /@media/);
     assert.equal(f.calls(), 0);
+  } finally { page?.window.close(); services.dispose(); await f.close(); }
+});
+
+test('Frida多实例的模式和上传标签只关联所属控件，包名及时长不继承固定标签列', async () => {
+  const f = fixture(), services = createFridaServices(f.context);
+  let page: JSDOM | undefined;
+  try {
+    page = new JSDOM(renderToStaticMarkup(createElement('div', null,
+      createElement(FridaPage, { services }), createElement(FridaPage, { services }))));
+    const document = page.window.document;
+    const inputs = [...document.querySelectorAll('input, button[id]')];
+    assert.equal(new Set(inputs.map((input) => input.id)).size, inputs.length, 'Frida多个实例不能复用控件ID');
+    for (const section of document.querySelectorAll('[data-product-page="frida"]')) {
+      for (const text of ['应用包名', '执行时长（毫秒）', '注入模式', 'Frida 服务器文件', 'UTF-8 脚本']) {
+        const label = [...section.querySelectorAll('label')].find((element) => element.textContent === text);
+        assert.ok(label);
+        const input = document.getElementById(label.htmlFor);
+        assert.ok(input && section.contains(input), '标签必须关联本实例控件');
+        assert.ok(label.parentElement && input.parentElement === label.parentElement, '标签和控件纵向位于同一字段');
+        assert.equal(label.closest('.form-item'), null, '窄配置列不使用全局固定标签列');
+      }
+    }
+    assert.equal(f.calls(), 0, '静态多实例核对不提交任务或访问设备');
   } finally { page?.window.close(); services.dispose(); await f.close(); }
 });
 

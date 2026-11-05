@@ -1,0 +1,9 @@
+{
+  "extends": "../tsconfig.json",
+  "include": [
+    "./device-directory-navigation.test.ts",
+    "../plugins/devices/src/workbench.tsx",
+    "../plugins/devices/src/view.tsx",
+    "../plugins/devices/src/directory-navigation.ts"
+  ]
+}

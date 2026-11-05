@@ -24,6 +24,46 @@ pub(crate) fn contribute(document: &mut Value) {
         ("DebuggerDataReadInput", schema::<DataReadInput>()),
         ("DebuggerDataWriteInput", schema::<DataWriteInput>()),
         ("DebuggerAutomationInput", schema::<AutomationInput>()),
+        ("DebuggerUiTreeInput", schema::<ui_contract::UiTreeInput>()),
+        (
+            "DebuggerUiQueryInput",
+            schema::<ui_contract::UiQueryInput>(),
+        ),
+        ("DebuggerUiDiffInput", schema::<ui_contract::UiDiffInput>()),
+        (
+            "DebuggerUiAssertInput",
+            schema::<ui_contract::UiAssertInput>(),
+        ),
+        (
+            "DebuggerUiActionInput",
+            schema::<ui_contract::UiActionInput>(),
+        ),
+        ("DebuggerUiAction", schema::<ui_contract::UiAction>()),
+        (
+            "DebuggerTreeAssertion",
+            schema::<ui_contract::TreeAssertion>(),
+        ),
+        (
+            "DebuggerUiActionExpectation",
+            schema::<ui_contract::UiActionExpectation>(),
+        ),
+        (
+            "DebuggerUiValidationDetails",
+            schema::<ui_contract::UiValidationDetails>(),
+        ),
+        (
+            "RealtimeCapabilities",
+            schema::<crate::realtime::RealtimeCapabilities>(),
+        ),
+        (
+            "RealtimeTasksChanged",
+            schema::<crate::realtime::TasksChanged>(),
+        ),
+        ("DebuggerBridgeOpen", schema::<BridgeOpen>()),
+        ("DebuggerBridgeOpened", schema::<BridgeOpened>()),
+        ("DebuggerBridgeDirectory", schema::<BridgeDirectory>()),
+        ("DebuggerBridgeReady", schema::<BridgeReady>()),
+        ("DebuggerBridgeClose", schema::<BridgeClose>()),
         ("DebuggerEventQuery", schema::<EventQuery>()),
         ("DebuggerEventPage", schema::<EventPage>()),
     ] {
@@ -73,4 +113,6 @@ pub(crate) fn contribute(document: &mut Value) {
     );
     document["paths"]["/api/v2/debugger/capabilities"] =
         json!({"get":v2_endpoint(endpoint("读取本机调试器协议与实现范围", "200", json!({})))});
+    document["paths"]["/api/v2/realtime/capabilities"] = json!({"get":v2_endpoint(endpoint(
+        "读取宿主实时传输、命名空间和资源上限", "200", schema::<crate::realtime::RealtimeCapabilities>()))});
 }

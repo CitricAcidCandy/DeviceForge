@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Copy, RefreshCw, Square } from 'lucide-react';
 import { hostUi } from '@deviceforge/plugin-sdk';
-import type { HostContext, HistoricalJob } from '@deviceforge/plugin-sdk';
+import type { HostContext, HistoricalJob, WorkspaceViewContext } from '@deviceforge/plugin-sdk';
 import { createTasksModel, formatJobProgress } from './model/index.ts';
 import type { LogOrder, TaskEvent, TaskLookup, TasksModel } from './model/index.ts';
 import { Button, Input, EmptyState, JsonResult, ActionError, cn, copyText, useAction, useSnapshot } from './view-support.tsx';
 import { TaskArtifacts } from './artifacts.tsx';
 import { LogRecords } from './log-records.tsx';
 import { TaskToolbar } from './toolbar.tsx';
+import { startTaskPageRefresh } from './page-refresh.ts';
 export { LogRecords } from './log-records.tsx';
 export { TaskArtifacts } from './artifacts.tsx';
 
@@ -92,8 +93,8 @@ function PaperBlock({
   );
 }
 
-export function TasksPluginPage({ context, toolbarPointId = 'deviceforge_tasks.toolbar' }: {
-  context: HostContext; toolbarPointId?: string;
+export function TasksPluginPage({ context, toolbarPointId = 'deviceforge_tasks.toolbar', instance }: {
+  context: HostContext; toolbarPointId?: string; instance?: WorkspaceViewContext;
 }) {
   const [model, setModel] = useState<TasksModel | null>(null);
   useEffect(() => {
@@ -101,10 +102,11 @@ export function TasksPluginPage({ context, toolbarPointId = 'deviceforge_tasks.t
     setModel(next);
     return () => next.dispose();
   }, [context]);
-  return model ? <TasksContent key={toolbarPointId} context={context} model={model} toolbarPointId={toolbarPointId} /> : null;
+  return model ? <TasksContent key={toolbarPointId} context={context} model={model} toolbarPointId={toolbarPointId}
+    {...(instance ? { instance } : {})} /> : null;
 }
-function TasksContent({ context, model, toolbarPointId }: {
-  context: HostContext; model: TasksModel; toolbarPointId: string;
+function TasksContent({ context, model, toolbarPointId, instance }: {
+  context: HostContext; model: TasksModel; toolbarPointId: string; instance?: WorkspaceViewContext;
 }) {
   const [message, setMessage] = useState<string | null>(null);
   const services = useMemo(() => ({ runtime: { tasks: model }, messages: {
@@ -142,21 +144,20 @@ function TasksContent({ context, model, toolbarPointId }: {
     return response;
   }
   useEffect(() => {
-    void action.run(refresh, { quiet: true });
-    const timer = window.setInterval(() => {
-      if (
-        document.visibilityState === 'visible' &&
-        !root.current?.closest('[hidden]') &&
-        !lookupActive.current &&
-        !refreshState.current.pending &&
-        !refreshState.current.error
-      ) {
-        void action.run(refresh, { quiet: true });
+    const element = root.current;
+    if (!element) return;
+    let reading = false;
+    return startTaskPageRefresh({
+      element, signal: context.signal, ...(instance ? { instance } : {}),
+      canRefresh: () => !reading && !lookupActive.current &&
+        !refreshState.current.pending && !refreshState.current.error,
+      refresh() {
+        reading = true;
+        void action.run(refresh, { quiet: true }).finally(() => { reading = false; });
         if (selectedId.current && !detailsPending.current) select(selectedId.current, true);
-      }
-    }, 10000);
-    return () => window.clearInterval(timer);
-  }, [services]);
+      },
+    });
+  }, [context, services, instance]);
   const listedJobs = lookupResult?.jobs ?? jobs;
   const visibleJobs = listedJobs
     .filter(
@@ -553,6 +554,7 @@ function TasksContent({ context, model, toolbarPointId }: {
   );
 }
 
-export function mountTasks(target: HTMLElement, context: HostContext, toolbarPointId?: string) {
-  return hostUi().mountReact(target, <TasksPluginPage context={context} {...(toolbarPointId ? { toolbarPointId } : {})} />);
+export function mountTasks(target: HTMLElement, context: HostContext, toolbarPointId?: string, instance?: WorkspaceViewContext) {
+  return hostUi().mountReact(target, <TasksPluginPage context={context} {...(toolbarPointId ? { toolbarPointId } : {})}
+    {...(instance ? { instance } : {})} />);
 }

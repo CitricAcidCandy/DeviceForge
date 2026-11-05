@@ -16,6 +16,7 @@ export type DebuggerBatchDto = components['schemas']['DebuggerBridgeBatch'];
 export type DebuggerAckDto = components['schemas']['DebuggerBridgeAck'];
 export type DebuggerReceiptDto = components['schemas']['DebuggerCommandReceipt'];
 export type DebuggerToolCallDto = components['schemas']['DebuggerToolCall'];
+export type DebuggerCommandResultDto = components['schemas']['DebuggerCommandResult'];
 
 const tools = new Set(['inspect', 'ui_tree', 'ui_query', 'ui_diff', 'ui_assert', 'ui_action', 'invoke', 'reload', 'report',
   'data_catalog', 'data_read', 'data_write', 'automation_run']);
@@ -57,6 +58,11 @@ export function isDebuggerBatch(value: unknown): value is DebuggerBatchDto {
 function isReceipt(value: unknown): value is DebuggerReceiptDto {
   return isRecord(value) && nonempty(value.command_id) && nonempty(value.session_id) &&
     states.has(String(value.state)) && natural(value.timeout_ms);
+}
+export { isStatus as isDebuggerStatus, isReceipt as isDebuggerReceipt };
+export function isDebuggerCommandResult(value: unknown): value is DebuggerCommandResultDto {
+  return isRecord(value) && nonempty(value.command_id) && nonempty(value.session_id) &&
+    states.has(String(value.state)) && isSchemaValue(value.response);
 }
 function post<I, O>(path: string, decode: (value: unknown) => value is O): Endpoint<I, O> {
   return { request: (input) => ({ path: `/api/v2/debugger/${path}`, method: 'POST',

@@ -6,9 +6,10 @@ import { generatePublicUi, publicUiEntries } from './scripts/generate-public-ui.
 import { workspacePluginPackages } from './scripts/workspace-plugin-packages.ts';
 import { developmentWatch } from './scripts/development-watch.ts';
 import { workspaceModuleResolution } from './scripts/workspace-module-resolution.ts';
+import { workspacePackageUpdates } from './scripts/workspace-package-updates.ts';
 
 const frontendRoot = fileURLToPath(new URL('.', import.meta.url));
-// 开发出口属于启动配置；每次解析模块都扫磁盘会阻塞样式和首屏，运行时热装卸不走此目录。
+// 启动及开发清单变化时读取公开出口；模块解析只读表，运行时热装卸不走此目录。
 const workspaceAliases = new Map(workspacePluginPackages(frontendRoot).aliases
   .map((entry) => [entry.find, entry.replacement]));
 const workspaceModules = workspaceModuleResolution(workspaceAliases);
@@ -16,6 +17,7 @@ const workspaceModules = workspaceModuleResolution(workspaceAliases);
 export default defineConfig({
   plugins: [
     ...workspaceModules.plugins,
+    workspacePackageUpdates(frontendRoot, workspaceAliases),
     {
       name: 'deviceforge-public-ui',
       async configResolved(config) { await generatePublicUi(config.root); },

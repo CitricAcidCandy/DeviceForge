@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 import type { HostContext } from '@deviceforge/plugin-sdk';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@deviceforge/business-kit/sheet';
 import type { ShellController } from './controller.ts';
 import type { MountPool } from './mount-pool.ts';
 import { normalizeRoute } from './controller.ts';
@@ -7,7 +8,7 @@ import { instancesIn } from './layout.ts';
 import { ViewFrame, LayoutNode, FloatingView } from './view.tsx';
 import { ChromeAddons } from './addons.tsx';
 import { StorageStatus } from './storage.tsx';
-import { ShellHeader, ShellNavigation, ShellStatus } from './chrome.tsx';
+import { ShellHeader, ShellNavigation, ShellNavigationLinks, ShellStatus } from './chrome.tsx';
 import { useShellConnection } from './connection.ts';
 import { useShellFacts } from './use-facts.ts';
 export function Shell({ context, controller, pool }: {
@@ -16,6 +17,8 @@ export function Shell({ context, controller, pool }: {
   const state = useSyncExternalStore(controller.subscribe, controller.snapshot, controller.snapshot);
   const root = useRef<HTMLDivElement>(null);
   const [collapsed, setCollapsed] = useState<boolean | null>(null);
+  const [mobile, setMobile] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [focused, setFocused] = useState(false);
   const [reduced, setReduced] = useState(false);
   const connection = useShellConnection(context);
@@ -27,7 +30,11 @@ export function Shell({ context, controller, pool }: {
     if (!element || !window) return;
     const resize = () => {
       // 隐藏或尚未布局时保留密度，避免无尺寸观测触发视图切换。
-      if (element.clientWidth > 0) controller.setCompact(element.clientWidth < 1100);
+      const width = element.clientWidth;
+      if (width <= 0) return;
+      controller.setCompact(width < 1100);
+      setMobile(width <= 900);
+      if (width > 900) setDrawerOpen(false);
     };
     resize();
     const observer = window.ResizeObserver ? new window.ResizeObserver(resize) : null;
@@ -55,12 +62,13 @@ export function Shell({ context, controller, pool }: {
   const viewProps = { state, controller, pool, editing: false, framed: false, onReplace: () => {}, onClose: () => {} };
   const cleanupErrors = pool.cleanupSnapshot();
   const compact = collapsed ?? state.compact;
-  return <div ref={root} data-navigation-collapsed={compact} data-focused={focused}
-    className={`grid h-full min-h-0 min-w-0 w-full grid-rows-[auto_minmax(0,1fr)_auto_auto] overflow-hidden bg-[#F5F6FB] text-[#222631] ${focused ? 'grid-cols-[0px_minmax(0,1fr)]' : compact ? 'grid-cols-[64px_minmax(0,1fr)]' : 'grid-cols-[236px_minmax(0,1fr)]'} ${reduced ? '[&_*]:animate-none [&_*]:transition-none' : ''}`}>
-    <ShellNavigation state={state} compact={compact} hidden={focused} connection={connectionState} navigate={navigate}>
+  return <Sheet open={mobile && drawerOpen} onOpenChange={setDrawerOpen}>
+  <div ref={root} data-navigation-collapsed={compact} data-navigation-mobile={mobile} data-focused={focused}
+    className={`@container/default-shell grid h-full min-h-0 min-w-0 w-full grid-rows-[auto_minmax(0,1fr)_auto_auto] overflow-hidden bg-[#F5F6FB] text-[#222631] ${focused || mobile ? 'grid-cols-[0px_minmax(0,1fr)]' : compact ? 'grid-cols-[64px_minmax(0,1fr)]' : 'grid-cols-[236px_minmax(0,1fr)]'} ${reduced ? '[&_*]:animate-none [&_*]:transition-none' : ''}`}>
+    {!mobile && <ShellNavigation state={state} compact={compact} hidden={focused} connection={connectionState} navigate={navigate}>
       <ChromeAddons context={context} region="sidebar" pool={pool} state={state} />
-    </ShellNavigation>
-    <ShellHeader state={state} compact={compact} focused={focused} reduced={reduced} connection={connectionState}
+    </ShellNavigation>}
+    <ShellHeader state={state} compact={compact} mobile={mobile} focused={focused} reduced={reduced} connection={connectionState}
       onCollapse={() => setCollapsed(!compact)} onFocus={() => setFocused((value) => !value)}
       onReduced={() => setReduced((value) => !value)} onRefresh={() => { void connection.refresh(); facts.refresh(); }} navigate={navigate}>
       <ChromeAddons context={context} region="header" pool={pool} state={state} />
@@ -94,5 +102,15 @@ export function Shell({ context, controller, pool }: {
       {cleanupErrors.length > 0 && <span title={cleanupErrors.join('\n')} className="text-[#A65D0D]">资源回收记录 {cleanupErrors.length}</span>}
     </div>
     <ShellStatus state={state} connection={connectionState} facts={facts.snapshot} />
-  </div>;
+  </div>
+  {mobile && <SheetContent side="left" className={`min-h-0 gap-0 text-[15px] text-foreground ${reduced ? 'animate-none transition-none [&_*]:animate-none [&_*]:transition-none' : ''}`}>
+    <SheetHeader>
+      <SheetTitle className="text-[17px]">工坊导航</SheetTitle>
+      <SheetDescription>选择工具，继续当前设备工作</SheetDescription>
+    </SheetHeader>
+    <ShellNavigationLinks state={state} compact={false} drawer navigate={(route) => { navigate(route); setDrawerOpen(false); }}>
+      <ChromeAddons context={context} region="sidebar" pool={pool} state={state} />
+    </ShellNavigationLinks>
+  </SheetContent>}
+  </Sheet>;
 }

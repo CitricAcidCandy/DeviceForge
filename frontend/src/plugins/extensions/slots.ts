@@ -195,8 +195,9 @@ export async function createNamedSlotAdapter(
     const root = slot.definition.target.ownerDocument.createElement('div');
     root.dataset.deviceforgeSlotOwner = `${request.pluginId}:${request.generation}:${request.componentId}`;
     root.dataset.deviceforgeSlotMode = request.mode;
+    // 旧插件可以按内容自然排版；租约承接溢出滚动，窄区域不能裁掉下方功能。
     root.className = request.mode === 'replace'
-      ? 'flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden'
+      ? 'flex min-h-0 min-w-0 flex-1 flex-col overflow-auto'
       : 'min-w-0 shrink-0';
     let leaseDisposal: Promise<void> | null = null;
     let released = false;

@@ -12,6 +12,15 @@ pub(super) struct InstanceEntry {
     pub touched: Duration,
     pub pending: VecDeque<String>,
     pub poll_slots: std::sync::Arc<tokio::sync::Semaphore>,
+    pub transport: Option<RealtimeTransport>,
+}
+
+pub(super) struct RealtimeTransport {
+    pub owner: String,
+    pub generation: u64,
+    pub resume_key: String,
+    pub disconnected_at: Option<Duration>,
+    pub online: std::sync::Arc<std::sync::atomic::AtomicBool>,
 }
 
 pub(super) struct SessionEntry {
@@ -322,10 +331,24 @@ impl State {
     }
 
     pub fn sweep(&mut self, now: Duration, config: &DebuggerConfig) {
+        // 清理回调即使遇到瞬时锁竞争，也会先撤销在线资格，下次访问补记断线。
+        for instance in self.instances.values_mut() {
+            if let Some(transport) = &mut instance.transport
+                && !transport.online.load(std::sync::atomic::Ordering::Acquire)
+                && transport.disconnected_at.is_none()
+            {
+                transport.disconnected_at = Some(now);
+            }
+        }
         let instances: Vec<_> = self
             .instances
             .iter()
-            .filter(|(_, entry)| now.saturating_sub(entry.touched) >= config.instance_ttl)
+            .filter(|(_, entry)| match &entry.transport {
+                Some(transport) => transport.disconnected_at.is_some_and(|disconnected| {
+                    now.saturating_sub(disconnected) >= config.instance_ttl
+                }),
+                None => now.saturating_sub(entry.touched) >= config.instance_ttl,
+            })
             .map(|(id, _)| id.clone())
             .collect();
         for instance in instances {

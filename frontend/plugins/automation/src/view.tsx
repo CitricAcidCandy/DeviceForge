@@ -15,7 +15,8 @@ export function AutomationPage({ services }: { services: AutomationServices }) {
   }, [services]);
   const [workspace, setWorkspace] = useState('device');
   return (
-    <section className="@container/automation flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden text-sm" data-product-page="automation">
+    <div className="@container/automation-page h-full min-h-0 min-w-0 w-full overflow-hidden">
+    <section className="@container/automation mx-auto flex h-full min-h-0 min-w-0 w-full max-w-[1648px] flex-1 flex-col overflow-hidden px-6 pb-7 pt-[22px] text-sm @max-[900px]/automation-page:px-4 @max-[900px]/automation-page:pb-6 @max-[900px]/automation-page:pt-4" data-product-page="automation">
       <PageTitle title="自动化" />
       <Tabs className="mt-4 flex min-h-0 min-w-0 flex-1 flex-col gap-0" value={workspace} onValueChange={setWorkspace}>
         {/* 标签栏不滚动：三个短标签用换行容纳，避免出现横向滚动条压掉下划线。 */}
@@ -35,6 +36,7 @@ export function AutomationPage({ services }: { services: AutomationServices }) {
         </TabsContent>
       </Tabs>
     </section>
+    </div>
   );
 }
 

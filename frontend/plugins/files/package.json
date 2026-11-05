@@ -31,6 +31,9 @@
       "import": "./dist/view.js"
     }
   },
+  "dependencies": {
+    "@deviceforge/business-kit": "file:../business-kit"
+  },
   "peerDependencies": {
     "react": "^19.3.0",
     "react-dom": "^19.3.0"

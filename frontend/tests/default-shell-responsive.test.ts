@@ -1,33 +1,21 @@
 import assert from 'node:assert/strict';
-import test, { after } from 'node:test';
-import { readFileSync } from 'node:fs';
-import { registerHooks } from 'node:module';
-import { fileURLToPath } from 'node:url';
+import test from 'node:test';
 import { act, createElement } from 'react';
 import { JSDOM } from 'jsdom';
-import ts from 'typescript';
 import type { HostContext, UiAccess, WorkspaceLayout, WorkspaceMount } from '../src/plugin-sdk/index.ts';
 import { createWorkspaceRegistry } from '../src/plugins/workspace/index.ts';
 import { createPointRegistry } from '../src/plugins/points/index.ts';
 import { createMountPool } from '../plugins/default-shell/src/mount-pool.ts';
 import { createShellController } from '../plugins/default-shell/src/controller.ts';
 import { floatingPosition } from '../plugins/default-shell/src/floating.ts';
+import { registerCompositionStartupImports } from './composition-startup-imports.ts';
 
-const shellSource = new URL('../plugins/default-shell/src/', import.meta.url);
-const parser = registerHooks({
-  load(url, context, next) {
-    if (!url.startsWith(shellSource.href) || !url.endsWith('.tsx')) return next(url, context);
-    return {
-      format: 'module', shortCircuit: true,
-      source: ts.transpileModule(readFileSync(new URL(url), 'utf8'), {
-        fileName: fileURLToPath(url),
-        compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext, jsx: ts.JsxEmit.ReactJSX },
-      }).outputText,
-    };
-  },
-});
-after(() => parser.deregister());
+// 与其他外壳单元共用真实公开包目录，不能只解析本插件的TSX。
+const imports = registerCompositionStartupImports();
+assert.deepEqual(imports.diagnostics, []);
 const { Shell } = await import('../plugins/default-shell/src/shell.tsx');
+const { installPublicUi } = await import('../src/app/public-ui.ts');
+imports.dispose();
 const split: WorkspaceLayout = {
   version: 1,
   root: { kind: 'split', direction: 'horizontal', weights: [0.6, 0.4], children: [
@@ -83,6 +71,7 @@ async function fixture(initialWidth = 1424, layout: WorkspaceLayout = split) {
     Object.defineProperty(globalThis, name, { configurable: true, writable: true, value });
   }
   // 先建立 DOM 再加载渲染器，让输入事件能力检测使用真实夹具环境。
+  const releasePublicUi = installPublicUi();
   const { createRoot } = await import('react-dom/client');
   const root = createRoot(target);
   const registry = createWorkspaceRegistry(), lifetime = new AbortController();
@@ -141,6 +130,7 @@ async function fixture(initialWidth = 1424, layout: WorkspaceLayout = split) {
       await pool.dispose();
       lifetime.abort();
       registry.dispose();
+      await releasePublicUi();
       browser.window.close();
       for (const [name, descriptor] of previous) {
         if (descriptor) Object.defineProperty(globalThis, name, descriptor);

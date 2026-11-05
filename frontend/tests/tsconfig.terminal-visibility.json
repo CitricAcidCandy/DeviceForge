@@ -1,0 +1,7 @@
+{
+  "extends": "../tsconfig.json",
+  "include": [
+    "./terminal-visibility.test.ts",
+    "../plugins/terminal/src/view.tsx"
+  ]
+}

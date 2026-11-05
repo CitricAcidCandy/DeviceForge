@@ -1,9 +1,10 @@
-import type { DebugActionRequest, DebugActionResult, UiNodeRef } from './contracts.ts';
+import type { DebugActionRequest, DebugActionResult, DebugActionVerification, UiNodeRef } from './contracts.ts';
 import type { UiCollector } from './collector.ts';
 import type { DebugActions, DebugActionsOptions, DebugPickResult } from './action-types.ts';
 import { mutationGuard } from './action-guards.ts';
 import { editControl } from './form-actions.ts';
 import { pickOnce } from './pick.ts';
+import { verifyControl } from './control-verification.ts';
 
 function result(status: DebugActionResult['status'], reason: string, target: UiNodeRef | null = null): DebugActionResult {
   return { status, reason, target, businessOutcome: 'unknown' };
@@ -81,7 +82,15 @@ export function createDebugActions(collector: UiCollector, options: DebugActions
     }
     if (request.type === 'fill' || request.type === 'select') {
       const error = editControl(element, request);
-      return error ? result('rejected', error, target) : result('dispatched', '已写入原生控件并派发input/change，不保证框架提交或业务成功', target);
+      if (error) return result('rejected', error, target);
+      // 给同步框架回调及微任务一次提交机会，绝不再次派发动作。
+      await Promise.resolve();
+      const active = !current.aborted && collector.resolve(target) === element;
+      const verification: DebugActionVerification = active ? verifyControl(element, request.type === 'fill'
+        ? { condition: 'value_equals', expected: request.value }
+        : { condition: 'selected_equals', expected: request.values })
+        : { status: 'unavailable', scope: 'control', reason: '派发后目标或所属等待已撤销，不能确认控件状态' };
+      return { ...result('dispatched', '已写入原生控件并派发input/change，不保证框架提交或业务成功', target), verification };
     }
     return result('rejected', '不支持的DOM动作', target);
   }

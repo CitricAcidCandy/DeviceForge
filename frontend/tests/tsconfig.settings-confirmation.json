@@ -1,0 +1,8 @@
+{
+  "extends": "../tsconfig.json",
+  "include": [
+    "./settings-confirmation.test.ts",
+    "../plugins/settings/src/view/dialogs.tsx",
+    "../plugins/settings/src/view/SettingsTransfers.tsx"
+  ]
+}

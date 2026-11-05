@@ -86,7 +86,7 @@ export function ProfileFlamegraphView({ stacks, intervals = [] }: ProfileFlamegr
   const label = weight === 'samples' ? '样本数' : '事件计数';
   return (
     <section aria-label="调用栈火焰图" data-profile-flamegraph className="my-6">
-      <h3>调用栈火焰图</h3>
+      <h3 className="text-[15px] font-semibold">调用栈火焰图</h3>
       {state.error && <ErrorNotice error={new Error(`火焰图筛选条件无效：${state.error}`)} />}
       <p>宽度表示{label}；点击色块放大调用分支，键盘 Enter 或空格同样可操作。</p>
       <div className="flex flex-wrap gap-3">

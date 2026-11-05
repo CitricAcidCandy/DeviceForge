@@ -1,5 +1,5 @@
 import { hostUi } from '@deviceforge/plugin-sdk';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { Activity, Cpu, History, Image, ListTree, MemoryStick, Play, Smartphone } from 'lucide-react';
 const { Button } = hostUi();
 const { Checkbox } = hostUi();
@@ -54,6 +54,7 @@ import { usePerformancePolling } from './hooks/usePerformancePolling.ts';
 import { useLiveFrames } from './hooks/useLiveFrames.ts';
 import { associateLiveFrames } from './models/live-frames.ts';
 import { LiveFramePreview } from './components/LiveFramePreview/index.tsx';
+import { CollectionField } from './collection-field.tsx';
 
 const stateLabel: Record<PerformanceSession['state'], string> = {
   running: '运行中',
@@ -80,11 +81,11 @@ function peak(points: readonly number[]): number | null {
   return points.reduce((left, right) => (right > left ? right : left), points[0] ?? 0);
 }
 
-function useFrameUrls(frames: readonly OpenedProfileFrame[]): ReadonlyMap<string, string> {
+function useFrameUrls(frames: readonly OpenedProfileFrame[] | undefined): ReadonlyMap<string, string> {
   const [urls, setUrls] = useState<ReadonlyMap<string, string>>(() => new Map());
   useEffect(() => {
     const created = new Map<string, string>();
-    for (const frame of frames) {
+    for (const frame of frames ?? []) {
       created.set(frame.reference.filename, URL.createObjectURL(frame.content));
     }
     setUrls(created);
@@ -336,6 +337,7 @@ function CollectDialog({
   const [duration, setDuration] = useState('60');
   const [interval, setInterval] = useState('1000');
   const [launchApp, setLaunchApp] = useState(true);
+  const launchId = useId();
   const reference = devices.selection;
   const ready = !!reference && packageId.trim().length > 0 &&
     Number.isInteger(Number(interval)) && Number(interval) >= 50 && Number(interval) <= 60000 &&
@@ -376,7 +378,7 @@ function CollectDialog({
     });
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="@container/performance-form sm:max-w-[480px]">
+      <DialogContent className="max-h-[calc(100dvh-2rem)] min-w-0 overflow-y-auto sm:max-w-[480px]">
         <DialogHeader>
           <DialogTitle>开始采集</DialogTitle>
           <DialogDescription>选择设备与应用，采集期间可随时暂停或终止。</DialogDescription>
@@ -396,23 +398,23 @@ function CollectDialog({
                 void services.devices.select({ providerId, generation, localId });
             }}
           />
-          <div className="grid gap-3 @sm/performance-form:grid-cols-2">
-            <Field
+          <div className="my-4 grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(220px,100%),1fr))] items-start gap-x-6 gap-y-4">
+            <CollectionField
               label="应用包名"
               value={packageId}
               onChange={onPackage}
               placeholder="com.forge.arena"
             />
-            <Field label="时长（秒）" type="number" min={1} max={3600} value={duration} onChange={setDuration} />
-            <Field label="间隔（毫秒）" type="number" min={50} max={60000} value={interval} onChange={setInterval} />
+            <CollectionField label="时长（秒）" type="number" min={1} max={3600} value={duration} onChange={setDuration} />
+            <CollectionField label="间隔（毫秒）" type="number" min={50} max={60000} value={interval} onChange={setInterval} />
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
             <Checkbox
-              id="collect-launch"
+              id={launchId}
               checked={launchApp}
               onCheckedChange={(value) => setLaunchApp(value === true)}
             />
-            <Label htmlFor="collect-launch">先启动应用</Label>
+            <Label htmlFor={launchId}>先启动应用</Label>
             {launchApp && !launchGate?.capability && (
               <span className="text-[12px] text-[color:var(--warning)]">
                 {launchGate?.reason ?? '当前设备不支持启动应用'}
@@ -507,6 +509,7 @@ function PerformanceSessionPanel({
   const [sessions, setSessions] = useState<readonly PerformanceSession[]>([]);
   const [historyCursor, setHistoryCursor] = useState<string | null>(null);
   const [captureFrames, setCaptureFrames] = useState(false);
+  const captureId = useId();
   const startAvailable = useOperationAvailable(services, 'android.performance.start');
   const inspectAvailable = useOperationAvailable(services, 'android.performance.inspect');
   const samplesAvailable = useOperationAvailable(services, 'android.performance.samples');
@@ -630,12 +633,12 @@ function PerformanceSessionPanel({
             <>
               <div className="mr-2 flex items-center gap-2 text-[12px] text-[color:var(--text-muted)]">
                 <Checkbox
-                  id="performance-live-frames"
+                  id={captureId}
                   checked={captureFrames}
                   disabled={!liveFrames.available || !(running || paused)}
                   onCheckedChange={(value) => setCaptureFrames(value === true)}
                 />
-                <Label htmlFor="performance-live-frames">采样画面</Label>
+                <Label htmlFor={captureId}>采样画面</Label>
                 <span className="font-mono tabular-nums" aria-label="画面数量">
                   {liveFrames.frames.length}/20
                 </span>
@@ -872,12 +875,14 @@ function RootProfilePanel({
   const [duration, setDuration] = useState('5');
   const [interval, setInterval] = useState('1000');
   const [captureFrames, setCaptureFrames] = useState(true);
+  const captureId = useId();
   const [published, setPublished] = useState<PublishedResult<ProfileResult> | null>(null);
   const [archive, setArchive] = useState<OpenedProfileArchive | null>(null);
   const [zip, setZip] = useState<Blob | null>(null);
   const [jobId, setJobId] = useState('');
   const [restoreId, setRestoreId] = useState('');
-  const urls = useFrameUrls(archive?.frames ?? []);
+  // 未读归档保持依赖稳定，避免空数组反复触发画面地址更新。
+  const urls = useFrameUrls(archive?.frames);
   const tracks = archive ? archiveSamples(archive, urls) : { samples: [], span: 0 };
   const [selected, onSelect] = useSelectedSample(tracks.samples.length);
   const requestContext = (signal: AbortSignal) => {
@@ -899,11 +904,11 @@ function RootProfilePanel({
         <Field label="间隔（毫秒）" type="number" min={1000} max={15000} value={interval} onChange={setInterval} />
         <div className="flex h-9 items-center gap-2">
           <Checkbox
-            id="profile-capture-frames"
+            id={captureId}
             checked={captureFrames}
             onCheckedChange={(value) => setCaptureFrames(value === true)}
           />
-          <Label htmlFor="profile-capture-frames">采样画面</Label>
+          <Label htmlFor={captureId}>采样画面</Label>
         </div>
         <div className="flex-1" />
         <Sheet>
@@ -1061,8 +1066,9 @@ export function PerformancePage({ services }: { services: PerformanceServices })
   const reference = devices.selected?.reference;
   const rootCompatible = reference?.providerId === 'android-device';
   return (
+    <div className="@container/performance-page h-full min-h-0 min-w-0 w-full overflow-hidden">
     <section
-      className="product-page performance-page @container/performance flex h-full min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-hidden"
+      className="product-page performance-page @container/performance flex h-full min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-hidden w-full px-6 pb-7 pt-[22px] @max-[900px]/performance-page:px-4 @max-[900px]/performance-page:pb-6 @max-[900px]/performance-page:pt-4"
       data-product-page="performance"
       aria-label="性能与调用栈"
     >
@@ -1110,6 +1116,7 @@ export function PerformancePage({ services }: { services: PerformanceServices })
         )}
       </div>
     </section>
+    </div>
   );
 }
 

@@ -1,5 +1,6 @@
 import type { JsonValue } from '../../../plugin-sdk/index.ts';
 import type { DebuggerBatchDto, DebuggerBridgePluginDto, DebuggerGateway } from '../../../services/api/index.ts';
+import type { RealtimeClient } from '../../../services/realtime/index.ts';
 
 export type BridgeCommand = DebuggerBatchDto['commands'][number];
 export interface DebuggerBridgeOptions {
@@ -9,6 +10,7 @@ export interface DebuggerBridgeOptions {
   readonly select: (targets: readonly { plugin_id: string; generation: string | null }[]) => void;
   readonly execute: (command: BridgeCommand, signal: AbortSignal) => Promise<JsonValue>;
   readonly heartbeatMs?: number;
+  readonly realtime?: RealtimeClient;
 }
 export interface DebuggerBridgeSnapshot {
   readonly instanceId: string | null;

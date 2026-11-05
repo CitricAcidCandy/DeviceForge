@@ -1,0 +1,7 @@
+{
+  "extends": "../tsconfig.json",
+  "include": [
+    "./settings-form-ownership.test.ts",
+    "../plugins/settings/src/view.tsx"
+  ]
+}

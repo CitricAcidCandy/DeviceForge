@@ -39,6 +39,7 @@ struct Gate {
     window: Mutex<(Instant, u32)>,
     limit: u32,
     inflight: Arc<tokio::sync::Semaphore>,
+    realtime_runtime: Arc<realtime::Lifecycle>,
 }
 const BROWSER_ASSET_ROUTE: &str = "/api/v2/browser-plugins/{id}/assets/{*path}";
 const BROWSER_RUN_ASSET_ROUTE: &str = "/api/v2/browser-plugins/{id}/runs/{run_id}/assets/{*path}";
@@ -387,6 +388,7 @@ fn build_router_with_dependencies(
             "可选 API 令牌不得含空白，限流值必须大于零".into(),
         ));
     }
+    let realtime_runtime = realtime::Lifecycle::new(app.subscribe_shutdown());
     let state = ApiState {
         debugger,
         devices,
@@ -404,6 +406,7 @@ fn build_router_with_dependencies(
             window: Mutex::new((Instant::now(), 0)),
             limit: requests_per_second,
             inflight: Arc::new(tokio::sync::Semaphore::new(128)),
+            realtime_runtime,
         }),
     };
     let api = Router::new()
@@ -429,6 +432,7 @@ fn build_router_with_dependencies(
         .nest("/api/v2", api)
         .merge(interactive_routes::router())
         .merge(debugger::router())
+        .merge(realtime::router(&state))
         .route("/api/v2/services", get(services::list))
         .route("/api/v2/services/{id}/calls", post(services::call))
         .route("/api/v2/diagnostics/logging", get(runtime::logging))
@@ -551,7 +555,12 @@ fn build_router_with_dependencies(
         .layer(middleware::from_fn(correlation::audit))
         .with_state(state))
 }
-async fn guard(State(state): State<ApiState>, request: Request, next: Next) -> Response {
+async fn guard(State(state): State<ApiState>, mut request: Request, next: Next) -> Response {
+    // 仅精确实时升级延后到命名空间认证；真实连接、来源和独立容量先核对。
+    let realtime_upgrade = match realtime::prepare(&mut request, state.gate.realtime_runtime.clone()) {
+        Ok(upgrade) => upgrade,
+        Err(error) => return error.into_response(),
+    };
     let supplied = request
         .headers()
         .get("authorization")
@@ -571,7 +580,7 @@ async fn guard(State(state): State<ApiState>, request: Request, next: Next) -> R
                 ]
                 .contains(&path.as_str())
             });
-    if !state.gate.token.is_empty() && !public_asset && supplied != Some(state.gate.token.as_str())
+    if !state.gate.token.is_empty() && !public_asset && !realtime_upgrade && supplied != Some(state.gate.token.as_str())
     {
         return ApiError::new(
             StatusCode::UNAUTHORIZED,
@@ -647,13 +656,7 @@ async fn guard(State(state): State<ApiState>, request: Request, next: Next) -> R
             return ApiError::from(error).into_response();
         }
     }
-    let mut response = next.run(request).await;
-    response
-        .extensions_mut()
-        .insert(response_stream::RequestPermit {
-            _permit: Arc::new(permit),
-        });
-    response
+    realtime::finish_http_request(next.run(request).await, permit)
 }
 async fn operations(State(state): State<ApiState>) -> Json<Vec<Operation>> {
     Json(state.app.operations())
@@ -779,6 +782,7 @@ mod plugin_package_routes;
 mod plugin_recovery;
 mod plugin_routes;
 mod response_stream;
+pub mod realtime;
 mod responses;
 pub mod runtime;
 mod services;

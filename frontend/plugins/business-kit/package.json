@@ -3,6 +3,11 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./dropdown-menu": {
+      "development": "./src/react/dropdown-menu.tsx",
+      "types": "./dist/react/dropdown-menu.d.ts",
+      "import": "./dist/react/dropdown-menu.js"
+    },
     "./select-field": {
       "development": "./src/react/select-field.tsx",
       "types": "./dist/react/select-field.d.ts",

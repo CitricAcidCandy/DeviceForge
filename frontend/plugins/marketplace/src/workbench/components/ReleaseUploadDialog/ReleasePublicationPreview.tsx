@@ -3,10 +3,10 @@ import type { ReleasePublicationPlan } from '../../release-publication/index.ts'
 export function ReleasePublicationPreview({ plan }: { plan: ReleasePublicationPlan }) {
   const { manifest } = plan;
   return (
-    <section aria-label="完整功能插件预览" className="grid gap-4">
+    <section aria-label="完整功能插件预览" className="@container/release-preview grid min-w-0 gap-4 wrap-anywhere">
       <div>
-        <h3 className="font-semibold">{manifest.name}</h3>
-        <p className="mt-1 whitespace-pre-wrap break-words text-sm text-muted-foreground">{manifest.description}</p>
+        <h3 className="text-[15px] font-semibold">{manifest.name}</h3>
+        <p className="mt-1 whitespace-pre-wrap wrap-anywhere text-sm text-muted-foreground">{manifest.description}</p>
       </div>
       <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2 text-sm">
         <dt>发布 ID</dt><dd className="break-all font-mono">{manifest.id}</dd>
@@ -18,7 +18,7 @@ export function ReleasePublicationPreview({ plan }: { plan: ReleasePublicationPl
       <p className="text-sm text-muted-foreground">
         发布 ID、版本、名称和描述来自清单，保持原值。修改这些信息需要重新打包完整 ZIP。
       </p>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 @min-[640px]/release-preview:grid-cols-2">
         <section aria-label="发布组件" className="grid content-start gap-2">
           <h4 className="text-sm font-medium">组件（{manifest.components.length}）</h4>
           <ul className="grid gap-2 text-sm">
@@ -52,7 +52,7 @@ export function ReleasePublicationPreview({ plan }: { plan: ReleasePublicationPl
             {manifest.requirements.map((requirement) => (
               <li key={`${requirement.component_id}:${requirement.config_pointer}`} className="rounded border p-3">
                 <p>{requirement.title} · {requirement.required ? '必填' : '选填'}{requirement.sensitive ? ' · 敏感信息，由用户安装后配置' : ''}</p>
-                <p className="whitespace-pre-wrap break-words text-muted-foreground">{requirement.description}</p>
+                <p className="whitespace-pre-wrap wrap-anywhere text-muted-foreground">{requirement.description}</p>
                 <p className="break-all font-mono text-xs text-muted-foreground">{requirement.component_id} · {requirement.config_pointer}</p>
                 {!!requirement.any_of?.length && <p className="break-all text-muted-foreground">也可配置以下任一路径：{requirement.any_of.join('、')}</p>}
               </li>

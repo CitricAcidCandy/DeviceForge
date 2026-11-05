@@ -3,6 +3,7 @@ import type { DeviceAccess, DeviceSnapshot, HostContext } from '@deviceforge/plu
 import type { OperationSource } from '@deviceforge/business-kit/platform';
 import { createDeviceAction } from './actions.ts';
 import type { DeviceActionModel } from './actions.ts';
+import { readDirectoryObservation, subscribeDirectoryObservation } from './directory-observation.ts';
 
 const emptyDevices: DeviceSnapshot = { providers: [], directories: [], selection: null, selected: null };
 export function useDeviceSnapshot(devices: DeviceAccess | undefined, signal: AbortSignal) {
@@ -15,6 +16,23 @@ export function useDeviceSnapshot(devices: DeviceAccess | undefined, signal: Abo
     cached.current = devices.snapshot();
     return release;
   }, [devices, signal]);
+  const read = useCallback(() => cached.current, []);
+  return useSyncExternalStore(subscribe, read, read);
+}
+/** 提示沿用本插件公开状态订阅；挂载与读取互不等待，也不触发第二次请求。 */
+export function useDirectoryObservation(context: HostContext) {
+  const { useCallback, useRef, useState, useSyncExternalStore } = hostUi().React;
+  const [initial] = useState(() => readDirectoryObservation(context));
+  const cached = useRef(initial);
+  const subscribe = useCallback((notify: () => void) => {
+    if (context.signal.aborted) return () => {};
+    const release = subscribeDirectoryObservation(context, () => {
+      cached.current = readDirectoryObservation(context);
+      notify();
+    });
+    cached.current = readDirectoryObservation(context);
+    return release;
+  }, [context]);
   const read = useCallback(() => cached.current, []);
   return useSyncExternalStore(subscribe, read, read);
 }

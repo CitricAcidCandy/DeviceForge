@@ -1,0 +1,8 @@
+{
+  "extends": "../tsconfig.json",
+  "include": [
+    "./files-confirmation.test.ts",
+    "../plugins/files/src/view.tsx",
+    "../plugins/files/src/index.ts"
+  ]
+}

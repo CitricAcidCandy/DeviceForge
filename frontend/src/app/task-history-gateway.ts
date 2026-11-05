@@ -7,6 +7,8 @@ import type {
   TaskEventQuery,
   TaskHistoryAccess,
   TaskHistoryQuery,
+  TaskHistoryChange,
+  Dispose,
 } from '../plugin-sdk/index.ts';
 import { isJsonValue } from '../plugin-sdk/json.ts';
 import type {
@@ -21,6 +23,7 @@ import { publicCall, publicJob } from './public-api.ts';
 
 // 注入现有任务端口；生成类型只在宿主适配层使用，不复制 HTTP 或持久化业务。
 export interface TaskHistoryTransport {
+  readonly subscribeChanges?: (listener: (change: TaskHistoryChange) => void) => Dispose;
   readonly list: (query: JobQuery, signal: AbortSignal) => Promise<ApiResult<JobDto[]>>;
   readonly get: (id: string, signal: AbortSignal) => Promise<ApiResult<JobDto>>;
   readonly events: (
@@ -149,6 +152,24 @@ export function createTaskHistoryGateway(
     return signal;
   }
   return Object.freeze<TaskHistoryAccess>({
+    ...(transport.subscribeChanges ? {
+      subscribeChanges(listener: (change: TaskHistoryChange) => void): Dispose {
+        active(lifetime);
+        let release: Dispose | null = null, closed = false;
+        const stop = () => {
+          if (closed) return;
+          closed = true; lifetime.removeEventListener('abort', stop);
+          return release?.();
+        };
+        release = transport.subscribeChanges?.(change => {
+          if (closed || lifetime.aborted) return;
+          try { listener(Object.freeze({ ...change })); } catch { /* 业务观察者不能影响共享推送。 */ }
+        }) ?? null;
+        lifetime.addEventListener('abort', stop, { once: true });
+        if (lifetime.aborted) stop();
+        return stop;
+      },
+    } : {}),
     async list(query, caller) {
       const signal = active(caller);
       const parameters = historyQuery(query);

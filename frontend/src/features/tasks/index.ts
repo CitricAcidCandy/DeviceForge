@@ -1,4 +1,6 @@
 // 功能公开门面；调用者不依赖内部目录布局。
 export * from './models/tasks.ts';
+export { createTaskListRefresh } from './models/list-refresh.ts';
+export type { TaskListRefreshOptions } from './models/list-refresh.ts';
 export { formatJobProgress } from './utils/progress.ts';
 export type { TaskLookup } from './models/log-search.ts';

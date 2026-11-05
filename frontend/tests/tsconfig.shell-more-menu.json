@@ -1,0 +1,7 @@
+{
+  "extends": "../tsconfig.json",
+  "include": [
+    "./shell-more-menu.test.ts",
+    "../plugins/default-shell/src/chrome.tsx"
+  ]
+}

@@ -39,7 +39,7 @@ function SchemaField({ schema, value, onChange, disabled = false, errors = [], p
     const requiredKeys = Array.isArray(definition['required']) ? definition['required'] : [];
     const additional = definition['additionalProperties'];
     const fields = [...Object.keys(properties), ...Object.keys(object).filter((key) => !Object.hasOwn(properties, key))];
-    return <fieldset className="m-0 grid min-w-0 gap-4 rounded-xl border p-4 [&>legend]:px-1.5 [&>legend]:font-semibold max-[640px]:p-3" disabled={readonly}><legend>{title}{required ? ' *' : ''}</legend>
+    return <fieldset className="m-0 grid min-w-0 gap-4 rounded-xl border p-4 [&>legend]:px-1.5 [&>legend]:font-semibold @max-[640px]/plugin-configuration:p-3" disabled={readonly}><legend>{title}{required ? ' *' : ''}</legend>
       {description && <p className="text-sm text-muted-foreground">{description}</p>}
       {fields.map((key) => <div key={key} className="flex min-w-0 items-start gap-3 [&>:first-child]:min-w-0 [&>:first-child]:flex-1"><SchemaField schema={properties[key] ?? (additional && typeof additional === 'object' ? additional : {})}
         value={object[key] ?? schemaDefault(properties[key] ?? {})} label={key} path={`${path}/${key.replaceAll('~', '~0').replaceAll('/', '~1')}`}
@@ -47,7 +47,7 @@ function SchemaField({ schema, value, onChange, disabled = false, errors = [], p
         onChange={(next) => onChange({ ...object, [key]: next })} />
         {!Object.hasOwn(properties, key) && <Button type="button" variant="ghost" disabled={readonly} aria-label={`删除 ${key}`} onClick={() => onChange(Object.fromEntries(Object.entries(object).filter(([name]) => name !== key)))}>删除</Button>}
       </div>)}
-      {additional !== false && <div className="flex items-center gap-2 max-[640px]:flex-wrap"><Input aria-label={`${title} 新字段名称`} value={mapKey} disabled={readonly} onChange={(event) => setMapKey(event.target.value)} />
+      {additional !== false && <div className="flex items-center gap-2 @max-[640px]/plugin-configuration:flex-wrap"><Input aria-label={`${title} 新字段名称`} value={mapKey} disabled={readonly} onChange={(event) => setMapKey(event.target.value)} />
         <Button type="button" variant="outline" disabled={readonly || !mapKey.trim() || Object.hasOwn(object, mapKey.trim()) || ['__proto__', 'constructor', 'prototype'].includes(mapKey.trim())}
           onClick={() => { onChange({ ...object, [mapKey.trim()]: schemaDefault(additional && typeof additional === 'object' ? additional : {}) }); setMapKey(''); }}>添加字段</Button></div>}
       {error && <p className="text-sm text-destructive" role="alert">{error}</p>}
@@ -56,7 +56,7 @@ function SchemaField({ schema, value, onChange, disabled = false, errors = [], p
   if (type === 'array' || Array.isArray(value)) {
     const items = Array.isArray(value) ? value : [];
     const itemSchema = definition['items'] ?? {};
-    return <fieldset className="m-0 grid min-w-0 gap-4 rounded-xl border p-4 [&>legend]:px-1.5 [&>legend]:font-semibold max-[640px]:p-3" disabled={readonly}><legend>{title}{required ? ' *' : ''}</legend>
+    return <fieldset className="m-0 grid min-w-0 gap-4 rounded-xl border p-4 [&>legend]:px-1.5 [&>legend]:font-semibold @max-[640px]/plugin-configuration:p-3" disabled={readonly}><legend>{title}{required ? ' *' : ''}</legend>
       {description && <p className="text-sm text-muted-foreground">{description}</p>}
       {items.map((item, index) => <div className="flex min-w-0 items-start gap-3 [&>:first-child]:min-w-0 [&>:first-child]:flex-1" key={index}><SchemaField schema={itemSchema} value={item} path={`${path}/${index}`} label={`第 ${index + 1} 项`} disabled={readonly} errors={errors}
         onChange={(next) => onChange(items.map((current, position) => position === index ? next : current))} />
@@ -84,7 +84,7 @@ export function SchemaForm(props: SchemaFormProps) {
   const [advanced, setAdvanced] = useState(false);
   const [text, setText] = useState('');
   const [error, setError] = useState('');
-  return <div className="grid min-w-0 gap-4 [&>button]:justify-self-end [&_[data-slot=checkbox]]:min-h-5 [&_[data-slot=checkbox]]:min-w-5 max-[640px]:[&_[data-slot=checkbox]]:min-h-11 max-[640px]:[&_[data-slot=checkbox]]:min-w-11">
+  return <div className="@container/plugin-configuration grid min-w-0 gap-4 [&>button]:justify-self-end [&_[data-slot=checkbox]]:min-h-5 [&_[data-slot=checkbox]]:min-w-5 @max-[640px]/plugin-configuration:[&_[data-slot=checkbox]]:min-h-11 @max-[640px]/plugin-configuration:[&_[data-slot=checkbox]]:min-w-11">
     <Button type="button" variant="ghost" disabled={props.disabled} onClick={() => {
       if (!advanced) { setText(JSON.stringify(props.value, null, 2)); setError(''); }
       setAdvanced(!advanced);

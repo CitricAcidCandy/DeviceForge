@@ -17,7 +17,7 @@ const mountDirectory: WorkspaceMount = async (target, context, instance) => {
   const module = await import('./view.tsx');
   context.signal.throwIfAborted();
   instance.signal.throwIfAborted();
-  return module.mountDirectory(target, context);
+  return module.mountDirectory(target, context, instance);
 };
 function registerTarget(context: HostContext) {
   context.extensions?.register?.({

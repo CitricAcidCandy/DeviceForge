@@ -1,10 +1,19 @@
-import type { TreeAssertion, TreeAssertionResult, TreeSnapshot } from './contracts.ts';
+import type { ControlAssertion, DebugActionVerification, TreeAssertion, TreeAssertionResult, TreeSnapshot, UiNodeRef } from './contracts.ts';
 import { queryTree } from './query.ts';
 
-export function assertTree(snapshot: TreeSnapshot, assertion: TreeAssertion): TreeAssertionResult {
+export function assertTree(snapshot: TreeSnapshot, assertion: TreeAssertion,
+  readControl?: (reference: UiNodeRef, assertion: ControlAssertion) => DebugActionVerification): TreeAssertionResult {
   const result = queryTree(snapshot, assertion.query);
   const matched = result.nodes.length;
   const response = (status: TreeAssertionResult['status'], reason: string): TreeAssertionResult => ({ status, reason, matched });
+  if (assertion.condition === 'value_equals' || assertion.condition === 'selected_equals') {
+    if (!result.complete) return response('indeterminate', result.reason ?? '覆盖不足');
+    const node = result.nodes[0];
+    if (matched !== 1 || !node) return response('indeterminate', '控件比较必须取得唯一且完整的查询结果');
+    if (node.opaque || !readControl) return response('indeterminate', '敏感、不透明或缺少当前控件回读能力');
+    const verification = readControl(node, assertion);
+    return response(verification.status === 'passed' || verification.status === 'failed' ? verification.status : 'indeterminate', verification.reason);
+  }
   if (assertion.condition === 'exists' && matched > 0) return response('passed', '在当前DOM证据内找到节点');
   if (assertion.condition === 'absent' && matched > 0) return response('failed', '当前DOM证据内仍存在节点');
   if (assertion.condition === 'count') {

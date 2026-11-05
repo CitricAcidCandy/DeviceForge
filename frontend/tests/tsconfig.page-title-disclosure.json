@@ -1,0 +1,7 @@
+{
+  "extends": "../tsconfig.json",
+  "include": [
+    "../src/app/public-ui.ts",
+    "./page-title-disclosure.test.ts"
+  ]
+}
