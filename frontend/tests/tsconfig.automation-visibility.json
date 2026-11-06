@@ -1,0 +1,10 @@
+{
+  "extends": "../tsconfig.json",
+  "include": [
+    "./automation-visibility.test.ts",
+    "../plugins/automation/src/index.ts",
+    "../plugins/automation/src/view.tsx",
+    "../plugins/automation/src/components/DesktopAutomation/index.tsx",
+    "../plugins/automation/src/components/InputTraceAutomation/index.tsx"
+  ]
+}

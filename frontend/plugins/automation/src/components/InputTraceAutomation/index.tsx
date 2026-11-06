@@ -1,5 +1,5 @@
 import { hostUi } from '@deviceforge/plugin-sdk';
-import { useId, useState } from 'react';
+import { useId, useLayoutEffect, useRef, useState } from 'react';
 import { Mic, Monitor, Play } from 'lucide-react';
 const { Button } = hostUi();
 const { Label } = hostUi();
@@ -40,7 +40,7 @@ type TraceCommand =
 const eventLabels = { 0: '全部输入', 1: '键盘输入', 2: '鼠标输入' };
 const artifactNames = ['recording.msgpack', 'operation.json', 'input-trace.log'] as const;
 
-export function InputTraceAutomation({ services }: { services: AutomationServices }) {
+export function InputTraceAutomation({ services, visible = true }: { services: AutomationServices; visible?: boolean }) {
   const eventsId = useId();
   const action = useAction();
   const download = useAction();
@@ -49,6 +49,12 @@ export function InputTraceAutomation({ services }: { services: AutomationService
   const [duration, setDuration] = useState('10000');
   const [artifact, setArtifact] = useState('');
   const [command, setCommand] = useState<TraceCommand | null>(null);
+  const commandTrigger = useRef<HTMLButtonElement | null>(null);
+  const visibleRef = useRef(visible);
+  useLayoutEffect(() => {
+    visibleRef.current = visible;
+    if (!visible) setCommand(null);
+  }, [visible]);
   const [output, setOutput] = useState<JobOutcome<PublishedResult<TraceView>> | null>(null);
   const [downloaded, setDownloaded] = useState<{ blob: Blob; filename: string } | null>(null);
   const [log, setLog] = useState<string | null>(null);
@@ -152,8 +158,10 @@ export function InputTraceAutomation({ services }: { services: AutomationService
             <Button
               className="mt-6 w-full"
               variant="outline"
-              disabled={!canRecord || action.pending}
-              onClick={() =>
+              disabled={!visible || !canRecord || action.pending}
+              onClick={(event) => {
+                if (!visible) return;
+                commandTrigger.current = event.currentTarget;
                 setCommand({
                   kind: 'record',
                   input: {
@@ -161,8 +169,8 @@ export function InputTraceAutomation({ services }: { services: AutomationService
                     interval_ms: Number(interval),
                     duration_ms: Number(duration),
                   },
-                })
-              }
+                });
+              }}
             >
               <Mic aria-hidden="true" />开始录制轨迹
             </Button>
@@ -191,13 +199,15 @@ export function InputTraceAutomation({ services }: { services: AutomationService
             <Button
               className="mt-6 self-start"
               variant="outline"
-              disabled={!canPlayback || !artifact.trim() || action.pending}
-              onClick={() =>
+              disabled={!visible || !canPlayback || !artifact.trim() || action.pending}
+              onClick={(event) => {
+                if (!visible) return;
+                commandTrigger.current = event.currentTarget;
                 setCommand({
                   kind: 'playback',
                   input: { artifact_id: artifact.trim(), event_type: events },
-                })
-              }
+                });
+              }}
             >
               <Play aria-hidden="true" />回放输入轨迹
             </Button>
@@ -294,12 +304,17 @@ export function InputTraceAutomation({ services }: { services: AutomationService
         </section>
       )}
       <Dialog
-        open={command !== null}
+        open={visible && command !== null}
         onOpenChange={(open) => {
           if (!open) setCommand(null);
         }}
       >
-        <DialogContent>
+        <DialogContent onCloseAutoFocus={(event) => {
+          event.preventDefault();
+          const trigger = commandTrigger.current;
+          // 清理所属确认不向隐藏表单或其他实例移交焦点。
+          if (visibleRef.current && trigger?.isConnected && !trigger.closest('[hidden], [inert]')) trigger.focus();
+        }}>
           <DialogHeader>
             <DialogTitle>
               {command?.kind === 'record' ? '录制服务器输入轨迹' : '回放到服务器桌面'}
@@ -330,7 +345,7 @@ export function InputTraceAutomation({ services }: { services: AutomationService
               }
               onClick={() => {
                 const selected = command;
-                if (!selected) return;
+                if (!visible || !selected) return;
                 setCommand(null);
                 if (selected.kind === 'record')
                   void run((signal) =>

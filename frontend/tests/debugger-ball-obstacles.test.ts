@@ -98,6 +98,140 @@ test('避让目录只读当前横向带中的可见业务控件，不采入调�
   } finally { page.window.close(); }
 });
 
+test('避让目录纳入同边可见正文与标题，沿原几何让出卡片文字且不改DOM', async () => {
+  const { readBallObstacles } = await import('../../examples/browser-debugger/src/ball-obstacles.ts');
+  const page = new JSDOM(`<main>
+    <h3 id="title">市场插件说明</h3><p id="description">该插件提供完整工作区与调试能力。</p>
+    <button id="business">配置插件</button><p id="elsewhere">其他栏文字</p>
+    <div hidden><p id="hidden">隐藏页草稿</p></div>
+    <div inert><h2 id="inert">失活工作区标题</h2></div>
+    <p id="aria" aria-hidden="true">辅助隐藏文字</p>
+    <p id="invisible" style="visibility:hidden">不可见文字</p>
+    <p id="empty"> \n\t </p>
+    <div data-deviceforge-debugger><p id="self">调试器自有说明</p></div>
+  </main>`, { pretendToBeVisual: true });
+  try {
+    const document = page.window.document;
+    const viewport = { width: 940, height: 760 };
+    Object.defineProperty(page.window, 'innerWidth', { value: viewport.width });
+    Object.defineProperty(page.window, 'innerHeight', { value: viewport.height });
+    const rectangles: Readonly<Record<string, Rect>> = {
+      title: { x: 760, y: 555, width: 164, height: 24 },
+      description: { x: 760, y: 610, width: 164, height: 40 },
+      business: { x: 870, y: 400, width: 54, height: 30 },
+      elsewhere: { x: 100, y: 610, width: 200, height: 40 },
+      hidden: { x: 760, y: 0, width: 164, height: 760 },
+      inert: { x: 760, y: 0, width: 164, height: 760 },
+      aria: { x: 760, y: 0, width: 164, height: 760 },
+      invisible: { x: 760, y: 0, width: 164, height: 760 },
+      empty: { x: 760, y: 0, width: 164, height: 760 },
+      self: { x: 876, y: 0, width: 48, height: 760 },
+    };
+    for (const [id, rectangle] of Object.entries(rectangles)) {
+      const element = document.getElementById(id); assert.ok(element);
+      Object.defineProperty(element, 'getBoundingClientRect', {
+        value: () => new page.window.DOMRect(rectangle.x, rectangle.y, rectangle.width, rectangle.height),
+      });
+    }
+    const before = document.body.innerHTML;
+    const obstacles = readBallObstacles(document, 876);
+    assert.deepEqual(obstacles, [rectangles.title, rectangles.description, rectangles.business],
+      '原障碍目录应包含有字正文和标题，排除隐藏/失活/自身/空段落及其他横带');
+    const position = ballPosition(876, 620, viewport, true, obstacles);
+    assert.deepEqual(position, { x: 876, y: 658 }, '复用原最近安全位置，不另建正文避让规则');
+    assert.ok(obstacles.every((obstacle) => clearOf(position, obstacle)));
+    assert.ok(position.y + 48 <= viewport.height - 40);
+    assert.equal(document.body.innerHTML, before, '只读测量和几何避让不得写业务DOM');
+  } finally { page.window.close(); }
+});
+
+test('任务结果避让纳入展开pre整矩形和滚动条，折叠及隐藏结果不挤占同侧停靠', async () => {
+  const { readBallObstacles } = await import('../../examples/browser-debugger/src/ball-obstacles.ts');
+  const page = new JSDOM(`<main>
+    <details open><summary>执行结果</summary><pre id="result">{"data":"可滚动的任务原文"}</pre></details>
+    <details><summary>未展开</summary><pre id="closed">折叠结果</pre></details>
+    <details><details open><pre id="nested">外层折叠的嵌套结果</pre></details></details>
+    <div hidden><pre id="hidden">隐藏结果</pre></div>
+    <div inert><pre id="inert">失活结果</pre></div>
+    <pre id="empty"> \n\t </pre><pre id="elsewhere">其他横带结果</pre>
+    <div data-deviceforge-debugger><pre id="self">调试器自有结果</pre></div>
+  </main>`, { pretendToBeVisual: true });
+  try {
+    const document = page.window.document;
+    const viewport = { width: 480, height: 760 };
+    Object.defineProperty(page.window, 'innerWidth', { value: viewport.width });
+    Object.defineProperty(page.window, 'innerHeight', { value: viewport.height });
+    const result: Rect = { x: 16, y: 504.7, width: 433, height: 180 };
+    const rectangles: Readonly<Record<string, Rect>> = {
+      result,
+      closed: { x: 16, y: 0, width: 433, height: 760 },
+      nested: { x: 16, y: 0, width: 433, height: 760 },
+      hidden: { x: 16, y: 0, width: 433, height: 760 },
+      inert: { x: 16, y: 0, width: 433, height: 760 },
+      empty: { x: 16, y: 0, width: 433, height: 760 },
+      elsewhere: { x: 10, y: 504.7, width: 100, height: 180 },
+      self: { x: 416, y: 0, width: 48, height: 760 },
+    };
+    for (const [id, rectangle] of Object.entries(rectangles)) {
+      const element = document.getElementById(id); assert.ok(element);
+      Object.defineProperty(element, 'getBoundingClientRect', {
+        value: () => new page.window.DOMRect(rectangle.x, rectangle.y, rectangle.width, rectangle.height),
+      });
+    }
+    const before = document.body.innerHTML;
+    const obstacles = readBallObstacles(document, 416);
+    assert.deepEqual(obstacles, [result], '展开的非空pre按包含滚动条的整矩形采入，折叠祖先等结果排除');
+    const initial = { x: 416, y: 650 };
+    assert.equal(clearOf(initial, result), false, '夹具必须复现球与实际结果区右下方相交');
+    const position = ballPosition(initial.x, initial.y, viewport, true, obstacles);
+    assert.deepEqual(position, { x: 416, y: 448.7 });
+    assert.ok(clearOf(position, result), '同停靠侧沿原几何给结果和滚动条保留八像素间隔');
+    assert.equal(document.body.innerHTML, before, '结果测量不得改业务DOM或滚动状态');
+  } finally { page.window.close(); }
+});
+
+test('任务结果折叠open变化合并原避让测量，自有details变化不循环且释放撤销', async () => {
+  const { watchBallObstacles } = await import('../../examples/browser-debugger/src/ball-obstacles.ts');
+  const page = new JSDOM(`<main><details id="business"><summary>任务结果</summary><pre>业务结果</pre></details></main>
+    <div data-deviceforge-debugger><details id="self"><summary>技术详情</summary><pre>自有结果</pre></details></div>`,
+  { pretendToBeVisual: true });
+  const view = page.window, frames = new Map<number, FrameRequestCallback>();
+  const business = view.document.getElementById('business'), own = view.document.getElementById('self');
+  assert.ok(business instanceof view.HTMLDetailsElement && own instanceof view.HTMLDetailsElement);
+  let nextFrame = 0, observations = 0, cancelled = 0;
+  view.requestAnimationFrame = (callback) => { const id = ++nextFrame; frames.set(id, callback); return id; };
+  view.cancelAnimationFrame = (id) => { if (frames.delete(id)) cancelled++; };
+  const flush = () => {
+    const ready = [...frames.values()]; frames.clear();
+    for (const callback of ready) callback(1);
+  };
+  const release = watchBallObstacles(view.document, () => { observations++; });
+  try {
+    flush();
+    assert.equal(observations, 1);
+    business.open = true; business.open = false; business.open = true;
+    await Promise.resolve();
+    assert.equal(frames.size, 1, '业务details同批open变化必须合并到原唯一测量帧');
+    assert.equal(observations, 1);
+    flush();
+    assert.equal(observations, 2);
+    own.open = true; own.open = false;
+    await Promise.resolve();
+    assert.equal(frames.size, 0, '调试器内部details开合不能形成测量循环');
+    business.open = false;
+    await Promise.resolve();
+    assert.equal(frames.size, 1);
+    release();
+    assert.equal(frames.size, 0);
+    assert.equal(cancelled, 1);
+    business.open = true;
+    await Promise.resolve();
+    view.document.dispatchEvent(new view.Event('scroll'));
+    assert.equal(frames.size, 0, '释放后open变化或滚动不能重新调度');
+    assert.equal(observations, 2);
+  } finally { release(); page.window.close(); }
+});
+
 test('避让观察将目录变更、滚动、缩放合并到一帧，退出撤销监听与待执行帧', async () => {
   const { watchBallObstacles } = await import('../../examples/browser-debugger/src/ball-obstacles.ts');
   const page = new JSDOM('<main><button>业务按钮</button></main>', { pretendToBeVisual: true });
@@ -146,11 +280,14 @@ test('避让观察将目录变更、滚动、缩放合并到一帧，退出撤�
 
 test('业务显隐属性变化合并测量，调试器自身DOM和位置变化不产生观察循环', async () => {
   const { watchBallObstacles } = await import('../../examples/browser-debugger/src/ball-obstacles.ts');
-  const page = new JSDOM(`<main><button id="business">业务按钮</button></main>
+  const page = new JSDOM(`<main><button id="business">业务按钮</button><p id="description">原业务正文</p></main>
     <div data-deviceforge-debugger><button id="ball">调试器</button></div>`, { pretendToBeVisual: true });
   const view = page.window, frames = new Map<number, FrameRequestCallback>();
   const business = view.document.getElementById('business'), ball = view.document.getElementById('ball');
-  assert.ok(business && ball);
+  const description = view.document.getElementById('description');
+  assert.ok(business && ball && description);
+  const descriptionText = description.firstChild, ownText = ball.firstChild;
+  assert.ok(descriptionText instanceof view.Text && ownText instanceof view.Text);
   let nextFrame = 0, observations = 0;
   view.requestAnimationFrame = (callback) => { const id = ++nextFrame; frames.set(id, callback); return id; };
   view.cancelAnimationFrame = (id) => { frames.delete(id); };
@@ -184,5 +321,19 @@ test('业务显隐属性变化合并测量，调试器自身DOM和位置变化�
     await Promise.resolve();
     assert.equal(observations, 2);
     assert.equal(frames.size, 0, '业务测量更新调试球后不形成反馈循环');
+
+    descriptionText.nodeValue = '更新业务正文';
+    descriptionText.nodeValue = '再次更新业务正文';
+    await Promise.resolve();
+    assert.equal(frames.size, 1, '原地更新正文Text应合并安排一帧，不依赖替换DOM节点');
+    flush();
+    await Promise.resolve();
+    assert.equal(observations, 3);
+    assert.equal(frames.size, 0);
+
+    ownText.nodeValue = '调试器自有文本更新';
+    await Promise.resolve();
+    assert.equal(frames.size, 0, '调试器内部Text更新不得形成避让反馈循环');
+    assert.equal(observations, 3);
   } finally { release(); page.window.close(); }
 });

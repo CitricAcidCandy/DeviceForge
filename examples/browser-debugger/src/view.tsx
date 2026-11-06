@@ -19,6 +19,7 @@ import { Button, CopyId, ResultView } from './ui.tsx';
 interface PositionStyle extends React.CSSProperties {
   '--df-x': string; '--df-y': string; '--df-width'?: string; '--df-height'?: string;
 }
+interface BallPlacement { readonly x: number; readonly y: number; readonly side: 'left' | 'right' }
 type Surface = 'process' | 'targets' | 'tree' | 'data' | 'invoke' | 'details' | 'report';
 const surfaceTitles: Record<Surface, string> = { process: '调试过程', targets: '选择调试插件', tree: '检查界面', data: '查看数据',
   invoke: '调用公开能力', details: '技术详情', report: '保存调试报告' };
@@ -26,18 +27,25 @@ export function DebuggerApp({ controller, context }: { controller: DebuggerContr
   const state = React.useSyncExternalStore(controller.subscribe, controller.snapshot, controller.snapshot);
   const [surface, setSurface] = React.useState<Surface>('process');
   const [rect, setRect] = React.useState<Rect>({ x: 112, y: 48, width: 1200, height: 704 });
-  const [ball, setBall] = React.useState({ x: 16, y: 16 });
+  const [ball, setBall] = React.useState<BallPlacement>({ x: 16, y: 16, side: 'right' });
   const [keyboardRect, setKeyboardRect] = React.useState<Rect | null>(null);
   const panel = React.useRef<HTMLElement>(null), ballRef = React.useRef<HTMLButtonElement>(null), sizeRef = React.useRef<HTMLButtonElement>(null);
   const suppressClick = React.useRef(false);
   const drag = React.useRef<{ readonly mode: 'move' | 'resize' | 'ball'; readonly pointerId: number;
-    readonly x: number; readonly y: number; readonly rect: Rect; readonly ball: { x: number; y: number }; moved: boolean } | null>(null);
+    readonly x: number; readonly y: number; readonly rect: Rect; readonly ball: BallPlacement; moved: boolean } | null>(null);
   const viewport = () => { const view = ballRef.current?.ownerDocument.defaultView; return { width: view?.innerWidth ?? 1424, height: view?.innerHeight ?? 805 }; };
   React.useEffect(() => {
     const view = ballRef.current?.ownerDocument.defaultView;
     if (!view) return;
-    setRect(initialRect(viewport())); setBall(ballPosition(view.innerWidth - 72, view.innerHeight - 64, viewport(), true));
-    const resize = () => { setRect((current) => fit(current, viewport())); setBall((current) => ballPosition(current.x, current.y, viewport(), true)); };
+    const initialViewport = viewport();
+    setRect(initialRect(initialViewport)); setBall({ ...ballPosition(view.innerWidth - 72, view.innerHeight - 64, initialViewport, true), side: 'right' });
+    const resize = () => {
+      const nextViewport = viewport();
+      setRect((current) => fit(current, nextViewport));
+      // 停靠侧只随用户移动改变，避免缩放与避让先后调整坐标时误换边。
+      setBall((current) => ({ ...ballPosition(current.side === 'left' ? 0 : nextViewport.width,
+        current.y, nextViewport, true), side: current.side }));
+    };
     view.addEventListener('resize', resize); return () => view.removeEventListener('resize', resize);
   }, []);
   React.useEffect(() => {
@@ -47,7 +55,7 @@ export function DebuggerApp({ controller, context }: { controller: DebuggerContr
       if (drag.current?.mode === 'ball') return;
       setBall((current) => {
         const next = ballPosition(current.x, current.y, viewport(), false, readBallObstacles(document, current.x));
-        return next.x === current.x && next.y === current.y ? current : next;
+        return next.x === current.x && next.y === current.y ? current : { ...current, ...next };
       });
     });
   }, [state.open]);
@@ -91,7 +99,7 @@ export function DebuggerApp({ controller, context }: { controller: DebuggerContr
     const dx = event.clientX - current.x, dy = event.clientY - current.y;
     if (Math.abs(dx) + Math.abs(dy) > 5) current.moved = true;
     if (!current.moved) return;
-    if (current.mode === 'ball') setBall(ballPosition(current.ball.x + dx, current.ball.y + dy, viewport(), false));
+    if (current.mode === 'ball') setBall({ ...current.ball, ...ballPosition(current.ball.x + dx, current.ball.y + dy, viewport(), false) });
     else if (current.mode === 'move') setRect(fit({ ...current.rect, x: current.rect.x + dx, y: current.rect.y + dy }, viewport()));
     else setRect(fit({ ...current.rect, width: current.rect.width + dx, height: current.rect.height + dy }, viewport()));
   }
@@ -101,9 +109,10 @@ export function DebuggerApp({ controller, context }: { controller: DebuggerContr
     drag.current = null;
     if (current.mode === 'ball' && current.moved) {
       setBall((position) => {
-        const docked = ballPosition(position.x, position.y, viewport(), true);
+        const area = viewport(), docked = ballPosition(position.x, position.y, area, true);
         const document = ballRef.current?.ownerDocument;
-        return document ? ballPosition(docked.x, docked.y, viewport(), false, readBallObstacles(document, docked.x)) : docked;
+        const next = document ? ballPosition(docked.x, docked.y, area, false, readBallObstacles(document, docked.x)) : docked;
+        return { ...next, side: position.x + 24 < area.width / 2 ? 'left' : 'right' };
       }); suppressClick.current = true;
     } else if (current.mode === 'move' && current.moved) {
       setRect((position) => snapPanel(position, viewport()));
@@ -131,8 +140,13 @@ export function DebuggerApp({ controller, context }: { controller: DebuggerContr
       onKeyDown={(event) => {
         if (!event.altKey || !event.key.startsWith('Arrow')) return;
         event.preventDefault(); const step = event.shiftKey ? 32 : 8;
-        setBall((position) => ballPosition(position.x + (event.key === 'ArrowRight' ? step : event.key === 'ArrowLeft' ? -step : 0),
-          position.y + (event.key === 'ArrowDown' ? step : event.key === 'ArrowUp' ? -step : 0), viewport(), false));
+        setBall((position) => {
+          const area = viewport();
+          const next = ballPosition(position.x + (event.key === 'ArrowRight' ? step : event.key === 'ArrowLeft' ? -step : 0),
+            position.y + (event.key === 'ArrowDown' ? step : event.key === 'ArrowUp' ? -step : 0), area, false);
+          return { ...next, side: event.key === 'ArrowLeft' || event.key === 'ArrowRight'
+            ? next.x + 24 < area.width / 2 ? 'left' : 'right' : position.side };
+        });
       }} onClick={() => {
         if (suppressClick.current) { suppressClick.current = false; return; }
         if (state.open) collapse(); else void controller.open();

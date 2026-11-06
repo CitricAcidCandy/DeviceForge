@@ -58,13 +58,13 @@ function u(e, t, n, r, i = []) {
 }
 //#endregion
 //#region ../examples/browser-debugger/src/ball-obstacles.ts
-var d = "[data-deviceforge-debugger]", f = "button,input:not([type=\"hidden\"]),select,textarea,a[href],summary,[role=\"button\"],[role=\"tab\"],[role=\"checkbox\"],[role=\"switch\"],[role=\"combobox\"],[contenteditable=\"true\"]";
-function p(e, t) {
+var d = "[data-deviceforge-debugger]", f = "button,input:not([type=\"hidden\"]),select,textarea,a[href],summary,[role=\"button\"],[role=\"tab\"],[role=\"checkbox\"],[role=\"switch\"],[role=\"combobox\"],[contenteditable=\"true\"]", p = "p,h1,h2,h3,h4,h5,h6,[role=\"heading\"],dt,dd,label,output,th,td,pre";
+function m(e, t) {
 	let n = e.defaultView;
 	if (!n) return [];
 	let r = [];
-	for (let i of e.querySelectorAll(f)) {
-		if (i.closest(`${d},[hidden],[inert],[aria-hidden="true"]`)) continue;
+	for (let i of e.querySelectorAll(`${f},${p}`)) {
+		if (i.closest(`${d},[hidden],[inert],[aria-hidden="true"]`) || i.matches("pre") && i.closest("details:not([open])") || !i.matches(f) && !i.textContent?.trim()) continue;
 		let e = i.getBoundingClientRect();
 		if (e.width <= 0 || e.height <= 0 || e.right + 8 <= t || e.left >= t + 56 || e.bottom <= 0 || e.top >= n.innerHeight) continue;
 		let a = n.getComputedStyle(i);
@@ -77,7 +77,7 @@ function p(e, t) {
 	}
 	return r;
 }
-function m(e, t) {
+function h(e, t) {
 	let n = e.defaultView;
 	if (!n) return () => {};
 	let r = null, i = !1, a = () => {
@@ -85,10 +85,11 @@ function m(e, t) {
 			r = null, i || t();
 		}));
 	}, o = new n.MutationObserver((e) => {
-		e.some((e) => !(e.target instanceof n.Element && e.target.closest(d))) && a();
+		e.some((e) => !(e.target instanceof n.Element ? e.target : e.target.parentElement)?.closest(d)) && a();
 	});
 	return o.observe(e.documentElement, {
 		childList: !0,
+		characterData: !0,
 		subtree: !0,
 		attributes: !0,
 		attributeFilter: [
@@ -97,7 +98,8 @@ function m(e, t) {
 			"hidden",
 			"inert",
 			"aria-hidden",
-			"data-state"
+			"data-state",
+			"open"
 		]
 	}), e.addEventListener("scroll", a, !0), n.addEventListener("resize", a), a(), () => {
 		i || (i = !0, o.disconnect(), e.removeEventListener("scroll", a, !0), n.removeEventListener("resize", a), r !== null && n.cancelAnimationFrame(r), r = null);
@@ -105,36 +107,36 @@ function m(e, t) {
 }
 //#endregion
 //#region ../examples/browser-debugger/src/style.ts
-var h = "/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */\n@layer properties;\n@scope ([data-deviceforge-debugger]) {\n  .collapse {\n    visibility: collapse;\n  }\n  .visible {\n    visibility: visible;\n  }\n  .sr-only {\n    position: absolute;\n    width: 1px;\n    height: 1px;\n    padding: 0;\n    margin: -1px;\n    overflow: hidden;\n    clip-path: inset(50%);\n    white-space: nowrap;\n    border-width: 0;\n  }\n  .absolute {\n    position: absolute;\n  }\n  .fixed {\n    position: fixed;\n  }\n  .relative {\n    position: relative;\n  }\n  .sticky {\n    position: sticky;\n  }\n  .top-0 {\n    top: 0px;\n  }\n  .top-\\[var\\(--df-y\\)\\] {\n    top: var(--df-y);\n  }\n  .right-0 {\n    right: 0px;\n  }\n  .bottom-0 {\n    bottom: 0px;\n  }\n  .bottom-6 {\n    bottom: calc(0.25rem * 6);\n  }\n  .bottom-full {\n    bottom: 100%;\n  }\n  .left-0 {\n    left: 0px;\n  }\n  .left-1\\/2 {\n    left: calc(1 / 2 * 100%);\n  }\n  .left-\\[var\\(--df-x\\)\\] {\n    left: var(--df-x);\n  }\n  .z-10 {\n    z-index: 10;\n  }\n  .z-\\[2147483000\\] {\n    z-index: 2147483000;\n  }\n  .z-\\[2147483001\\] {\n    z-index: 2147483001;\n  }\n  .my-2 {\n    margin-block: calc(0.25rem * 2);\n  }\n  .mt-0\\.5 {\n    margin-top: calc(0.25rem * 0.5);\n  }\n  .mt-1 {\n    margin-top: 0.25rem;\n  }\n  .mt-2 {\n    margin-top: calc(0.25rem * 2);\n  }\n  .mt-3 {\n    margin-top: calc(0.25rem * 3);\n  }\n  .mt-4 {\n    margin-top: calc(0.25rem * 4);\n  }\n  .mr-2 {\n    margin-right: calc(0.25rem * 2);\n  }\n  .mr-auto {\n    margin-right: auto;\n  }\n  .mb-2 {\n    margin-bottom: calc(0.25rem * 2);\n  }\n  .mb-3 {\n    margin-bottom: calc(0.25rem * 3);\n  }\n  .mb-4 {\n    margin-bottom: calc(0.25rem * 4);\n  }\n  .block {\n    display: block;\n  }\n  .flex {\n    display: flex;\n  }\n  .grid {\n    display: grid;\n  }\n  .hidden {\n    display: none;\n  }\n  .inline-flex {\n    display: inline-flex;\n  }\n  .table {\n    display: table;\n  }\n  .size-4 {\n    width: calc(0.25rem * 4);\n    height: calc(0.25rem * 4);\n  }\n  .size-6 {\n    width: calc(0.25rem * 6);\n    height: calc(0.25rem * 6);\n  }\n  .size-7 {\n    width: calc(0.25rem * 7);\n    height: calc(0.25rem * 7);\n  }\n  .size-9 {\n    width: calc(0.25rem * 9);\n    height: calc(0.25rem * 9);\n  }\n  .size-12 {\n    width: calc(0.25rem * 12);\n    height: calc(0.25rem * 12);\n  }\n  .size-px {\n    width: 1px;\n    height: 1px;\n  }\n  .h-\\[var\\(--df-height\\)\\] {\n    height: var(--df-height);\n  }\n  .max-h-64 {\n    max-height: calc(0.25rem * 64);\n  }\n  .max-h-72 {\n    max-height: calc(0.25rem * 72);\n  }\n  .max-h-80 {\n    max-height: calc(0.25rem * 80);\n  }\n  .min-h-0 {\n    min-height: 0px;\n  }\n  .min-h-9 {\n    min-height: calc(0.25rem * 9);\n  }\n  .min-h-14 {\n    min-height: calc(0.25rem * 14);\n  }\n  .min-h-20 {\n    min-height: calc(0.25rem * 20);\n  }\n  .min-h-24 {\n    min-height: calc(0.25rem * 24);\n  }\n  .min-h-28 {\n    min-height: calc(0.25rem * 28);\n  }\n  .min-h-40 {\n    min-height: calc(0.25rem * 40);\n  }\n  .min-h-44 {\n    min-height: calc(0.25rem * 44);\n  }\n  .min-h-64 {\n    min-height: calc(0.25rem * 64);\n  }\n  .min-h-80 {\n    min-height: calc(0.25rem * 80);\n  }\n  .min-h-\\[72px\\] {\n    min-height: 72px;\n  }\n  .min-h-full {\n    min-height: 100%;\n  }\n  .w-\\[var\\(--df-width\\)\\] {\n    width: var(--df-width);\n  }\n  .w-full {\n    width: 100%;\n  }\n  .max-w-80 {\n    max-width: calc(0.25rem * 80);\n  }\n  .max-w-xl {\n    max-width: 36rem;\n  }\n  .min-w-0 {\n    min-width: 0px;\n  }\n  .min-w-32 {\n    min-width: calc(0.25rem * 32);\n  }\n  .min-w-36 {\n    min-width: calc(0.25rem * 36);\n  }\n  .min-w-40 {\n    min-width: calc(0.25rem * 40);\n  }\n  .flex-1 {\n    flex: 1;\n  }\n  .shrink-0 {\n    flex-shrink: 0;\n  }\n  .-translate-x-1\\/2 {\n    --tw-translate-x: calc(calc(1 / 2 * 100%) * -1);\n    translate: var(--tw-translate-x) var(--tw-translate-y);\n  }\n  .cursor-pointer {\n    cursor: pointer;\n  }\n  .cursor-se-resize {\n    cursor: se-resize;\n  }\n  .touch-none {\n    touch-action: none;\n  }\n  .resize {\n    resize: both;\n  }\n  .list-inside {\n    list-style-position: inside;\n  }\n  .list-disc {\n    list-style-type: disc;\n  }\n  .grid-cols-1 {\n    grid-template-columns: repeat(1, minmax(0, 1fr));\n  }\n  .grid-cols-2 {\n    grid-template-columns: repeat(2, minmax(0, 1fr));\n  }\n  .grid-cols-\\[100px_minmax\\(0\\,1fr\\)\\] {\n    grid-template-columns: 100px minmax(0,1fr);\n  }\n  .grid-cols-\\[224px_minmax\\(0\\,1fr\\)\\] {\n    grid-template-columns: 224px minmax(0,1fr);\n  }\n  .grid-cols-\\[minmax\\(0\\,1\\.4fr\\)_minmax\\(230px\\,1fr\\)\\] {\n    grid-template-columns: minmax(0,1.4fr) minmax(230px,1fr);\n  }\n  .grid-cols-\\[minmax\\(0\\,1\\.66fr\\)_minmax\\(280px\\,1fr\\)\\] {\n    grid-template-columns: minmax(0,1.66fr) minmax(280px,1fr);\n  }\n  .grid-cols-\\[minmax\\(190px\\,28\\%\\)_minmax\\(0\\,1fr\\)\\] {\n    grid-template-columns: minmax(190px,28%) minmax(0,1fr);\n  }\n  .flex-col {\n    flex-direction: column;\n  }\n  .flex-wrap {\n    flex-wrap: wrap;\n  }\n  .items-center {\n    align-items: center;\n  }\n  .items-start {\n    align-items: flex-start;\n  }\n  .justify-center {\n    justify-content: center;\n  }\n  .gap-1 {\n    gap: 0.25rem;\n  }\n  .gap-2 {\n    gap: calc(0.25rem * 2);\n  }\n  .gap-3 {\n    gap: calc(0.25rem * 3);\n  }\n  .gap-4 {\n    gap: calc(0.25rem * 4);\n  }\n  .gap-6 {\n    gap: calc(0.25rem * 6);\n  }\n  .space-y-1 {\n    :where(& > :not(:last-child)) {\n      --tw-space-y-reverse: 0;\n      margin-block-start: calc(0.25rem * var(--tw-space-y-reverse));\n      margin-block-end: calc(0.25rem * calc(1 - var(--tw-space-y-reverse)));\n    }\n  }\n  .space-y-2 {\n    :where(& > :not(:last-child)) {\n      --tw-space-y-reverse: 0;\n      margin-block-start: calc(calc(0.25rem * 2) * var(--tw-space-y-reverse));\n      margin-block-end: calc(calc(0.25rem * 2) * calc(1 - var(--tw-space-y-reverse)));\n    }\n  }\n  .space-y-3 {\n    :where(& > :not(:last-child)) {\n      --tw-space-y-reverse: 0;\n      margin-block-start: calc(calc(0.25rem * 3) * var(--tw-space-y-reverse));\n      margin-block-end: calc(calc(0.25rem * 3) * calc(1 - var(--tw-space-y-reverse)));\n    }\n  }\n  .space-y-4 {\n    :where(& > :not(:last-child)) {\n      --tw-space-y-reverse: 0;\n      margin-block-start: calc(calc(0.25rem * 4) * var(--tw-space-y-reverse));\n      margin-block-end: calc(calc(0.25rem * 4) * calc(1 - var(--tw-space-y-reverse)));\n    }\n  }\n  .space-y-5 {\n    :where(& > :not(:last-child)) {\n      --tw-space-y-reverse: 0;\n      margin-block-start: calc(calc(0.25rem * 5) * var(--tw-space-y-reverse));\n      margin-block-end: calc(calc(0.25rem * 5) * calc(1 - var(--tw-space-y-reverse)));\n    }\n  }\n  .truncate {\n    overflow: hidden;\n    text-overflow: ellipsis;\n    white-space: nowrap;\n  }\n  .overflow-auto {\n    overflow: auto;\n  }\n  .overflow-hidden {\n    overflow: hidden;\n  }\n  .rounded {\n    border-radius: 0.25rem;\n  }\n  .rounded-2xl {\n    border-radius: 1rem;\n  }\n  .rounded-full {\n    border-radius: calc(infinity * 1px);\n  }\n  .rounded-lg {\n    border-radius: 0.5rem;\n  }\n  .rounded-md {\n    border-radius: 0.375rem;\n  }\n  .rounded-xl {\n    border-radius: 0.75rem;\n  }\n  .rounded-br-xl {\n    border-bottom-right-radius: 0.75rem;\n  }\n  .border {\n    border-style: var(--tw-border-style);\n    border-width: 1px;\n  }\n  .border-t {\n    border-top-style: var(--tw-border-style);\n    border-top-width: 1px;\n  }\n  .border-b {\n    border-bottom-style: var(--tw-border-style);\n    border-bottom-width: 1px;\n  }\n  .border-dashed {\n    --tw-border-style: dashed;\n    border-style: dashed;\n  }\n  .border-\\[\\#6C4CF5\\] {\n    border-color: #6C4CF5;\n  }\n  .border-\\[\\#7A879B\\] {\n    border-color: #7A879B;\n  }\n  .border-\\[\\#E6EAF3\\] {\n    border-color: #E6EAF3;\n  }\n  .border-transparent {\n    border-color: transparent;\n  }\n  .border-white {\n    border-color: #fff;\n  }\n  .bg-\\[\\#6C4CF5\\] {\n    background-color: #6C4CF5;\n  }\n  .bg-\\[\\#EAF8F0\\] {\n    background-color: #EAF8F0;\n  }\n  .bg-\\[\\#EFEBFF\\] {\n    background-color: #EFEBFF;\n  }\n  .bg-\\[\\#F7F8FC\\] {\n    background-color: #F7F8FC;\n  }\n  .bg-\\[\\#FBFCFE\\] {\n    background-color: #FBFCFE;\n  }\n  .bg-\\[\\#FDF6ED\\] {\n    background-color: #FDF6ED;\n  }\n  .bg-white {\n    background-color: #fff;\n  }\n  .p-2 {\n    padding: calc(0.25rem * 2);\n  }\n  .p-3 {\n    padding: calc(0.25rem * 3);\n  }\n  .p-4 {\n    padding: calc(0.25rem * 4);\n  }\n  .p-5 {\n    padding: calc(0.25rem * 5);\n  }\n  .p-6 {\n    padding: calc(0.25rem * 6);\n  }\n  .px-1\\.5 {\n    padding-inline: calc(0.25rem * 1.5);\n  }\n  .px-2 {\n    padding-inline: calc(0.25rem * 2);\n  }\n  .px-3 {\n    padding-inline: calc(0.25rem * 3);\n  }\n  .px-4 {\n    padding-inline: calc(0.25rem * 4);\n  }\n  .px-5 {\n    padding-inline: calc(0.25rem * 5);\n  }\n  .px-6 {\n    padding-inline: calc(0.25rem * 6);\n  }\n  .py-0\\.5 {\n    padding-block: calc(0.25rem * 0.5);\n  }\n  .py-1\\.5 {\n    padding-block: calc(0.25rem * 1.5);\n  }\n  .py-2 {\n    padding-block: calc(0.25rem * 2);\n  }\n  .py-3 {\n    padding-block: calc(0.25rem * 3);\n  }\n  .py-4 {\n    padding-block: calc(0.25rem * 4);\n  }\n  .pr-2 {\n    padding-right: calc(0.25rem * 2);\n  }\n  .pr-10 {\n    padding-right: calc(0.25rem * 10);\n  }\n  .pl-\\[var\\(--df-depth\\)\\] {\n    padding-left: var(--df-depth);\n  }\n  .text-center {\n    text-align: center;\n  }\n  .text-left {\n    text-align: left;\n  }\n  .font-mono {\n    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',\n    monospace;\n  }\n  .font-sans {\n    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', 'Noto Sans', Arial,\n    sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';\n  }\n  .text-lg {\n    font-size: 1.125rem;\n    line-height: var(--tw-leading, calc(1.75 / 1.125));\n  }\n  .text-sm {\n    font-size: 0.875rem;\n    line-height: var(--tw-leading, calc(1.25 / 0.875));\n  }\n  .text-xs {\n    font-size: 0.75rem;\n    line-height: var(--tw-leading, calc(1 / 0.75));\n  }\n  .text-\\[13px\\] {\n    font-size: 13px;\n  }\n  .text-\\[15px\\] {\n    font-size: 15px;\n  }\n  .text-\\[18px\\] {\n    font-size: 18px;\n  }\n  .leading-relaxed {\n    --tw-leading: 1.625;\n    line-height: 1.625;\n  }\n  .font-medium {\n    --tw-font-weight: 500;\n    font-weight: 500;\n  }\n  .font-semibold {\n    --tw-font-weight: 600;\n    font-weight: 600;\n  }\n  .break-words {\n    overflow-wrap: break-word;\n  }\n  .break-all {\n    word-break: break-all;\n  }\n  .whitespace-pre-wrap {\n    white-space: pre-wrap;\n  }\n  .text-\\[\\#6C4CF5\\] {\n    color: #6C4CF5;\n  }\n  .text-\\[\\#8A4D00\\] {\n    color: #8A4D00;\n  }\n  .text-\\[\\#17664F\\] {\n    color: #17664F;\n  }\n  .text-\\[\\#23272E\\] {\n    color: #23272E;\n  }\n  .text-\\[\\#556176\\] {\n    color: #556176;\n  }\n  .text-white {\n    color: #fff;\n  }\n  .accent-\\[\\#6C4CF5\\] {\n    accent-color: #6C4CF5;\n  }\n  .opacity-0 {\n    opacity: 0%;\n  }\n  .shadow-2xl {\n    --tw-shadow: 0 25px 50px -12px var(--tw-shadow-color, rgb(0 0 0 / 0.25));\n    box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);\n  }\n  .shadow-lg {\n    --tw-shadow: 0 10px 15px -3px var(--tw-shadow-color, rgb(0 0 0 / 0.1)), 0 4px 6px -4px var(--tw-shadow-color, rgb(0 0 0 / 0.1));\n    box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);\n  }\n  .outline-none {\n    --tw-outline-style: none;\n    outline-style: none;\n  }\n  .select-none {\n    -webkit-user-select: none;\n    user-select: none;\n  }\n  .hover\\:bg-\\[\\#5835DA\\] {\n    &:hover {\n      @media (hover: hover) {\n        background-color: #5835DA;\n      }\n    }\n  }\n  .hover\\:bg-\\[\\#F7F8FC\\] {\n    &:hover {\n      @media (hover: hover) {\n        background-color: #F7F8FC;\n      }\n    }\n  }\n  .focus-visible\\:ring-2 {\n    &:focus-visible {\n      --tw-ring-shadow: var(--tw-ring-inset,) 0 0 0 calc(2px + var(--tw-ring-offset-width)) var(--tw-ring-color, currentcolor);\n      box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);\n    }\n  }\n  .focus-visible\\:ring-\\[\\#6C4CF5\\] {\n    &:focus-visible {\n      --tw-ring-color: #6C4CF5;\n    }\n  }\n  .focus-visible\\:ring-offset-2 {\n    &:focus-visible {\n      --tw-ring-offset-width: 2px;\n      --tw-ring-offset-shadow: var(--tw-ring-inset,) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);\n    }\n  }\n  .disabled\\:cursor-not-allowed {\n    &:disabled {\n      cursor: not-allowed;\n    }\n  }\n  .disabled\\:opacity-50 {\n    &:disabled {\n      opacity: 50%;\n    }\n  }\n  .disabled\\:opacity-60 {\n    &:disabled {\n      opacity: 60%;\n    }\n  }\n  .max-\\[700px\\]\\:grid-cols-1 {\n    @media (width < 700px) {\n      grid-template-columns: repeat(1, minmax(0, 1fr));\n    }\n  }\n}\n@property --tw-translate-x {\n  syntax: \"*\";\n  inherits: false;\n  initial-value: 0;\n}\n@property --tw-translate-y {\n  syntax: \"*\";\n  inherits: false;\n  initial-value: 0;\n}\n@property --tw-translate-z {\n  syntax: \"*\";\n  inherits: false;\n  initial-value: 0;\n}\n@property --tw-space-y-reverse {\n  syntax: \"*\";\n  inherits: false;\n  initial-value: 0;\n}\n@property --tw-border-style {\n  syntax: \"*\";\n  inherits: false;\n  initial-value: solid;\n}\n@property --tw-leading {\n  syntax: \"*\";\n  inherits: false;\n}\n@property --tw-font-weight {\n  syntax: \"*\";\n  inherits: false;\n}\n@property --tw-shadow {\n  syntax: \"*\";\n  inherits: false;\n  initial-value: 0 0 #0000;\n}\n@property --tw-shadow-color {\n  syntax: \"*\";\n  inherits: false;\n}\n@property --tw-shadow-alpha {\n  syntax: \"<percentage>\";\n  inherits: false;\n  initial-value: 100%;\n}\n@property --tw-inset-shadow {\n  syntax: \"*\";\n  inherits: false;\n  initial-value: 0 0 #0000;\n}\n@property --tw-inset-shadow-color {\n  syntax: \"*\";\n  inherits: false;\n}\n@property --tw-inset-shadow-alpha {\n  syntax: \"<percentage>\";\n  inherits: false;\n  initial-value: 100%;\n}\n@property --tw-ring-color {\n  syntax: \"*\";\n  inherits: false;\n}\n@property --tw-ring-shadow {\n  syntax: \"*\";\n  inherits: false;\n  initial-value: 0 0 #0000;\n}\n@property --tw-inset-ring-color {\n  syntax: \"*\";\n  inherits: false;\n}\n@property --tw-inset-ring-shadow {\n  syntax: \"*\";\n  inherits: false;\n  initial-value: 0 0 #0000;\n}\n@property --tw-ring-inset {\n  syntax: \"*\";\n  inherits: false;\n}\n@property --tw-ring-offset-width {\n  syntax: \"<length>\";\n  inherits: false;\n  initial-value: 0px;\n}\n@property --tw-ring-offset-color {\n  syntax: \"*\";\n  inherits: false;\n  initial-value: #fff;\n}\n@property --tw-ring-offset-shadow {\n  syntax: \"*\";\n  inherits: false;\n  initial-value: 0 0 #0000;\n}\n@layer properties {\n  @supports ((-webkit-hyphens: none) and (not (margin-trim: inline))) or ((-moz-orient: inline) and (not (color:rgb(from red r g b)))) {\n    *, ::before, ::after, ::backdrop {\n      --tw-translate-x: 0;\n      --tw-translate-y: 0;\n      --tw-translate-z: 0;\n      --tw-space-y-reverse: 0;\n      --tw-border-style: solid;\n      --tw-leading: initial;\n      --tw-font-weight: initial;\n      --tw-shadow: 0 0 #0000;\n      --tw-shadow-color: initial;\n      --tw-shadow-alpha: 100%;\n      --tw-inset-shadow: 0 0 #0000;\n      --tw-inset-shadow-color: initial;\n      --tw-inset-shadow-alpha: 100%;\n      --tw-ring-color: initial;\n      --tw-ring-shadow: 0 0 #0000;\n      --tw-inset-ring-color: initial;\n      --tw-inset-ring-shadow: 0 0 #0000;\n      --tw-ring-inset: initial;\n      --tw-ring-offset-width: 0px;\n      --tw-ring-offset-color: #fff;\n      --tw-ring-offset-shadow: 0 0 #0000;\n    }\n  }\n}\n";
+var g = "/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */\n@layer properties;\n@scope ([data-deviceforge-debugger]) {\n  .collapse {\n    visibility: collapse;\n  }\n  .visible {\n    visibility: visible;\n  }\n  .sr-only {\n    position: absolute;\n    width: 1px;\n    height: 1px;\n    padding: 0;\n    margin: -1px;\n    overflow: hidden;\n    clip-path: inset(50%);\n    white-space: nowrap;\n    border-width: 0;\n  }\n  .absolute {\n    position: absolute;\n  }\n  .fixed {\n    position: fixed;\n  }\n  .relative {\n    position: relative;\n  }\n  .sticky {\n    position: sticky;\n  }\n  .top-0 {\n    top: 0px;\n  }\n  .top-\\[var\\(--df-y\\)\\] {\n    top: var(--df-y);\n  }\n  .right-0 {\n    right: 0px;\n  }\n  .bottom-0 {\n    bottom: 0px;\n  }\n  .bottom-6 {\n    bottom: calc(0.25rem * 6);\n  }\n  .bottom-full {\n    bottom: 100%;\n  }\n  .left-0 {\n    left: 0px;\n  }\n  .left-1\\/2 {\n    left: calc(1 / 2 * 100%);\n  }\n  .left-\\[var\\(--df-x\\)\\] {\n    left: var(--df-x);\n  }\n  .z-10 {\n    z-index: 10;\n  }\n  .z-\\[2147483000\\] {\n    z-index: 2147483000;\n  }\n  .z-\\[2147483001\\] {\n    z-index: 2147483001;\n  }\n  .my-2 {\n    margin-block: calc(0.25rem * 2);\n  }\n  .mt-0\\.5 {\n    margin-top: calc(0.25rem * 0.5);\n  }\n  .mt-1 {\n    margin-top: 0.25rem;\n  }\n  .mt-2 {\n    margin-top: calc(0.25rem * 2);\n  }\n  .mt-3 {\n    margin-top: calc(0.25rem * 3);\n  }\n  .mt-4 {\n    margin-top: calc(0.25rem * 4);\n  }\n  .mr-2 {\n    margin-right: calc(0.25rem * 2);\n  }\n  .mr-auto {\n    margin-right: auto;\n  }\n  .mb-2 {\n    margin-bottom: calc(0.25rem * 2);\n  }\n  .mb-3 {\n    margin-bottom: calc(0.25rem * 3);\n  }\n  .mb-4 {\n    margin-bottom: calc(0.25rem * 4);\n  }\n  .block {\n    display: block;\n  }\n  .flex {\n    display: flex;\n  }\n  .grid {\n    display: grid;\n  }\n  .hidden {\n    display: none;\n  }\n  .inline-flex {\n    display: inline-flex;\n  }\n  .table {\n    display: table;\n  }\n  .size-4 {\n    width: calc(0.25rem * 4);\n    height: calc(0.25rem * 4);\n  }\n  .size-6 {\n    width: calc(0.25rem * 6);\n    height: calc(0.25rem * 6);\n  }\n  .size-7 {\n    width: calc(0.25rem * 7);\n    height: calc(0.25rem * 7);\n  }\n  .size-9 {\n    width: calc(0.25rem * 9);\n    height: calc(0.25rem * 9);\n  }\n  .size-12 {\n    width: calc(0.25rem * 12);\n    height: calc(0.25rem * 12);\n  }\n  .size-px {\n    width: 1px;\n    height: 1px;\n  }\n  .h-\\[var\\(--df-height\\)\\] {\n    height: var(--df-height);\n  }\n  .max-h-64 {\n    max-height: calc(0.25rem * 64);\n  }\n  .max-h-72 {\n    max-height: calc(0.25rem * 72);\n  }\n  .max-h-80 {\n    max-height: calc(0.25rem * 80);\n  }\n  .min-h-0 {\n    min-height: 0px;\n  }\n  .min-h-9 {\n    min-height: calc(0.25rem * 9);\n  }\n  .min-h-14 {\n    min-height: calc(0.25rem * 14);\n  }\n  .min-h-20 {\n    min-height: calc(0.25rem * 20);\n  }\n  .min-h-24 {\n    min-height: calc(0.25rem * 24);\n  }\n  .min-h-28 {\n    min-height: calc(0.25rem * 28);\n  }\n  .min-h-40 {\n    min-height: calc(0.25rem * 40);\n  }\n  .min-h-44 {\n    min-height: calc(0.25rem * 44);\n  }\n  .min-h-64 {\n    min-height: calc(0.25rem * 64);\n  }\n  .min-h-80 {\n    min-height: calc(0.25rem * 80);\n  }\n  .min-h-\\[72px\\] {\n    min-height: 72px;\n  }\n  .min-h-full {\n    min-height: 100%;\n  }\n  .w-\\[var\\(--df-width\\)\\] {\n    width: var(--df-width);\n  }\n  .w-full {\n    width: 100%;\n  }\n  .max-w-80 {\n    max-width: calc(0.25rem * 80);\n  }\n  .max-w-xl {\n    max-width: 36rem;\n  }\n  .min-w-0 {\n    min-width: 0px;\n  }\n  .min-w-32 {\n    min-width: calc(0.25rem * 32);\n  }\n  .min-w-36 {\n    min-width: calc(0.25rem * 36);\n  }\n  .min-w-40 {\n    min-width: calc(0.25rem * 40);\n  }\n  .flex-1 {\n    flex: 1;\n  }\n  .shrink-0 {\n    flex-shrink: 0;\n  }\n  .-translate-x-1\\/2 {\n    --tw-translate-x: calc(calc(1 / 2 * 100%) * -1);\n    translate: var(--tw-translate-x) var(--tw-translate-y);\n  }\n  .cursor-pointer {\n    cursor: pointer;\n  }\n  .cursor-se-resize {\n    cursor: se-resize;\n  }\n  .touch-none {\n    touch-action: none;\n  }\n  .resize {\n    resize: both;\n  }\n  .list-inside {\n    list-style-position: inside;\n  }\n  .list-disc {\n    list-style-type: disc;\n  }\n  .grid-cols-1 {\n    grid-template-columns: repeat(1, minmax(0, 1fr));\n  }\n  .grid-cols-2 {\n    grid-template-columns: repeat(2, minmax(0, 1fr));\n  }\n  .grid-cols-\\[100px_minmax\\(0\\,1fr\\)\\] {\n    grid-template-columns: 100px minmax(0,1fr);\n  }\n  .grid-cols-\\[224px_minmax\\(0\\,1fr\\)\\] {\n    grid-template-columns: 224px minmax(0,1fr);\n  }\n  .grid-cols-\\[minmax\\(0\\,1\\.4fr\\)_minmax\\(230px\\,1fr\\)\\] {\n    grid-template-columns: minmax(0,1.4fr) minmax(230px,1fr);\n  }\n  .grid-cols-\\[minmax\\(0\\,1\\.66fr\\)_minmax\\(280px\\,1fr\\)\\] {\n    grid-template-columns: minmax(0,1.66fr) minmax(280px,1fr);\n  }\n  .grid-cols-\\[minmax\\(190px\\,28\\%\\)_minmax\\(0\\,1fr\\)\\] {\n    grid-template-columns: minmax(190px,28%) minmax(0,1fr);\n  }\n  .flex-col {\n    flex-direction: column;\n  }\n  .flex-wrap {\n    flex-wrap: wrap;\n  }\n  .items-center {\n    align-items: center;\n  }\n  .items-start {\n    align-items: flex-start;\n  }\n  .justify-center {\n    justify-content: center;\n  }\n  .gap-1 {\n    gap: 0.25rem;\n  }\n  .gap-2 {\n    gap: calc(0.25rem * 2);\n  }\n  .gap-3 {\n    gap: calc(0.25rem * 3);\n  }\n  .gap-4 {\n    gap: calc(0.25rem * 4);\n  }\n  .gap-6 {\n    gap: calc(0.25rem * 6);\n  }\n  .space-y-1 {\n    :where(& > :not(:last-child)) {\n      --tw-space-y-reverse: 0;\n      margin-block-start: calc(0.25rem * var(--tw-space-y-reverse));\n      margin-block-end: calc(0.25rem * calc(1 - var(--tw-space-y-reverse)));\n    }\n  }\n  .space-y-2 {\n    :where(& > :not(:last-child)) {\n      --tw-space-y-reverse: 0;\n      margin-block-start: calc(calc(0.25rem * 2) * var(--tw-space-y-reverse));\n      margin-block-end: calc(calc(0.25rem * 2) * calc(1 - var(--tw-space-y-reverse)));\n    }\n  }\n  .space-y-3 {\n    :where(& > :not(:last-child)) {\n      --tw-space-y-reverse: 0;\n      margin-block-start: calc(calc(0.25rem * 3) * var(--tw-space-y-reverse));\n      margin-block-end: calc(calc(0.25rem * 3) * calc(1 - var(--tw-space-y-reverse)));\n    }\n  }\n  .space-y-4 {\n    :where(& > :not(:last-child)) {\n      --tw-space-y-reverse: 0;\n      margin-block-start: calc(calc(0.25rem * 4) * var(--tw-space-y-reverse));\n      margin-block-end: calc(calc(0.25rem * 4) * calc(1 - var(--tw-space-y-reverse)));\n    }\n  }\n  .space-y-5 {\n    :where(& > :not(:last-child)) {\n      --tw-space-y-reverse: 0;\n      margin-block-start: calc(calc(0.25rem * 5) * var(--tw-space-y-reverse));\n      margin-block-end: calc(calc(0.25rem * 5) * calc(1 - var(--tw-space-y-reverse)));\n    }\n  }\n  .truncate {\n    overflow: hidden;\n    text-overflow: ellipsis;\n    white-space: nowrap;\n  }\n  .overflow-auto {\n    overflow: auto;\n  }\n  .overflow-hidden {\n    overflow: hidden;\n  }\n  .rounded {\n    border-radius: 0.25rem;\n  }\n  .rounded-2xl {\n    border-radius: 1rem;\n  }\n  .rounded-full {\n    border-radius: calc(infinity * 1px);\n  }\n  .rounded-lg {\n    border-radius: 0.5rem;\n  }\n  .rounded-md {\n    border-radius: 0.375rem;\n  }\n  .rounded-xl {\n    border-radius: 0.75rem;\n  }\n  .rounded-br-xl {\n    border-bottom-right-radius: 0.75rem;\n  }\n  .border {\n    border-style: var(--tw-border-style);\n    border-width: 1px;\n  }\n  .border-t {\n    border-top-style: var(--tw-border-style);\n    border-top-width: 1px;\n  }\n  .border-b {\n    border-bottom-style: var(--tw-border-style);\n    border-bottom-width: 1px;\n  }\n  .border-dashed {\n    --tw-border-style: dashed;\n    border-style: dashed;\n  }\n  .border-\\[\\#6C4CF5\\] {\n    border-color: #6C4CF5;\n  }\n  .border-\\[\\#7A879B\\] {\n    border-color: #7A879B;\n  }\n  .border-\\[\\#E6EAF3\\] {\n    border-color: #E6EAF3;\n  }\n  .border-transparent {\n    border-color: transparent;\n  }\n  .border-white {\n    border-color: #fff;\n  }\n  .bg-\\[\\#6C4CF5\\] {\n    background-color: #6C4CF5;\n  }\n  .bg-\\[\\#EAF8F0\\] {\n    background-color: #EAF8F0;\n  }\n  .bg-\\[\\#EFEBFF\\] {\n    background-color: #EFEBFF;\n  }\n  .bg-\\[\\#F7F8FC\\] {\n    background-color: #F7F8FC;\n  }\n  .bg-\\[\\#FBFCFE\\] {\n    background-color: #FBFCFE;\n  }\n  .bg-\\[\\#FDF6ED\\] {\n    background-color: #FDF6ED;\n  }\n  .bg-white {\n    background-color: #fff;\n  }\n  .p-2 {\n    padding: calc(0.25rem * 2);\n  }\n  .p-3 {\n    padding: calc(0.25rem * 3);\n  }\n  .p-4 {\n    padding: calc(0.25rem * 4);\n  }\n  .p-5 {\n    padding: calc(0.25rem * 5);\n  }\n  .p-6 {\n    padding: calc(0.25rem * 6);\n  }\n  .px-1\\.5 {\n    padding-inline: calc(0.25rem * 1.5);\n  }\n  .px-2 {\n    padding-inline: calc(0.25rem * 2);\n  }\n  .px-3 {\n    padding-inline: calc(0.25rem * 3);\n  }\n  .px-4 {\n    padding-inline: calc(0.25rem * 4);\n  }\n  .px-5 {\n    padding-inline: calc(0.25rem * 5);\n  }\n  .px-6 {\n    padding-inline: calc(0.25rem * 6);\n  }\n  .py-0\\.5 {\n    padding-block: calc(0.25rem * 0.5);\n  }\n  .py-1\\.5 {\n    padding-block: calc(0.25rem * 1.5);\n  }\n  .py-2 {\n    padding-block: calc(0.25rem * 2);\n  }\n  .py-3 {\n    padding-block: calc(0.25rem * 3);\n  }\n  .py-4 {\n    padding-block: calc(0.25rem * 4);\n  }\n  .pr-2 {\n    padding-right: calc(0.25rem * 2);\n  }\n  .pr-10 {\n    padding-right: calc(0.25rem * 10);\n  }\n  .pl-\\[var\\(--df-depth\\)\\] {\n    padding-left: var(--df-depth);\n  }\n  .text-center {\n    text-align: center;\n  }\n  .text-left {\n    text-align: left;\n  }\n  .font-mono {\n    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',\n    monospace;\n  }\n  .font-sans {\n    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', 'Noto Sans', Arial,\n    sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';\n  }\n  .text-lg {\n    font-size: 1.125rem;\n    line-height: var(--tw-leading, calc(1.75 / 1.125));\n  }\n  .text-sm {\n    font-size: 0.875rem;\n    line-height: var(--tw-leading, calc(1.25 / 0.875));\n  }\n  .text-xs {\n    font-size: 0.75rem;\n    line-height: var(--tw-leading, calc(1 / 0.75));\n  }\n  .text-\\[13px\\] {\n    font-size: 13px;\n  }\n  .text-\\[15px\\] {\n    font-size: 15px;\n  }\n  .text-\\[18px\\] {\n    font-size: 18px;\n  }\n  .leading-relaxed {\n    --tw-leading: 1.625;\n    line-height: 1.625;\n  }\n  .font-medium {\n    --tw-font-weight: 500;\n    font-weight: 500;\n  }\n  .font-semibold {\n    --tw-font-weight: 600;\n    font-weight: 600;\n  }\n  .break-words {\n    overflow-wrap: break-word;\n  }\n  .break-all {\n    word-break: break-all;\n  }\n  .whitespace-pre-wrap {\n    white-space: pre-wrap;\n  }\n  .text-\\[\\#6C4CF5\\] {\n    color: #6C4CF5;\n  }\n  .text-\\[\\#8A4D00\\] {\n    color: #8A4D00;\n  }\n  .text-\\[\\#17664F\\] {\n    color: #17664F;\n  }\n  .text-\\[\\#23272E\\] {\n    color: #23272E;\n  }\n  .text-\\[\\#556176\\] {\n    color: #556176;\n  }\n  .text-white {\n    color: #fff;\n  }\n  .accent-\\[\\#6C4CF5\\] {\n    accent-color: #6C4CF5;\n  }\n  .opacity-0 {\n    opacity: 0%;\n  }\n  .shadow-2xl {\n    --tw-shadow: 0 25px 50px -12px var(--tw-shadow-color, rgb(0 0 0 / 0.25));\n    box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);\n  }\n  .shadow-lg {\n    --tw-shadow: 0 10px 15px -3px var(--tw-shadow-color, rgb(0 0 0 / 0.1)), 0 4px 6px -4px var(--tw-shadow-color, rgb(0 0 0 / 0.1));\n    box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);\n  }\n  .outline-none {\n    --tw-outline-style: none;\n    outline-style: none;\n  }\n  .select-none {\n    -webkit-user-select: none;\n    user-select: none;\n  }\n  .hover\\:bg-\\[\\#5835DA\\] {\n    &:hover {\n      @media (hover: hover) {\n        background-color: #5835DA;\n      }\n    }\n  }\n  .hover\\:bg-\\[\\#F7F8FC\\] {\n    &:hover {\n      @media (hover: hover) {\n        background-color: #F7F8FC;\n      }\n    }\n  }\n  .focus-visible\\:ring-2 {\n    &:focus-visible {\n      --tw-ring-shadow: var(--tw-ring-inset,) 0 0 0 calc(2px + var(--tw-ring-offset-width)) var(--tw-ring-color, currentcolor);\n      box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);\n    }\n  }\n  .focus-visible\\:ring-\\[\\#6C4CF5\\] {\n    &:focus-visible {\n      --tw-ring-color: #6C4CF5;\n    }\n  }\n  .focus-visible\\:ring-offset-2 {\n    &:focus-visible {\n      --tw-ring-offset-width: 2px;\n      --tw-ring-offset-shadow: var(--tw-ring-inset,) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);\n    }\n  }\n  .disabled\\:cursor-not-allowed {\n    &:disabled {\n      cursor: not-allowed;\n    }\n  }\n  .disabled\\:opacity-50 {\n    &:disabled {\n      opacity: 50%;\n    }\n  }\n  .disabled\\:opacity-60 {\n    &:disabled {\n      opacity: 60%;\n    }\n  }\n  .max-\\[700px\\]\\:grid-cols-1 {\n    @media (width < 700px) {\n      grid-template-columns: repeat(1, minmax(0, 1fr));\n    }\n  }\n}\n@property --tw-translate-x {\n  syntax: \"*\";\n  inherits: false;\n  initial-value: 0;\n}\n@property --tw-translate-y {\n  syntax: \"*\";\n  inherits: false;\n  initial-value: 0;\n}\n@property --tw-translate-z {\n  syntax: \"*\";\n  inherits: false;\n  initial-value: 0;\n}\n@property --tw-space-y-reverse {\n  syntax: \"*\";\n  inherits: false;\n  initial-value: 0;\n}\n@property --tw-border-style {\n  syntax: \"*\";\n  inherits: false;\n  initial-value: solid;\n}\n@property --tw-leading {\n  syntax: \"*\";\n  inherits: false;\n}\n@property --tw-font-weight {\n  syntax: \"*\";\n  inherits: false;\n}\n@property --tw-shadow {\n  syntax: \"*\";\n  inherits: false;\n  initial-value: 0 0 #0000;\n}\n@property --tw-shadow-color {\n  syntax: \"*\";\n  inherits: false;\n}\n@property --tw-shadow-alpha {\n  syntax: \"<percentage>\";\n  inherits: false;\n  initial-value: 100%;\n}\n@property --tw-inset-shadow {\n  syntax: \"*\";\n  inherits: false;\n  initial-value: 0 0 #0000;\n}\n@property --tw-inset-shadow-color {\n  syntax: \"*\";\n  inherits: false;\n}\n@property --tw-inset-shadow-alpha {\n  syntax: \"<percentage>\";\n  inherits: false;\n  initial-value: 100%;\n}\n@property --tw-ring-color {\n  syntax: \"*\";\n  inherits: false;\n}\n@property --tw-ring-shadow {\n  syntax: \"*\";\n  inherits: false;\n  initial-value: 0 0 #0000;\n}\n@property --tw-inset-ring-color {\n  syntax: \"*\";\n  inherits: false;\n}\n@property --tw-inset-ring-shadow {\n  syntax: \"*\";\n  inherits: false;\n  initial-value: 0 0 #0000;\n}\n@property --tw-ring-inset {\n  syntax: \"*\";\n  inherits: false;\n}\n@property --tw-ring-offset-width {\n  syntax: \"<length>\";\n  inherits: false;\n  initial-value: 0px;\n}\n@property --tw-ring-offset-color {\n  syntax: \"*\";\n  inherits: false;\n  initial-value: #fff;\n}\n@property --tw-ring-offset-shadow {\n  syntax: \"*\";\n  inherits: false;\n  initial-value: 0 0 #0000;\n}\n@layer properties {\n  @supports ((-webkit-hyphens: none) and (not (margin-trim: inline))) or ((-moz-orient: inline) and (not (color:rgb(from red r g b)))) {\n    *, ::before, ::after, ::backdrop {\n      --tw-translate-x: 0;\n      --tw-translate-y: 0;\n      --tw-translate-z: 0;\n      --tw-space-y-reverse: 0;\n      --tw-border-style: solid;\n      --tw-leading: initial;\n      --tw-font-weight: initial;\n      --tw-shadow: 0 0 #0000;\n      --tw-shadow-color: initial;\n      --tw-shadow-alpha: 100%;\n      --tw-inset-shadow: 0 0 #0000;\n      --tw-inset-shadow-color: initial;\n      --tw-inset-shadow-alpha: 100%;\n      --tw-ring-color: initial;\n      --tw-ring-shadow: 0 0 #0000;\n      --tw-inset-ring-color: initial;\n      --tw-inset-ring-shadow: 0 0 #0000;\n      --tw-ring-inset: initial;\n      --tw-ring-offset-width: 0px;\n      --tw-ring-offset-color: #fff;\n      --tw-ring-offset-shadow: 0 0 #0000;\n    }\n  }\n}\n";
 //#endregion
 //#region ../examples/browser-debugger/src/protocol.ts
-function g(e) {
+function _(e) {
 	return typeof e == "object" && !!e && !Array.isArray(e);
 }
-function _(e) {
-	return g(e) ? e : {};
-}
 function v(e) {
+	return _(e) ? e : {};
+}
+function y(e) {
 	return Array.isArray(e) ? e : [];
 }
-function y(e, t = "") {
+function b(e, t = "") {
 	return typeof e == "string" ? e : t;
 }
-function b(e, t = 0) {
+function x(e, t = 0) {
 	return typeof e == "number" && Number.isFinite(e) ? e : t;
 }
-function x(e, t = 0) {
+function S(e, t = 0) {
 	if (t > 48) throw Error("JSON 嵌套超过 48 层");
 	if (e === null || typeof e == "string" || typeof e == "boolean" || typeof e == "number" && Number.isFinite(e)) return e;
-	if (Array.isArray(e)) return e.map((e) => x(e, t + 1));
-	if (g(e)) return Object.fromEntries(Object.entries(e).map(([e, n]) => [e, x(n, t + 1)]));
+	if (Array.isArray(e)) return e.map((e) => S(e, t + 1));
+	if (_(e)) return Object.fromEntries(Object.entries(e).map(([e, n]) => [e, S(n, t + 1)]));
 	throw Error("参数必须是有限 JSON");
 }
-function S(e) {
+function C(e) {
 	if (new TextEncoder().encode(e).length > 131072) throw Error("JSON 输入不能超过 128 KiB");
-	return x(JSON.parse(e));
+	return S(JSON.parse(e));
 }
-var C = class extends Error {
+var w = class extends Error {
 	code;
 	logId;
 	unconfirmed;
@@ -142,24 +144,24 @@ var C = class extends Error {
 		super(e), this.name = "DebuggerFailure", this.code = t, this.logId = n, this.unconfirmed = r;
 	}
 };
-function w(e) {
-	if (e instanceof C) return e;
-	let t = _(e);
-	return new C(e instanceof Error ? e.message : "调试请求失败", y(t.code, "debugger_failed"), y(t.logId) || null, /unconfirmed|timeout|cancel/i.test(y(t.code)));
+function T(e) {
+	if (e instanceof w) return e;
+	let t = v(e);
+	return new w(e instanceof Error ? e.message : "调试请求失败", b(t.code, "debugger_failed"), b(t.logId) || null, /unconfirmed|timeout|cancel/i.test(b(t.code)));
 }
-function T(e, t) {
+function E(e, t) {
 	return new Promise((n, r) => {
-		let i = () => r(new C("等待已取消或到期；已派发动作的结果需要核对，不会自动重放", "debugger_wait_unconfirmed", null, !0));
+		let i = () => r(new w("等待已取消或到期；已派发动作的结果需要核对，不会自动重放", "debugger_wait_unconfirmed", null, !0));
 		t.aborted ? (e.catch(() => void 0), i()) : (t.addEventListener("abort", i, { once: !0 }), e.then(n, r).finally(() => t.removeEventListener("abort", i)));
 	});
 }
-var E = (e) => JSON.stringify([
+var D = (e) => JSON.stringify([
 	e.kind,
 	e.instanceId,
 	e.pluginId,
 	e.generation
 ]);
-function D(e) {
+function O(e) {
 	return {
 		target_kind: e.kind,
 		instance_id: e.instanceId,
@@ -168,139 +170,139 @@ function D(e) {
 		version: e.version
 	};
 }
-function O(e, t = null) {
-	let n = _(e), r = y(n.plugin_id);
+function k(e, t = null) {
+	let n = v(e), r = b(n.plugin_id);
 	return r ? {
 		kind: n.target_kind === "server" ? "server" : "browser",
-		instanceId: y(n.instance_id) || t,
+		instanceId: b(n.instance_id) || t,
 		pluginId: r,
-		generation: y(n.generation) || null,
-		version: y(n.version) || null
+		generation: b(n.generation) || null,
+		version: b(n.version) || null
 	} : null;
 }
-function k(e) {
-	let t = _(e), n = [];
-	for (let e of v(t.browser_targets)) {
-		let t = O(e);
+function A(e) {
+	let t = v(e), n = [];
+	for (let e of y(t.browser_targets)) {
+		let t = k(e);
 		t && n.push(t);
 	}
-	for (let e of v(t.browser_instances)) {
-		let t = _(e);
-		for (let e of v(t.plugins)) {
-			let r = O(e, y(t.instance_id) || null);
+	for (let e of y(t.browser_instances)) {
+		let t = v(e);
+		for (let e of y(t.plugins)) {
+			let r = k(e, b(t.instance_id) || null);
 			r && n.push(r);
 		}
 	}
-	for (let e of v(t.server_plugins)) {
-		let t = _(e), r = y(t.id);
+	for (let e of y(t.server_plugins)) {
+		let t = v(e), r = b(t.id);
 		r && n.push({
 			kind: "server",
 			instanceId: null,
 			pluginId: r,
-			generation: y(t.generation) || null,
-			version: y(t.version) || null
+			generation: b(t.generation) || null,
+			version: b(t.version) || null
 		});
 	}
-	return [...new Map(n.map((e) => [E(e), e])).values()];
+	return [...new Map(n.map((e) => [D(e), e])).values()];
 }
-function A(e) {
-	let t = _(e);
-	if (!y(t.id) || !Array.isArray(t.nodes)) return null;
+function j(e) {
+	let t = v(e);
+	if (!b(t.id) || !Array.isArray(t.nodes)) return null;
 	let n = [];
 	for (let e of t.nodes) {
-		let t = _(e);
-		if (!y(t.id) || !Number.isSafeInteger(t.generation) || !Number.isSafeInteger(t.revision)) throw Error("UI 节点缺少有效的标识、代次或修订");
-		let r = x(t);
-		if (!j(r)) throw Error("UI 节点不是对象");
+		let t = v(e);
+		if (!b(t.id) || !Number.isSafeInteger(t.generation) || !Number.isSafeInteger(t.revision)) throw Error("UI 节点缺少有效的标识、代次或修订");
+		let r = S(t);
+		if (!M(r)) throw Error("UI 节点不是对象");
 		n.push({
-			id: y(t.id),
-			generation: b(t.generation),
-			revision: b(t.revision),
-			parentId: y(t.parentId) || null,
-			name: y(t.name),
-			role: y(t.role),
+			id: b(t.id),
+			generation: x(t.generation),
+			revision: x(t.revision),
+			parentId: b(t.parentId) || null,
+			name: b(t.name),
+			role: b(t.role),
 			raw: r
 		});
 	}
 	return {
-		id: y(t.id),
-		observedAt: b(t.observedAt),
+		id: b(t.id),
+		observedAt: x(t.observedAt),
 		nodes: n,
-		raw: x(t)
+		raw: S(t)
 	};
 }
-function j(e) {
+function M(e) {
 	return typeof e == "object" && !!e && !Array.isArray(e);
 }
-function M(e) {
-	let t = _(e), n = y(t.id), r = y(t.tool);
+function N(e) {
+	let t = v(e), n = b(t.id), r = b(t.tool);
 	return !n || !r ? null : {
 		id: n,
 		tool: r,
-		label: y(t.label) || null
+		label: b(t.label) || null
 	};
 }
-function N(e) {
-	let t = _(e), n = y(t.command_id), r = y(t.tool);
+function P(e) {
+	let t = v(e), n = b(t.command_id), r = b(t.tool);
 	if (!n || !r || !Number.isSafeInteger(t.sequence)) return null;
-	let i = v(t.steps).map(M).filter((e) => e !== null);
+	let i = y(t.steps).map(N).filter((e) => e !== null);
 	return {
 		sequence: Number(t.sequence),
 		commandId: n,
 		tool: r,
-		state: y(t.state, "unknown"),
+		state: b(t.state, "unknown"),
 		steps: i,
-		response: t.response === null || t.response === void 0 ? null : x(t.response)
+		response: t.response === null || t.response === void 0 ? null : S(t.response)
 	};
 }
-function P(e, t) {
-	let n = _(e), r = O(n.target);
-	if (!r || t && E(r) !== E(t)) throw Error("调试调用回执不属于当前明确目标");
+function F(e, t) {
+	let n = v(e), r = k(n.target);
+	if (!r || t && D(r) !== D(t)) throw Error("调试调用回执不属于当前明确目标");
 	return {
 		target: r,
-		items: v(n.items).map(N).filter((e) => e !== null),
-		nextBefore: n.next_before === null || n.next_before === void 0 ? null : b(n.next_before),
+		items: y(n.items).map(P).filter((e) => e !== null),
+		nextBefore: n.next_before === null || n.next_before === void 0 ? null : x(n.next_before),
 		gap: n.gap === !0,
 		retainedOnly: n.retained_only === !0,
-		...y(n.unavailable) ? { unavailable: y(n.unavailable) } : {}
+		...b(n.unavailable) ? { unavailable: b(n.unavailable) } : {}
 	};
 }
-function F(e) {
+function I(e) {
 	return e === "immediate" || e === "next_invocation" || e === "reload" ? e : null;
 }
-function I(e) {
+function L(e) {
 	return e === "memory" || e === "persistent" ? e : null;
 }
-function L(e) {
-	return v(_(e).sources).map((e) => {
-		let t = _(e), n = y(t.id), r = y(t.label, n);
+function R(e) {
+	return y(v(e).sources).map((e) => {
+		let t = v(e), n = b(t.id), r = b(t.label, n);
 		return n ? {
 			id: n,
 			label: r,
-			schema: x(t.schema ?? null),
+			schema: S(t.schema ?? null),
 			schemaComplete: t.schema_complete !== !1,
-			omittedSchemaPaths: v(t.omitted_schema_paths).map((e) => y(e)).filter(Boolean),
+			omittedSchemaPaths: y(t.omitted_schema_paths).map((e) => b(e)).filter(Boolean),
 			writable: t.writable === !0,
-			persistence: I(t.persistence),
-			applyPolicy: F(t.apply_policy)
+			persistence: L(t.persistence),
+			applyPolicy: I(t.apply_policy)
 		} : null;
 	}).filter((e) => e !== null);
 }
-function R(e, t) {
-	let n = _(e), r = y(n.revision), i = y(n.source_id, t);
+function z(e, t) {
+	let n = v(e), r = b(n.revision), i = b(n.source_id, t);
 	return !r || !i || n.value === void 0 ? null : {
 		sourceId: i,
 		revision: r,
-		value: x(n.value),
+		value: S(n.value),
 		writable: n.writable === !0,
-		applyPolicy: F(n.apply_policy),
+		applyPolicy: I(n.apply_policy),
 		runtimeApplied: n.runtime_applied === "declared" || n.runtime_applied === "pending" ? n.runtime_applied : null
 	};
 }
-function z(e) {
-	let t = _(e), n = _(t.catalog), r = [];
-	for (let e of v(n.commands)) {
-		let t = y(_(e).id);
+function B(e) {
+	let t = v(e), n = v(t.catalog), r = [];
+	for (let e of y(n.commands)) {
+		let t = b(v(e).id);
 		t && r.push({
 			key: `command:${t}`,
 			kind: "command",
@@ -311,43 +313,43 @@ function z(e) {
 			reason: "公开命令未声明输入模式，请填写 JSON"
 		});
 	}
-	for (let e of [...v(n.services), ...v(t.services)]) {
-		let t = _(e), n = _(t.service), i = _(t.contract), a = y(t.id) || y(n.id), o = y(t.version) || y(n.version);
+	for (let e of [...y(n.services), ...y(t.services)]) {
+		let t = v(e), n = v(t.service), i = v(t.contract), a = b(t.id) || b(n.id), o = b(t.version) || b(n.version);
 		a && o && r.push({
 			key: `service:${a}:${o}`,
 			kind: "service",
 			id: a,
 			version: o,
-			schema: x(t.inputSchema ?? i.input_schema ?? i.inputSchema ?? null),
+			schema: S(t.inputSchema ?? i.input_schema ?? i.inputSchema ?? null),
 			available: t.available !== !1,
-			reason: y(t.reason)
+			reason: b(t.reason)
 		});
 	}
-	for (let e of v(t.operations)) {
-		let t = _(e), n = y(t.id);
+	for (let e of y(t.operations)) {
+		let t = v(e), n = b(t.id);
 		n && r.push({
 			key: `operation:${n}`,
 			kind: "operation",
 			id: n,
 			version: null,
-			schema: x(t.input_schema ?? null),
+			schema: S(t.input_schema ?? null),
 			available: !0,
 			reason: "服务器操作沿原任务入口执行，返回原任务 ID"
 		});
 	}
 	return r;
 }
-function B(e) {
+function V(e) {
 	async function t(t, n, r, i = 15e3) {
 		let a = e.extensions;
-		if (!a) throw new C("宿主未提供公开扩展服务，请升级宿主", "service_unavailable");
+		if (!a) throw new w("宿主未提供公开扩展服务，请升级宿主", "service_unavailable");
 		let o = AbortSignal.any([
 			e.signal,
 			r,
 			AbortSignal.timeout(i)
 		]);
 		o.throwIfAborted();
-		let s = await T(a.callService("host.debugger", "1", {
+		let s = await E(a.callService("host.debugger", "1", {
 			action: t,
 			...n
 		}, o), o);
@@ -357,17 +359,17 @@ function B(e) {
 		let a = await t("call", {
 			name: `deviceforge.debug_${e}`,
 			input: n
-		}, r, i), o = _(a.data);
-		if (typeof o.state == "string" && o.state.endsWith("_unconfirmed")) throw new C(y(_(_(o.response).error).message, "命令等待结束，真实结果未确认；请查询目标状态，不会自动重试"), y(_(_(o.response).error).code, o.state), a.logId, !0);
+		}, r, i), o = v(a.data);
+		if (typeof o.state == "string" && o.state.endsWith("_unconfirmed")) throw new w(b(v(v(o.response).error).message, "命令等待结束，真实结果未确认；请查询目标状态，不会自动重试"), b(v(v(o.response).error).code, o.state), a.logId, !0);
 		if (typeof o.command_id == "string") {
-			let e = y(o.state);
+			let e = b(o.state);
 			if (e !== "succeeded") {
-				let t = _(_(o.response).error);
-				throw new C(y(t.message, `命令状态：${e || "未知"}；没有确认成功，不会自动重试`), y(t.code, e || "result_unconfirmed"), a.logId, e !== "failed");
+				let t = v(v(o.response).error);
+				throw new w(b(t.message, `命令状态：${e || "未知"}；没有确认成功，不会自动重试`), b(t.code, e || "result_unconfirmed"), a.logId, e !== "failed");
 			}
-			if (o.response === void 0) throw new C("成功回执缺少 response", "invalid_receipt", a.logId);
+			if (o.response === void 0) throw new w("成功回执缺少 response", "invalid_receipt", a.logId);
 			return {
-				data: x(o.response),
+				data: S(o.response),
 				logId: a.logId
 			};
 		}
@@ -380,13 +382,13 @@ function B(e) {
 }
 //#endregion
 //#region ../examples/browser-debugger/src/tree-utils.ts
-function V(e, t) {
+function H(e, t) {
 	let n = new Map(t.map((e) => [e.id, e])), r = /* @__PURE__ */ new Set([e.id]), i = e.parentId, a = 0;
 	for (; i && a < 32 && !r.has(i);) r.add(i), a++, i = n.get(i)?.parentId ?? null;
 	return a;
 }
-function H(e, t, n, r) {
-	let i = new Map(e.map((e) => [e.id, e])), a = e.filter((e) => (!t.name || `${e.name} ${e.id}`.toLocaleLowerCase().includes(t.name.toLocaleLowerCase())) && (!t.role || e.role === t.role) && (!t.hidden || y(e.raw.hidden) === t.hidden) && (!t.disabled || y(e.raw.disabled) === t.disabled) && (!r || r.includes(e.id))), o = !!(t.name || t.role || t.hidden || t.disabled || r), s = new Set(a.map((e) => e.id));
+function ee(e, t, n, r) {
+	let i = new Map(e.map((e) => [e.id, e])), a = e.filter((e) => (!t.name || `${e.name} ${e.id}`.toLocaleLowerCase().includes(t.name.toLocaleLowerCase())) && (!t.role || e.role === t.role) && (!t.hidden || b(e.raw.hidden) === t.hidden) && (!t.disabled || b(e.raw.disabled) === t.disabled) && (!r || r.includes(e.id))), o = !!(t.name || t.role || t.hidden || t.disabled || r), s = new Set(a.map((e) => e.id));
 	if (o) for (let e of a) {
 		let t = e.parentId, n = /* @__PURE__ */ new Set();
 		for (; t && !n.has(t);) n.add(t), s.add(t), t = i.get(t)?.parentId ?? null;
@@ -467,7 +469,7 @@ function Y({ label: e, children: t }) {
 		})]
 	});
 }
-async function ee(e, t) {
+async function te(e, t) {
 	if (t.defaultView?.navigator.clipboard?.writeText) {
 		await t.defaultView.navigator.clipboard.writeText(e);
 		return;
@@ -494,7 +496,7 @@ function X({ value: t, label: n = "复制日志 ID" }) {
 			/* @__PURE__ */ r(W, {
 				onClick: () => {
 					let e = s.current?.ownerDocument;
-					e && ee(t, e).then(() => o("已复制"), (e) => o(e instanceof Error ? e.message : "复制失败"));
+					e && te(t, e).then(() => o("已复制"), (e) => o(e instanceof Error ? e.message : "复制失败"));
 				},
 				children: n
 			}),
@@ -509,9 +511,9 @@ function X({ value: t, label: n = "复制日志 ID" }) {
 		children: "未提供日志 ID"
 	});
 }
-function te({ value: e }) {
+function ne({ value: e }) {
 	if (e === null) return null;
-	let t = _(e), a = _(t.result_metadata), o = _(t.artifact), s = y(t.status) || y(t.state), c = _(t.host), l = _(t.owner);
+	let t = v(e), a = v(t.result_metadata), o = v(t.artifact), s = b(t.status) || b(t.state), c = v(t.host), l = v(t.owner);
 	return /* @__PURE__ */ i("section", {
 		"aria-label": "最近操作结果",
 		className: "space-y-3 rounded-lg border border-[#E6EAF3] bg-[#FBFCFE] p-3",
@@ -526,9 +528,9 @@ function te({ value: e }) {
 					children: s
 				})]
 			}),
-			y(t.reason) && /* @__PURE__ */ r("p", {
+			b(t.reason) && /* @__PURE__ */ r("p", {
 				className: "text-[13px] text-[#556176]",
-				children: y(t.reason)
+				children: b(t.reason)
 			}),
 			t.source === "host-dom" && /* @__PURE__ */ i(n, { children: [
 				/* @__PURE__ */ r("h4", {
@@ -538,14 +540,14 @@ function te({ value: e }) {
 				/* @__PURE__ */ i("dl", { children: [
 					/* @__PURE__ */ r(Y, {
 						label: "名称",
-						children: y(c.label, "未提供")
+						children: b(c.label, "未提供")
 					}),
 					/* @__PURE__ */ i(Y, {
 						label: "标签 / 角色",
 						children: [
-							y(c.tag),
+							b(c.tag),
 							" · ",
-							y(c.role, "未提供")
+							b(c.role, "未提供")
 						]
 					}),
 					/* @__PURE__ */ r(Y, {
@@ -554,11 +556,11 @@ function te({ value: e }) {
 					}),
 					/* @__PURE__ */ r(Y, {
 						label: "最近公开槽位",
-						children: typeof c.nearest_slot == "string" ? c.nearest_slot : y(_(c.nearest_slot).id, "未观测到真实公开祖先槽位")
+						children: typeof c.nearest_slot == "string" ? c.nearest_slot : b(v(c.nearest_slot).id, "未观测到真实公开祖先槽位")
 					}),
 					/* @__PURE__ */ r(Y, {
 						label: "所在路由",
-						children: typeof c.route == "string" ? c.route : y(_(c.route).path, "未提供")
+						children: typeof c.route == "string" ? c.route : b(v(c.route).path, "未提供")
 					})
 				] }),
 				/* @__PURE__ */ r("p", {
@@ -566,11 +568,11 @@ function te({ value: e }) {
 					children: "该身份没有插件节点引用，不能点击、填值或作为插件动作目标。"
 				})
 			] }),
-			y(l.pluginId) && /* @__PURE__ */ i("p", {
+			b(l.pluginId) && /* @__PURE__ */ i("p", {
 				className: "break-all text-[13px]",
 				children: [
 					"拾取归属：",
-					/* @__PURE__ */ r("code", { children: y(l.pluginId) }),
+					/* @__PURE__ */ r("code", { children: b(l.pluginId) }),
 					" · 代次 ",
 					/* @__PURE__ */ r("code", { children: String(l.generation ?? "未提供") })
 				]
@@ -590,23 +592,23 @@ function te({ value: e }) {
 			].some((e) => Array.isArray(t[e])) && /* @__PURE__ */ i("div", {
 				className: "flex gap-4 text-sm",
 				children: [
-					/* @__PURE__ */ i("span", { children: ["新增 ", v(t.added).length] }),
-					/* @__PURE__ */ i("span", { children: ["移除 ", v(t.removed).length] }),
-					/* @__PURE__ */ i("span", { children: ["变更 ", v(t.changed).length] })
+					/* @__PURE__ */ i("span", { children: ["新增 ", y(t.added).length] }),
+					/* @__PURE__ */ i("span", { children: ["移除 ", y(t.removed).length] }),
+					/* @__PURE__ */ i("span", { children: ["变更 ", y(t.changed).length] })
 				]
 			}),
-			y(t.job_id) && /* @__PURE__ */ i("dl", { children: [/* @__PURE__ */ r(Y, {
+			b(t.job_id) && /* @__PURE__ */ i("dl", { children: [/* @__PURE__ */ r(Y, {
 				label: "原任务 ID",
-				children: /* @__PURE__ */ r("code", { children: y(t.job_id) })
+				children: /* @__PURE__ */ r("code", { children: b(t.job_id) })
 			}), /* @__PURE__ */ r(Y, {
 				label: "任务状态",
-				children: y(t.status, "请沿原任务入口查询")
+				children: b(t.status, "请沿原任务入口查询")
 			})] }),
 			a.included === !1 && /* @__PURE__ */ i("p", {
 				className: "text-[13px] text-[#556176]",
 				children: [
 					"结果正文未收集：",
-					y(a.type),
+					b(a.type),
 					"，",
 					String(a.bytes ?? "未知"),
 					" 字节。"
@@ -616,9 +618,9 @@ function te({ value: e }) {
 				className: "text-[13px] text-[#8A4D00]",
 				children: "业务结果未知；合成事件派发不代表设备或业务操作成功。"
 			}),
-			y(o.id) && /* @__PURE__ */ i("p", {
+			b(o.id) && /* @__PURE__ */ i("p", {
 				className: "text-[13px]",
-				children: ["报告产物：", /* @__PURE__ */ r("code", { children: y(o.id) })]
+				children: ["报告产物：", /* @__PURE__ */ r("code", { children: b(o.id) })]
 			}),
 			/* @__PURE__ */ r(q, { value: e })
 		]
@@ -626,41 +628,41 @@ function te({ value: e }) {
 }
 //#endregion
 //#region ../examples/browser-debugger/src/tree-view.tsx
-var ne = (e) => e === "yes" ? "是" : e === "no" ? "否" : "未知";
-function re({ state: t, controller: a }) {
-	let [o, s] = e.useState(""), [c, l] = e.useState(""), [u, d] = e.useState(""), [f, p] = e.useState(""), [m, h] = e.useState(/* @__PURE__ */ new Set()), [g, b] = e.useState(!1), [x, C] = e.useState(!1), [w, T] = e.useState(""), [E, D] = e.useState("click"), [O, k] = e.useState("{\"query\":{\"role\":\"button\"},\"condition\":\"exists\"}"), [A, j] = e.useState(""), [M, N] = e.useState(""), [P, F] = e.useState(""), I = t.tree?.nodes ?? [], L = H(I, {
+var re = (e) => e === "yes" ? "是" : e === "no" ? "否" : "未知";
+function Z({ state: t, controller: a }) {
+	let [o, s] = e.useState(""), [c, l] = e.useState(""), [u, d] = e.useState(""), [f, p] = e.useState(""), [m, h] = e.useState(/* @__PURE__ */ new Set()), [g, _] = e.useState(!1), [x, S] = e.useState(!1), [w, T] = e.useState(""), [E, D] = e.useState("click"), [O, k] = e.useState("{\"query\":{\"role\":\"button\"},\"condition\":\"exists\"}"), [A, j] = e.useState(""), [M, N] = e.useState(""), [P, F] = e.useState(""), I = t.tree?.nodes ?? [], L = ee(I, {
 		name: o,
 		role: c,
 		hidden: u,
 		disabled: f
-	}, m, t.queries), R = I.find((e) => e.id === t.selectedNodeId), z = t.stale || !t.connected || !t.sessionId || !!t.busy, B = _(_(t.inspection).capabilities), ee = e.useRef(null);
+	}, m, t.queries), R = I.find((e) => e.id === t.selectedNodeId), z = t.stale || !t.connected || !t.sessionId || !!t.busy, B = v(v(t.inspection).capabilities), V = e.useRef(null);
 	e.useEffect(() => {
-		let e = ee.current, t = e?.querySelector("[aria-selected=\"true\"]");
+		let e = V.current, t = e?.querySelector("[aria-selected=\"true\"]");
 		if (!e || !t) return;
 		let n = e.getBoundingClientRect(), r = t.getBoundingClientRect();
 		r.top < n.top ? e.scrollTop -= n.top - r.top : r.bottom > n.bottom && (e.scrollTop += r.bottom - n.bottom);
 	}, [t.selectedNodeId, t.tree?.id]), e.useEffect(() => {
-		b(!1), C(!1), T("");
+		_(!1), S(!1), T("");
 	}, [
 		t.selectedNodeId,
 		t.rootId,
 		t.sessionId
 	]);
-	function X(e) {
+	function te(e) {
 		h((t) => {
 			let n = new Set(t);
 			return n.has(e.id) ? n.delete(e.id) : n.add(e.id), n;
 		});
 	}
-	function re(e, t) {
+	function X(e, t) {
 		try {
-			let n = S(e);
+			let n = C(e);
 			F(""), t(n);
 		} catch (e) {
 			F(e instanceof Error ? e.message : "JSON 无效");
 		}
 	}
-	let Z = _(_(t.tree?.raw).page), ie = _(_(t.tree?.raw).coverage);
+	let Z = v(v(t.tree?.raw).page), ie = v(v(t.tree?.raw).coverage);
 	return /* @__PURE__ */ i("div", {
 		className: "flex min-h-0 flex-1 flex-col gap-3",
 		children: [
@@ -819,12 +821,12 @@ function re({ state: t, controller: a }) {
 							})]
 						}),
 						/* @__PURE__ */ i("ul", {
-							ref: ee,
+							ref: V,
 							role: "tree",
 							"aria-label": "已观测节点",
 							className: "min-h-44 flex-1 overflow-auto p-2",
 							children: [L.map((e, n) => {
-								let o = I.some((t) => t.parentId === e.id), s = { "--df-depth": `${8 + V(e, I) * 14}px` };
+								let o = I.some((t) => t.parentId === e.id), s = { "--df-depth": `${8 + H(e, I) * 14}px` };
 								return /* @__PURE__ */ i("li", {
 									role: "none",
 									className: "flex items-center",
@@ -832,13 +834,13 @@ function re({ state: t, controller: a }) {
 										type: "button",
 										"aria-label": `${m.has(e.id) ? "展开" : "折叠"} ${e.name || e.role}`,
 										className: "size-6 shrink-0 rounded text-[#556176] focus-visible:ring-2 focus-visible:ring-[#6C4CF5]",
-										onClick: () => X(e),
+										onClick: () => te(e),
 										children: m.has(e.id) ? "▸" : "▾"
 									}), /* @__PURE__ */ i("button", {
 										type: "button",
 										role: "treeitem",
 										"aria-selected": e.id === t.selectedNodeId,
-										"aria-level": V(e, I) + 1,
+										"aria-level": H(e, I) + 1,
 										"aria-expanded": o ? !m.has(e.id) : void 0,
 										style: s,
 										className: `${e.id === t.selectedNodeId ? "bg-[#EFEBFF] text-[#6C4CF5]" : "text-[#23272E] hover:bg-[#F7F8FC]"} min-h-9 min-w-0 flex-1 rounded py-2 pr-2 pl-[var(--df-depth)] text-left text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-[#6C4CF5]`,
@@ -896,7 +898,7 @@ function re({ state: t, controller: a }) {
 									className: "text-[15px] font-semibold",
 									children: R.name || R.role
 								}),
-								/* @__PURE__ */ r(G, { children: y(R.raw.kind, "节点") }),
+								/* @__PURE__ */ r(G, { children: b(R.raw.kind, "节点") }),
 								t.stale && /* @__PURE__ */ r(G, {
 									warning: !0,
 									children: "当时观测 · 已过期"
@@ -919,7 +921,7 @@ function re({ state: t, controller: a }) {
 							}),
 							/* @__PURE__ */ r(Y, {
 								label: "所属表面",
-								children: /* @__PURE__ */ r("code", { children: y(R.raw.surfaceId, "未提供") })
+								children: /* @__PURE__ */ r("code", { children: b(R.raw.surfaceId, "未提供") })
 							}),
 							/* @__PURE__ */ r(Y, {
 								label: "语义角色",
@@ -929,17 +931,17 @@ function re({ state: t, controller: a }) {
 								label: "状态证据",
 								children: [
 									"隐藏 ",
-									ne(R.raw.hidden),
+									re(R.raw.hidden),
 									" · 禁用 ",
-									ne(R.raw.disabled),
+									re(R.raw.disabled),
 									" · 可见 ",
-									ne(R.raw.visible)
+									re(R.raw.visible)
 								]
 							}),
 							/* @__PURE__ */ i(Y, {
 								label: "动作约束",
 								children: [
-									y(R.raw.actionPolicy, "unknown"),
+									b(R.raw.actionPolicy, "unknown"),
 									" · ",
 									R.raw.confirmationRequired ? "需要原操作确认" : "仍需本次显式动作"
 								]
@@ -972,7 +974,7 @@ function re({ state: t, controller: a }) {
 									className: U,
 									value: E,
 									onChange: (e) => {
-										D(e.currentTarget.value), b(!1), C(!1);
+										D(e.currentTarget.value), _(!1), S(!1);
 									},
 									children: [
 										/* @__PURE__ */ r("option", {
@@ -998,27 +1000,27 @@ function re({ state: t, controller: a }) {
 									className: "min-w-0 rounded-md border border-[#7A879B] bg-white px-2 py-1.5 text-[13px] text-[#23272E] outline-none focus-visible:ring-2 focus-visible:ring-[#6C4CF5] disabled:cursor-not-allowed disabled:opacity-50 min-h-20 w-full",
 									value: w,
 									onChange: (e) => {
-										T(e.currentTarget.value), b(!1), C(!1);
+										T(e.currentTarget.value), _(!1), S(!1);
 									},
 									placeholder: E === "select" ? "每行一个选项值" : "原生输入框的新值"
 								}),
 								/* @__PURE__ */ r(K, {
 									disabled: t.stale,
 									checked: g,
-									onChange: b,
+									onChange: _,
 									children: "确认对此节点执行本次动作"
 								}),
 								/* @__PURE__ */ r(K, {
 									disabled: t.stale,
 									checked: x,
-									onChange: C,
+									onChange: S,
 									children: "允许未知副作用，可能间接影响设备或外部资源"
 								}),
 								/* @__PURE__ */ r(W, {
 									disabled: z || !g || !x,
 									primary: !0,
 									onClick: () => {
-										a.action(E, R, w, g, x), b(!1), C(!1);
+										a.action(E, R, w, g, x), _(!1), S(!1);
 									},
 									children: "执行一次"
 								})
@@ -1032,7 +1034,7 @@ function re({ state: t, controller: a }) {
 							value: R.raw,
 							label: "节点属性与元数据"
 						})
-					] }) : _(t.result).source === "host-dom" ? /* @__PURE__ */ r(te, { value: t.result }) : /* @__PURE__ */ r(J, {
+					] }) : v(t.result).source === "host-dom" ? /* @__PURE__ */ r(ne, { value: t.result }) : /* @__PURE__ */ r(J, {
 						title: "选择左侧节点查看详情",
 						children: "节点标识与修订绑定当前快照；读取新快照后动作仍由宿主核验。"
 					}), /* @__PURE__ */ i("p", {
@@ -1043,8 +1045,8 @@ function re({ state: t, controller: a }) {
 							" · ",
 							new Date(t.tree.observedAt).toLocaleString(),
 							" · 覆盖 ",
-							y(ie.completeness, "未知"),
-							v(ie.truncation).length ? " · 已截断" : ""
+							b(ie.completeness, "未知"),
+							y(ie.truncation).length ? " · 已截断" : ""
 						]
 					})]
 				})]
@@ -1109,7 +1111,7 @@ function re({ state: t, controller: a }) {
 					}),
 					/* @__PURE__ */ r(W, {
 						disabled: z || !t.rootId,
-						onClick: () => re(O, a.assertion),
+						onClick: () => X(O, a.assertion),
 						children: "执行断言"
 					})
 				]
@@ -1119,7 +1121,7 @@ function re({ state: t, controller: a }) {
 }
 //#endregion
 //#region ../examples/browser-debugger/src/targets-view.tsx
-function Z({ state: t, controller: a }) {
+function ie({ state: t, controller: a }) {
 	let [o, s] = e.useState("browser"), [c, l] = e.useState(t.instanceId ?? ""), [u, d] = e.useState("");
 	e.useEffect(() => {
 		t.instanceId && l(t.instanceId);
@@ -1195,7 +1197,7 @@ function Z({ state: t, controller: a }) {
 			p.length ? /* @__PURE__ */ r("div", {
 				className: "grid grid-cols-2 gap-3 max-[700px]:grid-cols-1",
 				children: p.map((e) => /* @__PURE__ */ i("article", {
-					className: `${t.target && E(t.target) === E(e) ? "border-[#6C4CF5] bg-[#EFEBFF]" : "border-[#E6EAF3] bg-white"} min-w-0 space-y-2 rounded-lg border p-4`,
+					className: `${t.target && D(t.target) === D(e) ? "border-[#6C4CF5] bg-[#EFEBFF]" : "border-[#E6EAF3] bg-white"} min-w-0 space-y-2 rounded-lg border p-4`,
 					children: [
 						/* @__PURE__ */ i("div", {
 							className: "flex flex-wrap items-center gap-2",
@@ -1234,7 +1236,7 @@ function Z({ state: t, controller: a }) {
 							children: "选择并查看调试过程"
 						})
 					]
-				}, E(e)))
+				}, D(e)))
 			}) : /* @__PURE__ */ r(J, {
 				title: f ? "候选组件尚未出现在运行目录" : "尚无可调试目标",
 				children: "请在原市场入口启用组件，或确认选定实例在线后刷新目录。安装存在不代表此浏览器已经启用。"
@@ -1262,7 +1264,7 @@ function Z({ state: t, controller: a }) {
 					] }),
 					/* @__PURE__ */ r("div", {
 						className: "flex flex-wrap gap-2",
-						children: Object.entries(_(_(t.inspection).capabilities)).filter(([, e]) => typeof e == "boolean").map(([e, t]) => /* @__PURE__ */ i(G, {
+						children: Object.entries(v(v(t.inspection).capabilities)).filter(([, e]) => typeof e == "boolean").map(([e, t]) => /* @__PURE__ */ i(G, {
 							warning: !t,
 							children: [
 								e,
@@ -1271,10 +1273,10 @@ function Z({ state: t, controller: a }) {
 							]
 						}, e))
 					}),
-					v(_(t.inspection).cleanup_history).length > 0 && /* @__PURE__ */ i("div", {
+					y(v(t.inspection).cleanup_history).length > 0 && /* @__PURE__ */ i("div", {
 						className: "rounded-md bg-[#FDF6ED] p-3 text-[13px] text-[#8A4D00]",
 						children: ["旧代清理失败保留供诊断，不阻止独立新调用。", /* @__PURE__ */ r(q, {
-							value: _(t.inspection).cleanup_history,
+							value: v(t.inspection).cleanup_history,
 							label: "查看历史清理告警"
 						})]
 					}),
@@ -1287,8 +1289,8 @@ function Z({ state: t, controller: a }) {
 		]
 	});
 }
-function ie({ state: e, controller: t }) {
-	let n = _(e.overview), a = _(n.page), o = v(_(e.inspection).slot_catalog), s = v(_(e.inspection).mount_catalog), c = v(n.nodes).length ? v(n.nodes) : [...o.map((e) => ({
+function ae({ state: e, controller: t }) {
+	let n = v(e.overview), a = v(n.page), o = y(v(e.inspection).slot_catalog), s = y(v(e.inspection).mount_catalog), c = y(n.nodes).length ? y(n.nodes) : [...o.map((e) => ({
 		kind: "slot",
 		catalog: e
 	})), ...s.map((e) => ({
@@ -1316,15 +1318,15 @@ function ie({ state: e, controller: t }) {
 			c.length ? /* @__PURE__ */ r("div", {
 				className: "space-y-2",
 				children: c.map((n, a) => {
-					let o = _(n), s = _(o.catalog), c = y(s.id) || y(s.path) || y(s.contribution_id) || `条目 ${a + 1}`;
+					let o = v(n), s = v(o.catalog), c = b(s.id) || b(s.path) || b(s.contribution_id) || `条目 ${a + 1}`;
 					return /* @__PURE__ */ i("article", {
 						className: "rounded-lg border border-[#E6EAF3] p-3",
 						children: [
 							/* @__PURE__ */ i("div", {
 								className: "flex flex-wrap items-center gap-2",
-								children: [/* @__PURE__ */ r(G, { children: y(o.kind, "目录") }), /* @__PURE__ */ r("strong", {
+								children: [/* @__PURE__ */ r(G, { children: b(o.kind, "目录") }), /* @__PURE__ */ r("strong", {
 									className: "break-all text-sm",
-									children: y(s.label) || c
+									children: b(s.label) || c
 								})]
 							}),
 							/* @__PURE__ */ i("p", {
@@ -1336,8 +1338,8 @@ function ie({ state: e, controller: t }) {
 									s.slot_id === null ? " · 非插入槽位" : ""
 								]
 							}),
-							o.kind === "route" && y(s.path) && /* @__PURE__ */ r(ae, {
-								path: y(s.path),
+							o.kind === "route" && b(s.path) && /* @__PURE__ */ r(oe, {
+								path: b(s.path),
 								controller: t,
 								disabled: e.stale || !!e.busy
 							}),
@@ -1346,7 +1348,7 @@ function ie({ state: e, controller: t }) {
 								label: "目录证据"
 							})
 						]
-					}, `${y(o.kind)}:${c}:${a}`);
+					}, `${b(o.kind)}:${c}:${a}`);
 				})
 			}) : /* @__PURE__ */ r(J, {
 				title: "尚未读取公开目录",
@@ -1369,7 +1371,7 @@ function ie({ state: e, controller: t }) {
 		]
 	});
 }
-function ae({ path: t, controller: n, disabled: a }) {
+function oe({ path: t, controller: n, disabled: a }) {
 	let [o, s] = e.useState(!1);
 	return /* @__PURE__ */ i("div", {
 		className: "my-2 flex flex-wrap items-center gap-2",
@@ -1392,40 +1394,40 @@ function ae({ path: t, controller: n, disabled: a }) {
 }
 //#endregion
 //#region ../examples/browser-debugger/src/schema.ts
-function oe(e, t = 0) {
-	let n = _(e);
-	if (n.default !== void 0) return x(n.default);
-	if (n.const !== void 0) return x(n.const);
-	if (v(n.enum).length) return x(v(n.enum)[0]);
+function se(e, t = 0) {
+	let n = v(e);
+	if (n.default !== void 0) return S(n.default);
+	if (n.const !== void 0) return S(n.const);
+	if (y(n.enum).length) return S(y(n.enum)[0]);
 	if (t > 12) return null;
 	if (n.type === "object" || n.properties) {
-		let e = new Set(v(n.required));
-		return Object.fromEntries(Object.entries(_(n.properties)).filter(([t, n]) => e.has(t) || _(n).default !== void 0).map(([e, n]) => [e, oe(x(n), t + 1)]));
+		let e = new Set(y(n.required));
+		return Object.fromEntries(Object.entries(v(n.properties)).filter(([t, n]) => e.has(t) || v(n).default !== void 0).map(([e, n]) => [e, se(S(n), t + 1)]));
 	}
 	return n.type === "array" ? [] : n.type === "boolean" ? !1 : n.type === "number" || n.type === "integer" ? typeof n.minimum == "number" ? n.minimum : 0 : n.type === "null" ? null : n.type === "string" ? "" : {};
 }
 function Q(e, t, n = "输入", r = 0) {
 	if (t === !1) return [`${n}不接受任何值`];
 	if (r > 32) return [`${n}模式嵌套过深，请使用简化参数`];
-	let i = _(t), a = [];
+	let i = v(t), a = [];
 	Array.isArray(i.enum) && !i.enum.some((t) => JSON.stringify(t) === JSON.stringify(e)) && a.push(`${n}必须来自枚举`), i.const !== void 0 && JSON.stringify(i.const) !== JSON.stringify(e) && a.push(`${n}必须符合固定值`);
 	let o = Array.isArray(i.type) ? i.type : typeof i.type == "string" ? [i.type] : [];
-	if (o.length && !o.some((t) => t === "null" ? e === null : t === "array" ? Array.isArray(e) : t === "object" ? j(e) : t === "integer" ? typeof e == "number" && Number.isInteger(e) : typeof e === t)) return [`${n}类型应为 ${o.join(" / ")}`];
-	if (j(e)) {
-		let t = _(i.properties);
-		for (let t of v(i.required)) typeof t == "string" && !(t in e) && a.push(`${n}.${t}为必填项`);
-		for (let [o, s] of Object.entries(e)) t[o] === void 0 ? i.additionalProperties === !1 && a.push(`${n}.${o}不允许额外字段`) : a.push(...Q(s, x(t[o]), `${n}.${o}`, r + 1));
+	if (o.length && !o.some((t) => t === "null" ? e === null : t === "array" ? Array.isArray(e) : t === "object" ? M(e) : t === "integer" ? typeof e == "number" && Number.isInteger(e) : typeof e === t)) return [`${n}类型应为 ${o.join(" / ")}`];
+	if (M(e)) {
+		let t = v(i.properties);
+		for (let t of y(i.required)) typeof t == "string" && !(t in e) && a.push(`${n}.${t}为必填项`);
+		for (let [o, s] of Object.entries(e)) t[o] === void 0 ? i.additionalProperties === !1 && a.push(`${n}.${o}不允许额外字段`) : a.push(...Q(s, S(t[o]), `${n}.${o}`, r + 1));
 	}
-	return Array.isArray(e) && (typeof i.minItems == "number" && e.length < i.minItems && a.push(`${n}条目不足`), typeof i.maxItems == "number" && e.length > i.maxItems && a.push(`${n}条目过多`), i.items !== void 0 && e.forEach((e, t) => a.push(...Q(e, x(i.items), `${n}[${t}]`, r + 1)))), typeof e == "number" && (typeof i.minimum == "number" && e < i.minimum && a.push(`${n}小于 ${i.minimum}`), typeof i.maximum == "number" && e > i.maximum && a.push(`${n}大于 ${i.maximum}`)), typeof e == "string" && (typeof i.minLength == "number" && [...e].length < i.minLength && a.push(`${n}长度不足`), typeof i.maxLength == "number" && [...e].length > i.maxLength && a.push(`${n}长度超限`)), a;
+	return Array.isArray(e) && (typeof i.minItems == "number" && e.length < i.minItems && a.push(`${n}条目不足`), typeof i.maxItems == "number" && e.length > i.maxItems && a.push(`${n}条目过多`), i.items !== void 0 && e.forEach((e, t) => a.push(...Q(e, S(i.items), `${n}[${t}]`, r + 1)))), typeof e == "number" && (typeof i.minimum == "number" && e < i.minimum && a.push(`${n}小于 ${i.minimum}`), typeof i.maximum == "number" && e > i.maximum && a.push(`${n}大于 ${i.maximum}`)), typeof e == "string" && (typeof i.minLength == "number" && [...e].length < i.minLength && a.push(`${n}长度不足`), typeof i.maxLength == "number" && [...e].length > i.maxLength && a.push(`${n}长度超限`)), a;
 }
-function se(e) {
-	let t = _(e);
+function ce(e) {
+	let t = v(e);
 	return !t.$ref && !t.anyOf && !t.oneOf && !t.allOf && (t.type === "object" || t.properties !== void 0);
 }
-var ce = (e) => y(_(e).title) || y(_(e).description);
+var le = (e) => b(v(e).title) || b(v(e).description);
 //#endregion
 //#region ../examples/browser-debugger/src/invoke-view.tsx
-function le({ value: t, onChange: n, onError: i, label: a }) {
+function ue({ value: t, onChange: n, onError: i, label: a }) {
 	let [o, s] = e.useState(JSON.stringify(t, null, 2));
 	return /* @__PURE__ */ r("textarea", {
 		"aria-label": a,
@@ -1434,15 +1436,15 @@ function le({ value: t, onChange: n, onError: i, label: a }) {
 		onChange: (e) => {
 			s(e.currentTarget.value);
 			try {
-				n(S(e.currentTarget.value)), i("");
+				n(C(e.currentTarget.value)), i("");
 			} catch (e) {
 				i(e instanceof Error ? e.message : "JSON 无效");
 			}
 		}
 	});
 }
-function ue({ name: t, schema: n, value: a, required: o, onChange: s, onError: c }) {
-	let l = _(n), u = v(l.enum), d = y(l.type), f = e.useId();
+function de({ name: t, schema: n, value: a, required: o, onChange: s, onError: c }) {
+	let l = v(n), u = y(l.enum), d = b(l.type), f = e.useId();
 	return /* @__PURE__ */ i("div", {
 		className: "space-y-1",
 		children: [
@@ -1450,7 +1452,7 @@ function ue({ name: t, schema: n, value: a, required: o, onChange: s, onError: c
 				htmlFor: f,
 				className: "flex items-center gap-2 text-[13px] font-medium",
 				children: [
-					ce(n) || t,
+					le(n) || t,
 					/* @__PURE__ */ r("code", {
 						className: "text-xs text-[#556176]",
 						children: t
@@ -1465,7 +1467,7 @@ function ue({ name: t, schema: n, value: a, required: o, onChange: s, onError: c
 						className: "accent-[#6C4CF5]",
 						checked: a !== void 0,
 						onChange: (e) => {
-							s(e.currentTarget.checked ? oe(n) : void 0), c("");
+							s(e.currentTarget.checked ? se(n) : void 0), c("");
 						}
 					})
 				]
@@ -1474,7 +1476,7 @@ function ue({ name: t, schema: n, value: a, required: o, onChange: s, onError: c
 				id: f,
 				className: "min-w-0 rounded-md border border-[#7A879B] bg-white px-2 py-1.5 text-[13px] text-[#23272E] outline-none focus-visible:ring-2 focus-visible:ring-[#6C4CF5] disabled:cursor-not-allowed disabled:opacity-50 w-full",
 				value: JSON.stringify(a),
-				onChange: (e) => s(S(e.currentTarget.value)),
+				onChange: (e) => s(C(e.currentTarget.value)),
 				children: u.map((e, t) => /* @__PURE__ */ r("option", {
 					value: JSON.stringify(e),
 					children: typeof e == "string" ? e : JSON.stringify(e)
@@ -1500,30 +1502,30 @@ function ue({ name: t, schema: n, value: a, required: o, onChange: s, onError: c
 				className: "min-w-0 rounded-md border border-[#7A879B] bg-white px-2 py-1.5 text-[13px] text-[#23272E] outline-none focus-visible:ring-2 focus-visible:ring-[#6C4CF5] disabled:cursor-not-allowed disabled:opacity-50 w-full",
 				value: typeof a == "string" ? a : "",
 				onChange: (e) => s(e.currentTarget.value)
-			}) : /* @__PURE__ */ r(le, {
+			}) : /* @__PURE__ */ r(ue, {
 				label: `${t} JSON`,
 				value: a,
 				onChange: s,
 				onError: c
 			}, t)),
-			y(l.description) && /* @__PURE__ */ r("p", {
+			b(l.description) && /* @__PURE__ */ r("p", {
 				className: "text-xs text-[#556176]",
-				children: y(l.description)
+				children: b(l.description)
 			})
 		]
 	});
 }
-function de({ state: t, controller: a }) {
-	let [o, s] = e.useState(""), c = t.entries.find((e) => e.key === o), [l, u] = e.useState({}), [d, f] = e.useState(!1), [p, m] = e.useState({}), [h, g] = e.useState(!1), [y, b] = e.useState(!1), [S, C] = e.useState(!1);
+function fe({ state: t, controller: a }) {
+	let [o, s] = e.useState(""), c = t.entries.find((e) => e.key === o), [l, u] = e.useState({}), [d, f] = e.useState(!1), [p, m] = e.useState({}), [h, g] = e.useState(!1), [_, b] = e.useState(!1), [x, C] = e.useState(!1);
 	e.useEffect(() => {
 		s(""), g(!1), b(!1), C(!1);
 	}, [t.sessionId]);
 	let w = (e) => {
 		u(e), g(!1), b(!1);
-	}, T = c ? [...Object.values(p).filter(Boolean), ...Q(l, c.schema)] : [], E = _(_(c?.schema).properties), D = v(_(c?.schema).required);
+	}, T = c ? [...Object.values(p).filter(Boolean), ...Q(l, c.schema)] : [], E = v(v(c?.schema).properties), D = y(v(c?.schema).required);
 	function O(e) {
 		let n = t.entries.find((t) => t.key === e);
-		s(e), u(n ? oe(n.schema) : {}), f(n ? !se(n.schema) : !1), m({}), g(!1), b(!1), C(!1);
+		s(e), u(n ? se(n.schema) : {}), f(n ? !ce(n.schema) : !1), m({}), g(!1), b(!1), C(!1);
 	}
 	return /* @__PURE__ */ i("section", {
 		className: "space-y-4",
@@ -1571,18 +1573,18 @@ function de({ state: t, controller: a }) {
 						className: "text-[13px] text-[#556176]",
 						children: c.reason
 					}),
-					se(c.schema) && /* @__PURE__ */ r(K, {
+					ce(c.schema) && /* @__PURE__ */ r(K, {
 						checked: d,
 						onChange: (e) => {
 							f(e), m({}), g(!1), b(!1);
 						},
 						children: "改用完整 JSON 输入"
 					}),
-					!d && se(c.schema) && j(l) ? /* @__PURE__ */ r("div", {
+					!d && ce(c.schema) && M(l) ? /* @__PURE__ */ r("div", {
 						className: "grid grid-cols-2 gap-3 max-[700px]:grid-cols-1",
-						children: Object.entries(E).map(([e, t]) => /* @__PURE__ */ r(ue, {
+						children: Object.entries(E).map(([e, t]) => /* @__PURE__ */ r(de, {
 							name: e,
-							schema: x(t),
+							schema: S(t),
 							value: l[e],
 							required: D.includes(e),
 							onChange: (t) => {
@@ -1594,7 +1596,7 @@ function de({ state: t, controller: a }) {
 								[e]: t
 							}))
 						}, e))
-					}) : /* @__PURE__ */ r(le, {
+					}) : /* @__PURE__ */ r(ue, {
 						label: "调用输入 JSON",
 						value: l,
 						onChange: w,
@@ -1610,7 +1612,7 @@ function de({ state: t, controller: a }) {
 						children: T.map((e, t) => /* @__PURE__ */ r("li", { children: e }, t))
 					}),
 					t.target?.kind === "browser" && /* @__PURE__ */ r(K, {
-						checked: S,
+						checked: x,
 						onChange: (e) => {
 							C(e), g(!1), b(!1);
 						},
@@ -1622,15 +1624,15 @@ function de({ state: t, controller: a }) {
 						children: "确认调用当前插件、代次和入口，参数已核对"
 					}),
 					/* @__PURE__ */ r(K, {
-						checked: y,
+						checked: _,
 						onChange: b,
 						children: "允许未知副作用，可能影响设备或外部资源"
 					}),
 					/* @__PURE__ */ r(W, {
 						primary: !0,
-						disabled: !!t.busy || t.stale || !t.connected || !c.available || !h || !y || T.length > 0,
+						disabled: !!t.busy || t.stale || !t.connected || !c.available || !h || !_ || T.length > 0,
 						onClick: () => {
-							a.invoke(c, l, h, y, S), g(!1), b(!1);
+							a.invoke(c, l, h, _, x), g(!1), b(!1);
 						},
 						children: "执行一次调用"
 					}),
@@ -1648,19 +1650,19 @@ function de({ state: t, controller: a }) {
 }
 //#endregion
 //#region ../examples/browser-debugger/src/report.ts
-function fe(e) {
-	let t = e.activity, n = !!(t?.target && e.target && E(t.target) === E(e.target));
+function pe(e) {
+	let t = e.activity, n = !!(t?.target && e.target && D(t.target) === D(e.target));
 	return {
 		page: n ? t : null,
 		detail: n && t?.items.some((t) => t.commandId === e.activityDetail?.commandId) ? e.activityDetail : null
 	};
 }
-function pe(e) {
-	return e.events.filter((t) => t.target && e.target && E(t.target) === E(e.target));
+function me(e) {
+	return e.events.filter((t) => t.target && e.target && D(t.target) === D(e.target));
 }
-function me(e, t = Date.now()) {
-	let n = fe(e);
-	return x({
+function he(e, t = Date.now()) {
+	let n = pe(e);
+	return S({
 		format: "deviceforge-debugger-ui-v1",
 		exported_at: new Date(t).toISOString(),
 		target: e.target,
@@ -1671,7 +1673,7 @@ function me(e, t = Date.now()) {
 		evidence: e.report,
 		inspection: e.inspection,
 		cached_trees: e.trees.map((e) => e.raw),
-		events: pe(e),
+		events: me(e),
 		activity: n.page,
 		activity_detail: n.detail,
 		activity_scope: {
@@ -1692,8 +1694,8 @@ function me(e, t = Date.now()) {
 	});
 }
 var $ = (e) => e.replace(/[\\`*_{}\[\]<>|]/g, "\\$&").replace(/\r?\n/g, " ");
-function he(e, t = Date.now()) {
-	let n = e.target, r = fe(e), i = [
+function ge(e, t = Date.now()) {
+	let n = e.target, r = pe(e), i = [
 		"# DeviceForge 调试报告",
 		"",
 		`导出时间：${new Date(t).toISOString()}`,
@@ -1713,16 +1715,16 @@ function he(e, t = Date.now()) {
 		"| 序号 | 事件 | 代次 |",
 		"| --- | --- | --- |"
 	];
-	for (let t of pe(e)) i.push(`| ${t.sequence} | ${$(t.label)} | ${$(t.target?.generation ?? "未知")} |`);
+	for (let t of me(e)) i.push(`| ${t.sequence} | ${$(t.label)} | ${$(t.target?.generation ?? "未知")} |`);
 	i.push("", "## 调试调用摘要", "", "仅已缓存的公开摘要与选中回执；本次导出没有追加查询或重新执行。", "", `历史范围：${r.page?.retainedOnly ? "仅仍保留记录" : "未取得完整性证明"}；${r.page?.gap ? "存在淘汰缺口" : "未声明淘汰缺口，不代表完整历史"}。`, "", "| 调用 | 工具 | 原回执状态 |", "| --- | --- | --- |");
 	for (let e of r.page?.items ?? []) i.push(`| ${$(e.commandId)} | ${$(e.tool)} | ${$(e.state)} |`);
 	if (r.detail) {
 		i.push("", `选中回执：${$(r.detail.commandId)}；原状态：${$(r.detail.state)}。`, "", "| 步骤 | 展示名称 | 工具 |", "| --- | --- | --- |");
 		for (let e of r.detail.steps) i.push(`| ${$(e.id)} | ${$(e.label ?? e.tool)} | ${$(e.tool)} |`);
 	}
-	return i.push("", "## 证据范围", "", "仅公开服务和已缓存观测；可能存在未观测、分页或截断。不是完整安装、设备或生产验收报告。", "", "## 公开证据", "", "````json", JSON.stringify(me(e, t), null, 2).replace(/````/g, "\\u0060\\u0060\\u0060\\u0060"), "````", ""), i.join("\n");
+	return i.push("", "## 证据范围", "", "仅公开服务和已缓存观测；可能存在未观测、分页或截断。不是完整安装、设备或生产验收报告。", "", "## 公开证据", "", "````json", JSON.stringify(he(e, t), null, 2).replace(/````/g, "\\u0060\\u0060\\u0060\\u0060"), "````", ""), i.join("\n");
 }
-function ge(e) {
+function _e(e) {
 	let t = /* @__PURE__ */ new Map(), n = e.defaultView?.URL;
 	function r(r, i) {
 		if (!n?.createObjectURL) throw Error("当前浏览器不支持文件下载，请使用宿主报告产物入口");
@@ -1747,33 +1749,33 @@ function ge(e) {
 }
 //#endregion
 //#region ../examples/browser-debugger/src/report-pages.ts
-function _e(e) {
-	let t = _(e), n = _(_(t.report).evidence), r = [];
-	for (let e of v(n.cached_trees)) {
-		let t = _(e);
-		for (let e of v(t.snapshots)) {
-			let n = _(e), i = _(n.page);
+function ve(e) {
+	let t = v(e), n = v(v(t.report).evidence), r = [];
+	for (let e of y(n.cached_trees)) {
+		let t = v(e);
+		for (let e of y(t.snapshots)) {
+			let n = v(e), i = v(n.page);
 			r.push({
-				rootId: y(t.root_id),
-				snapshotId: y(n.id),
-				offset: b(i.offset),
-				count: v(n.nodes).length
+				rootId: b(t.root_id),
+				snapshotId: b(n.id),
+				offset: x(i.offset),
+				count: y(n.nodes).length
 			});
 		}
 	}
-	for (let e of v(t.ui_snapshot_pages)) {
-		let t = _(e), n = _(t.tree), i = _(n.page);
+	for (let e of y(t.ui_snapshot_pages)) {
+		let t = v(e), n = v(t.tree), i = v(n.page);
 		r.push({
-			rootId: y(t.root_id),
-			snapshotId: y(n.id),
-			offset: b(i.offset),
-			count: v(n.nodes).length
+			rootId: b(t.root_id),
+			snapshotId: b(n.id),
+			offset: x(i.offset),
+			count: y(n.nodes).length
 		});
 	}
-	for (let e of v(n.snapshot_manifest)) {
-		let t = _(e), n = y(t.root_id);
-		for (let e of v(t.snapshots)) {
-			let t = _(e), i = y(t.id), a = b(t.total), o = 0;
+	for (let e of y(n.snapshot_manifest)) {
+		let t = v(e), n = b(t.root_id);
+		for (let e of y(t.snapshots)) {
+			let t = v(e), i = b(t.id), a = x(t.total), o = 0;
 			for (; o < a;) {
 				let e = r.find((e) => e.rootId === n && e.snapshotId === i && e.offset === o && e.count > 0);
 				if (!e) return {
@@ -1789,7 +1791,7 @@ function _e(e) {
 }
 //#endregion
 //#region ../examples/browser-debugger/src/report-view.tsx
-function ve({ state: t, controller: n, context: a }) {
+function ye({ state: t, controller: n, context: a }) {
 	let [o, s] = e.useState(!1), [c, l] = e.useState(!1), [u, d] = e.useState(""), f = e.useRef(null), p = e.useRef(null), m = e.useRef(new AbortController());
 	e.useEffect(() => {
 		let e = m.current;
@@ -1800,28 +1802,28 @@ function ve({ state: t, controller: n, context: a }) {
 	function h(e) {
 		let n = f.current?.ownerDocument;
 		if (n) try {
-			p.current ??= ge(n);
-			let r = e === "json" ? JSON.stringify(me(t), null, 2) : he(t);
+			p.current ??= _e(n);
+			let r = e === "json" ? JSON.stringify(he(t), null, 2) : ge(t);
 			p.current.save(new Blob([r], { type: e === "json" ? "application/json;charset=utf-8" : "text/markdown;charset=utf-8" }), `deviceforge-debugger-${t.target?.pluginId ?? "snapshot"}-${Date.now()}.${e === "json" ? "json" : "md"}`), d("已请求浏览器下载当前公开证据，未自动采集新快照。");
 		} catch (e) {
 			d(e instanceof Error ? e.message : "下载失败");
 		}
 	}
-	let g = _(_(_(t.report).artifact).metadata);
-	async function b() {
-		let e = y(g.id), t = f.current?.ownerDocument;
+	let g = v(v(v(t.report).artifact).metadata);
+	async function _() {
+		let e = b(g.id), t = f.current?.ownerDocument;
 		if (a.artifacts && e && t) try {
 			let n = AbortSignal.any([
 				a.signal,
 				m.current.signal,
 				AbortSignal.timeout(15e3)
 			]), r = await a.artifacts.download(e, n);
-			n.throwIfAborted(), p.current ??= ge(t), p.current.save(r.data, y(g.filename, `debugger-report-${e}.json`)), d("已通过公开产物接口请求下载。");
+			n.throwIfAborted(), p.current ??= _e(t), p.current.save(r.data, b(g.filename, `debugger-report-${e}.json`)), d("已通过公开产物接口请求下载。");
 		} catch (e) {
 			m.current.signal.aborted || d(e instanceof Error ? e.message : "报告产物下载失败");
 		}
 	}
-	let x = _(t.installation);
+	let x = v(t.installation);
 	return /* @__PURE__ */ i("div", {
 		ref: f,
 		className: "space-y-4",
@@ -1870,21 +1872,21 @@ function ve({ state: t, controller: n, context: a }) {
 								onClick: () => h("markdown"),
 								children: "下载 Markdown"
 							}),
-							y(g.id) && /* @__PURE__ */ r(W, {
+							b(g.id) && /* @__PURE__ */ r(W, {
 								disabled: !a.artifacts,
-								onClick: () => void b(),
+								onClick: () => void _(),
 								children: "下载宿主报告产物"
 							})
 						]
 					}),
-					y(g.id) && /* @__PURE__ */ i("dl", { children: [/* @__PURE__ */ r(Y, {
+					b(g.id) && /* @__PURE__ */ i("dl", { children: [/* @__PURE__ */ r(Y, {
 						label: "持久产物",
-						children: /* @__PURE__ */ r("code", { children: y(g.id) })
+						children: /* @__PURE__ */ r("code", { children: b(g.id) })
 					}), /* @__PURE__ */ r(Y, {
 						label: "文件",
-						children: y(g.filename, "宿主未提供文件名")
+						children: b(g.filename, "宿主未提供文件名")
 					})] }),
-					_e(t.report) && /* @__PURE__ */ i("div", {
+					ve(t.report) && /* @__PURE__ */ i("div", {
 						className: "flex flex-wrap items-center gap-2",
 						children: [/* @__PURE__ */ r("p", {
 							className: "text-[13px] text-[#8A4D00]",
@@ -1926,38 +1928,38 @@ function ve({ state: t, controller: n, context: a }) {
 					t.installation !== null && /* @__PURE__ */ i("div", {
 						className: "space-y-3",
 						children: [
-							v(x.installations).map((e, t) => {
-								let n = _(e);
+							y(x.installations).map((e, t) => {
+								let n = v(e);
 								return /* @__PURE__ */ i("article", {
 									className: "rounded-md border border-[#E6EAF3] p-3",
 									children: [
 										/* @__PURE__ */ i("h3", {
 											className: "break-all text-sm font-medium",
 											children: [
-												y(n.id),
+												b(n.id),
 												" · ",
-												y(n.version)
+												b(n.version)
 											]
 										}),
 										/* @__PURE__ */ i("p", {
 											className: "my-2 break-all text-xs text-[#556176]",
 											children: [
 												"安装修订 ",
-												y(n.revision, "未知"),
+												b(n.revision, "未知"),
 												" · ",
-												y(n.status)
+												b(n.status)
 											]
 										}),
-										v(n.components).map((e, t) => {
-											let n = _(e);
+										y(n.components).map((e, t) => {
+											let n = v(e);
 											return /* @__PURE__ */ i("div", {
 												className: "flex flex-wrap items-center gap-2 border-t border-[#E6EAF3] py-2 text-[13px]",
 												children: [
 													/* @__PURE__ */ r("code", {
 														className: "break-all",
-														children: y(n.id)
+														children: b(n.id)
 													}),
-													/* @__PURE__ */ r(G, { children: y(n.kind) }),
+													/* @__PURE__ */ r(G, { children: b(n.kind) }),
 													/* @__PURE__ */ r(G, {
 														warning: n.build_state !== "current",
 														children: n.build_state === "current" ? "运行修订已核对" : n.build_state === "refresh_required" ? "需更新运行实例" : "尚未观测构建"
@@ -1966,9 +1968,9 @@ function ve({ state: t, controller: n, context: a }) {
 														className: "break-all text-xs text-[#556176]",
 														children: [
 															"运行代次 ",
-															y(n.running_generation, "未知"),
+															b(n.running_generation, "未知"),
 															" · 运行修订 ",
-															y(n.running_revision, "未知")
+															b(n.running_revision, "未知")
 														]
 													})
 												]
@@ -1977,34 +1979,34 @@ function ve({ state: t, controller: n, context: a }) {
 									]
 								}, t);
 							}),
-							v(x.standalone).map((e, t) => {
-								let n = _(e);
+							y(x.standalone).map((e, t) => {
+								let n = v(e);
 								return /* @__PURE__ */ i("article", {
 									className: "space-y-1 rounded-md border border-[#E6EAF3] p-3 text-[13px]",
 									children: [/* @__PURE__ */ i("p", {
 										className: "break-all font-medium",
 										children: [
-											y(n.id),
+											b(n.id),
 											" · ",
-											y(n.kind),
+											b(n.kind),
 											" · ",
-											y(n.version)
+											b(n.version)
 										]
 									}), /* @__PURE__ */ i("p", {
 										className: "text-[#556176]",
 										children: [
 											"部署摘要：",
-											y(n.digest, "未知"),
+											b(n.digest, "未知"),
 											" · ",
-											y(n.digest_status, "宿主未观测")
+											b(n.digest_status, "宿主未观测")
 										]
 									})]
 								}, t);
 							}),
-							!v(x.installations).length && !v(x.standalone).length && /* @__PURE__ */ r(J, { title: "未查询到已安装组件" }),
+							!y(x.installations).length && !y(x.standalone).length && /* @__PURE__ */ r(J, { title: "未查询到已安装组件" }),
 							/* @__PURE__ */ r("p", {
 								className: "text-[13px] text-[#556176]",
-								children: y(x.note)
+								children: b(x.note)
 							}),
 							/* @__PURE__ */ r(q, {
 								value: x.running,
@@ -2053,7 +2055,7 @@ function ve({ state: t, controller: n, context: a }) {
 }
 //#endregion
 //#region ../examples/browser-debugger/src/activity-presentation.ts
-var ye = {
+var be = {
 	inspect: "检查插件",
 	data_catalog: "查看数据目录",
 	data_read: "读取数据",
@@ -2066,41 +2068,41 @@ var ye = {
 	reload: "重载插件",
 	report: "汇总报告",
 	automation_run: "自动调试计划"
-}, be = (e) => ye[e] ?? "调试调用";
-function xe(e, t = !1) {
-	let n = _(e), r = _(n.result), i = _(n.error), a = y(n.tool), o = y(n.status), s = "调用完成", c = "neutral", l = y(r.reason) || y(i.message);
+}, xe = (e) => be[e] ?? "调试调用";
+function Se(e, t = !1) {
+	let n = v(e), r = v(n.result), i = v(n.error), a = b(n.tool), o = b(n.status), s = "调用完成", c = "neutral", l = b(r.reason) || b(i.message);
 	return t ? (s = "等待最终回执", l = "整段计划仍在执行，暂未取得此步骤的最终结果。") : o === "skipped" ? s = "未执行" : /indeterminate|unconfirmed|cancelled/.test(o) ? (s = "结果未确认", c = "warning") : o === "failed" ? (s = "执行失败", c = "error") : o === "succeeded" ? a === "ui_assert" ? r.status === "passed" ? (s = "页面检查通过", c = "success") : r.status === "failed" ? (s = "页面检查未通过", c = "error") : (s = "无法判定", c = "warning") : a === "data_read" ? s = "已读取" : a === "data_write" ? s = typeof r.revision == "string" && Object.hasOwn(r, "value") ? "已保存并回读" : "保存结果待核对" : (a === "ui_action" || a === "invoke") && (s = "已派发，业务结果未确认", l ||= "调用回执不代表业务操作完成，请通过明确检查核对实际状态。") : (s = "结果未知", c = "warning"), {
-		id: y(n.id),
-		label: y(n.label) || be(a),
+		id: b(n.id),
+		label: b(n.label) || xe(a),
 		tool: a,
 		status: s,
 		tone: c,
-		result: x(n.result ?? null),
+		result: S(n.result ?? null),
 		detail: l,
-		logId: y(n.log_id) || null
+		logId: b(n.log_id) || null
 	};
 }
-function Se(e) {
-	let t = _(e), n = _(t.response), r = t.state === "queued" || t.state === "delivered";
+function Ce(e) {
+	let t = v(e), n = v(t.response), r = t.state === "queued" || t.state === "delivered";
 	if (t.tool === "automation_run") {
-		let e = v(n.steps);
-		return (e.length ? e : v(t.steps)).map((e) => xe(x(e), r));
+		let e = y(n.steps);
+		return (e.length ? e : y(t.steps)).map((e) => Se(S(e), r));
 	}
-	return y(t.commandId) ? [xe({
-		id: y(t.commandId),
-		tool: y(t.tool),
+	return b(t.commandId) ? [Se({
+		id: b(t.commandId),
+		tool: b(t.tool),
 		status: t.state === "succeeded" ? "succeeded" : t.state === "failed" ? "failed" : "indeterminate",
-		result: x(t.response ?? null)
+		result: S(t.response ?? null)
 	}, r)] : [];
 }
-function Ce(e, t) {
-	let n = _(e), r = _(n.response);
+function we(e, t) {
+	let n = v(e), r = v(n.response);
 	if (t) return {
 		title: "连接已断开，显示最后一次结果",
 		description: "历史内容仍可查看；当前页面状态尚未确认。",
 		warning: !0
 	};
-	if (!y(n.commandId)) return {
+	if (!b(n.commandId)) return {
 		title: "等待第一条调试调用",
 		description: "选定插件的公开调试记录会显示在这里，也可以先手动检查。",
 		warning: !1
@@ -2110,7 +2112,7 @@ function Ce(e, t) {
 		description: "等待最终回执，步骤结果返回后更新。",
 		warning: !1
 	};
-	if (/unconfirmed/.test(y(n.state)) || r.status === "indeterminate" || r.status === "cancelled") return {
+	if (/unconfirmed/.test(b(n.state)) || r.status === "indeterminate" || r.status === "cancelled") return {
 		title: "请求已派发，结果尚未确认",
 		description: "先查询原命令结果或读取实际状态，不自动重复执行。",
 		warning: !0
@@ -2120,7 +2122,7 @@ function Ce(e, t) {
 		description: "查看步骤结果与日志，再决定下一步检查。",
 		warning: !0
 	};
-	let i = Se(e).filter((e) => e.status === "页面检查通过").length;
+	let i = Ce(e).filter((e) => e.status === "页面检查通过").length;
 	return {
 		title: i ? `调试结束 · ${i}项页面检查通过` : "调试调用已结束",
 		description: i ? "点击步骤查看对应结果；已通过的检查仅覆盖本次明确检查点。" : "调用回执已返回；业务是否完成仍需相应检查确认。",
@@ -2129,8 +2131,8 @@ function Ce(e, t) {
 }
 //#endregion
 //#region ../examples/browser-debugger/src/activity-view.tsx
-function we({ state: t, controller: n, narrow: a, onData: o, onInspect: s, onDetails: c, onTargets: l }) {
-	let [u, d] = e.useState(""), f = t.activityDetail ?? t.activity?.items[0] ?? null, p = Se(x(f)), m = p.find((e) => e.id === u) ?? p.at(-1), h = f?.state === "queued" || f?.state === "delivered";
+function Te({ state: t, controller: n, narrow: a, onData: o, onInspect: s, onDetails: c, onTargets: l }) {
+	let [u, d] = e.useState(""), f = t.activityDetail ?? t.activity?.items[0] ?? null, p = Ce(S(f)), m = p.find((e) => e.id === u) ?? p.at(-1), h = f?.state === "queued" || f?.state === "delivered";
 	return e.useEffect(() => d(""), [f?.commandId]), t.target ? f ? /* @__PURE__ */ i("div", {
 		className: `grid min-h-full gap-6 ${a ? "grid-cols-1" : "grid-cols-[minmax(0,1.66fr)_minmax(280px,1fr)]"}`,
 		children: [/* @__PURE__ */ i("section", {
@@ -2141,7 +2143,7 @@ function we({ state: t, controller: n, narrow: a, onData: o, onInspect: s, onDet
 					children: [
 						/* @__PURE__ */ r("h2", {
 							className: "mr-auto text-[15px] font-semibold",
-							children: f.tool === "automation_run" ? `本次调试计划${p.length ? ` · ${p.length}步` : ""}` : be(f.tool)
+							children: f.tool === "automation_run" ? `本次调试计划${p.length ? ` · ${p.length}步` : ""}` : xe(f.tool)
 						}),
 						/* @__PURE__ */ i("span", {
 							className: "text-xs text-[#556176]",
@@ -2208,7 +2210,7 @@ function we({ state: t, controller: n, narrow: a, onData: o, onInspect: s, onDet
 						children: t.activity?.items.filter((e) => e.commandId !== f.commandId).map((e) => /* @__PURE__ */ i(W, {
 							onClick: () => void n.selectActivity(e.commandId),
 							children: [
-								be(e.tool),
+								xe(e.tool),
 								" · ",
 								e.state === "succeeded" ? "已返回" : e.state === "failed" ? "失败" : "等待核对"
 							]
@@ -2240,7 +2242,7 @@ function we({ state: t, controller: n, narrow: a, onData: o, onInspect: s, onDet
 				!h && /* @__PURE__ */ i("div", {
 					className: "flex flex-col gap-3",
 					children: [
-						(/unconfirmed/.test(f.state) || _(f.response).status === "indeterminate" || _(f.response).status === "cancelled") && /* @__PURE__ */ r(W, {
+						(/unconfirmed/.test(f.state) || v(f.response).status === "indeterminate" || v(f.response).status === "cancelled") && /* @__PURE__ */ r(W, {
 							primary: !0,
 							disabled: !!t.busy,
 							onClick: () => void n.selectActivity(f.commandId),
@@ -2266,7 +2268,7 @@ function we({ state: t, controller: n, narrow: a, onData: o, onInspect: s, onDet
 					}), /* @__PURE__ */ r("div", {
 						className: "mt-3",
 						children: /* @__PURE__ */ r(q, {
-							value: m?.result ?? _(f.response),
+							value: m?.result ?? v(f.response),
 							label: "展开原始结果"
 						})
 					})]
@@ -2331,8 +2333,8 @@ function we({ state: t, controller: n, narrow: a, onData: o, onInspect: s, onDet
 }
 //#endregion
 //#region ../examples/browser-debugger/src/timeline-view.tsx
-function Te({ state: t, controller: a }) {
-	let [o, s] = e.useState(""), [c, l] = e.useState(!0), [u, d] = e.useState(""), [f, p] = e.useState(!1), [m, h] = e.useState(null), [g, b] = e.useState(""), [x, S] = e.useState(!0), C = e.useRef(null);
+function Ee({ state: t, controller: a }) {
+	let [o, s] = e.useState(""), [c, l] = e.useState(!0), [u, d] = e.useState(""), [f, p] = e.useState(!1), [m, h] = e.useState(null), [g, _] = e.useState(""), [x, S] = e.useState(!0), C = e.useRef(null);
 	e.useEffect(() => {
 		if (!f || !t.open || !t.sessionId || t.stale) return;
 		let e = setInterval(() => {
@@ -2348,7 +2350,7 @@ function Te({ state: t, controller: a }) {
 	]), e.useEffect(() => {
 		f && C.current?.scrollIntoView({ block: "nearest" });
 	}, [t.events.length, f]);
-	let w = t.events.filter((e) => (!o || e.level === o) && (c || !t.target || e.target && E(e.target) === E(t.target)) && (!u || `${e.label} ${e.logId ?? ""} ${e.target?.pluginId ?? ""}`.toLocaleLowerCase().includes(u.toLocaleLowerCase()))), T = _(t.logs);
+	let w = t.events.filter((e) => (!o || e.level === o) && (c || !t.target || e.target && D(e.target) === D(t.target)) && (!u || `${e.label} ${e.logId ?? ""} ${e.target?.pluginId ?? ""}`.toLocaleLowerCase().includes(u.toLocaleLowerCase()))), T = v(t.logs);
 	return /* @__PURE__ */ i("div", {
 		className: "space-y-4",
 		children: [
@@ -2526,7 +2528,7 @@ function Te({ state: t, controller: a }) {
 								"aria-label": "日志查询",
 								className: `${U} min-w-40 flex-1`,
 								value: g,
-								onChange: (e) => b(e.currentTarget.value),
+								onChange: (e) => _(e.currentTarget.value),
 								placeholder: x ? "填写完整日志 ID 或任务 ID" : "1 至 128 字节搜索词"
 							}),
 							/* @__PURE__ */ r(W, {
@@ -2536,7 +2538,7 @@ function Te({ state: t, controller: a }) {
 							}),
 							t.logId && /* @__PURE__ */ r(W, {
 								onClick: () => {
-									S(!0), b(t.logId ?? "");
+									S(!0), _(t.logId ?? "");
 								},
 								children: "带入最近日志 ID"
 							})
@@ -2548,8 +2550,8 @@ function Te({ state: t, controller: a }) {
 					}),
 					t.logs !== null && /* @__PURE__ */ r("div", {
 						className: "max-h-72 overflow-auto",
-						children: v(T.entries).length ? v(T.entries).map((e, t) => {
-							let n = _(e);
+						children: y(T.entries).length ? y(T.entries).map((e, t) => {
+							let n = v(e);
 							return /* @__PURE__ */ i("article", {
 								className: "space-y-1 border-b border-[#E6EAF3] py-2 text-[13px]",
 								children: [
@@ -2557,24 +2559,24 @@ function Te({ state: t, controller: a }) {
 										className: "flex flex-wrap gap-2",
 										children: [
 											/* @__PURE__ */ r(G, {
-												warning: y(n.level).toLowerCase() === "error",
-												children: y(n.level)
+												warning: b(n.level).toLowerCase() === "error",
+												children: b(n.level)
 											}),
 											/* @__PURE__ */ r("time", {
 												className: "text-xs text-[#556176]",
-												children: y(n.timestamp)
+												children: b(n.timestamp)
 											}),
 											/* @__PURE__ */ r("code", {
 												className: "text-xs",
-												children: y(n.code)
+												children: b(n.code)
 											})
 										]
 									}),
 									/* @__PURE__ */ r("p", {
 										className: "break-all",
-										children: y(n.message)
+										children: b(n.message)
 									}),
-									/* @__PURE__ */ r(X, { value: y(n.log_id) || null })
+									/* @__PURE__ */ r(X, { value: b(n.log_id) || null })
 								]
 							}, t);
 						}) : /* @__PURE__ */ r("p", {
@@ -2589,7 +2591,7 @@ function Te({ state: t, controller: a }) {
 }
 //#endregion
 //#region ../examples/browser-debugger/src/details-view.tsx
-function Ee({ state: e, controller: t, context: n, onInvoke: a, onResize: o }) {
+function De({ state: e, controller: t, context: n, onInvoke: a, onResize: o }) {
 	return /* @__PURE__ */ i("div", {
 		className: "space-y-4",
 		children: [
@@ -2655,7 +2657,7 @@ function Ee({ state: e, controller: t, context: n, onInvoke: a, onResize: o }) {
 						disabled: !e.sessionId || e.stale,
 						onClick: a,
 						children: "调用公开能力"
-					}), /* @__PURE__ */ r(ie, {
+					}), /* @__PURE__ */ r(ae, {
 						state: e,
 						controller: t
 					})]
@@ -2668,7 +2670,7 @@ function Ee({ state: e, controller: t, context: n, onInvoke: a, onResize: o }) {
 					children: "日志与事件"
 				}), /* @__PURE__ */ r("div", {
 					className: "mt-4",
-					children: /* @__PURE__ */ r(Te, {
+					children: /* @__PURE__ */ r(Ee, {
 						state: e,
 						controller: t
 					})
@@ -2681,7 +2683,7 @@ function Ee({ state: e, controller: t, context: n, onInvoke: a, onResize: o }) {
 					children: "报告、安装修订与插件操作"
 				}), /* @__PURE__ */ r("div", {
 					className: "mt-4",
-					children: /* @__PURE__ */ r(ve, {
+					children: /* @__PURE__ */ r(ye, {
 						state: e,
 						controller: t,
 						context: n
@@ -2725,32 +2727,32 @@ function Ee({ state: e, controller: t, context: n, onInvoke: a, onResize: o }) {
 }
 //#endregion
 //#region ../examples/browser-debugger/src/data-view.tsx
-function De({ state: t, controller: n, narrow: a }) {
-	let [o, s] = e.useState(""), [c, l] = e.useState(""), [u, d] = e.useState(null), [f, p] = e.useState(!1), [m, h] = e.useState({}), [g, y] = e.useState("null"), [b, C] = e.useState(""), w = e.useRef(!0);
+function Oe({ state: t, controller: n, narrow: a }) {
+	let [o, s] = e.useState(""), [c, l] = e.useState(""), [u, d] = e.useState(null), [f, p] = e.useState(!1), [m, h] = e.useState({}), [g, _] = e.useState("null"), [b, x] = e.useState(""), w = e.useRef(!0);
 	e.useEffect(() => (w.current = !0, () => {
 		w.current = !1;
 	}), []);
 	let T = t.dataSnapshot?.sourceId === o ? t.dataSnapshot : null, E = t.dataSources.find((e) => e.id === o), D = f && T && T.revision !== c, O = t.stale || !t.connected || !!t.busy;
 	e.useEffect(() => {
-		s(""), C(""), l(""), p(!1), d(null), h({});
+		s(""), x(""), l(""), p(!1), d(null), h({});
 	}, [t.sessionId]), e.useEffect(() => {
-		T && !f && (d(T.value), y(JSON.stringify(T.value, null, 2)), l(T.revision), h({}));
+		T && !f && (d(T.value), _(JSON.stringify(T.value, null, 2)), l(T.revision), h({}));
 	}, [T, f]);
 	function k(e) {
-		f ? C(e) : A(e);
+		f ? x(e) : A(e);
 	}
 	function A(e) {
-		C(""), s(e), p(!1), d(null), l(""), h({}), n.readDataSource(e);
+		x(""), s(e), p(!1), d(null), l(""), h({}), n.readDataSource(e);
 	}
-	function M(e) {
-		d(e), y(JSON.stringify(e, null, 2)), p(!0);
+	function j(e) {
+		d(e), _(JSON.stringify(e, null, 2)), p(!0);
 	}
 	async function N() {
 		if (!E || !c || !T || D) return;
 		let e = t.sessionId;
 		await n.writeDataSource(E.id, c, u, !0);
 		let r = n.snapshot();
-		w.current && r.sessionId === e && !r.error && !r.dataConflict && r.dataSnapshot?.sourceId === o && r.dataSnapshot.revision !== c && (p(!1), l(r.dataSnapshot.revision), d(r.dataSnapshot.value), y(JSON.stringify(r.dataSnapshot.value, null, 2)));
+		w.current && r.sessionId === e && !r.error && !r.dataConflict && r.dataSnapshot?.sourceId === o && r.dataSnapshot.revision !== c && (p(!1), l(r.dataSnapshot.revision), d(r.dataSnapshot.value), _(JSON.stringify(r.dataSnapshot.value, null, 2)));
 	}
 	if (t.target?.kind === "server") return /* @__PURE__ */ r(J, {
 		title: "服务器数据通过公开能力读取",
@@ -2810,7 +2812,7 @@ function De({ state: t, controller: n, narrow: a }) {
 							children: "放弃编辑并切换"
 						}),
 						/* @__PURE__ */ r(W, {
-							onClick: () => C(""),
+							onClick: () => x(""),
 							children: "继续编辑"
 						})
 					]
@@ -2855,27 +2857,27 @@ function De({ state: t, controller: n, narrow: a }) {
 				/* @__PURE__ */ r("fieldset", {
 					disabled: O || !E.writable,
 					className: "min-w-0 space-y-5 disabled:opacity-60",
-					children: se(E.schema) && j(u) ? Object.entries(_(_(E.schema).properties)).map(([e, t]) => /* @__PURE__ */ r("fieldset", {
-						disabled: _(t).readOnly === !0,
-						children: /* @__PURE__ */ r(ue, {
+					children: ce(E.schema) && M(u) ? Object.entries(v(v(E.schema).properties)).map(([e, t]) => /* @__PURE__ */ r("fieldset", {
+						disabled: v(t).readOnly === !0,
+						children: /* @__PURE__ */ r(de, {
 							name: e,
-							schema: x(t),
+							schema: S(t),
 							value: u[e],
-							required: v(_(E.schema).required).includes(e),
+							required: y(v(E.schema).required).includes(e),
 							onChange: (t) => {
-								if (!j(u)) return;
+								if (!M(u)) return;
 								let n = { ...u };
-								t === void 0 ? delete n[e] : n[e] = t, M(n);
+								t === void 0 ? delete n[e] : n[e] = t, j(n);
 							},
 							onError: (t) => h((n) => ({
 								...n,
 								[e]: t
 							}))
 						})
-					}, e)) : /* @__PURE__ */ r(le, {
+					}, e)) : /* @__PURE__ */ r(ue, {
 						value: u,
 						label: "公开数据JSON",
-						onChange: M,
+						onChange: j,
 						onError: (e) => h({ json: e })
 					}, `${o}:${c}`)
 				}),
@@ -2903,7 +2905,7 @@ function De({ state: t, controller: n, narrow: a }) {
 								children: "保留我的编辑，使用最新修订"
 							}), /* @__PURE__ */ r(W, {
 								onClick: () => {
-									p(!1), d(T.value), y(JSON.stringify(T.value, null, 2)), l(T.revision);
+									p(!1), d(T.value), _(JSON.stringify(T.value, null, 2)), l(T.revision);
 								},
 								children: "采用最新值，放弃我的编辑"
 							})]
@@ -2932,9 +2934,9 @@ function De({ state: t, controller: n, narrow: a }) {
 								disabled: O || !E.writable,
 								value: g,
 								onChange: (e) => {
-									y(e.currentTarget.value), p(!0);
+									_(e.currentTarget.value), p(!0);
 									try {
-										d(S(e.currentTarget.value)), h({});
+										d(C(e.currentTarget.value)), h({});
 									} catch (e) {
 										h({ json: e instanceof Error ? e.message : "JSON无效" });
 									}
@@ -2972,7 +2974,7 @@ function De({ state: t, controller: n, narrow: a }) {
 }
 //#endregion
 //#region ../examples/browser-debugger/src/view.tsx
-var Oe = {
+var ke = {
 	process: "调试过程",
 	targets: "选择调试插件",
 	tree: "检查界面",
@@ -2981,16 +2983,17 @@ var Oe = {
 	details: "技术详情",
 	report: "保存调试报告"
 };
-function ke({ controller: t, context: a }) {
-	let d = e.useSyncExternalStore(t.subscribe, t.snapshot, t.snapshot), [f, g] = e.useState("process"), [_, v] = e.useState({
+function Ae({ controller: t, context: a }) {
+	let d = e.useSyncExternalStore(t.subscribe, t.snapshot, t.snapshot), [f, p] = e.useState("process"), [_, v] = e.useState({
 		x: 112,
 		y: 48,
 		width: 1200,
 		height: 704
 	}), [y, b] = e.useState({
 		x: 16,
-		y: 16
-	}), [S, C] = e.useState(null), w = e.useRef(null), T = e.useRef(null), E = e.useRef(null), D = e.useRef(!1), O = e.useRef(null), k = () => {
+		y: 16,
+		side: "right"
+	}), [x, C] = e.useState(null), w = e.useRef(null), T = e.useRef(null), E = e.useRef(null), D = e.useRef(!1), O = e.useRef(null), k = () => {
 		let e = T.current?.ownerDocument.defaultView;
 		return {
 			width: e?.innerWidth ?? 1424,
@@ -3000,17 +3003,28 @@ function ke({ controller: t, context: a }) {
 	e.useEffect(() => {
 		let e = T.current?.ownerDocument.defaultView;
 		if (!e) return;
-		v(s(k())), b(u(e.innerWidth - 72, e.innerHeight - 64, k(), !0));
-		let t = () => {
-			v((e) => o(e, k())), b((e) => u(e.x, e.y, k(), !0));
+		let t = k();
+		v(s(t)), b({
+			...u(e.innerWidth - 72, e.innerHeight - 64, t, !0),
+			side: "right"
+		});
+		let n = () => {
+			let e = k();
+			v((t) => o(t, e)), b((t) => ({
+				...u(t.side === "left" ? 0 : e.width, t.y, e, !0),
+				side: t.side
+			}));
 		};
-		return e.addEventListener("resize", t), () => e.removeEventListener("resize", t);
+		return e.addEventListener("resize", n), () => e.removeEventListener("resize", n);
 	}, []), e.useEffect(() => {
 		let e = T.current?.ownerDocument;
-		if (e && !d.open) return m(e, () => {
+		if (e && !d.open) return h(e, () => {
 			O.current?.mode !== "ball" && b((t) => {
-				let n = u(t.x, t.y, k(), !1, p(e, t.x));
-				return n.x === t.x && n.y === t.y ? t : n;
+				let n = u(t.x, t.y, k(), !1, m(e, t.x));
+				return n.x === t.x && n.y === t.y ? t : {
+					...t,
+					...n
+				};
 			});
 		});
 	}, [d.open]), e.useEffect(() => {
@@ -3018,9 +3032,9 @@ function ke({ controller: t, context: a }) {
 		let e = requestAnimationFrame(() => w.current?.focus());
 		return () => cancelAnimationFrame(e);
 	}, [d.open]), e.useEffect(() => {
-		d.requested && g("targets");
+		d.requested && p("targets");
 	}, [d.requested]), e.useEffect(() => {
-		d.sessionId && g("process");
+		d.sessionId && p("process");
 	}, [d.sessionId]), e.useEffect(() => {
 		if (!d.open) return;
 		let e = !1, n = !1, r = setInterval(() => {
@@ -3065,7 +3079,10 @@ function ke({ controller: t, context: a }) {
 		let t = O.current;
 		if (!t || t.pointerId !== e.pointerId) return;
 		let n = e.clientX - t.x, r = e.clientY - t.y;
-		Math.abs(n) + Math.abs(r) > 5 && (t.moved = !0), t.moved && (t.mode === "ball" ? b(u(t.ball.x + n, t.ball.y + r, k(), !1)) : t.mode === "move" ? v(o({
+		Math.abs(n) + Math.abs(r) > 5 && (t.moved = !0), t.moved && (t.mode === "ball" ? b({
+			...t.ball,
+			...u(t.ball.x + n, t.ball.y + r, k(), !1)
+		}) : t.mode === "move" ? v(o({
 			...t.rect,
 			x: t.rect.x + n,
 			y: t.rect.y + r
@@ -3078,8 +3095,11 @@ function ke({ controller: t, context: a }) {
 	function N(e) {
 		let t = O.current;
 		t && t.pointerId === e.pointerId && (e.currentTarget.hasPointerCapture(e.pointerId) && e.currentTarget.releasePointerCapture(e.pointerId), O.current = null, t.mode === "ball" && t.moved ? (b((e) => {
-			let t = u(e.x, e.y, k(), !0), n = T.current?.ownerDocument;
-			return n ? u(t.x, t.y, k(), !1, p(n, t.x)) : t;
+			let t = k(), n = u(e.x, e.y, t, !0), r = T.current?.ownerDocument;
+			return {
+				...r ? u(n.x, n.y, t, !1, m(r, n.x)) : n,
+				side: e.x + 24 < t.width / 2 ? "left" : "right"
+			};
 		}), D.current = !0) : t.mode === "move" && t.moved && v((e) => c(e, k())));
 	}
 	let P = {
@@ -3094,23 +3114,23 @@ function ke({ controller: t, context: a }) {
 		title: "先选择要调试的插件",
 		description: "选择插件 → 让 Agent 调用调试工具 → 在这里查看过程与结果。",
 		warning: !1
-	} : f === "process" ? Ce(x(z), I) : {
-		title: Oe[f],
+	} : f === "process" ? we(S(z), I) : {
+		title: ke[f],
 		description: I ? "最后观测内容已过期，仅供只读查看。" : "当前插件的公开能力；所有修改仍按实际回执确认。",
 		warning: I
 	};
 	async function V() {
-		g("tree"), await t.action("pick", null, "", !1, !1);
+		p("tree"), await t.action("pick", null, "", !1, !1);
 	}
 	function H() {
-		g("data"), t.refreshDataSources();
+		p("data"), t.refreshDataSources();
 	}
 	return /* @__PURE__ */ i("div", {
 		"data-deviceforge-debugger": "",
 		"data-deviceforge-debugger-internal": "",
 		className: "font-sans text-[#23272E]",
 		children: [
-			/* @__PURE__ */ r("style", { children: h }),
+			/* @__PURE__ */ r("style", { children: g }),
 			/* @__PURE__ */ i("button", {
 				ref: T,
 				type: "button",
@@ -3127,7 +3147,13 @@ function ke({ controller: t, context: a }) {
 					if (!e.altKey || !e.key.startsWith("Arrow")) return;
 					e.preventDefault();
 					let t = e.shiftKey ? 32 : 8;
-					b((n) => u(n.x + (e.key === "ArrowRight" ? t : e.key === "ArrowLeft" ? -t : 0), n.y + (e.key === "ArrowDown" ? t : e.key === "ArrowUp" ? -t : 0), k(), !1));
+					b((n) => {
+						let r = k(), i = u(n.x + (e.key === "ArrowRight" ? t : e.key === "ArrowLeft" ? -t : 0), n.y + (e.key === "ArrowDown" ? t : e.key === "ArrowUp" ? -t : 0), r, !1);
+						return {
+							...i,
+							side: e.key === "ArrowLeft" || e.key === "ArrowRight" ? i.x + 24 < r.width / 2 ? "left" : "right" : n.side
+						};
+					});
 				},
 				onClick: () => {
 					D.current ? D.current = !1 : d.open ? A() : t.open();
@@ -3149,7 +3175,7 @@ function ke({ controller: t, context: a }) {
 				style: P,
 				className: `${!d.open || d.busy?.startsWith("拾取") ? "hidden" : "flex"} fixed left-[var(--df-x)] top-[var(--df-y)] z-[2147483000] h-[var(--df-height)] w-[var(--df-width)] min-w-0 flex-col overflow-hidden rounded-2xl border border-[#E6EAF3] bg-white shadow-2xl outline-none`,
 				onKeyDown: (e) => {
-					S ? (e.key.startsWith("Arrow") && (e.preventDefault(), e.stopPropagation(), v((t) => l(t, e.key, e.shiftKey, k()))), e.key === "Escape" && (e.preventDefault(), e.stopPropagation(), v(o(S, k())), C(null), E.current?.focus()), e.key === "Enter" && (e.preventDefault(), e.stopPropagation(), C(null), E.current?.focus())) : e.key === "Escape" && (e.preventDefault(), e.stopPropagation(), d.busy?.startsWith("拾取") ? t.cancel() : A());
+					x ? (e.key.startsWith("Arrow") && (e.preventDefault(), e.stopPropagation(), v((t) => l(t, e.key, e.shiftKey, k()))), e.key === "Escape" && (e.preventDefault(), e.stopPropagation(), v(o(x, k())), C(null), E.current?.focus()), e.key === "Enter" && (e.preventDefault(), e.stopPropagation(), C(null), E.current?.focus())) : e.key === "Escape" && (e.preventDefault(), e.stopPropagation(), d.busy?.startsWith("拾取") ? t.cancel() : A());
 				},
 				children: [
 					/* @__PURE__ */ i("header", {
@@ -3165,7 +3191,7 @@ function ke({ controller: t, context: a }) {
 								children: [/* @__PURE__ */ r("h1", {
 									id: "deviceforge-debugger-title",
 									className: "truncate text-[18px] font-semibold",
-									children: R ? "选择调试插件" : Oe[f]
+									children: R ? "选择调试插件" : ke[f]
 								}), /* @__PURE__ */ r("p", {
 									className: "mt-1 truncate text-xs text-[#556176]",
 									children: d.target ? `${I ? "最后调试" : "正在调试"}：${d.target.pluginId} · ${d.target.kind === "server" ? "服务器插件" : "浏览器插件"}` : "在这里选择插件，无需寻找插件页面"
@@ -3177,7 +3203,7 @@ function ke({ controller: t, context: a }) {
 							}),
 							d.target && /* @__PURE__ */ r(W, {
 								soft: !0,
-								onClick: () => g("targets"),
+								onClick: () => p("targets"),
 								children: "更换插件"
 							}),
 							/* @__PURE__ */ r(W, {
@@ -3199,7 +3225,7 @@ function ke({ controller: t, context: a }) {
 					/* @__PURE__ */ i("div", {
 						className: `${B.warning ? "bg-[#FDF6ED]" : "bg-[#F7F8FC]"} min-h-24 shrink-0 space-y-2 px-6 py-4`,
 						children: [/* @__PURE__ */ r("h2", {
-							className: `text-lg font-semibold ${B.warning ? "text-[#8A4D00]" : f === "process" && Se(x(z)).some((e) => e.status === "页面检查通过") ? "text-[#17664F]" : "text-[#23272E]"}`,
+							className: `text-lg font-semibold ${B.warning ? "text-[#8A4D00]" : f === "process" && Ce(S(z)).some((e) => e.status === "页面检查通过") ? "text-[#17664F]" : "text-[#23272E]"}`,
 							children: B.title
 						}), /* @__PURE__ */ r("p", {
 							className: "text-[13px] leading-relaxed text-[#556176]",
@@ -3232,25 +3258,25 @@ function ke({ controller: t, context: a }) {
 									children: d.target ? "重新连接并核对目标" : "重新连接调试器"
 								})]
 							}),
-							R ? /* @__PURE__ */ r(Z, {
+							R ? /* @__PURE__ */ r(ie, {
 								state: d,
 								controller: t
 							}) : /* @__PURE__ */ i(n, { children: [
-								f === "process" && /* @__PURE__ */ r(we, {
+								f === "process" && /* @__PURE__ */ r(Te, {
 									state: d,
 									controller: t,
 									narrow: _.width < 1040,
 									onData: H,
 									onInspect: () => void V(),
-									onDetails: () => g("details"),
-									onTargets: () => g("targets")
+									onDetails: () => p("details"),
+									onTargets: () => p("targets")
 								}),
 								f === "tree" && /* @__PURE__ */ i(n, { children: [
 									/* @__PURE__ */ r("p", {
 										className: "mb-4 text-sm text-[#556176]",
 										children: "在页面上选择后查看简短结果；完整树和查询工具可按需展开。"
 									}),
-									/* @__PURE__ */ r(te, { value: d.result }),
+									/* @__PURE__ */ r(ne, { value: d.result }),
 									/* @__PURE__ */ i("details", {
 										className: "mt-4 rounded-xl border border-[#E6EAF3] p-4",
 										children: [/* @__PURE__ */ r("summary", {
@@ -3258,35 +3284,35 @@ function ke({ controller: t, context: a }) {
 											children: "节点树、属性与界面检查工具"
 										}), /* @__PURE__ */ r("div", {
 											className: "mt-4",
-											children: /* @__PURE__ */ r(re, {
+											children: /* @__PURE__ */ r(Z, {
 												state: d,
 												controller: t
 											})
 										})]
 									})
 								] }),
-								f === "data" && /* @__PURE__ */ r(De, {
+								f === "data" && /* @__PURE__ */ r(Oe, {
 									state: d,
 									controller: t,
 									narrow: _.width < 1040
 								}),
-								f === "invoke" && /* @__PURE__ */ i(n, { children: [/* @__PURE__ */ r(de, {
+								f === "invoke" && /* @__PURE__ */ i(n, { children: [/* @__PURE__ */ r(fe, {
 									state: d,
 									controller: t
 								}), /* @__PURE__ */ r("div", {
 									className: "mt-4",
-									children: /* @__PURE__ */ r(te, { value: d.result })
+									children: /* @__PURE__ */ r(ne, { value: d.result })
 								})] }),
-								f === "details" && /* @__PURE__ */ r(Ee, {
+								f === "details" && /* @__PURE__ */ r(De, {
 									state: d,
 									controller: t,
 									context: a,
-									onInvoke: () => g("invoke"),
+									onInvoke: () => p("invoke"),
 									onResize: () => {
 										C(_), E.current?.focus();
 									}
 								}),
-								f === "report" && /* @__PURE__ */ r(ve, {
+								f === "report" && /* @__PURE__ */ r(ye, {
 									state: d,
 									controller: t,
 									context: a
@@ -3301,7 +3327,7 @@ function ke({ controller: t, context: a }) {
 								className: "mr-auto text-[13px] text-[#556176]",
 								children: d.target ? "选择后切换观察目标，不会停止业务插件。" : "尚未选择插件，调试器不会读取页面。"
 							}), d.target && /* @__PURE__ */ r(W, {
-								onClick: () => g("process"),
+								onClick: () => p("process"),
 								children: "返回调试过程"
 							})] }) : /* @__PURE__ */ i(n, { children: [
 								f === "process" ? /* @__PURE__ */ r(W, {
@@ -3311,7 +3337,7 @@ function ke({ controller: t, context: a }) {
 									children: "⌖ 在页面上选择"
 								}) : /* @__PURE__ */ r(W, {
 									soft: !0,
-									onClick: () => g("process"),
+									onClick: () => p("process"),
 									children: "← 返回调试过程"
 								}),
 								/* @__PURE__ */ i("details", {
@@ -3324,7 +3350,7 @@ function ke({ controller: t, context: a }) {
 										children: [
 											/* @__PURE__ */ r(W, {
 												disabled: !d.target,
-												onClick: () => g("tree"),
+												onClick: () => p("tree"),
 												children: "检查界面"
 											}),
 											/* @__PURE__ */ r(W, {
@@ -3334,7 +3360,7 @@ function ke({ controller: t, context: a }) {
 											}),
 											/* @__PURE__ */ r(W, {
 												disabled: !d.target,
-												onClick: () => g("invoke"),
+												onClick: () => p("invoke"),
 												children: "调用公开能力"
 											})
 										]
@@ -3342,11 +3368,11 @@ function ke({ controller: t, context: a }) {
 								}),
 								/* @__PURE__ */ r("span", { className: "mr-auto" }),
 								/* @__PURE__ */ r(W, {
-									onClick: () => g("details"),
+									onClick: () => p("details"),
 									children: "技术详情 ›"
 								}),
 								z && /* @__PURE__ */ r(W, {
-									onClick: () => g("report"),
+									onClick: () => p("report"),
 									children: "保存报告"
 								})
 							] }),
@@ -3357,9 +3383,9 @@ function ke({ controller: t, context: a }) {
 							/* @__PURE__ */ r("span", {
 								role: "status",
 								className: "sr-only",
-								children: S ? "方向键每次8像素，Shift32像素；Enter应用，Esc取消" : d.notice
+								children: x ? "方向键每次8像素，Shift32像素；Enter应用，Esc取消" : d.notice
 							}),
-							S && /* @__PURE__ */ r("button", {
+							x && /* @__PURE__ */ r("button", {
 								ref: E,
 								type: "button",
 								className: "text-[13px] text-[#6C4CF5]",
@@ -3396,23 +3422,23 @@ function ke({ controller: t, context: a }) {
 }
 //#endregion
 //#region ../examples/browser-debugger/src/controller-data.ts
-function Ae(e, t) {
-	let n = R(e, t);
+function je(e, t) {
+	let n = z(e, t);
 	if (!n || n.sourceId !== t) throw Error("插件数据回执缺少有效的源标识、修订或业务值，或来自其他数据源");
 	return n;
 }
-function je(e) {
+function Me(e) {
 	return {
 		refreshDataSources: () => e.run("读取数据源目录", async (t) => {
 			let n = await e.tool("data_catalog", {}, t);
 			e.patch({
-				dataSources: L(n),
-				dataNotice: y(_(n).coverage, "已读取插件主动登记的数据源；空目录不代表插件没有内部状态。")
+				dataSources: R(n),
+				dataNotice: b(v(n).coverage, "已读取插件主动登记的数据源；空目录不代表插件没有内部状态。")
 			});
 		}),
 		readDataSource: (t, n = null) => e.run("读取插件数据", async (r) => {
 			if (!e.snapshot().dataSources.some((e) => e.id === t)) throw Error("请先刷新并选择当前目标已登记的数据源");
-			let i = Ae(await e.tool("data_read", {
+			let i = je(await e.tool("data_read", {
 				source_id: t,
 				query: n
 			}, r), t);
@@ -3426,7 +3452,7 @@ function je(e) {
 			if (!e.snapshot().dataSources.find((e) => e.id === t)?.writable) throw Error("当前数据源只读或尚未登记");
 			if (!i) throw Error("数据写入需要明确确认本次完整替换");
 			try {
-				let o = Ae(await e.tool("data_write", {
+				let o = je(await e.tool("data_write", {
 					source_id: t,
 					expected_revision: n,
 					value: r,
@@ -3439,7 +3465,7 @@ function je(e) {
 				});
 			} catch (t) {
 				a.throwIfAborted();
-				let n = w(t);
+				let n = T(t);
 				throw /^(debugger_)?(revision_conflict|data_conflict)$/.test(n.code) ? e.patch({
 					dataConflict: !0,
 					dataNotice: "数据已发生变化；你的编辑已保留，请读取最新值并比较后再保存。"
@@ -3450,8 +3476,8 @@ function je(e) {
 }
 //#endregion
 //#region ../examples/browser-debugger/src/controller.ts
-function Me(e) {
-	let t = B(e), n = new AbortController(), r = /* @__PURE__ */ new Set(), i = /* @__PURE__ */ new Set(), a = /* @__PURE__ */ new Map(), o = new AbortController(), s = 0, c = !1, l = 0, u = {
+function Ne(e) {
+	let t = V(e), n = new AbortController(), r = /* @__PURE__ */ new Set(), i = /* @__PURE__ */ new Set(), a = /* @__PURE__ */ new Map(), o = new AbortController(), s = 0, c = !1, l = 0, u = {
 		open: !1,
 		busy: null,
 		connected: !1,
@@ -3516,7 +3542,7 @@ function Me(e) {
 	function m() {
 		return o.abort(), o = new AbortController(), s++, s;
 	}
-	let h = () => Math.min(12e4, Math.max(45e3, b(_(u.capabilities).reload_timeout_ms, 5e4)));
+	let h = () => Math.min(12e4, Math.max(45e3, x(v(u.capabilities).reload_timeout_ms, 5e4)));
 	async function g(t, r, i = !1, a = 15e3) {
 		if (c || e.signal.aborted) return;
 		if (u.busy && !i) {
@@ -3535,10 +3561,10 @@ function Me(e) {
 			error: null
 		});
 		try {
-			await T(r(d), d);
+			await E(r(d), d);
 		} catch (e) {
 			if (l !== s || c) return;
-			let n = w(e);
+			let n = T(e);
 			p(t, {
 				code: n.code,
 				message: n.message,
@@ -3556,7 +3582,7 @@ function Me(e) {
 			!c && l === s && f({ busy: null });
 		}
 	}
-	async function S(e, n, r) {
+	async function _(e, n, r) {
 		let i = u.sessionId;
 		if (!i || !u.target) throw Error("请先明确选择调试目标并打开会话");
 		if (u.stale || !u.connected) throw Error("当前为过期只读快照，请重新连接并核对目标代次");
@@ -3576,9 +3602,9 @@ function Me(e) {
 			}, n);
 			return n.throwIfAborted(), f({ logId: i.logId ?? u.logId }), i.data;
 		} catch (t) {
-			let r = w(t);
+			let r = T(t);
 			if (!n.aborted && e.command_id === void 0 && /(?:capability_unavailable|tool_(?:not_found|unavailable)|unknown_tool|service_unavailable)$/.test(r.code)) return {
-				target: D(i),
+				target: O(i),
 				items: [],
 				next_before: null,
 				gap: !1,
@@ -3588,15 +3614,15 @@ function Me(e) {
 			throw t;
 		}
 	}
-	function j(e, t = !1) {
-		let n = _(e), r = A(n.tree);
+	function w(e, t = !1) {
+		let n = v(e), r = j(n.tree);
 		if (!r) {
-			let e = v(n.roots).map((e) => ({
-				id: y(_(e).root_id),
-				label: y(_(e).contribution_id)
+			let e = y(n.roots).map((e) => ({
+				id: b(v(e).root_id),
+				label: b(v(e).contribution_id)
 			})).filter((e) => e.id);
 			f({
-				notice: y(n.reason, "当前目标未提供可读取的 UI 树"),
+				notice: b(n.reason, "当前目标未提供可读取的 UI 树"),
 				...e.length ? { roots: e } : {}
 			});
 			return;
@@ -3608,7 +3634,7 @@ function Me(e) {
 		f({
 			tree: a,
 			trees: [...u.trees.filter((e) => e.id !== a.id), a].slice(-10),
-			rootId: y(n.root_id, u.rootId),
+			rootId: b(n.root_id, u.rootId),
 			stale: !1,
 			queries: null,
 			selectedNodeId: a.nodes.some((e) => e.id === u.selectedNodeId) ? u.selectedNodeId : "",
@@ -3618,10 +3644,10 @@ function Me(e) {
 	function M(e) {
 		let t = u.tree;
 		if (!t) return;
-		let n = A({
+		let n = j({
 			id: t.id,
 			observedAt: t.observedAt,
-			nodes: v(_(e).nodes)
+			nodes: y(v(e).nodes)
 		});
 		n && f({ tree: {
 			...t,
@@ -3629,22 +3655,22 @@ function Me(e) {
 		} });
 	}
 	async function N(e, t) {
-		let n = await S("inspect", {}, e), r = v(_(n).roots).map((e) => ({
-			id: y(_(e).root_id),
-			label: y(_(e).contribution_id)
+		let n = await _("inspect", {}, e), r = y(v(n).roots).map((e) => ({
+			id: b(v(e).root_id),
+			label: b(v(e).contribution_id)
 		})).filter((e) => e.id);
 		f({
 			inspection: n,
-			entries: z(n),
+			entries: B(n),
 			roots: r,
 			rootId: r.some((e) => e.id === u.rootId) ? u.rootId : r.length === 1 ? r[0]?.id ?? "" : "",
 			notice: r.length > 1 ? "此目标有多个挂载根，请明确选择一个后读取 UI 树。" : "已检查公开目录与代次。"
-		}), t && u.target?.kind === "browser" && r.length === 1 && j(await S("ui_tree", { root_id: r[0]?.id ?? "" }, e));
+		}), t && u.target?.kind === "browser" && r.length === 1 && w(await _("ui_tree", { root_id: r[0]?.id ?? "" }, e));
 	}
-	async function F(e) {
+	async function P(e) {
 		let n = await t.call("targets", {}, e);
 		e.throwIfAborted(), f({
-			targets: k(n.data),
+			targets: A(n.data),
 			logId: n.logId ?? u.logId
 		});
 	}
@@ -3685,19 +3711,19 @@ function Me(e) {
 			}), o && await I(o, r);
 			let s = await t.call("session", {
 				action: "open",
-				target: D(n)
-			}, r), c = _(s.data), l = y(c.session_id);
+				target: O(n)
+			}, r), c = v(s.data), l = b(c.session_id);
 			if (l && i.add(l), l && e.debug?.registerSession && a.set(l, e.debug.registerSession(l)), r.throwIfAborted(), !l || c.state !== "active") throw Error("宿主没有返回有效活动会话");
-			let d = O(c.target);
-			if (!d || E(d) !== E(n)) throw Error("会话身份与明确选定目标不一致");
+			let d = k(c.target);
+			if (!d || D(d) !== D(n)) throw Error("会话身份与明确选定目标不一致");
 			f({
 				sessionId: l,
 				sessionState: "active",
 				connected: !0,
 				logId: s.logId
 			}), await N(r, !1);
-			let p = P(await C({ limit: 20 }, r), n), m = p.items[0], h = null;
-			m && (h = P(await C({ command_id: m.commandId }, r), n).items.find((e) => e.commandId === m.commandId) ?? null), f({
+			let p = F(await C({ limit: 20 }, r), n), m = p.items[0], h = null;
+			m && (h = F(await C({ command_id: m.commandId }, r), n).items.find((e) => e.commandId === m.commandId) ?? null), f({
 				activity: p,
 				activityDetail: h
 			});
@@ -3707,12 +3733,12 @@ function Me(e) {
 		c || u.busy || !u.open || await g("核对连接", async (e) => {
 			let n = await t.service("status", {}, e);
 			e.throwIfAborted();
-			let r = _(_(n.data).bridge), i = y(r.instanceId) || y(r.instance_id), a = r.state === "connected";
+			let r = v(v(n.data).bridge), i = b(r.instanceId) || b(r.instance_id), a = r.state === "connected";
 			if (f({ capabilities: n.data }), (!u.target || u.target.kind === "browser" && u.target.instanceId === u.instanceId) && (!a || i !== u.instanceId)) f({
 				connected: !1,
 				stale: !0,
 				sessionState: "disconnected",
-				notice: y(r.reason, "连接已断开或实例已更换；保留最后快照，只读查看，不自动重放。")
+				notice: b(r.reason, "连接已断开或实例已更换；保留最后快照，只读查看，不自动重放。")
 			});
 			else if (u.sessionId) {
 				let n = await t.call("session", {
@@ -3720,41 +3746,41 @@ function Me(e) {
 					session_id: u.sessionId
 				}, e);
 				e.throwIfAborted();
-				let r = _(n.data), i = O(r.target);
-				(r.state !== "active" || !i || !u.target || E(i) !== E(u.target)) && f({
+				let r = v(n.data), i = k(r.target);
+				(r.state !== "active" || !i || !u.target || D(i) !== D(u.target)) && f({
 					stale: !0,
 					connected: !1,
-					sessionState: y(r.state, "target_changed"),
+					sessionState: b(r.state, "target_changed"),
 					notice: "会话或目标代次已改变，最后快照已过期；请明确重新选择当前目标。"
 				});
 			}
 		});
 	}
-	async function V() {
+	async function z() {
 		f({ open: !0 }), await g("连接调试桥", async (e) => {
 			let n = await t.service("capabilities", {}, e);
 			e.throwIfAborted(), f({ capabilities: n.data });
-			let r = _(_(n.data).bridge);
+			let r = v(v(n.data).bridge);
 			if (r.state === "disconnected") {
 				f({
-					instanceId: y(r.instanceId) || y(r.instance_id) || u.instanceId,
+					instanceId: b(r.instanceId) || b(r.instance_id) || u.instanceId,
 					connected: !1,
 					stale: !0,
 					sessionState: "disconnected",
 					logId: n.logId ?? u.logId,
-					notice: y(r.reason, "调试桥已断开，请明确重新连接；不会自动选择目标或重放动作。")
+					notice: b(r.reason, "调试桥已断开，请明确重新连接；不会自动选择目标或重放动作。")
 				});
 				return;
 			}
 			let i = await t.service("start", {}, e);
 			e.throwIfAborted();
-			let a = y(_(i.data).instance_id);
+			let a = b(v(i.data).instance_id);
 			if (!a) throw Error("调试桥未返回当前实例标识");
 			f({
 				instanceId: a,
 				connected: !0,
 				notice: "已连接当前浏览器实例，请明确选择浏览器插件或服务器插件。"
-			}), await F(e);
+			}), await P(e);
 		});
 	}
 	function H() {
@@ -3767,7 +3793,7 @@ function Me(e) {
 				session_id: e
 			}, s);
 		});
-		return i.clear(), a.clear(), T(Promise.allSettled(l), s).then(() => void 0, () => void 0);
+		return i.clear(), a.clear(), E(Promise.allSettled(l), s).then(() => void 0, () => void 0);
 	}
 	return e.signal.addEventListener("abort", H, { once: !0 }), e.signal.aborted && H(), {
 		snapshot: d,
@@ -3776,7 +3802,7 @@ function Me(e) {
 				r.delete(e);
 			};
 		},
-		open: V,
+		open: z,
 		collapse() {
 			f({ open: !1 });
 		},
@@ -3788,13 +3814,13 @@ function Me(e) {
 		},
 		select: L,
 		checkConnection: R,
-		refreshTargets: () => g("刷新目标目录", F),
+		refreshTargets: () => g("刷新目标目录", P),
 		refreshActivity: (e) => u.busy ? Promise.resolve() : g("读取调试调用", async (t) => {
-			let n = P(await C({
+			let n = F(await C({
 				limit: 20,
 				...e === void 0 ? {} : { before: e }
 			}, t), u.target), r = u.activity, i = e !== void 0 && r ? [...r.items, ...n.items.filter((e) => !r.items.some((t) => t.commandId === e.commandId))] : n.items, a = u.activityDetail;
-			e === void 0 && n.items[0] && (a = P(await C({ command_id: n.items[0].commandId }, t), u.target).items.find((e) => e.commandId === n.items[0]?.commandId) ?? null), f({
+			e === void 0 && n.items[0] && (a = F(await C({ command_id: n.items[0].commandId }, t), u.target).items.find((e) => e.commandId === n.items[0]?.commandId) ?? null), f({
 				activity: {
 					...n,
 					items: i
@@ -3805,18 +3831,18 @@ function Me(e) {
 		}),
 		selectActivity: (e) => g("读取调试调用结果", async (t) => {
 			if (!e.trim()) throw Error("请选择要查看的调试调用");
-			let n = P(await C({ command_id: e }, t), u.target).items.find((t) => t.commandId === e);
+			let n = F(await C({ command_id: e }, t), u.target).items.find((t) => t.commandId === e);
 			if (!n) throw Error("找不到当前目标的调试调用记录");
 			f({
 				activityDetail: n,
 				notice: n.response === null ? "该调用尚无可展示的最终回执。" : "已读取原调试调用回执；不会重新派发动作。"
 			});
 		}),
-		...je({
+		...Me({
 			snapshot: d,
 			patch: f,
 			run: g,
-			tool: S
+			tool: _
 		}),
 		async requestTargets(e, t = null) {
 			e.length && (f({
@@ -3825,7 +3851,7 @@ function Me(e) {
 					installationId: t
 				},
 				open: !0
-			}), u.instanceId ? await g("带入市场目标", F, !0) : await V(), f({ notice: `市场已带入 ${e.length} 个候选组件，请核对实例、组件和代次后明确选择。` }));
+			}), u.instanceId ? await g("带入市场目标", P, !0) : await z(), f({ notice: `市场已带入 ${e.length} 个候选组件，请核对实例、组件和代次后明确选择。` }));
 		},
 		clearRequested() {
 			f({ requested: null });
@@ -3834,7 +3860,7 @@ function Me(e) {
 			if (!e) throw Error("重连将创建新浏览器实例，请先明确确认");
 			let r = await t.service("reconnect", { input: { confirmed: e } }, n);
 			n.throwIfAborted();
-			let i = y(_(r.data).instance_id);
+			let i = b(v(r.data).instance_id);
 			if (!i || i === u.instanceId) throw Error("重连尚未返回不同的新实例，请核对桥状态");
 			f({
 				instanceId: i,
@@ -3842,7 +3868,7 @@ function Me(e) {
 				stale: !!u.target,
 				sessionState: "disconnected",
 				notice: "新实例已建立；旧快照仍过期。请明确选择当前插件新代，会话与原动作不自动重放。"
-			}), await F(n);
+			}), await P(n);
 		}, !0),
 		installation: () => g("查询安装与运行修订", async (e) => {
 			let n = await t.service("installation", {}, e);
@@ -3859,7 +3885,7 @@ function Me(e) {
 			r.throwIfAborted(), f({
 				logs: a.data,
 				logId: a.logId,
-				notice: _(a.data).limited === !0 ? "日志搜索已受限截断；结果不是完整日志。" : "已读取服务器公共日志。"
+				notice: v(a.data).limited === !0 ? "日志搜索已受限截断；结果不是完整日志。" : "已读取服务器公共日志。"
 			});
 		}),
 		refreshInspection: () => g("检查目标", (e) => N(e, !1)),
@@ -3889,11 +3915,11 @@ function Me(e) {
 		},
 		tree: () => g("读取 UI 树", async (e) => {
 			if (u.roots.length > 1 && !u.rootId) throw Error("请先明确选择挂载根");
-			j(await S("ui_tree", u.rootId ? { root_id: u.rootId } : {}, e));
+			w(await _("ui_tree", u.rootId ? { root_id: u.rootId } : {}, e));
 		}),
 		nextTreePage: () => g("读取下一页节点", async (e) => {
-			let t = u.tree, n = _(_(t?.raw).page);
-			t && typeof n.nextOffset == "number" && j(await S("ui_tree", {
+			let t = u.tree, n = v(v(t?.raw).page);
+			t && typeof n.nextOffset == "number" && w(await _("ui_tree", {
 				root_id: u.rootId,
 				snapshot_id: t.id,
 				offset: n.nextOffset,
@@ -3902,7 +3928,7 @@ function Me(e) {
 		}),
 		overview: (e = 0) => g("读取公开挂载目录", async (t) => {
 			f({
-				overview: await S("ui_tree", {
+				overview: await _("ui_tree", {
 					view: "overview",
 					offset: e,
 					limit: 100
@@ -3911,14 +3937,14 @@ function Me(e) {
 			});
 		}),
 		query: (e) => g("语义查询", async (t) => {
-			let n = await S("ui_query", {
+			let n = await _("ui_query", {
 				root_id: u.rootId,
 				query: e
 			}, t);
 			M(n), f({
-				queries: v(_(n).nodes).map((e) => y(_(e).id)),
+				queries: y(v(n).nodes).map((e) => b(v(e).id)),
 				result: n,
-				notice: y(_(n).reason, "语义查询已完成；不完整观测不能证明节点不存在。")
+				notice: b(v(n).reason, "语义查询已完成；不完整观测不能证明节点不存在。")
 			});
 		}),
 		clearQuery() {
@@ -3926,35 +3952,35 @@ function Me(e) {
 		},
 		navigate: (e, t) => g("导航到公开路由", async (n) => {
 			if (!t) throw Error("导航需要本次显式确认");
-			let r = await S("ui_action", { action: {
+			let r = await _("ui_action", { action: {
 				type: "navigate",
 				path: e,
 				confirmed: t
 			} }, n);
 			f({
 				result: r,
-				notice: y(_(r).reason, "已请求导航，未证明页面或业务完成。")
+				notice: b(v(r).reason, "已请求导航，未证明页面或业务完成。")
 			});
 		}),
 		assertion: (e) => g("执行结构断言", async (t) => {
-			let n = await S("ui_assert", {
+			let n = await _("ui_assert", {
 				root_id: u.rootId,
 				assertion: e
 			}, t);
 			f({
 				result: n,
-				notice: `断言 ${y(_(n).status, "结果未知")}：${y(_(n).reason)}`
+				notice: `断言 ${b(v(n).status, "结果未知")}：${b(v(n).reason)}`
 			});
 		}),
 		diff: (e, t) => g("比较快照", async (n) => {
-			let r = await S("ui_diff", {
+			let r = await _("ui_diff", {
 				root_id: u.rootId,
 				before_id: e,
 				after_id: t
 			}, n);
 			f({
 				result: r,
-				notice: y(_(r).reason, "已比较选定挂载根的两个快照。")
+				notice: b(v(r).reason, "已比较选定挂载根的两个快照。")
 			});
 		}),
 		action: (e, t, n, r, i) => g(e === "pick" ? "拾取节点（Esc 取消）" : "执行节点动作", async (a) => {
@@ -3970,24 +3996,24 @@ function Me(e) {
 				generation: t.generation,
 				revision: t.revision
 			}), e === "fill" && (o.value = n), e === "select" && (o.values = n.split("\n").filter(Boolean));
-			let s = await S("ui_action", {
+			let s = await _("ui_action", {
 				...u.rootId && e !== "pick" ? { root_id: u.rootId } : {},
 				action: o
 			}, a);
 			if (f({
 				result: s,
-				notice: y(_(s).reason, "已收到节点动作回执；业务结果仍需核对。")
+				notice: b(v(s).reason, "已收到节点动作回执；业务结果仍需核对。")
 			}), p(`节点动作 ${e}`, s, "info", u.logId), e === "pick") {
-				let e = _(s), t = _(e.owner), n = _(e.target);
+				let e = v(s), t = v(e.owner), n = v(e.target);
 				if (e.status === "picked" && t.pluginId === u.target?.pluginId && String(t.generation) === u.target?.generation) {
-					let t = y(e.root_id);
-					t && f({ rootId: t }), j(await S("ui_tree", t ? { root_id: t } : {}, a)), !u.tree?.nodes.some((e) => e.id === n.id) && y(n.id) && M(await S("ui_query", {
+					let t = b(e.root_id);
+					t && f({ rootId: t }), w(await _("ui_tree", t ? { root_id: t } : {}, a)), !u.tree?.nodes.some((e) => e.id === n.id) && b(n.id) && M(await _("ui_query", {
 						root_id: u.rootId,
 						query: {
-							id: y(n.id),
+							id: b(n.id),
 							limit: 1
 						}
-					}, a)), u.tree?.nodes.some((e) => e.id === n.id) && f({ selectedNodeId: y(n.id) });
+					}, a)), u.tree?.nodes.some((e) => e.id === n.id) && f({ selectedNodeId: b(n.id) });
 				} else e.source === "host-dom" ? f({
 					selectedNodeId: "",
 					notice: "已拾取宿主普通节点，仅展示只读身份；普通节点不能作为插件动作目标或插入槽位。"
@@ -4005,7 +4031,7 @@ function Me(e) {
 				allow_unknown_side_effects: r
 			};
 			u.target?.kind === "browser" && (o.include_result = i), e.version && (o.version = e.version);
-			let s = await S("invoke", o, a);
+			let s = await _("invoke", o, a);
 			f({
 				result: s,
 				notice: "已收到调用回执；已接受或已派发不代表原业务完成，请核对原任务。"
@@ -4014,8 +4040,8 @@ function Me(e) {
 		reload: (e) => g("重载选定插件", async (t) => {
 			let n = u.target;
 			if (!n || !e) throw Error("请明确确认当前插件 ID 和代次后重载");
-			let r = await S("reload", { confirmed: !0 }, t);
-			f({ result: r }), p("插件重载", r, "info", u.logId), await F(t);
+			let r = await _("reload", { confirmed: !0 }, t);
+			f({ result: r }), p("插件重载", r, "info", u.logId), await P(t);
 			let i = u.targets.find((e) => e.kind === n.kind && e.instanceId === n.instanceId && e.pluginId === n.pluginId);
 			f({
 				stale: !0,
@@ -4032,49 +4058,49 @@ function Me(e) {
 				limit: 100
 			}, e);
 			e.throwIfAborted();
-			let i = _(r.data), a = v(i.events).map((e) => {
-				let t = _(e), i = y(t.command_state) || y(t.session_state);
+			let i = v(r.data), a = y(i.events).map((e) => {
+				let t = v(e), i = b(t.command_state) || b(t.session_state);
 				return {
-					key: `${n}:${b(t.sequence)}`,
-					sequence: b(t.sequence),
+					key: `${n}:${x(t.sequence)}`,
+					sequence: x(t.sequence),
 					target: u.target,
 					sessionId: n,
 					level: /failed|unconfirmed|disconnected/.test(i) ? "error" : "info",
-					label: `${y(t.kind)} ${i}`.trim(),
-					logId: y(t.log_id) || r.logId,
-					raw: x(e)
+					label: `${b(t.kind)} ${i}`.trim(),
+					logId: b(t.log_id) || r.logId,
+					raw: S(e)
 				};
 			});
 			f({
 				events: [...new Map([...u.events, ...a].map((e) => [e.key, e])).values()].slice(-500),
-				cursor: b(i.next_after, u.cursor),
+				cursor: x(i.next_after, u.cursor),
 				eventGap: i.gap === !0,
-				droppedEvents: b(i.dropped_events),
+				droppedEvents: x(i.dropped_events),
 				logId: r.logId,
 				notice: i.gap === !0 ? "事件游标存在缺口；请保留截断提示，不据此推断没有发生事件。" : "事件分页已更新。"
 			});
 		}),
 		report: (e = !1, t = "json") => g("汇总调试报告", async (n) => {
-			let r = await S("report", { export: e ? t : "none" }, n);
+			let r = await _("report", { export: e ? t : "none" }, n);
 			f({
 				report: r,
-				notice: _(r).artifact ? "宿主已返回报告产物；可通过公开产物入口下载。" : "已汇总内存证据，可下载本地 JSON / Markdown；不是完整生产验收。"
+				notice: v(r).artifact ? "宿主已返回报告产物；可通过公开产物入口下载。" : "已汇总内存证据，可下载本地 JSON / Markdown；不是完整生产验收。"
 			});
 		}),
 		reportNext: () => g("读取报告快照续页", async (e) => {
-			let t = _(u.report), n = _e(u.report);
+			let t = v(u.report), n = ve(u.report);
 			if (!n) throw Error("报告没有可读取的快照续页");
-			let r = _(await S("ui_tree", {
+			let r = v(await _("ui_tree", {
 				root_id: n.rootId,
 				snapshot_id: n.snapshotId,
 				offset: n.offset,
 				limit: 500
 			}, e));
-			if (!A(r.tree)) throw Error("报告快照续页未返回有效结构树");
+			if (!j(r.tree)) throw Error("报告快照续页未返回有效结构树");
 			f({
-				report: x({
+				report: S({
 					...t,
-					ui_snapshot_pages: [...v(t.ui_snapshot_pages), r]
+					ui_snapshot_pages: [...y(t.ui_snapshot_pages), r]
 				}),
 				notice: "已读取指定快照续页；报告仍保留分页与不完整观测说明。"
 			});
@@ -4084,7 +4110,7 @@ function Me(e) {
 }
 //#endregion
 //#region ../examples/browser-debugger/src/index.tsx
-var Ne = {
+var Pe = {
 	id: "deviceforge_debugger",
 	version: "0.1.0",
 	apiVersion: 2,
@@ -4097,17 +4123,17 @@ var Ne = {
 		async mount(e, n) {
 			let i = e.ownerDocument.createElement("div");
 			i.setAttribute("data-deviceforge-debugger", ""), i.setAttribute("data-deviceforge-debugger-internal", ""), e.append(i);
-			let a = Me(n), o = t(i);
-			o.render(/* @__PURE__ */ r(ke, {
+			let a = Ne(n), o = t(i);
+			o.render(/* @__PURE__ */ r(Ae, {
 				controller: a,
 				context: n
 			}));
 			let s = n.extensions?.subscribeEvent("host.debugger.target_requested", (e) => {
-				let t = _(e.data), n = (Array.isArray(t.candidates) ? v(t.candidates) : [t]).map((e) => ({
-					kind: y(_(e).target_kind),
-					pluginId: y(_(e).plugin_id)
+				let t = v(e.data), n = (Array.isArray(t.candidates) ? y(t.candidates) : [t]).map((e) => ({
+					kind: b(v(e).target_kind),
+					pluginId: b(v(e).plugin_id)
 				})).filter((e) => (e.kind === "browser" || e.kind === "server") && e.pluginId);
-				a.requestTargets(n, y(t.installation_id) || null);
+				a.requestTargets(n, b(t.installation_id) || null);
 			}), c = !1, l = n.onDispose(async () => {
 				c || (c = !0, s?.(), o.unmount(), i.remove(), await a.dispose());
 			});
@@ -4118,6 +4144,6 @@ var Ne = {
 	}] }
 };
 //#endregion
-export { Ne as default };
+export { Pe as default };
 
 //# sourceMappingURL=index.js.map

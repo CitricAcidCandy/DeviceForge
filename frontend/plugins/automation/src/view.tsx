@@ -1,6 +1,6 @@
 import { hostUi } from '@deviceforge/plugin-sdk';
-import { useEffect, useState } from 'react';
-import type { HostContext } from '@deviceforge/plugin-sdk';
+import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
+import type { HostContext, WorkspaceViewContext } from '@deviceforge/plugin-sdk';
 import { createAutomationServices } from './services.ts';
 const { PageTitle } = hostUi();
 const { Tabs, TabsList, TabsTrigger, TabsContent } = hostUi();
@@ -9,13 +9,24 @@ import { DeviceAutomation } from './components/DeviceAutomation/index.tsx';
 import { DesktopAutomation } from './components/DesktopAutomation/index.tsx';
 import { InputTraceAutomation } from './components/InputTraceAutomation/index.tsx';
 
-export function AutomationPage({ services }: { services: AutomationServices }) {
+export function AutomationPage({ services, instance }: { services: AutomationServices; instance?: WorkspaceViewContext }) {
   useEffect(() => {
     void services.operations.list(services.context.signal).catch(() => undefined);
   }, [services]);
   const [workspace, setWorkspace] = useState('device');
+  const subscribeVisibility = useCallback((changed: () => void) => {
+    if (!instance) return () => {};
+    let active = true;
+    const release = instance.subscribeVisibility(() => { if (active) changed(); });
+    return () => {
+      active = false;
+      void Promise.resolve().then(release).catch(() => undefined);
+    };
+  }, [instance]);
+  const readVisibility = useCallback(() => instance?.snapshot().visible ?? true, [instance]);
+  const visible = useSyncExternalStore(subscribeVisibility, readVisibility);
   return (
-    <div className="@container/automation-page h-full min-h-0 min-w-0 w-full overflow-hidden">
+    <div hidden={!visible} inert={!visible} className="@container/automation-page h-full min-h-0 min-w-0 w-full overflow-hidden">
     <section className="@container/automation mx-auto flex h-full min-h-0 min-w-0 w-full max-w-[1648px] flex-1 flex-col overflow-hidden px-6 pb-7 pt-[22px] text-sm @max-[900px]/automation-page:px-4 @max-[900px]/automation-page:pb-6 @max-[900px]/automation-page:pt-4" data-product-page="automation">
       <PageTitle title="自动化" />
       <Tabs className="mt-4 flex min-h-0 min-w-0 flex-1 flex-col gap-0" value={workspace} onValueChange={setWorkspace}>
@@ -29,10 +40,10 @@ export function AutomationPage({ services }: { services: AutomationServices }) {
           <DeviceAutomation services={services} />
         </TabsContent>
         <TabsContent className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overscroll-contain data-[state=inactive]:hidden" value="desktop" forceMount hidden={workspace !== 'desktop'}>
-          <DesktopAutomation services={services} />
+          <DesktopAutomation services={services} visible={visible && workspace === 'desktop'} />
         </TabsContent>
         <TabsContent className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overscroll-contain data-[state=inactive]:hidden" value="trace" forceMount hidden={workspace !== 'trace'}>
-          <InputTraceAutomation services={services} />
+          <InputTraceAutomation services={services} visible={visible && workspace === 'trace'} />
         </TabsContent>
       </Tabs>
     </section>
@@ -40,10 +51,10 @@ export function AutomationPage({ services }: { services: AutomationServices }) {
   );
 }
 
-export function mountAutomation(target: HTMLElement, context: HostContext) {
+export function mountAutomation(target: HTMLElement, context: HostContext, instance?: WorkspaceViewContext) {
   const services = createAutomationServices(context);
   try {
-    const release = hostUi().mountReact(target, <AutomationPage services={services} />);
+    const release = hostUi().mountReact(target, <AutomationPage services={services} {...(instance ? { instance } : {})} />);
     return async () => { try { await release(); } finally { services.dispose(); } };
   } catch (error) { services.dispose(); throw error; }
 }

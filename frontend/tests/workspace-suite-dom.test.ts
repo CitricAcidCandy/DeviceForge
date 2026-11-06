@@ -173,7 +173,8 @@ async function fixture(withLegacyRoutes = false) {
   const slots = withLegacyRoutes ? await createNamedSlotAdapter([]) : null;
   let extensionAccess: PlatformRuntime['extensions'] | null = null;
   const requests: string[] = [], unexpected: string[] = [];
-  const directoryPaths = ['/api/v2/plugin-packages/browser', '/api/v2/plugin-installations'];
+  const directoryPaths = ['/api/v2/plugin-packages/browser', '/api/v2/plugin-installations',
+    '/api/v2/device-providers', '/api/v2/devices'];
   const services = createProductPlatformServices({
     baseUrl: 'http://workspace-suite-dom.invalid', panelTarget: () => null, workspaceStorage: null,
     ...(slots ? { slotAdapter: slots, decorateWorkspaceMount: legacyRouteSurfaces(() => extensionAccess) } : {}),
@@ -388,6 +389,8 @@ test('真实ZIP外壳候选失败保留原界面，完整委托切换及独立�
         '独立恢复后头尾贡献必须仍可挂载');
       assert.doesNotMatch(f.target.textContent ?? '', /视图实例标识已经在使用/);
       assert.deepEqual(f.unexpected, []);
+      assert.equal(f.requests.filter((request) => request === 'GET /api/v2/device-providers').length, 1);
+      assert.equal(f.requests.filter((request) => request === 'GET /api/v2/devices').length, 1);
       t.diagnostic('实际最终ZIP→公开host.shell贡献→原宿主准备/切换；失败保旧根，成功显示真实文件业务，卸载后显式独立恢复。');
       t.diagnostic('不承诺外壳卸载后保留已销毁React闭包草稿，不把JSDOM当浏览器视觉或在线安装证据。');
     } finally { await f.dispose(); }
@@ -527,6 +530,8 @@ test('本批最终ZIP经真实默认外壳自动扩展设备文件页，跨页�
       assert.equal(f.target.querySelectorAll('[data-workspace-canvas] [aria-label="文件与产物"]').length, 1);
       assert.equal(f.shell.snapshot().state, 'ready');
       assert.deepEqual(f.unexpected, []);
+      assert.equal(f.requests.filter((request) => request === 'GET /api/v2/device-providers').length, 1);
+      assert.equal(f.requests.filter((request) => request === 'GET /api/v2/devices').length, 1);
       assert.ok(f.requests.includes(`GET /api/v2/artifacts/${artifactId}`));
       t.diagnostic('JSDOM 挂载来源：本批最终 ZIP → 身份包装 → 原 runtime/UI/points → 真实默认外壳与设备/文件视图。');
       t.diagnostic('第二插件只声明工具命令元数据；已验证真实扩展点消费和服务调用，未宣称存在可视按钮。');

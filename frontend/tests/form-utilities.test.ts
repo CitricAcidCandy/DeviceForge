@@ -13,6 +13,7 @@ import { registerCompositionStartupImports } from './composition-startup-imports
 const imports = registerCompositionStartupImports();
 after(imports.dispose);
 const { FormRow, FormGrid } = await import('../src/components/Form/index.tsx');
+const { Field } = await import('../src/components/FormField/index.tsx');
 const { Input } = await import('../src/components/Input/index.tsx');
 const appSource = await readFile(new URL('../src/app/styles.css', import.meta.url), 'utf8');
 const formSource = await readFile(new URL('../src/components/Form/styles.css', import.meta.url), 'utf8');
@@ -131,5 +132,70 @@ test('默认标签列与双实例的输入、提示和错误关联保持原语�
     });
     assert.equal(stackedRow, true, '标签和内容按所属表单行的宽度纵排');
     assert.equal(stackedGridChildren, true, '窄表单网格的查询只排列子项，不查询容器本体');
+  } finally { form.close(); }
+});
+
+test('公开Field恢复原网格布局，普通FormRow与手写纵排字段保持原语义', () => {
+  const entries = [
+    { label: '采样间隔', value: '1500', hint: '单位为毫秒', error: '请输入有效间隔' },
+    { label: '插件地址', value: 'https://plugin.invalid/', hint: '独立插件配置', error: '请核对插件地址' },
+  ];
+  const fields = entries.map((entry, index) => createElement('div', {
+    key: entry.label, className: index === 0 ? 'form-row' : 'grid grid-cols-2',
+    'data-field-case': index === 0 ? '原表单行' : '插件网格',
+  }, createElement(Field, { ...entry, required: true, onChange: () => {} })));
+  const form = computed(createElement('section', null, ...fields, createElement('div', {
+    className: 'form-field flex', 'data-handwritten-field': '',
+  }, createElement('label', { htmlFor: 'handwritten-field' }, '手写字段'),
+  createElement(Input, { id: 'handwritten-field', defaultValue: '手写字段草稿' })), createElement(FormRow, {
+    label: '普通行标签', children: createElement(Input, { defaultValue: '保持左右布局' }),
+  })), 'section');
+  try {
+    const document = form.target.ownerDocument;
+    const view = document.defaultView;
+    assert.ok(view);
+    const fieldContainers = [...document.querySelectorAll('[data-field-case]')];
+    assert.equal(fieldContainers.length, 2);
+    const inputIds = new Set<string>();
+    const displays: string[] = [];
+    for (const [index, container] of fieldContainers.entries()) {
+      const entry = entries[index]; assert.ok(entry);
+      const field = container.firstElementChild; assert.ok(field);
+      const label = field.querySelector<HTMLLabelElement>(':scope > label');
+      const input = field.querySelector<HTMLInputElement>('input');
+      const hint = field.querySelector<HTMLElement>('.form-hint');
+      const error = field.querySelector<HTMLElement>('[role="alert"]');
+      assert.ok(label && input && hint && error);
+      assert.equal(input.value, entry.value, '两个受控字段保留各自值');
+      assert.ok(input.id);
+      assert.equal(inputIds.has(input.id), false, '嵌入不同布局的字段仍生成独立关联');
+      inputIds.add(input.id);
+      assert.equal(label.htmlFor, input.id);
+      assert.equal(label.textContent, `${entry.label} *`);
+      assert.equal(input.getAttribute('aria-describedby'), `${hint.id} ${error.id}`);
+      assert.equal(input.getAttribute('aria-invalid'), 'true');
+      assert.equal(input.required, true);
+      assert.equal(hint.textContent, entry.hint);
+      assert.equal(error.textContent, entry.error);
+      assert.equal(document.getElementById(hint.id), hint);
+      assert.equal(document.getElementById(error.id), error);
+      const style: CSSStyleDeclaration = view.getComputedStyle(field);
+      displays.push(style.display);
+      assert.equal(style.alignItems, 'flex-start', '网格字段保留原顶部对齐');
+    }
+    const handwritten = document.querySelector('[data-handwritten-field]'); assert.ok(handwritten);
+    const handwrittenStyle = view.getComputedStyle(handwritten);
+    assert.equal(handwrittenStyle.display, 'flex', '手写字段继续显式使用纵排布局');
+    assert.equal(handwrittenStyle.flexDirection, 'column');
+    assert.equal(handwrittenStyle.gap, '7px');
+    assert.equal(handwritten.querySelector('input')?.value, '手写字段草稿');
+    const row = form.target.lastElementChild; assert.ok(row);
+    const rowStyle = view.getComputedStyle(row);
+    assert.equal(rowStyle.display, 'grid', '普通FormRow仍为标签和内容两列');
+    assert.match(rowStyle.gridTemplateColumns,
+      /^(?:144px|minmax\(0(?:px)?,\s*144px\)) minmax\(0(?:px)?,\s*1fr\)$/);
+    assert.equal(rowStyle.alignItems, 'flex-start', '普通左右表单行保持原顶部对齐');
+    assert.equal(row.querySelector('input')?.value, '保持左右布局');
+    assert.deepEqual(displays, ['grid', 'grid'], '公开Field继承原FormRow网格，不被旧纵排字段样式覆盖');
   } finally { form.close(); }
 });

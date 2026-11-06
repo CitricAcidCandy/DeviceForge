@@ -18,6 +18,8 @@ export function createChannel(namespace: RealtimeNamespace, options: {
   let socket: RealtimeSocket | null = null;
   let state: RealtimeState = { state: 'unavailable', revision: null, reset: true };
   let timer: ReturnType<typeof setTimeout> | null = null;
+  let recovery: ReturnType<typeof setTimeout> | null = null;
+  let exhausted = false, attempt = 0;
   const safe = <T>(listener: (value: T) => void, value: T) => { try { listener(value); } catch { /* 消费者错误只归属自身。 */ } };
   function publish(next: RealtimeState) {
     if (signal.aborted) return;
@@ -25,11 +27,21 @@ export function createChannel(namespace: RealtimeNamespace, options: {
     for (const listener of [...listeners]) safe(listener, next);
   }
   function arm() {
-    if (timer || signal.aborted) return;
-    timer = setTimeout(() => {
-      timer = null; socket?.disconnect();
+    if (signal.aborted || exhausted) return;
+    if (!timer) timer = setTimeout(() => {
+      exhausted = true;
+      timer = null;
+      if (recovery) clearTimeout(recovery); recovery = null;
+      socket?.disconnect();
       publish({ state: 'unavailable', revision: state.revision, reset: true });
     }, options.reconnectMs);
+    if (!recovery) recovery = setTimeout(() => {
+      recovery = null;
+      if (signal.aborted || exhausted || !socket || socket.connected()) return;
+      // 服务端撤销命名空间时库不会自动重连；只恢复订阅，不重发业务消息。
+      socket.connect();
+      if (!socket.connected()) arm();
+    }, Math.min(5000, Math.max(500, 500 * 2 ** Math.min(attempt++, 4) * (0.8 + Math.random() * 0.4))));
   }
   function bind(event: string) {
     if (!socket) return;
@@ -45,7 +57,9 @@ export function createChannel(namespace: RealtimeNamespace, options: {
     signal.throwIfAborted();
     socket = manager.socket(namespace);
     cleanup.push(socket.onConnect(() => {
+      if (exhausted) { socket?.disconnect(); return; }
       if (timer) clearTimeout(timer); timer = null;
+      if (recovery) clearTimeout(recovery); recovery = null; attempt = 0;
       publish({ state: 'ready', revision: null, reset: true });
     }), socket.onDisconnect(() => {
       publish({ state: 'unavailable', revision: state.revision, reset: true }); arm();
@@ -60,6 +74,7 @@ export function createChannel(namespace: RealtimeNamespace, options: {
   const dispose = () => {
     if (lifetime.signal.aborted) return;
     lifetime.abort(); if (timer) clearTimeout(timer); timer = null;
+    if (recovery) clearTimeout(recovery); recovery = null;
     for (const release of cleanup.splice(0)) release();
     socket?.disconnect(); socket = null; listeners.clear(); events.clear();
     options.signal.removeEventListener('abort', dispose);
@@ -112,7 +127,9 @@ export function createChannel(namespace: RealtimeNamespace, options: {
         });
       } finally { options.budget.requests--; options.budget.bytes -= bytes; }
     },
-    reconnect() { if (!signal.aborted && socket && !socket.connected()) { arm(); socket.connect(); } },
+    reconnect() {
+      if (!signal.aborted && socket && !socket.connected()) { exhausted = false; attempt = 0; arm(); socket.connect(); }
+    },
     dispose,
   };
 }

@@ -64,11 +64,15 @@ export async function mountShellDelegate(
     const child = ui.open({ instanceId: options.instanceId, workspaceId: 'host.shell',
       provider: options.original, visible: parent.snapshot().visible }, signal);
     generation = child.generation;
-    visible = parent.subscribeVisibility((value) => {
-      if (signal.aborted) return;
+    const synchronize = (value: boolean) => {
+      if (disposed || signal.aborted) return;
       const current = ui.snapshot().instances.find((entry) => entry.instanceId === options.instanceId);
       if (current?.generation === generation) ui.setVisible(options.instanceId, value);
-    });
+    };
+    visible = parent.subscribeVisibility(synchronize);
+    // 父候选可能在登记前已隐藏，先校准当前状态再进入真实外壳挂载。
+    synchronize(parent.snapshot().visible);
+    signal.throwIfAborted();
     release = await ui.mount(options.instanceId, target, signal);
     if (signal.aborted) {
       await dispose();

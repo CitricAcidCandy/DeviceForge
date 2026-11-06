@@ -430,7 +430,7 @@ export function AppsPage({
             onChange={setArtifactId}
             placeholder="上传后自动填入"
           />
-          <div className="form-field">
+          <div className="form-field flex">
             <Label>格式</Label>
             <Select
               value={format}

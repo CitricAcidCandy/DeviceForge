@@ -139,7 +139,7 @@ export function DevicesConnect({
       {snapshot.providers.length ? (
         <>
           <fieldset disabled={action.pending} className="form-grid">
-            <div className="form-field">
+            <div className="form-field flex">
               <Label>连接提供者</Label>
               <Select value={provider ? selection : ''} onValueChange={setSelection}>
                 <SelectTrigger aria-label="连接提供者">

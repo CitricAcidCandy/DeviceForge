@@ -137,3 +137,110 @@ test('上下文撤销跳过 close 仍保留真实渲染释放异常，不能把�
   assert.equal(f.visibility.size, 0);
   assert.equal(released, 1);
 });
+
+test('委托订阅间隙隐藏按登记后快照校准，恢复只同步原委托且旧通知不能复活', async () => {
+  const f = fixture(), retained: ((visible: boolean) => void)[] = [];
+  let current = f.original, rendering = 0, released = 0, visibleWrites = 0, visibleAtRender: boolean | undefined;
+  const ui: UiAccess = { ...f.ui, setVisible(id, visible) {
+    visibleWrites++; return f.ui.setVisible(id, visible);
+  } };
+  const context: HostContext = { ...f.context, ui };
+  const instance: WorkspaceViewContext = {
+    signal: f.lifetime.signal, snapshot: () => current,
+    subscribeVisibility(listener) {
+      // 父视图在首快照与订阅登记之间隐藏，故意不回放已经发生的通知。
+      current = f.ui.setVisible(f.original.instanceId, false);
+      retained.push(listener); f.visibility.add(listener);
+      return () => { f.visibility.delete(listener); };
+    },
+  };
+  let dispose: Dispose | null = null, delegateId = '';
+  try {
+    dispose = await mountFileDelegate(context, instance, f.prefix, async (id) => {
+      delegateId = id; rendering++;
+      visibleAtRender = f.instances.get(id)?.visible;
+      return () => { released++; };
+    });
+    assert.equal(visibleAtRender, false, '渲染开始前必须采用登记后的隐藏快照');
+    assert.equal(f.instances.get(delegateId)?.visible, false);
+    const parentAfterHide = structuredClone(f.instances.get(f.original.instanceId));
+    const originalTarget = structuredClone(f.original.target);
+    for (const listener of [...f.visibility]) listener(true);
+    assert.equal(f.instances.get(delegateId)?.visible, true);
+    for (const listener of [...f.visibility]) listener(false);
+    assert.equal(f.instances.get(delegateId)?.visible, false);
+    assert.equal(rendering, 1, '显隐同步不能重新挂载委托');
+    assert.equal(f.opened.length, 2);
+    assert.deepEqual(f.instances.get(delegateId)?.target, originalTarget);
+    assert.deepEqual(f.instances.get(f.original.instanceId), parentAfterHide, '同步不能改父实例');
+    assert.equal(f.layouts.size, 0);
+    await dispose();
+    assert.equal(released, 1);
+    assert.equal(f.visibility.size, 0);
+    assert.deepEqual(f.closed, [delegateId]);
+    const afterClose = visibleWrites;
+    for (const listener of retained) listener(true);
+    assert.equal(visibleWrites, afterClose, '撤销后的旧通知不能调用已关闭委托');
+    assert.equal(f.instances.has(delegateId), false);
+    assert.deepEqual(f.instances.get(f.original.instanceId), parentAfterHide);
+    assert.equal(f.counts.businessCalls, 0);
+  } finally {
+    await dispose?.(); f.lifetime.abort(); await f.dispose();
+  }
+});
+
+test('委托订阅后快照失败返回原异常并仅回滚自有实例，同根独立新挂载可继续', async () => {
+  const f = fixture(), failure = new Error('订阅后的父可见性快照不可读');
+  const other = f.ui.open({
+    instanceId: `${f.prefix}.unrelated`, workspaceId: 'other.workspace',
+    provider: { pluginId: f.prefix, viewId: `${f.prefix}.other` }, target: { other: 'keep' },
+  }, f.lifetime.signal);
+  const parent = structuredClone(f.instances.get(f.original.instanceId));
+  let subscribed = false, failedReads = 0, renders = 0, fresh: Dispose | null = null;
+  const leaked: Dispose[] = [];
+  const retained: ((visible: boolean) => void)[] = [];
+  const broken: WorkspaceViewContext = {
+    signal: f.lifetime.signal,
+    snapshot() {
+      if (subscribed) { failedReads++; throw failure; }
+      return f.original;
+    },
+    subscribeVisibility(listener) {
+      subscribed = true; retained.push(listener); f.visibility.add(listener);
+      return () => { f.visibility.delete(listener); };
+    },
+  };
+  try {
+    const pending = mountFileDelegate(f.context, broken, f.prefix, async () => {
+      renders++; return () => {};
+    }).then((dispose) => { leaked.push(dispose); return dispose; });
+    await assert.rejects(pending, (error: unknown) => error === failure,
+      '登记后校准失败必须抛原错误，不能开始渲染或冒充挂载成功');
+    assert.equal(failedReads, 1);
+    assert.equal(renders, 0);
+    assert.equal(f.visibility.size, 0);
+    const failedDelegate = f.opened.at(-1)?.instanceId; assert.ok(failedDelegate);
+    assert.deepEqual(f.closed, [failedDelegate]);
+    assert.equal(f.instances.has(failedDelegate), false);
+    for (const listener of retained) listener(false);
+    assert.deepEqual(f.instances.get(f.original.instanceId), parent);
+    assert.deepEqual(f.instances.get(other.instanceId), other);
+    let freshId = '', freshReleased = 0;
+    fresh = await mountFileDelegate(f.context, f.view, f.prefix, async (id) => {
+      freshId = id; renders++; return () => { freshReleased++; };
+    });
+    assert.notEqual(freshId, failedDelegate);
+    assert.equal(renders, 1);
+    assert.ok(f.instances.has(freshId));
+    assert.deepEqual(f.instances.get(f.original.instanceId), parent);
+    assert.deepEqual(f.instances.get(other.instanceId), other);
+    assert.equal(f.layouts.size, 0);
+    await fresh();
+    assert.equal(freshReleased, 1);
+    assert.equal(f.visibility.size, 0);
+    assert.equal(f.counts.businessCalls, 0);
+  } finally {
+    for (const dispose of leaked) await dispose();
+    await fresh?.(); f.lifetime.abort(); await f.dispose();
+  }
+});

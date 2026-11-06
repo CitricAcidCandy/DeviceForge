@@ -1,5 +1,5 @@
 import { hostUi } from '@deviceforge/plugin-sdk';
-import { useId, useState } from 'react';
+import { useId, useLayoutEffect, useRef, useState } from 'react';
 import { Crosshair, Monitor, MousePointer2, Play } from 'lucide-react';
 const { Button } = hostUi();
 const { Label } = hostUi();
@@ -47,7 +47,7 @@ const stopReasons = {
   f9: 'F9 停止',
 };
 
-export function DesktopAutomation({ services }: { services: AutomationServices }) {
+export function DesktopAutomation({ services, visible = true }: { services: AutomationServices; visible?: boolean }) {
   const id = useId();
   const action = useAction();
   const [button, setButton] = useState<DesktopClick['button']>('left');
@@ -61,6 +61,12 @@ export function DesktopAutomation({ services }: { services: AutomationServices }
   const [duration, setDuration] = useState('10000');
   const [f9, setF9] = useState(true);
   const [command, setCommand] = useState<DesktopCommand | null>(null);
+  const commandTrigger = useRef<HTMLButtonElement | null>(null);
+  const visibleRef = useRef(visible);
+  useLayoutEffect(() => {
+    visibleRef.current = visible;
+    if (!visible) setCommand(null);
+  }, [visible]);
   const [output, setOutput] = useState<JobOutcome<DesktopView> | null>(null);
   const [position, setPosition] = useState<DesktopPositionResult | null>(null);
   const canPosition = useOperationAvailable(services, 'plugin.automation.windows.mouse.position');
@@ -98,8 +104,12 @@ export function DesktopAutomation({ services }: { services: AutomationServices }
           <h2 className="text-base font-semibold">服务器桌面输入</h2>
           <div className="flex items-center gap-2">
             {action.pending && <Button size="sm" variant="outline" onClick={action.cancel}>取消等待</Button>}
-            <Button size="sm" disabled={!canRepeat || action.pending}
-              onClick={() => setCommand({ kind: 'repeat', input: { ...base, interval_ms: Number(interval), repeat: repetition, stop_on_f9: f9 } })}>
+            <Button size="sm" disabled={!visible || !canRepeat || action.pending}
+              onClick={(event) => {
+                if (!visible) return;
+                commandTrigger.current = event.currentTarget;
+                setCommand({ kind: 'repeat', input: { ...base, interval_ms: Number(interval), repeat: repetition, stop_on_f9: f9 } });
+              }}>
               <Play aria-hidden="true" />执行连续点击
             </Button>
           </div>
@@ -153,7 +163,11 @@ export function DesktopAutomation({ services }: { services: AutomationServices }
                 </Select>
               </div>
             </div>
-            <Button className="self-start" variant="outline" disabled={!canClick || action.pending} onClick={() => setCommand({ kind: 'click', input: base })}>
+            <Button className="self-start" variant="outline" disabled={!visible || !canClick || action.pending} onClick={(event) => {
+              if (!visible) return;
+              commandTrigger.current = event.currentTarget;
+              setCommand({ kind: 'click', input: base });
+            }}>
               <MousePointer2 aria-hidden="true" />执行一次点击
             </Button>
             <div className="mt-6 border-t border-border pt-6">
@@ -200,12 +214,17 @@ export function DesktopAutomation({ services }: { services: AutomationServices }
         </section>
       )}
       <Dialog
-        open={command !== null}
+        open={visible && command !== null}
         onOpenChange={(open) => {
           if (!open) setCommand(null);
         }}
       >
-        <DialogContent>
+        <DialogContent onCloseAutoFocus={(event) => {
+          event.preventDefault();
+          const trigger = commandTrigger.current;
+          // 隐藏页签或页面的旧入口不参与返焦，避免干扰另一实例。
+          if (visibleRef.current && trigger?.isConnected && !trigger.closest('[hidden], [inert]')) trigger.focus();
+        }}>
           <DialogHeader>
             <DialogTitle>
               {command?.kind === 'repeat' ? '在服务器桌面连续点击' : '在服务器桌面点击'}
@@ -246,7 +265,7 @@ export function DesktopAutomation({ services }: { services: AutomationServices }
               }
               onClick={() => {
                 const selected = command;
-                if (!selected) return;
+                if (!visible || !selected) return;
                 setCommand(null);
                 if (selected.kind === 'click')
                   void run((signal) => services.automation.clickMouse(selected.input, signal));

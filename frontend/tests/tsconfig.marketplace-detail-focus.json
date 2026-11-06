@@ -1,0 +1,10 @@
+{
+  "extends": "../tsconfig.json",
+  "include": [
+    "./marketplace-detail-focus.test.ts",
+    "../plugins/marketplace/src/view.tsx",
+    "../plugins/marketplace/src/workbench/index.tsx",
+    "../plugins/marketplace/src/workbench/components/MarketplaceCard/index.tsx",
+    "../plugins/marketplace/src/workbench/components/MarketplaceDetail/index.tsx"
+  ]
+}

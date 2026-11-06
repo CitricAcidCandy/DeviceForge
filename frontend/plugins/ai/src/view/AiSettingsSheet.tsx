@@ -45,6 +45,7 @@ const modeLabels: Readonly<Record<AiMode, string>> = {
 export function AiSettingsSheet({
   open,
   onOpenChange,
+  onReturnFocus,
   provider,
   onProviderChange,
   mode,
@@ -72,6 +73,7 @@ export function AiSettingsSheet({
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onReturnFocus: () => void;
   provider: 'sdk' | 'cli';
   onProviderChange: (value: 'sdk' | 'cli') => void;
   mode: AiMode;
@@ -99,7 +101,8 @@ export function AiSettingsSheet({
 }) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full gap-0 sm:max-w-[22.5rem]">
+      <SheetContent side="right" className="w-full gap-0 sm:max-w-[22.5rem]"
+        onCloseAutoFocus={(event) => { event.preventDefault(); onReturnFocus(); }}>
         <SheetHeader className="border-b border-[color:var(--hairline)] px-5 py-4">
           <SheetTitle className="text-[14px] font-semibold text-[color:var(--text-strong)]">
             对话设置

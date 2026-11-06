@@ -226,7 +226,7 @@ function SessionDrawer({
     <div className="flex flex-col gap-5 p-4">
       <section className="flex flex-col gap-2">
         <h3 className="text-[12px] font-medium text-[color:var(--text-muted)]">会话历史</h3>
-        <div className="flex items-end gap-2">
+        <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-end gap-2 [&>.form-item]:my-0 [&>.form-item]:items-stretch">
           <Field label="会话 ID" value={loadId} onChange={onLoadIdChange} placeholder="已知会话 ID" />
           <Button size="sm" variant="outline" disabled={!loadId || pending} onClick={onLoad}>
             读取
@@ -922,7 +922,7 @@ function RootProfilePanel({
               <SheetTitle>归档与导出</SheetTitle>
             </SheetHeader>
             <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-auto p-4">
-              <div className="flex items-end gap-2">
+              <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-end gap-2 [&>.form-item]:my-0 [&>.form-item]:items-stretch">
                 <Field label="录制任务 ID" value={restoreId} onChange={setRestoreId} />
                 <Button
                   variant="outline"

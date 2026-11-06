@@ -146,15 +146,18 @@ function TasksContent({ context, model, toolbarPointId, instance }: {
   useEffect(() => {
     const element = root.current;
     if (!element) return;
-    let reading = false;
     return startTaskPageRefresh({
       element, signal: context.signal, ...(instance ? { instance } : {}),
-      canRefresh: () => !reading && !lookupActive.current &&
-        !refreshState.current.pending && !refreshState.current.error,
+      ...(model.subscribeChanges ? { subscribeChanges: model.subscribeChanges } : {}),
+      canRefresh: () => !lookupActive.current && !refreshState.current.pending,
       refresh() {
-        reading = true;
-        void action.run(refresh, { quiet: true }).finally(() => { reading = false; });
+        let succeeded = false;
+        const pending = action.run(async (signal) => {
+          await refresh(signal);
+          succeeded = !signal.aborted;
+        }, { quiet: true });
         if (selectedId.current && !detailsPending.current) select(selectedId.current, true);
+        return pending.then(() => succeeded);
       },
     });
   }, [context, services, instance]);

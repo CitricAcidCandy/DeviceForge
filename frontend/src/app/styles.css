@@ -644,7 +644,6 @@ summary {
 .form-row > .form-field { flex: 1 1 180px; max-width: 420px; }
 .form-row:has(> .form-field) > [data-slot='button'] { margin-top: 27px; }
 .form-field {
-  display: flex;
   flex-direction: column;
   gap: 7px;
   min-width: 0;

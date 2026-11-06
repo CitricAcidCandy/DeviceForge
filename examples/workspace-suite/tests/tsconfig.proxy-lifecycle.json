@@ -1,0 +1,4 @@
+{
+  "extends": "../tsconfig.json",
+  "include": ["./proxy-lifecycle.test.ts"]
+}

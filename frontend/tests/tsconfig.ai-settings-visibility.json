@@ -1,0 +1,10 @@
+{
+  "extends": "../tsconfig.json",
+  "include": [
+    "./ai-plugin-view.test.ts",
+    "../plugins/ai/src/index.ts",
+    "../plugins/ai/src/view.tsx",
+    "../plugins/ai/src/view/AiProviderPanel.tsx",
+    "../plugins/ai/src/view/AiSettingsSheet.tsx"
+  ]
+}

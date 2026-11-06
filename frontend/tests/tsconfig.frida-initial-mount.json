@@ -1,0 +1,10 @@
+{
+  "extends": "../tsconfig.json",
+  "include": [
+    "./frida-initial-mount.test.ts",
+    "../plugins/frida/src/index.ts",
+    "../plugins/frida/src/view.tsx",
+    "../plugins/frida/src/services.ts"
+  ],
+  "exclude": []
+}

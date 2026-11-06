@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { createRef, useState } from 'react';
+import type { RefObject } from 'react';
 import {
   ChevronLeft,
   ChevronRight,
@@ -77,6 +78,11 @@ export function MarketplacePage({
   const [resources, setResources] = useState(false);
   const [filters, setFilters] = useState(false);
   const [selected, setSelected] = useState<MarketplaceEntry | null>(null);
+  const [detailOrigin, setDetailOrigin] = useState<{
+    readonly key: string;
+    readonly kind: 'detail' | 'install';
+    readonly target: RefObject<HTMLButtonElement | null>;
+  } | null>(null);
   const [configuration, setConfiguration] = useState<MarketplaceEntry | null>(null);
   const [dependencies, setDependencies] = useState<MarketplaceEntry | null>(null);
   const [removal, setRemoval] = useState<
@@ -89,10 +95,19 @@ export function MarketplacePage({
     removable = true,
     removeDisabled = false,
   ) => {
+    const key = `${entry.source}:${entry.id}:${entry.version}`;
+    const origin = detailOrigin?.key === key ? detailOrigin : null;
+    const openDetail = (kind: 'detail' | 'install', button: HTMLButtonElement) => {
+      // 一次打开对应一份归属；目录重建时由同条目的当前按钮续接。
+      const target = createRef<HTMLButtonElement>();
+      target.current = button;
+      setDetailOrigin({ key, kind, target });
+      setSelected(entry);
+    };
     const installation = market.installations.find((item) => item.id === entry.id && isReleaseEntry(entry));
     return (
     <MarketplaceCard
-      key={`${entry.source}:${entry.id}:${entry.version}`}
+      key={key}
       entry={entry}
       installed={installed}
       onDependencies={installed && entry.details['bundled'] !== true && dependencyTarget(entry) ? () => setDependencies(entry) : undefined}
@@ -107,9 +122,11 @@ export function MarketplacePage({
       onRetryBrowser={installation ? () => market.retryInstallationBrowser(installation.id, installation.revision) : undefined}
       installedTab={tab === 'installed'}
       busy={market.action.pending || market.directoryPending}
-      onDetail={() => setSelected(entry)}
+      detailTriggerRef={origin?.kind === 'detail' ? origin.target : undefined}
+      installTriggerRef={origin?.kind === 'install' ? origin.target : undefined}
+      onDetail={(button) => openDetail('detail', button)}
       onDownload={() => market.download(entry)}
-      onInstall={() => setSelected(entry)}
+      onInstall={(button) => openDetail('install', button)}
       onRemove={() => {
         if (installation) { setRemoval({ id: installation.id, kind: 'release', revision: installation.revision, removable: true }); return; }
         const kind = entry.details['plugin_kind'];
@@ -165,7 +182,7 @@ export function MarketplacePage({
             className="h-full w-full border-0 bg-transparent shadow-none"
           />
         </div>
-        <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-2">
+        <div className="flex min-w-0 flex-[1_1_22.5rem] flex-wrap items-center justify-end gap-2">
           <Button variant="ghost" size="sm" disabled={market.loading} onClick={market.refresh}>
             <RefreshCw className={market.loading ? 'animate-spin' : ''} />
             刷新
@@ -412,6 +429,8 @@ export function MarketplacePage({
 
       <MarketplaceDetail
         entry={active ? selected : null}
+        visible={active}
+        returnFocus={detailOrigin?.target}
         installed={selected ? selected.details['bundled'] === true ? { version: selected.version } : installedEntry(selected, market.packages, market.installations) : undefined}
         recoveryBlocked={selected ? market.installations.some((item) => item.id === selected.id && installationRequiresRecovery(item)) : false}
         busy={market.action.pending}

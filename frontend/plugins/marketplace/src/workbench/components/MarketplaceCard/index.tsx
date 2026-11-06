@@ -1,3 +1,4 @@
+import type { Ref } from 'react';
 import {
   Download,
   ArrowUpCircle,
@@ -44,9 +45,11 @@ export interface MarketplaceCardProps {
   onRetryBrowser?: (() => void) | undefined;
   onDependencies?: (() => void) | undefined;
   busy: boolean;
-  onDetail(): void;
+  detailTriggerRef?: Ref<HTMLButtonElement> | undefined;
+  installTriggerRef?: Ref<HTMLButtonElement> | undefined;
+  onDetail(button: HTMLButtonElement): void;
   onDownload(): void;
-  onInstall(): void;
+  onInstall(button: HTMLButtonElement): void;
   onRemove(): void;
   onConfigure(): void;
 }
@@ -68,6 +71,8 @@ export function MarketplaceCard({
   onRetryBrowser,
   onDependencies,
   busy,
+  detailTriggerRef,
+  installTriggerRef,
   onDetail,
   onDownload,
   onInstall,
@@ -95,8 +100,9 @@ export function MarketplaceCard({
         </span>
         <div className="min-w-0 flex-1">
           <button
+            ref={detailTriggerRef}
             type="button"
-            onClick={onDetail}
+            onClick={(event) => onDetail(event.currentTarget)}
             aria-label={`查看 ${entry.name} 详情`}
             className="block w-full truncate text-left text-[14px] font-medium text-[color:var(--text-strong)] hover:underline"
           >
@@ -170,7 +176,7 @@ export function MarketplaceCard({
               {removable ? '卸载' : '停用'}
             </Button>}
             {update && (
-              <Button size="sm" disabled={busy || !!blocked || recoveryBlocked} title={blocked ?? undefined} onClick={onInstall}>
+              <Button ref={installTriggerRef} size="sm" disabled={busy || !!blocked || recoveryBlocked} title={blocked ?? undefined} onClick={(event) => onInstall(event.currentTarget)}>
                 <ArrowUpCircle />
                 更新
               </Button>
@@ -184,11 +190,12 @@ export function MarketplaceCard({
             </Button>
             {entry.kind === 'plugin' && (
               <Button
+                ref={installTriggerRef}
                 variant={installed && !update ? 'ghost' : 'outline'}
                 size="sm"
                 disabled={busy || !!blocked || recoveryBlocked || (!!installed && !update)}
                 title={blocked ?? undefined}
-                onClick={onInstall}
+                onClick={(event) => onInstall(event.currentTarget)}
               >
                 {update ? <ArrowUpCircle /> : <Download />}
                 {installed ? (update ? '更新' : '已安装') : '安装'}

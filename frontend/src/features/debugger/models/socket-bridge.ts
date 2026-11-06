@@ -64,7 +64,8 @@ export function createSocketDebuggerBridge(options: DebuggerBridgeOptions, chann
     retryUntil ||= Date.now() + 60000;
     const remaining = retryUntil - Date.now();
     if (remaining <= 0) return;
-    const delay = Math.min(remaining, Math.min(5000, 500 * 2 ** Math.min(retryAttempt++, 4)) * (0.8 + Math.random() * 0.4));
+    const delay = Math.min(remaining, Math.min(5000, Math.max(500,
+      500 * 2 ** Math.min(retryAttempt++, 4) * (0.8 + Math.random() * 0.4))));
     retryTimer = setTimeout(() => { retryTimer = null; void connect(); }, delay);
   }
   async function ready() {

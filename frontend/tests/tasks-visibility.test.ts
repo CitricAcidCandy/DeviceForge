@@ -4,12 +4,12 @@ import type { TestContext } from 'node:test';
 import { act } from 'react';
 import { JSDOM } from 'jsdom';
 import type {
-  Dispose, HistoricalJob, HostContext, WorkspaceInstance, WorkspaceViewContext,
+  Dispose, HistoricalJob, HostContext, TaskHistoryChange, WorkspaceInstance, WorkspaceViewContext,
 } from '../src/plugin-sdk/index.ts';
 import { createWorkspaceRegistry } from '../src/plugins/workspace/index.ts';
 import { registerCompositionStartupImports } from './composition-startup-imports.ts';
 
-async function fixture(unit: TestContext) {
+async function fixture(unit: TestContext, push = false) {
   const parser = registerCompositionStartupImports();
   assert.deepEqual(parser.diagnostics, []);
   const browser = new JSDOM('<!doctype html><html><body><main></main></body></html>', {
@@ -40,6 +40,8 @@ async function fixture(unit: TestContext) {
   const owner = new AbortController(), registry = createWorkspaceRegistry();
   const ui = registry.access({ pluginId: 'deviceforge_tasks', generation: 73, signal: owner.signal });
   const calls = { list: 0, get: 0, events: 0, forbidden: 0 };
+  const changeListeners = new Set<(change: TaskHistoryChange) => void>();
+  let beforeList: (() => Promise<void>) | undefined;
   const job: HistoricalJob = { id: 'visible-task', operation: 'sample.read', status: 'running',
     input: { draft: '保留任务选择' }, result: null, error: null, createdAt: 1 };
   const forbidden = async (): Promise<never> => {
@@ -50,7 +52,17 @@ async function fixture(unit: TestContext) {
     listOperations: forbidden, subscribeOperations: () => () => {},
     submit: forbidden, cancelJob: forbidden, getJob: forbidden,
     taskHistory: {
-      async list(_query, signal) { signal.throwIfAborted(); calls.list++; return { data: [job], logId: 'tasks-list-log' }; },
+      ...(push ? { subscribeChanges(listener: (change: TaskHistoryChange) => void) {
+        changeListeners.add(listener);
+        listener({ state: 'ready', revision: null, reset: true });
+        return () => { changeListeners.delete(listener); };
+      } } : {}),
+      async list(_query, signal) {
+        signal.throwIfAborted(); calls.list++;
+        await beforeList?.();
+        signal.throwIfAborted();
+        return { data: [job], logId: 'tasks-list-log' };
+      },
       async get(id, signal) {
         signal.throwIfAborted(); calls.get++; assert.equal(id, job.id);
         return { data: job, logId: 'tasks-detail-log' };
@@ -103,7 +115,11 @@ async function fixture(unit: TestContext) {
       },
     };
   }
-  return { browser, document, target, context, calls, timers, view, close,
+  return { browser, document, target, context, calls, timers, view, close, changeListeners,
+    beforeList(callback: () => Promise<void>) { beforeList = callback; },
+    async change(change: TaskHistoryChange) {
+      await act(async () => { for (const listener of [...changeListeners]) listener(change); });
+    },
     async mount(instance?: WorkspaceViewContext) {
       await act(async () => {
         release = instance ? await registeredDefinition.mount(target, context, instance)
@@ -214,4 +230,75 @@ test('旧直接任务挂载无需实例仍可用，移出DOM后不再轮询且�
   assert.equal(f.timers.size, 0);
   assert.equal(f.target.childElementCount, 0);
   assert.equal(f.calls.forbidden, 0);
+});
+
+test('真实任务页面订阅通知后健康空闲一分钟不轮询，变更只刷新列表与选中项', async (unit) => {
+  const f = await fixture(unit, true), current = f.view();
+  await f.mount(current.instance);
+  assert.equal(f.calls.list, 1);
+  assert.equal(f.changeListeners.size, 1);
+  assert.equal(f.timers.size, 0);
+  await act(async () => { task(f.target).click(); });
+  const idleCalls = { ...f.calls };
+  for (let elapsed = 0; elapsed < 60_000; elapsed += 10_000) await f.tick();
+  assert.deepEqual(f.calls, idleCalls);
+  await f.change({ state: 'changed', revision: '2', reset: false });
+  assert.equal(f.calls.list, idleCalls.list + 1);
+  assert.equal(f.calls.get, idleCalls.get + 1);
+  assert.equal(f.calls.events, idleCalls.events + 1);
+  assert.equal(f.timers.size, 0);
+  assert.equal(f.calls.forbidden, 0);
+});
+
+test('真实任务页面断线降级，恢复补查后停轮询，隐藏和关闭撤销所属资源', async (unit) => {
+  const f = await fixture(unit, true), current = f.view();
+  await f.mount(current.instance);
+  await f.change({ state: 'unavailable', revision: '2', reset: true });
+  assert.equal(f.timers.size, 1);
+  const disconnectedCalls = f.calls.list;
+  await f.tick();
+  assert.equal(f.calls.list, disconnectedCalls + 1);
+  const retainedCallbacks = [...f.timers.values()];
+  await f.change({ state: 'ready', revision: null, reset: true });
+  assert.equal(f.calls.list, disconnectedCalls + 2);
+  assert.equal(f.timers.size, 0);
+  const recoveredCalls = { ...f.calls };
+  await act(async () => { for (const callback of retainedCallbacks) callback(); });
+  assert.deepEqual(f.calls, recoveredCalls);
+  await act(async () => { current.setVisible(false); });
+  await f.change({ state: 'changed', revision: '3', reset: false });
+  assert.deepEqual(f.calls, recoveredCalls);
+  await act(async () => { current.setVisible(true); });
+  assert.equal(f.calls.list, recoveredCalls.list + 1);
+  const afterShowing = { ...f.calls };
+  const oldListeners = [...f.changeListeners];
+  await act(async () => { current.lifetime.abort(); });
+  assert.equal(f.changeListeners.size, 0);
+  assert.equal(f.timers.size, 0);
+  await act(async () => { for (const listener of oldListeners) listener({ state: 'changed', revision: '4', reset: false }); });
+  assert.deepEqual(f.calls, afterShowing);
+});
+
+test('任务页读取期间的多次通知合并补查，快照失败后的独立刷新仍可恢复', async (unit) => {
+  const f = await fixture(unit, true), current = f.view();
+  let finish: () => void = () => undefined;
+  f.beforeList(async () => {
+    if (f.calls.list === 1) await new Promise<void>((resolve) => { finish = resolve; });
+    else if (f.calls.list === 2) throw new Error('本次快照临时失败');
+  });
+  await f.mount(current.instance);
+  assert.equal(f.calls.list, 1);
+  await f.change({ state: 'changed', revision: '2', reset: false });
+  await f.change({ state: 'changed', revision: '3', reset: false });
+  assert.equal(f.calls.list, 1);
+  await act(async () => { finish(); });
+  if (f.calls.list === 1) await f.tick();
+  assert.equal(f.calls.list, 2);
+  assert.equal(f.timers.size, 1);
+  await f.tick();
+  assert.equal(f.calls.list, 3);
+  assert.equal(f.timers.size, 0);
+  const idleCalls = { ...f.calls };
+  for (let elapsed = 0; elapsed < 60_000; elapsed += 10_000) await f.tick();
+  assert.deepEqual(f.calls, idleCalls);
 });

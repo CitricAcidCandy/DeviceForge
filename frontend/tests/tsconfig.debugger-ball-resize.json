@@ -1,0 +1,13 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "paths": {
+      "react": ["../node_modules/@types/react/index.d.ts"],
+      "react/*": ["../node_modules/@types/react/*"]
+    }
+  },
+  "include": [
+    "./debugger-ball-resize.test.ts",
+    "../../examples/browser-debugger/src/view.tsx"
+  ]
+}

@@ -447,7 +447,7 @@ export function DeviceApps({
             />
           )}
           {action === 'build_apks' && (
-            <div className="form-field">
+            <div className="form-field flex">
               <Label>构建模式</Label>
               <Select
                 value={mode}

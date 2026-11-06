@@ -270,7 +270,7 @@ function MsgpackSection({
         <Field label="记录偏移" type="number" min={0} value={offset} onChange={setOffset} />
         <Field label="记录页长" type="number" min={1} max={100} value={limit} onChange={setLimit} />
         <Field label="筛选字段（留空不筛选）" value={field} onChange={setField} />
-        <div className="form-field">
+        <div className="form-field flex">
           <Label>比较方式</Label>
           <Select
             value={operator}
@@ -291,7 +291,7 @@ function MsgpackSection({
           </Select>
         </div>
         <Field label="筛选值" value={value} onChange={setValue} />
-        <div className="form-field">
+        <div className="form-field flex">
           <Label>相等值类型</Label>
           <Select
             value={valueType}

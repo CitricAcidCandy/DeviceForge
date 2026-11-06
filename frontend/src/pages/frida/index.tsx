@@ -140,7 +140,7 @@ export function FridaPage({ services }: { services: ProductServices }) {
           min={1000}
           max={120000}
         />
-        <div className="form-field">
+        <div className="form-field flex">
         <Label htmlFor="frida-mode">注入模式</Label>
         <Select
           value={mode}
@@ -159,7 +159,7 @@ export function FridaPage({ services }: { services: ProductServices }) {
         </div>
       </div>
       <details className="frida-server"><summary>服务器部署与进程</summary><div className="form-row">
-        <div className="form-field">
+        <div className="form-field flex">
           <Label htmlFor="frida-server-file">Frida 服务器文件</Label>
           <Input
             id="frida-server-file"
@@ -199,7 +199,7 @@ export function FridaPage({ services }: { services: ProductServices }) {
         </Button>
       </div></details>
       <div className="form-row">
-        <div className="form-field">
+        <div className="form-field flex">
           <Label htmlFor="frida-script-file">UTF-8 脚本</Label>
           <Input
             id="frida-script-file"

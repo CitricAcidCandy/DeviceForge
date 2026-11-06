@@ -11,13 +11,14 @@ class Socket implements RealtimeSocket {
   connects = 0;
   closes = 0;
   hold = false;
+  acceptConnect = true;
   events = new Map<string, Set<(value: unknown) => void>>();
   ready = new Set<() => void>();
   closed = new Set<() => void>();
   errors = new Set<() => void>();
   sent: string[] = [];
   connected = () => this.live;
-  connect() { this.live = true; this.connects++; for (const listener of this.ready) listener(); }
+  connect() { this.connects++; if (!this.acceptConnect) return; this.live = true; for (const listener of this.ready) listener(); }
   disconnect() { this.live = false; this.closes++; for (const listener of this.closed) listener(); }
   on(event: string, listener: (value: unknown) => void) {
     const set = this.events.get(event) ?? new Set(); this.events.set(event, set); set.add(listener);
@@ -128,4 +129,21 @@ test('超大消息在发送前拒绝，取消释放待确认容量，调试通�
   assert.equal(taskSocket.connected(), true);
   taskSocket.event('tasks:changed', envelope({ revision: '6', reset: false }));
   assert.equal(notices, 2); stop(); f.realtime.dispose();
+});
+
+test('命名空间被撤销后有界恢复订阅，一分钟耗尽不续期或影响兄弟连接', async context => {
+  context.mock.timers.enable({ apis: ['setTimeout', 'Date'], now: 0 });
+  const f = fixture(), tasks = f.realtime.acquire('/tasks'), debug = f.realtime.acquire('/debugger');
+  await Promise.all([tasks.supported, debug.supported]);
+  const socket = f.sockets.get('/tasks'); assert.ok(socket);
+  socket.disconnect(); context.mock.timers.tick(1000); await settle();
+  assert.equal(tasks.connected(), true); assert.equal(socket.connects, 2);
+  socket.acceptConnect = false; socket.disconnect();
+  for (let count = 0; count < 14; count++) { context.mock.timers.tick(5000); await settle(); }
+  assert.ok(socket.connects > 2); assert.ok(socket.connects <= 15);
+  const before = socket.connects;
+  context.mock.timers.tick(120000); await settle();
+  assert.equal(socket.connects, before); assert.equal(tasks.connected(), false); assert.equal(debug.connected(), true);
+  socket.acceptConnect = true; tasks.reconnect(); await settle(); assert.equal(tasks.connected(), true);
+  tasks.release(); debug.release(); f.realtime.dispose();
 });

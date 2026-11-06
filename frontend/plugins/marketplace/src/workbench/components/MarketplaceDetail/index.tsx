@@ -1,3 +1,5 @@
+import { useLayoutEffect, useRef } from 'react';
+import type { RefObject } from 'react';
 import { Download, ArrowUpCircle } from 'lucide-react';
 import {
   Badge,
@@ -67,6 +69,8 @@ export function MarketplaceDetail({
   entry,
   installed,
   busy,
+  visible = true,
+  returnFocus,
   recoveryBlocked = false,
   onClose,
   onDownload,
@@ -77,6 +81,8 @@ export function MarketplaceDetail({
   entry: MarketplaceEntry | null;
   installed: Pick<PackageInfo, 'version'> | undefined;
   busy: boolean;
+  visible?: boolean;
+  returnFocus?: RefObject<HTMLButtonElement | null> | undefined;
   recoveryBlocked?: boolean;
   onClose(): void;
   onDownload(): void;
@@ -84,6 +90,14 @@ export function MarketplaceDetail({
   onDependencies?: (() => void) | undefined;
   onDebug?: (() => void) | undefined;
 }) {
+  const currentVisibility = useRef(visible);
+  const mounted = useRef(false);
+  const content = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => { currentVisibility.current = visible; }, [visible]);
+  useLayoutEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; };
+  }, []);
   if (!entry) return null;
   const update = installed && newerVersion(entry.version, installed.version);
   const blocked = installBlock(entry);
@@ -95,7 +109,22 @@ export function MarketplaceDetail({
       }}
     >
       <SheetContent
+        ref={content}
         side="right"
+        onCloseAutoFocus={(event) => {
+          event.preventDefault();
+          const target = returnFocus?.current;
+          if (!mounted.current || !currentVisibility.current || !target?.isConnected || target.disabled
+            || target.closest('[hidden],[inert]') || target.getAttribute('aria-disabled') === 'true') return;
+          const document = target.ownerDocument;
+          const active = document.activeElement;
+          // 关闭旧详情不能抢走另一弹层或实例已经取得的焦点。
+          if (active && active !== document.body && active !== document.documentElement
+            && active !== target && !content.current?.contains(active)) return;
+          const style = document.defaultView?.getComputedStyle(target);
+          if (style?.display === 'none' || style?.visibility === 'hidden' || style?.visibility === 'collapse') return;
+          target.focus();
+        }}
         className="w-full gap-0 border-l border-[color:var(--hairline)] bg-[color:var(--card)] p-0 sm:max-w-105"
       >
         <SheetHeader className="gap-2 border-b border-[color:var(--hairline)] p-5 pr-12">

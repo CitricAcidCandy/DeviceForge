@@ -1,5 +1,5 @@
 import { hostUi } from '@deviceforge/plugin-sdk';
-import { useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { useDraftState } from './use-draft-state.ts';
 import { SlidersHorizontalIcon } from 'lucide-react';
 const { EmptyState, JsonResult } = hostUi();
@@ -30,13 +30,21 @@ export function AiProviderPanel({
   provider,
   onProviderChange,
   instanceId,
+  visible,
 }: {
   services: AiServices;
   provider: 'sdk' | 'cli';
   instanceId: string;
+  visible: boolean;
   onProviderChange: (value: 'sdk' | 'cli') => void;
 }) {
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const settingsButton = useRef<HTMLButtonElement>(null);
+  const visibleRef = useRef(visible);
+  useLayoutEffect(() => {
+    visibleRef.current = visible;
+    if (!visible) setSettingsOpen(false);
+  }, [visible]);
   const draft = services.drafts[provider];
   const [project, setProject] = useDraftState(draft, 'project');
   const [thread, setThread] = useDraftState(draft, 'thread');
@@ -195,8 +203,10 @@ export function AiProviderPanel({
               {statusLabel}
             </span>
             <button
+              ref={settingsButton}
               type="button"
-              onClick={() => setSettingsOpen(true)}
+              disabled={!visible}
+              onClick={() => { if (visible) setSettingsOpen(true); }}
               aria-label="打开对话设置"
               className="flex size-7 items-center justify-center rounded-[5px] bg-[color:var(--surface-sunken)] text-[color:var(--text-body)] transition-colors hover:bg-[color:var(--surface-hover)]"
             >
@@ -344,8 +354,13 @@ export function AiProviderPanel({
       </div>
 
       <AiSettingsSheet
-        open={settingsOpen}
-        onOpenChange={setSettingsOpen}
+        open={visible && settingsOpen}
+        onOpenChange={(open) => { if (!open || visible) setSettingsOpen(open); }}
+        onReturnFocus={() => {
+          const button = settingsButton.current;
+          // 隐藏或卸载的旧入口不能夺走其他页面、实例的焦点。
+          if (visibleRef.current && button?.isConnected && !button.closest('[hidden], [inert]')) button.focus();
+        }}
         provider={provider}
         onProviderChange={(next) => {
           setSettingsOpen(false);

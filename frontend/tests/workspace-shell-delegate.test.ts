@@ -3,7 +3,7 @@ import test from 'node:test';
 import type { TestContext } from 'node:test';
 import { JSDOM } from 'jsdom';
 import type {
-  HostContext, WorkspaceMount, WorkspaceViewContext,
+  Dispose, HostContext, WorkspaceMount, WorkspaceViewContext,
 } from '../src/plugin-sdk/index.ts';
 import type { ShellMountObservation } from '../../examples/workspace-suite/browser/shell-delegate.ts';
 import { registerCompositionStartupImports } from './composition-startup-imports.ts';
@@ -155,6 +155,154 @@ test('真实委托初始继承隐藏状态并同步父可见性，重复释放�
   assert.equal(f.ui.snapshot().instances.some((value) => value.instanceId === f.unrelated.instanceId), true);
   assert.equal(target.childElementCount, 0);
   assert.equal(f.network(), 0);
+});
+
+test('外壳委托订阅间隙隐藏在真实提供者挂载前校准，恢复保草稿且旧通知不写新实例', async (unit) => {
+  let mounts = 0, released = 0;
+  const initialVisibility: boolean[] = [];
+  const f = await fixture(unit, async (target, _context, instance) => {
+    mounts++; initialVisibility.push(instance.snapshot().visible);
+    const input = target.ownerDocument.createElement('input');
+    input.value = '订阅间隙保留的外壳草稿'; target.append(input);
+    return () => { released++; input.remove(); };
+  });
+  f.ui.setVisible(f.parentId, true);
+  const parentBefore = f.parent.snapshot(), otherBefore = f.ui.snapshot().instances.find(
+    (value) => value.instanceId === f.unrelated.instanceId);
+  const layoutBefore = f.ui.snapshot().layouts;
+  const oldNotifications: ((visible: boolean) => void)[] = [];
+  const parent: WorkspaceViewContext = {
+    signal: f.parent.signal,
+    snapshot: () => f.parent.snapshot(),
+    subscribeVisibility(listener) {
+      // 首次读取已完成、监听尚未登记；真实父实例变化，但不回放这次通知。
+      f.ui.setVisible(f.parentId, false);
+      oldNotifications.push(listener);
+      return f.parent.subscribeVisibility(listener);
+    },
+  };
+  const target = f.target(), observed = observation(), own = new AbortController();
+  const instanceId = f.instanceId('subscription_gap');
+  const releases: Dispose[] = [];
+  try {
+    const release = await f.mountShellDelegate(target, f.context, parent, {
+      instanceId, original: f.original, behavior: 'delegate', signal: own.signal, update: observed.update,
+    });
+    releases.push(release);
+    assert.deepEqual(initialVisibility, [false], '真实提供者进入时必须读到登记后的父隐藏状态');
+    const input = target.querySelector('input'); assert.ok(input);
+    assert.equal(observed.snapshot().mount, 'ready');
+    assert.equal(f.subscriptions(), 1);
+    for (const visible of [true, false]) {
+      f.ui.setVisible(f.parentId, visible);
+      assert.equal(f.ui.snapshot().instances.find((value) => value.instanceId === instanceId)?.visible, visible);
+      assert.equal(target.querySelector('input') === input, true);
+      assert.equal(input.value, '订阅间隙保留的外壳草稿');
+      assert.equal(mounts, 1);
+    }
+    assert.equal(f.parent.snapshot().generation, parentBefore.generation);
+    assert.deepEqual(f.parent.snapshot().target, parentBefore.target);
+    assert.deepEqual(f.parent.snapshot().provider, parentBefore.provider);
+    assert.deepEqual(f.ui.snapshot().instances.find((value) => value.instanceId === f.unrelated.instanceId), otherBefore);
+    assert.deepEqual(f.ui.snapshot().layouts, layoutBefore);
+    await release();
+    assert.equal(f.subscriptions(), 0);
+    assert.equal(released, 1);
+    assert.equal(target.childElementCount, 0);
+
+    const current = observation();
+    const releaseCurrent = await f.mountShellDelegate(target, f.context, f.parent, {
+      instanceId, original: f.original, behavior: 'delegate', signal: new AbortController().signal,
+      update: current.update,
+    });
+    releases.push(releaseCurrent);
+    const currentInput = target.querySelector('input'); assert.ok(currentInput);
+    currentInput.value = '新委托自己的草稿';
+    for (const listener of oldNotifications) listener(true);
+    assert.equal(f.ui.snapshot().instances.find((value) => value.instanceId === instanceId)?.visible, false);
+    assert.equal(current.snapshot().mount, 'ready');
+    assert.equal(target.querySelector('input') === currentInput, true);
+    assert.equal(currentInput.value, '新委托自己的草稿');
+    assert.equal(mounts, 2);
+    assert.equal(f.subscriptions(), 1);
+    await releaseCurrent();
+    assert.equal(f.subscriptions(), 0);
+    assert.equal(released, 2);
+    assert.equal(f.network(), 0);
+  } finally {
+    for (const release of releases) await release();
+  }
+});
+
+test('外壳委托订阅后快照失败保原错误并撤自有实例，同根独立新委托可继续', async (unit) => {
+  let entered = 0, released = 0, failedReads = 0;
+  const f = await fixture(unit, async (target) => {
+    entered++;
+    const input = target.ownerDocument.createElement('input');
+    input.value = '新委托独立草稿'; target.append(input);
+    return () => { released++; input.remove(); };
+  });
+  f.ui.setVisible(f.parentId, true);
+  const parentBefore = f.parent.snapshot(), otherBefore = f.ui.snapshot().instances.find(
+    (value) => value.instanceId === f.unrelated.instanceId);
+  const layoutBefore = f.ui.snapshot().layouts;
+  const failure = new Error('外壳父实例登记后快照原错误');
+  let subscribed = false;
+  const parent: WorkspaceViewContext = {
+    signal: f.parent.signal,
+    snapshot() {
+      if (subscribed) { failedReads++; throw failure; }
+      return f.parent.snapshot();
+    },
+    subscribeVisibility(listener) {
+      const release = f.parent.subscribeVisibility(listener);
+      subscribed = true;
+      return release;
+    },
+  };
+  const observed = observation(), target = f.target(), instanceId = f.instanceId('calibration_failure');
+  const releases: Dispose[] = [];
+  try {
+    await assert.rejects(async () => {
+      const release = await f.mountShellDelegate(target, f.context, parent, {
+        instanceId, original: f.original, behavior: 'delegate', signal: new AbortController().signal,
+        update: observed.update,
+      });
+      releases.push(release);
+    }, (error) => error === failure);
+    assert.equal(failedReads, 1);
+    assert.equal(entered, 0, '父快照校准失败时真实提供者不得进入');
+    assert.equal(observed.snapshot().mount, 'failed');
+    assert.equal(observed.snapshot().error, failure.message);
+    assert.equal(observed.snapshot().mountCount, 1);
+    assert.equal(observed.snapshot().releaseCount, 1);
+    assert.equal(observed.history.some((value) => value.mount === 'ready'), false);
+    assert.equal(f.subscriptions(), 0);
+    assert.equal(f.ui.snapshot().instances.some((value) => value.instanceId === instanceId), false);
+    assert.equal(target.childElementCount, 0);
+    assert.deepEqual(f.parent.snapshot(), parentBefore);
+    assert.deepEqual(f.ui.snapshot().instances.find((value) => value.instanceId === f.unrelated.instanceId), otherBefore);
+    assert.deepEqual(f.ui.snapshot().layouts, layoutBefore);
+
+    const current = observation();
+    const release = await f.mountShellDelegate(target, f.context, f.parent, {
+      instanceId, original: f.original, behavior: 'delegate', signal: new AbortController().signal,
+      update: current.update,
+    });
+    releases.push(release);
+    assert.equal(current.snapshot().mount, 'ready');
+    assert.equal(entered, 1);
+    assert.equal(target.querySelector('input')?.value, '新委托独立草稿');
+    assert.equal(f.subscriptions(), 1);
+    assert.deepEqual(f.parent.snapshot(), parentBefore);
+    assert.deepEqual(f.ui.snapshot().instances.find((value) => value.instanceId === f.unrelated.instanceId), otherBefore);
+    await release();
+    assert.equal(f.subscriptions(), 0);
+    assert.equal(released, 1);
+    assert.equal(f.network(), 0);
+  } finally {
+    for (const release of releases) await release();
+  }
 });
 
 test('取消后的迟到渲染释放只属于旧调用，不发布 ready 或污染独立新委托及草稿', async (unit) => {

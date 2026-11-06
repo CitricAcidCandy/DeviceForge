@@ -36,16 +36,17 @@ export async function mountFileDelegate(context: HostContext, instance: Workspac
     target: initial.target, visible: initial.visible,
   }, signal);
   let released = false, releaseView: Dispose | null = null, cleanup: Promise<void> | null = null;
-  const stopVisibility = instance.subscribeVisibility((visible) => {
+  let stopVisibility: Dispose | null = null;
+  const synchronize = (visible: boolean) => {
     if (!released && !signal.aborted) ui.setVisible(delegateId, visible);
-  });
+  };
   const dispose: Dispose = () => {
     if (cleanup) return cleanup;
     released = true;
     signal.removeEventListener('abort', aborted);
     cleanup = (async () => {
       const failures: unknown[] = [];
-      try { await stopVisibility(); } catch (error) { failures.push(error); }
+      try { await stopVisibility?.(); } catch (error) { failures.push(error); }
       // 上下文撤销时，open 的所属信号已回收实例，撤销端口不能再次调用。
       try { if (!context.signal.aborted) ui.close(delegateId); } catch (error) { failures.push(error); }
       try { if (releaseView) await releaseView(); } catch (error) { failures.push(error); }
@@ -56,9 +57,12 @@ export async function mountFileDelegate(context: HostContext, instance: Workspac
     return cleanup;
   };
   const aborted = () => { void dispose(); };
-  signal.addEventListener('abort', aborted, { once: true });
   try {
+    stopVisibility = instance.subscribeVisibility(synchronize);
+    // 登记后再校准，不能把首次快照与订阅之间的隐藏漏给委托视图。
+    synchronize(instance.snapshot().visible);
     signal.throwIfAborted();
+    signal.addEventListener('abort', aborted, { once: true });
     const result = await render(delegateId, signal);
     if (released || signal.aborted) { await result(); signal.throwIfAborted(); }
     releaseView = result;
