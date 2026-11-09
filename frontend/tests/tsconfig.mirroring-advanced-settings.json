@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.mirroring-start-feedback.json",
+  "include": [
+    "../src/pages/devices/screen/index.tsx",
+    "../src/pages/devices/screen/advanced-preferences.ts",
+    "./mirroring-advanced-settings.test.ts",
+    "./mirroring-advanced-preferences.test.ts"
+  ]
+}

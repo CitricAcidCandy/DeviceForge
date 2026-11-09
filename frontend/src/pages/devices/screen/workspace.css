@@ -224,17 +224,6 @@
 .rail-slot-name {
   letter-spacing: 0.06em;
 }
-.rail-foot {
-  flex-shrink: 0;
-  padding: 12px 14px;
-  border-top: 1px solid var(--hairline);
-}
-.rail-foot [data-slot='button'] {
-  width: 100%;
-  height: 36px;
-  font-size: 0.875rem;
-}
-
 /* 折起来的次要参数：常驻的只留事实 */
 .rail-fold {
   padding-top: 9px;
@@ -309,18 +298,6 @@
 }
 .media-fields .form-field input {
   font: 400 0.8125rem/1 var(--font-mono);
-}
-.media-switch {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.8125rem;
-  color: var(--text-body);
-}
-/* Label 组件自带 13px：右栏里要跟着参数文字一起缩小。 */
-.media-switch label {
-  font-size: 0.8125rem;
-  color: var(--text-body);
 }
 /* 开关的拇指默认跟着 dark: 变体走，浅色皮肤上会变成黑点。这里直接钉成白拇指。 */
 .workbench-rail [data-slot='switch-thumb'] {

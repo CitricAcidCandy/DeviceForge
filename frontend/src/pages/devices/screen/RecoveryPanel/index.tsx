@@ -1,4 +1,5 @@
 import { useEffect, useId, useState } from 'react';
+import type { ReactNode } from 'react';
 import { AlertTriangle, ChevronDown, LoaderCircle } from 'lucide-react';
 import { Button } from '../../../../components/Button/index.tsx';
 import { ErrorNotice } from '../../../../app/product/feedback.tsx';
@@ -25,6 +26,8 @@ export function RecoveryPanel({
   refresh,
   cancel,
   variant = 'panel',
+  children,
+  className,
 }: {
   readonly state: PluginRecoverySnapshot;
   readonly activeSession: boolean;
@@ -36,6 +39,8 @@ export function RecoveryPanel({
    * bar：空状态里的单行提示条，只在真的需要处理时出现，健康时退成一条文字入口。
    */
   readonly variant?: 'panel' | 'bar';
+  readonly children?: ReactNode;
+  readonly className?: string;
 }) {
   const [expanded, setExpanded] = useState(false);
   const detailId = useId();
@@ -117,11 +122,12 @@ export function RecoveryPanel({
   );
   return (
     <section
-      className={
+      className={cn(
         variant === 'bar'
           ? 'min-w-0 text-xs'
-          : 'min-w-0 border-t border-border/60 pt-2 text-xs'
-      }
+          : 'min-w-0 border-t border-border/60 pt-2 text-xs',
+        className,
+      )}
       aria-label="投屏恢复"
       aria-busy={pending || busy}
     >
@@ -220,6 +226,7 @@ export function RecoveryPanel({
           id={detailId}
           className="mt-2 flex min-w-0 flex-col gap-3 border-l-2 border-border/70 py-1 pl-3"
         >
+          {children}
           {!attention && !pending && !busy && (
             <p role="status" aria-live="polite" className="text-muted-foreground">
               {title}

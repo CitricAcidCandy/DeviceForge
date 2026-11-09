@@ -1,6 +1,6 @@
-import { useState, useEffect, useId } from 'react';
+import { useState, useEffect, useId, useMemo, useRef, useSyncExternalStore } from 'react';
 import { hostUi } from '@deviceforge/plugin-sdk';
-import type { HostContext } from '@deviceforge/plugin-sdk';
+import type { HostContext, WorkspaceViewContext } from '@deviceforge/plugin-sdk';
 import { createFridaServices } from './services.ts';
 const { Button } = hostUi();
 const {
@@ -54,8 +54,20 @@ interface FridaOutput {
   readonly outcome: JobOutcome<PublishedResult<FridaView>>;
 }
 
-export function FridaPage({ services }: { services: FridaServices }) {
+export function FridaPage({ services, instance }: { services: FridaServices; instance?: WorkspaceViewContext }) {
   const id = useId(), modeId = `${id}-mode`, serverId = `${id}-server`, scriptId = `${id}-script`;
+  const visibilitySource = useMemo(() => ({
+    subscribe: (notify: () => void) => {
+      const release = instance?.subscribeVisibility(() => notify());
+      return () => { if (release) void Promise.resolve().then(release).catch(() => undefined); };
+    },
+    read: () => instance?.snapshot().visible ?? true,
+  }), [instance]);
+  const visible = useSyncExternalStore(visibilitySource.subscribe, visibilitySource.read, visibilitySource.read);
+  const visibleRef = useRef(visible);
+  visibleRef.current = visible;
+  const [modeOpen, setModeOpen] = useState(false);
+  useEffect(() => { if (!visible) setModeOpen(false); }, [visible]);
   useEffect(() => {
     void services.operations.list(services.context.signal).catch(() => undefined);
   }, [services]);
@@ -116,7 +128,7 @@ export function FridaPage({ services }: { services: FridaServices }) {
       return result.outcome;
     });
   return (
-    <div className="@container/frida-page h-full min-h-0 min-w-0 w-full overflow-hidden">
+    <div hidden={!visible} inert={!visible} className="@container/frida-page h-full min-h-0 min-w-0 w-full overflow-hidden">
     <section className="@container/frida mx-auto flex h-full min-h-0 min-w-0 w-full max-w-[1648px] flex-1 flex-col overflow-y-auto overscroll-contain px-6 pb-7 pt-[22px] text-[15px] @max-[900px]/frida-page:px-4 @max-[900px]/frida-page:pb-6 @max-[900px]/frida-page:pt-4" data-product-page="frida">
       <PageTitle
         eyebrow="深度调试"
@@ -154,15 +166,18 @@ export function FridaPage({ services }: { services: FridaServices }) {
         <div className="flex min-w-0 flex-col gap-[7px]">
         <Label htmlFor={modeId}>注入模式</Label>
         <Select
+          open={visible && modeOpen}
+          onOpenChange={(open) => setModeOpen(visibleRef.current && open)}
           value={mode}
           onValueChange={(value) => {
+            if (!visibleRef.current) return;
             if (value === 'attach' || value === 'spawn') setMode(value);
           }}
         >
           <SelectTrigger id={modeId} className="w-full">
             <SelectValue />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent onCloseAutoFocus={(event) => { if (!visibleRef.current) event.preventDefault(); }}>
             <SelectItem value="attach">附加运行中的应用</SelectItem>
             <SelectItem value="spawn">启动并注入应用</SelectItem>
           </SelectContent>
@@ -333,10 +348,10 @@ export function FridaPage({ services }: { services: FridaServices }) {
   );
 }
 
-export function mountFrida(target: HTMLElement, context: HostContext) {
+export function mountFrida(target: HTMLElement, context: HostContext, instance?: WorkspaceViewContext) {
   const services = createFridaServices(context);
   try {
-    const release = hostUi().mountReact(target, <FridaPage services={services} />);
+    const release = hostUi().mountReact(target, <FridaPage services={services} {...(instance ? { instance } : {})} />);
     return async () => { try { await release(); } finally { services.dispose(); } };
   } catch (error) { services.dispose(); throw error; }
 }

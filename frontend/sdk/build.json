@@ -62,7 +62,7 @@
     },
     {
       "name": "task-history.ts",
-      "sha256": "f5141126cee2b2d505e00376f760435b0065b9e3fd0980bd95f7890d869c5860"
+      "sha256": "512143170886011c220107b74613ebb0d5a5840055309014fdf1b8451be6dc37"
     },
     {
       "name": "themes.ts",
@@ -189,8 +189,8 @@
     },
     {
       "name": "lib/task-history.d.ts",
-      "size": 831,
-      "sha256": "b6241fe99c40da7efa6058f8bac1c5306ea7b480be530883d9765b52df5748d3"
+      "size": 1181,
+      "sha256": "1b6ec5f0c043b404eb169b3080e4c129c68dbe1fb09677a5cb842d30a0bc6477"
     },
     {
       "name": "lib/themes.js",

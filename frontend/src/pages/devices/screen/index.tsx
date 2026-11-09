@@ -29,6 +29,9 @@ import {
   storeNumber,
   storeZoom,
 } from './preferences.ts';
+import { readAdvancedMirroringSettings, storeAdvancedMirroringSettings } from './advanced-preferences.ts';
+import { resolveAdvancedMirroringSettings } from './advanced-settings.ts';
+import { AdvancedSettings } from './AdvancedSettings/index.tsx';
 import { useMediaKeyboard } from './use-media-keyboard.ts';
 import { useMediaClipboard } from './use-media-clipboard.ts';
 import { MediaOwnershipControls } from './MediaOwnershipControls/index.tsx';
@@ -98,6 +101,7 @@ export function DeviceScreen({
   const webSnapshot = useSnapshot(webRtc);
   const action = useAction();
   const reader = useAction();
+  const readerLogId = errorLogId(reader.error);
   const recording = useAction();
   const [openingTransport, setOpeningTransport] = useState<'webrtc' | 'legacy' | null>(null);
   const webAvailable = typeof RTCPeerConnection !== 'undefined' && (webSnapshot.definitions?.sessions.some(
@@ -115,6 +119,8 @@ export function DeviceScreen({
   const [duration, setDuration] = useState('10000');
   const [size, setSize] = useState(() => readStoredNumber(SIZE_STORAGE_KEY, '1280'));
   const [fps, setFps] = useState(() => readStoredNumber(FPS_STORAGE_KEY, '30'));
+  const [advanced, setAdvanced] = useState(readAdvancedMirroringSettings);
+  const [playbackAudio, setPlaybackAudio] = useState(false);
   /*
    * 画面缩放：1 = 自适应（等比铺满舞台可用区域），拖画面四角的弧线可以继续放大，
    * 超出舞台的部分在画面区内部滚动，不会把整页撑开。
@@ -133,6 +139,9 @@ export function DeviceScreen({
   useEffect(() => {
     storeNumber(FPS_STORAGE_KEY, fps);
   }, [fps]);
+  useEffect(() => {
+    storeAdvancedMirroringSettings(advanced);
+  }, [advanced]);
   const [resizing, setResizing] = useState(false);
   const zoomDrag = useRef<{ x: number; y: number; base: number; span: number; corner: Corner } | null>(
     null,
@@ -161,6 +170,10 @@ export function DeviceScreen({
     () => (typeof window === 'undefined' ? null : parseMediaShare(window.location.hash)),
     [],
   );
+  const effectiveControl = resolveMediaShareControl(control, shareInfo?.control ?? null);
+  const advancedSettings = resolveAdvancedMirroringSettings(advanced, { control: effectiveControl, webRtc: webMode });
+  const settingsFingerprint = JSON.stringify({ size, fps, control: effectiveControl, advanced });
+  const [appliedSettingsFingerprint, setAppliedSettingsFingerprint] = useState(settingsFingerprint);
   const shareStarted = useRef(false);
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [shareControl, setShareControl] = useState(false);
@@ -234,8 +247,8 @@ export function DeviceScreen({
       void services.mediaDisplay.playWebRtc(null, false);
       return;
     }
-    void services.mediaDisplay.playWebRtc(webSnapshot.stream, false).catch(setDisplayError);
-  }, [active, webMode, webSnapshot.stream, services]);
+    void services.mediaDisplay.playWebRtc(webSnapshot.stream, playbackAudio).catch(setDisplayError);
+  }, [active, webMode, webSnapshot.stream, services, playbackAudio]);
   const imageUrl = useBlobUrl(image);
   const movieUrl = useBlobUrl(movie);
   const provider = device.providers.find(
@@ -545,6 +558,8 @@ export function DeviceScreen({
     else void target.requestFullscreen?.().catch(() => undefined);
   }
   function startLive(): void {
+    const advancedInput = advancedSettings.input;
+    if (!advancedInput) return;
     setOpeningTransport(webMode ? 'webrtc' : 'legacy');
     void reader.run((signal) => {
       const openTarget = async (reference: DeviceRef | null, deviceId: string, active: AbortSignal) => {
@@ -553,19 +568,21 @@ export function DeviceScreen({
           device_id: deviceId,
           max_size: Number(size),
           max_fps: Number(fps),
-          audio: false,
-          control: resolveMediaShareControl(control, shareInfo?.control ?? null),
-          clipboard_autosync: webMode && resolveMediaShareControl(control, shareInfo?.control ?? null),
+          control: effectiveControl,
+          ...advancedInput,
         };
         if (webMode) {
           setWebVideoSize(null);
           setDisplayError(null);
           await webRtc.open(input, active);
         } else {
-          await services.mediaDisplay.prepare(false);
+          await services.mediaDisplay.prepare(advancedInput.audio);
           services.mediaDisplay.bind(canvas.current);
           await live.open(input, active);
         }
+        active.throwIfAborted();
+        setPlaybackAudio(advancedInput.audio);
+        setAppliedSettingsFingerprint(settingsFingerprint);
         setSource(shareInfo ? `分享设备 ${deviceId}` : deviceId);
         setLiveReference(reference);
         return webMode ? webRtc.snapshot() : live.pollOutput({ limit: 100 }, active);
@@ -669,9 +686,9 @@ export function DeviceScreen({
               fallback={<DeviceApps services={services} embedded compact active={active} />}
             />
           ) : null : (
-            <>
+            <div className="grid min-w-0 grid-cols-1 gap-x-6 @min-[641px]/device-screen:@max-[1024px]/device-screen:grid-cols-2">
               {/* ── 画面：先给四条事实，参数折起来 ── */}
-              <section className="rail-group">
+              <section className="col-span-full grid min-w-0 grid-cols-1 gap-[9px] py-3.5 @min-[641px]/device-screen:@max-[1024px]/device-screen:grid-cols-2 @min-[641px]/device-screen:@max-[1024px]/device-screen:gap-6 @min-[641px]/device-screen:@max-[1024px]/device-screen:py-2">
                 <dl className="rail-metrics">
                   <div>
                     <dt>分辨率</dt>
@@ -713,227 +730,255 @@ export function DeviceScreen({
                       onChange={setFps}
                       type="number"
                       min={1}
-                      max={240}
+                      max={60}
                     />
                   </div>
-                  <p className="rail-hint">
-                    长边上限，实际分辨率按设备屏幕等比缩放，重新打开投屏后生效。
+                </div>
+              </section>
+              <div className="min-w-0">
+                <AdvancedSettings draft={advanced} errors={advancedSettings.errors} controlEnabled={effectiveControl}
+                  webRtc={webMode} onChange={(patch) => setAdvanced((previous) => ({ ...previous, ...patch }))} />
+                {activeSession && appliedSettingsFingerprint !== settingsFingerprint && (
+                  <p className="mt-2 text-[11px] leading-[17px] text-faint" role="status">下次开始生效</p>
+                )}
+              </div>
+              <div className="min-w-0 @min-[641px]/device-screen:@max-[1024px]/device-screen:col-start-2 @min-[641px]/device-screen:@max-[1024px]/device-screen:row-start-2 @min-[641px]/device-screen:@max-[1024px]/device-screen:border-l @min-[641px]/device-screen:@max-[1024px]/device-screen:border-[var(--hairline)] @min-[641px]/device-screen:@max-[1024px]/device-screen:pl-6">
+                {webMode && selectedSession && (
+                  <MediaOwnershipControls
+                    state={ownership}
+                    ready={Boolean(active && controlChannelReady)}
+                    actions={webRtc}
+                  />
+                )}
+                {/* ── 控制：开关常驻，剪贴板只在开启后出现 ── */}
+                <section className="rail-group">
+                  <div className="flex min-h-[35px] items-center justify-between gap-3">
+                    <Label htmlFor="media-control" className="text-xs font-normal text-[var(--text-body)]">设备控制</Label>
+                    <Switch
+                      id="media-control"
+                      aria-label="开启设备控制"
+                      checked={control}
+                      onCheckedChange={setControl}
+                      disabled={Boolean(activeSession) || shareInfo?.control === false}
+                    />
+                  </div>
+                  {control && (
+                    <div className="rail-clipboard-block" aria-live="polite">
+                      <textarea
+                        readOnly
+                        value={mediaClipboard.text ?? ''}
+                        placeholder="在设备内复制文本后，会出现在这里"
+                        aria-label="设备剪贴板文本"
+                        rows={2}
+                        className="rail-clipboard"
+                      />
+                      <div className="media-actions">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={!controlReady || !webMode}
+                          onClick={mediaClipboard.copySelection}
+                        >
+                          复制设备选中文本
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={!mediaClipboard.text || !controlReady}
+                          onClick={mediaClipboard.copyToComputer}
+                        >
+                          复制到电脑
+                        </Button>
+                      </div>
+                      <p className="rail-hint">
+                        {mediaClipboard.message || '设备内复制的内容只同步给当前控制者。'}
+                      </p>
+                    </div>
+                  )}
+                </section>
+                <section className="rail-group">
+                  <h2>录制</h2>
+                  <p className="rail-line">
+                    <span
+                      className={`rail-dot${recording.pending ? ' is-busy' : movie ? ' is-ready' : ''}`}
+                      aria-hidden="true"
+                    />
+                    {recordLine}
+                    {movie && <span className="rail-line-note mono">{movieSource}</span>}
+                  </p>
+                  <details className="rail-fold">
+                    <summary>录制参数</summary>
+                    <Field
+                      label="录制时长（毫秒）"
+                      value={duration}
+                      onChange={setDuration}
+                      type="number"
+                      min={1000}
+                      max={120000}
+                    />
+                    <div className="media-actions">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        disabled={recording.pending}
+                        onClick={() =>
+                          void recording.run(async (signal) => {
+                            await services.mirroring.refreshOperations(signal);
+                            return services.mirroring.runtimeStatus(signal);
+                          })
+                        }
+                      >
+                        检查录像工具
+                      </Button>
+                    </div>
+                    <p className="rail-hint">
+                      录像不含音频；取消等待请到任务页处理。
+                    </p>
+                  </details>
+                  {movieUrl && (
+                    <>
+                      <video
+                        src={movieUrl}
+                        controls
+                        preload="metadata"
+                        aria-label="设备录像预览"
+                        className="recording-preview"
+                      />
+                      <Button variant="outline" size="sm" asChild>
+                        <a href={movieUrl} download="screen.mp4">
+                          <Download aria-hidden="true" />
+                          下载录像
+                        </a>
+                      </Button>
+                    </>
+                  )}
+                  <JsonResult value={recording.result} />
+                </section>
+                <section className="rail-group">
+                  <h2>会话</h2>
+                  <p className="rail-line">
+                    <span
+                      className={`rail-dot${activeSession ? ' is-live' : ''}`}
+                      aria-hidden="true"
+                    />
+                    {liveLine}
                   </p>
                   <div className="media-actions">
-                    <Button variant="outline" size="sm" disabled={action.pending} onClick={checkLive}>
-                      检查直播能力
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={!selectedSession || !webMode || action.pending}
+                      onClick={openShareDialog}
+                    >
+                      分享直播
                     </Button>
                     <Button
                       variant="outline"
                       size="sm"
-                      disabled={webMode || !activeSession || reader.pending}
-                      onClick={() => void reader.run((signal) => live.pollOutput({ limit: 100 }, signal))}
+                      disabled={!selectedSession || action.pending}
+                      onClick={releaseLive}
                     >
-                      继续读取
-                    </Button>
-                    <Button variant="ghost" size="sm" disabled={!reader.pending} onClick={reader.cancel}>
-                      暂停读取
+                      释放直播
                     </Button>
                   </div>
-                </div>
-              </section>
-              {webMode && selectedSession && (
-                <MediaOwnershipControls
-                  state={ownership}
-                  ready={Boolean(active && controlChannelReady)}
-                  actions={webRtc}
-                />
-              )}
-              {/* ── 控制：开关常驻，剪贴板只在开启后出现 ── */}
-              <section className="rail-group">
-                <h2>设备控制</h2>
-                <div className="media-switch">
-                  <Switch
-                    id="media-control"
-                    checked={control}
-                    onCheckedChange={setControl}
-                    disabled={Boolean(activeSession) || shareInfo?.control === false}
-                  />
-                  <Label htmlFor="media-control">开启设备控制</Label>
-                </div>
-                {control && (
-                  <div className="rail-clipboard-block" aria-live="polite">
-                    <textarea
-                      readOnly
-                      value={mediaClipboard.text ?? ''}
-                      placeholder="在设备内复制文本后，会出现在这里"
-                      aria-label="设备剪贴板文本"
-                      rows={2}
-                      className="rail-clipboard"
-                    />
-                    <div className="media-actions">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={!controlReady || !webMode}
-                        onClick={mediaClipboard.copySelection}
-                      >
-                        复制设备选中文本
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={!mediaClipboard.text || !controlReady}
-                        onClick={mediaClipboard.copyToComputer}
-                      >
-                        复制到电脑
-                      </Button>
-                    </div>
-                    <p className="rail-hint">
-                      {mediaClipboard.message || '设备内复制的内容只同步给当前控制者。'}
-                    </p>
-                  </div>
-                )}
-              </section>
-              <section className="rail-group">
-                <h2>录制</h2>
-                <p className="rail-line">
-                  <span
-                    className={`rail-dot${recording.pending ? ' is-busy' : movie ? ' is-ready' : ''}`}
-                    aria-hidden="true"
-                  />
-                  {recordLine}
-                  {movie && <span className="rail-line-note mono">{movieSource}</span>}
-                </p>
-                <details className="rail-fold">
-                  <summary>录制参数</summary>
-                  <Field
-                    label="录制时长（毫秒）"
-                    value={duration}
-                    onChange={setDuration}
-                    type="number"
-                    min={1000}
-                    max={120000}
-                  />
-                  <div className="media-actions">
+                  <details className="rail-fold">
+                    <summary>恢复已知会话</summary>
+                    <Field label="直播会话 ID" value={sessionId} onChange={setSessionId} />
                     <Button
-                      variant="ghost"
+                      variant="outline"
                       size="sm"
-                      disabled={recording.pending}
+                      disabled={webMode || !sessionId || action.pending}
                       onClick={() =>
-                        void recording.run(async (signal) => {
-                          await services.mirroring.refreshOperations(signal);
-                          return services.mirroring.runtimeStatus(signal);
+                        void action.run(async (signal) => {
+                          await services.mediaDisplay.prepare(false);
+                          const sameSession = live.snapshot().session?.id === sessionId;
+                          const result = await live.resume(sessionId, signal);
+                          if (!signal.aborted && !sameSession) {
+                            setLiveReference(null);
+                            setSource(`恢复会话 ${sessionId}`);
+                          }
+                          return result;
                         })
                       }
                     >
-                      检查录像工具
+                      恢复画面读取位置
                     </Button>
-                  </div>
-                  <p className="rail-hint">
-                    录像不含音频；取消等待请到任务页处理。
-                  </p>
-                </details>
-                {movieUrl && (
-                  <>
-                    <video
-                      src={movieUrl}
-                      controls
-                      preload="metadata"
-                      aria-label="设备录像预览"
-                      className="recording-preview"
-                    />
-                    <Button variant="outline" size="sm" asChild>
-                      <a href={movieUrl} download="screen.mp4">
-                        <Download aria-hidden="true" />
-                        下载录像
-                      </a>
-                    </Button>
-                  </>
-                )}
-                <JsonResult value={recording.result} />
-              </section>
-              <section className="rail-group">
-                <h2>会话</h2>
-                <p className="rail-line">
-                  <span
-                    className={`rail-dot${activeSession ? ' is-live' : ''}`}
-                    aria-hidden="true"
-                  />
-                  {liveLine}
-                </p>
-                <div className="media-actions">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={!selectedSession || !webMode || action.pending}
-                    onClick={openShareDialog}
-                  >
-                    分享直播
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={!selectedSession || action.pending}
-                    onClick={releaseLive}
-                  >
-                    释放直播
-                  </Button>
-                </div>
-                <details className="rail-fold">
-                  <summary>恢复已知会话</summary>
-                  <Field label="直播会话 ID" value={sessionId} onChange={setSessionId} />
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={webMode || !sessionId || action.pending}
-                    onClick={() =>
-                      void action.run(async (signal) => {
-                        await services.mediaDisplay.prepare(false);
-                        const sameSession = live.snapshot().session?.id === sessionId;
-                        const result = await live.resume(sessionId, signal);
-                        if (!signal.aborted && !sameSession) {
-                          setLiveReference(null);
-                          setSource(`恢复会话 ${sessionId}`);
-                        }
-                        return result;
-                      })
-                    }
-                  >
-                    恢复画面读取位置
-                  </Button>
-                  <p className="rail-hint">恢复其它会话会关闭控制。</p>
-                </details>
-              </section>
-              {imageUrl && (
-                <section className="rail-group">
-                  <h2>最近截取</h2>
-                  <a className="rail-item" href={imageUrl} download={imageName}>
-                    <span className="mono">{imageName}</span>
-                    <Download aria-hidden="true" />
-                  </a>
-                  <p className="rail-hint">来源：{imageSource}</p>
-                  <img src={imageUrl} alt="设备截图预览" className="screenshot-preview" />
+                    <p className="rail-hint">恢复其它会话会关闭控制。</p>
+                  </details>
                 </section>
-              )}
-              <div className="rail-slot" aria-label="插件插槽：由插件在此渲染工具">
-                <span className="rail-slot-name mono">workshop.extensions</span>
-                <span className="rail-slot-note">插件可在此处渲染工具</span>
+                {imageUrl && (
+                  <section className="rail-group">
+                    <h2>最近截取</h2>
+                    <a className="rail-item" href={imageUrl} download={imageName}>
+                      <span className="mono">{imageName}</span>
+                      <Download aria-hidden="true" />
+                    </a>
+                    <p className="rail-hint">来源：{imageSource}</p>
+                    <img src={imageUrl} alt="设备截图预览" className="screenshot-preview" />
+                  </section>
+                )}
+                <div className="rail-slot" aria-label="插件插槽：由插件在此渲染工具">
+                  <span className="rail-slot-name mono">workshop.extensions</span>
+                  <span className="rail-slot-note">插件可在此处渲染工具</span>
               </div>
               <JsonResult value={action.result} />
-            </>
+              </div>
+            </div>
           )}
         </div>
-        <div className="max-h-[45dvh] shrink-0 overflow-y-auto px-3 pb-3">
-          <RecoveryPanel state={recovery.state} activeSession={activeSession}
-            recover={recovery.recover} refresh={recovery.refresh} cancel={recovery.cancel} />
-        </div>
-        {displayedPane === 'params' && (
-          <div className="rail-foot">
-            <Button
-              disabled={!androidTarget || !liveAvailable || Boolean(activeSession) || reader.pending}
-              onClick={startLive}
-            >
-              <Play aria-hidden="true" />
-              {activeSession ? '投屏进行中' : '开始投屏'}
-            </Button>
+        <div className={cn(
+          'flex max-h-[60%] min-h-0 shrink-0 flex-col border-t border-[var(--hairline)]',
+          displayedPane === 'params' && '@min-[641px]/device-screen:@max-[1024px]/device-screen:grid @min-[641px]/device-screen:@max-[1024px]/device-screen:grid-cols-[minmax(0,1fr)_minmax(0,188px)] @min-[641px]/device-screen:@max-[1024px]/device-screen:grid-rows-[minmax(0,1fr)] @min-[641px]/device-screen:@max-[1024px]/device-screen:items-end @min-[641px]/device-screen:@max-[1024px]/device-screen:pr-[68px]',
+        )}>
+          <div className="max-h-[45dvh] min-h-0 min-w-0 overflow-y-auto px-3 py-1 @min-[641px]/device-screen:@max-[1024px]/device-screen:self-stretch @min-[641px]/device-screen:@max-[1024px]/device-screen:pb-6 @min-[641px]/device-screen:@max-[1024px]/device-screen:pt-2">
+            <RecoveryPanel state={recovery.state} activeSession={activeSession}
+              className="border-0 pt-0"
+              recover={recovery.recover} refresh={recovery.refresh} cancel={recovery.cancel}>
+              {displayedPane === 'params' && (
+                <div role="group" aria-label="投屏诊断操作" className="flex min-w-0 flex-wrap items-center gap-2">
+                  <Button variant="outline" size="sm" disabled={action.pending} onClick={checkLive}>
+                    检查直播能力
+                  </Button>
+                  {!webMode && (
+                    <>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={!activeSession || reader.pending}
+                        onClick={() => void reader.run((signal) => live.pollOutput({ limit: 100 }, signal))}
+                      >
+                        继续读取
+                      </Button>
+                      <Button variant="ghost" size="sm" disabled={!reader.pending} onClick={reader.cancel}>
+                        暂停读取
+                      </Button>
+                    </>
+                  )}
+                </div>
+              )}
+            </RecoveryPanel>
           </div>
-        )}
+          {displayedPane === 'params' && (
+            <div className="min-w-0 shrink-0 pb-6 pl-[14px] pr-[68px] @min-[641px]/device-screen:@max-[1024px]/device-screen:pl-3 @min-[641px]/device-screen:@max-[1024px]/device-screen:pr-0 @min-[641px]/device-screen:@max-[1024px]/device-screen:pt-2">
+              {reader.error != null && (
+                <div role="alert" className="mb-2 flex min-w-0 flex-col gap-1 text-xs text-destructive">
+                  <p>{reader.error instanceof Error ? reader.error.message : '投屏未打开，请检查参数或查询会话状态。'}</p>
+                  {readerLogId && (
+                    <p className="select-all break-all font-mono text-[11px]">日志 ID：{readerLogId}</p>
+                  )}
+                </div>
+              )}
+              <Button
+                className="h-8 w-full text-xs"
+                disabled={!androidTarget || !liveAvailable || Boolean(activeSession) || reader.pending || advancedSettings.input === null}
+                onClick={startLive}
+              >
+                <Play aria-hidden="true" />
+                {activeSession ? '投屏进行中' : '开始投屏'}
+              </Button>
+            </div>
+          )}
+        </div>
       </aside>
       {/* ── 舞台：设备画面常驻 ────────────────────────────── */}
       <div className="workbench-stage" ref={stage} style={stageStyle}>
@@ -970,7 +1015,7 @@ export function DeviceScreen({
                 ref={services.mediaDisplay.bindVideo}
                 autoPlay
                 playsInline
-                muted
+                muted={!playbackAudio}
                 // 关掉浏览器的媒体浮层（画中画/投送/下载）：它会盖在画面顶部，挡设备画面。
                 controls={false}
                 controlsList="nodownload noplaybackrate noremoteplayback"

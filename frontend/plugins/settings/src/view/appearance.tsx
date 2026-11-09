@@ -1,13 +1,17 @@
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import type { ThemeSnapshot } from '@deviceforge/plugin-sdk';
 import type { SettingsServices } from '../services.ts';
 import { Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, useAction } from '../view-support.tsx';
 import { SettingsFailure, settingsInputClass } from './primitives.tsx';
 
-export function AppearanceSettings({ services }: { services: SettingsServices }) {
+export function AppearanceSettings({ services, visible = true }: { services: SettingsServices; visible?: boolean }) {
   const themeId = useId();
   const themes = services.context.themes;
   const [state, setState] = useState<ThemeSnapshot | null>(() => themes?.snapshot() ?? null);
+  const visibleRef = useRef(visible);
+  visibleRef.current = visible;
+  const [open, setOpen] = useState(false);
+  useEffect(() => { if (!visible) setOpen(false); }, [visible]);
   const action = useAction();
   useEffect(() => {
     setState(themes?.snapshot() ?? null);
@@ -16,10 +20,14 @@ export function AppearanceSettings({ services }: { services: SettingsServices })
   }, [themes]);
   return <div className="mt-7 flex flex-col gap-5">
     <Label htmlFor={themeId} className="text-[13px] font-normal text-body">界面主题</Label>
-    <Select value={state?.selected?.id ?? 'base'} disabled={!themes || action.pending}
-      onValueChange={(value) => { void action.run(async () => { themes?.select(value === 'base' ? null : value); }); }}>
+    <Select open={visible && open}
+      onOpenChange={(next) => setOpen(visibleRef.current && next)}
+      value={state?.selected?.id ?? 'base'} disabled={!themes || action.pending}
+      onValueChange={(value) => {
+        if (visibleRef.current) void action.run(async () => { themes?.select(value === 'base' ? null : value); });
+      }}>
       <SelectTrigger id={themeId} className={`${settingsInputClass} w-full max-w-[520px]`}><SelectValue /></SelectTrigger>
-      <SelectContent>
+      <SelectContent onCloseAutoFocus={(event) => { if (!visibleRef.current) event.preventDefault(); }}>
         <SelectItem value="base">默认外观</SelectItem>
         {state?.themes.map((theme) => <SelectItem key={theme.id} value={theme.id}>{theme.title} · {theme.pluginId}</SelectItem>)}
       </SelectContent>

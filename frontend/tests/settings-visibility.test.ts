@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test, { after } from 'node:test';
 import { act } from 'react';
 import { JSDOM } from 'jsdom';
-import type { Dispose, HostContext, JsonValue, WorkspaceViewContext } from '../src/plugin-sdk/index.ts';
+import type { Dispose, HostContext, JsonValue, ThemeSnapshot, WorkspaceViewContext } from '../src/plugin-sdk/index.ts';
 import { createWorkspaceRegistry } from '../src/plugins/workspace/index.ts';
 import { registerCompositionStartupImports } from './composition-startup-imports.ts';
 
@@ -11,6 +11,7 @@ const page = new JSDOM('<!doctype html><html><body></body></html>', {
   url: 'http://127.0.0.1:7031/#/settings', pretendToBeVisual: true,
 });
 const document = page.window.document;
+page.window.HTMLElement.prototype.scrollIntoView = () => {};
 const previous = new Map<string, PropertyDescriptor | undefined>();
 for (const [name, value] of Object.entries({
   window: page.window, document, navigator: page.window.navigator,
@@ -63,10 +64,16 @@ async function edit(element: HTMLTextAreaElement, value: string) {
 }
 function dialogs() { return [...document.querySelectorAll<HTMLElement>('[role="dialog"]')]; }
 
-async function fixture(options: { initialVisible?: boolean; hideDuringSubscribe?: boolean } = {}) {
+async function fixture(options: { initialVisible?: boolean; hideDuringSubscribe?: boolean; withThemes?: boolean } = {}) {
   const controller = new AbortController(), registry = createWorkspaceRegistry();
   const releases: Dispose[] = [];
   const calls: { operation: string; input: JsonValue }[] = [];
+  const themeSelections: (string | null)[] = [];
+  const themeListeners = new Set<(snapshot: ThemeSnapshot) => void>();
+  const themeState: ThemeSnapshot = {
+    themes: [{ id: 'memory_theme.night', title: '内存夜间主题', pluginId: 'memory_theme', generation: 1 }],
+    selected: null,
+  };
   const ui = registry.access({ pluginId: 'deviceforge_settings', generation: 8, signal: controller.signal });
   const context: HostContext = {
     apiVersion: 2, signal: controller.signal, ui,
@@ -84,6 +91,13 @@ async function fixture(options: { initialVisible?: boolean; hideDuringSubscribe?
     cancelJob: async () => { throw new Error('显隐不应取消手动作业'); },
     subscribeOperations: () => () => {},
     onDispose: (release) => { releases.push(release); return release; },
+    ...(options.withThemes ? { themes: {
+      snapshot: () => themeState,
+      subscribe(listener: (snapshot: ThemeSnapshot) => void) {
+        themeListeners.add(listener); return () => { themeListeners.delete(listener); };
+      },
+      select(id: string | null) { themeSelections.push(id); },
+    } } : {}),
   };
   const plugin = createSettingsPlugin({ id: 'deviceforge_settings', version: '0.1.0', apiVersion: 2 });
   assert.ok(plugin.activate); await plugin.activate(context);
@@ -111,7 +125,8 @@ async function fixture(options: { initialVisible?: boolean; hideDuringSubscribe?
   const draft = textarea(root, '配置内容 · JSON');
   const imported = textarea(root, '配置区集合 · JSON');
   return {
-    root, shell, calls, draft, imported,
+    root, shell, calls, draft, imported, themeSelections,
+    themeSubscriptions: () => themeListeners.size,
     async choose(name: string) { await act(async () => { button(root, name).click(); }); },
     async read() {
       await act(async () => { button(root, '工具配置').click(); });
@@ -186,3 +201,119 @@ test('设置实例可见性：初始隐藏和订阅前变化校准最新快照�
     } finally { await current.dispose(); }
   }
 });
+
+function selectTrigger(root: HTMLElement, label: string) {
+  const trigger = [...root.querySelectorAll<HTMLButtonElement>('button[role="combobox"]')]
+    .find((candidate) => candidate.getAttribute('aria-label') === label ||
+      [...root.querySelectorAll('label')].some((entry) => entry.htmlFor === candidate.id && entry.textContent === label));
+  assert.ok(trigger, `缺少真实设置列表入口：${label}`);
+  return trigger;
+}
+async function openSelect(trigger: HTMLButtonElement) {
+  await act(async () => {
+    trigger.dispatchEvent(new page.window.KeyboardEvent('keydown', {
+      key: 'ArrowDown', bubbles: true, cancelable: true,
+    }));
+  });
+}
+async function escapeSelect() {
+  await act(async () => {
+    document.activeElement?.dispatchEvent(new page.window.KeyboardEvent('keydown', {
+      key: 'Escape', bubbles: true, cancelable: true,
+    }));
+  });
+}
+
+test('设置列表可见性：分类Portal随实例隐藏撤销，恢复不重开并保双实例JSON草稿',
+  { timeout: 12_000 }, async (unit) => {
+    let network = 0;
+    unit.mock.method(globalThis, 'fetch', async () => { network++; throw new Error('设置列表单元禁止网络'); });
+    const first = await fixture(), second = await fixture();
+    try {
+      await first.choose('工具配置'); await second.choose('工具配置');
+      await edit(first.draft, '{"草稿":"分类原输入"}');
+      await edit(second.draft, '{"草稿":"另一实例"}');
+      const trigger = selectTrigger(first.root, '设置分类');
+      await act(async () => { trigger.focus(); });
+      await openSelect(trigger);
+      const listbox = document.querySelector('[role="listbox"]'); assert.ok(listbox);
+      assert.equal(first.root.contains(listbox), false, '必须实际打开页面外的分类列表');
+      assert.match(listbox.textContent ?? '', /服务连接/);
+      assert.match(listbox.textContent ?? '', /外观与主题/);
+      assert.ok(resolveOwnedPortalRoot(listbox)?.anchor === first.root);
+      await first.visible(false);
+      assert.equal(listbox.isConnected, false, '页面隐藏必须撤所属分类列表Portal');
+      assert.ok(first.shell.hidden && first.shell.hasAttribute('inert'));
+      await openSelect(trigger);
+      assert.equal(document.querySelector('[role="listbox"]'), null, '隐藏旧分类入口不能登记打开状态');
+      await act(async () => { second.draft.focus(); });
+      await first.visible(true);
+      assert.equal(document.querySelector('[role="listbox"]'), null, '恢复不能重开分类列表');
+      assert.equal(document.activeElement === second.draft, true);
+      assert.ok(!first.shell.hidden && !first.shell.hasAttribute('inert'));
+      assert.equal(textarea(first.root, '配置内容 · JSON') === first.draft, true);
+      assert.equal(textarea(second.root, '配置内容 · JSON') === second.draft, true);
+      assert.equal(first.draft.value, '{"草稿":"分类原输入"}');
+      assert.equal(second.draft.value, '{"草稿":"另一实例"}');
+      await openSelect(trigger);
+      assert.ok(document.querySelector('[role="listbox"]'));
+      await escapeSelect();
+      assert.equal(document.querySelector('[role="listbox"]'), null);
+      assert.deepEqual(first.calls, []); assert.deepEqual(second.calls, []);
+      assert.equal(network, 0);
+    } finally { try { await first.dispose(); } finally { await second.dispose(); } }
+  });
+
+test('设置列表可见性：主题Portal随分类或整页隐藏撤销，恢复不重开且取消不改主题配置',
+  { timeout: 12_000 }, async (unit) => {
+    let network = 0;
+    unit.mock.method(globalThis, 'fetch', async () => { network++; throw new Error('主题列表单元禁止网络'); });
+    const first = await fixture({ withThemes: true }), second = await fixture({ withThemes: true });
+    try {
+      await first.choose('工具配置'); await second.choose('工具配置');
+      await edit(first.draft, '{"草稿":"外观分类保留"}');
+      await edit(second.draft, '{"草稿":"独立设置"}');
+      await first.choose('外观与主题');
+      const trigger = selectTrigger(first.root, '界面主题');
+      assert.equal(trigger.disabled, false, '必须提供公开内存主题能力使真实入口可用');
+      await act(async () => { trigger.focus(); });
+      await openSelect(trigger);
+      const categoryList = document.querySelector('[role="listbox"]'); assert.ok(categoryList);
+      assert.equal(first.root.contains(categoryList), false);
+      assert.match(categoryList.textContent ?? '', /内存夜间主题/);
+      assert.ok(resolveOwnedPortalRoot(categoryList)?.anchor === first.root);
+      await first.choose('服务连接');
+      assert.equal(categoryList.isConnected, false, '切出外观分类必须撤所属主题列表Portal');
+      await openSelect(trigger);
+      assert.equal(document.querySelector('[role="listbox"]'), null, '隐藏主题入口不能登记打开状态');
+      await first.choose('外观与主题');
+      assert.equal(document.querySelector('[role="listbox"]'), null, '返回外观分类不能重开旧主题列表');
+      await openSelect(trigger);
+      const pageList = document.querySelector('[role="listbox"]'); assert.ok(pageList);
+      await first.visible(false);
+      assert.equal(pageList.isConnected, false, '整页隐藏也必须撤销主题列表Portal');
+      assert.equal(document.activeElement === trigger, false, '隐藏主题列表不能返焦不可见入口');
+      await openSelect(trigger);
+      assert.equal(document.querySelector('[role="listbox"]'), null);
+      await act(async () => { second.draft.focus(); });
+      await first.visible(true);
+      assert.equal(document.querySelector('[role="listbox"]'), null);
+      assert.equal(document.activeElement === second.draft, true);
+      await act(async () => { trigger.focus(); });
+      await openSelect(trigger);
+      assert.ok(document.querySelector('[role="listbox"]'));
+      await escapeSelect();
+      assert.equal(document.querySelector('[role="listbox"]'), null);
+      assert.equal(document.activeElement === trigger, true, '正常Escape关闭应返焦原主题入口');
+      assert.equal(textarea(first.root, '配置内容 · JSON') === first.draft, true);
+      assert.equal(textarea(second.root, '配置内容 · JSON') === second.draft, true);
+      assert.equal(first.draft.value, '{"草稿":"外观分类保留"}');
+      assert.equal(second.draft.value, '{"草稿":"独立设置"}');
+      assert.deepEqual(first.themeSelections, []); assert.deepEqual(second.themeSelections, []);
+      assert.deepEqual(first.calls, []); assert.deepEqual(second.calls, []);
+      assert.equal(network, 0);
+    } finally {
+      try { await first.dispose(); } finally { await second.dispose(); }
+      assert.equal(first.themeSubscriptions(), 0); assert.equal(second.themeSubscriptions(), 0);
+    }
+  });
