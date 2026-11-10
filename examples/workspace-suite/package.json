@@ -13,8 +13,8 @@
     "build": "node ./scripts/generate-contracts.ts && tsc -p tsconfig.server.json && node ./scripts/build-browser.ts"
   },
   "devDependencies": {
-    "@deviceforge/plugin-sdk": "file:./vendor/deviceforge-plugin-sdk-0.1.0.tgz",
-    "@deviceforge/plugin-tools": "file:./vendor/deviceforge-plugin-tools-0.1.1.tgz",
+    "@deviceforge/plugin-sdk": "https://github.com/CitricAcidCandy/DeviceForge-SDK/releases/download/v0.1.0/deviceforge-plugin-sdk-0.1.0.tgz",
+    "@deviceforge/plugin-tools": "https://github.com/CitricAcidCandy/DeviceForge-SDK/releases/download/v0.1.0/deviceforge-plugin-tools-0.1.1.tgz",
     "@types/node": "24.19.1",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",

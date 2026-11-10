@@ -1,11 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { spawn } from 'node:child_process';
+import { execFile, spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { promisify } from 'node:util';
 import { readPluginModule } from '../../frontend/src/plugins/contracts.ts';
 import { createPluginScope } from '../../frontend/src/plugins/scope.ts';
 import { createPluginManager } from '../../frontend/src/plugins/manager.ts';
@@ -14,18 +15,42 @@ import { validateRelease } from '../plugin-releases/contract.mjs';
 import { normalizeManifest } from '../../cli/src/plugin-authoring/manifest.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
-const sdkRoot = resolve(process.env.DEVICEFORGE_SDK_ROOT ?? join(root, '../DeviceForge-SDK'));
-const guideDirectory = (target) => join(sdkRoot, 'docs', target);
+const execute = promisify(execFile);
+let guideSource;
+async function publicGuideSource() {
+  guideSource ??= (async () => {
+    const { stdout } = await execute('cargo', ['metadata', '--locked', '--offline', '--format-version', '1',
+      '--manifest-path', join(root, 'backend/Cargo.toml')], {
+      cwd: root, windowsHide: true, timeout: 30000, maxBuffer: 32 * 1024 * 1024,
+    });
+    const metadata = JSON.parse(stdout);
+    const packages = metadata.packages.filter((entry) => entry.name === 'deviceforge-plugin-guide');
+    assert.equal(packages.length, 1, '必须消费唯一公开指南库');
+    const packageInfo = packages[0];
+    const source = packageInfo.source?.match(
+      /^git\+https:\/\/github\.com\/CitricAcidCandy\/DeviceForge-SDK\.git\?rev=([a-f0-9]{40})#([a-f0-9]{40})$/,
+    );
+    assert.ok(source, '指南必须来自公开 Git 仓库并固定完整修订');
+    assert.equal(source[1], source[2], '请求修订与锁定修订必须一致');
+    const directory = dirname(packageInfo.manifest_path);
+    const library = await readFile(join(directory, 'src/lib.rs'), 'utf8');
+    const version = library.match(/pub const GUIDE_VERSION:\s*u32\s*=\s*(\d+)\s*;/);
+    assert.ok(version, '公开指南库必须声明知识版本');
+    return { root: resolve(directory, '../..'), library, version: Number(version[1]) };
+  })();
+  return guideSource;
+}
+const guideDirectory = async (target) => join((await publicGuideSource()).root, 'docs', target);
 const frontendRequire = createRequire(new URL('../../frontend/package.json', import.meta.url));
 const topics = ['overview', 'manifest', 'sdk', 'lifecycle', 'examples', 'packaging', 'dependencies', 'validation'];
 
 test('公开指南只在独立SDK维护，MCP编译期嵌入且保留固定来源', async () => {
   const catalog = await readFile(join(root, 'backend/crates/server/src/plugin_guide/catalog.rs'), 'utf8');
-  const build = await readFile(join(root, 'backend/crates/server/build.rs'), 'utf8');
-  assert.match(catalog, /env!\("DEVICEFORGE_SDK_ROOT"\)/);
-  assert.doesNotMatch(catalog, /env!\("CARGO_MANIFEST_DIR"\)/);
-  assert.match(build, /cargo:rerun-if-env-changed=DEVICEFORGE_SDK_ROOT/);
-  assert.match(build, /DeviceForge-SDK/);
+  assert.match(catalog, /use deviceforge_plugin_guide::\{backend, frontend\}/);
+  assert.doesNotMatch(catalog, /include_str!|env!|DEVICEFORGE_SDK_ROOT|DeviceForge-SDK/);
+  await assert.rejects(readFile(join(root, 'backend/crates/server/build.rs')), { code: 'ENOENT' },
+    '宿主不再靠本机相邻目录或环境变量嵌入指南');
+  await publicGuideSource();
   for (const target of ['frontend', 'backend']) {
     for (const topic of topics) {
       await assert.rejects(
@@ -33,7 +58,7 @@ test('公开指南只在独立SDK维护，MCP编译期嵌入且保留固定来�
         { code: 'ENOENT' },
         '宿主不得保留另一份公开指南正文',
       );
-      const content = await readFile(join(guideDirectory(target), `${topic}.md`), 'utf8');
+      const content = await readFile(join(await guideDirectory(target), `${topic}.md`), 'utf8');
       assert.ok(content.length > 100);
     }
   }
@@ -43,7 +68,7 @@ test('MCP 单清单与市场结构直接可用，两端示例符合真实生成�
   const marketFields = ['summary', 'keywords', 'categories', 'applies_to', 'supports_mcp', 'supports_agent',
     'restart_policy', 'author', 'license', 'homepage', 'visibility', 'details'];
   for (const target of ['frontend', 'backend']) {
-    const directory = guideDirectory(target);
+    const directory = await guideDirectory(target);
     const [manifest, packaging, overview] = await Promise.all(['manifest', 'packaging', 'overview'].map((topic) =>
       readFile(join(directory, `${topic}.md`), 'utf8')));
     const values = [...manifest.matchAll(/```json\r?\n([\s\S]*?)\r?\n```/g)].map(([, body]) => JSON.parse(body));
@@ -67,7 +92,7 @@ test('MCP 单清单与市场结构直接可用，两端示例符合真实生成�
 });
 
 test('MCP 默认总览、SDK 与示例准确指引现有界面插槽和插件路由', async () => {
-  const directory = guideDirectory('frontend');
+  const directory = await guideDirectory('frontend');
   const [overview, sdk, examples, manifest] = await Promise.all(
     ['overview', 'sdk', 'examples', 'manifest'].map((topic) => readFile(join(directory, `${topic}.md`), 'utf8')),
   );
@@ -85,14 +110,14 @@ test('MCP 默认总览、SDK 与示例准确指引现有界面插槽和插件路
 
 test('MCP 插件开发知识允许无宿主源码独立开发', async () => {
   for (const target of ['frontend', 'backend']) {
-    const overview = await readFile(join(guideDirectory(target), 'overview.md'), 'utf8');
+    const overview = await readFile(join(await guideDirectory(target), 'overview.md'), 'utf8');
     assert.ok(overview.includes('无需获取宿主源码'), `${target} 总览必须说明公开开发边界`);
     assert.ok(overview.includes('独立工程'), `${target} 总览必须支持独立工程`);
     for (const term of ['开发流程', '公开能力', '接口', '约束', '生命周期', '调试', '发布要求']) {
       assert.ok(overview.includes(term), `${target} 总览缺少公开知识范围 ${term}`);
     }
     for (const topic of topics) {
-      const content = await readFile(join(guideDirectory(target), `${topic}.md`), 'utf8');
+      const content = await readFile(join(await guideDirectory(target), `${topic}.md`), 'utf8');
       assert.doesNotMatch(content, /backend\/(?:(?:crates|examples|scripts|target)\/|Cargo\.toml)|path\s*=\s*"[^"\r\n]*(?:\.\.\/)+(?:crates|backend)\//,
         `${target}/${topic} 不得要求宿主工程路径`);
       assert.doesNotMatch(content, /(?:AGENTS|主代理|scripts\/generate-public-ui|src\/app\/public-ui|examples\/server-service|plugin-sdk\/ui\.ts)/,
@@ -114,9 +139,11 @@ test('MCP 维护说明与实际指南版本、支持格式和主题保持同步'
     readFile(join(root, 'backend/crates/server/src/plugin_guide/query.rs'), 'utf8'),
     readFile(join(root, 'backend/docs/implementation/MCP插件开发指南.md'), 'utf8'),
   ]);
-  const version = query.match(/"guide_version":\s*(\d+)/);
-  assert.ok(version, '指南响应必须声明知识版本');
-  assert.ok(maintenance.includes(`guide_version=${version[1]}`), '维护说明中的知识版本已过期');
+  const { version } = await publicGuideSource();
+  assert.match(query, /"guide_version":\s*deviceforge_plugin_guide::GUIDE_VERSION/,
+    '指南响应必须复用公开库的知识版本');
+  assert.equal(version, 5, '远端指南升级须使用第五版知识');
+  assert.ok(maintenance.includes(`guide_version=${version}`), '维护说明中的知识版本已过期');
   for (const field of ['release_format_versions', 'release_host_api_versions']) {
     const supported = query.match(new RegExp(`"${field}":\\s*(\\[[\\d,\\s]+\\])`));
     assert.ok(supported, `指南响应缺少 ${field}`);
@@ -131,15 +158,36 @@ test('MCP 维护说明与实际指南版本、支持格式和主题保持同步'
   }
 });
 
-test('八主题十六篇嵌入文档保持固定来源、读取预算与第三版知识覆盖', async () => {
+test('MCP 发行知识直接提供公开SDK、工具、CLI和固定Rust依赖，不要求本机相邻仓库', async () => {
+  const packaging = await readFile(join(await guideDirectory('frontend'), 'packaging.md'), 'utf8');
+  const release = 'https://github.com/CitricAcidCandy/DeviceForge-SDK/releases/download/v0.1.0/';
+  for (const filename of ['deviceforge-plugin-sdk-0.1.0.tgz', 'deviceforge-plugin-tools-0.1.1.tgz',
+    'deviceforge-contracts-0.1.0.tgz', 'deviceforge-cli-0.1.0.tgz']) {
+    assert.ok(packaging.includes(release + filename), `公开指南缺少实际发行直链 ${filename}`);
+  }
+  const backend = await readFile(join(await guideDirectory('backend'), 'sdk.md'), 'utf8');
+  assert.ok(backend.includes(release + 'deviceforge-sdk-sources-0.1.0.zip'),
+    'Rust指南必须给出实际独立源码发行直链');
+  assert.match(backend, /git\s*=\s*"https:\/\/github\.com\/CitricAcidCandy\/DeviceForge-SDK(?:\.git)?"/,
+    'Rust例子必须从公开仓库取得SDK');
+  assert.match(backend, /rev\s*=\s*"[a-f0-9]{40}"/, 'Rust例子必须固定完整修订');
+  for (const content of [packaging, backend]) {
+    assert.doesNotMatch(content, /DEVICEFORGE_SDK_ROOT|file:[^\r\n]*DeviceForge-SDK|path\s*=\s*"[^"\r\n]*\.\.\/DeviceForge-SDK/,
+      '公开材料不得要求开发者准备宿主相邻检出');
+  }
+});
+
+test('八主题十六篇嵌入文档保持远端固定来源、读取预算与现行知识覆盖', async () => {
   const catalog = await readFile(
     join(root, 'backend/crates/server/src/plugin_guide/catalog.rs'),
     'utf8',
   );
-  const documents = [...catalog.matchAll(/document!\(\s*(Frontend|Backend),\s*(\w+),\s*"([^"]+)"(?:,\s*"([^"]+)")?\s*\)/g)];
+  const documents = [...catalog.matchAll(/document!\(\s*(Frontend|Backend),\s*(\w+),\s*(frontend|backend)::(\w+)\s*\)/g)];
   assert.equal(documents.length, 16);
-  const sources = new Set(documents.map(([, , , source]) => source));
-  assert.equal(sources.size, 16, '嵌入来源不得重复');
+  const { root: sdkRoot, library } = await publicGuideSource();
+  const sources = [...library.matchAll(/include_str!\("([^"]+)"\)/g)].map(([, source]) => source);
+  assert.equal(sources.length, 17, '十六篇响应只额外拼入开放组合补充正文');
+  assert.equal(new Set(sources).size, 17, '嵌入来源不得重复');
   const requiredTerms = {
     overview: ['release.json', 'DEVICEFORGE_USER_DIR', 'npx'],
     manifest: ['format_version', 'host_api_version', 'bindings', 'any_of'],
@@ -151,19 +199,28 @@ test('八主题十六篇嵌入文档保持固定来源、读取预算与第三�
     dependencies: ['dependencies.json', '一次', '.deviceforge', 'expected_revision', 'target_kind'],
   };
   for (const target of ['frontend', 'backend']) {
+    const section = library.match(new RegExp(`pub mod ${target} \\{([\\s\\S]*?)\\n\\}`));
+    assert.ok(section, `公开指南库缺少 ${target} 命名空间`);
     for (const topic of topics) {
       const source = `docs/${target}/${topic}.md`;
-      const entries = documents.filter(([, side, name, path]) =>
-        side.toLowerCase() === target && name.toLowerCase() === topic && path === source,
+      const entries = documents.filter(([, side, name, namespace, constant]) =>
+        side.toLowerCase() === target && name.toLowerCase() === topic &&
+        namespace === target && constant === topic.toUpperCase(),
       );
       assert.equal(entries.length, 1, `${target}/${topic} 必须恰有一个固定来源`);
+      const declaration = section[1].match(new RegExp(`pub const ${topic.toUpperCase()}:\\s*&str\\s*=\\s*([\\s\\S]*?);`));
+      assert.ok(declaration, `${target}/${topic} 必须映射公开正文常量`);
+      const included = [...declaration[1].matchAll(/include_str!\("([^"]+)"\)/g)].map(([, path]) => path);
+      const expected = [`../../../${source}`];
+      if (target === 'frontend' && topic === 'sdk') expected.push('../../../docs/frontend/composition.md');
+      assert.deepEqual(included, expected, `${target}/${topic} 不得隐式读取另一份正文`);
       const bytes = await readFile(join(sdkRoot, source));
       const content = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
       assert.ok(bytes.length >= 100 && bytes.length <= 128 * 1024, `${source} 超出文档预算`);
       for (const term of requiredTerms[topic]) {
         assert.ok(content.includes(term), `${source} 缺少 ${term}`);
       }
-      const supplement = entries[0][4];
+      const supplement = included[1]?.replace(/^\.\.\/\.\.\/\.\.\//, '');
       if (supplement !== undefined) {
         assert.equal(`${target}/${topic}`, 'frontend/sdk', '仅已有前端 sdk 主题拼接开放组合知识');
         assert.equal(supplement, 'docs/frontend/composition.md');
@@ -178,10 +235,11 @@ test('八主题十六篇嵌入文档保持固定来源、读取预算与第三�
 
 test('MCP 现有 sdk 主题自包含开放组合与本地 SDK 发行边界', async () => {
   const catalog = await readFile(join(root, 'backend/crates/server/src/plugin_guide/catalog.rs'), 'utf8');
-  assert.match(catalog, /document!\(\s*Frontend,\s*Sdk,\s*"docs\/frontend\/sdk\.md",\s*"docs\/frontend\/composition\.md"\s*\)/);
-  assert.match(catalog, /content:\s*concat!\([\s\S]*include_str![\s\S]*\$source[\s\S]*"\\n\\n"[\s\S]*include_str![\s\S]*\$supplement/);
-  const primary = await readFile(join(guideDirectory('frontend'), 'sdk.md'), 'utf8');
-  const supplement = await readFile(join(guideDirectory('frontend'), 'composition.md'), 'utf8');
+  assert.match(catalog, /document!\(\s*Frontend,\s*Sdk,\s*frontend::SDK\s*\)/);
+  const { library } = await publicGuideSource();
+  assert.match(library, /pub const SDK:\s*&str\s*=\s*concat!\(\s*include_str!\("\.\.\/\.\.\/\.\.\/docs\/frontend\/sdk\.md"\),\s*"\\n\\n",\s*include_str!\("\.\.\/\.\.\/\.\.\/docs\/frontend\/composition\.md"\)/);
+  const primary = await readFile(join(await guideDirectory('frontend'), 'sdk.md'), 'utf8');
+  const supplement = await readFile(join(await guideDirectory('frontend'), 'composition.md'), 'utf8');
   const content = `${primary}\n\n${supplement}`;
   for (const term of ['interface PointAccess', 'interface UiAccess', 'interface PluginTransport', 'interface DataAccess',
     'extensions.points', 'WorkspacePageDefinition', 'WorkspaceViewDefinition', 'expectedRevision', 'persistence',
@@ -193,11 +251,11 @@ test('MCP 现有 sdk 主题自包含开放组合与本地 SDK 发行边界', asy
   assert.doesNotMatch(content, /(?:frontend|backend)\/(?:src|crates|scripts|target|docs)\//, '公开拼接正文不能返回宿主源码或文档地址');
   assert.doesNotMatch(content, /\]\((?!https?:\/\/|#)[^)]+\)/, '组合知识不能依赖仓库相对链接');
   for (const topic of ['overview', 'lifecycle', 'packaging']) {
-    const guide = await readFile(join(guideDirectory('frontend'), `${topic}.md`), 'utf8');
+    const guide = await readFile(join(await guideDirectory('frontend'), `${topic}.md`), 'utf8');
     for (const term of ['manifest.json', 'TGZ', 'npm registry', '当前目录和视图提供者'])
       assert.ok(guide.includes(term), `${topic} 缺少实际交付边界 ${term}`);
   }
-  const backend = await readFile(join(guideDirectory('backend'), 'sdk.md'), 'utf8');
+  const backend = await readFile(join(await guideDirectory('backend'), 'sdk.md'), 'utf8');
   for (const term of ["target:'fullstack'", 'extensions.points', 'transport', 'data', 'getJob', '原子修订', 'manifest.json'])
     assert.ok(backend.includes(term), `配套开发指南缺少 ${term}`);
   const schema = await readFile(join(root, 'backend/crates/server/src/plugin_guide/schema.rs'), 'utf8');
@@ -239,11 +297,11 @@ test('MCP 正文自包含服务 API、功能级生命周期与协议六兼容规
   };
   for (const [document, terms] of Object.entries(required)) {
     const [target, topic] = document.split('/');
-    const content = await readFile(join(guideDirectory(target), `${topic}.md`), 'utf8');
+    const content = await readFile(join(await guideDirectory(target), `${topic}.md`), 'utf8');
     for (const term of terms) assert.ok(content.includes(term), `${document} 的 MCP 正文缺少 ${term}`);
   }
   const smoke = await readFile(join(root, 'backend/scripts/plugin-guide-smoke.mjs'), 'utf8');
-  for (const term of ["'dependencies'", 'data.guide_version, 4', 'data.release_format_versions, [1, 2]',
+  for (const term of ["'dependencies'", 'data.guide_version, guideVersion', 'data.release_format_versions, [1, 2]',
     'whenAvailable', 'callTyped', '30 秒']) {
     assert.ok(smoke.includes(term), `真实 MCP 验收缺少当前知识覆盖 ${term}`);
   }
@@ -288,7 +346,7 @@ test('MCP 服务组合示例能等待、类型化调用、局部撤销并在提�
 
 async function fixture(target, names, run) {
   const markdown = await readFile(
-    join(guideDirectory(target), 'examples.md'),
+    join(await guideDirectory(target), 'examples.md'),
     'utf8',
   );
   const temporaryRoot = resolve(root, 'artifacts/sdk-guide-tests');
@@ -525,7 +583,7 @@ test('成套结构模板与两端组件身份一致，替换真实归档后形�
     await fixture('frontend', browserNames, async (browser) => {
       const examples = async (target) => {
         const markdown = await readFile(
-          join(guideDirectory(target), 'examples.md'),
+          join(await guideDirectory(target), 'examples.md'),
           'utf8',
         );
         return [...markdown.matchAll(/```json\r?\n([\s\S]*?)\r?\n```/g)].map(

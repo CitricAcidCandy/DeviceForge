@@ -1,28 +1,15 @@
-import test, { after } from 'node:test';
+import test from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
-import { registerHooks } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { gunzipSync } from 'node:zlib';
 import { extract } from 'it-tar';
 import ts from 'typescript';
 import type { HostResult, Job, ServerServiceAccess } from '../src/plugin-sdk/index.ts';
-import { sdkBrowserPackage } from '../scripts/sdk-repository.ts';
+import { generatePluginContracts } from '@deviceforge/plugin-tools';
+import { archiveInstalledSdkPackage } from '../scripts/installed-sdk-package.ts';
 
-const contractsRoot = new URL('../../../DeviceForge-SDK/browser/tools/src/contracts/', import.meta.url);
-const parser = registerHooks({
-  resolve(specifier, context, next) {
-    if (context.parentURL?.startsWith(contractsRoot.href) && specifier.endsWith('.js')) {
-      const source = new URL(specifier.slice(0, -3) + '.ts', context.parentURL);
-      if (existsSync(source)) return { url: source.href, shortCircuit: true };
-    }
-    return next(specifier, context);
-  },
-});
-after(() => parser.deregister());
-const { generatePluginContracts } = await import('../../../DeviceForge-SDK/browser/tools/src/contracts/index.ts');
 
 function schema() {
   return {
@@ -327,7 +314,8 @@ test('生成源码只消费真实发行SDK即可通过独立NodeNext严格类型
   const key = (file: string) => resolve(file).replaceAll('\\', '/').toLowerCase();
   const virtual = new Map<string, string>();
   const put = (file: string, source: string) => virtual.set(key(file), source);
-  const tar = gunzipSync(await readFile(join(sdkBrowserPackage(frontend, 'sdk'), 'dist/deviceforge-plugin-sdk-0.1.0.tgz')));
+  const issued = await archiveInstalledSdkPackage(frontend, 'sdk', join(frontend, 'artifacts/installed-sdk'));
+  const tar = gunzipSync(await readFile(issued.archive));
   for await (const entry of extract()([tar])) {
     assert.ok(entry.header.name.startsWith('package/'));
     const local = entry.header.name.slice('package/'.length);

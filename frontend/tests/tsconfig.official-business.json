@@ -1,25 +1,5 @@
 {
   "extends": "../tsconfig.json",
-  "compilerOptions": {
-    "paths": {
-      "@deviceforge/plugin-sdk": ["../src/plugin-sdk/index.ts"],
-      "@deviceforge/business-kit/api": ["../plugins/business-kit/src/api/index.ts"],
-      "@deviceforge/business-kit/jobs": ["../plugins/business-kit/src/jobs/index.ts"],
-      "@deviceforge/business-kit/react": ["../plugins/business-kit/src/react/index.tsx"],
-      "@deviceforge/business-kit/dialog": ["../plugins/business-kit/src/react/dialog.tsx"],
-      "@deviceforge/business-kit/platform": ["../plugins/business-kit/src/platform.ts"],
-      "@deviceforge/business-kit/workspace": ["../plugins/business-kit/src/workspace.ts"],
-      "@deviceforge/business-kit/device": ["../plugins/business-kit/src/device.ts"],
-      "@deviceforge/business-kit/sheet": ["../plugins/business-kit/src/react/sheet.tsx"],
-      "@deviceforge/business-kit/select-field": ["../plugins/business-kit/src/react/select-field.tsx"],
-      "@deviceforge/contracts/api": ["../../../DeviceForge-SDK/browser/contracts/api.d.ts"],
-      "@deviceforge/frida/model": ["../plugins/frida/src/model/index.ts"],
-      "@deviceforge/automation/model": ["../plugins/automation/src/model/index.ts"],
-      "@deviceforge/analysis/msgpack": ["../plugins/analysis/src/msgpack/index.ts"],
-      "@deviceforge/performance/model": ["../plugins/performance/src/performance/index.ts"],
-      "@deviceforge/performance/profile": ["../plugins/performance/src/android-profile/index.ts"]
-    }
-  },
   "include": [
     "../plugins/business-kit/src/**/*.ts",
     "../plugins/business-kit/src/**/*.tsx",

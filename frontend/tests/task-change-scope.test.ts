@@ -1,18 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { registerHooks } from 'node:module';
 import { HostError } from '../src/plugin-sdk/index.ts';
 import type { Dispose, HistoricalJob, HostContext, TaskHistoryAccess, TaskHistoryChange } from '../src/plugin-sdk/index.ts';
 import { createPluginScope } from '../src/plugins/scope.ts';
 
-const sdkHook = registerHooks({
-  resolve(specifier, context, next) {
-    return specifier === '@deviceforge/plugin-sdk'
-      ? { url: new URL('../src/plugin-sdk/index.ts', import.meta.url).href, shortCircuit: true }
-      : next(specifier, context);
-  },
-});
-const { createTaskFooterModel } = await import('../plugins/tasks/src/footer-model.ts').finally(() => sdkHook.deregister());
+const { createTaskFooterModel } = await import('../plugins/tasks/src/footer-model.ts');
 
 const ready: TaskHistoryChange = { state: 'ready', revision: '1', reset: true };
 const changed: TaskHistoryChange = { state: 'changed', revision: '2', reset: false };

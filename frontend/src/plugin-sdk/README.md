@@ -1,3 +1,3 @@
 # 插件SDK兼容入口
 
-公开实现已移至同级DeviceForge-SDK仓库。本目录仅重导出已安装的@deviceforge/plugin-sdk公开包，保留宿主既有导入兼容；不得在此新增协议或第二份SDK实现。
+公开实现由独立DeviceForge-SDK仓库维护。本目录仅重导出正常安装的@deviceforge/plugin-sdk公开包，保留宿主既有导入兼容；不得在此新增协议或第二份SDK实现。宿主通过package.json中的固定HTTPS发行TGZ及锁文件安装，不依赖相邻SDK检出、开发机路径或未构建源码。

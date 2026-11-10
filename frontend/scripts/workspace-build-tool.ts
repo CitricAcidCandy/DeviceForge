@@ -2,6 +2,7 @@ import { lstat, readFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { join, resolve } from 'node:path';
 import { sdkBrowserPackage } from './sdk-repository.ts';
+import { archiveInstalledSdkPackage } from './installed-sdk-package.ts';
 
 const semver: unknown = createRequire(import.meta.url)('semver');
 const object = (value: unknown): value is Record<string, unknown> =>
@@ -21,7 +22,7 @@ function validVersion(value: unknown): value is string {
   return typeof normalized === 'string';
 }
 
-/** 只发现已发行工具的真实版本与字节，不构建、不发行，也不猜测旧归档。 */
+/** 默认重封已安装工具发行文件；显式目录仅用于校验测试归档，不寻找SDK源码。 */
 export async function readWorkspaceBuildTool(frontend: string, packageRoot?: string): Promise<WorkspaceBuildTool> {
   const root = packageRoot ? resolve(packageRoot) : sdkBrowserPackage(frontend, 'tools');
   let metadata: unknown;
@@ -31,7 +32,8 @@ export async function readWorkspaceBuildTool(frontend: string, packageRoot?: str
     throw new Error('构建工具包身份必须为 @deviceforge/plugin-tools');
   if (!validVersion(metadata.version))
     throw new Error('构建工具版本必须为完整有效的 semver，不接受前缀、范围或路径');
-  const archive = join(root, 'dist', `deviceforge-plugin-tools-${metadata.version}.tgz`);
+  const archive = packageRoot ? join(root, 'dist', `deviceforge-plugin-tools-${metadata.version}.tgz`)
+    : (await archiveInstalledSdkPackage(frontend, 'tools', join(frontend, 'artifacts/installed-sdk'))).archive;
   try {
     if (!(await lstat(archive)).isFile()) throw new Error('构建工具归档必须是普通文件');
     return { name: metadata.name, version: metadata.version, archive, content: await readFile(archive) };

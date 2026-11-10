@@ -11,15 +11,22 @@ import { gunzipSync } from 'node:zlib';
 import * as ts from 'typescript';
 import { JSDOM } from 'jsdom';
 import { buildBrowserPlugin } from '@deviceforge/plugin-tools';
-import { inspectOutput } from '../../../DeviceForge-SDK/browser/tools/lib/imports.js';
+import type { PluginModuleImports } from '@deviceforge/plugin-tools';
+import { readWorkspaceBuildTool } from '../scripts/workspace-build-tool.ts';
 import { sdkBrowserPackage } from '../scripts/sdk-repository.ts';
 
 const require = createRequire(import.meta.url);
+const frontend = fileURLToPath(new URL('../', import.meta.url));
+const toolsRoot = sdkBrowserPackage(frontend, 'tools');
+const toolInternals: { inspectOutput(root: string): Promise<readonly PluginModuleImports[]> } =
+  await import(pathToFileURL(join(toolsRoot, 'lib/imports.js')).href);
+const { inspectOutput } = toolInternals;
+const toolWorker = resolve(toolsRoot, 'lib/worker.js');
 const children = new Map<number, { command: string; exited: boolean }>();
 const originalEmit = ChildProcess.prototype.emit;
 mock.method(ChildProcess.prototype, 'emit', function(this: ChildProcess, event: string | symbol, ...values: unknown[]) {
   if (event === 'spawn' && this.pid && this.spawnargs.some((arg) =>
-    arg.replaceAll('\\', '/').endsWith('/browser/tools/lib/worker.js'))) {
+    resolve(arg) === toolWorker)) {
     const state = { command: this.spawnargs.join(' '), exited: false };
     children.set(this.pid, state);
     this.once('exit', () => { state.exited = true; });
@@ -31,7 +38,8 @@ after(() => {
   for (const [pid, state] of children) assert.equal(state.exited, true, `构建进程未回收：${pid}`);
   console.log(`构建子进程回收：${JSON.stringify([...children].map(([pid, state]) => ({ pid, ...state })))}`);
 });
-async function fixture(unit: test.TestContext, directory = tmpdir()) {
+async function fixture(unit: test.TestContext, directory = join(frontend, 'artifacts')) {
+  await mkdir(directory, { recursive: true });
   const parent = await realpath(directory), root = await mkdtemp(join(parent, 'deviceforge-plugin-build-'));
   unit.after(async () => {
     const target = await realpath(root);
@@ -252,7 +260,7 @@ test('跨工程私有导入和计算动态模块不能绕过公开依赖闭包',
 
 test('实际工程盘输出通过同盘临时文件提交，跨卷暂存不触发EXDEV', async (unit) => {
   const packageRoot = sdkBrowserPackage(fileURLToPath(new URL('../', import.meta.url)), 'tools');
-  const f = await fixture(unit, packageRoot);
+  const f = await fixture(unit);
   if (process.platform === 'win32') assert.notEqual(parse(f.root).root, parse(await realpath(tmpdir())).root);
   await f.source('index.ts', 'export default () => ({apiVersion:2});');
   const result = await buildBrowserPlugin({ root: f.root, outputDir: f.outputDir });
@@ -263,13 +271,13 @@ test('实际工程盘输出通过同盘临时文件提交，跨卷暂存不触�
 
 test('真实TGZ自带ESM与声明，可作为独立工程公开依赖消费', async (unit) => {
   const packageRoot = sdkBrowserPackage(fileURLToPath(new URL('../', import.meta.url)), 'tools');
-  const f = await fixture(unit, packageRoot);
+  const f = await fixture(unit);
   const published = join(f.root, 'node_modules', '@deviceforge', 'plugin-tools');
   await mkdir(published, { recursive: true });
   const metadata: unknown = JSON.parse(await readFile(join(packageRoot, 'package.json'), 'utf8'));
   assert.ok(metadata && typeof metadata === 'object' && 'version' in metadata &&
     typeof metadata.version === 'string' && /^\d+\.\d+\.\d+$/.test(metadata.version));
-  const archive = gunzipSync(await readFile(join(packageRoot, 'dist', `deviceforge-plugin-tools-${metadata.version}.tgz`)));
+  const archive = gunzipSync((await readWorkspaceBuildTool(frontend)).content);
   const members: string[] = [];
   for (let offset = 0; offset + 512 <= archive.length;) {
     const header = archive.subarray(offset, offset + 512);

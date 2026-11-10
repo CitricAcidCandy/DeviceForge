@@ -6,7 +6,7 @@ AI 开发 DeviceForge 插件前，调用只读工具 `deviceforge.get_plugin_dev
 
 对外知识面向拿不到宿主源码的插件开发者，必须可在独立工程消费。内容覆盖开发流程、公开能力与接口、约束、生命周期、调试和发布要求；不得返回源码位置或文档物理地址，不得要求克隆或阅读宿主源码、进入宿主目录、使用宿主仓库路径依赖、执行宿主生成器及构建或维护门禁。跨主题通过同一 MCP 工具继续查询，不能把必需信息留在仓库相对链接中。客户端直接使用 `documents.content` 正文，文档来源路径仅留在编译期维护。
 
-公开 Rust SDK 是可选依赖；只有另行提供可独立消费的开发包后才使用，不假设 crate 已发布或编造下载地址。指南保留无 SDK 依赖的完整 Node.js 示例；Rust 处理器按 API 示意标明前置依赖，不能把示意声称为可直接构建的完整包。宿主内部维护流程留在工程文档，不进入对外指南。
+公开 Rust SDK 在独立的 [DeviceForge-SDK 仓库](https://github.com/CitricAcidCandy/DeviceForge-SDK)维护，通过固定完整 Git 修订独立消费；浏览器 SDK 与构建工具通过该仓库公开发行附件获取，不假设 npm 或 crates.io 已发布。指南保留无 SDK 依赖的完整 Node.js 示例；需要 SDK 的 Rust 处理器示意必须明确其前置依赖，完整工程示例与 API 片段分开。宿主内部维护流程留在工程文档，不进入对外指南。
 
 请求参数：
 
@@ -16,13 +16,13 @@ AI 开发 DeviceForge 插件前，调用只读工具 `deviceforge.get_plugin_dev
 
 `target` 必填，为 `frontend`、`backend` 或 `fullstack`。`topic` 可省略，默认 `overview`；支持 `overview`、`manifest`、`sdk`、`lifecycle`、`examples`、`packaging`、`dependencies`、`validation`。未知字段、未知枚举、空值和类型错误均拒绝。
 
-响应包含指南版本、当前宿主版本、前端 SDK 版本、后端任务与交互协议版本、完整发布格式及宿主 API 版本、请求主题和 `documents`。每份文档只包含 `target/topic/content`；第四版删除此前返回仓库文档路径的 `source` 字段，调用方按目标和主题识别文档并直接使用正文。`fullstack` 返回同一主题的两端文档。当前 `guide_version=4`，保留八主题和请求参数，声明 `release_format_versions:[1,2]` 与 `release_host_api_versions:[2]`。
+响应包含指南版本、当前宿主版本、前端 SDK 版本、后端任务与交互协议版本、完整发布格式及宿主 API 版本、请求主题和 `documents`。每份文档只包含 `target/topic/content`；第四版删除此前返回仓库文档路径的 `source` 字段，调用方按目标和主题识别文档并直接使用正文。`fullstack` 返回同一主题的两端文档。当前 `guide_version=5`，保留八主题和请求参数，声明 `release_format_versions:[1,2]` 与 `release_host_api_versions:[2]`。
 
 ## 本次基础设施知识覆盖
 
 2026-10-28 单清单开发：两端 manifest 直接提供 manifest_version:1 完整示例和 market 全部字段、默认值与枚举；packaging 提供 plugin pack/plan/publish 及本地目录、ZIP/TGZ 导入流程。查询响应声明 authoring_manifest_versions:[1] 和三条 authoring_cli_commands。独立 CLI 随包携带纯规则和发布依赖，不要求第三方执行宿主脚本；浏览器用工程内独立包消费相同规则，生成清单是分发产物而非第二份手写来源。文档由宿主编译嵌入，本次没有重启或部署，旧在线版本不自动更新。
 
-指南使用 `guide_version=4`，八主题和请求参数不变，文档项不再含来源字段；两端 `validation` 直接包含公开调试流程。知识接口版本不等于浏览器 SDK 或插件协议版本，前端 SDK 仍为 v2，普通任务支持协议 1–4 或显式选择 6，独立会话继续使用 5。
+指南使用 `guide_version=5`，八主题和请求参数不变，文档项不再含来源字段；两端 `validation` 直接包含公开调试流程。知识接口版本不等于浏览器 SDK 或插件协议版本，前端 SDK 仍为 v2，普通任务支持协议 1–4 或显式选择 6，独立会话继续使用 5。
 
 - 前端 `sdk` 正文直接包含 `ServiceRef`、`TypedService`、`ServiceFeatureDiagnostic`、`ServerServiceAccess` 以及 `call/callTyped/whenAvailable/diagnostics` 签名，不能只提供指向仓库实现文档的链接。
 - 前端 `lifecycle` 正文包含加载激活 30 秒、挂载 10 秒、整次清理 5 秒、功能级等待/撤销/重建、旧代隔离和诊断边界；超时结束宿主等待，不表示能强制停止可信 JavaScript。
@@ -33,18 +33,30 @@ AI 开发 DeviceForge 插件前，调用只读工具 `deviceforge.get_plugin_dev
 
 ## 编译与维护
 
-前端知识源为 `frontend/docs/guides/plugin-development/`，后端知识源为 `backend/docs/guides/plugin-development/`，分别维护八个主题，共十六份返回正文。前端 `sdk` 由固定 `sdk.md`、两个换行及 `composition.md` 在编译期拼接，实际知识源为十七个文件，不新增公开主题或文档条目。server 的 `plugin_guide` 模块用 `include_str!` 将内容嵌入可执行文件；复制单个宿主程序或通过现有 CLI 运行包分发时，指南随二进制交付，不需要增加运行时文件路径配置。
+公开知识的唯一维护源为独立 SDK 仓库中的 `docs/frontend/` 与 `docs/backend/`。SDK 内 `deviceforge-plugin-guide` 库用固定 `include_str!` 嵌入十七个文件，输出两端各八个常量；前端 `SDK` 常量由 `sdk.md`、两个换行及 `composition.md` 编译期拼接，共十六份返回正文。宿主 `plugin_guide/catalog.rs` 只映射这些公开常量，不再复制正文、寻找同级目录或通过 `DEVICEFORGE_SDK_ROOT` 配置本地来源。
+
+宿主的四项公共 Rust 依赖统一使用公开 SDK Git 仓库与同一完整四十位修订，`Cargo.lock` 固定获取结果；其他人只需克隆宿主和按锁文件获取依赖，不需要在旁边再放 SDK 工作区。架构检查拒绝默认相邻路径、分支／标签浮动引用、混用修订和未登记的 Git 依赖。复制单个宿主程序或通过现有 CLI 运行包分发时，指南已在编译期随二进制交付，不读取运行机器源码、不联网取正文，也不增加运行时路径配置。
 
 `mcp.rs` 只路由调用和提供初始化引导，`mcp_tools.rs` 负责目录组合，独立指南模块负责参数、文档选择与响应。响应沿既有 MCP 日志元数据关联，不将指南当作异步任务。
 
-修改公开 SDK、协议或示例后应同步对应主题，并重新编译宿主。文档修改不会热更新已运行的旧二进制；`host_version` 是软件版本，不能独立证明两个开发构建的内容相同。指南中的 `guide_version` 表示知识接口版本。
+修改公开 SDK、协议或示例后应先在 SDK 仓库同步对应主题并提交公开修订，再更新宿主固定修订和锁文件，按实际需要编译交付。文档修改不会热更新已运行的旧二进制；`host_version` 是软件版本，不能独立证明两个开发构建的内容相同。指南中的 `guide_version` 来自公开指南库常量，表示知识接口版本。
 
 每次插件公开能力变更必须一并检查：
 
 - 两端知识正文，尤其是声明、打包、共享依赖和验证主题；不能只更新普通实现文档或市场卡片。
 - `plugin_guide/schema.rs`、`catalog.rs` 和 `query.rs` 的主题、固定来源、指南版本与支持格式；本维护说明随之更新。
-- Node 固定来源及维护说明一致性测试、Rust MCP 路由测试；执行结果与尚未执行的门禁分别记录。
+- Node 测试先从 `cargo metadata --locked --offline` 取得已获取的固定 Git 指南库，再核对来源和维护说明；不回退相邻工作区、不自动联网。Rust 直接单元或路由检查按影响范围选择，执行结果与尚未执行的门禁分别记录。
 - 发布宿主重新编译后的真实 MCP 返回内容；不擅自重启用户服务，不把源码更新写成运行中旧 MCP 已更新。
+
+## 2026-11-10 公开SDK固定修订与第五版知识
+
+- 宿主四项公共 Rust 依赖和资源服务器的公共依赖统一固定公开修订 `54a2889cce00e8a7ac9ac169313d4bab6b283320`。两份锁文件由实际 Cargo 更新生成；新增指南库无第三方依赖，未升级其他现有包版本。
+- `server/build.rs` 已移除，宿主目录不再查找同级 SDK 或要求 `DEVICEFORGE_SDK_ROOT`。目录映射仍是十六条，前端 SDK 补充正文在公开指南库编译时拼接；响应结构及八主题不变。
+- 第五版正文给出真实 SDK、构建工具、契约、CLI 和 Rust 源码发行入口及版本、大小、摘要；公开开发不需要宿主源码。既有 v0.1.0 标签与附件不移动，宿主消费的新修订用于新增指南库及知识更新。
+- 验证资源使用任务级 G 盘 Cargo 缓存，不改全局 Cargo 配置或既有 C 盘缓存。两个新增架构单元由真实失败修至通过，三个原依赖边界兼容单元通过；固定 Git 指南库的新正文预算与内容单元一项通过，测试角色的七项指南来源与公开知识单元通过，smoke 脚本语法检查通过。
+- 宿主 `apk-server --lib` 和公开 `deviceforge-plugin-runtime --lib` 的锁定离线定向检查通过；资源服务器锁定离线清单解析通过。实际 SDK 检出位于任务 G 盘缓存，两端均解析同一固定修订。没有运行资源服务器全量构建。
+- `cargo test --locked --offline -p apk-server --lib plugin_guide::query::tests -j 1` 的六项直接单元全部通过，验证参数、十六篇映射、版本及正文知识；其余五十八项被筛出，没有执行真实路由集成或网络服务。
+- 当前不启动隔离宿主烟测、不重启用户服务；源码与离线单元完成不能证明正在运行的 MCP 已更新为第五版。没有重建标准后端可执行文件、CLI 或插件 ZIP。
 
 ## 第三版知识覆盖
 

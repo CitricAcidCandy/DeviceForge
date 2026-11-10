@@ -1,6 +1,7 @@
 /*/target/
 /backend/data/
 /frontend/node_modules/
+/examples/*/node_modules/
 /frontend/dist/
 /frontend/artifacts/
 *.log

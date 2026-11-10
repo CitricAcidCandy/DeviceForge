@@ -11,7 +11,7 @@
 - `infrastructure`：实现领域端口，独占进程、文件、数据库等副作用；规则、解析与编排分文件，禁止万能工具模块。
 - `server`：HTTP/MCP 边界与通用端口装配；既有平台装配按迁移清单迁出，不在通用任务路由编写业务分支。
 - `plugin-sdk` 与 `data-codec`：独立公开契约和纯编解码；`plugin-runtime`：公开异步任务插件运行库，负责有界传输、合作取消与清理确认。以上公共模块不得依赖宿主内部模块。
-- 公共plugin-sdk、plugin-runtime及plugin-dependencies现由同级DeviceForge-SDK/rust工作区维护，宿主通过明确版本的外部路径依赖消费；不得在原crates目录重新复制公共实现。架构检查只允许这三项已命名公共包的实际SDK路径，不放宽任意工程外私有依赖。
+- 公共plugin-sdk、plugin-runtime、plugin-dependencies及plugin-guide由独立公开DeviceForge-SDK仓库维护，宿主通过公开Git地址与统一完整修订消费，版本和Cargo.lock同时固定；不得要求同级SDK目录或在原crates目录复制公共实现。架构检查只允许这四项具名公共包及指定公开来源，不放宽任意工程外私有路径或Git依赖。指南由公共库编译期嵌入，宿主不从开发机路径寻找正文。
 - `tool-process`：独立公共异步工具执行、限额、绝对截止点和直接进程清理；不包含平台命令或协议帧。只允许基础设施和独立插件引用，领域/用例继续通过端口调用；丢弃 Future 不表示清理已确认。
 - `android-package-core`：独立归档与 Android 包规则，不依赖宿主、SDK、Tokio、进程、HTTP 或数据库；只允许基础设施薄适配和独立插件消费。同步文件操作须由调用者放入受限工作池，传递原绝对截止点和只读取消回调；库不创建任务、分配产物 ID 或删除调用者目录。具体 profile、CRC 和资源规则遵守 `docs/implementation/包工具公共库第一批实施裁定.md`。
 - `plugins/`：独立进程插件，生产依赖通过公开 SDK 和公共库接入，不引用宿主 domain/application/infrastructure/server；集成测试可以使用宿主。

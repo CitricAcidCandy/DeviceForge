@@ -1,7 +1,6 @@
 {
   "extends": "../tsconfig.json",
   "include": [
-    "../../../DeviceForge-SDK/browser/tools/src/contracts/**/*.ts",
     "./plugin-contract-generation.test.ts"
   ]
 }

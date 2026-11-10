@@ -34,7 +34,7 @@ npm run check
 if ($LASTEXITCODE -ne 0) { throw "严格类型检查失败" }
 ```
 
-SDK 通过 `file:./vendor/deviceforge-plugin-sdk-0.1.0.tgz` 使用真实随附包；不假设已发布到 registry。测试的 SDK 加载器也读取同一个 TGZ 内的实际 ESM，不映射宿主源码。
+SDK 和构建工具通过 package.json 的固定 GitHub Release HTTPS 地址安装，提交锁文件后可在独立工程正常取得，不依赖相邻SDK检出或宿主源码；尚未发布到 registry。测试的SDK加载器读取随附归档中的实际ESM，只用于归档兼容验证，不参与生产依赖解析。
 
 `npm run generate` 使用公开工具的 `generatePluginContracts`，从清单服务声明生成 `shared/service-contracts.ts`，供两端共用类型、模式和薄调用端。请修改清单后重新生成，不手改生成物。服务器的运行期输入验证、浏览器的 Job 查询与未知结果规则仍由原实现负责，生成类型不代替它们。
 

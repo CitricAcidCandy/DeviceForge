@@ -10,7 +10,7 @@ pub(crate) fn get(input: Value) -> Result<Value> {
     let input: Input = serde_json::from_value(input)
         .map_err(|error| Error::Invalid(format!("插件指南参数无效：{error}")))?;
     Ok(json!({
-        "guide_version": 4,
+        "guide_version": deviceforge_plugin_guide::GUIDE_VERSION,
         "host_version": env!("CARGO_PKG_VERSION"),
         "frontend_sdk_version": 2,
         "backend_task_protocol_versions": [
@@ -169,7 +169,7 @@ mod tests {
         ];
         for (target, topic, terms) in cases {
             let response = get(json!({"target": target, "topic": topic})).unwrap();
-            assert_eq!(response["guide_version"], 4);
+            assert_eq!(response["guide_version"], 5);
             assert_eq!(
                 response["backend_task_protocol_versions"],
                 json!([1, 2, 3, 4, 6])

@@ -33,13 +33,13 @@
   "dependencies": {
     "lucide-react": "1.56.0",
     "@deviceforge/business-kit": "file:../business-kit",
-    "@deviceforge/contracts": "file:../../../../DeviceForge-SDK/browser/contracts"
+    "@deviceforge/contracts": "https://github.com/CitricAcidCandy/DeviceForge-SDK/releases/download/v0.1.0/deviceforge-contracts-0.1.0.tgz"
   },
   "peerDependencies": {
     "react-dom": "^19.3.0",
     "react": "^19.3.0"
   },
   "devDependencies": {
-    "@deviceforge/plugin-sdk": "file:../../../../DeviceForge-SDK/browser/sdk/dist/deviceforge-plugin-sdk-0.1.0.tgz"
+    "@deviceforge/plugin-sdk": "https://github.com/CitricAcidCandy/DeviceForge-SDK/releases/download/v0.1.0/deviceforge-plugin-sdk-0.1.0.tgz"
   }
 }

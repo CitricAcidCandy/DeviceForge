@@ -1,5 +1,4 @@
 import { execFileSync } from 'node:child_process';
-import { existsSync, realpathSync } from 'node:fs';
 import { relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -7,45 +6,46 @@ const boundaries = {
   'apk-domain': { internal: ['deviceforge-plugin-dependencies'], external: ['serde', 'serde_json', 'thiserror', 'async-trait', 'tokio-util', 'schemars', 'futures-util', 'bytes', 'uuid'] },
   'apk-application': { internal: ['apk-domain', 'deviceforge-observability'] },
   'apk-infrastructure': { internal: ['apk-domain', 'apk-plugin-sdk', 'deviceforge-data-codec', 'deviceforge-observability', 'deviceforge-tool-process', 'deviceforge-tool-repository', 'deviceforge-android-package-core', 'deviceforge-plugin-dependencies'] },
-  'apk-server': { internal: ['apk-domain', 'apk-application', 'apk-infrastructure', 'apk-plugin-sdk', 'deviceforge-observability'] },
+  'apk-server': { internal: ['apk-domain', 'apk-application', 'apk-infrastructure', 'apk-plugin-sdk', 'deviceforge-observability', 'deviceforge-plugin-guide'] },
   'deviceforge-observability': { internal: [], external: ['tracing', 'tracing-subscriber', 'tracing-appender', 'tokio', 'uuid', 'serde', 'schemars', 'tempfile', 'thiserror'] },
   'apk-plugin-sdk': { internal: ['deviceforge-plugin-dependencies'], external: ['serde', 'serde_json'] },
   'deviceforge-plugin-dependencies': { internal: [], external: ['serde', 'serde_json', 'schemars', 'semver', 'regex'] },
   'deviceforge-plugin-runtime': { internal: ['apk-plugin-sdk'], external: ['serde', 'serde_json', 'tokio', 'tokio-util', 'windows-sys'] },
+  'deviceforge-plugin-guide': { internal: [], external: [] },
   'deviceforge-data-codec': { internal: [], external: ['serde', 'serde_json', 'thiserror', 'rmpv'] },
   'deviceforge-tool-process': { internal: [], external: ['tokio', 'tokio-util', 'thiserror', 'windows-sys'] },
   'deviceforge-tool-repository': { internal: [], external: ['serde', 'serde_json', 'thiserror', 'sha2', 'fs2', 'tempfile'] },
   'deviceforge-android-package-core': { internal: [], external: ['zip', 'quick-xml', 'serde', 'thiserror'] },
 };
 
-const sdkDirectories = {
-  'apk-plugin-sdk': 'plugin-sdk',
-  'deviceforge-plugin-runtime': 'plugin-runtime',
-  'deviceforge-plugin-dependencies': 'plugin-dependencies',
-};
-const resolvedPath = (path) => existsSync(path) ? realpathSync(path) : resolve(path);
-function publicSdkPath(dependency, root) {
-  const directory = sdkDirectories[dependency.name];
-  if (!directory || !dependency.path) return false;
-  const sdkRoot = resolvedPath(resolve(root, '../../DeviceForge-SDK/rust'));
-  const expected = resolvedPath(resolve(sdkRoot, directory));
-  const within = relative(sdkRoot, expected);
-  return within !== '..' && !within.startsWith(`..${sep}`) &&
-    resolvedPath(dependency.path) === expected;
-}
+const sdkNames = new Set([
+  'apk-plugin-sdk', 'deviceforge-plugin-runtime',
+  'deviceforge-plugin-dependencies', 'deviceforge-plugin-guide',
+]);
+const sdkSource = /^git\+https:\/\/github\.com\/CitricAcidCandy\/DeviceForge-SDK\.git\?rev=[0-9a-f]{40}$/;
 
 // 检查 Cargo 已解析的依赖；开发依赖只用于测试，不进入生产依赖方向。
 export function validatePackages(metadata, root) {
   const members = new Set(metadata.workspace_members);
   const packages = metadata.packages.filter((item) => members.has(item.id));
-  // 独立SDK属于明确公开边界，不因移出宿主工作区变成任意外部私有路径。
-  const internal = new Set([...packages.map((item) => item.name), ...Object.keys(sdkDirectories)]);
+  // 公开SDK维持原依赖方向，但必须来自同一固定Git修订，不能依赖开发机目录。
+  const internal = new Set([...packages.map((item) => item.name), ...sdkNames]);
   const failures = [];
+  const sources = new Set();
   for (const item of packages) {
     const location = relative(root, item.manifest_path).split(sep).join('/');
     const rule = location.startsWith('plugins/') ? { internal: ['apk-plugin-sdk', 'deviceforge-data-codec', 'deviceforge-plugin-runtime', 'deviceforge-tool-process', 'deviceforge-tool-repository', 'deviceforge-android-package-core'] } : boundaries[item.name];
     if (!rule) { failures.push(`${location}: 未定义模块职责和依赖规则`); continue; }
     for (const dependency of item.dependencies.filter((value) => value.kind !== 'dev')) {
+      if (sdkNames.has(dependency.name)) {
+        if (dependency.path || !sdkSource.test(dependency.source ?? '')) {
+          failures.push(`${location}: SDK依赖必须使用公开仓库及固定的40位Git修订`);
+        } else {
+          sources.add(dependency.source);
+        }
+      } else if (dependency.source?.startsWith('git+')) {
+        failures.push(`${location}: 不得引用未登记Git外部依赖 ${dependency.name}`);
+      }
       if (item.name === 'deviceforge-plugin-runtime' && dependency.name === 'windows-sys' &&
           (dependency.kind !== null || dependency.target !== 'cfg(windows)' ||
            (dependency.features ?? []).some((feature) => !['Win32_Foundation', 'Win32_System_Console'].includes(feature)))) {
@@ -56,12 +56,12 @@ export function validatePackages(metadata, root) {
       } else if (!internal.has(dependency.name) && rule.external && !rule.external.includes(dependency.name)) {
         failures.push(`${location}: ${item.name} 的新增外部依赖 ${dependency.name} 必须先审查领域边界`);
       }
-      if (dependency.path && !packages.some((item) => item.name === dependency.name) &&
-          !publicSdkPath(dependency, root)) {
+      if (dependency.path && !packages.some((item) => item.name === dependency.name)) {
         failures.push(`${location}: 不得通过路径依赖引用工程外的私有模块`);
       }
     }
   }
+  if (sources.size > 1) failures.push('公开SDK依赖必须来自同一固定修订');
   return failures;
 }
 

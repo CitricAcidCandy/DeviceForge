@@ -1,16 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
 import { dirname, resolve, join, sep } from 'node:path';
 import { gunzipSync } from 'node:zlib';
 import { extract } from 'it-tar';
 import ts from 'typescript';
-import { sdkBrowserPackage } from '../scripts/sdk-repository.ts';
+import { archiveInstalledSdkPackage } from '../scripts/installed-sdk-package.ts';
 
 const frontend = resolve(import.meta.dirname, '..');
-const archive = join(sdkBrowserPackage(frontend, 'contracts'), 'dist/deviceforge-contracts-0.1.0.tgz');
+
 async function entries() {
+  const { archive } = await archiveInstalledSdkPackage(frontend, 'contracts', join(frontend, 'artifacts/installed-sdk'));
   const values = new Map<string, Buffer>();
   for await (const entry of extract()([gunzipSync(await readFile(archive))])) {
     assert.match(entry.header.name, /^package\/(?:package\.json|api\.d\.ts|README\.md)$/);
@@ -35,7 +35,8 @@ test('公开 HTTP 类型真实归档只含独立声明，与唯一生成结果�
 });
 
 test('独立 NodeNext 工程可从实际 TGZ 严格解析 HTTP 类型，不读取宿主源码', async () => {
-  const temporary = await mkdtemp(join(tmpdir(), 'deviceforge-contracts-consumer-'));
+  await mkdir(join(frontend, 'artifacts'), { recursive: true });
+  const temporary = await mkdtemp(join(frontend, 'artifacts/deviceforge-contracts-consumer-'));
   const root = join(temporary, 'node_modules/@deviceforge/contracts');
   try {
     for (const [name, bytes] of await entries()) {
@@ -60,7 +61,7 @@ test('独立 NodeNext 工程可从实际 TGZ 严格解析 HTTP 类型，不读�
     assert.equal(program.getSourceFiles().some((source) => source.fileName.startsWith(join(frontend, 'src'))), false);
   } finally {
     const checked = resolve(temporary);
-    assert.ok(checked.startsWith(resolve(tmpdir()) + sep));
+    assert.ok(checked.startsWith(resolve(frontend, 'artifacts') + sep));
     await rm(checked, { recursive: true, force: true });
   }
 });

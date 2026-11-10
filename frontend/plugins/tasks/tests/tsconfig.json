@@ -1,4 +1,5 @@
 {
+  "extends": "../../../tsconfig.json",
   "compilerOptions": {
     "target": "ES2022",
     "module": "ESNext",
@@ -11,8 +12,7 @@
     "allowImportingTsExtensions": true,
     "noEmit": true,
     "jsx": "react-jsx",
-    "types": ["node"],
-    "paths": { "@deviceforge/plugin-sdk": ["../../../src/plugin-sdk/index.ts"] }
+    "types": ["node"]
   },
   "include": ["../src/footer-model.ts", "../src/footer.tsx", "../src/index.ts", "./footer.test.ts"]
 }

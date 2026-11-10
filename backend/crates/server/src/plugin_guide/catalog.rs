@@ -1,5 +1,6 @@
-//! 只包含固定的编译期文档，不接受调用者路径或运行时文件内容。
+//! 仅映射公开指南库的固定正文，不接受调用者路径或运行时文件内容。
 use super::schema::{Target, Topic};
+use deviceforge_plugin_guide::{backend, frontend};
 use serde::Serialize;
 
 #[derive(Serialize)]
@@ -10,108 +11,32 @@ pub(super) struct Document {
 }
 
 macro_rules! document {
-    ($target:ident, $topic:ident, $source:literal) => {
+    ($target:ident, $topic:ident, $content:path) => {
         Document {
             target: Target::$target,
             topic: Topic::$topic,
-            content: include_str!(concat!(env!("DEVICEFORGE_SDK_ROOT"), "/", $source)),
-        }
-    };
-    ($target:ident, $topic:ident, $source:literal, $supplement:literal) => {
-        Document {
-            target: Target::$target,
-            topic: Topic::$topic,
-            content: concat!(
-                include_str!(concat!(env!("DEVICEFORGE_SDK_ROOT"), "/", $source)),
-                "\n\n",
-                include_str!(concat!(env!("DEVICEFORGE_SDK_ROOT"), "/", $supplement))
-            ),
+            content: $content,
         }
     };
 }
 
 static DOCUMENTS: [Document; 16] = [
-    document!(
-        Frontend,
-        Dependencies,
-        "docs/frontend/dependencies.md"
-    ),
-    document!(
-        Backend,
-        Dependencies,
-        "docs/backend/dependencies.md"
-    ),
-    document!(
-        Frontend,
-        Overview,
-        "docs/frontend/overview.md"
-    ),
-    document!(
-        Frontend,
-        Manifest,
-        "docs/frontend/manifest.md"
-    ),
-    document!(
-        Frontend,
-        Sdk,
-        "docs/frontend/sdk.md",
-        "docs/frontend/composition.md"
-    ),
-    document!(
-        Frontend,
-        Lifecycle,
-        "docs/frontend/lifecycle.md"
-    ),
-    document!(
-        Frontend,
-        Examples,
-        "docs/frontend/examples.md"
-    ),
-    document!(
-        Frontend,
-        Packaging,
-        "docs/frontend/packaging.md"
-    ),
-    document!(
-        Frontend,
-        Validation,
-        "docs/frontend/validation.md"
-    ),
-    document!(
-        Backend,
-        Overview,
-        "docs/backend/overview.md"
-    ),
-    document!(
-        Backend,
-        Manifest,
-        "docs/backend/manifest.md"
-    ),
-    document!(
-        Backend,
-        Sdk,
-        "docs/backend/sdk.md"
-    ),
-    document!(
-        Backend,
-        Lifecycle,
-        "docs/backend/lifecycle.md"
-    ),
-    document!(
-        Backend,
-        Examples,
-        "docs/backend/examples.md"
-    ),
-    document!(
-        Backend,
-        Packaging,
-        "docs/backend/packaging.md"
-    ),
-    document!(
-        Backend,
-        Validation,
-        "docs/backend/validation.md"
-    ),
+    document!(Frontend, Dependencies, frontend::DEPENDENCIES),
+    document!(Backend, Dependencies, backend::DEPENDENCIES),
+    document!(Frontend, Overview, frontend::OVERVIEW),
+    document!(Frontend, Manifest, frontend::MANIFEST),
+    document!(Frontend, Sdk, frontend::SDK),
+    document!(Frontend, Lifecycle, frontend::LIFECYCLE),
+    document!(Frontend, Examples, frontend::EXAMPLES),
+    document!(Frontend, Packaging, frontend::PACKAGING),
+    document!(Frontend, Validation, frontend::VALIDATION),
+    document!(Backend, Overview, backend::OVERVIEW),
+    document!(Backend, Manifest, backend::MANIFEST),
+    document!(Backend, Sdk, backend::SDK),
+    document!(Backend, Lifecycle, backend::LIFECYCLE),
+    document!(Backend, Examples, backend::EXAMPLES),
+    document!(Backend, Packaging, backend::PACKAGING),
+    document!(Backend, Validation, backend::VALIDATION),
 ];
 
 pub(super) fn select(target: Target, topic: Topic) -> Vec<&'static Document> {

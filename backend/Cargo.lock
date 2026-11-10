@@ -145,6 +145,7 @@ dependencies = [
 [[package]]
 name = "apk-plugin-sdk"
 version = "0.1.0"
+source = "git+https://github.com/CitricAcidCandy/DeviceForge-SDK.git?rev=54a2889cce00e8a7ac9ac169313d4bab6b283320#54a2889cce00e8a7ac9ac169313d4bab6b283320"
 dependencies = [
  "deviceforge-plugin-dependencies",
  "serde",
@@ -162,6 +163,7 @@ dependencies = [
  "async-trait",
  "axum",
  "deviceforge-observability",
+ "deviceforge-plugin-guide",
  "futures-util",
  "percent-encoding",
  "rmcp",
@@ -1040,6 +1042,7 @@ dependencies = [
 [[package]]
 name = "deviceforge-plugin-dependencies"
 version = "0.1.0"
+source = "git+https://github.com/CitricAcidCandy/DeviceForge-SDK.git?rev=54a2889cce00e8a7ac9ac169313d4bab6b283320#54a2889cce00e8a7ac9ac169313d4bab6b283320"
 dependencies = [
  "regex",
  "schemars",
@@ -1049,8 +1052,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "deviceforge-plugin-guide"
+version = "0.1.0"
+source = "git+https://github.com/CitricAcidCandy/DeviceForge-SDK.git?rev=54a2889cce00e8a7ac9ac169313d4bab6b283320#54a2889cce00e8a7ac9ac169313d4bab6b283320"
+
+[[package]]
 name = "deviceforge-plugin-runtime"
 version = "0.1.0"
+source = "git+https://github.com/CitricAcidCandy/DeviceForge-SDK.git?rev=54a2889cce00e8a7ac9ac169313d4bab6b283320#54a2889cce00e8a7ac9ac169313d4bab6b283320"
 dependencies = [
  "apk-plugin-sdk",
  "serde",
@@ -1327,7 +1336,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -2495,7 +2504,7 @@ dependencies = [
  "quinn-udp",
  "rustc-hash",
  "rustls",
- "socket2 0.6.5",
+ "socket2 0.5.10",
  "thiserror 2.0.21",
  "tokio",
  "tracing",
@@ -2533,9 +2542,9 @@ dependencies = [
  "cfg_aliases",
  "libc",
  "once_cell",
- "socket2 0.6.5",
+ "socket2 0.5.10",
  "tracing",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -2911,7 +2920,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -3433,7 +3442,7 @@ dependencies = [
  "getrandom 0.4.3",
  "once_cell",
  "rustix",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]

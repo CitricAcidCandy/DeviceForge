@@ -9,6 +9,7 @@ apk-domain.workspace = true
 apk-application.workspace = true
 apk-infrastructure.workspace = true
 apk-plugin-sdk.workspace = true
+deviceforge-plugin-guide.workspace = true
 axum.workspace = true
 socketioxide.workspace = true
 serde.workspace = true

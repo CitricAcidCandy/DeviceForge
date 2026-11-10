@@ -1,7 +1,6 @@
 {
-  "extends": "../tsconfig.json",
+  "extends": "../../../tsconfig.json",
   "compilerOptions": {
-    "paths": { "@deviceforge/plugin-sdk": ["../../../src/plugin-sdk/index.ts"] },
     "types": ["node"]
   },
   "include": ["../src/**/*.ts", "../src/**/*.tsx", "./*.ts"]

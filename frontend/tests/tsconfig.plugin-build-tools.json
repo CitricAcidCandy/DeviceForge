@@ -1,0 +1,9 @@
+{
+  "extends": "../tsconfig.json",
+  "include": [
+    "../scripts/installed-sdk-package.ts",
+    "../scripts/sdk-repository.ts",
+    "../scripts/workspace-build-tool.ts",
+    "./plugin-build-tools.test.ts"
+  ]
+}

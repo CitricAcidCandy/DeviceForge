@@ -1,17 +1,24 @@
 import { copyFile, mkdir, readFile, readdir, realpath } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
+import { createRequire } from 'node:module';
 import { packageWorkspaceLibrary } from './package-workspace-library.ts';
 import {
   hash, inside, object, readObject, unpackPublicPackage,
 } from './workspace-release-inputs.ts';
 import type { PublicReleasePackage, ReleaseProject } from './workspace-release-inputs.ts';
-import { sdkRepositoryRoot } from './sdk-repository.ts';
+import { archiveInstalledSdkPackage } from './installed-sdk-package.ts';
+import type { InstalledSdkName } from './installed-sdk-package.ts';
+import { sdkBrowserPackage } from './sdk-repository.ts';
 import { packagePluginManifest } from './package-plugin-manifest.ts';
 
 export interface PreparedReleasePackages {
   readonly packages: readonly PublicReleasePackage[];
   readonly imports: Readonly<Record<string, string>>;
 }
+const platformPackages: Readonly<Record<string, InstalledSdkName>> = {
+  '@deviceforge/plugin-sdk': 'sdk', '@deviceforge/contracts': 'contracts', '@deviceforge/plugin-tools': 'tools',
+};
+const semver: unknown = createRequire(import.meta.url)('semver');
 function localDependencies(metadata: Readonly<Record<string, unknown>>): readonly [string, string][] {
   const result: [string, string][] = [];
   for (const kind of ['dependencies', 'devDependencies', 'peerDependencies']) {
@@ -21,7 +28,7 @@ function localDependencies(metadata: Readonly<Record<string, unknown>>): readonl
     for (const [name, version] of Object.entries(entries)) {
       if (typeof version !== 'string') throw new Error('插件依赖版本无效');
       if (version.startsWith('workspace:')) throw new Error('发行需要可定位的公开配套包，不能保留 workspace 占位');
-      if (version.startsWith('file:')) result.push([name, version.slice(5)]);
+      if (version.startsWith('file:') || platformPackages[name]) result.push([name, version]);
     }
   }
   return result;
@@ -62,7 +69,7 @@ export function createReleasePackageSources() {
 /** 先发行真实公共依赖，再构建业务安装包；不把开发条件或私有源码交给 bundler。 */
 export async function prepareReleasePackages(
   frontend: string, output: string, projects: readonly ReleaseProject[], signal: AbortSignal,
-  sdkRoot = sdkRepositoryRoot(frontend),
+  installedFrontend = frontend,
 ): Promise<PreparedReleasePackages> {
   const packages = new Map<string, PublicReleasePackage>();
   const sources = createReleasePackageSources();
@@ -85,14 +92,10 @@ export async function prepareReleasePackages(
     return result;
   }
   // 只有平台 SDK、生成契约和纯清单规则属于启动工具依赖；业务依赖从工程声明递归取得。
-  for (const [name, path] of [
-    ['@deviceforge/plugin-sdk', 'browser/sdk/dist/deviceforge-plugin-sdk-0.1.0.tgz'],
-    ['@deviceforge/contracts', 'browser/contracts/dist/deviceforge-contracts-0.1.0.tgz'],
-  ]) {
-    if (!name || !path) throw new Error('平台公开包声明无效');
-    const archive = join(sdkRoot, path);
-    sources.register(name, { kind: 'archive', path: await realpath(archive), sha256: hash(await readFile(archive)) });
-    await addArchive(archive, name);
+  for (const name of ['sdk', 'contracts'] as const) {
+    const installed = await archiveInstalledSdkPackage(installedFrontend, name, join(output, 'installed-package-archives'));
+    sources.register(installed.name, { kind: 'archive', path: await realpath(installed.archive), sha256: installed.sha256 });
+    await addArchive(installed.archive, installed.name);
   }
   const manifest = await packagePluginManifest(join(output, 'manifest-package'));
   sources.register('@deviceforge/plugin-manifest', {
@@ -103,10 +106,29 @@ export async function prepareReleasePackages(
     for (const [name, source] of localDependencies(metadata)) {
       signal.throwIfAborted();
       if (building.has(name)) throw new Error('公开开发包存在循环依赖，无法形成独立发行顺序');
-      const target = resolve(root, source);
+      const platform = platformPackages[name];
+      if (platform && !source.startsWith('file:')) {
+        const installed = await readObject(join(sdkBrowserPackage(installedFrontend, platform), 'package.json'));
+        if (typeof installed.version !== 'string') throw new Error('已安装公开依赖缺少版本');
+        if (source.startsWith('https://')) {
+          const lock = await readObject(join(installedFrontend, 'package-lock.json'));
+          const entry = object(lock.packages) ? lock.packages[`node_modules/${name}`] : undefined;
+          if (!object(entry) || entry.resolved !== source || entry.version !== installed.version)
+            throw new Error(`公开依赖下载来源与已安装锁定包不一致：${name}`);
+        } else if (!object(semver) || typeof semver.satisfies !== 'function' || !semver.satisfies(installed.version, source)) {
+          throw new Error(`公开依赖版本与已安装包不一致：${name}`);
+        }
+        if (!packages.has(name)) {
+          const issued = await archiveInstalledSdkPackage(installedFrontend, platform, join(output, 'installed-package-archives'));
+          sources.register(name, { kind: 'archive', path: await realpath(issued.archive), sha256: issued.sha256 });
+          await addArchive(issued.archive, name);
+        }
+        continue;
+      }
+      const target = resolve(root, source.slice(5));
       const manifestSource = name === '@deviceforge/plugin-manifest' && target === manifest.root;
-      if (!manifestSource && !inside(frontend, target) && !inside(join(sdkRoot, 'browser'), target))
-        throw new Error('本地公开依赖不属于当前前端或独立SDK发行范围');
+      if (!manifestSource && !inside(frontend, target))
+        throw new Error('本地公开依赖不属于当前前端发行范围');
       const path = await realpath(target);
       if (manifestSource) {
         const issued = packages.get('@deviceforge/plugin-manifest');
@@ -115,8 +137,8 @@ export async function prepareReleasePackages(
         sources.register(name, { kind: 'archive', path, sha256: issued.sha256 });
         continue;
       }
-      if (!inside(frontend, path) && !inside(join(sdkRoot, 'browser'), path))
-        throw new Error('本地公开依赖链接越出当前前端或独立SDK发行范围');
+      if (!inside(frontend, path))
+        throw new Error('本地公开依赖链接越出当前前端发行范围');
       if (target.endsWith('.tgz')) {
         sources.register(name, { kind: 'archive', path, sha256: hash(await readFile(path)) });
         if (!packages.has(name)) await addArchive(target, name);

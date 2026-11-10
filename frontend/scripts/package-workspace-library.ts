@@ -133,12 +133,19 @@ if (process.argv[1] && pathToFileURL(resolve(process.argv[1])).href === import.m
   const root = process.argv[2];
   if (!root) throw new Error('请指定独立库工程目录');
   const frontend = resolve(import.meta.dirname, '..');
+  const sdk = sdkBrowserPackage(frontend, 'sdk');
+  const contracts = sdkBrowserPackage(frontend, 'contracts');
+  const sdkMetadata: unknown = JSON.parse(await readFile(join(sdk, 'package.json'), 'utf8'));
+  const contractsMetadata: unknown = JSON.parse(await readFile(join(contracts, 'package.json'), 'utf8'));
+  if (!sdkMetadata || typeof sdkMetadata !== 'object' || !('version' in sdkMetadata) || typeof sdkMetadata.version !== 'string' ||
+      !contractsMetadata || typeof contractsMetadata !== 'object' || !('version' in contractsMetadata) || typeof contractsMetadata.version !== 'string')
+    throw new Error('已安装SDK与契约包缺少明确版本');
   const result = await packageWorkspaceLibrary({ root, dependencies: {
-    '@deviceforge/plugin-sdk': { version: '0.1.0', declarations: {
-      '@deviceforge/plugin-sdk': join(sdkBrowserPackage(frontend, 'sdk'), 'lib/index.d.ts'),
+    '@deviceforge/plugin-sdk': { version: sdkMetadata.version, declarations: {
+      '@deviceforge/plugin-sdk': join(sdk, 'lib/index.d.ts'),
     } },
-    '@deviceforge/contracts': { version: '0.1.0', declarations: {
-      '@deviceforge/contracts/api': join(sdkBrowserPackage(frontend, 'contracts'), 'api.d.ts'),
+    '@deviceforge/contracts': { version: contractsMetadata.version, declarations: {
+      '@deviceforge/contracts/api': join(contracts, 'api.d.ts'),
     } },
   } });
   console.log(JSON.stringify({ ...result, typeFiles: undefined, declarations: undefined,

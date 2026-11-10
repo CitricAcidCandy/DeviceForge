@@ -168,7 +168,10 @@ async fn every_target_topic_returns_bounded_embedded_versioned_documents_without
     for target in ["frontend", "backend", "fullstack"] {
         for topic in TOPICS {
             let result = guide(&router, json!({"target": target, "topic": topic})).await;
-            assert_eq!(result["guide_version"], 4);
+            assert_eq!(
+                result["guide_version"],
+                deviceforge_plugin_guide::GUIDE_VERSION
+            );
             assert_eq!(result["release_format_versions"], json!([1, 2]));
             assert_eq!(result["release_host_api_versions"], json!([2]));
             assert_eq!(result["host_version"], env!("CARGO_PKG_VERSION"));

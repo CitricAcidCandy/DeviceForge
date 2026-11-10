@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { spawn } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:net';
@@ -8,7 +8,20 @@ import { fileURLToPath } from 'node:url';
 
 // 只复制宿主二进制；临时工作目录没有仓库源码或指南文件。
 const backend = fileURLToPath(new URL('../', import.meta.url));
-const sdkRoot = resolve(process.env.DEVICEFORGE_SDK_ROOT ?? join(backend, '../../DeviceForge-SDK'));
+// 只使用Cargo锁定且已获取的公开指南库，不回退开发机目录或自动联网。
+const metadata = JSON.parse(execFileSync('cargo', ['metadata', '--locked', '--offline', '--format-version', '1'], {
+  cwd: backend, encoding: 'utf8', windowsHide: true, timeout: 30000, maxBuffer: 32 * 1024 * 1024,
+}));
+const guides = metadata.packages.filter((entry) => entry.name === 'deviceforge-plugin-guide');
+assert.equal(guides.length, 1, '当前Cargo锁必须唯一确定公开指南库');
+const guide = guides[0];
+const revision = /^git\+https:\/\/github\.com\/CitricAcidCandy\/DeviceForge-SDK\.git\?rev=([0-9a-f]{40})#\1$/.exec(guide.source ?? '');
+assert.ok(revision, '指南必须来自公开SDK仓库的固定完整修订');
+const sdkRoot = resolve(dirname(guide.manifest_path), '../..');
+const guideLibrary = await readFile(resolve(dirname(guide.manifest_path), 'src/lib.rs'), 'utf8');
+const version = /pub const GUIDE_VERSION: u32 = (\d+);/.exec(guideLibrary);
+assert.ok(version, '公开指南库必须声明知识版本');
+const guideVersion = Number(version[1]);
 const args = process.argv.slice(2);
 assert.ok(args.every((value) => value === '--release'), '仅支持 --release 参数');
 const profile = args.includes('--release') ? 'release' : 'debug';
@@ -19,7 +32,7 @@ const temporaryRoot = resolve(backend, '../artifacts');
 await mkdir(temporaryRoot, { recursive: true });
 const temporary = await mkdtemp(join(temporaryRoot, 'deviceforge-guide-'));
 const reportPath = resolve(backend, '../artifacts', `plugin-guide-${profile}-${randomUUID()}.json`);
-const report = { timestamp: new Date().toISOString(), profile, passed: false, checks: [] };
+const report = { timestamp: new Date().toISOString(), profile, sdk_revision: revision[1], passed: false, checks: [] };
 const server = createServer();
 await new Promise((done, reject) => server.once('error', reject).listen(0, '127.0.0.1', done));
 const port = server.address().port;
@@ -117,7 +130,7 @@ try {
       const data = reply.result.structuredContent;
       assert.equal(data.target, target);
       assert.equal(data.topic, topic);
-      assert.equal(data.guide_version, 4);
+      assert.equal(data.guide_version, guideVersion);
       assert.equal(data.frontend_sdk_version, 2);
       assert.deepEqual(data.backend_task_protocol_versions, [1, 2, 3, 4, 6]);
       assert.deepEqual(data.backend_session_protocol_versions, [5]);
@@ -148,7 +161,7 @@ try {
       report.checks.push(`${target}/${topic}`);
     }
   }
-  report.guide_version = 4;
+  report.guide_version = guideVersion;
   report.unique_documents = new Set(report.documents.map((document) => `${document.target}/${document.topic}`)).size;
   assert.equal(report.unique_documents, 16);
   report.checks.push('十六篇嵌入正文与当前源码摘要一致及服务组合知识自包含');
@@ -184,9 +197,9 @@ try {
     child.kill();
     report.forced_exit = await closed;
   }
-  const within = relative(resolve(tmpdir()), resolve(temporary));
+  const within = relative(temporaryRoot, resolve(temporary));
   assert.ok(within && !within.startsWith('..') && !isAbsolute(within), '临时目录清理不得越界');
-  assert.equal(dirname(resolve(temporary)), resolve(tmpdir()));
+  assert.equal(dirname(resolve(temporary)), temporaryRoot);
   await rm(temporary, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
   report.temporary_removed = true;
   await mkdir(dirname(reportPath), { recursive: true });

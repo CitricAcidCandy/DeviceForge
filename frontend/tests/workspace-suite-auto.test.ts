@@ -1,16 +1,22 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { registerHooks } from 'node:module';
+import { createRequire, registerHooks } from 'node:module';
+import { pathToFileURL } from 'node:url';
 import type { WorkspaceLayoutNode } from '../src/plugin-sdk/index.ts';
 import { createFrontendRuntime } from '../src/app/runtime.ts';
-registerHooks({ resolve(specifier, context, next) {
-  if (specifier === '@deviceforge/plugin-sdk') return { url: new URL('../src/plugin-sdk/index.ts', import.meta.url).href, shortCircuit: true };
-  if (specifier === '@deviceforge/plugin-sdk/json') return { url: new URL('../src/plugin-sdk/json.ts', import.meta.url).href, shortCircuit: true };
+const installedPackages = createRequire(new URL('../package.json', import.meta.url));
+// 独立示例位于前端目录之外；夹具仅共享前端已安装的公开包，不映射宿主SDK兼容源码。
+const sdkPackages = registerHooks({ resolve(specifier, context, next) {
+  if (specifier === '@deviceforge/plugin-sdk' || specifier.startsWith('@deviceforge/plugin-sdk/'))
+    return { url: pathToFileURL(installedPackages.resolve(specifier)).href, shortCircuit: true };
   return next(specifier, context);
 } });
-const { default: createSuite } = await import('../../examples/workspace-suite/browser/index.ts');
-const { default: createDevices } = await import('../plugins/devices/src/index.ts');
-const { default: createFiles, FILES_WORKSPACE_ID } = await import('../plugins/files/src/index.ts');
+const [{ default: createSuite }, { default: createDevices }, { default: createFiles, FILES_WORKSPACE_ID }] =
+  await Promise.all([
+    import('../../examples/workspace-suite/browser/index.ts'),
+    import('../plugins/devices/src/index.ts'),
+    import('../plugins/files/src/index.ts'),
+  ]).finally(() => sdkPackages.deregister());
 function leaves(node: WorkspaceLayoutNode | null): readonly string[] {
   if (!node) return [];
   if (node.kind === 'view') return [node.instanceId];
@@ -20,8 +26,26 @@ function leaves(node: WorkspaceLayoutNode | null): readonly string[] {
 
 test('独立配套示例加载即跨设备文件页贡献，晚到页面和多次恢复不重复，卸载恢复原布局', async () => {
   let network = 0;
+  let providerReads = 0;
+  let deviceReads = 0;
+  const unexpectedReads: string[] = [];
   const runtime = createFrontendRuntime({ baseUrl: 'http://localhost:7031', workspaceStorage: null, panelTarget: () => null,
-    transport: async () => { network++; throw new Error('自动界面组合不执行业务请求'); } });
+    transport: async (request, options) => {
+      // 运行时首次只读提供者目录使用内存回执；组合插件的其他请求仍全部拒绝。
+      const path = String(request);
+      if (options?.method === 'GET' && (path === 'http://localhost:7031/api/v2/device-providers' ||
+          path === 'http://localhost:7031/api/v2/devices')) {
+        if (path.endsWith('/device-providers')) providerReads++;
+        else deviceReads++;
+        return new Response('{"data":[],"log_id":"provider-catalog-fixture"}', {
+          headers: { 'content-type': 'application/json' },
+        });
+      }
+      network++;
+      const failure = new Error(`自动界面组合不执行业务请求：${String(request)}`);
+      unexpectedReads.push(failure.stack ?? failure.message);
+      throw failure;
+    } });
   const ui = runtime.host.ui, points = runtime.host.extensions?.points;
   assert.ok(ui && points);
   const plugins = [
@@ -70,6 +94,8 @@ test('独立配套示例加载即跨设备文件页贡献，晚到页面和多�
     assert.deepEqual(ui.readLayout(FILES_WORKSPACE_ID)?.root, { kind: 'view', instanceId: 'deviceforge_files.browser.main' });
     assert.equal(ui.snapshot().instances.some((instance) => instance.workspaceId === FILES_WORKSPACE_ID &&
       instance.provider?.pluginId === 'workspace_suite.browser'), false);
-    assert.equal(network, 0);
+    assert.equal(network, 0, unexpectedReads.join('\n'));
+    assert.equal(providerReads, 1, '仅运行时初始目录读取，不因界面组合启停重复联网');
+    assert.equal(deviceReads, 1, '仅运行时初始设备目录读取，不触发发现、连接或选择设备');
   } finally { await runtime.dispose(); }
 });

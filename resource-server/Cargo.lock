@@ -173,6 +173,7 @@ dependencies = [
 [[package]]
 name = "deviceforge-plugin-dependencies"
 version = "0.1.0"
+source = "git+https://github.com/CitricAcidCandy/DeviceForge-SDK.git?rev=54a2889cce00e8a7ac9ac169313d4bab6b283320#54a2889cce00e8a7ac9ac169313d4bab6b283320"
 dependencies = [
  "regex",
  "schemars",

@@ -1,11 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { registerHooks } from 'node:module';
 import type { HistoricalJob, HostContext, HostResult, JobEvent, WorkspacePageInfo } from '../src/plugin-sdk/index.ts';
-registerHooks({ resolve(specifier, context, next) {
-  return specifier === '@deviceforge/plugin-sdk'
-    ? { url: new URL('../src/plugin-sdk/index.ts', import.meta.url).href, shortCircuit: true } : next(specifier, context);
-} });
 const { createTaskDetailsModel } = await import('../plugins/tasks/src/drawer-details.ts');
 const { resolveTaskPage, taskPageJobs, filterTaskJobs } = await import('../plugins/tasks/src/drawer-rules.ts');
 function job(id: string, operation = 'sample.read', status: HistoricalJob['status'] = 'succeeded'): HistoricalJob {

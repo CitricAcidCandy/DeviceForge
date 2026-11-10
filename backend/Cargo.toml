@@ -26,11 +26,12 @@ deviceforge-observability = { path = "crates/observability" }
 rusqlite = { version = "0.37", features = ["bundled"] }
 futures-util = "0.3"
 apk-domain = { path = "crates/domain" }
-apk-plugin-sdk = { version = "0.1.0", path = "../../DeviceForge-SDK/rust/plugin-sdk" }
-deviceforge-plugin-runtime = { version = "0.1.0", path = "../../DeviceForge-SDK/rust/plugin-runtime" }
+apk-plugin-sdk = { version = "0.1.0", git = "https://github.com/CitricAcidCandy/DeviceForge-SDK.git", rev = "54a2889cce00e8a7ac9ac169313d4bab6b283320" }
+deviceforge-plugin-runtime = { version = "0.1.0", git = "https://github.com/CitricAcidCandy/DeviceForge-SDK.git", rev = "54a2889cce00e8a7ac9ac169313d4bab6b283320" }
+deviceforge-plugin-guide = { version = "0.1.0", git = "https://github.com/CitricAcidCandy/DeviceForge-SDK.git", rev = "54a2889cce00e8a7ac9ac169313d4bab6b283320" }
 deviceforge-tool-process = { path = "crates/tool-process" }
 deviceforge-tool-repository = { path = "crates/tool-repository" }
-deviceforge-plugin-dependencies = { version = "0.1.0", path = "../../DeviceForge-SDK/rust/plugin-dependencies" }
+deviceforge-plugin-dependencies = { version = "0.1.0", git = "https://github.com/CitricAcidCandy/DeviceForge-SDK.git", rev = "54a2889cce00e8a7ac9ac169313d4bab6b283320" }
 deviceforge-android-package-core = { path = "crates/android-package-core" }
 apk-infrastructure = { path = "crates/infrastructure" }
 apk-application = { path = "crates/application" }

@@ -76,7 +76,6 @@ for (const [name, value] of Object.entries({
 }
 const frontend = new URL('../', import.meta.url);
 const aliases = new Map<string, string>([
-  ['@deviceforge/plugin-sdk', new URL('../src/plugin-sdk/index.ts', import.meta.url).href],
   ['@deviceforge/business-kit/dialog', new URL('../plugins/business-kit/src/react/dialog.tsx', import.meta.url).href],
   ['@deviceforge/business-kit/sheet', new URL('../plugins/business-kit/src/react/sheet.tsx', import.meta.url).href],
   ['@deviceforge/business-kit/select-field', new URL('../plugins/business-kit/src/react/select-field.tsx', import.meta.url).href],

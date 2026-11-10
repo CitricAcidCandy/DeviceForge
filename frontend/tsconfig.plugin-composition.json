@@ -1,12 +1,5 @@
 {
   "extends": "./tsconfig.json",
-  "compilerOptions": {
-    "paths": {
-      "@deviceforge/plugin-sdk": ["./src/plugin-sdk/index.ts"],
-      "/__production_host__": ["./src/app/public-runtime.ts"],
-      "@/*": ["./src/*"]
-    }
-  },
   "include": [
     "plugins/default-shell/src/**/*.ts",
     "plugins/default-shell/src/**/*.tsx",

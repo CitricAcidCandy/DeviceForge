@@ -34,17 +34,13 @@ DeviceForge 将设备管理、应用分析、性能采集与自动化放进同�
 ### 2. 从源码构建运行包
 
 ```sh
-git clone --branch v0.1.0 https://github.com/CitricAcidCandy/DeviceForge-SDK.git
 git clone https://github.com/CitricAcidCandy/DeviceForge.git
-cd DeviceForge-SDK
-npm ci
-npm run pack:browser
-cd ../DeviceForge
+cd DeviceForge
 npm ci
 npm run pack:cli
 ```
 
-公开插件SDK已独立到同级的DeviceForge-SDK仓库，Rust公共库、浏览器SDK/构建工具和MCP指南从该仓库消费。源码开发保留这两个同级目录；运行已打包CLI不需要SDK源码。插件开发者直接使用[SDK仓库](https://github.com/CitricAcidCandy/DeviceForge-SDK)和其发行物，不需要取得本宿主源码。
+公开插件SDK由独立的[DeviceForge-SDK仓库](https://github.com/CitricAcidCandy/DeviceForge-SDK)维护。浏览器依赖按固定HTTPS发行TGZ和npm锁文件安装；Rust公共库及MCP指南使用公开Git地址、完整修订和Cargo锁文件。正常克隆、安装和构建宿主不需要相邻SDK目录或本机路径。插件开发者可直接使用[v0.1.0公开发行](https://github.com/CitricAcidCandy/DeviceForge-SDK/releases/tag/v0.1.0)，无需取得本宿主源码。首次源码构建仍需正常联网取得所声明的npm/Cargo依赖。
 
 构建脚本会编译 Rust 后端、安装前端依赖并构建静态资源，随后在 `artifacts/` 下生成 CLI 包。包内包含后端、插件校验器和浏览器资源，**仅适用于构建主机的平台与架构**。
 

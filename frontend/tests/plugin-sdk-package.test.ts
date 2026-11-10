@@ -2,7 +2,6 @@ import assert from 'node:assert/strict';
 import test, { after, before } from 'node:test';
 import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { dirname, join, relative, resolve, sep } from 'node:path';
-import { tmpdir } from 'node:os';
 import { pathToFileURL } from 'node:url';
 import { gunzipSync } from 'node:zlib';
 import { extract } from 'it-tar';
@@ -17,7 +16,8 @@ let dependencyRoot = '';
 const frontend = resolve(import.meta.dirname, '..');
 
 before(async () => {
-  temporary = await mkdtemp(join(tmpdir(), 'deviceforge-independent-sdk-'));
+  await mkdir(join(frontend, 'artifacts'), { recursive: true });
+  temporary = await mkdtemp(join(frontend, 'artifacts/deviceforge-independent-sdk-'));
   const built = await packagePluginSdk({ outputRoot: join(temporary, 'distribution') });
   archive = built.archive;
   typeFiles = built.typeFiles;
@@ -57,7 +57,7 @@ before(async () => {
 after(async () => {
   if (!temporary) return;
   const checked = resolve(temporary);
-  assert.ok(checked.startsWith(resolve(tmpdir()) + sep));
+  assert.ok(checked.startsWith(resolve(frontend, 'artifacts') + sep));
   await rm(checked, { recursive: true, force: true });
 });
 
