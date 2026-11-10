@@ -4,7 +4,7 @@
     "paths": {
       "@deviceforge/plugin-sdk": ["../src/plugin-sdk/index.ts"],
       "@deviceforge/devices/model": ["../plugins/devices/src/model.ts"],
-      "@deviceforge/contracts/api": ["../contracts/api.d.ts"],
+      "@deviceforge/contracts/api": ["../../../DeviceForge-SDK/browser/contracts/api.d.ts"],
       "@deviceforge/business-kit/*": ["../plugins/business-kit/src/*"],
       "@deviceforge/business-kit/dialog": ["../plugins/business-kit/src/react/dialog.tsx"],
       "@deviceforge/business-kit/sheet": ["../plugins/business-kit/src/react/sheet.tsx"],

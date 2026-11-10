@@ -5,6 +5,8 @@ import {
   hash, inside, object, readObject, unpackPublicPackage,
 } from './workspace-release-inputs.ts';
 import type { PublicReleasePackage, ReleaseProject } from './workspace-release-inputs.ts';
+import { sdkRepositoryRoot } from './sdk-repository.ts';
+import { packagePluginManifest } from './package-plugin-manifest.ts';
 
 export interface PreparedReleasePackages {
   readonly packages: readonly PublicReleasePackage[];
@@ -60,6 +62,7 @@ export function createReleasePackageSources() {
 /** 先发行真实公共依赖，再构建业务安装包；不把开发条件或私有源码交给 bundler。 */
 export async function prepareReleasePackages(
   frontend: string, output: string, projects: readonly ReleaseProject[], signal: AbortSignal,
+  sdkRoot = sdkRepositoryRoot(frontend),
 ): Promise<PreparedReleasePackages> {
   const packages = new Map<string, PublicReleasePackage>();
   const sources = createReleasePackageSources();
@@ -83,23 +86,37 @@ export async function prepareReleasePackages(
   }
   // 只有平台 SDK、生成契约和纯清单规则属于启动工具依赖；业务依赖从工程声明递归取得。
   for (const [name, path] of [
-    ['@deviceforge/plugin-sdk', 'sdk/dist/deviceforge-plugin-sdk-0.1.0.tgz'],
-    ['@deviceforge/contracts', 'contracts/dist/deviceforge-contracts-0.1.0.tgz'],
-    ['@deviceforge/plugin-manifest', 'sdk/dist/deviceforge-plugin-manifest-0.1.0.tgz'],
+    ['@deviceforge/plugin-sdk', 'browser/sdk/dist/deviceforge-plugin-sdk-0.1.0.tgz'],
+    ['@deviceforge/contracts', 'browser/contracts/dist/deviceforge-contracts-0.1.0.tgz'],
   ]) {
     if (!name || !path) throw new Error('平台公开包声明无效');
-    const archive = join(frontend, path);
+    const archive = join(sdkRoot, path);
     sources.register(name, { kind: 'archive', path: await realpath(archive), sha256: hash(await readFile(archive)) });
     await addArchive(archive, name);
   }
+  const manifest = await packagePluginManifest(join(output, 'manifest-package'));
+  sources.register('@deviceforge/plugin-manifest', {
+    kind: 'archive', path: await realpath(manifest.archive), sha256: manifest.sha256,
+  });
+  await addArchive(manifest.archive, '@deviceforge/plugin-manifest');
   async function ensureDependencies(root: string, metadata: Readonly<Record<string, unknown>>): Promise<void> {
     for (const [name, source] of localDependencies(metadata)) {
       signal.throwIfAborted();
       if (building.has(name)) throw new Error('公开开发包存在循环依赖，无法形成独立发行顺序');
       const target = resolve(root, source);
-      if (!inside(frontend, target)) throw new Error('本地公开依赖不属于当前前端发行范围');
+      const manifestSource = name === '@deviceforge/plugin-manifest' && target === manifest.root;
+      if (!manifestSource && !inside(frontend, target) && !inside(join(sdkRoot, 'browser'), target))
+        throw new Error('本地公开依赖不属于当前前端或独立SDK发行范围');
       const path = await realpath(target);
-      if (!inside(frontend, path)) throw new Error('本地公开依赖链接越出当前前端发行范围');
+      if (manifestSource) {
+        const issued = packages.get('@deviceforge/plugin-manifest');
+        if (path !== manifest.root || !issued || !await matchesPublishedDirectory(path, issued.root))
+          throw new Error('清单纯规则来源与本次实际发行内容不一致');
+        sources.register(name, { kind: 'archive', path, sha256: issued.sha256 });
+        continue;
+      }
+      if (!inside(frontend, path) && !inside(join(sdkRoot, 'browser'), path))
+        throw new Error('本地公开依赖链接越出当前前端或独立SDK发行范围');
       if (target.endsWith('.tgz')) {
         sources.register(name, { kind: 'archive', path, sha256: hash(await readFile(path)) });
         if (!packages.has(name)) await addArchive(target, name);

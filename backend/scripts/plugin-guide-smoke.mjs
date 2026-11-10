@@ -3,19 +3,21 @@ import { spawn } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:net';
-import { tmpdir } from 'node:os';
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 // 只复制宿主二进制；临时工作目录没有仓库源码或指南文件。
 const backend = fileURLToPath(new URL('../', import.meta.url));
+const sdkRoot = resolve(process.env.DEVICEFORGE_SDK_ROOT ?? join(backend, '../../DeviceForge-SDK'));
 const args = process.argv.slice(2);
 assert.ok(args.every((value) => value === '--release'), '仅支持 --release 参数');
 const profile = args.includes('--release') ? 'release' : 'debug';
 const suffix = process.platform === 'win32' ? '.exe' : '';
 const source = join(backend, 'target', profile, `apk-server${suffix}`);
 const digest = (bytes) => createHash('sha256').update(bytes).digest('hex');
-const temporary = await mkdtemp(join(tmpdir(), 'deviceforge-guide-'));
+const temporaryRoot = resolve(backend, '../artifacts');
+await mkdir(temporaryRoot, { recursive: true });
+const temporary = await mkdtemp(join(temporaryRoot, 'deviceforge-guide-'));
 const reportPath = resolve(backend, '../artifacts', `plugin-guide-${profile}-${randomUUID()}.json`);
 const report = { timestamp: new Date().toISOString(), profile, passed: false, checks: [] };
 const server = createServer();
@@ -130,12 +132,12 @@ try {
         assert.ok(document.content.length > 100);
         assert.equal(document.topic, topic);
         assert.ok(target === 'fullstack' ? ['frontend', 'backend'].includes(document.target) : document.target === target);
-        const expectedSource = `${document.target}/docs/guides/plugin-development/${topic}.md`;
+        const expectedSource = `docs/${document.target}/${topic}.md`;
         assert.deepEqual(Object.keys(document).sort(), ['content', 'target', 'topic']);
-        const primary = await readFile(resolve(backend, '..', expectedSource));
+        const primary = await readFile(resolve(sdkRoot, expectedSource));
         const expected = document.target === 'frontend' && topic === 'sdk'
           ? Buffer.concat([primary, Buffer.from('\n\n'),
-            await readFile(resolve(backend, '../frontend/docs/guides/plugin-development/composition.md'))])
+            await readFile(resolve(sdkRoot, 'docs/frontend/composition.md'))])
           : primary;
         assert.equal(digest(document.content), digest(expected), '重编宿主必须返回本次固定文档的完整字节');
         for (const term of serviceTerms[`${document.target}/${topic}`] ?? []) {

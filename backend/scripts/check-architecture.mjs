@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process';
+import { existsSync, realpathSync } from 'node:fs';
 import { relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -17,11 +18,28 @@ const boundaries = {
   'deviceforge-android-package-core': { internal: [], external: ['zip', 'quick-xml', 'serde', 'thiserror'] },
 };
 
+const sdkDirectories = {
+  'apk-plugin-sdk': 'plugin-sdk',
+  'deviceforge-plugin-runtime': 'plugin-runtime',
+  'deviceforge-plugin-dependencies': 'plugin-dependencies',
+};
+const resolvedPath = (path) => existsSync(path) ? realpathSync(path) : resolve(path);
+function publicSdkPath(dependency, root) {
+  const directory = sdkDirectories[dependency.name];
+  if (!directory || !dependency.path) return false;
+  const sdkRoot = resolvedPath(resolve(root, '../../DeviceForge-SDK/rust'));
+  const expected = resolvedPath(resolve(sdkRoot, directory));
+  const within = relative(sdkRoot, expected);
+  return within !== '..' && !within.startsWith(`..${sep}`) &&
+    resolvedPath(dependency.path) === expected;
+}
+
 // 检查 Cargo 已解析的依赖；开发依赖只用于测试，不进入生产依赖方向。
 export function validatePackages(metadata, root) {
   const members = new Set(metadata.workspace_members);
   const packages = metadata.packages.filter((item) => members.has(item.id));
-  const internal = new Set(packages.map((item) => item.name));
+  // 独立SDK属于明确公开边界，不因移出宿主工作区变成任意外部私有路径。
+  const internal = new Set([...packages.map((item) => item.name), ...Object.keys(sdkDirectories)]);
   const failures = [];
   for (const item of packages) {
     const location = relative(root, item.manifest_path).split(sep).join('/');
@@ -38,7 +56,8 @@ export function validatePackages(metadata, root) {
       } else if (!internal.has(dependency.name) && rule.external && !rule.external.includes(dependency.name)) {
         failures.push(`${location}: ${item.name} 的新增外部依赖 ${dependency.name} 必须先审查领域边界`);
       }
-      if (dependency.path && !internal.has(dependency.name)) {
+      if (dependency.path && !packages.some((item) => item.name === dependency.name) &&
+          !publicSdkPath(dependency, root)) {
         failures.push(`${location}: 不得通过路径依赖引用工程外的私有模块`);
       }
     }

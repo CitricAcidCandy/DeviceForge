@@ -12,7 +12,7 @@
       "@deviceforge/business-kit/device": ["../plugins/business-kit/src/device.ts"],
       "@deviceforge/business-kit/sheet": ["../plugins/business-kit/src/react/sheet.tsx"],
       "@deviceforge/business-kit/select-field": ["../plugins/business-kit/src/react/select-field.tsx"],
-      "@deviceforge/contracts/api": ["../contracts/api.d.ts"],
+      "@deviceforge/contracts/api": ["../../../DeviceForge-SDK/browser/contracts/api.d.ts"],
       "@deviceforge/frida/model": ["../plugins/frida/src/model/index.ts"],
       "@deviceforge/automation/model": ["../plugins/automation/src/model/index.ts"],
       "@deviceforge/analysis/msgpack": ["../plugins/analysis/src/msgpack/index.ts"],

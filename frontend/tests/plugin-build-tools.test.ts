@@ -10,15 +10,16 @@ import { ChildProcess } from 'node:child_process';
 import { gunzipSync } from 'node:zlib';
 import * as ts from 'typescript';
 import { JSDOM } from 'jsdom';
-import { buildBrowserPlugin } from '../plugin-tools/lib/index.js';
-import { inspectOutput } from '../plugin-tools/lib/imports.js';
+import { buildBrowserPlugin } from '@deviceforge/plugin-tools';
+import { inspectOutput } from '../../../DeviceForge-SDK/browser/tools/lib/imports.js';
+import { sdkBrowserPackage } from '../scripts/sdk-repository.ts';
 
 const require = createRequire(import.meta.url);
 const children = new Map<number, { command: string; exited: boolean }>();
 const originalEmit = ChildProcess.prototype.emit;
 mock.method(ChildProcess.prototype, 'emit', function(this: ChildProcess, event: string | symbol, ...values: unknown[]) {
   if (event === 'spawn' && this.pid && this.spawnargs.some((arg) =>
-    arg.replaceAll('\\', '/').endsWith('/plugin-tools/lib/worker.js'))) {
+    arg.replaceAll('\\', '/').endsWith('/browser/tools/lib/worker.js'))) {
     const state = { command: this.spawnargs.join(' '), exited: false };
     children.set(this.pid, state);
     this.once('exit', () => { state.exited = true; });
@@ -212,7 +213,8 @@ test('工具共享模块清单逐项对应当前宿主importmap', async () => {
   const html = await readFile(join(frontend, 'index.html'), 'utf8');
   for (const name of ['deviceforge-host', 'react', 'react/jsx-runtime', 'react/jsx-dev-runtime', 'react-dom', 'react-dom/client'])
     assert.ok(html.includes(`"${name}":`), `当前宿主没有提供 ${name}`);
-  assert.equal(await realpath(join(frontend, 'plugin-tools', 'lib', 'index.js')), resolve(frontend, 'plugin-tools', 'lib', 'index.js'));
+  const tools = sdkBrowserPackage(frontend, 'tools');
+  assert.equal(await realpath(join(tools, 'lib', 'index.js')), resolve(tools, 'lib', 'index.js'));
 });
 
 test('重复构建仅更新所属文件，保留旧块，拒绝覆盖归属未知的同名产物', async (unit) => {
@@ -249,7 +251,7 @@ test('跨工程私有导入和计算动态模块不能绕过公开依赖闭包',
 });
 
 test('实际工程盘输出通过同盘临时文件提交，跨卷暂存不触发EXDEV', async (unit) => {
-  const packageRoot = fileURLToPath(new URL('../plugin-tools/', import.meta.url));
+  const packageRoot = sdkBrowserPackage(fileURLToPath(new URL('../', import.meta.url)), 'tools');
   const f = await fixture(unit, packageRoot);
   if (process.platform === 'win32') assert.notEqual(parse(f.root).root, parse(await realpath(tmpdir())).root);
   await f.source('index.ts', 'export default () => ({apiVersion:2});');
@@ -260,7 +262,7 @@ test('实际工程盘输出通过同盘临时文件提交，跨卷暂存不触�
 });
 
 test('真实TGZ自带ESM与声明，可作为独立工程公开依赖消费', async (unit) => {
-  const packageRoot = fileURLToPath(new URL('../plugin-tools/', import.meta.url));
+  const packageRoot = sdkBrowserPackage(fileURLToPath(new URL('../', import.meta.url)), 'tools');
   const f = await fixture(unit, packageRoot);
   const published = join(f.root, 'node_modules', '@deviceforge', 'plugin-tools');
   await mkdir(published, { recursive: true });
@@ -306,7 +308,7 @@ void result;
     moduleResolution: ts.ModuleResolutionKind.NodeNext, types: [],
   });
   assert.equal(ts.getPreEmitDiagnostics(program).length, 0);
-  const publishedApi: typeof import('../plugin-tools/lib/index.js') =
+  const publishedApi: typeof import('@deviceforge/plugin-tools') =
     await import(pathToFileURL(join(published, 'lib', 'index.js')).href);
   assert.equal(typeof publishedApi.buildBrowserPlugin, 'function');
   assert.equal(typeof publishedApi.generatePluginContracts, 'function');

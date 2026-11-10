@@ -34,7 +34,6 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
-      '@deviceforge/plugin-sdk': fileURLToPath(new URL('./src/plugin-sdk/index.ts', import.meta.url)),
     },
     dedupe: ['react', 'react-dom'],
   },

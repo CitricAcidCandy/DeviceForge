@@ -1,12 +1,14 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { copyFile, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve, sep } from 'node:path';
 import { gzipSync } from 'node:zlib';
 import { pack } from 'it-tar';
 import { createReleasePackageSources, prepareReleasePackages } from '../scripts/workspace-release-packages.ts';
 import type { ReleaseProject } from '../scripts/workspace-release-inputs.ts';
+import { sdkRepositoryRoot } from '../scripts/sdk-repository.ts';
+import { pluginManifestRoot } from '../scripts/package-plugin-manifest.ts';
 
 test('公开配套包不因名称命中而遮蔽另一声明的来源或版本', () => {
   const sources = createReleasePackageSources();
@@ -23,11 +25,7 @@ test('实际准备流程核对每个 file 声明，不复用同名但不同实�
   const temporary = await mkdtemp(join(tmpdir(), 'deviceforge-release-provenance-'));
   try {
     const frontend = resolve(import.meta.dirname, '..');
-    for (const path of ['sdk/dist/deviceforge-plugin-sdk-0.1.0.tgz', 'contracts/dist/deviceforge-contracts-0.1.0.tgz',
-      'sdk/dist/deviceforge-plugin-manifest-0.1.0.tgz']) {
-      await mkdir(dirname(join(temporary, path)), { recursive: true });
-      await copyFile(join(frontend, path), join(temporary, path));
-    }
+    const sdkRoot = sdkRepositoryRoot(frontend);
     await mkdir(join(temporary, 'dependencies'));
     async function sharedArchive(name: string, value: number) {
       const files = new Map([
@@ -44,14 +42,22 @@ test('实际准备流程核对每个 file 声明，不复用同名但不同实�
     await sharedArchive('two.tgz', 2);
     const projects: ReleaseProject[] = ['one', 'two'].map((name) => ({ root: join(temporary, name), id: name,
       name, version: '1.0.0', entry: '', manifest: {},
-      metadata: { dependencies: { '@fixture/shared': `file:../dependencies/${name}.tgz` } },
+      metadata: { dependencies: { '@fixture/shared': `file:../dependencies/${name}.tgz`,
+        '@deviceforge/plugin-manifest': `file:${pluginManifestRoot()}` } },
     }));
     const signal = AbortSignal.timeout(10000);
-    await assert.rejects(prepareReleasePackages(temporary, join(temporary, 'different'), projects, signal), /不同来源或字节/);
+    await assert.rejects(prepareReleasePackages(temporary, join(temporary, 'different'), projects, signal, sdkRoot), /不同来源或字节/);
     await copyFile(join(temporary, 'dependencies/one.tgz'), join(temporary, 'dependencies/two.tgz'));
-    const prepared = await prepareReleasePackages(temporary, join(temporary, 'identical'), projects, signal);
+    const prepared = await prepareReleasePackages(temporary, join(temporary, 'identical'), projects, signal, sdkRoot);
     assert.equal(prepared.packages.length, 4);
     assert.ok(prepared.imports['@fixture/shared']?.endsWith('index.js'));
+    const manifest = prepared.packages.find((entry) => entry.name === '@deviceforge/plugin-manifest');
+    assert.ok(manifest);
+    assert.deepEqual(await readFile(join(manifest.root, 'index.mjs')),
+      await readFile(join(pluginManifestRoot(), 'index.mjs')));
+    const rejected = [{ ...projects[0], root: join(temporary, 'wrong'), id: 'wrong', name: 'wrong', version: '1.0.0',
+      entry: '', manifest: {}, metadata: { dependencies: { '@deviceforge/plugin-manifest': `file:${resolve(pluginManifestRoot(), '..')}` } } }];
+    await assert.rejects(prepareReleasePackages(temporary, join(temporary, 'wrong-source'), rejected, signal, sdkRoot), /发行范围/);
   } finally {
     assert.ok(resolve(temporary).startsWith(resolve(tmpdir()) + sep));
     await rm(temporary, { recursive: true, force: true });

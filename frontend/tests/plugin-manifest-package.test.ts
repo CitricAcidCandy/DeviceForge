@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { cp, mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve, sep } from 'node:path';
 import { tmpdir } from 'node:os';
 import { pathToFileURL } from 'node:url';
@@ -8,12 +8,16 @@ import { gunzipSync } from 'node:zlib';
 import { createHash } from 'node:crypto';
 import { extract } from 'it-tar';
 import ts from 'typescript';
+import { packagePluginManifest, pluginManifestRoot } from '../scripts/package-plugin-manifest.ts';
 
 test('清单规则真实 TGZ 在独立工程消费，不要求宿主源码或不存在的本地依赖', async () => {
   const frontend = resolve(import.meta.dirname, '..');
-  const bytes = await readFile(join(frontend, 'sdk/dist/deviceforge-plugin-manifest-0.1.0.tgz'));
   const temporary = await mkdtemp(join(tmpdir(), 'deviceforge-manifest-package-'));
   try {
+    const built = await packagePluginManifest(join(temporary, 'distribution'));
+    assert.equal(built.root, await realpath(pluginManifestRoot()));
+    await assert.rejects(packagePluginManifest(built.root), /不能写入公开源码/);
+    const bytes = await readFile(built.archive);
     const root = join(temporary, 'node_modules/@deviceforge/plugin-manifest');
     const files = new Map<string, Buffer>();
     for await (const entry of extract()([gunzipSync(bytes)])) {
@@ -28,6 +32,7 @@ test('清单规则真实 TGZ 在独立工程消费，不要求宿主源码或不
     }
     assert.equal(files.size, 12);
     for (const [name, content] of files) {
+      assert.deepEqual(content, await readFile(join(built.root, name)), `归档必须来自当前公开源码：${name}`);
       if (name.endsWith('.mjs') || name.endsWith('.d.ts'))
         assert.doesNotMatch(content.toString('utf8'), /(?:\.\.\/)+(?:frontend|cli)|[A-Z]:\\/);
     }

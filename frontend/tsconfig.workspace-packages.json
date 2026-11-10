@@ -7,15 +7,6 @@
       "@/*": [
         "./src/*"
       ],
-      "@deviceforge/plugin-sdk": [
-        "./src/plugin-sdk/index.ts"
-      ],
-      "@deviceforge/plugin-sdk/json": [
-        "./src/plugin-sdk/json.ts"
-      ],
-      "@deviceforge/contracts/api": [
-        "./contracts/api.d.ts"
-      ],
       "@deviceforge/marketplace/browser-management": [
         "./plugins/marketplace/src/browser-management.ts"
       ],

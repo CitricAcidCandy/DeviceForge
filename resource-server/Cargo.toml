@@ -6,7 +6,7 @@ license = "MIT"
 
 [dependencies]
 apk-domain = { path = "../backend/crates/domain" }
-deviceforge-plugin-dependencies = { path = "../backend/crates/plugin-dependencies" }
+deviceforge-plugin-dependencies = { path = "../../DeviceForge-SDK/rust/plugin-dependencies" }
 axum = { version = "0.8", features = ["macros"] }
 bytes = "1"
 futures-util = "0.3"

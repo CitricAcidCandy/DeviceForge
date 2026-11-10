@@ -10,13 +10,14 @@ import ts from 'typescript';
 import { packageWorkspaceLibrary } from '../scripts/package-workspace-library.ts';
 import type { LibraryPackageResult } from '../scripts/package-workspace-library.ts';
 import { libraryMetadata, readWorkspaceLibrary } from '../scripts/workspace-library-package.ts';
+import { sdkBrowserPackage } from '../scripts/sdk-repository.ts';
 
 const frontend = resolve(import.meta.dirname, '..');
 const library = join(frontend, 'plugins/business-kit');
 let temporary = '', originalMetadata = '', built: LibraryPackageResult;
 const dependencies = {
   '@deviceforge/plugin-sdk': { version: '0.1.0', declarations: {
-    '@deviceforge/plugin-sdk': join(frontend, 'sdk/lib/index.d.ts'),
+    '@deviceforge/plugin-sdk': join(sdkBrowserPackage(frontend, 'sdk'), 'lib/index.d.ts'),
   } },
 };
 async function unpack(archive: string, root: string): Promise<Map<string, Buffer>> {
@@ -66,7 +67,7 @@ test('业务辅助库在独立 NodeNext 工程中严格消费真实归档并保�
   const consumer = join(temporary, 'consumer');
   const modules = join(consumer, 'node_modules');
   await unpack(built.archive, join(modules, '@deviceforge/business-kit'));
-  await unpack(join(frontend, 'sdk/dist/deviceforge-plugin-sdk-0.1.0.tgz'), join(modules, '@deviceforge/plugin-sdk'));
+  await unpack(join(sdkBrowserPackage(frontend, 'sdk'), 'dist/deviceforge-plugin-sdk-0.1.0.tgz'), join(modules, '@deviceforge/plugin-sdk'));
   const sourceModules = join(frontend, 'node_modules');
   const metadataFiles = new Set<string>();
   for (const file of built.typeFiles) {

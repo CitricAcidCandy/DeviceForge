@@ -11,9 +11,6 @@ export function generateWorkspacePackagePaths(frontendRoot: string, check = fals
   const value = `${JSON.stringify({ compilerOptions: { paths: {
     '/__production_host__': ['./src/app/public-runtime.ts'],
     '@/*': ['./src/*'],
-    '@deviceforge/plugin-sdk': ['./src/plugin-sdk/index.ts'],
-    '@deviceforge/plugin-sdk/json': ['./src/plugin-sdk/json.ts'],
-    '@deviceforge/contracts/api': ['./contracts/api.d.ts'],
     ...workspacePackagePaths(frontendRoot, directory),
   } } }, null, 2)}\n`;
   const path = resolve(frontendRoot, 'tsconfig.workspace-packages.json');

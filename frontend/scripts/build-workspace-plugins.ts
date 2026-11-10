@@ -3,7 +3,7 @@ import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { basename, dirname, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { promisify } from 'node:util';
-import { buildBrowserPlugin } from '../plugin-tools/lib/index.js';
+import { buildBrowserPlugin } from '@deviceforge/plugin-tools';
 import { auditBrowserBundle } from './browser-bundle-closure.ts';
 import {
   hash, inside, object, releaseProjects, releaseSourceIdentity,

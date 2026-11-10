@@ -6,9 +6,10 @@ import { dirname, resolve, join, sep } from 'node:path';
 import { gunzipSync } from 'node:zlib';
 import { extract } from 'it-tar';
 import ts from 'typescript';
+import { sdkBrowserPackage } from '../scripts/sdk-repository.ts';
 
 const frontend = resolve(import.meta.dirname, '..');
-const archive = join(frontend, 'contracts/dist/deviceforge-contracts-0.1.0.tgz');
+const archive = join(sdkBrowserPackage(frontend, 'contracts'), 'dist/deviceforge-contracts-0.1.0.tgz');
 async function entries() {
   const values = new Map<string, Buffer>();
   for await (const entry of extract()([gunzipSync(await readFile(archive))])) {

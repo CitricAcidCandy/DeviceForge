@@ -24,6 +24,28 @@ test('独立插件禁止引用宿主；领域禁止新增框架依赖和工程�
   assert.match(validatePackages(metadata, root).join(), /工程外/);
 });
 
+test('宿主只接受独立SDK的三个公开路径，伪冒名称或位置不能绕过边界', () => {
+  for (const [name, directory] of [
+    ['apk-plugin-sdk', 'plugin-sdk'],
+    ['deviceforge-plugin-runtime', 'plugin-runtime'],
+    ['deviceforge-plugin-dependencies', 'plugin-dependencies'],
+  ]) {
+    const metadata = graph(name, null, 'sdk-consumer', 'plugins/sdk-consumer');
+    metadata.packages[0].dependencies[0].path = resolve(root, '../../DeviceForge-SDK/rust', directory);
+    const allowed = name !== 'deviceforge-plugin-dependencies';
+    if (allowed) assert.deepEqual(validatePackages(metadata, root), []);
+    else assert.match(validatePackages(metadata, root).join(), /不得依赖/);
+    metadata.packages[0].dependencies[0].path = resolve(root, '../../private', directory);
+    assert.match(validatePackages(metadata, root).join(), /工程外/);
+  }
+  const forged = graph('private-sdk', null, 'sdk-consumer', 'plugins/sdk-consumer');
+  forged.packages[0].dependencies[0].path = resolve(root, '../../DeviceForge-SDK/rust/plugin-sdk');
+  assert.match(validatePackages(forged, root).join(), /工程外/);
+  const domain = graph('apk-plugin-sdk', null, 'apk-domain', 'crates/domain');
+  domain.packages[0].dependencies[0].path = resolve(root, '../../DeviceForge-SDK/rust/plugin-sdk');
+  assert.match(validatePackages(domain, root).join(), /不得依赖/);
+});
+
 test('工具公共库不得引用宿主或框架，生产和构建依赖均受约束', () => {
   for (const kind of [null, 'build']) {
     assert.match(validatePackages(graph('apk-infrastructure', kind, 'deviceforge-tool-process', 'crates/tool-process'), root).join(), /不得依赖/);

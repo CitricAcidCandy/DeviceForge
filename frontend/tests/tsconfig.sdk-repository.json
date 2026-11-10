@@ -1,0 +1,16 @@
+{
+  "extends": "../tsconfig.json",
+  "include": [
+    "../scripts/sdk-repository.ts",
+    "../scripts/package-plugin-sdk.ts",
+    "../scripts/package-plugin-manifest.ts",
+    "../scripts/workspace-build-tool.ts",
+    "../scripts/sync-plugin-contracts.ts",
+    "./sdk-repository.test.ts",
+    "./plugin-sdk-package.test.ts",
+    "./plugin-manifest-package.test.ts",
+    "./plugin-contracts-package.test.ts",
+    "./workspace-build-tool.test.ts",
+    "./workspace-release-packages.test.ts"
+  ]
+}

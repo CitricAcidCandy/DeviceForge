@@ -13,7 +13,7 @@
 ## 开发手册
 
 - [操作绑定部署](guides/操作绑定部署.md)
-- [插件开发](guides/插件开发.md)
+- [公开服务器插件开发](https://github.com/CitricAcidCandy/DeviceForge-SDK/blob/v0.1.0/docs/backend/overview.md)
 - [架构与开发约束](guides/架构与开发约束.md)
 - [命令行部署与插件安装](guides/命令行部署与插件安装.md)
 - [迁移清单](guides/迁移清单.md)

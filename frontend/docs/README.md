@@ -71,7 +71,7 @@
 - [插件独立构建与分发](implementation/插件独立构建与分发.md)：独立工具、公共TGZ、CSS/Worker闭包、有界关闭、基线接续及Windows准备提交；十三业务ZIP及完整CLI本地TGZ已生成，debug来源如实标记，独立安装/在线验收另行记录。
 - [开放插件工作区十态设计](design_docs/2026-10-29-开放插件工作区/设计规格与交付.md)：历史十态云端稿、本地预览与静态图审；用户已校正为插件驱动，旧用户布局编辑稿不作当前产品验收依据，本地原生可重开源仍缺。
 - [开放插件工作区实现对照](design_docs/2026-10-29-开放插件工作区/实现对照与验证.md)：历史01/07/10稿面与源码差异记录；以最新插件驱动和原业务界面还原要求为准，不冒充运行截图或浏览器验收。
-- [公开组合与数据能力](guides/plugin-development/composition.md)：面向独立工程的扩展点、工作区、外壳引用、公开挂载、有界释放、通信与数据源契约，随 MCP 原 SDK 主题交付。
+- [公开组合与数据能力](https://github.com/CitricAcidCandy/DeviceForge-SDK/blob/v0.1.0/docs/frontend/composition.md)：面向独立工程的扩展点、工作区、外壳引用、公开挂载、有界释放、通信与数据源契约，随 MCP 原 SDK 主题交付。
 - [插件调试器 R2 七态设计与交付边界](design_docs/2026-10-27-插件调试器/设计规格与交付.md)：真实 Ardot 可编辑画板与本地图层数据；继续实施授权和原生下载缺口分别记录。
 - [插件调试器结构观测底座](implementation/插件调试器结构观测.md)：可选 SDK、树、断言与受约束动作，不等于生产闭环验收。
 - [插件调试器数据源](implementation/插件调试器数据源.md)：业务数据主动登记、模式校验、修订冲突、脱敏与作用域回收。
@@ -92,8 +92,8 @@
 
 ## 开发手册
 
-- [插件开发](guides/插件开发.md)
-- [插件开发者快速开始](guides/插件开发者快速开始.md)
+- [公开插件开发指南](https://github.com/CitricAcidCandy/DeviceForge-SDK/blob/v0.1.0/docs/README.md)
+- [浏览器插件快速开始](https://github.com/CitricAcidCandy/DeviceForge-SDK/blob/v0.1.0/docs/frontend/overview.md)
 - [产品界面依赖与组件来源](guides/产品界面依赖与组件来源.md)
 - [架构与开发约束](guides/架构与开发约束.md)
 - [静态分发与访问](guides/静态分发与访问.md)

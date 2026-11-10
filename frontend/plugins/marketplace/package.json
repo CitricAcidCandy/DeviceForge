@@ -13,7 +13,7 @@
     "@noble/hashes": "2.0.1",
     "@deviceforge/business-kit": "file:../business-kit",
     "@deviceforge/settings": "file:../settings",
-    "@deviceforge/plugin-manifest": "file:../../sdk/dist/deviceforge-plugin-manifest-0.1.0.tgz",
+    "@deviceforge/plugin-manifest": "file:../../../cli/src/plugin-authoring/core",
     "ajv": "8.20.0",
     "fflate": "0.8.3",
     "it-tar": "6.0.6",
@@ -25,7 +25,7 @@
     "react-dom": "^19.3.0"
   },
   "devDependencies": {
-    "@deviceforge/contracts": "file:../../contracts",
-    "@deviceforge/plugin-sdk": "file:../../sdk/dist/deviceforge-plugin-sdk-0.1.0.tgz"
+    "@deviceforge/contracts": "file:../../../../DeviceForge-SDK/browser/contracts",
+    "@deviceforge/plugin-sdk": "file:../../../../DeviceForge-SDK/browser/sdk/dist/deviceforge-plugin-sdk-0.1.0.tgz"
   }
 }

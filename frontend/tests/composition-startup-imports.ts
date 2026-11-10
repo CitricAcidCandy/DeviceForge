@@ -10,7 +10,6 @@ export function registerCompositionStartupImports() {
   const directory = workspacePluginPackages(fileURLToPath(root));
   const aliases = new Map(directory.aliases.map(({ find, replacement }) =>
     [find, pathToFileURL(replacement).href]));
-  aliases.set('@deviceforge/plugin-sdk', new URL('../src/plugin-sdk/index.ts', import.meta.url).href);
   const hooks = registerHooks({
     resolve(specifier, context, nextResolve) {
       const url = aliases.get(specifier);

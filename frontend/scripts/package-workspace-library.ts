@@ -4,6 +4,7 @@ import { pathToFileURL } from 'node:url';
 import { gzipSync } from 'node:zlib';
 import { pack } from 'it-tar';
 import ts from 'typescript';
+import { sdkBrowserPackage } from './sdk-repository.ts';
 import {
   digest, libraryDiagnostics, libraryMetadata, librarySources, readWorkspaceLibrary,
   rewriteDeclarationImports, within,
@@ -134,10 +135,10 @@ if (process.argv[1] && pathToFileURL(resolve(process.argv[1])).href === import.m
   const frontend = resolve(import.meta.dirname, '..');
   const result = await packageWorkspaceLibrary({ root, dependencies: {
     '@deviceforge/plugin-sdk': { version: '0.1.0', declarations: {
-      '@deviceforge/plugin-sdk': join(frontend, 'sdk/lib/index.d.ts'),
+      '@deviceforge/plugin-sdk': join(sdkBrowserPackage(frontend, 'sdk'), 'lib/index.d.ts'),
     } },
     '@deviceforge/contracts': { version: '0.1.0', declarations: {
-      '@deviceforge/contracts/api': join(frontend, 'contracts/api.d.ts'),
+      '@deviceforge/contracts/api': join(sdkBrowserPackage(frontend, 'contracts'), 'api.d.ts'),
     } },
   } });
   console.log(JSON.stringify({ ...result, typeFiles: undefined, declarations: undefined,

@@ -1,6 +1,7 @@
 import { lstat, readFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { join, resolve } from 'node:path';
+import { sdkBrowserPackage } from './sdk-repository.ts';
 
 const semver: unknown = createRequire(import.meta.url)('semver');
 const object = (value: unknown): value is Record<string, unknown> =>
@@ -21,8 +22,8 @@ function validVersion(value: unknown): value is string {
 }
 
 /** 只发现已发行工具的真实版本与字节，不构建、不发行，也不猜测旧归档。 */
-export async function readWorkspaceBuildTool(frontend: string): Promise<WorkspaceBuildTool> {
-  const root = join(resolve(frontend), 'plugin-tools');
+export async function readWorkspaceBuildTool(frontend: string, packageRoot?: string): Promise<WorkspaceBuildTool> {
+  const root = packageRoot ? resolve(packageRoot) : sdkBrowserPackage(frontend, 'tools');
   let metadata: unknown;
   try { metadata = JSON.parse(await readFile(join(root, 'package.json'), 'utf8')); }
   catch (error) { throw new Error('无法读取构建工具元数据 package.json', { cause: error }); }

@@ -6,6 +6,7 @@ import { dirname, join, resolve, sep } from 'node:path';
 import { gzipSync } from 'node:zlib';
 import { pack } from 'it-tar';
 import { releaseProjects, releaseSourceIdentity, unpackPublicPackage } from '../scripts/workspace-release-inputs.ts';
+import { sdkBrowserPackage } from '../scripts/sdk-repository.ts';
 
 let temporary = '';
 before(async () => { temporary = await mkdtemp(join(tmpdir(), 'deviceforge-release-inputs-')); });
@@ -55,7 +56,7 @@ test('发行拒绝空目录和越界入口，不用宿主文件补齐', async ()
 
 test('真实公开 SDK 归档解出实际运行与声明出口，拒绝覆盖', async () => {
   const root = join(temporary, 'sdk');
-  const result = await unpackPublicPackage(resolve(import.meta.dirname, '../sdk/dist/deviceforge-plugin-sdk-0.1.0.tgz'), root);
+  const result = await unpackPublicPackage(join(sdkBrowserPackage(resolve(import.meta.dirname, '..'), 'sdk'), 'dist/deviceforge-plugin-sdk-0.1.0.tgz'), root);
   assert.equal(result.name, '@deviceforge/plugin-sdk');
   assert.equal(result.imports['@deviceforge/plugin-sdk'], join(root, 'lib/index.js'));
   assert.equal(result.declarations['@deviceforge/plugin-sdk'], join(root, 'lib/index.d.ts'));

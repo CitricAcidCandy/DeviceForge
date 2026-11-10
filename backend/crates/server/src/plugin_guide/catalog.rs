@@ -14,7 +14,7 @@ macro_rules! document {
         Document {
             target: Target::$target,
             topic: Topic::$topic,
-            content: include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../", $source)),
+            content: include_str!(concat!(env!("DEVICEFORGE_SDK_ROOT"), "/", $source)),
         }
     };
     ($target:ident, $topic:ident, $source:literal, $supplement:literal) => {
@@ -22,9 +22,9 @@ macro_rules! document {
             target: Target::$target,
             topic: Topic::$topic,
             content: concat!(
-                include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../", $source)),
+                include_str!(concat!(env!("DEVICEFORGE_SDK_ROOT"), "/", $source)),
                 "\n\n",
-                include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../", $supplement))
+                include_str!(concat!(env!("DEVICEFORGE_SDK_ROOT"), "/", $supplement))
             ),
         }
     };
@@ -34,83 +34,83 @@ static DOCUMENTS: [Document; 16] = [
     document!(
         Frontend,
         Dependencies,
-        "frontend/docs/guides/plugin-development/dependencies.md"
+        "docs/frontend/dependencies.md"
     ),
     document!(
         Backend,
         Dependencies,
-        "backend/docs/guides/plugin-development/dependencies.md"
+        "docs/backend/dependencies.md"
     ),
     document!(
         Frontend,
         Overview,
-        "frontend/docs/guides/plugin-development/overview.md"
+        "docs/frontend/overview.md"
     ),
     document!(
         Frontend,
         Manifest,
-        "frontend/docs/guides/plugin-development/manifest.md"
+        "docs/frontend/manifest.md"
     ),
     document!(
         Frontend,
         Sdk,
-        "frontend/docs/guides/plugin-development/sdk.md",
-        "frontend/docs/guides/plugin-development/composition.md"
+        "docs/frontend/sdk.md",
+        "docs/frontend/composition.md"
     ),
     document!(
         Frontend,
         Lifecycle,
-        "frontend/docs/guides/plugin-development/lifecycle.md"
+        "docs/frontend/lifecycle.md"
     ),
     document!(
         Frontend,
         Examples,
-        "frontend/docs/guides/plugin-development/examples.md"
+        "docs/frontend/examples.md"
     ),
     document!(
         Frontend,
         Packaging,
-        "frontend/docs/guides/plugin-development/packaging.md"
+        "docs/frontend/packaging.md"
     ),
     document!(
         Frontend,
         Validation,
-        "frontend/docs/guides/plugin-development/validation.md"
+        "docs/frontend/validation.md"
     ),
     document!(
         Backend,
         Overview,
-        "backend/docs/guides/plugin-development/overview.md"
+        "docs/backend/overview.md"
     ),
     document!(
         Backend,
         Manifest,
-        "backend/docs/guides/plugin-development/manifest.md"
+        "docs/backend/manifest.md"
     ),
     document!(
         Backend,
         Sdk,
-        "backend/docs/guides/plugin-development/sdk.md"
+        "docs/backend/sdk.md"
     ),
     document!(
         Backend,
         Lifecycle,
-        "backend/docs/guides/plugin-development/lifecycle.md"
+        "docs/backend/lifecycle.md"
     ),
     document!(
         Backend,
         Examples,
-        "backend/docs/guides/plugin-development/examples.md"
+        "docs/backend/examples.md"
     ),
     document!(
         Backend,
         Packaging,
-        "backend/docs/guides/plugin-development/packaging.md"
+        "docs/backend/packaging.md"
     ),
     document!(
         Backend,
         Validation,
-        "backend/docs/guides/plugin-development/validation.md"
+        "docs/backend/validation.md"
     ),
 ];
 

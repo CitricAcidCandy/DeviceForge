@@ -30,7 +30,7 @@ test('工具版本0.1.1从当前元数据读取，保留0.1.0归档且不误用�
   await f.metadata({ name: '@deviceforge/plugin-tools', version: '0.1.1' });
   const previous = await f.archive('0.1.0', '旧工具字节');
   const current = await f.archive('0.1.1', '本轮工具字节');
-  const tool = await readWorkspaceBuildTool(f.frontend);
+  const tool = await readWorkspaceBuildTool(f.frontend, f.root);
   assert.equal(tool.name, '@deviceforge/plugin-tools');
   assert.equal(tool.version, '0.1.1');
   assert.equal(tool.archive, current);
@@ -43,7 +43,7 @@ test('原0.1.0及完整预发布构建标识保持精确发行版本', async (un
   for (const version of ['0.1.0', '1.2.3-rc.1+build.007']) {
     await f.metadata({ name: '@deviceforge/plugin-tools', version });
     const archive = await f.archive(version, `版本${version}`);
-    const tool = await readWorkspaceBuildTool(f.frontend);
+    const tool = await readWorkspaceBuildTool(f.frontend, f.root);
     assert.equal(tool.version, version);
     assert.equal(tool.archive, archive);
     assert.equal(tool.content.toString('utf8'), `版本${version}`);
@@ -53,9 +53,9 @@ test('原0.1.0及完整预发布构建标识保持精确发行版本', async (un
 test('缺失或非法工具元数据明确失败，不猜版本或选择旧归档', async (unit) => {
   const f = await fixture(unit);
   await f.archive('0.1.0', '不可猜用旧工具');
-  await assert.rejects(readWorkspaceBuildTool(f.frontend), /构建工具元数据/u);
+  await assert.rejects(readWorkspaceBuildTool(f.frontend, f.root), /构建工具元数据/u);
   await writeFile(join(f.root, 'package.json'), '{"broken":');
-  await assert.rejects(readWorkspaceBuildTool(f.frontend), /构建工具元数据/u);
+  await assert.rejects(readWorkspaceBuildTool(f.frontend, f.root), /构建工具元数据/u);
   for (const metadata of [
     null, [], {}, { name: '@deviceforge/other-tool', version: '0.1.0' },
     { name: '@deviceforge/plugin-tools' }, { name: '@deviceforge/plugin-tools', version: 1 },
@@ -64,7 +64,7 @@ test('缺失或非法工具元数据明确失败，不猜版本或选择旧归�
       .map((version) => ({ name: '@deviceforge/plugin-tools', version })),
   ]) {
     await f.metadata(metadata);
-    await assert.rejects(readWorkspaceBuildTool(f.frontend), /构建工具.*(身份|版本)/u);
+    await assert.rejects(readWorkspaceBuildTool(f.frontend, f.root), /构建工具.*(身份|版本)/u);
   }
 });
 
@@ -72,7 +72,7 @@ test('对应版本真实归档缺失或不是普通文件时拒绝，不回退�
   const f = await fixture(unit);
   await f.metadata({ name: '@deviceforge/plugin-tools', version: '0.1.1' });
   await f.archive('0.1.0', '旧归档');
-  await assert.rejects(readWorkspaceBuildTool(f.frontend), /构建工具归档.*0\.1\.1/u);
+  await assert.rejects(readWorkspaceBuildTool(f.frontend, f.root), /构建工具归档.*0\.1\.1/u);
   await mkdir(join(f.root, 'dist', 'deviceforge-plugin-tools-0.1.1.tgz'));
-  await assert.rejects(readWorkspaceBuildTool(f.frontend), /构建工具归档.*普通文件/u);
+  await assert.rejects(readWorkspaceBuildTool(f.frontend, f.root), /构建工具归档.*普通文件/u);
 });

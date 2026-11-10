@@ -13,6 +13,7 @@ let temporary = '';
 let archive = '';
 let packageRoot = '';
 let typeFiles: readonly string[] = [];
+let dependencyRoot = '';
 const frontend = resolve(import.meta.dirname, '..');
 
 before(async () => {
@@ -20,6 +21,7 @@ before(async () => {
   const built = await packagePluginSdk({ outputRoot: join(temporary, 'distribution') });
   archive = built.archive;
   typeFiles = built.typeFiles;
+  dependencyRoot = built.dependencyRoot;
   packageRoot = join(temporary, 'consumer/node_modules/@deviceforge/plugin-sdk');
   const tar = gunzipSync(await readFile(archive));
   for await (const entry of extract()([tar])) {
@@ -32,7 +34,6 @@ before(async () => {
     await writeFile(destination, Buffer.concat(chunks));
   }
   // 只复制 SDK 声明实际引用的公开第三方类型，不拷贝宿主源码或使用源码路径映射。
-  const dependencyRoot = join(frontend, 'node_modules');
   const copied = new Set<string>();
   for (const file of typeFiles) {
     const path = relative(dependencyRoot, file);

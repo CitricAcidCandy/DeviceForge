@@ -31,7 +31,7 @@
 - `src/services/api`：公共请求、生成类型、错误、取消和日志适配；页面调用公开请求，不直接 fetch。现有共享基础设施和 SDK 保留原边界，本轮不额外扩大业务重构。
 - 页面另可消费 shared/jobs/index.ts 的公共作业能力，以及 plugin-sdk/index.ts、plugin-sdk/json.ts 的公开契约；不开放其他 shared 文件或 SDK 私有路径。
 - 页面支撑过渡清单仅限 app/product 下 services.ts、hooks.ts、feedback.tsx、capabilities.tsx、device-target.ts，供既有页面使用；这些精确路径不表示可以任意读取 app 私有文件，后续按职责迁出。
-- `src/plugin-sdk`：独立公开契约，不依 app/features/pages/shared/plugins。`src/plugins` 通过 SDK 接入宿主，装载失败回滚，卸载撤销贡献并等待资源清理。
+- `src/plugin-sdk`：只保留对同级DeviceForge-SDK/browser/sdk公开包的兼容转发，不再维护契约实现。公开SDK不依 app/features/pages/shared/plugins；构建工具和HTTP发行类型也由该独立仓库维护。`src/plugins` 通过 SDK 接入宿主，装载失败回滚，卸载撤销贡献并等待资源清理。
 - 禁止反向依赖、循环和跨工程源码路径。测试可读内部实现；生产边界不放宽。详见 [前端目录与组件约束](docs/guides/前端目录与组件约束.md)，普通异常直接修结构或门禁，不新增用户审批。
 
 ## 基础工作台与设备扩展
