@@ -6,6 +6,70 @@ use super::{
 use apk_domain::{Error, Result};
 use serde_json::{Value, json};
 
+pub(crate) async fn current(
+    input: Value,
+    service: &apk_application::plugin_guides::GuideService,
+) -> Result<Value> {
+    // 严格参数先于任何缓存访问；旧查询契约与宿主能力元数据保持原样。
+    let mut response = get(input)?;
+    let view = service.read().await;
+    let target = response["target"].as_str().expect("已校验指南目标");
+    let topic = response["topic"].as_str().expect("已校验指南主题");
+    let documents: Vec<_> = ["frontend", "backend"]
+        .into_iter()
+        .filter(|side| target == "fullstack" || target == *side)
+        .flat_map(|side| {
+            view.snapshot
+                .documents
+                .iter()
+                .filter(move |document| document.target == side && document.topic == topic)
+        })
+        .collect();
+    response["documents"] =
+        serde_json::to_value(documents).map_err(|_| Error::Invalid("指南正文无法编码".into()))?;
+    let metadata = metadata(&view);
+    for (key, value) in metadata.as_object().expect("指南元数据为对象") {
+        response[key] = value.clone();
+    }
+    Ok(response)
+}
+
+pub(super) fn metadata(view: &apk_application::plugin_guides::GuideView) -> Value {
+    json!({
+        "guide_version": view.snapshot.guide_version,
+        "guide_source": view.source,
+        "guide_revision": view.snapshot.content_sha256,
+        "guide_diagnostics": view.diagnostics,
+        "guide_compatibility_version": view.snapshot.compatibility_version,
+    })
+}
+
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct UpdateInput {
+    action: UpdateAction,
+}
+
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "lowercase")]
+enum UpdateAction {
+    Update,
+    Reset,
+}
+
+pub(crate) async fn update(
+    input: Value,
+    service: &apk_application::plugin_guides::GuideService,
+) -> Result<Value> {
+    let input: UpdateInput = serde_json::from_value(input)
+        .map_err(|_| Error::Invalid("指南更新参数必须为action:update或action:reset".into()))?;
+    let view = match input.action {
+        UpdateAction::Update => service.update().await?,
+        UpdateAction::Reset => service.reset().await?,
+    };
+    Ok(metadata(&view))
+}
+
 pub(crate) fn get(input: Value) -> Result<Value> {
     let input: Input = serde_json::from_value(input)
         .map_err(|error| Error::Invalid(format!("插件指南参数无效：{error}")))?;

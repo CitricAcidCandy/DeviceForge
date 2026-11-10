@@ -29,6 +29,7 @@ struct McpAdapter {
     artifacts: Option<Arc<dyn apk_domain::artifacts::ArtifactStore>>,
     logging: Option<deviceforge_observability::LogMetrics>,
     notifications: Arc<crate::mcp_notifications::CatalogNotifications>,
+    guides: Arc<apk_application::plugin_guides::GuideService>,
 }
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -54,7 +55,9 @@ impl McpAdapter {
         plugins: Option<Arc<PluginService>>,
         devices: Arc<apk_application::devices::DeviceService>,
         shutdown: tokio_util::sync::CancellationToken,
+        guide_store: Option<Arc<dyn apk_domain::plugin_guides::GuideStore>>,
     ) -> Self {
+        let guides = crate::plugin_guide::service(guide_store, shutdown.child_token());
         Self {
             debugger: Arc::new(apk_application::debugger::DebuggerService::default()),
             app,
@@ -67,6 +70,7 @@ impl McpAdapter {
             notifications: Arc::new(crate::mcp_notifications::CatalogNotifications::new(
                 shutdown,
             )),
+            guides,
         }
     }
     fn plugin_service(&self) -> Result<&Arc<PluginService>> {
@@ -114,7 +118,12 @@ impl McpAdapter {
                         .await?,
                 )
             }
-            crate::plugin_guide::TOOL_NAME => crate::plugin_guide::get(input),
+            crate::plugin_guide::TOOL_NAME => {
+                crate::plugin_guide::current(input, &self.guides).await
+            }
+            crate::plugin_guide::UPDATE_TOOL_NAME => {
+                crate::plugin_guide::update(input, &self.guides).await
+            }
             "deviceforge.list_device_providers"
             | "deviceforge.list_devices"
             | "deviceforge.refresh_devices"
@@ -407,6 +416,7 @@ pub(crate) fn service_with_debugger(
         debugger,
         None,
         None,
+        None,
         config,
     )
 }
@@ -421,9 +431,16 @@ pub(crate) fn service_with_debugger_resources(
     debugger: Arc<apk_application::debugger::DebuggerService>,
     artifacts: Option<Arc<dyn apk_domain::artifacts::ArtifactStore>>,
     logging: Option<deviceforge_observability::LogMetrics>,
+    guide_store: Option<Arc<dyn apk_domain::plugin_guides::GuideStore>>,
     config: StreamableHttpServerConfig,
 ) -> StreamableHttpService<impl ServerHandler, LocalSessionManager> {
-    let mut adapter = McpAdapter::new(app, plugins, devices, config.cancellation_token.clone());
+    let mut adapter = McpAdapter::new(
+        app,
+        plugins,
+        devices,
+        config.cancellation_token.clone(),
+        guide_store,
+    );
     adapter.debugger = debugger;
     adapter.installations = installations;
     adapter.dependencies = dependencies;

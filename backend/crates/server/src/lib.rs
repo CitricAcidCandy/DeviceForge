@@ -381,6 +381,7 @@ fn build_router_with_dependencies(
         debugger.clone(),
         artifacts.clone(),
         runtime.as_ref().map(|services| services.logging.clone()),
+        runtime.as_ref().and_then(|_| plugin_guide::online_store()),
         config,
     );
     if token.chars().any(char::is_whitespace) || requests_per_second == 0 {
@@ -761,6 +762,7 @@ mod artifacts;
 mod browser_configuration_openapi;
 mod browser_configuration_routes;
 pub mod client_connection;
+mod configuration_home;
 mod correlation;
 mod cors;
 mod debugger;

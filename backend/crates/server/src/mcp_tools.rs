@@ -43,7 +43,10 @@ pub(crate) fn operation_tool(operation: apk_domain::Operation) -> Tool {
     )
 }
 pub(crate) fn management_tools(management: bool) -> Vec<Tool> {
-    let mut tools = vec![crate::plugin_guide::tool()];
+    let mut tools = vec![
+        crate::plugin_guide::tool(),
+        crate::plugin_guide::update_tool(),
+    ];
     let job = json!({"type":"object","properties":{"id":{"type":"string"}},"required":["id"],"additionalProperties":false});
     for (name, description, schema) in [
         (

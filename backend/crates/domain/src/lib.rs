@@ -15,6 +15,7 @@ pub mod browser_configurations;
 pub mod interactive;
 pub mod plugin_configurations;
 pub mod plugin_dependencies;
+pub mod plugin_guides;
 pub mod plugin_recovery;
 pub mod services;
 

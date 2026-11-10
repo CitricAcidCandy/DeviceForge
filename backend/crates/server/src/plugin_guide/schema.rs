@@ -58,7 +58,7 @@ pub(crate) fn tool() -> Tool {
     });
     Tool::new(
         super::TOOL_NAME,
-        "开发 DeviceForge 插件时读取此指南，无需获取宿主源码。直接返回开发流程、公开能力和接口、约束、生命周期、调试与发布要求，包含独立工程示例；不提供源码位置或文档物理地址。只读、幂等，不执行代码、不创建任务。",
+        "开发 DeviceForge 插件时读取此指南，无需获取宿主源码。直接返回开发流程、公开能力和接口、约束、生命周期、调试与发布要求，包含独立工程示例；不提供源码位置或文档物理地址。只读、幂等，不联网、不执行代码、不创建任务。仅显式更新资料使用deviceforge.update_plugin_development_guide。",
         schema.as_object().expect("固定指南模式为对象").clone(),
     )
     .with_annotations(
@@ -68,4 +68,18 @@ pub(crate) fn tool() -> Tool {
             .idempotent(true)
             .open_world(false),
     )
+}
+
+pub(crate) fn update_tool() -> Tool {
+    Tool::new(
+        super::UPDATE_TOOL_NAME,
+        "显式更新插件开发指南资料或回到宿主内置指南。update只下载官方完整指南快照并校验兼容性和摘要；reset不联网。保存确认后才采用，失败时当前正文继续可读。不会升级宿主、SDK或插件，不改变调用权限，不创建业务任务。",
+        json!({
+            "type":"object",
+            "properties":{"action":{"type":"string","enum":["update","reset"]}},
+            "required":["action"],
+            "additionalProperties":false
+        }).as_object().expect("固定指南更新模式为对象").clone(),
+    ).with_annotations(ToolAnnotations::default()
+        .read_only(false).destructive(false).idempotent(true).open_world(true))
 }

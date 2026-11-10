@@ -21,14 +21,13 @@ macro_rules! document {
 }
 
 static DOCUMENTS: [Document; 16] = [
-    document!(Frontend, Dependencies, frontend::DEPENDENCIES),
-    document!(Backend, Dependencies, backend::DEPENDENCIES),
     document!(Frontend, Overview, frontend::OVERVIEW),
     document!(Frontend, Manifest, frontend::MANIFEST),
     document!(Frontend, Sdk, frontend::SDK),
     document!(Frontend, Lifecycle, frontend::LIFECYCLE),
     document!(Frontend, Examples, frontend::EXAMPLES),
     document!(Frontend, Packaging, frontend::PACKAGING),
+    document!(Frontend, Dependencies, frontend::DEPENDENCIES),
     document!(Frontend, Validation, frontend::VALIDATION),
     document!(Backend, Overview, backend::OVERVIEW),
     document!(Backend, Manifest, backend::MANIFEST),
@@ -36,6 +35,7 @@ static DOCUMENTS: [Document; 16] = [
     document!(Backend, Lifecycle, backend::LIFECYCLE),
     document!(Backend, Examples, backend::EXAMPLES),
     document!(Backend, Packaging, backend::PACKAGING),
+    document!(Backend, Dependencies, backend::DEPENDENCIES),
     document!(Backend, Validation, backend::VALIDATION),
 ];
 
@@ -46,4 +46,24 @@ pub(super) fn select(target: Target, topic: Topic) -> Vec<&'static Document> {
             document.topic == topic && (target == Target::Fullstack || document.target == target)
         })
         .collect()
+}
+
+pub(super) fn builtin() -> apk_domain::Result<apk_domain::plugin_guides::GuideSnapshot> {
+    fn label(value: impl Serialize) -> apk_domain::Result<String> {
+        match serde_json::to_value(value) {
+            Ok(serde_json::Value::String(value)) => Ok(value),
+            _ => Err(apk_domain::Error::Invalid("内置指南目标或主题无效".into())),
+        }
+    }
+    let documents = DOCUMENTS
+        .iter()
+        .map(|document| {
+            Ok(apk_domain::plugin_guides::GuideDocument {
+                target: label(document.target)?,
+                topic: label(document.topic)?,
+                content: document.content.to_owned(),
+            })
+        })
+        .collect::<apk_domain::Result<Vec<_>>>()?;
+    apk_application::plugin_guides::embedded(documents, deviceforge_plugin_guide::GUIDE_VERSION)
 }

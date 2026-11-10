@@ -22,6 +22,7 @@ pub mod operation_aliases;
 mod operation_budget;
 pub mod plugin_configurations;
 pub mod plugin_dependencies;
+pub mod plugin_guides;
 pub mod plugin_installations;
 pub mod plugin_lifecycle;
 pub mod plugin_packages;
