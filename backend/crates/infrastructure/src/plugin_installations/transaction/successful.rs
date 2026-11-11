@@ -30,7 +30,8 @@ fn read(root: &Path, id: &str) -> Result<History> {
             entries: Vec::new(),
         });
     }
-    let history: History = paths::read(&path, JOURNAL_LIMIT)?;
+    // 成功历史最多保留两份快照，读取预算须与写入及单份事务预算一致。
+    let history: History = paths::read(&path, 2 * JOURNAL_LIMIT)?;
     if history.format_version != 1 || history.entries.len() > 2 {
         return Err(Error::Invalid("成功版本记录格式或数量不符".into()));
     }
@@ -129,7 +130,7 @@ pub(in crate::plugin_installations) fn mark(
     history.entries.insert(0, snapshot);
     history.entries.truncate(2);
     paths::create_directory(&store.root, "installations/successful")?;
-    paths::write(&history_path(&store.root, id), &history)?;
+    paths::write_bounded(&history_path(&store.root, id), &history, 2 * JOURNAL_LIMIT)?;
     repository::sync(store, &writer, &[])
 }
 
@@ -261,7 +262,7 @@ pub(in crate::plugin_installations) fn restore_successful(
     };
     check(context)?;
     let recovery_path = journal_path(&store.root);
-    paths::write(&recovery_path, &reversal)?;
+    paths::write_bounded(&recovery_path, &reversal, JOURNAL_LIMIT)?;
     // 提交开始后沿用原事务：无论调用方是否停止等待，都排空到已提交或已回滚的稳定视图。
     if let Err(error) = restore(&store.root, &restoring) {
         if restore(&store.root, &reversal).is_err() {

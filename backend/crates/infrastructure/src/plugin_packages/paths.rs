@@ -1,5 +1,5 @@
 //! 归档与静态资源共用路径规则，不接受机器目的路径。
-use apk_domain::{Error, Result};
+use apk_domain::{Error, Result, plugin_packages::PLUGIN_MANIFEST_LIMIT};
 use std::{
     fs,
     path::{Path, PathBuf},
@@ -63,22 +63,70 @@ pub fn existing(root: &Path, path: &str, directory: bool) -> Result<PathBuf> {
 
 pub fn json<T: serde::de::DeserializeOwned>(root: &Path, path: &str) -> Result<T> {
     use std::io::Read;
+    let subject = format!("插件清单 {path}");
     let path = existing(root, path, false)?;
+    let file = fs::File::open(path).map_err(|_| Error::Storage("包清单读取失败".into()))?;
+    let size = file
+        .metadata()
+        .map_err(|_| Error::Storage("包清单大小读取失败".into()))?
+        .len();
+    if size > PLUGIN_MANIFEST_LIMIT as u64 {
+        return Err(Error::size_limit(
+            subject,
+            size,
+            PLUGIN_MANIFEST_LIMIT as u64,
+        ));
+    }
     let mut bytes = Vec::new();
-    fs::File::open(path)
-        .map_err(|_| Error::Storage("包清单读取失败".into()))?
-        .take(65_537)
+    file.take(PLUGIN_MANIFEST_LIMIT as u64 + 1)
         .read_to_end(&mut bytes)
         .map_err(|_| Error::Storage("包清单读取失败".into()))?;
-    if bytes.len() > 65_536 {
-        return Err(Error::TooLarge);
+    if bytes.len() > PLUGIN_MANIFEST_LIMIT {
+        return Err(Error::size_limit(
+            subject,
+            bytes.len() as u64,
+            PLUGIN_MANIFEST_LIMIT as u64,
+        ));
     }
-    serde_json::from_slice(&bytes).map_err(|_| Error::Invalid("包清单结构无效".into()))
+    serde_json::from_slice(&bytes).map_err(|error| {
+        Error::Invalid(format!(
+            "{subject} JSON 结构无效（第 {} 行，第 {} 列）",
+            error.line(),
+            error.column()
+        ))
+    })
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn plugin_manifest_json_accepts_five_mib_including_formatted_documents() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = fs::canonicalize(temporary.path()).unwrap();
+        for size in [65_537, 140_015, 5 * 1024 * 1024] {
+            let bytes = format!("\"{}\"", "x".repeat(size - 2));
+            fs::write(root.join("plugin.json"), &bytes).unwrap();
+            let value: String = json(&root, "plugin.json").unwrap();
+            assert_eq!(value.len(), size - 2);
+        }
+    }
+
+    #[test]
+    fn plugin_manifest_json_reports_actual_size_limit_and_relative_name() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = fs::canonicalize(temporary.path()).unwrap();
+        let size = 5 * 1024 * 1024 + 1;
+        fs::write(root.join("plugin.json"), vec![b' '; size]).unwrap();
+        let error = json::<serde_json::Value>(&root, "plugin.json").unwrap_err();
+        assert_eq!(error.code(), "payload_too_large");
+        let message = error.to_string();
+        for expected in ["plugin.json", "5242881", "5242880", "字节"] {
+            assert!(message.contains(expected), "{message}");
+        }
+        assert!(!message.contains(root.to_str().unwrap()));
+    }
 
     #[test]
     fn generated_identity_entry_and_normal_dot_paths_are_relative_resources() {

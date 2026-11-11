@@ -1,6 +1,8 @@
 //! 固定部署目录的受限读取；注册和生命周期属于用例层。
 use crate::plugins::ProcessPlugin;
-use apk_domain::{Error, Result, artifacts::ArtifactStore, plugins::*};
+use apk_domain::{
+    Error, Result, artifacts::ArtifactStore, plugin_packages::PLUGIN_MANIFEST_LIMIT, plugins::*,
+};
 use async_trait::async_trait;
 use deviceforge_observability::LogContext;
 use std::{
@@ -181,16 +183,25 @@ fn read_plugin(
     {
         return Err(Error::Invalid("插件清单必须是部署目录内的普通文件".into()));
     }
-    if metadata.len() > 65536 {
-        return Err(Error::TooLarge);
+    let subject = format!("插件 {id} 的运行清单 manifest.json");
+    if metadata.len() > PLUGIN_MANIFEST_LIMIT as u64 {
+        return Err(Error::size_limit(
+            subject,
+            metadata.len(),
+            PLUGIN_MANIFEST_LIMIT as u64,
+        ));
     }
     let file = std::fs::File::open(path).map_err(|_| Error::Storage("插件清单读取失败".into()))?;
     let mut bytes = Vec::with_capacity(metadata.len() as usize);
-    file.take(65537)
+    file.take(PLUGIN_MANIFEST_LIMIT as u64 + 1)
         .read_to_end(&mut bytes)
         .map_err(|_| Error::Storage("插件清单读取失败".into()))?;
-    if bytes.len() > 65536 {
-        return Err(Error::TooLarge);
+    if bytes.len() > PLUGIN_MANIFEST_LIMIT {
+        return Err(Error::size_limit(
+            subject,
+            bytes.len() as u64,
+            PLUGIN_MANIFEST_LIMIT as u64,
+        ));
     }
     let mut manifest: apk_plugin_sdk::Manifest = serde_json::from_slice(&bytes)
         .map_err(|_| Error::Invalid("插件清单不符合公开协议".into()))?;

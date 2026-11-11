@@ -51,6 +51,8 @@ pub struct Failure {
     message: String,
 }
 struct ApiError(StatusCode, Failure);
+#[cfg(test)]
+mod limit_error_tests;
 impl ApiError {
     fn new(status: StatusCode, code: &str, message: impl Into<String>) -> Self {
         Self(

@@ -18,8 +18,14 @@ pub(super) fn hash(path: &Path, limit: u64) -> Result<FileStamp> {
 fn hash_checked(path: &Path, limit: u64, check: &dyn Fn() -> Result<()>) -> Result<FileStamp> {
     check()?;
     let metadata = paths::file(path)?;
+    let subject = format!(
+        "安装资源 {}",
+        path.file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or("未知资源")
+    );
     if metadata.len() > limit {
-        return Err(Error::TooLarge);
+        return Err(Error::size_limit(subject, metadata.len(), limit));
     }
     let mut file = fs::File::open(path).map_err(|_| Error::Storage("资源校验读取失败".into()))?;
     let mut buffer = [0u8; 64 * 1024];
@@ -33,10 +39,10 @@ fn hash_checked(path: &Path, limit: u64, check: &dyn Fn() -> Result<()>) -> Resu
         if count == 0 {
             break;
         }
-        size = size
-            .checked_add(count as u64)
-            .filter(|size| *size <= limit)
-            .ok_or(Error::TooLarge)?;
+        size = size.saturating_add(count as u64);
+        if size > limit {
+            return Err(Error::size_limit(subject, size, limit));
+        }
         digest.update(&buffer[..count]);
     }
     if size != metadata.len() {

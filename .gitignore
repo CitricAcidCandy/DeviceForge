@@ -14,5 +14,5 @@
 /third-party-plugins/
 .tmp/
 tmp/
-
+.agents
 /tmp-dsh/

@@ -113,8 +113,14 @@ pub(super) fn lock(path: &Path) -> Result<fs::File> {
 }
 pub(super) fn read<T: DeserializeOwned>(path: &Path, limit: usize) -> Result<T> {
     let metadata = file(path)?;
+    let subject = format!(
+        "安装清单文件 {}",
+        path.file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or("未知清单")
+    );
     if metadata.len() > limit as u64 {
-        return Err(Error::TooLarge);
+        return Err(Error::size_limit(subject, metadata.len(), limit as u64));
     }
     let mut bytes = Vec::new();
     fs::File::open(path)
@@ -123,12 +129,33 @@ pub(super) fn read<T: DeserializeOwned>(path: &Path, limit: usize) -> Result<T> 
         .read_to_end(&mut bytes)
         .map_err(|_| Error::Storage("安装记录读取失败".into()))?;
     if bytes.len() > limit {
-        return Err(Error::TooLarge);
+        return Err(Error::size_limit(subject, bytes.len() as u64, limit as u64));
     }
-    serde_json::from_slice(&bytes).map_err(|_| Error::Invalid("安装记录结构损坏".into()))
+    serde_json::from_slice(&bytes).map_err(|error| {
+        Error::Invalid(format!(
+            "{subject} JSON 结构无效（第 {} 行，第 {} 列）",
+            error.line(),
+            error.column()
+        ))
+    })
 }
 pub(super) fn write<T: Serialize>(path: &Path, value: &T) -> Result<()> {
     let bytes = serde_json::to_vec(value).map_err(|_| Error::Storage("安装记录编码失败".into()))?;
+    write_bytes(path, &bytes)
+}
+pub(super) fn write_bounded<T: Serialize>(path: &Path, value: &T, limit: usize) -> Result<()> {
+    let bytes = serde_json::to_vec(value).map_err(|_| Error::Storage("安装记录编码失败".into()))?;
+    if bytes.len() > limit {
+        let name = path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or("未知清单");
+        return Err(Error::size_limit(
+            format!("生成清单文件 {name}"),
+            bytes.len() as u64,
+            limit as u64,
+        ));
+    }
     write_bytes(path, &bytes)
 }
 pub(super) fn write_bytes(path: &Path, bytes: &[u8]) -> Result<()> {

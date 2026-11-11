@@ -66,10 +66,28 @@ fn oversized_tar_declarations_and_corrupt_gzip_fail_before_publication() {
         (b'0', "package/huge.js", 64 * 1024 * 1024 + 1, vec![]),
         (b'L', "extension", 4097, vec![]),
     ] {
-        assert!(matches!(
-            extract(&tgz(&[entry]), PackageFormat::Tgz),
-            Err(Error::TooLarge)
-        ));
+        let expected_subject = if entry.0 == b'0' {
+            "归档文件 huge.js"
+        } else {
+            "TAR 扩展头"
+        };
+        let expected_size = entry.2.to_string();
+        let expected_limit = if entry.0 == b'0' {
+            64 * 1024 * 1024
+        } else {
+            4096
+        };
+        let error = extract(&tgz(&[entry]), PackageFormat::Tgz).unwrap_err();
+        assert_eq!(error.code(), "payload_too_large");
+        let message = error.to_string();
+        for expected in [
+            expected_subject,
+            &expected_size,
+            &expected_limit.to_string(),
+            "字节",
+        ] {
+            assert!(message.contains(expected), "{message}");
+        }
     }
     let valid = tgz(&[(b'0', "package/main.js", 4, b"code".to_vec())]);
     let mut bad_crc = valid.clone();
@@ -96,8 +114,10 @@ fn zip_entry_count_is_rejected_before_creating_files() {
         .unwrap();
     }
     let bytes = zip.finish().unwrap().into_inner();
-    assert!(matches!(
-        extract(&bytes, PackageFormat::Zip),
-        Err(Error::TooLarge)
-    ));
+    let error = extract(&bytes, PackageFormat::Zip).unwrap_err();
+    assert_eq!(error.code(), "payload_too_large");
+    let message = error.to_string();
+    for expected in ["ZIP 归档条目数量", "4097", "4096", "项"] {
+        assert!(message.contains(expected), "{message}");
+    }
 }

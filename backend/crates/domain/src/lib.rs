@@ -25,6 +25,13 @@ pub enum Error {
     Invalid(String),
     #[error("产物大小超过上限")]
     TooLarge,
+    #[error("{subject}超出上限：实际 {actual} {unit}，允许上限 {limit} {unit}")]
+    LimitExceeded {
+        subject: String,
+        actual: u64,
+        limit: u64,
+        unit: &'static str,
+    },
     #[error("资源不存在：{0}")]
     NotFound(String),
     #[error("操作冲突：{0}")]
@@ -43,11 +50,47 @@ pub enum Error {
 pub type Result<T> = std::result::Result<T, Error>;
 
 impl Error {
+    pub fn size_limit(subject: impl Into<String>, actual: u64, limit: u64) -> Self {
+        Self::LimitExceeded {
+            subject: subject.into(),
+            actual,
+            limit,
+            unit: "字节",
+        }
+    }
+
+    pub fn count_limit(subject: impl Into<String>, actual: u64, limit: u64) -> Self {
+        Self::LimitExceeded {
+            subject: subject.into(),
+            actual,
+            limit,
+            unit: "项",
+        }
+    }
+
+    /// 只给明确的资源上限补充归属，不回显底层路径或其他错误载荷。
+    pub fn with_limit_context(self, context: &str) -> Self {
+        match self {
+            Self::LimitExceeded {
+                subject,
+                actual,
+                limit,
+                unit,
+            } => Self::LimitExceeded {
+                subject: format!("{context} / {subject}"),
+                actual,
+                limit,
+                unit,
+            },
+            other => other,
+        }
+    }
+
     /// 稳定错误类别用于公开响应和日志，不包含底层载荷或路径。
     pub fn code(&self) -> &'static str {
         match self {
             Self::Invalid(_) => "invalid_input",
-            Self::TooLarge => "payload_too_large",
+            Self::TooLarge | Self::LimitExceeded { .. } => "payload_too_large",
             Self::NotFound(_) => "not_found",
             Self::Conflict(_) => "conflict",
             Self::Cancelled => "cancelled",
@@ -231,6 +274,28 @@ pub fn now() -> u64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn detailed_limits_preserve_public_code_values_units_and_component_context() {
+        let error = Error::size_limit("插件清单 plugin.json", 5_242_881, 5_242_880)
+            .with_limit_context("组件 example.server");
+        assert_eq!(error.code(), Error::TooLarge.code());
+        assert_eq!(
+            error.to_string(),
+            "组件 example.server / 插件清单 plugin.json超出上限：实际 5242881 字节，允许上限 5242880 字节"
+        );
+        let count = Error::count_limit("ZIP 归档条目数量", 4097, 4096);
+        assert_eq!(count.code(), "payload_too_large");
+        assert_eq!(
+            count.to_string(),
+            "ZIP 归档条目数量超出上限：实际 4097 项，允许上限 4096 项"
+        );
+        assert_eq!(
+            Error::Invalid("原校验错误".into())
+                .with_limit_context("组件 example.server")
+                .to_string(),
+            "输入无效：原校验错误"
+        );
+    }
     #[test]
     fn reject_options_and_shell_input() {
         for value in ["", "-s", "a;b", "a\nb", "$(whoami)"] {

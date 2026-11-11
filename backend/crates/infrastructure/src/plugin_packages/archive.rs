@@ -11,6 +11,38 @@ use std::{
 const FILE_LIMIT: u64 = 64 * 1024 * 1024;
 const TOTAL_LIMIT: u64 = 256 * 1024 * 1024;
 
+#[cfg(test)]
+mod limit_tests {
+    use super::*;
+
+    #[test]
+    fn archive_expanded_total_reports_separate_budget_without_writing_offending_file() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut extractor = Extractor {
+            root: directory.path(),
+            paths: HashSet::new(),
+            total: 0,
+            entries: 0,
+            npm_prefix: false,
+            file_limit: 4,
+            total_limit: 6,
+            entry_limit: 4,
+        };
+        extractor
+            .entry("first.bin", false, 4, &mut &b"1234"[..], false)
+            .unwrap();
+        let error = extractor
+            .entry("second.bin", false, 3, &mut &b"123"[..], false)
+            .unwrap_err();
+        assert_eq!(error.code(), "payload_too_large");
+        assert_eq!(
+            error.to_string(),
+            "归档解压总量（读取 second.bin 时）超出上限：实际 7 字节，允许上限 6 字节"
+        );
+        assert!(!directory.path().join("second.bin").exists());
+    }
+}
+
 struct Extractor<'a> {
     root: &'a Path,
     paths: HashSet<String>,
@@ -32,7 +64,11 @@ impl Extractor<'_> {
     ) -> Result<()> {
         self.entries += 1;
         if self.entries > self.entry_limit {
-            return Err(Error::TooLarge);
+            return Err(Error::count_limit(
+                "归档条目数量",
+                self.entries as u64,
+                self.entry_limit as u64,
+            ));
         }
         let name = name.trim_end_matches('/');
         if self.npm_prefix && name == "package" && directory {
@@ -55,15 +91,22 @@ impl Extractor<'_> {
         if !self.paths.insert(name.to_lowercase()) {
             return Err(Error::Invalid("归档包含重复路径".into()));
         }
-        if size > self.file_limit
-            || self
-                .total
-                .checked_add(size)
-                .is_none_or(|total| total > self.total_limit)
-        {
-            return Err(Error::TooLarge);
+        if size > self.file_limit {
+            return Err(Error::size_limit(
+                format!("归档文件 {name}"),
+                size,
+                self.file_limit,
+            ));
         }
-        self.total += size;
+        let total = self.total.saturating_add(size);
+        if total > self.total_limit {
+            return Err(Error::size_limit(
+                format!("归档解压总量（读取 {name} 时）"),
+                total,
+                self.total_limit,
+            ));
+        }
+        self.total = total;
         let path = self.root.join(relative);
         if directory {
             fs::create_dir_all(path).map_err(|_| Error::Invalid("归档目录与文件冲突".into()))?;
@@ -161,7 +204,11 @@ fn extract_mode(
             let mut archive =
                 zip::ZipArchive::new(file).map_err(|_| Error::Invalid("ZIP 格式无效".into()))?;
             if archive.len() > entry_limit {
-                return Err(Error::TooLarge);
+                return Err(Error::count_limit(
+                    "ZIP 归档条目数量",
+                    archive.len() as u64,
+                    entry_limit as u64,
+                ));
             }
             for index in 0..archive.len() {
                 let mut entry = archive
@@ -194,13 +241,17 @@ fn extract_mode(
                     .enumerate()
                 {
                     if count >= entry_limit {
-                        return Err(Error::TooLarge);
+                        return Err(Error::count_limit(
+                            "TAR 归档条目数量（含扩展头）",
+                            count as u64 + 1,
+                            entry_limit as u64,
+                        ));
                     }
                     let mut entry = entry.map_err(|_| Error::Invalid("TAR 条目无效".into()))?;
                     let kind = entry.header().entry_type();
                     if [b'L', b'x', b'g'].contains(&kind.as_byte()) {
                         if entry.size() > 4096 {
-                            return Err(Error::TooLarge);
+                            return Err(Error::size_limit("TAR 扩展头", entry.size(), 4096));
                         }
                         let mut bytes = Vec::new();
                         entry
@@ -263,7 +314,12 @@ fn extract_mode(
             std::io::copy(&mut limited, &mut std::io::sink())
                 .map_err(|_| Error::Invalid("TGZ 内容损坏或校验失败".into()))?;
             if limited.limit() == 0 {
-                return Err(Error::TooLarge);
+                let limit = total_limit + 16 * 1024 * 1024;
+                return Err(Error::size_limit(
+                    "TGZ 解压数据（含 TAR 头与填充）",
+                    limit + 1,
+                    limit,
+                ));
             }
         }
     }

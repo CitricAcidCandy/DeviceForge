@@ -339,7 +339,8 @@ pub(super) async fn prepare_reported(
             &variant.sha256,
             progress.clone(),
         )
-        .await?;
+        .await
+        .map_err(|error| error.with_limit_context(&format!("组件 {}", component.id)))?;
         progress
             .report(apk_domain::JobProgress {
                 stage: apk_domain::JobStage::Verifying,
@@ -364,7 +365,7 @@ pub(super) async fn prepare_reported(
             let (package, operations) = crate::plugin_packages::manifest::validate_with_dependencies(&target, &target, declaration.kind, store.node.as_deref(), dependencies.as_ref())?;
             if package.id != declaration.id || package.version != declaration.version { return Err(Error::Invalid("组件便携清单身份或版本与发布不符".into())); }
             if declaration.kind == PackageKind::Server {
-                let mut manifest: apk_plugin_sdk::Manifest = paths::read(&target.join("manifest.json"), 65_536)?;
+                let mut manifest: apk_plugin_sdk::Manifest = paths::read(&target.join("manifest.json"), apk_domain::plugin_packages::PLUGIN_MANIFEST_LIMIT)?;
                 let temporary_prefix = target.join(&declaration.id).to_string_lossy().into_owned();
                 let final_prefix = final_directory.to_string_lossy().into_owned();
                 manifest.executable = manifest.executable.replacen(&temporary_prefix, &final_prefix, 1);
@@ -373,15 +374,15 @@ pub(super) async fn prepare_reported(
                     let mapped = final_directory.join(&package.entry_path).to_string_lossy().into_owned();
                     *script = mapped.strip_prefix(r"\\?\").unwrap_or(&mapped).to_owned();
                 }
-                paths::write(&target.join("manifest.json"), &manifest)?;
+                paths::write_bounded(&target.join("manifest.json"), &manifest, apk_domain::plugin_packages::PLUGIN_MANIFEST_LIMIT)?;
             } else {
-                let package_manifest: apk_plugin_sdk::packages::PortablePackage = paths::read(&target.join("package.json"), 65_536)?;
+                let package_manifest: apk_plugin_sdk::packages::PortablePackage = paths::read(&target.join("package.json"), apk_domain::plugin_packages::PLUGIN_MANIFEST_LIMIT)?;
                 let source = paths::existing(&target, &package_manifest.deviceforge.manifest)?;
-                let manifest: apk_plugin_sdk::packages::BrowserManifest = paths::read(&source, 65_536)?;
-                paths::write(&target.join("manifest.json"), &manifest)?;
+                let manifest: apk_plugin_sdk::packages::BrowserManifest = paths::read(&source, apk_domain::plugin_packages::PLUGIN_MANIFEST_LIMIT)?;
+                paths::write_bounded(&target.join("manifest.json"), &manifest, apk_domain::plugin_packages::PLUGIN_MANIFEST_LIMIT)?;
             }
             Ok((InstalledComponent {id: package.id, kind: declaration.kind, version: package.version, revision: revision.clone(), entry_path: package.entry_path.clone(), entry_url: (declaration.kind == PackageKind::Browser).then(|| format!("/api/v2/plugin-installations/browser/{}/revisions/{revision}/assets/{}", declaration.id, package.entry_path))}, operations))
-        }).await?;
+        }).await.map_err(|error| error.with_limit_context(&format!("组件 {}", component.id)))?;
         operations.extend(contribution);
         components.push(ComponentContent { info, staged });
     }

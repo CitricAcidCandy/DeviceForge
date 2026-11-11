@@ -2,6 +2,40 @@
 use super::*;
 use serde_json::json;
 
+#[test]
+fn generated_plugin_manifest_size_is_checked_after_runtime_fields_are_added() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = fs::canonicalize(temporary.path()).unwrap();
+    fs::write(root.join("entry.bin"), b"fixture-only").unwrap();
+    fs::write(
+        root.join("package.json"),
+        serde_json::to_vec(&json!({
+            "version":"1.0.0", "deviceforge":{"kind":"server", "manifest":"plugin.json",
+            "entrypoints":{"any":{"runtime":"native","path":"entry.bin"}}}
+        }))
+        .unwrap(),
+    )
+    .unwrap();
+    let mut portable = json!({"id":"generated_limit", "version":"1.0.0", "protocol_version":1,
+        "operations":[{"name":"inspect","title":"只读夹具","input_schema":{"type":"object","description":""}}]});
+    let overhead = serde_json::to_vec(&portable).unwrap().len();
+    portable["operations"][0]["input_schema"]["description"] =
+        json!("x".repeat(PLUGIN_MANIFEST_LIMIT - overhead));
+    let bytes = serde_json::to_vec(&portable).unwrap();
+    assert_eq!(bytes.len(), PLUGIN_MANIFEST_LIMIT);
+    fs::write(root.join("plugin.json"), bytes).unwrap();
+    let error = match validate(&root, &root, PackageKind::Server, None) {
+        Ok(_) => panic!("生成运行字段后超限的清单不应写入"),
+        Err(error) => error,
+    };
+    assert_eq!(error.code(), "payload_too_large");
+    let message = error.to_string();
+    for expected in ["生成运行清单", "manifest.json", "5242880", "字节"] {
+        assert!(message.contains(expected), "{message}");
+    }
+    assert!(!root.join("manifest.json").exists());
+}
+
 fn fixture(root: &Path, required: bool) {
     fs::write(root.join("script.py"), b"print('example')").unwrap();
     fs::write(

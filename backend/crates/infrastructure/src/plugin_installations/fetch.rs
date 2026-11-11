@@ -49,8 +49,8 @@ async fn stream(
     if !response.status().is_success() {
         return Err(Error::Dependency("发布资源返回非成功状态".into()));
     }
-    if response.content_length().is_some_and(|size| size > limit) {
-        return Err(Error::TooLarge);
+    if let Some(size) = response.content_length().filter(|size| *size > limit) {
+        return Err(Error::size_limit("发布下载响应", size, limit));
     }
     Ok(Box::pin(response.bytes_stream().map(|chunk| {
         chunk.map_err(|_| Error::Dependency("发布资源流读取失败".into()))
@@ -78,10 +78,16 @@ async fn save(
         .map_err(|_| Error::Timeout)?
     {
         let chunk = chunk?;
-        total = total
-            .checked_add(chunk.len() as u64)
-            .filter(|size| *size <= limit && expected.is_none_or(|(expected, _)| *size <= expected))
-            .ok_or(Error::TooLarge)?;
+        total = total.saturating_add(chunk.len() as u64);
+        let maximum = expected.map_or(limit, |(size, _)| limit.min(size));
+        if total > maximum {
+            let subject = match path.file_name().and_then(|name| name.to_str()) {
+                Some("release.json") => "发布清单 release.json",
+                Some("offline.zip") => "离线安装包",
+                _ => "发布组件或工具资源",
+            };
+            return Err(Error::size_limit(subject, total, maximum));
+        }
         digest.update(&chunk);
         tokio::time::timeout_at(deadline, file.write_all(&chunk))
             .await

@@ -3,6 +3,9 @@ use crate::{Operation, Result, artifacts::ArtifactStream};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
+/// 便携清单和生成运行清单共用预算，读取、安装与加载不得各自收紧。
+pub const PLUGIN_MANIFEST_LIMIT: usize = 5 * 1024 * 1024;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum PackageKind {

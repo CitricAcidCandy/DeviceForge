@@ -144,14 +144,36 @@ pub(crate) fn validate_with_dependencies(
             }
             let portable: PortableServerManifest =
                 paths::json(root, &package.deviceforge.manifest)?;
-            if portable.operations.len() > 4096
-                || portable.args.len() > 128
-                || portable
-                    .args
-                    .iter()
-                    .any(|arg| arg.len() > 4096 || arg.contains('\0'))
-            {
-                return Err(Error::TooLarge);
+            plugin_id(&portable.id)?;
+            if portable.operations.len() > 4096 {
+                return Err(Error::count_limit(
+                    format!("插件 {} 的操作声明数量", portable.id),
+                    portable.operations.len() as u64,
+                    4096,
+                ));
+            }
+            if portable.args.len() > 128 {
+                return Err(Error::count_limit(
+                    format!("插件 {} 的启动参数数量", portable.id),
+                    portable.args.len() as u64,
+                    128,
+                ));
+            }
+            for (index, arg) in portable.args.iter().enumerate() {
+                if arg.len() > 4096 {
+                    return Err(Error::size_limit(
+                        format!("插件 {} 的第 {} 个启动参数", portable.id, index + 1),
+                        arg.len() as u64,
+                        4096,
+                    ));
+                }
+                if arg.contains('\0') {
+                    return Err(Error::Invalid(format!(
+                        "插件 {} 的第 {} 个启动参数包含空字符",
+                        portable.id,
+                        index + 1
+                    )));
+                }
             }
             if !["native", "node", "script"].contains(&entry.runtime.as_str()) {
                 return Err(Error::Invalid("服务器入口只接受 native/node/script".into()));
@@ -230,8 +252,12 @@ pub(crate) fn validate_with_dependencies(
             }
             let bytes = serde_json::to_vec(&manifest)
                 .map_err(|_| Error::Invalid("清单无法序列化".into()))?;
-            if bytes.len() > 65_536 {
-                return Err(Error::TooLarge);
+            if bytes.len() > PLUGIN_MANIFEST_LIMIT {
+                return Err(Error::size_limit(
+                    format!("插件 {} 的生成运行清单 manifest.json", portable.id),
+                    bytes.len() as u64,
+                    PLUGIN_MANIFEST_LIMIT as u64,
+                ));
             }
             fs::write(root.join("manifest.json"), bytes)
                 .map_err(|_| Error::Storage("运行清单写入失败".into()))?;

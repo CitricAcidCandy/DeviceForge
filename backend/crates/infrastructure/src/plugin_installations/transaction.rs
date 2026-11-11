@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use std::{
     collections::BTreeMap,
     fs,
+    io::Read,
     path::{Path, PathBuf},
 };
 
@@ -17,7 +18,10 @@ const ACTIVE: [&str; 6] = [
     "dependencies.json",
     ".deviceforge-runtime.json",
 ];
-const JOURNAL_LIMIT: usize = 32 * 1024 * 1024;
+const ACTIVE_FILE_LIMIT: usize = apk_domain::plugin_packages::PLUGIN_MANIFEST_LIMIT;
+const ACTIVE_TOTAL_LIMIT: usize = 16 * 1024 * 1024;
+// Vec<u8> 在现有日志格式中编码为数字数组，按最坏四倍膨胀并预留记录预算。
+const JOURNAL_LIMIT: usize = 4 * ACTIVE_TOTAL_LIMIT + 4 * 1024 * 1024;
 #[derive(Serialize, Deserialize)]
 struct Journal {
     id: String,
@@ -52,22 +56,47 @@ fn capture(
     let mut result = BTreeMap::new();
     let mut total = 0usize;
     for relative in current.into_iter().chain(next).flat_map(active_paths) {
+        if result.contains_key(&relative) {
+            continue;
+        }
         validate_release_path(&relative)?;
         let path = root.join(&relative);
         let value = match fs::symlink_metadata(&path) {
             Ok(_) => {
-                if paths::file(&path)?.len() > 2 * 1024 * 1024 {
-                    return Err(Error::TooLarge);
+                let size = paths::file(&path)?.len();
+                if size > ACTIVE_FILE_LIMIT as u64 {
+                    return Err(Error::size_limit(
+                        format!("旧活动清单备份 {relative}"),
+                        size,
+                        ACTIVE_FILE_LIMIT as u64,
+                    ));
                 }
-                Some(fs::read(path).map_err(|_| Error::Storage("旧活动视图备份失败".into()))?)
+                let mut bytes = Vec::new();
+                fs::File::open(path)
+                    .map_err(|_| Error::Storage("旧活动视图备份失败".into()))?
+                    .take(ACTIVE_FILE_LIMIT as u64 + 1)
+                    .read_to_end(&mut bytes)
+                    .map_err(|_| Error::Storage("旧活动视图备份失败".into()))?;
+                if bytes.len() > ACTIVE_FILE_LIMIT {
+                    return Err(Error::size_limit(
+                        format!("旧活动清单备份 {relative}"),
+                        bytes.len() as u64,
+                        ACTIVE_FILE_LIMIT as u64,
+                    ));
+                }
+                Some(bytes)
             }
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
             Err(_) => return Err(Error::Storage("旧活动视图不可访问".into())),
         };
-        total = total
-            .checked_add(value.as_ref().map_or(0, Vec::len))
-            .filter(|total| *total <= 4 * 1024 * 1024)
-            .ok_or(Error::TooLarge)?;
+        total = total.saturating_add(value.as_ref().map_or(0, Vec::len));
+        if total > ACTIVE_TOTAL_LIMIT {
+            return Err(Error::size_limit(
+                "旧活动清单备份总量",
+                total as u64,
+                ACTIVE_TOTAL_LIMIT as u64,
+            ));
+        }
         result.insert(relative, value);
     }
     Ok(result)
@@ -120,7 +149,11 @@ fn validate_journal(journal: &Journal) -> Result<()> {
         }
     }
     if journal.files.len() > 256 {
-        return Err(Error::TooLarge);
+        return Err(Error::count_limit(
+            "安装事务备份文件数量",
+            journal.files.len() as u64,
+            256,
+        ));
     }
     let mut total = 0usize;
     for (relative, bytes) in &journal.files {
@@ -133,10 +166,22 @@ fn validate_journal(journal: &Journal) -> Result<()> {
             return Err(Error::Invalid("事务恢复路径越界".into()));
         }
         apk_domain::plugins::plugin_id(parts[1])?;
-        total = total
-            .checked_add(bytes.as_ref().map_or(0, Vec::len))
-            .filter(|total| *total <= 4 * 1024 * 1024)
-            .ok_or(Error::TooLarge)?;
+        let size = bytes.as_ref().map_or(0, Vec::len);
+        if size > ACTIVE_FILE_LIMIT {
+            return Err(Error::size_limit(
+                format!("安装事务清单备份 {relative}"),
+                size as u64,
+                ACTIVE_FILE_LIMIT as u64,
+            ));
+        }
+        total = total.saturating_add(size);
+        if total > ACTIVE_TOTAL_LIMIT {
+            return Err(Error::size_limit(
+                "安装事务清单备份总量",
+                total as u64,
+                ACTIVE_TOTAL_LIMIT as u64,
+            ));
+        }
     }
     Ok(())
 }
@@ -235,7 +280,7 @@ pub(super) fn recover(root: &Path) -> Result<()> {
             let snapshot = root
                 .join("installations")
                 .join(format!("previous-{}.json", journal.id));
-            if paths::write(&snapshot, &journal).is_err() {
+            if paths::write_bounded(&snapshot, &journal, JOURNAL_LIMIT).is_err() {
                 block_journal(
                     root,
                     &journal,
@@ -409,7 +454,7 @@ pub(super) fn commit(
         files: capture(&store.root, current.as_ref(), Some(&prepared.info))?,
     };
     let journal_path = journal_path(&store.root);
-    paths::write(&journal_path, &journal)?;
+    paths::write_bounded(&journal_path, &journal, JOURNAL_LIMIT)?;
     let outcome = (|| {
         if let Some(current) = &current {
             for relative in active_paths(current) {
@@ -553,7 +598,7 @@ pub(super) fn delete(store: &FilePluginInstallations, record: &InstalledRelease)
         files: capture(&store.root, Some(record), None)?,
     };
     let path = journal_path(&store.root);
-    paths::write(&path, &journal)?;
+    paths::write_bounded(&path, &journal, JOURNAL_LIMIT)?;
     let result = (|| {
         for relative in active_paths(record) {
             let target = store.root.join(relative);
@@ -631,7 +676,7 @@ pub(super) fn restore_previous(
         files: capture(&store.root, Some(&current), Some(&previous))?,
     };
     let recovery_path = journal_path(&store.root);
-    paths::write(&recovery_path, &reversal)?;
+    paths::write_bounded(&recovery_path, &reversal, JOURNAL_LIMIT)?;
     if let Err(error) = restore(&store.root, &journal) {
         if restore(&store.root, &reversal).is_err() {
             block_journal(
@@ -655,7 +700,9 @@ pub(super) fn restore_previous(
         }
         return Err(error);
     }
-    if paths::write(&path, &reversal).is_err() || fs::remove_file(recovery_path).is_err() {
+    if paths::write_bounded(&path, &reversal, JOURNAL_LIMIT).is_err()
+        || fs::remove_file(recovery_path).is_err()
+    {
         block_journal(
             &store.root,
             &reversal,

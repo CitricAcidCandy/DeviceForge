@@ -172,11 +172,9 @@ impl PackageStore for FilePluginPackages {
         let mut total = 0u64;
         while let Some(chunk) = stream.next().await {
             let chunk = chunk?;
-            total = total
-                .checked_add(chunk.len() as u64)
-                .ok_or(Error::TooLarge)?;
+            total = total.saturating_add(chunk.len() as u64);
             if total > UPLOAD_LIMIT {
-                return Err(Error::TooLarge);
+                return Err(Error::size_limit("便携插件上传包", total, UPLOAD_LIMIT));
             }
             file.write_all(&chunk)
                 .await

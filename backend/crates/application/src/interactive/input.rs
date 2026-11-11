@@ -74,6 +74,17 @@ fn copy_error(error: &Error) -> Error {
     match error {
         Error::Invalid(message) => Error::Invalid(message.clone()),
         Error::TooLarge => Error::TooLarge,
+        Error::LimitExceeded {
+            subject,
+            actual,
+            limit,
+            unit,
+        } => Error::LimitExceeded {
+            subject: subject.clone(),
+            actual: *actual,
+            limit: *limit,
+            unit: *unit,
+        },
         Error::NotFound(message) => Error::NotFound(message.clone()),
         Error::Conflict(message) => Error::Conflict(message.clone()),
         Error::Cancelled => Error::Cancelled,
@@ -81,5 +92,18 @@ fn copy_error(error: &Error) -> Error {
         Error::CleanupFailed => Error::CleanupFailed,
         Error::Dependency(_) => Error::Dependency("会话输入依赖异常".into()),
         Error::Storage(_) => Error::Storage("会话输入状态异常".into()),
+    }
+}
+
+#[cfg(test)]
+mod limit_tests {
+    use super::*;
+
+    #[test]
+    fn copied_resource_limit_retains_safe_details_and_stable_code() {
+        let error = Error::size_limit("插件清单 plugin.json", 5_242_881, 5_242_880);
+        let copied = copy_error(&error);
+        assert_eq!(copied.code(), "payload_too_large");
+        assert_eq!(copied.to_string(), error.to_string());
     }
 }

@@ -7,6 +7,7 @@ use std::fs;
 use std::io::{Cursor, Write};
 mod identity_entry;
 mod local_rebuild;
+mod manifest_limits;
 mod successful;
 
 #[test]
